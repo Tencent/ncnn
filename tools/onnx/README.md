@@ -8,8 +8,9 @@ The `onnx2ncnn` tool is now considered legacy. We strongly recommend using **[pn
 
 pnnx is the new-generation model converter that is actively developed and maintained. It offers a more robust and flexible solution for converting models from various deep learning frameworks into ncnn.
 
-* pnnx: [https://github.com/pnnx/pnnx](https://github.com/pnnx/pnnx)
-* ncnn: [https://github.com/Tencent/ncnn](https://github.com/Tencent/ncnn)
+* pnnx: https://github.com/pnnx/pnnx
+* ncnn: https://github.com/Tencent/ncnn
+* supported onnx operators: https://github.com/Tencent/ncnn/tree/master/tools/pnnx#supported-onnx-operator-status
 
 ## Quick Start: Basic Usage
 
