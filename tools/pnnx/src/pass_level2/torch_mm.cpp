@@ -143,14 +143,12 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        ops.at("mm")->inputnames.resize(2);
-        ops.at("mm")->inputnames[0] = "input";
-        ops.at("mm")->inputnames[1] = "mat2";
+        ops.at("mm")->inputnames = {"input", "mat2"};
 
         if (transA)
-            ops.at("at")->inputnames[0] = "input";
+            ops.at("at")->inputnames = {"input"};
         if (transB)
-            ops.at("bt")->inputnames[0] = "input";
+            ops.at("bt")->inputnames = {"input"};
     }
 
 protected:

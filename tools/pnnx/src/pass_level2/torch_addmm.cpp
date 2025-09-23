@@ -195,15 +195,12 @@ pnnx.Output             output      1 0 out
         ops.at("addmm")->params["alpha"] = alpha;
         ops.at("addmm")->params["beta"] = beta;
 
-        ops.at("addmm")->inputnames.resize(3);
-        ops.at("addmm")->inputnames[0] = "input";
-        ops.at("addmm")->inputnames[1] = "mat1";
-        ops.at("addmm")->inputnames[2] = "mat2";
+        ops.at("addmm")->inputnames = {"input", "mat1", "mat2"};
 
         if (transA)
-            ops.at("at")->inputnames[0] = "input";
+            ops.at("at")->inputnames = {"input"};
         if (transB)
-            ops.at("bt")->inputnames[0] = "input";
+            ops.at("bt")->inputnames = {"input"};
     }
 
 protected:
