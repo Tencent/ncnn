@@ -15,12 +15,6 @@ int ExpandDims::load_param(const ParamDict& pd)
 {
     axes = pd.get(3, Mat());
 
-    if (axes.empty())
-    {
-        NCNN_LOGE("ExpandDims expect axes");
-        return -1;
-    }
-
     return 0;
 }
 
