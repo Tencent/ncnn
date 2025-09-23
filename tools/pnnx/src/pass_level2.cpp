@@ -1044,6 +1044,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             Graph replace_graph;
             replace_graph.parse(pass->replace_pattern_graph());
 
+            static int rgi = 0;
+
             // move operators and operands from replace_graph to graph except input and output
             std::map<std::string, Operator*> ops;
             for (size_t i = 0; i < replace_graph.ops.size(); i++)
@@ -1062,6 +1064,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 Operand* r = replace_graph.operands[i];
                 if (r->producer->type == "pnnx.Input" || (r->consumers.size() == 1 && r->consumers[0]->type == "pnnx.Output"))
                     continue;
+
+                r->name = std::string("rg") + std::to_string(rgi) + "_" + r->name;
 
                 graph.operands.push_back(r);
                 replace_graph.operands[i] = 0;
@@ -1117,6 +1121,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             {
                 new_ops.push_back(x.second);
             }
+
+            rgi++;
         }
     }
 
