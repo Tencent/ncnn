@@ -541,6 +541,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
+    pass_ncnn/nn_Hardshrink.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
@@ -574,6 +575,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Softmax.cpp
     pass_ncnn/nn_Softmax2d.cpp
+    pass_ncnn/nn_Softshrink.cpp
     pass_ncnn/nn_Softplus.cpp
     pass_ncnn/nn_Tanh.cpp
     pass_ncnn/nn_Unfold.cpp
