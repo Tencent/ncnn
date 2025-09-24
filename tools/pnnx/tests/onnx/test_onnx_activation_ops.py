@@ -29,6 +29,7 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.PRelu(x, op.Unsqueeze(prelu_slope, axes=[1])),
         op.Relu(x),
         op.Selu(x),
+        op.Shrink(x),
         op.Sigmoid(x),
         op.Softmax(x),
         op.Softplus(x),
@@ -46,6 +47,7 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.PRelu(y, op.Unsqueeze(prelu_slope, axes=[1,2])),
         op.Relu(y),
         op.Selu(y),
+        op.Shrink(y),
         op.Sigmoid(y),
         op.Softmax(y),
         op.Softplus(y),
@@ -63,9 +65,10 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.PRelu(z, op.Unsqueeze(prelu_slope, axes=[1,2,3])),
         op.Relu(z),
         # op.Selu(z),
+        op.Shrink(z),
         op.Sigmoid(z),
         # op.Softmax(z),
-        # op.Softplus(z),
+        op.Softplus(z),
         # op.Swish(z),
         )
 

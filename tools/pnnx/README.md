@@ -498,7 +498,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
-|nn.Hardshrink              | :heavy_check_mark: |
+|nn.Hardshrink              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
@@ -556,7 +556,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Softmax2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
-|nn.Softshrink              | :heavy_check_mark: |
+|nn.Softshrink              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softsign                | :heavy_check_mark: |
 |nn.SyncBatchNorm           |   |
 |nn.Tanh                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -602,7 +602,6 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.dropout2d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.dropout3d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu                      | :heavy_check_mark: | :heavy_check_mark: |
-|F.elu_                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
@@ -614,16 +613,14 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.grid_sample              | :heavy_check_mark: | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
-|F.hardshrink               | :heavy_check_mark: |
+|F.hardshrink               | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardsigmoid              | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardswish                | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardtanh                 | :heavy_check_mark: | :heavy_check_mark: |
-|F.hardtanh_                | :heavy_check_mark: | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: | :heavy_check_mark: |
 |F.interpolate              | :heavy_check_mark: | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.leaky_relu               | :heavy_check_mark: | :heavy_check_mark: |
-|F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: | :heavy_check_mark: |
@@ -646,10 +643,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.pixel_unshuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |F.prelu                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.relu_                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
-|F.rrelu_                   | :heavy_check_mark: |
 |F.scaled_dot_product_attention | :heavy_check_mark: |                |
 |F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.sigmoid                  | :heavy_check_mark: | :heavy_check_mark: |
@@ -657,12 +652,11 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.softmax                  | :heavy_check_mark: | :heavy_check_mark: |
 |F.softmin                  | :heavy_check_mark: |
 |F.softplus                 | :heavy_check_mark: |
-|F.softshrink               | :heavy_check_mark: |
+|F.softshrink               | :heavy_check_mark: | :heavy_check_mark: |
 |F.softsign                 | :heavy_check_mark: |
 |F.tanh                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
-|F.threshold_               | :heavy_check_mark: |
 |F.unfold                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
@@ -736,7 +730,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |Reshape                    | :heavy_check_mark: | :heavy_check_mark: |
 |Resize                     | :heavy_check_mark: | :heavy_check_mark: |
 |Selu                       | :heavy_check_mark: | :heavy_check_mark: |
-|Shrink                     |  |
+|Shrink                     | :heavy_check_mark: | :heavy_check_mark: | only bias==0/lambda |
 |Sigmoid                    | :heavy_check_mark: | :heavy_check_mark: |
 |Sin                        | :heavy_check_mark: | :heavy_check_mark: |
 |Slice                      | :heavy_check_mark: | :heavy_check_mark: |
