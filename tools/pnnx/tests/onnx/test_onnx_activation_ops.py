@@ -20,7 +20,6 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.Celu(x),
         op.Clip(x, min=0, max=2.3),
         op.Elu(x),
-        # op.Gelu(x),
         op.HardSigmoid(x),
         op.HardSwish(x),
         op.LeakyRelu(x),
@@ -33,12 +32,10 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.Sigmoid(x),
         op.Softmax(x),
         op.Softplus(x),
-        # op.Swish(x),
 
         op.Celu(y),
         op.Clip(y, min=0, max=2.3),
         op.Elu(y),
-        # op.Gelu(y),
         op.HardSigmoid(y),
         op.HardSwish(y),
         op.LeakyRelu(y),
@@ -51,12 +48,10 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.Sigmoid(y),
         op.Softmax(y),
         op.Softplus(y),
-        # op.Swish(y),
 
         # op.Celu(z),
         op.Clip(z, min=0, max=2.3),
         # op.Elu(z),
-        # op.Gelu(z),
         op.HardSigmoid(z),
         op.HardSwish(z),
         op.LeakyRelu(z),
@@ -69,7 +64,6 @@ def Model(x: FLOAT["N","C","W"], y: FLOAT["N","C","H","W"], z: FLOAT["N","C","D"
         op.Sigmoid(z),
         # op.Softmax(z),
         op.Softplus(z),
-        # op.Swish(z),
         )
 
 def test():

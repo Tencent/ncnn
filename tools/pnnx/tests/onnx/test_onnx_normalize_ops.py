@@ -19,9 +19,6 @@ def Model(x: FLOAT["N",12,14,15]):
     bn_mean = op.RandomNormal(seed=2.0, shape=[12])
     bn_var = op.RandomNormal(seed=3.0, mean=5.0, shape=[12])
 
-    gn_scale = op.RandomNormal(seed=4.0, shape=[12])
-    gn_bias = op.RandomNormal(seed=5.0, shape=[12])
-
     in_scale = op.RandomNormal(seed=6.0, shape=[12])
     in_bias = op.RandomNormal(seed=7.0, shape=[12])
 
@@ -32,7 +29,6 @@ def Model(x: FLOAT["N",12,14,15]):
     ln_bias2 = op.RandomNormal(seed=11.0, shape=[14,15])
 
     return (op.BatchNormalization(x, bn_scale, bn_bias, bn_mean, bn_var),
-        # op.GroupNormalization(x, gn_scale, gn_bias, num_groups=3),
         op.InstanceNormalization(x, in_scale, in_bias, epsilon=0.1),
         op.InstanceNormalization(x, in_scale, in_bias),
         op.LayerNormalization(x, ln_scale, ln_bias, epsilon=0.1),
