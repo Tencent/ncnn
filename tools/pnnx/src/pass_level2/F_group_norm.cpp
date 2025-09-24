@@ -135,15 +135,16 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& weight_shape = op_mul->inputs[1]->shape;
         const std::vector<int>& bias_shape = op_add->inputs[1]->shape;
 
-        if (weight_shape.size() != bias_shape.size())
+        if (weight_shape != bias_shape)
             return false;
+
         if (weight_shape.size() + 1 != inputshape.size())
             return false;
         if (weight_shape[0] != inputshape[1])
             return false;
         for (size_t i = 1; i < weight_shape.size(); i++)
         {
-            if (weight_shape[i] != 1 || bias_shape[i] != 1)
+            if (weight_shape[i] != 1)
                 return false;
         }
 
@@ -167,5 +168,144 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_1, 131)
+
+class F_group_norm_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input #input=(?,?)f32
+pnnx.Input              input_1     0 1 weight #weight=(?)f32
+pnnx.Input              input_2     0 1 bias #bias=(?)f32
+F.group_norm            op_0        1 1 input a num_groups=%num_groups eps=%eps weight=None bias=None
+aten::mul               op_1        2 1 a weight b
+aten::add               op_2        2 1 b bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.group_norm";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op_group_norm = matched_operators.at("op_0");
+        const Operator* op_mul = matched_operators.at("op_1");
+        const Operator* op_add = matched_operators.at("op_2");
+        const std::vector<int>& inputshape = op_group_norm->inputs[0]->shape;
+        const std::vector<int>& weight_shape = op_mul->inputs[1]->shape;
+        const std::vector<int>& bias_shape = op_add->inputs[1]->shape;
+
+        if (weight_shape[0] == inputshape[1] && bias_shape[0] == inputshape[1])
+            return true;
+
+        return false;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["num_groups"] = captured_params.at("num_groups");
+        op->params["eps"] = captured_params.at("eps");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_2, 131)
+
+class F_group_norm_onnx_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight #weight=(?)f32
+pnnx.Input              input_2     0 1 bias #bias=(?)f32
+F.group_norm            op_0        1 1 input a num_groups=%num_groups eps=%eps weight=None bias=None
+torch.unsqueeze         op_1        1 1 weight weight2 dim=*
+aten::mul               op_2        2 1 a weight2 b
+torch.unsqueeze         op_3        1 1 bias bias2 dim=*
+aten::add               op_4        2 1 b bias2 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.group_norm";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op_group_norm = matched_operators.at("op_0");
+        const Operator* op_mul = matched_operators.at("op_2");
+        const Operator* op_add = matched_operators.at("op_4");
+        const std::vector<int>& inputshape = op_group_norm->inputs[0]->shape;
+        const std::vector<int>& weight_shape = op_mul->inputs[1]->shape;
+        const std::vector<int>& bias_shape = op_add->inputs[1]->shape;
+
+        if (weight_shape != bias_shape)
+            return false;
+
+        if (weight_shape.size() + 1 != inputshape.size())
+            return false;
+        if (weight_shape[0] != inputshape[1])
+            return false;
+        for (size_t i = 1; i < weight_shape.size(); i++)
+        {
+            if (weight_shape[i] != 1)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["num_groups"] = captured_params.at("num_groups");
+        op->params["eps"] = captured_params.at("eps");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_3, 131)
+
+class F_group_norm_onnx_4 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+GroupNormalization      op_0        3 1 input weight bias out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.group_norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float epsilon = 1e-05;
+        if (captured_params.find("op_0.epsilon") != captured_params.end())
+        {
+            epsilon = captured_params.at("op_0.epsilon").f;
+        }
+
+        op->params["num_groups"] = captured_params.at("op_0.num_groups");
+        op->params["eps"] = epsilon;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_onnx_4, 130)
 
 } // namespace pnnx

@@ -545,6 +545,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ReplicationPad1d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad2d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad3d        | :heavy_check_mark: |
+|nn.RMSNorm                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.RNN                     | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.RNNBase                 |   |
 |nn.RNNCell                 |   |
@@ -644,6 +645,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.prelu                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
+|F.rms_norm                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
 |F.scaled_dot_product_attention | :heavy_check_mark: |                |
 |F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
@@ -690,11 +692,11 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |Flatten                    | :heavy_check_mark: | :heavy_check_mark: |
 |Floor                      | :heavy_check_mark: | :heavy_check_mark: |
 |GRU                        | :heavy_check_mark: | :heavy_check_mark: | with post squeeze/transpose+reshape |
-|Gelu                       |  |
+|Gelu                       | :heavy_check_mark: | :heavy_check_mark: |
 |Gemm                       | :heavy_check_mark: | :heavy_check_mark: |
 |GlobalAveragePool          | :heavy_check_mark: | :heavy_check_mark: |
 |GlobalMaxPool              | :heavy_check_mark: | :heavy_check_mark: |
-|GroupNormalization         |  |
+|GroupNormalization         | :heavy_check_mark: | :heavy_check_mark: |
 |HardSigmoid                | :heavy_check_mark: | :heavy_check_mark: |
 |HardSwish                  | :heavy_check_mark: | :heavy_check_mark: |
 |InstanceNormalization      | :heavy_check_mark: | :heavy_check_mark: |
@@ -729,6 +731,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |Relu                       | :heavy_check_mark: | :heavy_check_mark: |
 |Reshape                    | :heavy_check_mark: | :heavy_check_mark: |
 |Resize                     | :heavy_check_mark: | :heavy_check_mark: |
+|RMSNormalization           | :heavy_check_mark: | :heavy_check_mark: |
 |Selu                       | :heavy_check_mark: | :heavy_check_mark: |
 |Shrink                     | :heavy_check_mark: | :heavy_check_mark: | only bias==0/lambda |
 |Sigmoid                    | :heavy_check_mark: | :heavy_check_mark: |
