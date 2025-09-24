@@ -475,6 +475,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_glu.cpp
     pass_ncnn/F_grid_sample.cpp
     pass_ncnn/F_group_norm.cpp
+    pass_ncnn/F_hardshrink.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
     pass_ncnn/F_hardtanh.cpp
@@ -504,6 +505,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
     pass_ncnn/F_softplus.cpp
+    pass_ncnn/F_softshrink.cpp
     pass_ncnn/F_tanh.cpp
     pass_ncnn/F_unfold.cpp
     pass_ncnn/F_upsample_bilinear.cpp
