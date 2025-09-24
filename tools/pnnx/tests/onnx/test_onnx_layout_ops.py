@@ -24,6 +24,8 @@ def Model(x: FLOAT["N",12,"H","W"]):
         # op.DepthToSpace(x, blocksize=2),
         op.DepthToSpace(x, blocksize=2, mode='CRD'),
 
+        # op.SpaceToDepth(x, blocksize=2),
+
         op.Flatten(x),
         op.Flatten(x, axis=-2),
 
@@ -54,7 +56,7 @@ def Model(x: FLOAT["N",12,"H","W"]):
 
         op.Resize(x, None, [1.0, 1.0, 2.0, 2.0], None, mode='nearest'),
         op.Resize(x, None, None, [1, 12, 13, 13], mode='linear', coordinate_transformation_mode="half_pixel"),
-        op.Resize(x, None, None, [1, 12, 16, 16], mode='linear', coordinate_transformation_mode='align_corners'),
+        op.Resize(x, None, None, [1, 12, 18, 18], mode='linear', coordinate_transformation_mode='align_corners'),
 
         a0, a1,
         b0, b1, b2, b3, b4, b5, b6,
@@ -65,7 +67,7 @@ def test():
     onnx.save(Model.to_model_proto(), "test_onnx_layout_ops.onnx")
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 13, 14)
+    x = torch.rand(1, 12, 16, 14)
 
     # ort inference
     sess = ort.InferenceSession("test_onnx_layout_ops.onnx")
@@ -73,7 +75,7 @@ def test():
 
     # onnx to pnnx and ncnn
     import os
-    os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,13,14] inputshape2=[1,12,48,66]")
+    os.system("../../src/pnnx test_onnx_layout_ops.onnx inputshape=[1,12,16,14] inputshape2=[1,12,48,66]")
 
     # pnnx inference
     import test_onnx_layout_ops_pnnx
