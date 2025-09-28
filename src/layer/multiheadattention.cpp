@@ -20,6 +20,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     vdim = pd.get(4, embed_dim);
     attn_mask = pd.get(5, 0);
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
+    kv_cache = pd.get(7, 0);
     int8_scale_term = pd.get(18, 0);
 
     return 0;
@@ -84,13 +85,140 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 #endif
 
-    const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    if (kv_cache)
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blobs.size() == 4/5/6
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blobs.size() == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+            if (bottom_blobs.size() == 6)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                cached_xk_i = 4;
+                cached_xv_i = 5;
+            }
+        }
+        else
+        {
+            // assert bottom_blobs.size() == 3/4/5
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                cached_xk_i = 1;
+                cached_xv_i = 2;
+            }
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blobs.size() == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+        }
+    }
+    else
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blobs.size() == 2/3/4
+            if (bottom_blobs.size() == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+            }
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+            }
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+            }
+        }
+        else
+        {
+            // assert bottom_blobs.size() == 1/2/3
+            if (bottom_blobs.size() == 1)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+            }
+            if (bottom_blobs.size() == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+            }
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+            }
+        }
+    }
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const Mat& k_blob = bottom_blobs[k_blob_i];
+    const Mat& v_blob = bottom_blobs[v_blob_i];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+
+    // const Mat& q_blob = bottom_blobs[0];
+    // const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
+    // const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
+    // const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
 
     const int src_seqlen = q_blob.h;
-    const int dst_seqlen = k_blob.h;
+    // const int dst_seqlen = k_blob.h;
+    const int dst_seqlen = (kv_cache && !cached_xk_blob.empty()) ? (q_blob_i == k_blob_i ? (cached_xk_blob.h + q_blob.h) : cached_xk_blob.h) : k_blob.h;
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
@@ -118,6 +246,15 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
     if (xqkv.empty())
         return -100;
+
+    if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+    {
+        xk = cached_xk_blob;
+    }
+    if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+    {
+        xv = cached_xv_blob;
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -147,12 +284,33 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xk = affine(k)
+        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
         {
-            Mat outm = xk.channel(q);
+            // pass
+        }
+        else
+        {
+            float* outptr = xk.channel(q);
+
+            if (kv_cache && !cached_xk_blob.empty())
+            {
+                // reuse cached_xk
+                const Mat cached_outm = cached_xk_blob.channel(q);
+
+                for (int i = 0; i < cached_outm.h; i++)
+                {
+                    const float* ptr = cached_outm.row(i);
+
+                    memcpy(outptr, ptr, embed_dim_per_head * sizeof(float));
+
+                    outptr += embed_dim_per_head;
+                }
+            }
+            // Mat outm = xk.channel(q);
 
             for (int i = 0; i < dst_seqlen; i++)
             {
-                float* outptr = outm.row(i);
+                // float* outptr = outm.row(i);
 
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
@@ -165,17 +323,37 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                         sum += *ptr++ * *kptr++;
                     }
 
-                    outptr[j] = sum;
+                    // outptr[j] = sum;
+                    *outptr++ = sum;
                 }
             }
         }
 
         // xv = affine(v)
+        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != v_blob_i)
+        {
+            // pass
+        }
+        else
         {
             Mat outm = xv.channel(q);
 
             for (int i = 0; i < embed_dim_per_head; i++)
             {
+                float* outptr = outm.row(i);
+
+                if (kv_cache && !cached_xv_blob.empty())
+                {
+                    // reuse cached_xv
+                    const Mat cached_outm = cached_xv_blob.channel(q);
+
+                    const float* ptr = cached_outm.row(i);
+
+                    for (int j = 0; j < cached_outm.w; j++)
+                    {
+                        *outptr++ = ptr[j];
+                    }
+                }
                 for (int j = 0; j < dst_seqlen; j++)
                 {
                     const float* ptr = v_blob.row(j);
@@ -187,9 +365,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                         sum += *ptr++ * *kptr++;
                     }
 
-                    float* outptr = outm.row(i);
+                    // float* outptr = outm.row(i);
 
-                    outptr[j] = sum;
+                    // outptr[j] = sum;
+                    *outptr++ = sum;
                 }
             }
         }
@@ -320,6 +499,13 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
     }
 
+    if (kv_cache)
+    {
+        // assert top_blobs.size() == 3
+        top_blobs[1] = xk;
+        top_blobs[2] = xv;
+    }
+
     return 0;
 }
 
@@ -394,13 +580,140 @@ static void dynamic_quantize_2d_per_h(const Mat& blob, Mat& blob_int8, Mat& scal
 
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    if (kv_cache)
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blobs.size() == 4/5/6
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blobs.size() == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+            if (bottom_blobs.size() == 6)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                cached_xk_i = 4;
+                cached_xv_i = 5;
+            }
+        }
+        else
+        {
+            // assert bottom_blobs.size() == 3/4/5
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                cached_xk_i = 1;
+                cached_xv_i = 2;
+            }
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blobs.size() == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+        }
+    }
+    else
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blobs.size() == 2/3/4
+            if (bottom_blobs.size() == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+            }
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+            }
+            if (bottom_blobs.size() == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+            }
+        }
+        else
+        {
+            // assert bottom_blobs.size() == 1/2/3
+            if (bottom_blobs.size() == 1)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+            }
+            if (bottom_blobs.size() == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+            }
+            if (bottom_blobs.size() == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+            }
+        }
+    }
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const Mat& k_blob = bottom_blobs[k_blob_i];
+    const Mat& v_blob = bottom_blobs[v_blob_i];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+
+    // const Mat& q_blob = bottom_blobs[0];
+    // const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
+    // const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
+    // const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
 
     const int src_seqlen = q_blob.h;
-    const int dst_seqlen = k_blob.h;
+    // const int dst_seqlen = k_blob.h;
+    const int dst_seqlen = (kv_cache && !cached_xk_blob.empty()) ? (q_blob_i == k_blob_i ? (cached_xk_blob.h + q_blob.h) : cached_xk_blob.h) : k_blob.h;
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
@@ -437,7 +750,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // dynamic quantize k_blob
     Mat k_blob_int8;
     float k_blob_int8_scale;
-    if (bottom_blobs.size() == 1)
+    if (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask))
     {
         k_blob_int8 = q_blob_int8;
         k_blob_int8_scale = q_blob_int8_scale;
@@ -450,12 +763,12 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // dynamic quantize v_blob
     Mat v_blob_int8;
     float v_blob_int8_scale;
-    if (bottom_blobs.size() == 1)
+    if (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask))
     {
         v_blob_int8 = q_blob_int8;
         v_blob_int8_scale = q_blob_int8_scale;
     }
-    else if (bottom_blobs.size() == 2)
+    else if (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask))
     {
         v_blob_int8 = k_blob_int8;
         v_blob_int8_scale = k_blob_int8_scale;
@@ -466,6 +779,15 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
 
     // NCNN_LOGE("%.4f %.4f", q_weight_data_int8_scale, q_blob_int8_scale);
+
+    if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+    {
+        xk = cached_xk_blob;
+    }
+    if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+    {
+        xv = cached_xv_blob;
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -497,9 +819,28 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xk = affine(k)
+        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+        {
+            // pass
+        }
+        else
         {
             float* outptr = xk.channel(q);
 
+            if (kv_cache && !cached_xk_blob.empty())
+            {
+                // reuse cached_xk
+                const Mat cached_outm = cached_xk_blob.channel(q);
+
+                for (int i = 0; i < cached_outm.h; i++)
+                {
+                    const float* ptr = cached_outm.row(i);
+
+                    memcpy(outptr, ptr, embed_dim_per_head * sizeof(float));
+
+                    outptr += embed_dim_per_head;
+                }
+            }
             for (int i = 0; i < k_blob_int8.h; i++)
             {
                 for (int j = 0; j < embed_dim_per_head; j++)
@@ -521,6 +862,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xv = affine(v)
+        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != v_blob_i)
+        {
+            // pass
+        }
+        else
         {
             Mat outm = xv.channel(q);
 
@@ -528,6 +874,18 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
             {
                 float* outptr = outm.row(i);
 
+                if (kv_cache && !cached_xv_blob.empty())
+                {
+                    // reuse cached_xv
+                    const Mat cached_outm = cached_xv_blob.channel(q);
+
+                    const float* ptr = cached_outm.row(i);
+
+                    for (int j = 0; j < cached_outm.w; j++)
+                    {
+                        *outptr++ = ptr[j];
+                    }
+                }
                 for (int j = 0; j < v_blob_int8.h; j++)
                 {
                     const signed char* ptr = v_blob_int8.row<const signed char>(j);
@@ -728,6 +1086,13 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
             outptr[j] = sum_fp32;
         }
+    }
+
+    if (kv_cache)
+    {
+        // assert top_blobs.size() == 3
+        top_blobs[1] = xk;
+        top_blobs[2] = xv;
     }
 
     return 0;
