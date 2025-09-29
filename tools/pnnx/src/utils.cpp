@@ -112,6 +112,74 @@ float float16_to_float32(unsigned short value)
     return tmp.f;
 }
 
+std::string float_to_string(float f)
+{
+    if (f == 0.f)
+        return "0.0";
+
+    const float abs_f = std::abs(f);
+    char buffer[64];
+
+    if (abs_f < 0.0001f || abs_f >= 1000000.0f)
+    {
+        snprintf(buffer, sizeof(buffer), "%e", f);
+        return std::string(buffer);
+    }
+
+    const int len = snprintf(buffer, sizeof(buffer), "%.8f", f);
+
+    // remove tail zeros
+    char* end = buffer + len - 1;
+    while (end > buffer && *end == '0')
+    {
+        *end = '\0';
+        end--;
+    }
+
+    // maintain point-zero
+    if (*end == '.')
+    {
+        *(end + 1) = '0';
+        *(end + 2) = '\0';
+    }
+
+    return std::string(buffer);
+}
+
+std::string double_to_string(double d)
+{
+    if (d == 0.0)
+        return "0.0";
+
+    const double abs_d = std::abs(d);
+    char buffer[128];
+
+    if (abs_d < 0.0001 || abs_d >= 1000000.0)
+    {
+        snprintf(buffer, sizeof(buffer), "%e", d);
+        return std::string(buffer);
+    }
+
+    const int len = snprintf(buffer, sizeof(buffer), "%.17f", d);
+
+    // remove tail zeros
+    char* end = buffer + len - 1;
+    while (end > buffer && *end == '0')
+    {
+        *end = '\0';
+        end--;
+    }
+
+    // maintain point-zero
+    if (*end == '.')
+    {
+        *(end + 1) = '0';
+        *(end + 2) = '\0';
+    }
+
+    return std::string(buffer);
+}
+
 void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int dim0, int size)
 {
     for (int i = 0; i < dim0; i++)

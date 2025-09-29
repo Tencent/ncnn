@@ -3,6 +3,7 @@
 
 #include "save_ncnn.h"
 #include <cstdint>
+#include "utils.h"
 
 namespace pnnx {
 
@@ -53,60 +54,6 @@ static bool string_is_positive_integer(const std::string& t)
     }
 
     return true;
-}
-
-static unsigned short float32_to_float16(float value)
-{
-    // 1 : 8 : 23
-    union
-    {
-        unsigned int u;
-        float f;
-    } tmp;
-
-    tmp.f = value;
-
-    // 1 : 8 : 23
-    unsigned short sign = (tmp.u & 0x80000000) >> 31;
-    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
-    unsigned int significand = tmp.u & 0x7FFFFF;
-
-    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
-
-    // 1 : 5 : 10
-    unsigned short fp16;
-    if (exponent == 0)
-    {
-        // zero or denormal, always underflow
-        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-    }
-    else if (exponent == 0xFF)
-    {
-        // infinity or NaN
-        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
-    }
-    else
-    {
-        // normalized
-        short newexp = exponent + (-127 + 15);
-        if (newexp >= 31)
-        {
-            // overflow, return infinity
-            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
-        }
-        else if (newexp <= 0)
-        {
-            // Some normal fp32 cannot be expressed as normal fp16
-            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-        }
-        else
-        {
-            // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
-        }
-    }
-
-    return fp16;
 }
 
 static size_t alignSize(size_t sz, int n)
@@ -186,7 +133,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 }
                 if (param.type == 3)
                 {
-                    fprintf(stderr, "%e", param.f);
+                    std::string tmp = float_to_string(param.f);
+                    fprintf(stderr, "%s", tmp.c_str());
                 }
                 if (param.type == 4)
                 {
@@ -208,7 +156,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                     fprintf(stderr, "(");
                     for (size_t i = 0; i < param.af.size(); i++)
                     {
-                        fprintf(stderr, "%e", param.af[i]);
+                        std::string tmp = float_to_string(param.af[i]);
+                        fprintf(stderr, "%s", tmp.c_str());
                         if (i + 1 != param.af.size())
                             fprintf(stderr, ",");
                     }
@@ -237,7 +186,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
             }
             if (param.type == 3)
             {
-                fprintf(paramfp, " %d=%e", idkey, param.f);
+                std::string tmp = float_to_string(param.f);
+                fprintf(paramfp, " %d=%s", idkey, tmp.c_str());
             }
             if (param.type == 4)
             {
@@ -270,7 +220,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 fprintf(paramfp, " %d=%d", -23300 - idkey, array_size);
                 for (size_t i = 0; i < param.af.size(); i++)
                 {
-                    fprintf(paramfp, ",%e", param.af[i]);
+                    std::string tmp = float_to_string(param.af[i]);
+                    fprintf(paramfp, ",%s", tmp.c_str());
                 }
             }
         }
