@@ -154,7 +154,7 @@ std::string double_to_string(double d)
     const double abs_d = std::abs(d);
     char buffer[128];
 
-    if (abs_d < 0.0001f || abs_d >= 1000000.0f)
+    if (abs_d < 0.0001 || abs_d >= 1000000.0)
     {
         snprintf(buffer, sizeof(buffer), "%e", d);
         return std::string(buffer);
