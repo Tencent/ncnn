@@ -153,7 +153,11 @@ static std::string eval_expression(const Operator* op)
                 if (type == 0)
                     return std::to_string(i);
                 if (type == 1)
-                    return std::to_string(f);
+                {
+                    char tmp[64];
+                    sprintf(tmp, "%e", f);
+                    return std::string(tmp);
+                }
             }
 
             return expr;
