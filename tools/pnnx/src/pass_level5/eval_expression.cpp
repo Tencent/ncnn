@@ -14,6 +14,8 @@
 #include <vector>
 #include <string>
 
+#include "utils.h"
+
 namespace pnnx {
 
 static bool token_is_argument(const std::string& t)
@@ -153,11 +155,7 @@ static std::string eval_expression(const Operator* op)
                 if (type == 0)
                     return std::to_string(i);
                 if (type == 1)
-                {
-                    char tmp[64];
-                    sprintf(tmp, "%e", f);
-                    return std::string(tmp);
-                }
+                    return float_to_string(f);
             }
 
             return expr;

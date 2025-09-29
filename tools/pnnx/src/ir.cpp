@@ -413,9 +413,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 3)
     {
-        char buf[64];
-        sprintf(buf, "%e", param.f);
-        return std::string(buf);
+        return float_to_string(param.f);
     }
     if (param.type == 4)
     {
@@ -438,9 +436,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
         std::string s("(");
         for (size_t i = 0; i < param.af.size(); i++)
         {
-            char buf[64];
-            sprintf(buf, "%e", param.af[i]);
-            s += std::string(buf);
+            s += float_to_string(param.af[i]);
             if (i + 1 != param.af.size())
                 s += std::string(",");
         }
