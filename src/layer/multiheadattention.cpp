@@ -330,7 +330,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xv = affine(v)
-        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != v_blob_i)
+        if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
         {
             // pass
         }
@@ -862,7 +862,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xv = affine(v)
-        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != v_blob_i)
+        if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
         {
             // pass
         }
