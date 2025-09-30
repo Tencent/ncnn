@@ -91,118 +91,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     int attn_mask_i = 0;
     int cached_xk_i = 0;
     int cached_xv_i = 0;
-    if (kv_cache)
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blobs.size() == 4/5/6
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                attn_mask_i = 1;
-                cached_xk_i = 2;
-                cached_xv_i = 3;
-            }
-            if (bottom_blobs.size() == 5)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                attn_mask_i = 2;
-                cached_xk_i = 3;
-                cached_xv_i = 4;
-            }
-            if (bottom_blobs.size() == 6)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                attn_mask_i = 3;
-                cached_xk_i = 4;
-                cached_xv_i = 5;
-            }
-        }
-        else
-        {
-            // assert bottom_blobs.size() == 3/4/5
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                cached_xk_i = 1;
-                cached_xv_i = 2;
-            }
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                cached_xk_i = 2;
-                cached_xv_i = 3;
-            }
-            if (bottom_blobs.size() == 5)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                cached_xk_i = 3;
-                cached_xv_i = 4;
-            }
-        }
-    }
-    else
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blobs.size() == 2/3/4
-            if (bottom_blobs.size() == 2)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                attn_mask_i = 1;
-            }
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                attn_mask_i = 2;
-            }
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                attn_mask_i = 3;
-            }
-        }
-        else
-        {
-            // assert bottom_blobs.size() == 1/2/3
-            if (bottom_blobs.size() == 1)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-            }
-            if (bottom_blobs.size() == 2)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-            }
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-            }
-        }
-    }
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
 
     const Mat& q_blob = bottom_blobs[q_blob_i];
     const Mat& k_blob = bottom_blobs[k_blob_i];
@@ -509,6 +398,122 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     return 0;
 }
 
+void MultiHeadAttention::resolve_bottom_blob_index(int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i) const
+{
+    if (kv_cache)
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blob_count == 4/5/6
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+            if (bottom_blob_count == 6)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                cached_xk_i = 4;
+                cached_xv_i = 5;
+            }
+        }
+        else
+        {
+            // assert bottom_blob_count == 3/4/5
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                cached_xk_i = 1;
+                cached_xv_i = 2;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+        }
+    }
+    else
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blob_count == 2/3/4
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+            }
+        }
+        else
+        {
+            // assert bottom_blob_count == 1/2/3
+            if (bottom_blob_count == 1)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+            }
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+            }
+        }
+    }
+}
+
 #if NCNN_INT8
 static inline signed char float2int8(float v)
 {
@@ -586,118 +591,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     int attn_mask_i = 0;
     int cached_xk_i = 0;
     int cached_xv_i = 0;
-    if (kv_cache)
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blobs.size() == 4/5/6
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                attn_mask_i = 1;
-                cached_xk_i = 2;
-                cached_xv_i = 3;
-            }
-            if (bottom_blobs.size() == 5)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                attn_mask_i = 2;
-                cached_xk_i = 3;
-                cached_xv_i = 4;
-            }
-            if (bottom_blobs.size() == 6)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                attn_mask_i = 3;
-                cached_xk_i = 4;
-                cached_xv_i = 5;
-            }
-        }
-        else
-        {
-            // assert bottom_blobs.size() == 3/4/5
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                cached_xk_i = 1;
-                cached_xv_i = 2;
-            }
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                cached_xk_i = 2;
-                cached_xv_i = 3;
-            }
-            if (bottom_blobs.size() == 5)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                cached_xk_i = 3;
-                cached_xv_i = 4;
-            }
-        }
-    }
-    else
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blobs.size() == 2/3/4
-            if (bottom_blobs.size() == 2)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-                attn_mask_i = 1;
-            }
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-                attn_mask_i = 2;
-            }
-            if (bottom_blobs.size() == 4)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-                attn_mask_i = 3;
-            }
-        }
-        else
-        {
-            // assert bottom_blobs.size() == 1/2/3
-            if (bottom_blobs.size() == 1)
-            {
-                q_blob_i = 0;
-                k_blob_i = 0;
-                v_blob_i = 0;
-            }
-            if (bottom_blobs.size() == 2)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 1;
-            }
-            if (bottom_blobs.size() == 3)
-            {
-                q_blob_i = 0;
-                k_blob_i = 1;
-                v_blob_i = 2;
-            }
-        }
-    }
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
 
     const Mat& q_blob = bottom_blobs[q_blob_i];
     const Mat& k_blob = bottom_blobs[k_blob_i];
