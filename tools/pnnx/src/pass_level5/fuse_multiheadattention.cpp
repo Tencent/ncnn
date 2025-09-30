@@ -1100,6 +1100,54 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_multiheadattention_pass_12_2 : public fuse_multiheadattention_pass_sameqkv
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+22 21
+pnnx.Input              input       0 1 input
+nn.Linear               op_0        1 1 input 9 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 14 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 16 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 9 10 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+Tensor.view             op_4        1 1 10 11 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 14 15 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 16 17 shape=(%batch,%size,%num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 11 12 dim0=1 dim1=2
+torch.transpose         op_8        1 1 15 18 dim0=1 dim1=2
+torch.transpose         op_9        1 1 17 20 dim0=1 dim1=2
+Tensor.contiguous       op_10       1 1 12 13 memory_format=*
+Tensor.contiguous       op_11       1 1 18 19 memory_format=*
+Tensor.contiguous       op_12       1 1 20 21 memory_format=*
+F.scaled_dot_product_attention op_13 3 1 13 19 21 22 attn_mask=None dropout_p=0.000000e+00 is_causal=False scale=1.000000e+00
+torch.transpose         op_14       1 1 22 23 dim0=1 dim1=2
+Tensor.contiguous       op_15       1 1 23 24 memory_format=*
+Tensor.reshape          op_16       1 1 24 25 shape=(%batch,%size,%embed_dim)
+Tensor.contiguous       op_17       1 1 25 26 memory_format=*
+nn.Linear               out_proj    1 1 26 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
+
+        if (embed_dim != num_heads * feat_per_head)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(feat_per_head), 0.001))
+            return false;
+
+        return true;
+    }
+};
+
 class fuse_multiheadattention_pass_13 : public fuse_multiheadattention_pass_qkv
 {
 public:
@@ -1320,6 +1368,117 @@ pnnx.Output             output      1 0 out
         {
             memcpy(&data[len * i], &data[0], len);
         }
+    }
+};
+
+class fuse_multiheadattention_pass_16_2 : public fuse_multiheadattention_pass_sameqkv
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+22 21
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 attn_mask $attn_mask=(1,1,%size,%size)f32
+nn.Linear               op_0        1 1 input 7 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 12 bias=%kbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 14 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 7 8 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+Tensor.view             op_4        1 1 8 9 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 12 13 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 14 15 shape=(%batch,%size,%num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_8        1 1 13 16 dim0=1 dim1=2
+torch.transpose         op_9        1 1 15 18 dim0=1 dim1=2
+Tensor.contiguous       op_10       1 1 10 11 memory_format=*
+Tensor.contiguous       op_11       1 1 16 17 memory_format=*
+Tensor.contiguous       op_12       1 1 18 19 memory_format=*
+F.scaled_dot_product_attention op_13 4 1 11 17 19 attn_mask 20 dropout_p=0.000000e+00 is_causal=False scale=1.000000e+00
+torch.transpose         op_14       1 1 20 21 dim0=1 dim1=2
+Tensor.contiguous       op_15       1 1 21 22 memory_format=*
+Tensor.reshape          op_16       1 1 22 23 shape=(%batch,%size,%embed_dim)
+Tensor.contiguous       op_17       1 1 23 24 memory_format=*
+nn.Linear               out_proj    1 1 24 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 attn_mask
+Tensor.reshape          reshape     1 1 attn_mask attn_mask2 shape=(%size,%size)
+nn.MultiheadAttention   attention   2 1 input attn_mask2 out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask2
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
+
+        if (embed_dim != num_heads * feat_per_head)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(feat_per_head), 0.001))
+            return false;
+
+        return true;
+    }
+};
+
+class fuse_multiheadattention_pass_16_3 : public fuse_multiheadattention_pass_qkv
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+25 24
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.Linear               op_0        1 1 query 7 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 12 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 14 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 7 8 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+Tensor.view             op_4        1 1 8 9 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 12 13 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 14 15 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_7        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_8        1 1 13 16 dim0=1 dim1=2
+torch.transpose         op_9        1 1 15 18 dim0=1 dim1=2
+Tensor.contiguous       op_10       1 1 10 11 memory_format=*
+Tensor.contiguous       op_11       1 1 16 17 memory_format=*
+Tensor.contiguous       op_12       1 1 18 19 memory_format=*
+F.scaled_dot_product_attention op_13 3 1 11 17 19 20 attn_mask=None dropout_p=0.000000e+00 is_causal=False scale=1.000000e+00
+torch.transpose         op_14       1 1 20 21 dim0=1 dim1=2
+Tensor.contiguous       op_15       1 1 21 22 memory_format=*
+Tensor.reshape          op_16       1 1 22 23 shape=(%batch,%qsize,%embed_dim)
+Tensor.contiguous       op_17       1 1 23 24 memory_format=*
+nn.Linear               out_proj    1 1 24 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
+
+        if (embed_dim != num_heads * feat_per_head)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(feat_per_head), 0.001))
+            return false;
+
+        return true;
     }
 };
 
@@ -1557,7 +1716,7 @@ Tensor.reshape          op_14       1 1 23 24 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 24 25 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_16       1 1 25 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_17       1 1 21 27 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_18       1 1 27 outweight dim=(1) keepdim=False
+torch.mean              op_18       1 1 27 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -1730,7 +1889,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const int embed_dim = captured_params.at("embed_dim").i;
         const int qkv_out_features = captured_params.at("qkv_out_features").i;
@@ -1858,7 +2017,7 @@ Tensor.reshape          op_17       1 1 31 32 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 32 33 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_19       1 1 33 out shape=(%qsize,1,%embed_dim)
 Tensor.reshape          op_20       1 1 29 35 shape=(1,%num_heads,%qsize,%kvsize)
-torch.mean              op_21       1 1 35 outweight dim=(1) keepdim=False
+torch.mean              op_21       1 1 35 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -1970,7 +2129,7 @@ Tensor.reshape          op_16       1 1 35 36 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 36 37 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_18       1 1 37 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_19       1 1 33 39 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_20       1 1 39 outweight dim=(1) keepdim=False
+torch.mean              op_20       1 1 39 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -2019,7 +2178,7 @@ Tensor.reshape          op_15       1 1 36 37 shape=(%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 37 38 bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_16       1 1 38 out shape=(%qsize,%batch,%embed_dim)
 Tensor.reshape          op_18       1 1 34 40 shape=(%batch,%num_heads,%qsize,%kvsize)
-torch.mean              op_19       1 1 40 outweight dim=(1) keepdim=False
+torch.mean              op_19       1 1 40 outweight dim=1 keepdim=False
 pnnx.Output             output      2 0 out outweight
 )PNNXIR";
     }
@@ -2048,10 +2207,13 @@ void fuse_multiheadattention(Graph& graph)
     fuse_multiheadattention_pass_10 j;
     fuse_multiheadattention_pass_12 k;
     fuse_multiheadattention_pass_12_1 k1;
+    fuse_multiheadattention_pass_12_2 k2;
     fuse_multiheadattention_pass_13 l;
     fuse_multiheadattention_pass_14 m;
     fuse_multiheadattention_pass_16 o;
     fuse_multiheadattention_pass_16_1 o1;
+    fuse_multiheadattention_pass_16_2 o2;
+    fuse_multiheadattention_pass_16_3 o3;
     fuse_multiheadattention_pass_17 p;
     fuse_multiheadattention_pass_17_1 p1;
     fuse_multiheadattention_pass_18 q;
@@ -2087,10 +2249,13 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &j, opindex);
     pnnx_graph_rewrite(graph, &k, opindex);
     pnnx_graph_rewrite(graph, &k1, opindex);
+    pnnx_graph_rewrite(graph, &k2, opindex);
     pnnx_graph_rewrite(graph, &l, opindex);
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &o, opindex);
     pnnx_graph_rewrite(graph, &o1, opindex);
+    pnnx_graph_rewrite(graph, &o2, opindex);
+    pnnx_graph_rewrite(graph, &o3, opindex);
     pnnx_graph_rewrite(graph, &p, opindex);
     pnnx_graph_rewrite(graph, &p1, opindex);
     pnnx_graph_rewrite(graph, &q, opindex);

@@ -133,4 +133,51 @@ REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm, 130)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_1, 130)
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_2, 130)
 
+class F_local_response_norm_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+LRN                     op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.local_response_norm";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = 0.0001f;
+        if (captured_params.find("op_0.alpha") != captured_params.end())
+        {
+            alpha = captured_params.at("op_0.alpha").f;
+        }
+
+        float beta = 0.75f;
+        if (captured_params.find("op_0.beta") != captured_params.end())
+        {
+            beta = captured_params.at("op_0.beta").f;
+        }
+
+        float bias = 1.f;
+        if (captured_params.find("op_0.bias") != captured_params.end())
+        {
+            bias = captured_params.at("op_0.bias").f;
+        }
+
+        op->params["size"] = captured_params.at("op_0.size");
+        op->params["alpha"] = alpha;
+        op->params["beta"] = beta;
+        op->params["k"] = bias;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_local_response_norm_onnx, 130)
+
 } // namespace pnnx

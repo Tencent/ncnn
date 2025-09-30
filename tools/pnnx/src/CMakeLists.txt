@@ -380,6 +380,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
+    pass_level5/fuse_pixel_shuffle.cpp
     pass_level5/fuse_pixel_unshuffle.cpp
     pass_level5/fuse_layernorm.cpp
     pass_level5/fuse_multiheadattention.cpp
@@ -474,6 +475,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_glu.cpp
     pass_ncnn/F_grid_sample.cpp
     pass_ncnn/F_group_norm.cpp
+    pass_ncnn/F_hardshrink.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
     pass_ncnn/F_hardtanh.cpp
@@ -502,6 +504,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_sigmoid.cpp
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
+    pass_ncnn/F_softplus.cpp
+    pass_ncnn/F_softshrink.cpp
     pass_ncnn/F_tanh.cpp
     pass_ncnn/F_unfold.cpp
     pass_ncnn/F_upsample_bilinear.cpp
@@ -537,6 +541,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
+    pass_ncnn/nn_Hardshrink.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
@@ -570,6 +575,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Softmax.cpp
     pass_ncnn/nn_Softmax2d.cpp
+    pass_ncnn/nn_Softshrink.cpp
+    pass_ncnn/nn_Softplus.cpp
     pass_ncnn/nn_Tanh.cpp
     pass_ncnn/nn_Unfold.cpp
     pass_ncnn/nn_Upsample.cpp

@@ -85,4 +85,53 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink_onnx, 100)
 
+class F_softshrink_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Shrink                  op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.softshrink";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float bias = 0.f;
+        if (captured_params.find("op_0.bias") != captured_params.end())
+        {
+            bias = captured_params.at("op_0.bias").f;
+        }
+
+        float lambda = 0.5f;
+        if (captured_params.find("op_0.lambda") != captured_params.end())
+        {
+            lambda = captured_params.at("op_0.lambda").f;
+        }
+
+        return bias == lambda;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float lambda = 0.5f;
+        if (captured_params.find("op_0.lambda") != captured_params.end())
+        {
+            lambda = captured_params.at("op_0.lambda").f;
+        }
+
+        op->params["lambd"] = lambda;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softshrink_onnx_1, 100)
+
 } // namespace pnnx

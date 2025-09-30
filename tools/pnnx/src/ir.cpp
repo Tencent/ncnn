@@ -413,9 +413,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 3)
     {
-        char buf[64];
-        sprintf(buf, "%e", param.f);
-        return std::string(buf);
+        return float_to_string(param.f);
     }
     if (param.type == 4)
     {
@@ -438,9 +436,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
         std::string s("(");
         for (size_t i = 0; i < param.af.size(); i++)
         {
-            char buf[64];
-            sprintf(buf, "%e", param.af[i]);
-            s += std::string(buf);
+            s += float_to_string(param.af[i]);
             if (i + 1 != param.af.size())
                 s += std::string(",");
         }
@@ -1846,7 +1842,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     const std::vector<int>& shape = op->params.at("shape").ai;
                     for (size_t i = 0; i < shape.size(); i++)
                     {
-                        fprintf(pyfp, "%d", shape[i]);
+                        if (shape[i] == 0)
+                        {
+                            // torch does not support numpy style reference
+                            fprintf(pyfp, "v_%s.size(%d)", sanitize_identifier(op->inputs[0]->name).c_str(), (int)i);
+                        }
+                        else
+                        {
+                            fprintf(pyfp, "%d", shape[i]);
+                        }
                         if (i + 1 != shape.size())
                             fprintf(pyfp, ", ");
                     }
@@ -1907,6 +1911,69 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
                 }
                 fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "torch.unsqueeze")
+            {
+                fprintf(pyfp, "v_%s = v_%s", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str());
+
+                if (op->params.at("dim").type == 2)
+                {
+                    const int dim = op->params.at("dim").i;
+                    fprintf(pyfp, ".unsqueeze(%d)", dim);
+                }
+                else
+                {
+                    // multiple dims, sort to -1,-2,-3,...,0,1,2,3.... and unroll
+                    std::vector<int> dims = op->params.at("dim").ai;
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                        if (a < 0 && b >= 0) return true;
+                        if (a >= 0 && b < 0) return false;
+                        if (a < 0 && b < 0) return a > b;
+                        return a < b;
+                    });
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        int dim = dims[i];
+                        fprintf(pyfp, ".unsqueeze(%d)", dim);
+                    }
+                }
+
+                fprintf(pyfp, "\n");
+            }
+            else if (op->type == "torch.prod")
+            {
+                fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
+
+                if (op->params.at("dim").type == 2)
+                {
+                    const int dim = op->params.at("dim").i;
+                    const bool keepdim = op->params.at("keepdim").b;
+                    fprintf(pyfp, "torch.prod(input=v_%s, dim=%d, keepdim=%s)", sanitize_identifier(op->inputs[0]->name).c_str(), dim, keepdim ? "True" : "False");
+                }
+                else
+                {
+                    // multiple dims, sort to ...,-3,-2,-1,...,3,2,1,0 and unroll
+                    std::vector<int> dims = op->params.at("dim").ai;
+                    const bool keepdim = op->params.at("keepdim").b;
+                    std::sort(dims.begin(), dims.end(), [](int a, int b) {
+                        if (a < 0 && b >= 0) return true;
+                        if (a >= 0 && b < 0) return false;
+                        if (a < 0 && b < 0) return a < b;
+                        return a > b;
+                    });
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        fprintf(pyfp, "torch.prod(input=");
+                    }
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
+                    for (size_t i = 0; i < dims.size(); i++)
+                    {
+                        int dim = dims[i];
+                        fprintf(pyfp, ", dim=%d, keepdim=%s)", dim, keepdim ? "True" : "False");
+                    }
+                }
+
+                fprintf(pyfp, "\n");
             }
             else if (op->type == "prim::TupleUnpack")
             {
@@ -2103,7 +2170,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, ", ");
                 }
 
-                if (op->type == "torch.max" || op->type == "torch.max")
+                if (op->type == "torch.max" || op->type == "torch.min")
                 {
                     if (op->has_param("dim") && op->outputs.size() == 1)
                     {

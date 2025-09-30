@@ -1031,7 +1031,7 @@ void GpuInfoPrivate::query_extension_properties()
     memset(&queryShaderIntegerDotProductProperties, 0, sizeof(queryShaderIntegerDotProductProperties));
     queryShaderIntegerDotProductProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES_KHR;
     queryShaderIntegerDotProductProperties.pNext = 0;
-    if (support_VK_KHR_driver_properties)
+    if (support_VK_KHR_shader_integer_dot_product)
     {
         queryShaderIntegerDotProductProperties.pNext = queryExtensionProperties;
         queryExtensionProperties = &queryShaderIntegerDotProductProperties;

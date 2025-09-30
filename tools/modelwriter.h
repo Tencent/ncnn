@@ -1112,7 +1112,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
-                fwrite_weight_data(op->bias_data, bp);
+                if (op->bias_term)
+                {
+                    fwrite_weight_data(op->bias_data, bp);
+                }
             }
 
             if (shape_ready)
@@ -1678,7 +1681,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->bias_term)
+            {
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
 #if NCNN_INT8
             // write int8_scale data
@@ -1704,10 +1710,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::ExpandDims* op = (ncnn::ExpandDims*)layer;
             ncnn::ExpandDims* op_default = (ncnn::ExpandDims*)layer_default;
 
-            fprintf_param_value(" 0=%d", expand_w)
-            fprintf_param_value(" 1=%d", expand_h)
-            fprintf_param_value(" 11=%d", expand_d)
-            fprintf_param_value(" 2=%d", expand_c)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }

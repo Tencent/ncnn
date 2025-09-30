@@ -3,6 +3,8 @@
 
 #include "expression.h"
 
+#include <stdio.h> // sscanf
+
 namespace ncnn {
 
 int count_expression_blobs(const std::string& expr)

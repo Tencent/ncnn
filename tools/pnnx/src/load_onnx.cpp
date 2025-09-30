@@ -415,7 +415,89 @@ static const char* get_onnx_tensor_elem_data_type_str(ONNXTensorElementDataType 
     return "";
 }
 
-static bool check_input_shape(onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types)
+{
+    for (size_t i = 0; i < shapes.size(); i++)
+    {
+        const std::vector<int64_t>& s = shapes[i];
+        const std::string& t = types[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < s.size(); j++)
+        {
+            fprintf(stderr, "%ld", s[j]);
+            if (j != s.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        fprintf(stderr, "%s", t.c_str());
+        if (i != shapes.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static void get_traced_input_shape(const onnx::ModelProto& model, std::vector<std::vector<int64_t> >& input_shapes, std::vector<std::string>& input_types, std::vector<std::vector<int64_t> >& input_shapes2, std::vector<std::string>& input_types2)
+{
+    const onnx::GraphProto& graph = model.graph();
+
+    input_shapes.resize(graph.input_size());
+    input_types.resize(graph.input_size());
+    input_shapes2.resize(graph.input_size());
+    input_types2.resize(graph.input_size());
+
+    bool has_dynamic_dimsize = false;
+
+    for (int i = 0; i < graph.input_size(); i++)
+    {
+        const onnx::ValueInfoProto& value = graph.input(i);
+        const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+
+        ONNXTensorElementDataType datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+
+        input_shapes[i].resize(tsp.dim_size());
+        input_shapes2[i].resize(tsp.dim_size());
+
+        for (int j = 0; j < tsp.dim_size(); j++)
+        {
+            if (tsp.dim(j).has_dim_value())
+            {
+                int64_t ds = tsp.dim(j).dim_value();
+                if (ds != -1)
+                {
+                    // static dimension size
+                    input_shapes[i][j] = ds;
+                    input_shapes2[i][j] = ds;
+                    continue;
+                }
+            }
+
+            // dynamic dimension size
+            if (j == 0)
+            {
+                // assume the first dimension is batch size
+                input_shapes[i][j] = 1;
+                input_shapes2[i][j] = 1;
+            }
+            else
+            {
+                // just guess some working ones
+                has_dynamic_dimsize = true;
+                input_shapes[i][j] = 128;
+                input_shapes2[i][j] = 512;
+            }
+        }
+
+        input_types[i] = get_onnx_tensor_elem_data_type_str(datatype);
+        input_types2[i] = get_onnx_tensor_elem_data_type_str(datatype);
+    }
+
+    if (!has_dynamic_dimsize)
+    {
+        input_shapes2.clear();
+        input_types2.clear();
+    }
+}
+
+static bool check_input_shape(const onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
 {
     const onnx::GraphProto& graph = model.graph();
 
@@ -530,14 +612,58 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     onnx2pnnx::eliminate_initializer_input(model);
 
-    // input shape sanity check
-    if (!check_input_shape(model, input_shapes, input_types))
+    // get input shape from traced onnx
+    std::vector<std::vector<int64_t> > traced_input_shapes;
+    std::vector<std::string> traced_input_types;
+    std::vector<std::vector<int64_t> > traced_input_shapes2;
+    std::vector<std::string> traced_input_types2;
+    get_traced_input_shape(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+
+    if (!traced_input_shapes.empty())
     {
-        return -1;
+        fprintf(stderr, "get inputshape from traced inputs\n");
+        fprintf(stderr, "inputshape = ");
+        print_shape_list(traced_input_shapes, traced_input_types);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "inputshape2 = ");
+        print_shape_list(traced_input_shapes2, traced_input_types2);
+        fprintf(stderr, "\n");
+
+        if (!input_shapes.empty())
+        {
+            // input shape sanity check
+            if (!check_input_shape(model, input_shapes, input_types))
+            {
+                return -1;
+            }
+            traced_input_shapes = input_shapes;
+            traced_input_types = input_types;
+            if (!input_shapes2.empty())
+            {
+                if (!check_input_shape(model, input_shapes2, input_types2))
+                {
+                    return -1;
+                }
+                traced_input_shapes2 = input_shapes2;
+                traced_input_types2 = input_types2;
+            }
+            else if (!traced_input_shapes2.empty())
+            {
+                // user provide static input shape
+                traced_input_shapes2.clear();
+                traced_input_types2.clear();
+
+                fprintf(stderr, "model has dynamic dimension size, but no inputshape2 specified\n");
+                fprintf(stderr, "pnnx will optimize model with static input shape\n");
+            }
+        }
     }
-    if (!input_shapes2.empty() && !check_input_shape(model, input_shapes2, input_types2))
+    else
     {
-        return -1;
+        traced_input_shapes = input_shapes;
+        traced_input_types = input_types;
+        traced_input_shapes2 = input_shapes2;
+        traced_input_types2 = input_types2;
     }
 
     fprintf(stderr, "############# pass_level0 onnx \n");
@@ -575,7 +701,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
+        onnx2pnnx::fold_constants(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -595,7 +721,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
+        onnx2pnnx::shape_inference(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -605,7 +731,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+        onnx2pnnx::fold_constants_dynamic_shape(model, traced_input_shapes, traced_input_types);
 
         t1 = get_current_time();
 
