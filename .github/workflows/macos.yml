@@ -36,7 +36,7 @@ concurrency:
   group: macos-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
   MAC_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
@@ -46,7 +46,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -86,7 +86,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-macos-install-20240403
+        key: openmp-macos-install-20251004
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -137,7 +137,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-macos-install-20240622
+        key: swiftshader-macos-install-20251004
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v5
