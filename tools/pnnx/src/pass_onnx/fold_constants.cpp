@@ -672,6 +672,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                             }
                         }
 
+                        if (slice_args.empty())
+                        {
+                            // old opset, look for args in attributes
+                            int axis = 0;
+                            int start = 0;
+                            int end = 0;
+                            for (int j = 0; j < node.attribute_size(); j++)
+                            {
+                                const onnx::AttributeProto& attr = node.attribute(j);
+
+                                if (attr.type() != onnx::AttributeProto::INTS || attr.ints_size() != 1)
+                                    continue;
+
+                                int64_t i64 = attr.ints(0);
+                                if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                                if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
+                                if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                                if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
+
+                                if (attr.name() == "axes")
+                                    axis = (int)i64;
+                                if (attr.name() == "starts")
+                                    start = (int)i64;
+                                if (attr.name() == "ends")
+                                    end = (int)i64;
+                            }
+                            slice_args = {start, end, axis};
+                        }
+
                         // check slice dim=0 step=1
                         if (slice_args.size() == 2 || (slice_args.size() == 3 && slice_args[2] == 0) || (slice_args.size() == 4 && slice_args[2] == 0 && slice_args[3] == 1))
                         {
