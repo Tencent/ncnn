@@ -690,7 +690,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.roi") != captured_params.end())
         {
-            if (captured_params.at("op_0.roi").type != 6 || !captured_params.at("op_0.roi").ai.empty())
+            if (captured_params.at("op_0.roi").type != 6 || !captured_params.at("op_0.roi").af.empty())
                 return false;
         }
 
@@ -877,5 +877,111 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2, 110)
+
+class F_interpolate_onnx_dynamic : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+Resize                  op_0        2 1 input size out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        if (captured_params.find("op_0.sizes") != captured_params.end())
+            return false;
+
+        if (captured_params.find("op_0.scales") != captured_params.end())
+        {
+            if (captured_params.at("op_0.scales").type != 6 || !captured_params.at("op_0.scales").af.empty())
+                return false;
+        }
+
+        if (captured_params.find("op_0.roi") != captured_params.end())
+        {
+            if (captured_params.at("op_0.roi").type != 6 || !captured_params.at("op_0.roi").af.empty())
+                return false;
+        }
+
+        if (captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end())
+        {
+            if (captured_params.at("op_0.coordinate_transformation_mode").type != 4)
+                return false;
+        }
+
+        if (captured_params.find("op_0.mode") == captured_params.end())
+            return false;
+
+        if (captured_params.at("op_0.mode").type != 4)
+            return false;
+
+        if (captured_params.find("op_0.nearest_mode") != captured_params.end())
+        {
+            if (captured_params.at("op_0.nearest_mode").type != 4 || captured_params.at("op_0.nearest_mode").s != "floor")
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int input_rank = op->inputs[0]->shape.size();
+
+        std::string coordinate_transformation_mode = "half_pixel";
+        if (captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end())
+        {
+            coordinate_transformation_mode = captured_params.at("op_0.coordinate_transformation_mode").s;
+        }
+
+        std::string mode = captured_params.at("op_0.mode").s;
+
+        if (mode == "linear")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+        }
+
+        if (mode == "cubic")
+        {
+            if (coordinate_transformation_mode == "half_pixel")
+                op->params["align_corners"] = false;
+            if (coordinate_transformation_mode == "align_corners")
+                op->params["align_corners"] = true;
+        }
+
+        if (mode == "linear")
+        {
+            if (input_rank == 3)
+                mode = "linear";
+            else if (input_rank == 5)
+                mode = "trilinear";
+            else
+                mode = "bilinear";
+        }
+
+        if (mode == "cubic")
+        {
+            mode = "bicubic";
+        }
+
+        op->params["mode"] = mode;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_dynamic, 110)
 
 } // namespace pnnx

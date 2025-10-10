@@ -619,6 +619,71 @@ static void constant_unpooling(Graph& graph)
     }
 }
 
+static void shape_unpooling(Graph& graph)
+{
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "aten::size")
+                continue;
+
+            if (op->inputs.size() != 1)
+                continue;
+
+            Operand* op_out = op->outputs[0];
+            if (op_out->consumers.size() == 1)
+                continue;
+
+            matched = true;
+
+            // create shadow node for all consumers
+            for (size_t j = 1; j < op_out->consumers.size(); j++)
+            {
+                Operator* op1 = op_out->consumers[j];
+
+                Operator* op0 = graph.new_operator_before(op->type, op->name + "_pnnxshadow" + std::to_string(j), op1);
+                op0->inputnames = op->inputnames;
+                op0->params = op->params;
+                op0->attrs = op->attrs;
+
+                Operand* op0_out = graph.new_operand(op_out->name + "_pnnxshadow" + std::to_string(j));
+                op0_out->type = op_out->type;
+                op0_out->shape = op_out->shape;
+                op0_out->params = op_out->params;
+
+                op0->inputs.push_back(op->inputs[0]);
+                op->inputs[0]->consumers.push_back(op0);
+
+                op0_out->producer = op0;
+                op0->outputs.push_back(op0_out);
+
+                for (size_t k = 0; k < op1->inputs.size(); k++)
+                {
+                    if (op1->inputs[k] == op_out)
+                    {
+                        op1->inputs[k] = op0_out;
+                        break;
+                    }
+                }
+
+                op0_out->consumers.push_back(op1);
+            }
+
+            op_out->consumers.resize(1);
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
 void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
@@ -1180,6 +1245,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
     fuse_list_unpack(pnnx_graph);
 
     constant_unpooling(pnnx_graph);
+
+    shape_unpooling(pnnx_graph);
 }
 
 } // namespace pnnx
