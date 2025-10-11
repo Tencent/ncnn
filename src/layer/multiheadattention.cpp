@@ -100,14 +100,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
     const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
-    // const Mat& q_blob = bottom_blobs[0];
-    // const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    // const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    // const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
-
     const int src_seqlen = q_blob.h;
-    // const int dst_seqlen = k_blob.h;
-    const int dst_seqlen = (kv_cache && !cached_xk_blob.empty()) ? (q_blob_i == k_blob_i ? (cached_xk_blob.h + q_blob.h) : cached_xk_blob.h) : k_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen + cur_seqlen;
+
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
@@ -121,10 +118,14 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xq.empty())
         return -100;
+
+    // layout for efficient append
     Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xk.empty())
         return -100;
-    Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
+
+    // layout for efficient append
+    Mat xv(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xv.empty())
         return -100;
 
@@ -150,11 +151,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     {
         // xq = affine(q) * scale
         {
-            Mat outm = xq.channel(q);
+            Mat xqm = xq.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = outm.row(i);
+                float* outptr = xqm.row(i);
 
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
@@ -179,27 +180,17 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
         else
         {
-            float* outptr = xk.channel(q);
+            Mat xkm = xk.channel(q);
 
-            if (kv_cache && !cached_xk_blob.empty())
+            if (past_seqlen > 0)
             {
                 // reuse cached_xk
-                const Mat cached_outm = cached_xk_blob.channel(q);
-
-                for (int i = 0; i < cached_outm.h; i++)
-                {
-                    const float* ptr = cached_outm.row(i);
-
-                    memcpy(outptr, ptr, embed_dim_per_head * sizeof(float));
-
-                    outptr += embed_dim_per_head;
-                }
+                memcpy(xkm, cached_xk_blob.channel(q), past_seqlen * embed_dim_per_head * sizeof(float));
             }
-            // Mat outm = xk.channel(q);
 
-            for (int i = 0; i < dst_seqlen; i++)
+            for (int i = 0; i < cur_seqlen; i++)
             {
-                // float* outptr = outm.row(i);
+                float* xk_ptr = xkm.row(past_seqlen + i);
 
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
@@ -212,8 +203,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                         sum += *ptr++ * *kptr++;
                     }
 
-                    // outptr[j] = sum;
-                    *outptr++ = sum;
+                    xk_ptr[j] = sum;
                 }
             }
         }
@@ -225,55 +215,43 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
         else
         {
-            Mat outm = xv.channel(q);
+            Mat xvm = xv.channel(q);
 
-            for (int i = 0; i < embed_dim_per_head; i++)
+            if (past_seqlen > 0)
             {
-                float* outptr = outm.row(i);
+                // reuse cached_xv
+                memcpy(xvm, cached_xv_blob.channel(q), past_seqlen * embed_dim_per_head * sizeof(float));
+            }
 
-                if (kv_cache && !cached_xv_blob.empty())
+            for (int i = 0; i < cur_seqlen; i++)
+            {
+                float* xv_ptr = xvm.row(past_seqlen + i);
+
+                for (int j = 0; j < embed_dim_per_head; j++)
                 {
-                    // reuse cached_xv
-                    const Mat cached_outm = cached_xv_blob.channel(q);
+                    const float* ptr = v_blob.row(i);
+                    const float* kptr = (const float*)v_weight_data + vdim * (q * embed_dim_per_head + j);
 
-                    const float* ptr = cached_outm.row(i);
-
-                    for (int j = 0; j < cached_outm.w; j++)
-                    {
-                        *outptr++ = ptr[j];
-                    }
-                }
-                for (int j = 0; j < dst_seqlen; j++)
-                {
-                    const float* ptr = v_blob.row(j);
-                    const float* kptr = (const float*)v_weight_data + vdim * (q * embed_dim_per_head + i);
-
-                    float sum = v_bias_data[q * embed_dim_per_head + i];
+                    float sum = v_bias_data[q * embed_dim_per_head + j];
                     for (int k = 0; k < vdim; k++)
                     {
                         sum += *ptr++ * *kptr++;
                     }
 
-                    // float* outptr = outm.row(i);
-
-                    // outptr[j] = sum;
-                    *outptr++ = sum;
+                    xv_ptr[j] = sum;
                 }
             }
         }
 
-        // xqk = xq * xk
-        // xq  (embed_dim_per_head, src_seqlen)
-        // xk  (embed_dim_per_head, dst_seqlen)
+        // xqk = xq * xk^T
         {
             const Mat xqm = xq.channel(q);
             const Mat xkm = xk.channel(q);
-
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = outm.row(i);
+                float* outptr = xqkm.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
@@ -295,12 +273,12 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         if (attn_mask)
         {
             const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
                 const float* mptr = maskm.row(i);
-                float* outptr = outm.row(i);
+                float* outptr = xqkm.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
@@ -311,11 +289,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
         // softmax(xqk)
         {
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* ptr = outm.row(i);
+                float* ptr = xqkm.row(i);
 
                 float max = -FLT_MAX;
                 for (int j = 0; j < dst_seqlen; j++)
@@ -326,7 +304,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(expf(ptr[j] - max));
+                    ptr[j] = (float)expf(ptr[j] - max);
                     sum += ptr[j];
                 }
 
@@ -338,9 +316,6 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xqkv = xqk * xv
-        // xqk (dst_seqlen, src_seqlen)
-        // xv  (dst_seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_heads, src_seqlen)
         {
             const Mat xqkm = xqk.channel(q);
             const Mat xvm = xv.channel(q);
@@ -352,12 +327,13 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const float* qkptr = xqkm.row(i);
-                    const float* vptr = xvm.row(j);
+                    const float* vptr = xvm.row(0) + j;
 
                     float sum = 0.f;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
-                        sum += *qkptr++ * *vptr++;
+                        sum += *qkptr++ * *vptr;
+                        vptr += embed_dim_per_head;
                     }
 
                     outptr[j] = sum;
@@ -367,12 +343,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     // out = affine(xqkv)
-    // xqkv  (embed_dim, src_seqlen)
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < src_seqlen; i++)
     {
         float* outptr = top_blob.row(i);
-
         for (int j = 0; j < qdim; j++)
         {
             const float* ptr = xqkv.channel(i);
@@ -600,14 +574,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
     const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
-    // const Mat& q_blob = bottom_blobs[0];
-    // const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    // const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    // const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
-
     const int src_seqlen = q_blob.h;
-    // const int dst_seqlen = k_blob.h;
-    const int dst_seqlen = (kv_cache && !cached_xk_blob.empty()) ? (q_blob_i == k_blob_i ? (cached_xk_blob.h + q_blob.h) : cached_xk_blob.h) : k_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen + cur_seqlen;
+
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
@@ -621,10 +592,14 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xq.empty())
         return -100;
+
+    // layout for efficient append
     Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xk.empty())
         return -100;
-    Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
+
+    // layout for efficient append
+    Mat xv(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (xv.empty())
         return -100;
 
@@ -719,24 +694,18 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
         else
         {
-            float* outptr = xk.channel(q);
+            Mat xkm = xk.channel(q);
 
-            if (kv_cache && !cached_xk_blob.empty())
+            if (past_seqlen > 0)
             {
                 // reuse cached_xk
-                const Mat cached_outm = cached_xk_blob.channel(q);
-
-                for (int i = 0; i < cached_outm.h; i++)
-                {
-                    const float* ptr = cached_outm.row(i);
-
-                    memcpy(outptr, ptr, embed_dim_per_head * sizeof(float));
-
-                    outptr += embed_dim_per_head;
-                }
+                memcpy(xkm, cached_xk_blob.channel(q), past_seqlen * embed_dim_per_head * sizeof(float));
             }
-            for (int i = 0; i < k_blob_int8.h; i++)
+
+            for (int i = 0; i < cur_seqlen; i++)
             {
+                float* xk_ptr = xkm.row(past_seqlen + i);
+
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const signed char* ptr = k_blob_int8.row<const signed char>(i);
@@ -750,7 +719,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                     const float k_descale = 1.f / (k_weight_data_int8_scales[q * embed_dim_per_head + j] * k_blob_int8_scale);
                     float sum_fp32 = sum * k_descale + k_bias_data[q * embed_dim_per_head + j];
 
-                    *outptr++ = sum_fp32;
+                    xk_ptr[j] = sum_fp32;
                 }
             }
         }
@@ -762,50 +731,41 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
         else
         {
-            Mat outm = xv.channel(q);
+            Mat xvm = xv.channel(q);
 
-            for (int i = 0; i < embed_dim_per_head; i++)
+            if (past_seqlen > 0)
             {
-                float* outptr = outm.row(i);
+                // reuse cached_xv
+                memcpy(xvm, cached_xv_blob.channel(q), past_seqlen * embed_dim_per_head * sizeof(float));
+            }
 
-                if (kv_cache && !cached_xv_blob.empty())
+            for (int i = 0; i < cur_seqlen; i++)
+            {
+                float* xv_ptr = xvm.row(past_seqlen + i);
+
+                for (int j = 0; j < embed_dim_per_head; j++)
                 {
-                    // reuse cached_xv
-                    const Mat cached_outm = cached_xv_blob.channel(q);
-
-                    const float* ptr = cached_outm.row(i);
-
-                    for (int j = 0; j < cached_outm.w; j++)
-                    {
-                        *outptr++ = ptr[j];
-                    }
-                }
-                for (int j = 0; j < v_blob_int8.h; j++)
-                {
-                    const signed char* ptr = v_blob_int8.row<const signed char>(j);
-                    const signed char* kptr = (const signed char*)v_weight_data + vdim * (q * embed_dim_per_head + i);
+                    const signed char* ptr = v_blob_int8.row<const signed char>(i);
+                    const signed char* kptr = (const signed char*)v_weight_data + vdim * (q * embed_dim_per_head + j);
 
                     int sum = 0;
                     for (int k = 0; k < vdim; k++)
                     {
                         sum += *ptr++ * *kptr++;
                     }
-                    const float v_descale = 1.f / (v_weight_data_int8_scales[q * embed_dim_per_head + i] * v_blob_int8_scale);
-                    float sum_fp32 = sum * v_descale + v_bias_data[q * embed_dim_per_head + i];
+                    const float v_descale = 1.f / (v_weight_data_int8_scales[q * embed_dim_per_head + j] * v_blob_int8_scale);
+                    float sum_fp32 = sum * v_descale + v_bias_data[q * embed_dim_per_head + j];
 
-                    *outptr++ = sum_fp32;
+                    xv_ptr[j] = sum_fp32;
                 }
             }
         }
 
-        // xqk = xq * xk
-        // xq  (embed_dim_per_head, src_seqlen)
-        // xk  (embed_dim_per_head, dst_seqlen)
+        // xqk = xq * xk^T
         {
             const Mat xqm = xq.channel(q);
             const Mat xkm = xk.channel(q);
-
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             // dynamic quantize xqm per h
             Mat xqm_int8;
@@ -819,7 +779,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = outm.row(i);
+                float* outptr = xqkm.row(i);
                 const float xqk_descale = 1.f / (xqm_int8_scales[i] * xkm_int8_scale);
 
                 for (int j = 0; j < dst_seqlen; j++)
@@ -843,12 +803,12 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         if (attn_mask)
         {
             const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
                 const float* mptr = maskm.row(i);
-                float* outptr = outm.row(i);
+                float* outptr = xqkm.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
@@ -859,11 +819,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
         // softmax(xqk)
         {
-            Mat outm = xqk.channel(q);
+            Mat xqkm = xqk.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* ptr = outm.row(i);
+                float* ptr = xqkm.row(i);
 
                 float max = -FLT_MAX;
                 for (int j = 0; j < dst_seqlen; j++)
@@ -874,7 +834,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(expf(ptr[j] - max));
+                    ptr[j] = (float)expf(ptr[j] - max);
                     sum += ptr[j];
                 }
 
@@ -886,9 +846,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xqkv = xqk * xv
-        // xqk (dst_seqlen, src_seqlen)
-        // xv  (dst_seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_heads, src_seqlen)
         {
             const Mat xqkm = xqk.channel(q);
             const Mat xvm = xv.channel(q);
@@ -911,12 +868,13 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const signed char* qkptr = xqkm_int8.row<const signed char>(i);
-                    const signed char* vptr = xvm_int8.row<const signed char>(j);
+                    const signed char* vptr = xvm_int8.row<const signed char>(0) + j;
 
                     int sum = 0;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
-                        sum += *qkptr++ * *vptr++;
+                        sum += *qkptr++ * *vptr;
+                        vptr += embed_dim_per_head;
                     }
                     float sum_fp32 = sum * xqkv_descale;
 
@@ -959,7 +917,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     }
 
     // out = affine(xqkv)
-    // xqkv  (embed_dim, src_seqlen)
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < src_seqlen; i++)
     {
