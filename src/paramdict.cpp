@@ -345,9 +345,19 @@ int ParamDict::load_param(const DataReader& dr)
             // scan the remaining string
             char vstr2[256];
             vstr2[241] = '\0'; // max 255 = 15 + 240
+
             if (vstr[0] == '\"')
             {
-                nscan = dr.scan("%255[^\"\n]\"", vstr2);
+                int len = 0;
+                while (vstr[len] != '\0')
+                    len++;
+                char end = vstr[len - 1];
+                if (end != '\"')
+                {
+                    nscan = dr.scan("%255[^\"\n]\"", vstr2);
+                }
+                else
+                    nscan = 0; // already ended with a quote, no need to scan more
             }
             else
             {
