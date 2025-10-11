@@ -31,6 +31,8 @@ public:
 
     Layer* qk_softmax;
 
+    Layer* kvcache_concat;
+
     Pipeline* pipeline_multiheadattention_qk_cross;
     Pipeline* pipeline_multiheadattention_qk_cross_pack4;
     Pipeline* pipeline_multiheadattention_qk_cross_pack1to4;

@@ -161,6 +161,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
 {
     const Layer* layer = layers[layer_index];
 
+    if (layer->typeindex == LayerType::Input)
+        return 0;
+
     //     NCNN_LOGE("forward_layer %d %s", layer_index, layer->name.c_str());
 
     // load bottom blobs
@@ -226,6 +229,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
+
+    if (layer->typeindex == LayerType::Input)
+        return 0;
 
     //     NCNN_LOGE("forward_layer %d %d %s", layer->support_vulkan, layer_index, layer->name.c_str());
 
@@ -363,6 +369,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
 {
+    if (bottom_blob.empty())
+        return 0;
+
     if (bottom_blob.elembits() == 32)
     {
         // clang-format off
