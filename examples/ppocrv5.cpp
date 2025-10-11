@@ -461,7 +461,13 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         {
             const Character& ch = objects[i].text[j];
             if (ch.id >= character_dict_size)
+            {
+                if (!text.empty() && text.back() != ' ')
+                {
+                    text += " ";
+                }
                 continue;
+            }
 
             if (obj.orientation == 0)
             {
