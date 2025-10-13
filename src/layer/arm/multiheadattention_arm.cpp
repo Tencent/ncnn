@@ -361,7 +361,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int cur_seqlen = k_blob.h * k_blob.elempack;
     const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
-    const int dst_seqlen = past_seqlen + cur_seqlen;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     // const int elembits = q_blob.elembits();
 
