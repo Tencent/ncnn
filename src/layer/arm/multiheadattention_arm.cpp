@@ -317,11 +317,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
     const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
-    // const Mat& q_blob = bottom_blobs[0];
-    // const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    // const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    // const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
-
     Option opt = _opt;
     opt.use_fp16_storage &= support_fp16_storage;
     opt.use_bf16_storage &= support_bf16_storage;
@@ -364,8 +359,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
-    // const int dst_seqlen = k_blob.h * k_blob.elempack;
-    const int dst_seqlen = (kv_cache && !cached_xk_blob_unpacked.empty()) ? (q_blob_i == k_blob_i ? (cached_xk_blob_unpacked.w + q_blob.h * q_blob.elempack) : cached_xk_blob_unpacked.w) : k_blob.h * k_blob.elempack;
+    const int cur_seqlen = k_blob.h * k_blob.elempack;
+    const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
+    const int dst_seqlen = past_seqlen + cur_seqlen;
 
     // const int elembits = q_blob.elembits();
 
@@ -377,7 +373,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         return retq;
 
     Mat k_affine;
-    if (kv_cache && !cached_xk_blob_unpacked.empty())
+    if (past_seqlen > 0)
     {
         if (q_blob_i == k_blob_i)
         {
@@ -395,25 +391,12 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
             for (int i = 0; i < embed_dim; i++)
             {
-                // const float* ptr = cached_xk_blob_unpacked.row(i);
-                // const float* ptrq = k_affine_q.row(i);
-                // float* outptr = k_affine.row(i);
-                //
-                // for (int j = 0; j < cached_xk_blob_unpacked.w; j++)
-                // {
-                //     *outptr++ = *ptr++;
-                // }
-                // for (int j = 0; j < k_affine_q.w; j++)
-                // {
-                //     *outptr++ = *ptrq++;
-                // }
-
                 const unsigned char* ptr = cached_xk_blob_unpacked.row<const unsigned char>(i);
                 const unsigned char* ptrq = k_affine_q.row<const unsigned char>(i);
                 unsigned char* outptr = k_affine.row<unsigned char>(i);
 
-                memcpy(outptr, ptr, cached_xk_blob_unpacked.w * k_affine.elemsize);
-                memcpy(outptr + cached_xk_blob_unpacked.w * k_affine.elemsize, ptrq, k_affine_q.w * k_affine.elemsize);
+                memcpy(outptr, ptr, past_seqlen * k_affine.elemsize);
+                memcpy(outptr + past_seqlen * k_affine.elemsize, ptrq, cur_seqlen * k_affine.elemsize);
             }
         }
         else
@@ -469,7 +452,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         return retqk;
 
     Mat v_affine;
-    if (kv_cache && !cached_xv_blob_unpacked.empty())
+    if (past_seqlen > 0)
     {
         if (q_blob_i == v_blob_i)
         {
@@ -487,25 +470,12 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
             for (int i = 0; i < embed_dim; i++)
             {
-                // const float* ptr = cached_xv_blob_unpacked.row(i);
-                // const float* ptrq = v_affine_q.row(i);
-                // float* outptr = v_affine.row(i);
-                //
-                // for (int j = 0; j < cached_xv_blob_unpacked.w; j++)
-                // {
-                //     *outptr++ = *ptr++;
-                // }
-                // for (int j = 0; j < v_affine_q.w; j++)
-                // {
-                //     *outptr++ = *ptrq++;
-                // }
-
                 const unsigned char* ptr = cached_xv_blob_unpacked.row<const unsigned char>(i);
                 const unsigned char* ptrq = v_affine_q.row<const unsigned char>(i);
                 unsigned char* outptr = v_affine.row<unsigned char>(i);
 
-                memcpy(outptr, ptr, cached_xv_blob_unpacked.w * v_affine.elemsize);
-                memcpy(outptr + cached_xv_blob_unpacked.w * v_affine.elemsize, ptrq, v_affine_q.w * v_affine.elemsize);
+                memcpy(outptr, ptr, past_seqlen * v_affine.elemsize);
+                memcpy(outptr + past_seqlen * v_affine.elemsize, ptrq, cur_seqlen * v_affine.elemsize);
             }
         }
         else
