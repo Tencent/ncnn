@@ -581,7 +581,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const int src_seqlen = q_blob.h;
     const int cur_seqlen = k_blob.h;
     const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
-    const int dst_seqlen = past_seqlen + cur_seqlen;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
