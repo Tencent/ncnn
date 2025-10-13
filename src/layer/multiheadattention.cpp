@@ -137,11 +137,11 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     if (xqkv.empty())
         return -100;
 
-    if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+    if (past_seqlen > 0 && q_blob_i != k_blob_i)
     {
         xk = cached_xk_blob;
     }
-    if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+    if (past_seqlen > 0 && q_blob_i != v_blob_i)
     {
         xv = cached_xv_blob;
     }
@@ -174,7 +174,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xk = affine(k)
-        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+        if (past_seqlen > 0 && q_blob_i != k_blob_i)
         {
             // pass
         }
@@ -209,7 +209,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xv = affine(v)
-        if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+        if (past_seqlen > 0 && q_blob_i != v_blob_i)
         {
             // pass
         }
@@ -649,11 +649,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
     // NCNN_LOGE("%.4f %.4f", q_weight_data_int8_scale, q_blob_int8_scale);
 
-    if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+    if (past_seqlen > 0 && q_blob_i != k_blob_i)
     {
         xk = cached_xk_blob;
     }
-    if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+    if (past_seqlen > 0 && q_blob_i != v_blob_i)
     {
         xv = cached_xv_blob;
     }
@@ -688,7 +688,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xk = affine(k)
-        if (kv_cache && !cached_xk_blob.empty() && q_blob_i != k_blob_i)
+        if (past_seqlen > 0 && q_blob_i != k_blob_i)
         {
             // pass
         }
@@ -725,7 +725,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // xv = affine(v)
-        if (kv_cache && !cached_xv_blob.empty() && q_blob_i != v_blob_i)
+        if (past_seqlen > 0 && q_blob_i != v_blob_i)
         {
             // pass
         }
