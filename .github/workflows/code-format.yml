@@ -56,7 +56,7 @@ jobs:
     - name: configure-git-safe-directory
       run: git config --global --add safe.directory /__w/ncnn/ncnn
 
-    - uses: stefanzweifel/git-auto-commit-action@v6
+    - uses: stefanzweifel/git-auto-commit-action@v7
       with:
         commit_message: apply code-format changes
 
