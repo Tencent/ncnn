@@ -99,7 +99,7 @@ static int test_multiheadattention_self_kvcache_prefill(const ncnn::Mat& q, int 
     {
         for (int j = i + 1; j < dst_seqlen; j++)
         {
-            attn_mask.row(i)[j] = -INFINITY;
+            attn_mask.row(i)[j] = -60000.f;
         }
     }
 
@@ -296,7 +296,7 @@ static int test_multiheadattention_int8_self_kvcache_prefill(const ncnn::Mat& q,
     {
         for (int j = i + 1; j < dst_seqlen; j++)
         {
-            attn_mask.row(i)[j] = -INFINITY;
+            attn_mask.row(i)[j] = -60000.f;
         }
     }
 
