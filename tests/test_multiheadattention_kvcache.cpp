@@ -206,7 +206,7 @@ static int test_multiheadattention_int8_cross_kvcache(const ncnn::Mat& q, const 
     pd.set(4, vdim);
     pd.set(5, attn_mask);
     pd.set(6, 1.f / sqrtf(embed_dim / num_heads));
-    pd.set(7, 1); // kv_cache
+    pd.set(7, 1);  // kv_cache
     pd.set(18, 2); // int8_scale_term
 
     std::vector<ncnn::Mat> weights(12);
@@ -272,8 +272,8 @@ static int test_multiheadattention_int8_self_kvcache_prefill(const ncnn::Mat& q,
     pd.set(3, qdim);
     pd.set(4, qdim);
     pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
-    pd.set(5, 1); // attn_mask
-    pd.set(7, 1); // kv_cache
+    pd.set(5, 1);  // attn_mask
+    pd.set(7, 1);  // kv_cache
     pd.set(18, 2); // int8_scale_term
 
     std::vector<ncnn::Mat> weights(12);
@@ -330,8 +330,8 @@ static int test_multiheadattention_int8_self_kvcache_decode(const ncnn::Mat& q, 
     pd.set(3, qdim);
     pd.set(4, qdim);
     pd.set(6, 0.7f / sqrtf(embed_dim / num_heads));
-    pd.set(5, 0); // attn_mask
-    pd.set(7, 1); // kv_cache
+    pd.set(5, 0);  // attn_mask
+    pd.set(7, 1);  // kv_cache
     pd.set(18, 2); // int8_scale_term
 
     std::vector<ncnn::Mat> weights(12);
