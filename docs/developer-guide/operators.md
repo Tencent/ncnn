@@ -1304,16 +1304,16 @@ y = x * tanh(log(exp(x) + 1))
 
 # MultiHeadAttention
 ```
+q_affine = affine(q) / (embed_dim / num_head)
+k_affine = affine(k) or reuse kv_cache part
+v_affine = affine(v) or reuse kv_cache part
 split q k v into num_head part q0, k0, v0, q1, k1, v1 ...
 for each num_head part
-    xq = affine(q) / (embed_dim / num_head)
-    xk = affine(k)
-    xv = affine(v)
-    xqk = xq * xk
-    xqk = xqk + attn_mask if attn_mask exists
-    softmax_inplace(xqk)
-    xqkv = xqk * xv
-    merge xqkv to out
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+    merge qkv to out
 y = affine(out)
 ```
 
@@ -1326,6 +1326,7 @@ y = affine(out)
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
+| 7         | kv_cache      | int   | 0         |                   |
 | 18        | int8_scale_term | int | 0         |                   |
 
 | weight        | type  | shape                 |
