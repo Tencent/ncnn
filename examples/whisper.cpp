@@ -71,9 +71,9 @@ public:
 
         // define function to check if char is in "printable" range
         auto is_printable = [](int b) {
-            return (b >= '!' && b <= '~')    // '!' to '~'
-                || (b >= 161 && b <= 172)    // '¡' to '¬'
-                || (b >= 174 && b <= 255);   // '®' to 'ÿ'
+            return (b >= '!' && b <= '~')     // '!' to '~'
+                   || (b >= 161 && b <= 172)  // '¡' to '¬'
+                   || (b >= 174 && b <= 255); // '®' to 'ÿ'
         };
 
         // handle "printable" characters
@@ -398,13 +398,13 @@ int Whisper::detect_lang(const std::vector<short>& samples, std::string& lang) c
     log_softmax_inplace(logits);
 
     // find the language token with highest probability
-    std::vector<std::pair<float, int>> vec;
+    std::vector<std::pair<float, int> > vec;
     for (int j = Tokenizer::LangEn; j <= Tokenizer::LangYue; j++)
     {
         vec.emplace_back(logits[j], j);
     }
     vec.emplace_back(logits[Tokenizer::NoSpeech], Tokenizer::NoSpeech);
-    auto max_elem = std::max_element(vec.begin(), vec.end(), std::less<std::pair<float, int>>());
+    auto max_elem = std::max_element(vec.begin(), vec.end(), std::less<std::pair<float, int> >());
     int max_token_id = max_elem->second;
     auto max_token = tokenizer.reverse_vocab[max_token_id];
 
@@ -497,7 +497,9 @@ int Whisper::transcribe(const std::vector<short>& samples, std::string& text) co
         }
 
         // sort candidates by score
-        std::sort(candidates.begin(), candidates.end(), [](const Result& a, const Result& b) { return a.score > b.score; });
+        std::sort(candidates.begin(), candidates.end(), [](const Result& a, const Result& b) {
+            return a.score > b.score;
+        });
 
         beams.clear();
         for (size_t i = 0; i < candidates.size(); i++)
