@@ -384,20 +384,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             if (retk != 0)
                 return retk;
 
-            // NCNN_LOGE("k_affine_q %d %d", k_affine_q.w, k_affine_q.h * k_affine_q.elempack);
-
             // assert dst_seqlen == cached_xk_blob.w + k_affine_q.w
 
             // merge cached_xk_blob and k_affine_q
-
             std::vector<VkMat> inputs(2);
             inputs[0] = cached_xk_blob;
             inputs[1] = k_affine_q;
             std::vector<VkMat> outputs(1);
             kvcache_concat->forward(inputs, outputs, cmd, opt);
             k_affine = outputs[0];
-
-            // NCNN_LOGE("k_affine +cache  %d %d", k_affine.w, k_affine.h * k_affine.elempack);
         }
         else
         {
@@ -522,20 +517,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             if (retk != 0)
                 return retk;
 
-            // NCNN_LOGE("v_affine_q %d %d", v_affine_q.w, v_affine_q.h * v_affine_q.elempack);
-
             // assert dst_seqlen == cached_xv_blob.w + v_affine_q.w
 
             // merge cached_xv_blob and v_affine_q
-
             std::vector<VkMat> inputs(2);
             inputs[0] = cached_xv_blob;
             inputs[1] = v_affine_q;
             std::vector<VkMat> outputs(1);
             kvcache_concat->forward(inputs, outputs, cmd, opt);
             v_affine = outputs[0];
-
-            // NCNN_LOGE("v_affine +cache  %d %d", v_affine.w, v_affine.h * v_affine.elempack);
         }
         else
         {
