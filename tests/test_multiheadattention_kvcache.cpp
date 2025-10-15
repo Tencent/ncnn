@@ -380,8 +380,6 @@ static int test_multiheadattention_4()
 {
     return 0
            || test_multiheadattention_int8_self_kvcache_prefill(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_self_kvcache_prefill(RandomMat(64, 128), 64, 4)
-           || test_multiheadattention_int8_self_kvcache_prefill(RandomMat(48, 127), 64, 8)
            || test_multiheadattention_int8_self_kvcache_prefill(RandomMat(48, 127), 64, 8);
 }
 
