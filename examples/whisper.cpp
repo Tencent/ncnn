@@ -25,6 +25,8 @@ static const int token_startoftranscript = 50258;
 static const int token_lang_first = 50259;
 static const int token_lang_last = 50357;
 static const int token_lang_count = token_lang_last - token_lang_first + 1;
+// clang-format off
+// *INDENT-OFF*
 static const char* token_langs[] = {
     "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv",
     "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no",
@@ -32,8 +34,10 @@ static const char* token_langs[] = {
     "az", "sl", "kn", "et", "mk", "br", "eu", "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw",
     "gl", "mr", "pa", "si", "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu",
     "am", "yi", "lo", "uz", "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl",
-    "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su",
+    "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su"
 };
+// *INDENT-ON*
+// clang-format on
 static const int token_translate = 50358;
 static const int token_transcribe = 50359;
 static const int token_startoflm = 50360;
@@ -49,6 +53,8 @@ static const int token_timestamp_last = 51864;
 // static const int token_lang_first = 50259;
 // static const int token_lang_last = 50357;
 // static const int token_lang_count = token_lang_last - token_lang_first + 1;
+// // clang-format off
+// // *INDENT-OFF*
 // static const char* token_langs[] = {
 //     "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv",
 //     "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no",
@@ -58,6 +64,8 @@ static const int token_timestamp_last = 51864;
 //     "am", "yi", "lo", "uz", "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl",
 //     "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su", "yue"
 // };
+// // *INDENT-ON*
+// // clang-format on
 // static const int token_translate = 50359;
 // static const int token_transcribe = 50360;
 // static const int token_startoflm = 50361;
@@ -825,8 +833,7 @@ static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
 #define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
 #endif
 
-    PACK(struct wav_header
-    {
+    PACK(struct wav_header {
         char riff[4];
         uint32_t chunk_size;
         char wave[4];
@@ -851,7 +858,7 @@ static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
     }
 
     if (memcmp(header.riff, "RIFF", 4) != 0 || memcmp(header.wave, "WAVE", 4) != 0
-        || memcmp(header.fmt, "fmt ", 4) != 0 || memcmp(header.data, "data", 4) != 0)
+            || memcmp(header.fmt, "fmt ", 4) != 0 || memcmp(header.data, "data", 4) != 0)
     {
         fprintf(stderr, "%s is not a valid wav file\n", wavpath);
         fclose(fp);
@@ -859,7 +866,7 @@ static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
     }
 
     if (header.subchunk1_size != 16 || header.audio_format != 1 || header.num_channels != 1
-        || header.sample_rate != 16000 || header.bits_per_sample != 16)
+            || header.sample_rate != 16000 || header.bits_per_sample != 16)
     {
         fprintf(stderr, "%s is not pcm s16le 16k wav\n", wavpath);
         fprintf(stderr, "ffmpeg -i xxx.mp3 -acodec pcm_s16le -ac 1 -ar 16000 xxx.wav\n");
