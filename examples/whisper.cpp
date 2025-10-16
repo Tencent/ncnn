@@ -485,7 +485,6 @@ int Whisper::transcribe(const std::vector<short>& samples, const char* lang, std
     ncnn::Mat encoder_states;
     run_encoder(input_features, encoder_states);
 
-    const int eot = 50257;
     const int beam_size = 5;
     const int max_candidates = 5;
 
@@ -553,7 +552,7 @@ int Whisper::transcribe(const std::vector<short>& samples, const char* lang, std
         {
             const Result& candidate = candidates[i];
 
-            if (candidate.ids.back() == eot)
+            if (candidate.ids.back() == token_endoftext)
             {
                 finished_beams.push_back(candidate);
             }
