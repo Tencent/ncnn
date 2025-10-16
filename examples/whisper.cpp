@@ -1,11 +1,20 @@
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+// whisper speech recognition implemented with ncnn library
+
 // convert openai-whisper checkpoints to ncnn models
+//  1. install pnnx via pip install -U pnnx
+//  2. obtain export_ncnn.py script from https://github.com/nihui/ncnn-android-whisper
+//  3. edit export_ncnn.py for changing the models among tiny/base/small/medium/large-v3-turbo
+//  4. make sure you have good internet connection
+//      python export_ncnn.py
 
 // convert vocab.json to simple whisper_vocab.txt
+//  1. obtain vocab.json file from https://huggingface.co/openai/whisper-tiny/blob/main/vocab.json
+//  2. convert json dict into plain list, save to whisper_vocab.txt
 
-// whisper speech recognition implemented with ncnn library
+// NOTE large-v3-turbo has special token ids from others, one more language(yue) and does not support translation
 
 #include "net.h"
 #include "layer.h"
@@ -47,7 +56,7 @@ static const int token_notimestamps = 50363;
 static const int token_timestamp_first = 50364;
 static const int token_timestamp_last = 51864;
 
-// https://huggingface.co/openai/whisper-large-v3-turbo/raw/main/tokenizer_config.json
+// https://huggingface.co/openai/whisper-large-v3-turbo/blob/main/tokenizer_config.json
 // static const int token_endoftext = 50257;
 // static const int token_startoftranscript = 50258;
 // static const int token_lang_first = 50259;
