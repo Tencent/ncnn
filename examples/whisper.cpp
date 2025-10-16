@@ -887,7 +887,13 @@ static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
 
 int main(int argc, char** argv)
 {
-    const char* wavpath = argc >= 2 ? argv[1] : "speech.wav";
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [wavpath]\n", argv[0]);
+        return -1;
+    }
+
+    const char* wavpath = argv[1];
 
     std::vector<short> samples;
     int ret = load_wav_samples(wavpath, samples);
