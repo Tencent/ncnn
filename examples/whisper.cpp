@@ -3,7 +3,7 @@
 
 // convert openai-whisper checkpoints to ncnn models
 
-// convert vocab.json to simple vocab.txt
+// convert vocab.json to simple whisper_vocab.txt
 
 // whisper speech recognition implemented with ncnn library
 
@@ -13,52 +13,64 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <algorithm>
 #include <string>
 #include <vector>
 
-static std::vector<short> load_wav_samples(const char* wavpath)
-{
-    std::vector<short> samples;
+// https://huggingface.co/openai/whisper-tiny/blob/main/tokenizer_config.json
+static const int token_endoftext = 50257;
+static const int token_startoftranscript = 50258;
+static const int token_lang_first = 50259;
+static const int token_lang_last = 50357;
+static const int token_lang_count = token_lang_last - token_lang_first + 1;
+static const char* token_langs[] = {
+    "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv",
+    "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no",
+    "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy", "sk", "te", "fa", "lv", "bn", "sr",
+    "az", "sl", "kn", "et", "mk", "br", "eu", "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw",
+    "gl", "mr", "pa", "si", "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu",
+    "am", "yi", "lo", "uz", "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl",
+    "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su",
+};
+static const int token_translate = 50358;
+static const int token_transcribe = 50359;
+static const int token_startoflm = 50360;
+static const int token_startofprev = 50361;
+static const int token_nocaptions = 50362;
+static const int token_notimestamps = 50363;
+static const int token_timestamp_first = 50364;
+static const int token_timestamp_last = 51864;
 
-    FILE* fp = fopen(wavpath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "open %s failed\n", wavpath);
-        return samples;
-    }
-
-    const int wav_header_bytes = 44;
-
-    fseek(fp, 0, SEEK_END);
-    long len = ftell(fp);
-
-    samples.resize((len - wav_header_bytes) / sizeof(short));
-
-    rewind(fp);
-
-    fseek(fp, wav_header_bytes, SEEK_SET);
-
-    fread(samples.data(), 1, len - wav_header_bytes, fp);
-
-    fclose(fp);
-
-    return samples;
-}
+// https://huggingface.co/openai/whisper-large-v3-turbo/raw/main/tokenizer_config.json
+// static const int token_endoftext = 50257;
+// static const int token_startoftranscript = 50258;
+// static const int token_lang_first = 50259;
+// static const int token_lang_last = 50357;
+// static const int token_lang_count = token_lang_last - token_lang_first + 1;
+// static const char* token_langs[] = {
+//     "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "tr", "pl", "ca", "nl", "ar", "sv",
+//     "it", "id", "hi", "fi", "vi", "he", "uk", "el", "ms", "cs", "ro", "da", "hu", "ta", "no",
+//     "th", "ur", "hr", "bg", "lt", "la", "mi", "ml", "cy", "sk", "te", "fa", "lv", "bn", "sr",
+//     "az", "sl", "kn", "et", "mk", "br", "eu", "is", "hy", "ne", "mn", "bs", "kk", "sq", "sw",
+//     "gl", "mr", "pa", "si", "km", "sn", "yo", "so", "af", "oc", "ka", "be", "tg", "sd", "gu",
+//     "am", "yi", "lo", "uz", "fo", "ht", "ps", "tk", "nn", "mt", "sa", "lb", "my", "bo", "tl",
+//     "mg", "as", "tt", "haw", "ln", "ha", "ba", "jw", "su", "yue"
+// };
+// static const int token_translate = 50359;
+// static const int token_transcribe = 50360;
+// static const int token_startoflm = 50361;
+// static const int token_startofprev = 50362;
+// static const int token_nospeech = 50363;
+// static const int token_notimestamps = 50364;
+// static const int token_timestamp_first = 50365;
+// static const int token_timestamp_last = 51865;
 
 // tokenizer for handling text tokens
 class Tokenizer
 {
 public:
-    // predefined tokens in whisper
-    enum
-    {
-        LangEn = 50259,
-        LangYue = 50358,
-        NoSpeech = 50363
-    };
-
     std::vector<std::string> reverse_vocab;
 
     uint8_t byte_decoder[512]; // unicode code point to byte value
@@ -150,7 +162,7 @@ public:
             FILE* fp = fopen(vocab_path, "rb");
             if (!fp)
             {
-                fprintf(stderr, "open vocab.txt failed\n");
+                fprintf(stderr, "fopen %s failed\n", vocab_path);
                 return false;
             }
 
@@ -187,17 +199,17 @@ public:
         std::string text_buffer;
         for (int token_id : tokens)
         {
-            if (token_id < 50257)
+            if (token_id < token_endoftext)
             {
                 text_buffer += reverse_vocab[token_id];
                 continue;
             }
 
-            // handle timestamp tokens (50364-51864)
+            // handle timestamp tokens
             // https://huggingface.co/openai/whisper-tiny/blob/main/tokenizer_config.json
-            if (token_id >= 50364 && token_id <= 51864)
+            if (token_id >= token_timestamp_first && token_id <= token_timestamp_last)
             {
-                int timestamp = (token_id - 50364) * 2;
+                int timestamp = (token_id - token_timestamp_first) * 2;
 
                 char tmp[256];
                 sprintf(tmp, " [%d.%02d] ", timestamp / 100, timestamp % 100);
@@ -231,7 +243,6 @@ public:
             }
 
             // ignore functional/special tokens
-            // <|endoftext|> and higher are special tokens
         }
 
         if (!text_buffer.empty())
@@ -271,7 +282,7 @@ public:
     int load();
 
     int detect_lang(const std::vector<short>& samples, std::string& lang) const;
-    int transcribe(const std::vector<short>& samples, std::string& text) const;
+    int transcribe(const std::vector<short>& samples, const char* lang, std::string& text) const;
 
 protected:
     int extract_fbank_feature(const std::vector<short>& samples, ncnn::Mat& input_features) const;
@@ -299,19 +310,22 @@ protected:
 
 int Whisper::load()
 {
-    // configure options for networks
+    fbank.opt.use_vulkan_compute = true;
     fbank.opt.use_fp16_packed = false;
     fbank.opt.use_fp16_storage = false;
     fbank.opt.use_fp16_arithmetic = false;
 
+    encoder.opt.use_vulkan_compute = true;
     encoder.opt.use_fp16_packed = false;
     encoder.opt.use_fp16_storage = false;
     encoder.opt.use_fp16_arithmetic = false;
 
+    decoder.opt.use_vulkan_compute = true;
     decoder.opt.use_fp16_packed = false;
     decoder.opt.use_fp16_storage = false;
     decoder.opt.use_fp16_arithmetic = false;
 
+    proj_out.opt.use_vulkan_compute = true;
     proj_out.opt.use_fp16_packed = false;
     proj_out.opt.use_fp16_storage = false;
     proj_out.opt.use_fp16_arithmetic = false;
@@ -334,7 +348,25 @@ int Whisper::load()
     proj_out.load_param("whisper_tiny_proj_out.ncnn.param");
     proj_out.load_model("whisper_tiny_proj_out.ncnn.bin");
 
-    tokenizer.load("vocab.txt");
+    // fbank.load_param("whisper_large_v3_turbo_fbank.ncnn.param");
+    // fbank.load_model("whisper_large_v3_turbo_fbank.ncnn.bin");
+    //
+    // encoder.load_param("whisper_large_v3_turbo_encoder.ncnn.param");
+    // encoder.load_model("whisper_large_v3_turbo_encoder.ncnn.bin");
+    //
+    // embed_token.load_param("whisper_large_v3_turbo_embed_token.ncnn.param");
+    // embed_token.load_model("whisper_large_v3_turbo_embed_token.ncnn.bin");
+    //
+    // embed_position.load_param("whisper_large_v3_turbo_embed_position.ncnn.param");
+    // embed_position.load_model("whisper_large_v3_turbo_embed_position.ncnn.bin");
+    //
+    // decoder.load_param("whisper_large_v3_turbo_decoder.ncnn.param");
+    // decoder.load_model("whisper_large_v3_turbo_decoder.ncnn.bin");
+    //
+    // proj_out.load_param("whisper_large_v3_turbo_proj_out.ncnn.param");
+    // proj_out.load_model("whisper_large_v3_turbo_proj_out.ncnn.bin");
+
+    tokenizer.load("whisper_vocab.txt");
 
     // resolve kv cache blob indexes
     for (size_t i = 0; i < decoder.layers().size(); i++)
@@ -358,30 +390,36 @@ int Whisper::load()
     return 0;
 }
 
-// apply log_softmax to matrix in-place
+// apply log_softmax in-place
 static void log_softmax_inplace(ncnn::Mat& m)
 {
     ncnn::Option opt;
     opt.use_packing_layout = false;
     opt.use_fp16_storage = false;
 
-    ncnn::Layer* op = ncnn::create_layer_cpu("Softmax");
-    ncnn::ParamDict pd;
-    pd.set(0, 0);
-    op->load_param(pd);
-    op->forward_inplace(m, opt);
-    delete op;
-
-    // apply log
-    for (int i = 0; i < m.w; i++)
     {
-        m[i] = logf(m[i]);
+        ncnn::Layer* softmax = ncnn::create_layer_cpu("Softmax");
+        ncnn::ParamDict pd;
+        pd.set(0, 0); // axis
+        softmax->load_param(pd);
+        softmax->forward_inplace(m, opt);
+        delete softmax;
+    }
+
+    {
+        ncnn::Layer* log = ncnn::create_layer_cpu("UnaryOp");
+        ncnn::ParamDict pd;
+        pd.set(0, 8); // log
+        log->load_param(pd);
+        log->forward_inplace(m, opt);
+        delete log;
     }
 }
 
 int Whisper::detect_lang(const std::vector<short>& samples, std::string& lang) const
 {
-    std::vector<int> ids = {50258}; // SOT token
+    std::vector<int> ids(1);
+    ids[0] = token_startoftranscript;
 
     ncnn::Mat input_features;
     extract_fbank_feature(samples, input_features);
@@ -395,40 +433,50 @@ int Whisper::detect_lang(const std::vector<short>& samples, std::string& lang) c
     std::vector<ncnn::Mat> out_kvcache;
     run_decoder_prefill(ids, encoder_states, logits, out_kvcache);
 
-    log_softmax_inplace(logits);
+    // find the lang token with highest prob
+    // we are only interested in lang part and no_speech
+    int lang_id = token_lang_first;
+    float max_prob = logits[token_lang_first];
+    for (int i = token_lang_first; i <= token_lang_last; i++)
+    {
+        float prob = logits[i];
+        if (prob > max_prob)
+        {
+            max_prob = prob;
+            lang_id = i;
+        }
+    }
 
-    // find the language token with highest probability
-    std::vector<std::pair<float, int> > vec;
-    for (int j = Tokenizer::LangEn; j <= Tokenizer::LangYue; j++)
-    {
-        vec.emplace_back(logits[j], j);
-    }
-    vec.emplace_back(logits[Tokenizer::NoSpeech], Tokenizer::NoSpeech);
-    auto max_elem = std::max_element(vec.begin(), vec.end(), std::less<std::pair<float, int> >());
-    int max_token_id = max_elem->second;
-    auto max_token = tokenizer.reverse_vocab[max_token_id];
-
-    if (max_token_id >= Tokenizer::LangEn && max_token_id <= Tokenizer::LangYue)
-    {
-        lang = max_token.substr(2, max_token.size() - 4);
-    }
-    else if (max_token_id == Tokenizer::NoSpeech)
-    {
-        lang = "no_speech";
-    }
-    else
-    {
-        lang = "unknown";
-    }
+    lang = token_langs[lang_id - token_lang_first];
 
     return 0;
 }
 
-int Whisper::transcribe(const std::vector<short>& samples, std::string& text) const
+int Whisper::transcribe(const std::vector<short>& samples, const char* lang, std::string& text) const
 {
+    // find lang token id by lang string
+    int token_lang = -1;
+    for (int i = 0; i < token_lang_count; i++)
+    {
+        if (strcmp(token_langs[i], lang) == 0)
+        {
+            token_lang = token_lang_first + i;
+            break;
+        }
+    }
+
+    if (token_lang == -1)
+    {
+        fprintf(stderr, "language %s not supported\n", lang);
+        return -1;
+    }
+
     // initialize with prompt tokens
-    // https://huggingface.co/openai/whisper-tiny/blob/main/tokenizer_config.json
-    std::vector<int> ids = {50258, 50260, 50359, 50363}; // SOT, zh, transcribe, notimestamps
+    std::vector<int> ids(4);
+    ids[0] = token_startoftranscript;
+    ids[1] = token_lang;
+    ids[2] = token_transcribe;
+    ids[3] = token_notimestamps;
 
     ncnn::Mat input_features;
     extract_fbank_feature(samples, input_features);
@@ -763,15 +811,87 @@ int Whisper::run_decoder_step(const std::vector<int>& tokens, const ncnn::Mat& e
     return 0;
 }
 
+static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
+{
+    FILE* fp = fopen(wavpath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open %s failed\n", wavpath);
+        return -1;
+    }
+
+// https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
+#ifdef _MSC_VER
+#define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
+#else
+#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
+#endif
+
+    PACK(struct wav_header
+    {
+        char riff[4];
+        uint32_t chunk_size;
+        char wave[4];
+        char fmt[4];
+        uint32_t subchunk1_size;
+        uint16_t audio_format;
+        uint16_t num_channels;
+        uint32_t sample_rate;
+        uint32_t byte_rate;
+        uint16_t block_align;
+        uint16_t bits_per_sample;
+        char data[4];
+        uint32_t data_size;
+    });
+
+    wav_header header;
+    if (fread(&header, sizeof(wav_header), 1, fp) != 1)
+    {
+        fprintf(stderr, "failed to read wav header from %s\n", wavpath);
+        fclose(fp);
+        return -1;
+    }
+
+    if (memcmp(header.riff, "RIFF", 4) != 0 || memcmp(header.wave, "WAVE", 4) != 0
+        || memcmp(header.fmt, "fmt ", 4) != 0 || memcmp(header.data, "data", 4) != 0)
+    {
+        fprintf(stderr, "%s is not a valid wav file\n", wavpath);
+        fclose(fp);
+        return -1;
+    }
+
+    if (header.subchunk1_size != 16 || header.audio_format != 1 || header.num_channels != 1
+        || header.sample_rate != 16000 || header.bits_per_sample != 16)
+    {
+        fprintf(stderr, "%s is not pcm s16le 16k wav\n", wavpath);
+        fprintf(stderr, "ffmpeg -i xxx.mp3 -acodec pcm_s16le -ac 1 -ar 16000 xxx.wav\n");
+        fclose(fp);
+        return -1;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+
+    samples.resize((len - sizeof(wav_header)) / sizeof(short));
+
+    rewind(fp);
+
+    fseek(fp, sizeof(wav_header), SEEK_SET);
+
+    fread(samples.data(), 1, len - sizeof(wav_header), fp);
+
+    fclose(fp);
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     const char* wavpath = argc >= 2 ? argv[1] : "speech.wav";
 
     std::vector<short> samples;
-    samples = load_wav_samples(wavpath);
-
-    const int samples_size = (int)samples.size();
-    if (samples_size == 0)
+    int ret = load_wav_samples(wavpath, samples);
+    if (ret != 0)
     {
         fprintf(stderr, "load wav failed\n");
         return -1;
@@ -787,7 +907,7 @@ int main(int argc, char** argv)
 
     // transcribe audio to text
     std::string text;
-    whisper.transcribe(samples, text);
+    whisper.transcribe(samples, lang.c_str(), text);
     fprintf(stderr, "text = %s\n", text.c_str());
 
     return 0;
