@@ -206,7 +206,6 @@ public:
             }
 
             // handle timestamp tokens
-            // https://huggingface.co/openai/whisper-tiny/blob/main/tokenizer_config.json
             if (token_id >= token_timestamp_first && token_id <= token_timestamp_last)
             {
                 int timestamp = (token_id - token_timestamp_first) * 2;
