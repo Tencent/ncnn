@@ -326,6 +326,10 @@ protected:
 
 int Whisper::load()
 {
+    // whisper models could be found at
+    // https://github.com/nihui/ncnn-android-whisper/releases
+    // https://github.com/nihui/ncnn-android-whisper/tree/master/app/src/main/assets
+
     fbank.opt.use_vulkan_compute = true;
     fbank.opt.use_fp16_packed = false;
     fbank.opt.use_fp16_storage = false;
