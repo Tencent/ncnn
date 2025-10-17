@@ -344,6 +344,47 @@ void main()
 
 At runtime, `NCNN_LOGE` will print out the value of `gx`
 
+#### RenderDoc Integration
+
+When validation layer is enabled, ncnn also supports RenderDoc integration for GPU debugging and profiling. To enable RenderDoc support:
+
+* Build with RenderDoc support:
+   ```bash
+   cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEVK=OFF -DNCNN_ENABLE_RENDERDOC_PROFILING=ON ..
+   ```
+
+* Add capture calls in your program:
+   ```cpp
+   int main() {
+       // Start RenderDoc capture
+       ncnn::start_renderdoc_capture();
+       
+       // ... inference operations ...
+       
+       // End RenderDoc capture
+       ncnn::end_renderdoc_capture();
+       return 0;
+   }
+   ```
+
+* Specify capture file path (optional):
+   ```bash
+   export NCNN_RENDERDOC_CAPTURE_PATH="/path/to/capture_file"
+   ```
+
+* Capture GPU operations:
+   ```bash
+   renderdoccmd capture your_ncnn_application
+   ```
+
+When RenderDoc integration is enabled, ncnn will:
+- Detect RenderDoc library at runtime
+- Begin capture when GPU operations start
+- End capture when GPU instance is destroyed
+- Save capture files for analysis in RenderDoc
+
+The generated `.rdc` files can be opened in RenderDoc GUI to analyze Vulkan API calls, shader execution, memory usage, and GPU performance metrics for ncnn inference operations.
+
 ### option macros
 
 enable glsl extension only if user enable some options
