@@ -920,7 +920,7 @@ int main(int argc, char** argv)
     if (samples.size() > 480000)
     {
         fprintf(stderr, "audio duration too long, truncate to 30s\n");
-        samples_size.resize(480000);
+        samples.resize(480000);
     }
 
     Whisper whisper;
