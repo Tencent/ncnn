@@ -444,8 +444,6 @@ int Whisper::detect_lang(const std::vector<short>& samples, std::string& lang) c
     ncnn::Mat input_features;
     extract_fbank_feature(samples, input_features);
 
-    const int seqlen = input_features.w;
-
     ncnn::Mat encoder_states;
     run_encoder(input_features, encoder_states);
 
@@ -500,8 +498,6 @@ int Whisper::transcribe(const std::vector<short>& samples, const char* lang, std
 
     ncnn::Mat input_features;
     extract_fbank_feature(samples, input_features);
-
-    const int seqlen = input_features.w;
 
     ncnn::Mat encoder_states;
     run_encoder(input_features, encoder_states);
