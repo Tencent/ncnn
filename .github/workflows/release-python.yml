@@ -93,7 +93,7 @@ jobs:
     # build wheels for ubuntu-24.04
     - name: Build wheels for ubuntu
       if: matrix.os == 'ubuntu-24.04'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -106,7 +106,7 @@ jobs:
     # build wheels for ubuntu-24.04 armv7l
     - name: Build wheels for ubuntu armv7l
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -120,7 +120,7 @@ jobs:
     # build wheels for ubuntu-24.04 aarch64
     - name: Build wheels for ubuntu aarch64
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -133,7 +133,7 @@ jobs:
     # build wheels for windows-2022
     - name: Build wheels for windows
       if: matrix.os == 'windows-2022' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -147,7 +147,7 @@ jobs:
 
     - name: Build wheels for windows ARM64
       if: matrix.os == 'windows-2022' && matrix.arch == 'ARM64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -226,7 +226,7 @@ jobs:
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'x86_64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -245,7 +245,7 @@ jobs:
 
     - name: Build wheels for macos arm64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'arm64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.2.1
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
