@@ -630,7 +630,12 @@ int Whisper::transcribe(const std::vector<short>& samples, const char* lang, std
 
 int Whisper::extract_fbank_feature(const std::vector<short>& samples, ncnn::Mat& input_features) const
 {
-    const int samples_size = (int)samples.size();
+    int samples_size = (int)samples.size();
+    if (samples_size > 480000)
+    {
+        fprintf(stderr, "audio duration too long, truncate to 30s\n");
+        samples_size = 480000;
+    }
 
     // pad to 480000, normalize samples to -1~1
     ncnn::Mat waveform(480000);
