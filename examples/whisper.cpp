@@ -882,7 +882,7 @@ static int load_wav_samples(const char* wavpath, std::vector<short>& samples)
             || header.sample_rate != 16000 || header.bits_per_sample != 16)
     {
         fprintf(stderr, "%s is not pcm s16le 16k wav\n", wavpath);
-        fprintf(stderr, "ffmpeg -i xxx.mp3 -acodec pcm_s16le -ac 1 -ar 16000 xxx.wav\n");
+        fprintf(stderr, "ffmpeg -i input.xxx -vn -c:a pcm_s16le -ac 1 -ar 16000 -fflags bitexact output.wav\n");
         fclose(fp);
         return -1;
     }
