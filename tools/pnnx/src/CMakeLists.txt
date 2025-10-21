@@ -707,21 +707,6 @@ if(onnxruntime_FOUND)
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
         pass_onnx/fuse_constant_as_attribute.cpp
-
-        # pass_onnx/nn_AdaptiveAvgPool2d.cpp
-        # pass_onnx/nn_AdaptiveAvgPool3d.cpp
-        # pass_onnx/nn_AvgPool2d.cpp
-        # pass_onnx/nn_AvgPool3d.cpp
-        # pass_onnx/nn_BatchNorm2d.cpp
-        # pass_onnx/nn_BatchNorm3d.cpp
-        # pass_onnx/nn_Conv2d.cpp
-        # pass_onnx/nn_Conv3d.cpp
-        # pass_onnx/nn_GELU.cpp
-        # pass_onnx/nn_LayerNorm.cpp
-        # pass_onnx/nn_Linear.cpp
-        # pass_onnx/nn_MaxPool2d.cpp
-        # pass_onnx/nn_MaxPool3d.cpp
-        # pass_onnx/nn_MultiheadAttention.cpp
     )
 
     set(onnx2pnnx_SRCS

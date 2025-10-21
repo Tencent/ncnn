@@ -941,6 +941,26 @@ static std::string sanitize_identifier(const std::string& s)
     return ss;
 }
 
+static bool token_is_complex(const std::string& t)
+{
+    // 2.000000e+00+3.000000e+00j
+    if (t[t.size() - 1] != 'j')
+        return false;
+
+    return true;
+}
+
+static bool token_is_literal(const std::string& t)
+{
+    if (token_is_complex(t))
+        return true;
+
+    std::istringstream iss(t);
+    float f;
+    iss >> std::noskipws >> f;
+    return iss.eof() && !iss.fail();
+}
+
 static std::string expand_expression(const Operator* op)
 {
     std::string expr = op->params.at("expr").s;
@@ -1095,6 +1115,14 @@ static std::string expand_expression(const Operator* op)
             exprstack.pop();
             std::string b = exprstack.top();
             exprstack.pop();
+
+            if (t == "max" || t == "min")
+            {
+                if (token_is_literal(a))
+                    a = std::string("torch.tensor(") + a + ")";
+                if (token_is_literal(b))
+                    b = std::string("torch.tensor(") + b + ")";
+            }
 
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);

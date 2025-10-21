@@ -449,32 +449,6 @@ const onnx::TensorProto& OnnxModelProxy::initializer(const std::string& name) co
     return model.graph().initializer(initializer_index);
 }
 
-FuseFunctionPass::~FuseFunctionPass()
-{
-}
-
-void FuseFunctionPass::write(Operator* /*op*/, const OnnxFunctionProxy& /*function*/) const
-{
-}
-
-static std::vector<const FuseFunctionPass*> g_global_pnnx_fuse_function_passes;
-
-const std::vector<const FuseFunctionPass*>& get_global_pnnx_fuse_function_passes()
-{
-    return g_global_pnnx_fuse_function_passes;
-}
-
-FuseFunctionPassRegister::FuseFunctionPassRegister(const FuseFunctionPass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_function_passes.push_back(pass);
-}
-
-FuseFunctionPassRegister::~FuseFunctionPassRegister()
-{
-    delete pass;
-}
-
 } // namespace onnx2pnnx
 
 static bool string_starts_with(const std::string& s, const std::string& s2)
@@ -684,7 +658,7 @@ static void shape_unpooling(Graph& graph)
     }
 }
 
-void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
+void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& external_data, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
 
@@ -1061,7 +1035,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     op_const_out->producer = op_const;
                     op_const->outputs.push_back(op_const_out);
 
-                    op_const->attrs["data"] = tensor;
+                    op_const->attrs["data"] = Attribute(tensor, external_data);
                 }
 
                 op_in = pnnx_graph.get_operand(input);
@@ -1096,18 +1070,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
         if (is_function_op)
         {
-            const onnx2pnnx::OnnxFunctionProxy function = modelproxy.function(node.op_type(), node.name());
-
-            for (const auto& ow : onnx2pnnx::get_global_pnnx_fuse_function_passes())
-            {
-                if (sim_op_type != ow->match_type_str())
-                    continue;
-
-                op->type = ow->type_str();
-                ow->write(op, function);
-
-                break;
-            }
+            fprintf(stderr, "function %s not handled\n", sim_op_type.c_str());
         }
         else if (is_aten_op)
         {

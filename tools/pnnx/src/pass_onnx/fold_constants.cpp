@@ -148,7 +148,7 @@ static bool check_outputs_foldable(const onnx::NodeProto& node, const std::unord
     return true;
 }
 
-void fold_constants(onnx::ModelProto& model,
+void fold_constants(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
                     const std::vector<std::vector<int64_t> >& input_shapes2,
@@ -321,6 +321,19 @@ void fold_constants(onnx::ModelProto& model,
         if (ort_status)
         {
             fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        if (!external_data.empty())
+        {
+            const char* external_initializer_file_names[] = {external_data_path.c_str()};
+            char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
+            const size_t external_initializer_file_lengths[] = {external_data.size()};
+
+            ort_status = ort_api->AddExternalInitializersFromFilesInMemory(ort_session_opt, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, 1);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort AddExternalInitializersFromFilesInMemory failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
         }
 
         OrtSession* ort_session = 0;
@@ -536,7 +549,7 @@ void fold_constants(onnx::ModelProto& model,
     onnx2pnnx::dead_code_elimination(model);
 }
 
-void fold_constants_dynamic_shape(onnx::ModelProto& model,
+void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                                   const std::vector<std::vector<int64_t> >& input_shapes,
                                   const std::vector<std::string>& input_types)
 {
@@ -936,6 +949,19 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
         if (ort_status)
         {
             fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        if (!external_data.empty())
+        {
+            const char* external_initializer_file_names[] = {external_data_path.c_str()};
+            char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
+            const size_t external_initializer_file_lengths[] = {external_data.size()};
+
+            ort_status = ort_api->AddExternalInitializersFromFilesInMemory(ort_session_opt, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, 1);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort AddExternalInitializersFromFilesInMemory failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
         }
 
         OrtSession* ort_session = 0;
