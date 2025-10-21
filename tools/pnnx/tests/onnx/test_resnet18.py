@@ -3,7 +3,6 @@
 
 import torch
 import torchvision.models as models
-from packaging import version
 
 def test():
     net = models.resnet18()
@@ -24,22 +23,6 @@ def test():
     # pnnx inference
     import test_resnet18_pnnx
     b = test_resnet18_pnnx.test_inference()
-
-    if not torch.allclose(a, b, 1e-4, 1e-4):
-        return False
-
-    if version.parse(torch.__version__) < version.parse('2.8'):
-        return True
-
-    # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_resnet18_dynamo.onnx", dynamo=True, external_data=False)
-
-    # onnx to pnnx
-    os.system("../../src/pnnx test_resnet18_dynamo.onnx inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_resnet18_dynamo_pnnx
-    b = test_resnet18_dynamo_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 

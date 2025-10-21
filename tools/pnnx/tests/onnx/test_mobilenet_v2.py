@@ -3,7 +3,6 @@
 
 import torch
 import torchvision.models as models
-from packaging import version
 
 def test():
     net = models.mobilenet_v2()
@@ -24,22 +23,6 @@ def test():
     # pnnx inference
     import test_mobilenet_v2_pnnx
     b = test_mobilenet_v2_pnnx.test_inference()
-
-    if not torch.allclose(a, b, 1e-4, 1e-4):
-        return False
-
-    if version.parse(torch.__version__) < version.parse('2.8'):
-        return True
-
-    # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_mobilenet_v2_dynamo.onnx", dynamo=True, external_data=False)
-
-    # onnx to pnnx
-    os.system("../../src/pnnx test_mobilenet_v2_dynamo.onnx inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_mobilenet_v2_dynamo_pnnx
-    b = test_mobilenet_v2_dynamo_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 

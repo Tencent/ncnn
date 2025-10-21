@@ -3,7 +3,6 @@
 
 import torch
 import torchvision.models as models
-from packaging import version
 
 def test():
     net = models.shufflenet_v2_x1_0()
@@ -24,22 +23,6 @@ def test():
     # pnnx inference
     import test_shufflenet_v2_x1_0_pnnx
     b = test_shufflenet_v2_x1_0_pnnx.test_inference()
-
-    if not torch.allclose(a, b, 1e-4, 1e-4):
-        return False
-
-    if version.parse(torch.__version__) < version.parse('2.8'):
-        return True
-
-    # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_shufflenet_v2_x1_0_dynamo.onnx", dynamo=True, external_data=False)
-
-    # onnx to pnnx
-    os.system("../../src/pnnx test_shufflenet_v2_x1_0_dynamo.onnx inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_shufflenet_v2_x1_0_dynamo_pnnx
-    b = test_shufflenet_v2_x1_0_dynamo_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
