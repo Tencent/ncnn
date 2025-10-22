@@ -31,7 +31,10 @@ def test():
     a = net(x, y, z)
 
     # export onnx
-    torch.onnx.export(net, (x, y, z), "test_torch_roll.onnx")
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+        torch.onnx.export(net, (x, y, z), "test_torch_roll.onnx", dynamo=False)
+    else:
+        torch.onnx.export(net, (x, y, z), "test_torch_roll.onnx")
 
     # onnx to pnnx
     import os
