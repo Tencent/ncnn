@@ -25,12 +25,8 @@ namespace ncnn {
 #if __SSE2__
 static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x) {
     __m128 y = _mm_rcp_ps(x);                  // approx
-#if __FMA__
-    __m128 t = _mm_fnmadd_ps(x, y, _mm_set1_ps(2.0f)); // (2 - x*y)
+    __m128 t = _mm_comp_fnmadd_ps(x, y, _mm_set1_ps(2.0f)); // (2 - x*y)
     y = _mm_mul_ps(y, t);
-#else
-    y = _mm_mul_ps(y, _mm_sub_ps(_mm_set1_ps(2.0f), _mm_mul_ps(x, y)));
-#endif
     return y; // 1 NR step；
 }
 #endif
@@ -38,12 +34,8 @@ static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x) {
 #if __AVX__
 static NCNN_FORCEINLINE __m256 _mm256_rcp_nr_ps(__m256 x) {
     __m256 y = _mm256_rcp_ps(x);
-#if __FMA__
-    __m256 t = _mm256_fnmadd_ps(x, y, _mm256_set1_ps(2.0f));
+    __m256 t = _mm256_comp_fnmadd_ps(x, y, _mm256_set1_ps(2.0f));
     y = _mm256_mul_ps(y, t);
-#else
-    y = _mm256_mul_ps(y, _mm256_sub_ps(_mm256_set1_ps(2.0f), _mm256_mul_ps(x, y)));
-#endif
     return y;
 }
 #endif
