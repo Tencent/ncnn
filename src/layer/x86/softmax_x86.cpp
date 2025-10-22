@@ -23,8 +23,9 @@
 namespace ncnn {
 
 #if __SSE2__
-static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x) {
-    __m128 y = _mm_rcp_ps(x);                  // approx
+static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x)
+{
+    __m128 y = _mm_rcp_ps(x);                               // approx
     __m128 t = _mm_comp_fnmadd_ps(x, y, _mm_set1_ps(2.0f)); // (2 - x*y)
     y = _mm_mul_ps(y, t);
     return y; // 1 NR step
