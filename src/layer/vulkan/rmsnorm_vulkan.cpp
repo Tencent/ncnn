@@ -312,7 +312,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         cmd.record_pipeline(p_coeffs, bindings, constants, dispatcher);
     }
 
-    // 4) norm：v = v * a; (affine? v *= gamma)
+    // 4) norm: v = v * a; (affine? v *= gamma)
     {
         std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
