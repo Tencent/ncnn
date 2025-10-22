@@ -32,7 +32,7 @@ static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x)
 #else
     y = _mm_mul_ps(y, _mm_sub_ps(_mm_set1_ps(2.0f), _mm_mul_ps(x, y)));
 #endif
-    return y; // 1 NR step；
+    return y; // 1 NR step;
 }
 #endif
 
