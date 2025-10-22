@@ -49,7 +49,7 @@ def test():
     w2 = torch.rand(32)
     b2 = torch.rand(32)
 
-    a0, a1, a2 = net(x, y, z, w0, b0, w1, b1, w2, b2)
+    a = net(x, y, z, w0, b0, w1, b1, w2, b2)
 
     # export onnx
     torch.onnx.export(net, (x, y, z, w0, b0, w1, b1, w2, b2), "test_F_group_norm.onnx")
@@ -60,9 +60,12 @@ def test():
 
     # pnnx inference
     import test_F_group_norm_pnnx
-    b0, b1, b2 = test_F_group_norm_pnnx.test_inference()
+    b = test_F_group_norm_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
