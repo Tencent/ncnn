@@ -658,6 +658,74 @@ static void shape_unpooling(Graph& graph)
     }
 }
 
+static void eliminate_cat_before_reshape(Graph& graph)
+{
+    // prim::ListConstruct + aten::cat + Reshape  ->  prim::ListConstruct + Reshape
+
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "aten::cat")
+                continue;
+
+            Operand* op_in = op->inputs[0];
+            Operand* op_out = op->outputs[0];
+
+            bool cat_before_reshape = true;
+            for (auto x : op_out->consumers)
+            {
+                if (x->type != "Reshape")
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+                if (x->inputs.size() != 2)
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+                if (x->inputs[1] != op_out)
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+            }
+            if (!cat_before_reshape)
+                continue;
+
+            Operator* op_list = op_in->producer;
+            if (op_list->type != "prim::ListConstruct")
+                continue;
+
+            matched = true;
+
+            op_in->remove_consumer(op);
+            for (auto x : op_out->consumers)
+            {
+                op_in->consumers.push_back(x);
+                x->inputs[1] = op_in;
+            }
+
+            // drop cat
+            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), op_out));
+            delete op_out;
+
+            graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op));
+            delete op;
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
 void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& external_data, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
@@ -1210,6 +1278,8 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
     constant_unpooling(pnnx_graph);
 
     shape_unpooling(pnnx_graph);
+
+    eliminate_cat_before_reshape(pnnx_graph);
 }
 
 } // namespace pnnx
