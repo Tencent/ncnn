@@ -294,7 +294,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     }
 
     // 3) coeffs (a) from rms
-    VkMat coeffs_workspace(num_groups_total, elemsize, elempack, opt.workspace_vkallocator); // 仅 a，无 b
+    VkMat coeffs_workspace(num_groups_total, elemsize, elempack, opt.workspace_vkallocator); // only a, no b
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = coeffs_workspace;
