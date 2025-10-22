@@ -32,6 +32,34 @@ int RMSNorm::load_model(const ModelBin& mb)
     return 0;
 }
 
+static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int size)
+{
+    float sqsum = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        sqsum += ptr[i] * ptr[i];
+    }
+
+    float rms = sqsum / size;
+
+    float a = 1.f / sqrtf(rms + eps);
+
+    if (gamma_ptr)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = (ptr[i] * a) * gamma_ptr[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = ptr[i] * a;
+        }
+    }
+}
+
 int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     // x = x / sqrt(rms + eps) * gamma
@@ -44,30 +72,7 @@ int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         // assert affine_size == w
 
         float* ptr = bottom_top_blob;
-
-        float sqsum = 0.f;
-        for (int i = 0; i < w; i++)
-        {
-            sqsum += ptr[i] * ptr[i];
-        }
-        float rms = sqrtf(sqsum / w + eps);
-
-        float a = 1.f / rms;
-
-        if (affine)
-        {
-            for (int i = 0; i < w; i++)
-            {
-                ptr[i] = (ptr[i] * a) * gamma_data[i];
-            }
-        }
-        else
-        {
-            for (int i = 0; i < w; i++)
-            {
-                ptr[i] = ptr[i] * a;
-            }
-        }
+        rmsnorm(ptr, gamma_data, eps, w);
     }
 
     if (dims == 2)
@@ -80,30 +85,7 @@ int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-
-            float sqsum = 0.f;
-            for (int j = 0; j < w; j++)
-            {
-                sqsum += ptr[j] * ptr[j];
-            }
-            float rms = sqrtf(sqsum / w + eps);
-
-            float a = 1.f / rms;
-
-            if (affine)
-            {
-                for (int j = 0; j < w; j++)
-                {
-                    ptr[j] = (ptr[j] * a) * gamma_data[j];
-                }
-            }
-            else
-            {
-                for (int j = 0; j < w; j++)
-                {
-                    ptr[j] = ptr[j] * a;
-                }
-            }
+            rmsnorm(ptr, gamma_data, eps, w);
         }
     }
 
@@ -112,7 +94,6 @@ int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
-        int size = w * h;
 
         if (affine_size == w)
         {
@@ -122,30 +103,7 @@ int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.channel(q).row(i);
-
-                    float sqsum = 0.f;
-                    for (int j = 0; j < w; j++)
-                    {
-                        sqsum += ptr[j] * ptr[j];
-                    }
-                    float rms = sqrtf(sqsum / w + eps);
-
-                    float a = 1.f / rms;
-
-                    if (affine)
-                    {
-                        for (int j = 0; j < w; j++)
-                        {
-                            ptr[j] = (ptr[j] * a) * gamma_data[j];
-                        }
-                    }
-                    else
-                    {
-                        for (int j = 0; j < w; j++)
-                        {
-                            ptr[j] = ptr[j] * a;
-                        }
-                    }
+                    rmsnorm(ptr, gamma_data, eps, w);
                 }
             }
         }
@@ -155,30 +113,7 @@ int RMSNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
-
-                float sqsum = 0.f;
-                for (int i = 0; i < size; i++)
-                {
-                    sqsum += ptr[i] * ptr[i];
-                }
-                float rms = sqrtf(sqsum / size + eps);
-
-                float a = 1.f / rms;
-
-                if (affine)
-                {
-                    for (int i = 0; i < size; i++)
-                    {
-                        ptr[i] = (ptr[i] * a) * gamma_data[i];
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < size; i++)
-                    {
-                        ptr[i] = ptr[i] * a;
-                    }
-                }
+                rmsnorm(ptr, gamma_data, eps, w * h);
             }
         }
     }

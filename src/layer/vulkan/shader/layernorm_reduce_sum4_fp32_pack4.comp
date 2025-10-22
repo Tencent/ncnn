@@ -1,6 +1,8 @@
 // Copyright 2025 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
+// RMSNorm also depends on this shader
+
 #version 450
 
 layout (binding = 0) readonly buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
