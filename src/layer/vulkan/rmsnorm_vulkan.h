@@ -23,7 +23,7 @@ public:
     VkMat gamma_data_gpu;
 
     // pack1
-    Pipeline* pipeline_rmsnorm_square;   // x -> x^2
+    Pipeline* pipeline_rmsnorm_square; // x -> x^2
     Pipeline* pipeline_rmsnorm_reduce_sum4_fp16_to_fp32;
     Pipeline* pipeline_rmsnorm_reduce_sum4_fp32[2];
     Pipeline* pipeline_rmsnorm_reduce_mean;
