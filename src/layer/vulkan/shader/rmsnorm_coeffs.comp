@@ -6,7 +6,7 @@
 layout (constant_id = 0) const float eps = 0;
 
 layout (binding = 0) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
-layout (binding = 1) readonly buffer rms_blob     { float rms_data[]; }; // reduce_mean 输出是 float
+layout (binding = 1) readonly buffer rms_blob     { float rms_data[]; };
 
 layout (push_constant) uniform parameter
 {

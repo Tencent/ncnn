@@ -6,7 +6,7 @@ layout (constant_id = 0) const int affine = 0;
 layout (constant_id = 1) const int affine_size = 0;
 
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };  // 仅 a
+layout (binding = 1) readonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
 layout (binding = 2) readonly buffer gamma_blob  { sfp gamma_data[]; };
 
 layout (push_constant) uniform parameter
