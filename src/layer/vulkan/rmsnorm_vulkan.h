@@ -1,4 +1,6 @@
-// rmsnorm_vulkan.h
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
 #ifndef LAYER_RMSNORM_VULKAN_H
 #define LAYER_RMSNORM_VULKAN_H
 

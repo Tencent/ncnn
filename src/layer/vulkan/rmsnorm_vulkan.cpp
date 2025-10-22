@@ -1,4 +1,6 @@
-// rmsnorm_vulkan.cpp
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "rmsnorm_vulkan.h"
 #include "layer_shader_type.h"
 
