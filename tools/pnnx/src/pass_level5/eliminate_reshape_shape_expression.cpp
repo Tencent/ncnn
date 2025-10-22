@@ -206,7 +206,7 @@ void eliminate_reshape_shape_expression(Graph& graph)
             // reshape to one dim
             matched = true;
 
-            op->params["shape"] = std::vector<int>{-1};
+            op->params["shape"] = std::vector<int> {-1};
 
             op->inputs.resize(1);
             op_expr->outputs[0]->remove_consumer(op);
