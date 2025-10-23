@@ -1013,6 +1013,48 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_fsmt_attention_1 : public fuse_transformers_cross_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+23 22
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.Linear               op_0        1 1 query 8 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 2 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 3 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+pnnx.Expression         op_3        1 1 8 9 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+Tensor.view             op_4        1 1 2 4 shape=(%kvsize,%batch,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 3 6 shape=(%kvsize,%batch,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 9 10 shape=(%qsize,%batch_mul_num_heads,%feat_per_head)
+Tensor.permute          op_7        1 1 4 5 dims=(1,2,0,3)
+Tensor.permute          op_8        1 1 6 7 dims=(1,2,0,3)
+Tensor.reshape          op_9        1 1 5 12 shape=(%batch_mul_num_heads,%kvsize,%feat_per_head)
+Tensor.reshape          op_10       1 1 7 13 shape=(%batch_mul_num_heads,%kvsize,%feat_per_head)
+torch.transpose         op_11       1 1 10 11 dim0=0 dim1=1
+torch.transpose         op_12       1 1 12 14 dim0=1 dim1=2
+torch.bmm               op_13       2 1 11 14 15
+F.softmax               softmax     1 1 15 16 dim=%softmax_dim
+torch.bmm               op_15       2 1 16 13 17
+torch.transpose         op_16       1 1 17 18 dim0=0 dim1=1
+Tensor.reshape          op_17       1 1 18 19 shape=(%qsize,%batch,%embed_dim)
+nn.Linear               out_proj    1 1 19 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_transformers_cross_attention::write(ops, captured_params, captured_attrs);
+
+        Operator* op = ops.at("attn_ht");
+        op->params["batch_first"] = false;
+    }
+};
+
 class fuse_transformers_fsmt_attention_onnx : public fuse_transformers_cross_attention
 {
 public:
@@ -2174,6 +2216,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     fuse_transformers_chinese_clip_attention_1 z1;
     fuse_transformers_ctrl_attention c;
     fuse_transformers_fsmt_attention d;
+    fuse_transformers_fsmt_attention_1 d1;
     fuse_transformers_fsmt_attention_onnx d2;
     fuse_transformers_m2m_100_attention e;
     fuse_transformers_prophet_attention e1;
@@ -2212,6 +2255,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &b9, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
+    pnnx_graph_rewrite(graph, &d1, opindex);
     pnnx_graph_rewrite(graph, &d2, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
     pnnx_graph_rewrite(graph, &e1, opindex);
