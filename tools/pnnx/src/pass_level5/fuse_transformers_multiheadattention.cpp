@@ -615,6 +615,36 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_bart_sdpa_attention_3 : public fuse_transformers_cross_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+19 18
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.Linear               op_0        1 1 query 2 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 5 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 6 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 2 3 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 5 7 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 6 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 3 4 dim0=1 dim1=2
+torch.transpose         op_7        1 1 7 8 dim0=1 dim1=2
+torch.transpose         op_8        1 1 9 10 dim0=1 dim1=2
+F.scaled_dot_product_attention sdpa 3 1 4 8 10 11 attn_mask=None dropout_p=0.0 is_causal=False scale=%inv_sqrt_embed_dim_per_head
+torch.transpose         op_10       1 1 11 12 dim0=1 dim1=2
+Tensor.contiguous       op_11       1 1 12 13 memory_format=*
+Tensor.reshape          op_12       1 1 13 14 shape=(%batch,%qsize,%embed_dim)
+Tensor.contiguous       op_13       1 1 14 15 memory_format=*
+nn.Linear               out_proj    1 1 15 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_bart_sdpa_attention_onnx : public fuse_transformers_cross_attention
 {
 public:
@@ -924,6 +954,40 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_transformers_m2m_100_attention : public fuse_transformers_cross_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+23 22
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+nn.Linear               op_0        1 1 query 2 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 5 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 6 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 2 3 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 5 7 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 6 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 3 4 dim0=1 dim1=2
+torch.transpose         op_7        1 1 7 8 dim0=1 dim1=2
+torch.transpose         op_8        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_9        1 1 8 11 dim0=2 dim1=3
+torch.matmul            op_10       2 1 4 11 12
+pnnx.Expression         op_11       1 1 12 13 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
+F.softmax               softmax     1 1 13 14 dim=-1
+torch.matmul            op_13       2 1 14 10 15
+torch.transpose         op_14       1 1 15 16 dim0=1 dim1=2
+Tensor.contiguous       op_15       1 1 16 17 memory_format=*
+Tensor.reshape          op_16       1 1 17 18 shape=(%batch,%qsize,%embed_dim)
+Tensor.contiguous       op_17       1 1 18 19 memory_format=*
+nn.Linear               out_proj    1 1 19 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_transformers_prophet_attention : public fuse_transformers_cross_attention
 {
 public:
@@ -1049,6 +1113,66 @@ torch.matmul            op_14       2 1 17 12 18
 Tensor.permute          op_15       1 1 18 19 dims=(0,2,1,3)
 Tensor.reshape          op_16       1 1 19 20 shape=(%batch,%qsize,%embed_dim)
 nn.Linear               out_proj    1 1 20 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+class fuse_transformers_bart_mask_sdpa_attention : public fuse_transformers_cross_mask_attention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+20 19
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
+nn.Linear               op_0        1 1 query 4 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 key 7 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 value 8 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 4 5 shape=(%batch,%qsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 7 9 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 8 11 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+torch.transpose         op_6        1 1 5 6 dim0=1 dim1=2
+torch.transpose         op_7        1 1 9 10 dim0=1 dim1=2
+torch.transpose         op_8        1 1 11 12 dim0=1 dim1=2
+F.scaled_dot_product_attention sdpa 4 1 6 10 12 mask 13 dropout_p=0.0 is_causal=False scale=%inv_sqrt_embed_dim_per_head
+torch.transpose         op_10       1 1 13 14 dim0=1 dim1=2
+Tensor.contiguous       op_11       1 1 14 15 memory_format=*
+Tensor.reshape          op_12       1 1 15 16 shape=(%batch,%qsize,%embed_dim)
+Tensor.contiguous       op_13       1 1 16 17 memory_format=*
+nn.Linear               out_proj    1 1 17 out bias=%outbias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        if (batch == 1)
+        {
+            return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+pnnx.Input              input_m     0 1 mask #mask=(1,1,%qsize,%kvsize)f32
+Tensor.reshape          attn_ht_0   1 1 mask attn_mask shape=(%qsize,%kvsize)
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
+pnnx.Output             output      1 0 out
+)PNNXIR";
+        }
+
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_q     0 1 query
+pnnx.Input              input_k     0 1 key
+pnnx.Input              input_v     0 1 value
+pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
+Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.reshape          attn_ht_1   1 1 18 attn_mask shape=(%batch_mul_num_heads,%qsize,%kvsize)
+nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -1847,7 +1971,8 @@ void fuse_transformers_multiheadattention(Graph& graph)
     fuse_transformers_bart_attention_onnx_2 b4;
     fuse_transformers_bart_sdpa_attention b5;
     fuse_transformers_bart_sdpa_attention_2 b6;
-    fuse_transformers_bart_sdpa_attention_onnx b7;
+    fuse_transformers_bart_sdpa_attention_3 b7;
+    fuse_transformers_bart_sdpa_attention_onnx b8;
     fuse_transformers_clip_attention y;
     fuse_transformers_clip_attention_2 y2;
     fuse_transformers_clip_attention_onnx_2 y3;
@@ -1856,11 +1981,13 @@ void fuse_transformers_multiheadattention(Graph& graph)
     fuse_transformers_ctrl_attention c;
     fuse_transformers_fsmt_attention d;
     fuse_transformers_fsmt_attention_onnx d2;
-    fuse_transformers_prophet_attention e;
+    fuse_transformers_m2m_100_attention e;
+    fuse_transformers_prophet_attention e1;
     fuse_transformers_prophet_attention_onnx e2;
     fuse_transformers_reformer_attention f;
     fuse_transformers_reformer_attention_onnx f2;
 
+    fuse_transformers_bart_mask_sdpa_attention my0;
     fuse_transformers_clip_mask_attention my;
     fuse_transformers_clip_mask_attention_2 my2;
     fuse_transformers_clip_mask_attention_3 my3;
@@ -1885,10 +2012,12 @@ void fuse_transformers_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &b5, opindex);
     pnnx_graph_rewrite(graph, &b6, opindex);
     pnnx_graph_rewrite(graph, &b7, opindex);
+    pnnx_graph_rewrite(graph, &b8, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &d2, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
+    pnnx_graph_rewrite(graph, &e1, opindex);
     pnnx_graph_rewrite(graph, &e2, opindex);
     pnnx_graph_rewrite(graph, &f, opindex);
     pnnx_graph_rewrite(graph, &f2, opindex);
@@ -1905,6 +2034,7 @@ void fuse_transformers_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &me2, opindex);
     pnnx_graph_rewrite(graph, &mf, opindex);
 
+    pnnx_graph_rewrite(graph, &my0, opindex);
     pnnx_graph_rewrite(graph, &my, opindex);
     pnnx_graph_rewrite(graph, &my2, opindex);
     pnnx_graph_rewrite(graph, &my3, opindex);
