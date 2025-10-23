@@ -1269,10 +1269,27 @@ pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
 Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
-Tensor.reshape          attn_ht_1   1 1 18 attn_mask shape=(%batch_mul_num_heads,%qsize,%kvsize)
+Tensor.reshape          attn_ht_1   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_transformers_cross_mask_attention::write(ops, captured_params, captured_attrs);
+
+        if (batch == 1)
+            return;
+
+        const int batch = captured_params.at("batch").i;
+        const int num_heads = captured_params.at("num_heads").i;
+        const int qsize = captured_params.at("qsize").i;
+        const int kvsize = captured_params.at("kvsize").i;
+
+        // set attn_mask shape
+        Operator* reshape = ops.at("attn_ht_1");
+        reshape->params["shape"] = std::vector<int>{batch * num_heads, qsize, kvsize};
     }
 };
 
