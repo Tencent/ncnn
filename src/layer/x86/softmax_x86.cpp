@@ -22,6 +22,35 @@
 
 namespace ncnn {
 
+#if __SSE2__
+static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(__m128 x)
+{
+    __m128 y = _mm_rcp_ps(x);                               // approx
+    __m128 t = _mm_comp_fnmadd_ps(x, y, _mm_set1_ps(2.0f)); // (2 - x*y)
+    y = _mm_mul_ps(y, t);
+    return y; // 1 NR step
+}
+#endif
+
+#if __AVX__
+static NCNN_FORCEINLINE __m256 _mm256_rcp_nr_ps(__m256 x)
+{
+    __m256 y = _mm256_rcp_ps(x);
+    __m256 t = _mm256_comp_fnmadd_ps(x, y, _mm256_set1_ps(2.0f));
+    y = _mm256_mul_ps(y, t);
+    return y;
+}
+#endif
+
+#if __AVX512F__
+static NCNN_FORCEINLINE __m512 _mm512_rcp_nr_ps(__m512 x)
+{
+    __m512 y = _mm512_rcp14_ps(x);
+    __m512 t = _mm512_fnmadd_ps(x, y, _mm512_set1_ps(2.0f));
+    return _mm512_mul_ps(y, t);
+}
+#endif
+
 Softmax_x86::Softmax_x86()
 {
 #if __SSE2__
@@ -198,7 +227,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __AVX512F__
     if (elempack == 16)
     {
-        _sum_avx512 = _mm512_div_ps(_mm512_set1_ps(1.f), _sum_avx512);
+        _sum_avx512 = _mm512_rcp_nr_ps(_sum_avx512);
     }
 #endif // __AVX512F__
     if (elempack == 8)
@@ -212,7 +241,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         }
 #endif // __AVX512F__
 
-        _sum_avx = _mm256_div_ps(_mm256_set1_ps(1.f), _sum_avx);
+        _sum_avx = _mm256_rcp_nr_ps(_sum_avx);
 
 #if __AVX512F__
         _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
@@ -238,7 +267,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         }
 #endif // __AVX__
 
-        _sum = _mm_div_ps(_mm_set1_ps(1.f), _sum);
+        _sum = _mm_rcp_nr_ps(_sum);
 
 #if __AVX__
         _sum_avx = combine4x2_ps(_sum, _sum);
@@ -546,27 +575,24 @@ static void softmax_pack16(float* _ptr, int elemcount, size_t stride, int size1,
     {
         float* sumptr = _sumptr;
         int j = 0;
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -893,28 +919,25 @@ static void softmax_pack8(float* _ptr, int elemcount, size_t stride, int size1, 
         float* sumptr = _sumptr;
         int j = 0;
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1230,29 +1253,26 @@ static void softmax_pack4(float* _ptr, int elemcount, size_t stride, int size1, 
         int j = 0;
 #if __AVX__
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
 #endif // __AVX__
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1472,29 +1492,26 @@ static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, 
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
 #endif // __AVX__
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1680,7 +1697,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -1718,7 +1735,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
