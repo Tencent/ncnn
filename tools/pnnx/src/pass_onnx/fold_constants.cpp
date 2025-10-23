@@ -325,7 +325,7 @@ void fold_constants(onnx::ModelProto& model, const std::string& external_data_pa
 
         if (!external_data.empty())
         {
-            const char* external_initializer_file_names[] = {external_data_path.c_str()};
+            const ORTCHAR_T* external_initializer_file_names[] = {(const ORTCHAR_T*)external_data_path.c_str()};
             char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
             const size_t external_initializer_file_lengths[] = {external_data.size()};
 
@@ -953,7 +953,7 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& ex
 
         if (!external_data.empty())
         {
-            const char* external_initializer_file_names[] = {external_data_path.c_str()};
+            const ORTCHAR_T* external_initializer_file_names[] = {(const ORTCHAR_T*)external_data_path.c_str()};
             char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
             const size_t external_initializer_file_lengths[] = {external_data.size()};
 
