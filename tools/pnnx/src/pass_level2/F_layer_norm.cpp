@@ -83,7 +83,29 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class F_layer_norm_onnx_0 : public F_layer_norm_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+LayerNormalization      op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_layer_norm_onnx::write(op, captured_params);
+        op->params["bias"] = Parameter();
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 130)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_0, 130)
 
 class F_layer_norm_onnx_1 : public F_layer_norm_onnx
 {
@@ -114,7 +136,29 @@ pnnx.Output             output      3 0 out Mean InvStdDev
     }
 };
 
+class F_layer_norm_onnx_11 : public F_layer_norm_onnx_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+LayerNormalization      op_0        2 3 input weight out Mean InvStdDev %*=%*
+pnnx.Output             output      3 0 out Mean InvStdDev
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_layer_norm_onnx::write(op, captured_params);
+        op->params["bias"] = Parameter();
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_11, 130)
 
 class F_layer_norm_onnx_3 : public GraphRewriterPass
 {

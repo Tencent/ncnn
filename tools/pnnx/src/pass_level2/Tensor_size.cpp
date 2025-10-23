@@ -65,6 +65,28 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_onnx, 11)
 
+class Tensor_size_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+Tensor.size             op_0        1 1 input shape dim=%dim
+Unsqueeze               op_1        1 1 shape out axes=0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_onnx_1, 12)
+
 class Tensor_size_onnx_2 : public GraphRewriterPass
 {
 public:
@@ -123,5 +145,44 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_onnx_3, 10)
+
+class Tensor_size_onnx_4 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+aten::size              op_0        1 1 input out start=%start end=%end
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.size";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("start").type != 2 || captured_params.at("end").type != 2)
+            return false;
+
+        const int start = captured_params.at("start").i;
+        const int end = captured_params.at("end").i;
+        if (end != start + 1)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dim"] = captured_params.at("start");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_size_onnx_4, 10)
 
 } // namespace pnnx

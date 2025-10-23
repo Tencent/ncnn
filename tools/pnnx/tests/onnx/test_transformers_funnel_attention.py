@@ -45,7 +45,10 @@ def test():
     a = net(x, mask0)
 
     # export onnx
-    torch.onnx.export(net, (x, mask0), "test_transformers_funnel_attention.onnx")
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+        torch.onnx.export(net, (x, mask0), "test_transformers_funnel_attention.onnx", dynamo=False)
+    else:
+        torch.onnx.export(net, (x, mask0), "test_transformers_funnel_attention.onnx")
 
     # onnx to pnnx
     import os

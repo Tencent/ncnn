@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 env:
-  LIBTORCH_VERSION: 2.8.0
-  TORCHVISION_VERSION: 0.23.0
+  LIBTORCH_VERSION: 2.9.0
+  TORCHVISION_VERSION: 0.24.0
   PROTOBUF_VERSION: 21.12
-  ONNXRUNTIME_VERSION: 1.22.1
-  CACHE_DATE: 20250807
+  ONNXRUNTIME_VERSION: 1.23.1
+  CACHE_DATE: 20251020
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
 jobs:
@@ -129,6 +129,7 @@ jobs:
         pip3 install -r requirements.txt --break-system-packages
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
+        patch -p1 -R -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-revert-nativert-api.patch
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
@@ -191,6 +192,7 @@ jobs:
         cd onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-less-mlas-features.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-monolithic-static-library.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-include-cstdint.patch
         mkdir -p build2 && cd build2
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
@@ -247,6 +249,7 @@ jobs:
           - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
           - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
           - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu'  }
+          - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.9.0',  torchvision: '0.24.0', torchaudio: '2.9.0+cpu'  }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 

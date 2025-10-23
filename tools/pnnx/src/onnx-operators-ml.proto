@@ -90,7 +90,7 @@ message OperatorProto {
 // and thus has the standard format headers in addition to the operator set information.
 //
 message OperatorSetProto {
-  // All OperatorSetProtos start with a distingushed byte sequence to disambiguate
+  // All OperatorSetProtos start with a distinguished byte sequence to disambiguate
   // protobuf files containing OperatorSets from other content.
   // This field MUST be "ONNXOPSET"
   // This field MUST be present in this version of the IR

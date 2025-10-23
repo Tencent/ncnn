@@ -213,8 +213,42 @@ Parameter::Parameter(const onnx2pnnx::OnnxAttributeProxy& attr)
 {
 }
 
-Attribute::Attribute(const onnx::TensorProto& t)
+Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char>& external_data)
 {
+    const unsigned char* external_data_ptr = 0;
+    if (t.has_data_location() && t.data_location() == onnx::TensorProto_DataLocation_EXTERNAL)
+    {
+        if (external_data.empty())
+        {
+            fprintf(stderr, "FATAL ERROR no external data\n");
+        }
+        else
+        {
+            std::string location;
+            uint64_t offset;
+            uint64_t length;
+            for (int i = 0; i < t.external_data_size(); i++)
+            {
+                const onnx::StringStringEntryProto& ep = t.external_data(i);
+                const std::string& key = ep.key();
+                const std::string& value = ep.value();
+
+                if (key == "location") location = value;
+                if (key == "offset") offset = std::stoull(value);
+                if (key == "length") length = std::stoull(value);
+            }
+
+            if (offset + length > external_data.size())
+            {
+                fprintf(stderr, "FATAL ERROR external data out of range %s %lu + %lu > %zu\n", location.c_str(), offset, length, external_data.size());
+            }
+            else
+            {
+                external_data_ptr = (const unsigned char*)external_data.data() + offset;
+            }
+        }
+    }
+
     type = get_onnx_tensor_type(t.data_type());
 
     const int ndim = (int)t.dims_size();
@@ -225,7 +259,11 @@ Attribute::Attribute(const onnx::TensorProto& t)
 
         data.resize(type_to_elemsize(type));
 
-        if (t.has_raw_data())
+        if (external_data_ptr)
+        {
+            memcpy((void*)data.data(), (const void*)external_data_ptr, data.size());
+        }
+        else if (t.has_raw_data())
         {
             // assert t.raw_data().size() == type_to_elemsize(type)
             memcpy((void*)data.data(), (const void*)t.raw_data().data(), t.raw_data().size());
@@ -266,7 +304,11 @@ Attribute::Attribute(const onnx::TensorProto& t)
     {
         data.resize(elemcount() * type_to_elemsize(type));
 
-        if (t.has_raw_data())
+        if (external_data_ptr)
+        {
+            memcpy((void*)data.data(), (const void*)external_data_ptr, data.size());
+        }
+        else if (t.has_raw_data())
         {
             memcpy((void*)data.data(), (const void*)t.raw_data().data(), data.size());
         }
@@ -610,6 +652,22 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         return -1;
     }
 
+    std::string onnx_extdata_path = onnxpath + ".data";
+    std::vector<unsigned char> external_data;
+    {
+        // try loading onnx external data
+        FILE* fp = fopen(onnx_extdata_path.c_str(), "rb");
+        if (fp)
+        {
+            fseek(fp, 0, SEEK_END);
+            size_t len = ftell(fp);
+            rewind(fp);
+            external_data.resize(len);
+            fread(external_data.data(), 1, len, fp);
+            fclose(fp);
+        }
+    }
+
     onnx2pnnx::eliminate_initializer_input(model);
 
     // get input shape from traced onnx
@@ -701,7 +759,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+        onnx2pnnx::fold_constants(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -721,7 +779,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::shape_inference(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+        onnx2pnnx::shape_inference(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -731,7 +789,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants_dynamic_shape(model, traced_input_shapes, traced_input_types);
+        onnx2pnnx::fold_constants_dynamic_shape(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types);
 
         t1 = get_current_time();
 
@@ -794,7 +852,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     fprintf(stderr, "############# pass_level1 onnx\n");
 
-    pass_onnx(model, pnnx_graph);
+    pass_onnx(model, external_data, pnnx_graph);
 
     return 0;
 }

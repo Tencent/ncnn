@@ -984,4 +984,174 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_dynamic, 110)
 
+static void linear_coeffs(int w, int outw, bool align_corner, std::vector<int>& ia, std::vector<int>& ib, std::vector<float>& im)
+{
+    ia.resize(outw);
+    ib.resize(outw);
+    im.resize(outw);
+
+    double scale = (double)w / outw;
+    if (align_corner)
+    {
+        scale = (double)(w - 1) / (outw - 1);
+    }
+
+    for (int dx = 0; dx < outw; dx++)
+    {
+        float fx = (float)((dx + 0.5) * scale - 0.5);
+        if (align_corner)
+        {
+            fx = (float)(dx * scale);
+        }
+
+        int sx = (float)floor(fx);
+        fx -= sx;
+
+        ia[dx] = sx;
+        ib[dx] = sx + 1;
+        im[dx] = fx;
+
+        // fx is non-sense on the border, but we have to follow dynamo onnx style
+        if (sx < 0)
+        {
+            ia[dx] = 0;
+            ib[dx] = 1;
+            im[dx] = 0.f;
+        }
+        if (sx >= w - 1)
+        {
+            ia[dx] = w - 1;
+            ib[dx] = w - 1;
+            if (align_corner)
+                im[dx] = 0.f;
+        }
+    }
+}
+
+static bool NearlyEqual(float a, float b, float epsilon)
+{
+    if (a == b)
+        return true;
+
+    float diff = (float)fabs(a - b);
+    if (diff <= epsilon)
+        return true;
+
+    // relative error
+    return diff < epsilon * std::max(fabs(a), fabs(b));
+}
+
+static bool resolve_align_corners(int w, int outw, const int64_t* pa, const int64_t* pb, const float* pm)
+{
+    std::vector<int> ia;
+    std::vector<int> ib;
+    std::vector<float> im;
+
+    bool is_no_align_corners = true;
+    linear_coeffs(w, outw, false, ia, ib, im);
+    for (int i = 0; i < outw; i++)
+    {
+        if (ia[i] != pa[i] || ib[i] != pb[i])
+        {
+            is_no_align_corners = false;
+            break;
+        }
+
+        if (!NearlyEqual(im[i], pm[i], 0.001))
+        {
+            is_no_align_corners = false;
+            break;
+        }
+    }
+
+    if (is_no_align_corners)
+        return false;
+
+    bool is_align_corners = true;
+    linear_coeffs(w, outw, true, ia, ib, im);
+    for (int i = 0; i < outw; i++)
+    {
+        if (ia[i] != pa[i] || ib[i] != pb[i])
+        {
+            is_align_corners = false;
+            break;
+        }
+
+        if (!NearlyEqual(im[i], pm[i], 0.001))
+        {
+            is_align_corners = false;
+            break;
+        }
+    }
+
+    if (is_align_corners)
+        return true;
+
+    fprintf(stderr, "unsupported interpolate align_corners, assume false\n");
+    return false;
+}
+
+class F_interpolate_onnx_1d_linear : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+13 12
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input pnnx_4 dims=(2,0,1)
+pnnx.Attribute          op_1        0 1 val_30 @data=(%size,1)i64
+GatherND                op_2        2 1 pnnx_4 val_30 pnnx_5 batch_dims=0
+Tensor.permute          op_3        1 1 pnnx_5 pnnx_6 dims=(1,2,0)
+pnnx.Attribute          op_4        0 1 val_37 @data=(%size,1)i64
+GatherND                op_5        2 1 pnnx_4 val_37 pnnx_7 batch_dims=0
+Tensor.permute          op_6        1 1 pnnx_7 pnnx_8 dims=(1,2,0)
+aten::sub               op_7        2 1 pnnx_8 pnnx_6 pnnx_9
+pnnx.Attribute          op_8        0 1 clamp_2 @data=(%size)f32
+aten::mul               op_9        2 1 pnnx_9 clamp_2 pnnx_10
+aten::add               op_10       2 1 pnnx_6 pnnx_10 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const int size = captured_params.at("size").i;
+
+        auto ia = captured_attrs.at("op_1.data");
+        auto ib = captured_attrs.at("op_4.data");
+        auto im = captured_attrs.at("op_8.data");
+
+        const int64_t* pa = (const int64_t*)ia.data.data();
+        const int64_t* pb = (const int64_t*)ib.data.data();
+        const float* pm = (const float*)im.data.data();
+
+        const int w = matched_operators.at("op_0")->inputs[0]->shape[2];
+
+        align_corners = resolve_align_corners(w, size, pa, pb, pm);
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int size = captured_params.at("size").i;
+
+        op->params["size"] = {size};
+
+        op->params["mode"] = "linear";
+        op->params["align_corners"] = align_corners;
+    }
+
+protected:
+    mutable bool align_corners;
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1d_linear, 110)
+
 } // namespace pnnx
