@@ -9,15 +9,14 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
+from transformers import M2M100Config
 from transformers.models.m2m_100.modeling_m2m_100 import M2M100Attention
-from transformers.models.m2m_100.configuration_m2m_100 import M2M100Config
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config = M2M100Config()
-        config._attn_implementation = "eager"
+        config = M2M100Config(attn_implementation='eager')
 
         self.attn0 = M2M100Attention(embed_dim=192, num_heads=12, config=config)
         self.attn1 = M2M100Attention(embed_dim=66, num_heads=6, config=config)
