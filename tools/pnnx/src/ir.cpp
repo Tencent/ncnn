@@ -1887,7 +1887,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             }
             else if (op->type == "Tensor.repeat")
             {
-                // view reshape
+                // repeat
                 fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
                 if (op->inputs.size() == 2)
                 {

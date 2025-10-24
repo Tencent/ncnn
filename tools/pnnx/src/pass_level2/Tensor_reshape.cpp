@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Tensor.view";
+        return "Tensor.reshape";
     }
 };
 
