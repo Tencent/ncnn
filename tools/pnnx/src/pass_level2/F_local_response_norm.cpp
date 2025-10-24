@@ -74,12 +74,12 @@ Tensor.size             op_4        1 1 input 104 dim=3
 prim::Constant          op_5        0 1 434 value=1
 prim::Constant          op_6        0 1 113 value=-1
 prim::ListConstruct     op_7        5 1 77 434 86 95 113 114
-Tensor.view             op_8        2 1 div7.1 114 input2.1
+Tensor.reshape          op_8        2 1 div7.1 114 input2.1
 F.pad                   op_9        1 1 input2.1 div8.1 mode=constant pad=(0,0,0,0,%pad_left,%pad_right) value=%padzero
 F.avg_pool3d            op_10       1 1 div8.1 129 ceil_mode=False count_include_pad=True divisor_override=None kernel_size=(%size,1,1) padding=(0,0,0) stride=(1,1,1)
 torch.squeeze           op_11       1 1 129 div9.1 dim=1
 prim::ListConstruct     op_12       4 1 77 86 95 104 137
-Tensor.view             op_13       2 1 div9.1 137 div10.1
+Tensor.reshape          op_13       2 1 div9.1 137 div10.1
 prim::Constant          op_14       0 1 alpha value=%alpha
 aten::mul               op_15       2 1 div10.1 alpha 141
 prim::Constant          op_16       0 1 k value=%k
@@ -110,12 +110,12 @@ Tensor.size             op_5        1 1 input 263 dim=4
 prim::Constant          op_6        0 1 492 value=1
 prim::Constant          op_7        0 1 493 value=-1
 prim::ListConstruct     op_8        5 1 230 492 239 248 493 272
-Tensor.view             op_9        2 1 div17.1 272 input5.1
+Tensor.reshape          op_9        2 1 div17.1 272 input5.1
 F.pad                   op_10       1 1 input5.1 div18.1 mode=constant pad=(0,0,0,0,%pad_left,%pad_right) value=%padzero
 F.avg_pool3d            op_11       1 1 div18.1 286 ceil_mode=False count_include_pad=True divisor_override=None kernel_size=(%size,1,1) padding=(0,0,0) stride=(1,1,1)
 torch.squeeze           op_12       1 1 286 div19.1 dim=1
 prim::ListConstruct     op_13       5 1 230 239 248 257 263 295
-Tensor.view             op_14       2 1 div19.1 295 div20.1
+Tensor.reshape          op_14       2 1 div19.1 295 div20.1
 prim::Constant          op_15       0 1 alpha value=%alpha
 aten::mul               op_16       2 1 div20.1 alpha 299
 prim::Constant          op_17       0 1 k value=%k

@@ -1857,9 +1857,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
+            else if (op->type == "Tensor.reshape")
             {
-                // view reshape
+                // reshape
                 fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
                 if (op->inputs.size() == 2)
                 {

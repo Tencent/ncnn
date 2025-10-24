@@ -207,7 +207,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_to.cpp
     pass_level2/Tensor_type_as.cpp
-    pass_level2/Tensor_view.cpp
     pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
@@ -362,7 +361,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_noop_slice.cpp
-    pass_level5/eliminate_noop_view_reshape.cpp
+    pass_level5/eliminate_noop_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eliminate_type_as.cpp
     pass_level5/eval_expression.cpp
@@ -586,7 +585,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
-    pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
