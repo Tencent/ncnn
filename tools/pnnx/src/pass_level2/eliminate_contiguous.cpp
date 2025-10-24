@@ -23,6 +23,8 @@ void eliminate_contiguous(Graph& graph)
 
             // fprintf(stderr, "eliminate_contiguous %s %s\n", op->type.c_str(), op->name.c_str());
 
+            need_eliminate = true;
+
             Operand* in0 = op->inputs[0];
             Operand* in1 = op->inputs[1];
             Operand* out = op->outputs[0];
