@@ -110,6 +110,7 @@ set(pnnx_pass_level1_SRCS
 )
 
 set(pnnx_pass_level2_SRCS
+    pass_level2/eliminate_contiguous.cpp
     pass_level2/eliminate_size_numtotensor_int.cpp
     pass_level2/functionize.cpp
     pass_level2/fuse_constantlist.cpp
@@ -187,7 +188,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
-    pass_level2/Tensor_contiguous.cpp
     pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
@@ -376,7 +376,6 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
-    pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
@@ -583,7 +582,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp
     pass_ncnn/nn_ZeroPad2d.cpp
-    pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp

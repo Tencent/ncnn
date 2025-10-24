@@ -66,7 +66,6 @@
 
 ## 60 relayout / reshape
 
-* Tensor.contiguous
 * Tensor.copy
 * Tensor.expand
 * Tensor.expand_as

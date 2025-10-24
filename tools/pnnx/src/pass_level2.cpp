@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "pass_level2/eliminate_contiguous.h"
 #include "pass_level2/eliminate_size_numtotensor_int.h"
 #include "pass_level2/functionize.h"
 #include "pass_level2/fuse_constantlist.h"
@@ -1136,6 +1137,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 void pass_level2(Graph& g)
 {
     functionize(g);
+
+    eliminate_contiguous(g);
 
     eliminate_size_numtotensor_int(g);
 

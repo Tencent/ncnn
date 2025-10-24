@@ -27,7 +27,6 @@
 #include "pass_level5/fuse_convtranspose1d_batchnorm1d.h"
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
 #include "pass_level5/fuse_convtranspose3d_batchnorm3d.h"
-#include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_multiheadattention.h"
@@ -124,8 +123,6 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_type_as(g);
 
     eliminate_noop_upsample(g);
-
-    fuse_contiguous_view(g);
 
     // need to execute before fuse_adjacent_reshape
     fuse_pixel_shuffle(g);
