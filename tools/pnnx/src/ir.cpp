@@ -1529,7 +1529,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 if (param.type == 3)
                 {
-                    fprintf(pyfp, "%f", param.f);
+                    std::string fs = float_to_string(param.f);
+                    fprintf(pyfp, "%s", fs.c_str());
                 }
                 if (param.type == 4)
                 {
@@ -1569,7 +1570,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, "(");
                     for (size_t i = 0; i < param.af.size(); i++)
                     {
-                        fprintf(pyfp, "%f", param.af[i]);
+                        std::string afs = float_to_string(param.af[i]);
+                        fprintf(pyfp, "%s", afs.c_str());
                         if (i + 1 != param.af.size() || param.af.size() == 1)
                             fprintf(pyfp, ",");
                     }
@@ -1640,7 +1642,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
 
                 fprintf(pyfp, "        self.%s.set_weight_bias(self_%s_weight, self_%s_bias)\n", sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str());
-                fprintf(pyfp, "        self.%s.scale = %f\n", sanitize_identifier(op->name).c_str(), op->params.at("scale").f);
+                std::string scale_str = float_to_string(op->params.at("scale").f);
+                fprintf(pyfp, "        self.%s.scale = %s\n", sanitize_identifier(op->name).c_str(), scale_str.c_str());
                 fprintf(pyfp, "        self.%s.zero_point = %d\n", sanitize_identifier(op->name).c_str(), op->params.at("zero_point").i);
 
                 continue;
@@ -2252,7 +2255,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     {
                         for (size_t i = 0; i < op->inputs.size(); i++)
                         {
-                            if (!op->inputnames[i].empty())
+                            bool is_input = i == 0 && op->inputnames[0] == "input";
+                            if (!op->inputnames[i].empty() && !is_input)
                                 continue;
 
                             fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
@@ -2262,7 +2266,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
                         for (size_t i = 0; i < op->inputs.size(); i++)
                         {
-                            if (op->inputnames[i].empty())
+                            bool is_input = i == 0 && op->inputnames[0] == "input";
+                            if (op->inputnames[i].empty() || is_input)
                                 continue;
 
                             fprintf(pyfp, "%s=v_%s", op->inputnames[i].c_str(), sanitize_identifier(op->inputs[i]->name).c_str());
@@ -2416,10 +2421,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.af.size(); i++)
                         {
-                            if (param.af[i] == (int)param.af[i])
-                                fprintf(pyfp, "%.1f", param.af[i]);
-                            else
-                                fprintf(pyfp, "%g", param.af[i]);
+                            std::string afs = float_to_string(param.af[i]);
+                            fprintf(pyfp, "%s", afs.c_str());
                             if (i + 1 != param.af.size() || param.af.size() == 1)
                                 fprintf(pyfp, ",");
                         }
