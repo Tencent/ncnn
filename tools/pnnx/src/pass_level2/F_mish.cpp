@@ -59,8 +59,8 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-Softplus                op_0        1 1 input a
-aten::tanh              op_1        1 1 a b
+F.softplus              op_0        1 1 input a beta=1.0 threshold=20.0
+F.tanh                  op_1        1 1 a b
 aten::mul               op_2        2 1 input b out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -72,7 +72,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_onnx, 100)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_onnx, 103)
 
 class F_mish_onnx_1 : public GraphRewriterPass
 {

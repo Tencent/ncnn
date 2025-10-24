@@ -12,6 +12,9 @@ class Model(nn.Module):
 
     def forward(self, q, k, v, m):
         x = F.scaled_dot_product_attention(q, k, v)
+        q = q + 3
+        k = k - 3
+        v = v * 3
         y = F.scaled_dot_product_attention(q, k, v, attn_mask=m)
         return x, y
 

@@ -160,7 +160,7 @@ static int insert_reshape_global_pooling_forward(Operand* operand, int pooled_ra
     {
         Operator* op = operand->consumers[i];
 
-        if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        if (op->type == "Tensor.reshape")
         {
             // reshape discard flatten state
             break;

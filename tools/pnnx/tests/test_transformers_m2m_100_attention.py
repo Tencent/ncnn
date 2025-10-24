@@ -9,23 +9,17 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-import transformers
-from transformers import BartConfig
-from transformers.models.bart.modeling_bart import BartAttention
-if version.parse(transformers.__version__) < version.parse('4.53'):
-    from transformers.models.bart.modeling_bart import BartSdpaAttention
+from transformers import M2M100Config
+from transformers.models.m2m_100.modeling_m2m_100 import M2M100Attention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = BartConfig(attn_implementation='eager')
-        self.attn0 = BartAttention(embed_dim=192, num_heads=12, config=config0)
-        if version.parse(transformers.__version__) < version.parse('4.53'):
-            self.attn1 = BartSdpaAttention(embed_dim=66, num_heads=6)
-        else:
-            config1 = BartConfig(attn_implementation='sdpa')
-            self.attn1 = BartAttention(embed_dim=66, num_heads=6, config=config1)
+        config = M2M100Config(attn_implementation='eager')
+
+        self.attn0 = M2M100Attention(embed_dim=192, num_heads=12, config=config)
+        self.attn1 = M2M100Attention(embed_dim=66, num_heads=6, config=config)
 
     def forward(self, x, y):
         out0 = self.attn0(x, attention_mask=None, key_value_states=None, past_key_value=None)
@@ -44,15 +38,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y))
-    mod.save("test_transformers_bart_attention.pt")
+    mod.save("test_transformers_m2m_100_attention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_bart_attention.pt inputshape=[3,16,192],[1,5,66]")
+    os.system("../src/pnnx test_transformers_m2m_100_attention.pt inputshape=[3,16,192],[1,5,66]")
 
     # pnnx inference
-    import test_transformers_bart_attention_pnnx
-    b = test_transformers_bart_attention_pnnx.test_inference()
+    import test_transformers_m2m_100_attention_pnnx
+    b = test_transformers_m2m_100_attention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

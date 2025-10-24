@@ -80,7 +80,7 @@ void convert_reshape_interp_expression(Graph& graph)
 
         for (Operator* op : graph.ops)
         {
-            if (op->type != "Tensor.reshape" && op->type != "Tensor.view"
+            if (op->type != "Tensor.reshape"
                     && op->type != "F.upsample" && op->type != "F.upsample_nearest" && op->type != "F.upsample_bilinear" && op->type != "F.interpolate")
                 continue;
 
@@ -423,7 +423,7 @@ void convert_reshape_interp_expression(Graph& graph)
                         elements.push_back(a);
                     }
 
-                    if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+                    if (op->type == "Tensor.reshape")
                     {
                         // drop output batch index
                         const int batch_index = op->outputs[0]->params["__batch_index"].i;
@@ -469,7 +469,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 exprstack.pop();
             }
 
-            if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+            if (op->type == "Tensor.reshape")
             {
                 fprintf(stderr, "convert reshape expression %s => %s\n", expr.c_str(), r.c_str());
 

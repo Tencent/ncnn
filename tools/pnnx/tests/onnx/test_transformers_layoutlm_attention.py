@@ -16,10 +16,10 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = LayoutLMConfig(hidden_size=192, num_attention_heads=16, intermediate_size=72)
+        config0 = LayoutLMConfig(hidden_size=192, num_attention_heads=16, intermediate_size=72, attn_implementation='eager')
         self.attn0 = LayoutLMAttention(config0)
 
-        config1 = LayoutLMConfig(hidden_size=66, num_attention_heads=6, intermediate_size=30)
+        config1 = LayoutLMConfig(hidden_size=66, num_attention_heads=6, intermediate_size=30, attn_implementation='eager')
         self.attn1 = LayoutLMAttention(config1)
 
     def forward(self, x, y):

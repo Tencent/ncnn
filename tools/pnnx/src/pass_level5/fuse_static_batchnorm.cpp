@@ -184,6 +184,58 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_Fbatchnorm_no_affine_pass_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+pnnx.Input              mean        0 1 running_mean
+pnnx.Input              var         0 1 running_var
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
+F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Input              mean        0 1 running_mean
+pnnx.Input              var         0 1 running_var
+F.batch_norm            op_0        3 1 input running_mean running_var out eps=%eps weight=None bias=None
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto weight_data = captured_attrs.at("op_weight.data");
+        auto bias_data = captured_attrs.at("op_bias.data");
+
+        std::vector<float> weight_data_fp32 = weight_data.get_float32_data();
+        std::vector<float> bias_data_fp32 = bias_data.get_float32_data();
+
+        for (auto w : weight_data_fp32)
+        {
+            if (w != 1.f)
+                return false;
+        }
+        for (auto b : bias_data_fp32)
+        {
+            if (b != 0.f)
+                return false;
+        }
+
+        return true;
+    }
+};
+
 void fuse_static_batchnorm(Graph& graph)
 {
     fuse_static_Fbatchnorm_pass_1d a;
@@ -192,6 +244,7 @@ void fuse_static_batchnorm(Graph& graph)
     fuse_static_Fbatchnorm_pass_1d_1 a1;
     fuse_static_Fbatchnorm_pass_2d_1 b1;
     fuse_static_Fbatchnorm_pass_3d_1 c1;
+    fuse_Fbatchnorm_no_affine_pass_onnx z;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
@@ -200,6 +253,7 @@ void fuse_static_batchnorm(Graph& graph)
     pnnx_graph_rewrite(graph, &a1, opindex);
     pnnx_graph_rewrite(graph, &b1, opindex);
     pnnx_graph_rewrite(graph, &c1, opindex);
+    pnnx_graph_rewrite(graph, &z, opindex);
 }
 
 } // namespace pnnx

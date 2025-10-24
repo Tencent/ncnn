@@ -116,7 +116,7 @@ pnnx.Input              input_3     0 1 input #input=(%batch,%kvsize)bool
 pnnx.Expression         op_0        1 1 query 13 expr=div(@0,%sqrt_embed_dim_per_head)
 torch.transpose         op_1        1 1 key 14 dim0=2 dim1=3
 torch.matmul            op_2        2 1 13 14 15
-Tensor.view             op_3        1 1 input 17 shape=(%batch,1,1,%kvsize)
+Tensor.reshape          op_3        1 1 input 17 shape=(%batch,1,1,%kvsize)
 Tensor.expand_as        op_4        2 1 17 15 18
 Tensor.masked_fill      op_5        2 1 15 18 19 value=-3.402823e+38
 F.softmax               op_6        1 1 19 20 dim=-1
@@ -134,7 +134,7 @@ pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 input
 torch.bitwise_not       sdpa_ht_0   1 1 input 16
-Tensor.view             sdpa_ht_1   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
+Tensor.reshape          sdpa_ht_1   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
 Tensor.expand           sdpa_ht_2   1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
 F.scaled_dot_product_attention sdpa_ht 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -175,7 +175,7 @@ pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 input
 Tensor.permute          sdpa_ht_0   1 1 key 14 dims=(0,2,1,3)
 torch.bitwise_not       sdpa_ht_1   1 1 input 16
-Tensor.view             sdpa_ht_2   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
+Tensor.reshape          sdpa_ht_2   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
 Tensor.expand           sdpa_ht_3   1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
 F.scaled_dot_product_attention sdpa_ht 4 1 query 14 value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask $key=14
 pnnx.Output             output      1 0 out

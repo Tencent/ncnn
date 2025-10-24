@@ -96,7 +96,7 @@ void eliminate_reshape_shape_expression(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            if (op->type != "Tensor.reshape")
                 continue;
 
             if (op->inputs.size() != 2)
@@ -186,7 +186,7 @@ void eliminate_reshape_shape_expression(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            if (op->type != "Tensor.reshape")
                 continue;
 
             if (op->inputs.size() != 2)
@@ -242,7 +242,7 @@ void eliminate_reshape_shape_expression(Graph& graph)
     {
         Operator* op = graph.ops[i];
 
-        if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+        if (op->type != "Tensor.reshape")
             continue;
 
         if (op->inputs.size() != 1)

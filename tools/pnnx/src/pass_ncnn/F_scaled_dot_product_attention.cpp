@@ -236,9 +236,9 @@ pnnx.Input              input       0 1 input
 nn.Linear               op_0        1 1 input q bias=%qbias in_features=%qdim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 input k bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 input v bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.view             op_3        1 1 q 10 shape=(%batch,%size,%num_heads,%feat_per_head)
-Tensor.view             op_4        1 1 k 12 shape=(%batch,%size,%num_heads,%feat_per_head)
-Tensor.view             op_5        1 1 v 14 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.reshape          op_3        1 1 q 10 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 k 12 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 v 14 shape=(%batch,%size,%num_heads,%feat_per_head)
 torch.transpose         op_6        1 1 10 16 dim0=1 dim1=2
 torch.transpose         op_7        1 1 12 17 dim0=1 dim1=2
 torch.transpose         op_8        1 1 14 18 dim0=1 dim1=2

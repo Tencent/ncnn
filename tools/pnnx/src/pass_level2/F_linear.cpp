@@ -268,6 +268,41 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_4, 110)
 
+class F_linear_onnx_5 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          weight      0 1 weight @data=(%out_features,%in_features)f32
+torch.transpose         op_0        1 1 weight t dim0=1 dim1=0
+torch.mm                op_1        2 1 input t out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          weight      0 1 weight
+F.linear                linear      2 1 input weight out bias=None $weight=weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        Operator* op_weight = ops.at("weight");
+        op_weight->attrs["data"] = captured_attrs.at("weight.data");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx_5, 110)
+
 class F_linear_tnn : public GraphRewriterPass
 {
 public:

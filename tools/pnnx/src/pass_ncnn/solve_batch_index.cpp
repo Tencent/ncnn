@@ -200,7 +200,7 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        else if (op->type == "Tensor.reshape")
         {
             std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
@@ -549,7 +549,7 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    else if (op->type == "Tensor.reshape")
     {
         std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
