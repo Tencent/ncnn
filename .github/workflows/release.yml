@@ -196,7 +196,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-macos
         path: openmp-macos
@@ -368,7 +368,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-ios
         path: openmp-ios
@@ -541,7 +541,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -730,7 +730,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -911,7 +911,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: download-openmp-watchos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-watchos
         path: openmp-watchos
@@ -1060,7 +1060,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: download-openmp-watchos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-watchos-simulator
         path: openmp-watchos-simulator
@@ -1217,7 +1217,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-tvos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-tvos
         path: openmp-tvos
@@ -1406,7 +1406,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-tvos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-tvos-simulator
         path: openmp-tvos-simulator
@@ -1584,7 +1584,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-visionos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-visionos
         path: openmp-visionos
@@ -1757,7 +1757,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-visionos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: openmp-visionos-simulator
         path: openmp-visionos-simulator
@@ -2118,7 +2118,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_16.4.0.app
     - name: download
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
 
@@ -2256,7 +2256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         path: artifacts
 
