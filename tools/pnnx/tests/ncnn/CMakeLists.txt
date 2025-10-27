@@ -149,6 +149,7 @@ pnnx_ncnn_add_test(Tensor_reshape_as)
 pnnx_ncnn_add_test(Tensor_slice)
 pnnx_ncnn_add_test(Tensor_slice_copy)
 pnnx_ncnn_add_test(Tensor_view)
+pnnx_ncnn_add_test(Tensor_unflatten)
 
 pnnx_ncnn_add_test(torch_addmm)
 pnnx_ncnn_add_test(torch_amax)

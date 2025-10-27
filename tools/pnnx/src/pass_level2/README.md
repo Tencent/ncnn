@@ -74,6 +74,7 @@
 * Tensor.reshape
 * Tensor.to
 * Tensor.type_as
+* Tensor.unflatten
 * torch.cat
 * torch.chunk
 * torch.complex

@@ -166,6 +166,7 @@ pnnx_onnx_add_test(Tensor_reshape_as)
 pnnx_onnx_add_test(Tensor_select)
 pnnx_onnx_add_test(Tensor_slice)
 pnnx_onnx_add_test(Tensor_view)
+pnnx_onnx_add_test(Tensor_unflatten)
 
 pnnx_onnx_add_test(torch_cat)
 pnnx_onnx_add_test(torch_ceil)

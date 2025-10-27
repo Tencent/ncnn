@@ -185,6 +185,7 @@ pnnx_add_test(Tensor_slice)
 pnnx_add_test(Tensor_slice_copy)
 pnnx_add_test(Tensor_to)
 pnnx_add_test(Tensor_type_as)
+pnnx_add_test(Tensor_unflatten)
 pnnx_add_test(Tensor_view)
 
 pnnx_add_test(torch_addmm)
