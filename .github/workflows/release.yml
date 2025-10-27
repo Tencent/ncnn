@@ -48,7 +48,7 @@ jobs:
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
         zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
@@ -87,7 +87,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -159,7 +159,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-macos
         path: openmp-install
@@ -272,7 +272,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -333,7 +333,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-ios
         path: openmp-install
@@ -434,7 +434,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -506,7 +506,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-ios-simulator
         path: openmp-install
@@ -623,7 +623,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -695,7 +695,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-mac-catalyst
         path: openmp-install
@@ -812,7 +812,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -884,7 +884,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-watchos
         path: openmp-install
@@ -961,7 +961,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1033,7 +1033,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-watchos-simulator
         path: openmp-install
@@ -1110,7 +1110,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1182,7 +1182,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-tvos
         path: openmp-install
@@ -1299,7 +1299,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1371,7 +1371,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-tvos-simulator
         path: openmp-install
@@ -1488,7 +1488,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1549,7 +1549,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-visionos
         path: openmp-install
@@ -1650,7 +1650,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1722,7 +1722,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: openmp-visionos-simulator
         path: openmp-install
@@ -1839,7 +1839,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1916,7 +1916,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1981,7 +1981,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2105,7 +2105,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2239,12 +2239,12 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}-vulkan.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
     - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.PACKAGENAME }}-vulkan
         path: ${{ env.PACKAGENAME }}-vulkan.zip
