@@ -207,6 +207,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_to.cpp
     pass_level2/Tensor_type_as.cpp
+    pass_level2/Tensor_unflatten.cpp
     pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
@@ -287,7 +288,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
-    pass_level2/torch_unflatten.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
@@ -586,6 +586,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
+    pass_ncnn/Tensor_unflatten.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
@@ -612,7 +613,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
-    pass_ncnn/torch_unflatten.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
     pass_ncnn/torchaudio_F_spectrogram.cpp

@@ -10,9 +10,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.unflatten(x, dim=2, sizes=(2,1,2,-1))
-        y = torch.unflatten(y, dim=1, sizes=(1,1,5))
-        z = torch.unflatten(z, dim=-2, sizes=(3,-1))
+        x = x.unflatten(dim=2, sizes=(2,1,2,-1))
+        y = y.unflatten(dim=1, sizes=(1,1,5))
+        z = z.unflatten(dim=-2, sizes=(3,-1))
         return x, y, z
 
 def test():
@@ -26,16 +26,17 @@ def test():
 
     a = net(x, y, z)
 
-    # export onnx
-    torch.onnx.export(net, (x, y, z), "test_torch_unflatten.onnx")
+    # export torchscript
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_Tensor_unflatten.pt")
 
-    # onnx to pnnx
+    # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_unflatten.onnx inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_Tensor_unflatten.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
     # pnnx inference
-    import test_torch_unflatten_pnnx
-    b = test_torch_unflatten_pnnx.test_inference()
+    import test_Tensor_unflatten_pnnx
+    b = test_Tensor_unflatten_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

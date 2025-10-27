@@ -5,7 +5,7 @@
 
 namespace pnnx {
 
-class torch_unflatten : public GraphRewriterPass
+class Tensor_unflatten : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -22,10 +22,10 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "torch.unflatten";
+        return "Tensor.unflatten";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_unflatten, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_unflatten, 60)
 
 } // namespace pnnx

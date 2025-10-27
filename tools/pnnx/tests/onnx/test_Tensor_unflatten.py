@@ -10,9 +10,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.unflatten(x, dim=0, sizes=(2,1,2,-1))
-        y = torch.unflatten(y, dim=1, sizes=(3,4))
-        z = torch.unflatten(z, dim=-2, sizes=(3,-1))
+        x = x.unflatten(dim=2, sizes=(2,1,2,-1))
+        y = y.unflatten(dim=1, sizes=(1,1,5))
+        z = z.unflatten(dim=-2, sizes=(3,-1))
         return x, y, z
 
 def test():
@@ -20,23 +20,22 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(16)
-    y = torch.rand(9, 12)
-    z = torch.rand(8, 9, 10)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
     a = net(x, y, z)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_unflatten.pt")
+    # export onnx
+    torch.onnx.export(net, (x, y, z), "test_Tensor_unflatten.onnx")
 
-    # torchscript to pnnx
+    # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_torch_unflatten.pt inputshape=[16],[9,12],[8,9,10]")
+    os.system("../../src/pnnx test_Tensor_unflatten.onnx inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
-    # ncnn inference
-    import test_torch_unflatten_ncnn
-    b = test_torch_unflatten_ncnn.test_inference()
+    # pnnx inference
+    import test_Tensor_unflatten_pnnx
+    b = test_Tensor_unflatten_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

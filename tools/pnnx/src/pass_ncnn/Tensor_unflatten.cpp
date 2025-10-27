@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class torch_unflatten : public GraphRewriterPass
+class Tensor_unflatten : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -15,7 +15,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.unflatten         op_0        1 1 input out dim=%dim sizes=%sizes
+Tensor.unflatten         op_0        1 1 input out dim=%dim sizes=%sizes
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -108,7 +108,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_unflatten, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(Tensor_unflatten, 20)
 
 } // namespace ncnn
 
