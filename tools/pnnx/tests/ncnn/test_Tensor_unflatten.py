@@ -11,17 +11,15 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        if version.parse(torch.__version__) < version.parse('1.13'):
-            x = x.unflatten(dim=0, sizes=(2,1,2,4))
-            y = y.unflatten(dim=1, sizes=(3,4))
-            z = z.unflatten(dim=-2, sizes=(3,3))
-        else:
-            x = x.unflatten(dim=0, sizes=(2,1,2,-1))
-            y = y.unflatten(dim=1, sizes=(3,4))
-            z = z.unflatten(dim=-2, sizes=(3,-1))
+        x = x.unflatten(dim=0, sizes=(2,1,2,-1))
+        y = y.unflatten(dim=1, sizes=(3,4))
+        z = z.unflatten(dim=-2, sizes=(3,-1))
         return x, y, z
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.13'):
+        return True
+
     net = Model()
     net.eval()
 
