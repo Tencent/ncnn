@@ -1,14 +1,14 @@
 // Copyright 2021 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "eliminate_noop_view_reshape.h"
+#include "eliminate_noop_reshape.h"
 
 #include <algorithm>
 #include "pass_level2.h"
 
 namespace pnnx {
 
-void eliminate_noop_view_reshape(Graph& graph)
+void eliminate_noop_reshape(Graph& graph)
 {
     while (1)
     {
@@ -18,7 +18,7 @@ void eliminate_noop_view_reshape(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            if (op->type != "Tensor.reshape")
                 continue;
 
             const std::vector<int>& input_shape = op->inputs[0]->shape;

@@ -25,7 +25,28 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class Tensor_reshape_view : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 shape
+aten::view              op_0        2 1 input shape out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.reshape";
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_view, 60)
 
 class Tensor_reshape_onnx : public GraphRewriterPass
 {
