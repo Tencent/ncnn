@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -16,6 +17,9 @@ class Model(nn.Module):
         return x, y, z
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.1'):
+        return True
+
     net = Model()
     net.eval()
 

@@ -4,15 +4,21 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = x.unflatten(dim=2, sizes=(2,1,2,-1))
-        y = y.unflatten(dim=1, sizes=(1,1,5))
-        z = z.unflatten(dim=-2, sizes=(3,-1))
+        if version.parse(torch.__version__) < version.parse('1.13'):
+            x = x.unflatten(dim=2, sizes=(2,1,2,4))
+            y = y.unflatten(dim=1, sizes=(1,1,5))
+            z = z.unflatten(dim=-2, sizes=(3,3))
+        else:
+            x = x.unflatten(dim=2, sizes=(2,1,2,-1))
+            y = y.unflatten(dim=1, sizes=(1,1,5))
+            z = z.unflatten(dim=-2, sizes=(3,-1))
         return x, y, z
 
 def test():
