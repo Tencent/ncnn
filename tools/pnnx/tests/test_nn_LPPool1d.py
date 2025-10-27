@@ -48,6 +48,8 @@ def test():
     import test_nn_LPPool1d_pnnx
     b = test_nn_LPPool1d_pnnx.test_inference()
 
+    print(a)
+    print(b)
     return torch.equal(a, b)
 
 if __name__ == "__main__":
