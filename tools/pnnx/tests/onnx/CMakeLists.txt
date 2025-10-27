@@ -192,6 +192,7 @@ pnnx_onnx_add_test(torch_stack)
 pnnx_onnx_add_test(torch_sum)
 pnnx_onnx_add_test(torch_transpose)
 pnnx_onnx_add_test(torch_unbind)
+pnnx_onnx_add_test(torch_unflatten)
 pnnx_onnx_add_test(torch_unsqueeze)
 
 pnnx_onnx_add_test(transformers_albert_attention)

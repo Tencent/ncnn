@@ -177,6 +177,7 @@ pnnx_ncnn_add_test(torch_t)
 pnnx_ncnn_add_test(torch_tensor_split)
 pnnx_ncnn_add_test(torch_transpose)
 pnnx_ncnn_add_test(torch_unbind)
+pnnx_ncnn_add_test(torch_unflatten)
 pnnx_ncnn_add_test(torch_unsqueeze)
 
 pnnx_ncnn_add_test(torch_istft)
