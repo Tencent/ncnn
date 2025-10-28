@@ -126,21 +126,24 @@ std::string float_to_string(float f)
         return std::string(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%.8f", f);
+    const int len = snprintf(buffer, sizeof(buffer), "%g", f);
 
-    // remove tail zeros
-    char* end = buffer + len - 1;
-    while (end > buffer && *end == '0')
+    bool is_integer = true;
+    for (int i = 0; i < len; i++)
     {
-        *end = '\0';
-        end--;
+        if (buffer[i] == '.' || buffer[i] == 'e' || buffer[i] == 'E')
+        {
+            is_integer = false;
+            break;
+        }
     }
 
     // maintain point-zero
-    if (*end == '.')
+    if (is_integer)
     {
-        *(end + 1) = '0';
-        *(end + 2) = '\0';
+        buffer[len] = '.';
+        buffer[len + 1] = '0';
+        buffer[len + 2] = '\0';
     }
 
     return std::string(buffer);
@@ -160,21 +163,24 @@ std::string double_to_string(double d)
         return std::string(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%.17f", d);
+    const int len = snprintf(buffer, sizeof(buffer), "%g", d);
 
-    // remove tail zeros
-    char* end = buffer + len - 1;
-    while (end > buffer && *end == '0')
+    bool is_integer = true;
+    for (int i = 0; i < len; i++)
     {
-        *end = '\0';
-        end--;
+        if (buffer[i] == '.' || buffer[i] == 'e' || buffer[i] == 'E')
+        {
+            is_integer = false;
+            break;
+        }
     }
 
     // maintain point-zero
-    if (*end == '.')
+    if (is_integer)
     {
-        *(end + 1) = '0';
-        *(end + 2) = '\0';
+        buffer[len] = '.';
+        buffer[len + 1] = '0';
+        buffer[len + 2] = '\0';
     }
 
     return std::string(buffer);
