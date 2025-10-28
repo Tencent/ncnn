@@ -81,6 +81,14 @@ class Model(nn.Module):
 
             self.up_w = nn.Upsample(scale_factor=(1.499,1.499), mode='nearest')
 
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            self.up_1d_0_4 = nn.Upsample(size=12, mode='nearest-exact')
+            self.up_1d_0_5 = nn.Upsample(scale_factor=(3), mode='nearest-exact')
+            self.up_2d_0_6 = nn.Upsample(size=(11,12), mode='nearest-exact')
+            self.up_2d_0_7 = nn.Upsample(scale_factor=(3,2), mode='nearest-exact')
+            self.up_3d_0_6 = nn.Upsample(size=(11,12,13), mode='nearest-exact')
+            self.up_3d_0_7 = nn.Upsample(scale_factor=(3,1,2), mode='nearest-exact')
+
     def forward(self, x, y, z, w):
         if version.parse(torch.__version__) < version.parse('1.12'):
             x0 = self.up_1d_0_0(x)
@@ -110,12 +118,24 @@ class Model(nn.Module):
 
             w = self.up_w(w)
 
-            return x0, x1, x2, y0, y1, y2, y3, z0, z1, z2, z3, w
+            if version.parse(torch.__version__) >= version.parse('1.11'):
+                x = self.up_1d_0_4(x) + 2
+                x = self.up_1d_0_5(x)
+                y = self.up_2d_0_6(y) + 3
+                y = self.up_2d_0_7(y)
+                z = self.up_3d_0_6(z) + 4
+                z = self.up_3d_0_7(z)
+
+                return x0, x1, x2, y0, y1, y2, y3, z0, z1, z2, z3, w, x, y, z
+            else:
+                return x0, x1, x2, y0, y1, y2, y3, z0, z1, z2, z3, w
         else:
             x = self.up_1d_0_0(x)
             x = self.up_1d_0_1(x)
             x = self.up_1d_0_2(x)
             x = self.up_1d_0_3(x)
+            x = self.up_1d_0_4(x) + 2
+            x = self.up_1d_0_5(x)
             x = self.up_1d_1_0(x)
             x = self.up_1d_1_1(x)
             x = self.up_1d_1_2(x)
@@ -127,6 +147,8 @@ class Model(nn.Module):
             y = self.up_2d_0_3(y)
             y = self.up_2d_0_4(y)
             y = self.up_2d_0_5(y)
+            y = self.up_2d_0_6(y) + 3
+            y = self.up_2d_0_7(y)
             y = self.up_2d_1_0(y)
             y = self.up_2d_1_1(y)
             y = self.up_2d_1_2(y)
@@ -146,6 +168,8 @@ class Model(nn.Module):
             z = self.up_3d_0_3(z)
             z = self.up_3d_0_4(z)
             z = self.up_3d_0_5(z)
+            z = self.up_3d_0_6(z) + 4
+            z = self.up_3d_0_7(z)
             z = self.up_3d_1_0(z)
             z = self.up_3d_1_1(z)
             z = self.up_3d_1_2(z)

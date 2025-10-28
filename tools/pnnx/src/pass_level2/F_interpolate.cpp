@@ -1139,7 +1139,7 @@ static void linear_coeffs(int w, int outw, bool align_corner, std::vector<int>& 
             fx = (float)(dx * scale);
         }
 
-        int sx = (float)floor(fx);
+        int sx = (int)floor(fx);
         fx -= sx;
 
         ia[dx] = sx;
@@ -1288,5 +1288,227 @@ protected:
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1d_linear, 110)
+
+static bool resolve_nearest_exact_1d(int w, int outw, const int64_t* pindex)
+{
+    double scale = (double)w / outw;
+    for (int i = 0; i < outw; i++)
+    {
+        float fx = (float)((i + 0.5f) * scale);
+        int sx = (int)floor(fx);
+
+        if (pindex[i] != sx)
+            return false;
+    }
+
+    return true;
+}
+
+class F_interpolate_onnx_1d_nearest_exact : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input pnnx_4 dims=(2,0,1)
+pnnx.Attribute          op_1        0 1 index @data=(%size,1)i64
+GatherND                op_2        2 1 pnnx_4 index pnnx_5 batch_dims=0
+Tensor.permute          op_3        1 1 pnnx_5 out dims=(1,2,0)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const int size = captured_params.at("size").i;
+
+        auto index = captured_attrs.at("op_1.data");
+
+        const int64_t* pindex = (const int64_t*)index.data.data();
+
+        const int w = matched_operators.at("op_0")->inputs[0]->shape[2];
+
+        bool nearest_exact = resolve_nearest_exact_1d(w, size, pindex);
+
+        return nearest_exact;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int size = captured_params.at("size").i;
+        op->params["size"] = {size};
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_1d_nearest_exact, 111)
+
+static bool resolve_nearest_exact_2d(int w, int h, int outw, int outh, const int64_t* pindex)
+{
+    double scale_w = (double)w / outw;
+    double scale_h = (double)h / outh;
+    for (int i = 0; i < outh; i++)
+    {
+        float fy = (float)((i + 0.5f) * scale_h);
+        int sy = (int)floor(fy);
+
+        for (int j = 0; j < outw; j++)
+        {
+            float fx = (float)((j + 0.5f) * scale_w);
+            int sx = (int)floor(fx);
+
+            int py = pindex[0];
+            int px = pindex[1];
+            pindex += 2;
+
+            if (px != sx || py != sy)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+class F_interpolate_onnx_2d_nearest_exact : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input pnnx_48 dims=(2,3,0,1)
+pnnx.Attribute          op_1        0 1 index @data=(%size_h,%size_w,2)i64
+GatherND                op_2        2 1 pnnx_48 index pnnx_49 batch_dims=0
+Tensor.permute          op_3        1 1 pnnx_49 out dims=(2,3,0,1)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const int size_h = captured_params.at("size_h").i;
+        const int size_w = captured_params.at("size_w").i;
+
+        auto index = captured_attrs.at("op_1.data");
+
+        const int64_t* pindex = (const int64_t*)index.data.data();
+
+        const int h = matched_operators.at("op_0")->inputs[0]->shape[2];
+        const int w = matched_operators.at("op_0")->inputs[0]->shape[3];
+
+        bool nearest_exact = resolve_nearest_exact_2d(w, h, size_w, size_h, pindex);
+
+        return nearest_exact;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int size_h = captured_params.at("size_h").i;
+        const int size_w = captured_params.at("size_w").i;
+        op->params["size"] = {size_h, size_w};
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_2d_nearest_exact, 111)
+
+static bool resolve_nearest_exact_3d(int w, int h, int d, int outw, int outh, int outd, const int64_t* pindex)
+{
+    double scale_w = (double)w / outw;
+    double scale_h = (double)h / outh;
+    double scale_d = (double)d / outd;
+    for (int i = 0; i < outd; i++)
+    {
+        float fz = (float)((i + 0.5f) * scale_d);
+        int sz = (int)floor(fz);
+
+        for (int j = 0; j < outh; j++)
+        {
+            float fy = (float)((j + 0.5f) * scale_h);
+            int sy = (int)floor(fy);
+
+            for (int k = 0; k < outw; k++)
+            {
+                float fx = (float)((k + 0.5f) * scale_w);
+                int sx = (int)floor(fx);
+
+                int pz = pindex[0];
+                int py = pindex[1];
+                int px = pindex[2];
+                pindex += 3;
+
+                if (px != sx || py != sy || pz != sz)
+                    return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+class F_interpolate_onnx_3d_nearest_exact : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input pnnx_48 dims=(2,3,4,0,1)
+pnnx.Attribute          op_1        0 1 index @data=(%size_d,%size_h,%size_w,3)i64
+GatherND                op_2        2 1 pnnx_48 index pnnx_49 batch_dims=0
+Tensor.permute          op_3        1 1 pnnx_49 out dims=(3,4,0,1,2)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        const int size_d = captured_params.at("size_d").i;
+        const int size_h = captured_params.at("size_h").i;
+        const int size_w = captured_params.at("size_w").i;
+
+        auto index = captured_attrs.at("op_1.data");
+
+        const int64_t* pindex = (const int64_t*)index.data.data();
+
+        const int d = matched_operators.at("op_0")->inputs[0]->shape[2];
+        const int h = matched_operators.at("op_0")->inputs[0]->shape[3];
+        const int w = matched_operators.at("op_0")->inputs[0]->shape[4];
+
+        bool nearest_exact = resolve_nearest_exact_3d(w, h, d, size_w, size_h, size_d, pindex);
+
+        return nearest_exact;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int size_d = captured_params.at("size_d").i;
+        const int size_h = captured_params.at("size_h").i;
+        const int size_w = captured_params.at("size_w").i;
+        op->params["size"] = {size_d, size_h, size_w};
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_3d_nearest_exact, 111)
 
 } // namespace pnnx
