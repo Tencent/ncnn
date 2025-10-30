@@ -4,8 +4,9 @@
 #ifndef NCNN_BLOB_H
 #define NCNN_BLOB_H
 
-#include "mat.h"
 #include "platform.h"
+
+#include "mat.h"
 
 namespace ncnn {
 

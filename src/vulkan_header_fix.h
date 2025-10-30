@@ -4,8 +4,6 @@
 #ifndef NCNN_VULKAN_HEADER_FIX_H
 #define NCNN_VULKAN_HEADER_FIX_H
 
-// #include "platform.h"
-
 // This header contains new structure and function declearation to fix build with old vulkan sdk
 
 #ifndef VK_KHR_maintenance1

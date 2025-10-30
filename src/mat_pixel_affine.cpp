@@ -7,7 +7,6 @@
 #endif // __ARM_NEON
 #include <limits.h>
 
-#include "platform.h"
 
 namespace ncnn {
 

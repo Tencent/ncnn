@@ -4,6 +4,8 @@
 #ifndef NCNN_CPU_H
 #define NCNN_CPU_H
 
+#include "platform.h"
+
 #include <stddef.h>
 
 #if defined _WIN32
@@ -13,8 +15,6 @@
 #if defined __ANDROID__ || defined __linux__
 #include <sched.h> // cpu_set_t
 #endif
-
-#include "platform.h"
 
 namespace ncnn {
 

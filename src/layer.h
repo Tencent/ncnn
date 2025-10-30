@@ -4,11 +4,12 @@
 #ifndef NCNN_LAYER_H
 #define NCNN_LAYER_H
 
+#include "platform.h"
+
 #include "mat.h"
 #include "modelbin.h"
 #include "option.h"
 #include "paramdict.h"
-#include "platform.h"
 
 #if NCNN_VULKAN
 #include "command.h"

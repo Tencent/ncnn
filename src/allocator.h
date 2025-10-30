@@ -4,12 +4,12 @@
 #ifndef NCNN_ALLOCATOR_H
 #define NCNN_ALLOCATOR_H
 
+#include "platform.h"
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
-
-#include "platform.h"
 
 #include <stdlib.h>
 

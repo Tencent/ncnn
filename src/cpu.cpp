@@ -3,8 +3,6 @@
 
 #include "cpu.h"
 
-#include "platform.h"
-
 #include <limits.h>
 #ifndef __wasi__
 #include <setjmp.h>

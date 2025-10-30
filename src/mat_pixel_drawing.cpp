@@ -14,8 +14,6 @@
 #include <emmintrin.h>
 #endif
 
-#include "platform.h"
-
 namespace ncnn {
 
 #if NCNN_PIXEL_DRAWING

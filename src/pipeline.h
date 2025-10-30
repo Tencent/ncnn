@@ -4,8 +4,9 @@
 #ifndef NCNN_PIPELINE_H
 #define NCNN_PIPELINE_H
 
-#include "mat.h"
 #include "platform.h"
+
+#include "mat.h"
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN

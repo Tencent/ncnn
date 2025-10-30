@@ -4,6 +4,8 @@
 #ifndef NCNN_MAT_H
 #define NCNN_MAT_H
 
+#include "platform.h"
+
 #include <stdlib.h>
 #include <string.h>
 #if __ARM_NEON
@@ -28,7 +30,6 @@
 
 #include "allocator.h"
 #include "option.h"
-#include "platform.h"
 
 #if NCNN_PIXEL
 #if NCNN_PLATFORM_API

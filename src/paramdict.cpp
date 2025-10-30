@@ -5,7 +5,6 @@
 
 #include "datareader.h"
 #include "mat.h"
-#include "platform.h"
 
 #include <ctype.h>
 

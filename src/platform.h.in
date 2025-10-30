@@ -4,6 +4,8 @@
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
 
+// platform.h must be included first to avoid different define of macros
+
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
 #cmakedefine01 NCNN_SIMPLEOCV
@@ -66,6 +68,11 @@
 
 #if NCNN_THREADS
 #if defined _WIN32
+
+#if defined _WINDOWS_
+#error "platform.h must be included before windows.h to avoid different define of _WIN32_WINNT"
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0501

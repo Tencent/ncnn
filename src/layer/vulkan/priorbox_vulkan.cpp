@@ -1,10 +1,11 @@
 // Copyright 2019 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "platform.h"
+
 #include "priorbox_vulkan.h"
 
 #include "layer_shader_type.h"
-#include "platform.h"
 
 namespace ncnn {
 
