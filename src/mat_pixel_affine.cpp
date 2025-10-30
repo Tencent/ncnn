@@ -7,7 +7,6 @@
 #endif // __ARM_NEON
 #include <limits.h>
 
-
 namespace ncnn {
 
 #if NCNN_PIXEL_AFFINE
