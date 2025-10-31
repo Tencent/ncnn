@@ -11,10 +11,8 @@ Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;
 
-    pipeline_cast_fp32_to_fp16 = 0;
-    pipeline_cast_fp32_to_fp16_pack4 = 0;
-    pipeline_cast_fp16_to_fp32 = 0;
-    pipeline_cast_fp16_to_fp32_pack4 = 0;
+    pipeline_cast = 0;
+    pipeline_cast_pack4 = 0;
 }
 
 int Cast_vulkan::create_pipeline(const Option& opt)
@@ -100,17 +98,17 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_cast_fp32_to_fp16 = new Pipeline(vkdev);
-            pipeline_cast_fp32_to_fp16->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16->create(LayerShaderType::cast_fp32_to_fp16, opt, specializations);
+            pipeline_cast = new Pipeline(vkdev);
+            pipeline_cast->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast->create(LayerShaderType::cast_fp32_to_fp16, opt, specializations);
         }
 
         // pack4
         if (shape.dims == 0 || elempack == 4)
         {
-            pipeline_cast_fp32_to_fp16_pack4 = new Pipeline(vkdev);
-            pipeline_cast_fp32_to_fp16_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16_pack4->create(LayerShaderType::cast_fp32_to_fp16_pack4, opt, specializations);
+            pipeline_cast_pack4 = new Pipeline(vkdev);
+            pipeline_cast_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast_pack4->create(LayerShaderType::cast_fp32_to_fp16_pack4, opt, specializations);
         }
     }
 
@@ -119,36 +117,32 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_cast_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_cast_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32->create(LayerShaderType::cast_fp16_to_fp32, opt, specializations);
+            pipeline_cast = new Pipeline(vkdev);
+            pipeline_cast->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast->create(LayerShaderType::cast_fp16_to_fp32, opt, specializations);
         }
 
         // pack4
         if (shape.dims == 0 || elempack == 4)
         {
-            pipeline_cast_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_cast_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32_pack4->create(LayerShaderType::cast_fp16_to_fp32_pack4, opt, specializations);
+            pipeline_cast_pack4 = new Pipeline(vkdev);
+            pipeline_cast_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast_pack4->create(LayerShaderType::cast_fp16_to_fp32_pack4, opt, specializations);
         }
     }
+
+    // TODO more cast type
 
     return 0;
 }
 
 int Cast_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    delete pipeline_cast_fp32_to_fp16;
-    pipeline_cast_fp32_to_fp16 = 0;
+    delete pipeline_cast;
+    pipeline_cast = 0;
 
-    delete pipeline_cast_fp32_to_fp16_pack4;
-    pipeline_cast_fp32_to_fp16_pack4 = 0;
-
-    delete pipeline_cast_fp16_to_fp32;
-    pipeline_cast_fp16_to_fp32 = 0;
-
-    delete pipeline_cast_fp16_to_fp32_pack4;
-    pipeline_cast_fp16_to_fp32_pack4 = 0;
+    delete pipeline_cast_pack4;
+    pipeline_cast_pack4 = 0;
 
     return 0;
 }
@@ -227,18 +221,7 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = 0;
-
-    if (type_from == 1 && type_to == 2)
-    {
-        pipeline = elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4 : pipeline_cast_fp32_to_fp16;
-    }
-    if (type_from == 2 && type_to == 1)
-    {
-        pipeline = elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4 : pipeline_cast_fp16_to_fp32;
-    }
-
-    // TODO more cast type
+    const Pipeline* pipeline = elempack == 4 ? pipeline_cast_pack4 : pipeline_cast;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
