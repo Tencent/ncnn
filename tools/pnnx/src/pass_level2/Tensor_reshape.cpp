@@ -66,6 +66,11 @@ pnnx.Output             output      1 0 out
     {
         return "Tensor.reshape";
     }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        // drop op_0.allowzero
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx, 61)
