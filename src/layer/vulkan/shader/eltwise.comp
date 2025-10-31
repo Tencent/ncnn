@@ -1,49 +1,34 @@
-// Copyright 2018 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
 layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = 1) const int coeff_term = 0;
+layout (constant_id = 2) const uint n = 0;
 
-#define shape_constant_id_offset 2
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout (binding = 0) readonly buffer bottom_blob1 { sfp bottom_blob1_data[]; };
-layout (binding = 1) readonly buffer bottom_blob2 { sfp bottom_blob2_data[]; };
-layout (binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 0) readonly buffer bottom_blob1 { sfpvec4 bottom_blob1_data[]; };
+layout (binding = 1) readonly buffer bottom_blob2 { sfpvec4 bottom_blob2_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int c;
-    int cstep;
-
+    uint n;
     float coeff0;
     float coeff1;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gi = gl_GlobalInvocationID.x;
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gi >= psc(n))
         return;
 
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+    afpvec4 v1 = buffer_ld4(bottom_blob1_data, gi);
+    afpvec4 v2 = buffer_ld4(bottom_blob2_data, gi);
 
-    afp v1 = buffer_ld1(bottom_blob1_data, gi);
-    afp v2 = buffer_ld1(bottom_blob2_data, gi);
-
-    afp res;
+    afpvec4 res;
 
     if (coeff_term == 0)
     {
@@ -68,5 +53,5 @@ void main()
             res = max(v1, v2);
     }
 
-    buffer_st1(top_blob_data, gi, res);
+    buffer_st4(top_blob_data, gi, res);
 }
