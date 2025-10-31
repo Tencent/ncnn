@@ -366,7 +366,10 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 const std::vector<int64_t>& s = input_shapes[input_index];
                 for (int64_t d : s)
                 {
-                    input_shape.push_back((int)d);
+                    int dimsize = (int)d;
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
+                    input_shape.push_back(dimsize);
                 }
             }
 

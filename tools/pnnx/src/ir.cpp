@@ -2717,7 +2717,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 const std::vector<int64_t>& s = input_shapes[input_shapes_i++];
                 for (int64_t d : s)
                 {
-                    input_shape.push_back((int)d);
+                    int dimsize = (int)d;
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
+                    input_shape.push_back(dimsize);
                 }
             }
 
