@@ -376,6 +376,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
                     fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != input_shape.size() || input_shape.size() == 1)
                         fprintf(pyfp, ", ");
@@ -388,6 +390,8 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
                     fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
