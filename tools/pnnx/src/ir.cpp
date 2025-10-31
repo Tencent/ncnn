@@ -2717,10 +2717,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 const std::vector<int64_t>& s = input_shapes[input_shapes_i++];
                 for (int64_t d : s)
                 {
-                    int dimsize = (int)d;
-                    if (dimsize == -1)
-                        dimsize = 128; // try with a good default
-                    input_shape.push_back(dimsize);
+                    input_shape.push_back((int)d);
                 }
             }
 
@@ -2731,6 +2728,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
                     fprintf(pyfp, "%d", dimsize);
                     if (i + 1 != input_shape.size() || input_shape.size() == 1)
                         fprintf(pyfp, ", ");
@@ -2743,6 +2742,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
+                    if (dimsize == -1)
+                        dimsize = 128; // try with a good default
                     fprintf(pyfp, "%d, ", dimsize);
                 }
                 fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
