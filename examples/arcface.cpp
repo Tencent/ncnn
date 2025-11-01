@@ -559,7 +559,7 @@ static int get_embedding(const cv::Mat& rgb, std::array<float, 512>& result) {
 
 int main() {
   int status = 0;
-  cv::Mat face_img = cv::imread("/home/hbdesk/Pictures/facetest/testf1.jpg");
+  cv::Mat face_img = cv::imread("testface.jpg");
   cv::Mat input_embed;
   DetectionResult res;
   std::array<float, 512> embedding_res;  
@@ -574,4 +574,7 @@ int main() {
   for (size_t i =0; i < 10; i++) {
     std::cout << embedding_res[i] << std::endl;
   }
+
+/*   you can extract another image and compare using get_similarity()
+ */
 }
