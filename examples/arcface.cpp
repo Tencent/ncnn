@@ -15,23 +15,21 @@
  * https://drive.google.com/drive/folders/1P0RDzj9V7FHEL8w_-yqls5RHeVpO-2PS?usp=sharing
  *
  * */
+
 #if defined(USE_NCNN_SIMPLEOCV)
 #include "simpleocv.h"
 #else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/calib3d.hpp>
 #endif
-#include <float.h>
 #include <stdio.h>
 #include <vector>
-#include <iostream>
 #include <float.h>
-#include <stdio.h>
 #include <vector>
 #include "layer.h"
 #include "net.h"
+#include "mat.h"
 
 #ifndef ARCFACE_EXAMPLE_YOLO_INFER_SIZE
 #define ARCFACE_EXAMPLE_YOLO_INFER_SIZE 320
@@ -452,7 +450,9 @@ static int estimate_norm(cv::Mat& output, const std::vector<cv::Point2f>& lmk, i
         dst[i].x = ARCFACE_DST[i][0] * ratio + diff_x;
         dst[i].y = ARCFACE_DST[i][1] * ratio;
     }
-    output = cv::estimateAffinePartial2D(lmk, dst, cv::noArray(), cv::LMEDS,  0.99, 2000, 0.99, 10);
+    // output = cv::estimateAffinePartial2D(lmk, dst, cv::noArray(), cv::LMEDS,  0.99, 2000, 0.99, 10);
+    ncnn::get_affine_transform(lmk,dst, 5, output)
+    
     return 0;
 }
 static int norm_crop(cv::Mat& output, const cv::Mat& input, const std::vector<cv::Point2f>& lmk, int image_size = 112)
@@ -472,7 +472,7 @@ static int norm_crop(cv::Mat& output, const cv::Mat& input, const std::vector<cv
 }
 
 
-void normalize_arcface(std::array<float, 512> &feature) {
+void normalize_arcface(std::vector<float> &feature) {
     float sum = 0;
     for (auto it = feature.begin(); it != feature.end(); it++)
         sum += (float)*it * (float)*it;
@@ -490,15 +490,14 @@ static int get_face(const cv::Mat& rgb, DetectionResult& result) {
   status = yoloface.load_param("yolov8-face.param");
   
   if (status != 0) {
-    std::cout << "cant find param file" << std::endl;
+    fprintf(stderr, "couldn't load params");
     return status;
   }
 
   status = yoloface.load_model("yolov8-face.bin");
 
-
   if (status != 0) {
-    std::cout << "cant find bin file" << std::endl;
+    fprintf(stderr, "couldn't load model");
     return status;
   }
 
@@ -512,13 +511,13 @@ static int get_face(const cv::Mat& rgb, DetectionResult& result) {
   std::vector<std::string> class_names = {"face"}; 
   result = parse_yolo_keypoints_results(out, input_image, preproc_img, 0.5, 0.4, class_names);
   if (result.bboxes.size() < 1) {
-    std::cout << "no faces are found!" << std::endl;
+    fprintf(stderr, "no faces are found!");
     return -1;
   }
   return 0;  
 }
 
-static int get_embedding(const cv::Mat& rgb, std::array<float, 512>& result) {
+static int get_embedding(const cv::Mat& rgb, std::vector<float>& result) {
   ncnn::Net arcface;
   arcface.opt.use_vulkan_compute = true;
   arcface.load_param("arcfaceresnet.param");
@@ -526,7 +525,7 @@ static int get_embedding(const cv::Mat& rgb, std::array<float, 512>& result) {
 
 
      if (rgb.empty() || rgb.type() != CV_8UC3) {
-        std::cout << "invalid image" << std::endl;    
+    fprintf(stderr, "invalid input image!");
         return -1;
       }
   /* 
@@ -562,17 +561,17 @@ int main() {
   cv::Mat face_img = cv::imread("testface.jpg");
   cv::Mat input_embed;
   DetectionResult res;
-  std::array<float, 512> embedding_res;  
-  status = get_face(face_img,  res);
+  std::vector<float> embedding_res;  
+  status = get_face (face_img,  res);
   if (status != 0) {
-    std::cout << "get face failed!" << std::endl;
+    fprintf(stderr, "get face failed!");
   }
-  std::cout << "found faces: " << res.bboxes.size() << std::endl;
+  fprintf(stdout, "found faces: %d", res.bboxes.size());
   std::vector<cv::Point2f> cvkpts = keypoints_to_point2f(res.keypoints[0]);
  status = norm_crop(input_embed, face_img, cvkpts); 
  status = get_embedding(input_embed, embedding_res);
   for (size_t i =0; i < 10; i++) {
-    std::cout << embedding_res[i] << std::endl;
+    printf("embedding idx: %d value: %f", i , embedding_res[i]);
   }
 
 /*   you can extract another image and compare using get_similarity()
