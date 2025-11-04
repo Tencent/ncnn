@@ -66,7 +66,8 @@ public:
     // shader tensor storage
     bool support_tensor_storage;
 
-    bool support_reserved_000;
+    // vulkan accept input blob with packed storage
+    bool support_vulkan_packing;
 
     bool support_reserved_00;
 

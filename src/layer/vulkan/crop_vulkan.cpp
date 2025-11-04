@@ -11,6 +11,7 @@ namespace ncnn {
 Crop_vulkan::Crop_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_crop = 0;
     pipeline_crop_pack4 = 0;

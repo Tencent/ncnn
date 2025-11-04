@@ -10,6 +10,7 @@ namespace ncnn {
 UnaryOp_vulkan::UnaryOp_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_unaryop = 0;
 }

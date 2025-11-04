@@ -10,6 +10,7 @@ namespace ncnn {
 Mish_vulkan::Mish_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_mish = 0;
 }

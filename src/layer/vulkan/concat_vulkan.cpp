@@ -10,6 +10,7 @@ namespace ncnn {
 Concat_vulkan::Concat_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_concat[0] = 0;
     pipeline_concat[1] = 0;

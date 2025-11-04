@@ -10,6 +10,7 @@ namespace ncnn {
 Slice_vulkan::Slice_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_slice[0] = 0;
     pipeline_slice[1] = 0;
