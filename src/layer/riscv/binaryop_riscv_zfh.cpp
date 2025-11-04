@@ -226,34 +226,34 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
 namespace BinaryOp_riscv_functor {
 
 #if __riscv_zvfh
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
-    struct NAME                                                                                      \
-    {                                                                                                \
-        __fp16 operator()(const __fp16& x, const __fp16& y) const                                    \
-        {                                                                                            \
-            return IMPL;                                                                             \
-        }                                                                                            \
-        vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const size_t vl) const \
-        {                                                                                            \
-            return IMPLVV;                                                                           \
-        }                                                                                            \
-        vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y, const size_t vl) const       \
-        {                                                                                            \
-            return IMPLVS;                                                                           \
-        }                                                                                            \
-        vfloat16m8_t operator()(const __fp16& x, const vfloat16m8_t& y, const size_t vl) const       \
-        {                                                                                            \
-            return IMPLSV;                                                                           \
-        }                                                                                            \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                              \
+    struct NAME                                                                        \
+    {                                                                                  \
+        __fp16 operator()(__fp16 x, __fp16 y) const                                    \
+        {                                                                              \
+            return IMPL;                                                               \
+        }                                                                              \
+        vfloat16m8_t operator()(vfloat16m8_t x, vfloat16m8_t y, const size_t vl) const \
+        {                                                                              \
+            return IMPLVV;                                                             \
+        }                                                                              \
+        vfloat16m8_t operator()(vfloat16m8_t x, __fp16 y, const size_t vl) const       \
+        {                                                                              \
+            return IMPLVS;                                                             \
+        }                                                                              \
+        vfloat16m8_t operator()(__fp16 x, vfloat16m8_t y, const size_t vl) const       \
+        {                                                                              \
+            return IMPLSV;                                                             \
+        }                                                                              \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)         \
-    struct NAME                                                   \
-    {                                                             \
-        __fp16 operator()(const __fp16& x, const __fp16& y) const \
-        {                                                         \
-            return IMPL;                                          \
-        }                                                         \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV) \
+    struct NAME                                           \
+    {                                                     \
+        __fp16 operator()(__fp16 x, __fp16 y) const       \
+        {                                                 \
+            return IMPL;                                  \
+        }                                                 \
     };
 #endif
 

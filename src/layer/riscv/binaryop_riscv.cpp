@@ -238,34 +238,34 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
 namespace BinaryOp_riscv_functor {
 
 #if __riscv_vector
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
-    struct NAME                                                                                      \
-    {                                                                                                \
-        float operator()(const float& x, const float& y) const                                       \
-        {                                                                                            \
-            return IMPL;                                                                             \
-        }                                                                                            \
-        vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const size_t vl) const \
-        {                                                                                            \
-            return IMPLVV;                                                                           \
-        }                                                                                            \
-        vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const size_t vl) const        \
-        {                                                                                            \
-            return IMPLVS;                                                                           \
-        }                                                                                            \
-        vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const size_t vl) const        \
-        {                                                                                            \
-            return IMPLSV;                                                                           \
-        }                                                                                            \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                              \
+    struct NAME                                                                        \
+    {                                                                                  \
+        float operator()(float x, float y) const                                       \
+        {                                                                              \
+            return IMPL;                                                               \
+        }                                                                              \
+        vfloat32m8_t operator()(vfloat32m8_t x, vfloat32m8_t y, const size_t vl) const \
+        {                                                                              \
+            return IMPLVV;                                                             \
+        }                                                                              \
+        vfloat32m8_t operator()(vfloat32m8_t x, float y, const size_t vl) const        \
+        {                                                                              \
+            return IMPLVS;                                                             \
+        }                                                                              \
+        vfloat32m8_t operator()(float x, vfloat32m8_t y, const size_t vl) const        \
+        {                                                                              \
+            return IMPLSV;                                                             \
+        }                                                                              \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)      \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)  \
+    struct NAME                                            \
+    {                                                      \
+        float operator()(float x, float y) const           \
+        {                                                  \
+            return IMPL;                                   \
+        }                                                  \
     };
 #endif
 

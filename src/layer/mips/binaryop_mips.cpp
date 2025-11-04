@@ -264,26 +264,26 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 namespace BinaryOp_mips_functor {
 
 #if __mips_msa
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
-        v4f32 operator()(const v4f32& x, const v4f32& y) const \
-        {                                                      \
-            return IMPL4;                                      \
-        }                                                      \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)         \
+    struct NAME                                  \
+    {                                            \
+        float operator()(float x, float y) const \
+        {                                        \
+            return IMPL;                         \
+        }                                        \
+        v4f32 operator()(v4f32 x, v4f32 y) const \
+        {                                        \
+            return IMPL4;                        \
+        }                                        \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)         \
+    struct NAME                                  \
+    {                                            \
+        float operator()(float x, float y) const \
+        {                                        \
+            return IMPL;                         \
+        }                                        \
     };
 #endif // __mips_msa
 

@@ -39,7 +39,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
 struct unary_op_abs
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)fabsf(x);
     }
@@ -47,7 +47,7 @@ struct unary_op_abs
 
 struct unary_op_neg
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return -x;
     }
@@ -55,7 +55,7 @@ struct unary_op_neg
 
 struct unary_op_floor
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)floorf(x);
     }
@@ -63,7 +63,7 @@ struct unary_op_floor
 
 struct unary_op_ceil
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)ceilf(x);
     }
@@ -71,7 +71,7 @@ struct unary_op_ceil
 
 struct unary_op_square
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return x * x;
     }
@@ -79,7 +79,7 @@ struct unary_op_square
 
 struct unary_op_sqrt
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)sqrtf(x);
     }
@@ -87,7 +87,7 @@ struct unary_op_sqrt
 
 struct unary_op_rsqrt
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return 1.f / sqrtf(x);
     }
@@ -95,7 +95,7 @@ struct unary_op_rsqrt
 
 struct unary_op_exp
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)expf(x);
     }
@@ -103,7 +103,7 @@ struct unary_op_exp
 
 struct unary_op_log
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)logf(x);
     }
@@ -111,7 +111,7 @@ struct unary_op_log
 
 struct unary_op_sin
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)sinf(x);
     }
@@ -119,7 +119,7 @@ struct unary_op_sin
 
 struct unary_op_cos
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)cosf(x);
     }
@@ -127,7 +127,7 @@ struct unary_op_cos
 
 struct unary_op_tan
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)tanf(x);
     }
@@ -135,7 +135,7 @@ struct unary_op_tan
 
 struct unary_op_asin
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)asinf(x);
     }
@@ -143,7 +143,7 @@ struct unary_op_asin
 
 struct unary_op_acos
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)acosf(x);
     }
@@ -151,7 +151,7 @@ struct unary_op_acos
 
 struct unary_op_atan
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)atanf(x);
     }
@@ -159,7 +159,7 @@ struct unary_op_atan
 
 struct unary_op_reciprocal
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return 1.f / x;
     }
@@ -167,7 +167,7 @@ struct unary_op_reciprocal
 
 struct unary_op_tanh
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)tanhf(x);
     }
@@ -175,7 +175,7 @@ struct unary_op_tanh
 
 struct unary_op_log10
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)log10f(x);
     }
@@ -183,7 +183,7 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return nearbyintf(x);
     }
@@ -191,7 +191,7 @@ struct unary_op_round
 
 struct unary_op_trunc
 {
-    float operator()(const float& x) const
+    float operator()(float x) const
     {
         return (float)truncf(x);
     }

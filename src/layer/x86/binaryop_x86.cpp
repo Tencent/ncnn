@@ -464,22 +464,22 @@ namespace BinaryOp_x86_functor {
 
 struct binary_op_add
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return x + y;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_add_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_add_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_add_ps(x, y);
     }
@@ -490,22 +490,22 @@ struct binary_op_add
 
 struct binary_op_sub
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return x - y;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_sub_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_sub_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_sub_ps(x, y);
     }
@@ -516,22 +516,22 @@ struct binary_op_sub
 
 struct binary_op_mul
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return x * y;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_mul_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_mul_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_mul_ps(x, y);
     }
@@ -542,22 +542,22 @@ struct binary_op_mul
 
 struct binary_op_div
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return x / y;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_div_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_div_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_div_ps(x, y);
     }
@@ -568,22 +568,22 @@ struct binary_op_div
 
 struct binary_op_max
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return std::max(x, y);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_max_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_max_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_max_ps(x, y);
     }
@@ -594,22 +594,22 @@ struct binary_op_max
 
 struct binary_op_min
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return std::min(x, y);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_min_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_min_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_min_ps(x, y);
     }
@@ -620,22 +620,22 @@ struct binary_op_min
 
 struct binary_op_pow
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return (float)powf(x, y);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return pow_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return pow256_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return pow512_ps(x, y);
     }
@@ -646,22 +646,22 @@ struct binary_op_pow
 
 struct binary_op_rsub
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return y - x;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_sub_ps(y, x);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_sub_ps(y, x);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_sub_ps(y, x);
     }
@@ -672,22 +672,22 @@ struct binary_op_rsub
 
 struct binary_op_rdiv
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return y / x;
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return _mm_div_ps(y, x);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return _mm256_div_ps(y, x);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return _mm512_div_ps(y, x);
     }
@@ -698,22 +698,22 @@ struct binary_op_rdiv
 
 struct binary_op_rpow
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return (float)powf(y, x);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return pow_ps(y, x);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return pow256_ps(y, x);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return pow512_ps(y, x);
     }
@@ -724,22 +724,22 @@ struct binary_op_rpow
 
 struct binary_op_atan2
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return (float)atan2f(x, y);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return atan2_ps(x, y);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return atan2256_ps(x, y);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return atan2512_ps(x, y);
     }
@@ -750,22 +750,22 @@ struct binary_op_atan2
 
 struct binary_op_ratan2
 {
-    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    NCNN_FORCEINLINE float func(float x, float y) const
     {
         return (float)atan2f(y, x);
     }
 #if __SSE2__
-    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    NCNN_FORCEINLINE __m128 func_pack4(__m128 x, __m128 y) const
     {
         return atan2_ps(y, x);
     }
 #if __AVX__
-    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    NCNN_FORCEINLINE __m256 func_pack8(__m256 x, __m256 y) const
     {
         return atan2256_ps(y, x);
     }
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    NCNN_FORCEINLINE __m512 func_pack16(__m512 x, __m512 y) const
     {
         return atan2512_ps(y, x);
     }

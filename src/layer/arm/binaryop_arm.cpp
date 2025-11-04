@@ -229,26 +229,26 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
 namespace BinaryOp_arm_functor {
 
 #if __ARM_NEON
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                                         \
-    struct NAME                                                                  \
-    {                                                                            \
-        float operator()(const float& x, const float& y) const                   \
-        {                                                                        \
-            return IMPL;                                                         \
-        }                                                                        \
-        float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const \
-        {                                                                        \
-            return IMPL4;                                                        \
-        }                                                                        \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                           \
+    struct NAME                                                    \
+    {                                                              \
+        float operator()(float x, float y) const                   \
+        {                                                          \
+            return IMPL;                                           \
+        }                                                          \
+        float32x4_t operator()(float32x4_t x, float32x4_t y) const \
+        {                                                          \
+            return IMPL4;                                          \
+        }                                                          \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)         \
+    struct NAME                                  \
+    {                                            \
+        float operator()(float x, float y) const \
+        {                                        \
+            return IMPL;                         \
+        }                                        \
     };
 #endif
 

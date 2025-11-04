@@ -62,7 +62,7 @@ namespace UnaryOp_riscv_functor {
 struct unary_op_abs_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfsgnj_vf_f16m8(x, (__fp16)1.f, vl);
     }
@@ -77,7 +77,7 @@ struct unary_op_abs_fp16s
 struct unary_op_neg_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfneg_v_f16m8(x, vl);
     }
@@ -92,7 +92,7 @@ struct unary_op_neg_fp16s
 struct unary_op_floor_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vfcvt_x_f_v_i16m8_rm(x, __RISCV_FRM_RDN, vl), vl);
     }
@@ -107,7 +107,7 @@ struct unary_op_floor_fp16s
 struct unary_op_ceil_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vfcvt_x_f_v_i16m8_rm(x, __RISCV_FRM_RUP, vl), vl);
     }
@@ -122,7 +122,7 @@ struct unary_op_ceil_fp16s
 struct unary_op_square_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfmul_vv_f16m8(x, x, vl);
     }
@@ -137,7 +137,7 @@ struct unary_op_square_fp16s
 struct unary_op_sqrt_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfsqrt_v_f16m8(x, vl);
     }
@@ -152,7 +152,7 @@ struct unary_op_sqrt_fp16s
 struct unary_op_rsqrt_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         vfloat16m8_t _reciprocal = __riscv_vfrdiv_vf_f16m8(__riscv_vfsqrt_v_f16m8(x, vl), (__fp16)1.f, vl);
@@ -174,7 +174,7 @@ struct unary_op_rsqrt_fp16s
 struct unary_op_exp_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return exp_ps(x, vl);
     }
@@ -189,7 +189,7 @@ struct unary_op_exp_fp16s
 struct unary_op_log_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return log_ps(x, vl);
     }
@@ -204,7 +204,7 @@ struct unary_op_log_fp16s
 struct unary_op_sin_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return sin_ps(x, vl);
     }
@@ -219,7 +219,7 @@ struct unary_op_sin_fp16s
 struct unary_op_cos_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return cos_ps(x, vl);
     }
@@ -234,7 +234,7 @@ struct unary_op_cos_fp16s
 struct unary_op_tan_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
@@ -256,7 +256,7 @@ struct unary_op_tan_fp16s
 struct unary_op_asin_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
@@ -278,7 +278,7 @@ struct unary_op_asin_fp16s
 struct unary_op_acos_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
@@ -300,7 +300,7 @@ struct unary_op_acos_fp16s
 struct unary_op_atan_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
@@ -322,7 +322,7 @@ struct unary_op_atan_fp16s
 struct unary_op_reciprocal_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         vfloat16m8_t _reciprocal = __riscv_vfrdiv_vf_f16m8(x, (__fp16)1.f, vl);
@@ -344,7 +344,7 @@ struct unary_op_reciprocal_fp16s
 struct unary_op_tanh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return tanh_ps(x, vl);
     }
@@ -359,7 +359,7 @@ struct unary_op_tanh_fp16s
 struct unary_op_log10_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfmul_vf_f16m8(log_ps(x, vl), (__fp16)0.434294481903, vl);
     }
@@ -374,7 +374,7 @@ struct unary_op_log10_fp16s
 struct unary_op_round_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f16m8(__riscv_vfcvt_x_f_v_i16m8(x, vl), vl);
     }
@@ -389,7 +389,7 @@ struct unary_op_round_fp16s
 struct unary_op_trunc_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m8_t operator()(vfloat16m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         // simulate trunc with floor positives and ceil negative

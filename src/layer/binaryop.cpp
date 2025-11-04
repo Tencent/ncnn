@@ -132,7 +132,7 @@ static void binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
 struct binary_op_add
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return x + y;
     }
@@ -140,7 +140,7 @@ struct binary_op_add
 
 struct binary_op_sub
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return x - y;
     }
@@ -148,7 +148,7 @@ struct binary_op_sub
 
 struct binary_op_mul
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return x * y;
     }
@@ -156,7 +156,7 @@ struct binary_op_mul
 
 struct binary_op_div
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return x / y;
     }
@@ -164,7 +164,7 @@ struct binary_op_div
 
 struct binary_op_max
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return std::max(x, y);
     }
@@ -172,7 +172,7 @@ struct binary_op_max
 
 struct binary_op_min
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return std::min(x, y);
     }
@@ -180,7 +180,7 @@ struct binary_op_min
 
 struct binary_op_pow
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return (float)powf(x, y);
     }
@@ -188,7 +188,7 @@ struct binary_op_pow
 
 struct binary_op_rsub
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return y - x;
     }
@@ -196,7 +196,7 @@ struct binary_op_rsub
 
 struct binary_op_rdiv
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return y / x;
     }
@@ -204,7 +204,7 @@ struct binary_op_rdiv
 
 struct binary_op_rpow
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return (float)powf(y, x);
     }
@@ -212,7 +212,7 @@ struct binary_op_rpow
 
 struct binary_op_atan2
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return (float)atan2f(x, y);
     }
@@ -220,7 +220,7 @@ struct binary_op_atan2
 
 struct binary_op_ratan2
 {
-    float operator()(const float& x, const float& y) const
+    float operator()(float x, float y) const
     {
         return (float)atan2f(y, x);
     }

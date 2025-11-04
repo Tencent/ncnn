@@ -1,7 +1,7 @@
 // Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void padding_constant_pack4_sse(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const __m128& v)
+static void padding_constant_pack4_sse(const Mat& src, Mat& dst, int top, int bottom, int left, int right, __m128 v)
 {
     const float* ptr = src;
     float* outptr = dst;

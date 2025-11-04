@@ -264,26 +264,26 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 namespace BinaryOp_loongarch_functor {
 
 #if __loongarch_sx
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                          \
-    struct NAME                                                   \
-    {                                                             \
-        float operator()(const float& x, const float& y) const    \
-        {                                                         \
-            return IMPL;                                          \
-        }                                                         \
-        __m128 operator()(const __m128& x, const __m128& y) const \
-        {                                                         \
-            return IMPL4;                                         \
-        }                                                         \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)            \
+    struct NAME                                     \
+    {                                               \
+        float operator()(float x, float y) const    \
+        {                                           \
+            return IMPL;                            \
+        }                                           \
+        __m128 operator()(__m128 x, __m128 y) const \
+        {                                           \
+            return IMPL4;                           \
+        }                                           \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)         \
+    struct NAME                                  \
+    {                                            \
+        float operator()(float x, float y) const \
+        {                                        \
+            return IMPL;                         \
+        }                                        \
     };
 #endif // __loongarch_sx
 

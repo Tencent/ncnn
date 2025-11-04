@@ -73,15 +73,15 @@ namespace UnaryOp_arm_functor {
 
 struct unary_op_abs_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)fabsf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vabs_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vabsq_f16(x);
     }
@@ -89,15 +89,15 @@ struct unary_op_abs_fp16s
 
 struct unary_op_neg_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return -x;
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vneg_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vnegq_f16(x);
     }
@@ -105,15 +105,15 @@ struct unary_op_neg_fp16s
 
 struct unary_op_floor_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)floorf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vcvt_f16_s16(vcvtm_s16_f16(x));
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vcvtq_f16_s16(vcvtmq_s16_f16(x));
     }
@@ -121,15 +121,15 @@ struct unary_op_floor_fp16s
 
 struct unary_op_ceil_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)ceilf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vcvt_f16_s16(vcvtp_s16_f16(x));
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vcvtq_f16_s16(vcvtpq_s16_f16(x));
     }
@@ -137,15 +137,15 @@ struct unary_op_ceil_fp16s
 
 struct unary_op_square_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return x * x;
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vmul_f16(x, x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vmulq_f16(x, x);
     }
@@ -153,15 +153,15 @@ struct unary_op_square_fp16s
 
 struct unary_op_sqrt_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)sqrtf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vsqrt_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vsqrtq_f16(x);
     }
@@ -169,18 +169,18 @@ struct unary_op_sqrt_fp16s
 
 struct unary_op_rsqrt_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)1.f / (__fp16)sqrtf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         float16x4_t _reciprocal = vrsqrte_f16(x);
         _reciprocal = vmul_f16(vrsqrts_f16(vmul_f16(x, _reciprocal), _reciprocal), _reciprocal);
         // _reciprocal = vmul_f16(vrsqrts_f16(vmul_f16(x, _reciprocal), _reciprocal), _reciprocal);
         return _reciprocal;
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         float16x8_t _reciprocal = vrsqrteq_f16(x);
         _reciprocal = vmulq_f16(vrsqrtsq_f16(vmulq_f16(x, _reciprocal), _reciprocal), _reciprocal);
@@ -191,15 +191,15 @@ struct unary_op_rsqrt_fp16s
 
 struct unary_op_exp_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)expf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return exp_ps_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return exp_ps_f16(x);
     }
@@ -207,15 +207,15 @@ struct unary_op_exp_fp16s
 
 struct unary_op_log_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)logf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return log_ps_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return log_ps_f16(x);
     }
@@ -223,15 +223,15 @@ struct unary_op_log_fp16s
 
 struct unary_op_sin_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)sinf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return sin_ps_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return sin_ps_f16(x);
     }
@@ -239,15 +239,15 @@ struct unary_op_sin_fp16s
 
 struct unary_op_cos_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)cosf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return cos_ps_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return cos_ps_f16(x);
     }
@@ -255,11 +255,11 @@ struct unary_op_cos_fp16s
 
 struct unary_op_tan_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)tanf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[4];
@@ -270,7 +270,7 @@ struct unary_op_tan_fp16s
         tmp[3] = tanf(tmp[3]);
         return vld1_f16(tmp);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[8];
@@ -289,11 +289,11 @@ struct unary_op_tan_fp16s
 
 struct unary_op_asin_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)asinf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[4];
@@ -304,7 +304,7 @@ struct unary_op_asin_fp16s
         tmp[3] = asinf(tmp[3]);
         return vld1_f16(tmp);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[8];
@@ -323,11 +323,11 @@ struct unary_op_asin_fp16s
 
 struct unary_op_acos_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)acosf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[4];
@@ -338,7 +338,7 @@ struct unary_op_acos_fp16s
         tmp[3] = acosf(tmp[3]);
         return vld1_f16(tmp);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[8];
@@ -357,11 +357,11 @@ struct unary_op_acos_fp16s
 
 struct unary_op_atan_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)atanf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[4];
@@ -372,7 +372,7 @@ struct unary_op_atan_fp16s
         tmp[3] = atanf(tmp[3]);
         return vld1_f16(tmp);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         // TODO neon optimize
         __fp16 tmp[8];
@@ -391,18 +391,18 @@ struct unary_op_atan_fp16s
 
 struct unary_op_reciprocal_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)1.f / x;
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         float16x4_t _reciprocal = vrecpe_f16(x);
         _reciprocal = vmul_f16(vrecps_f16(x, _reciprocal), _reciprocal);
         // _reciprocal = vmul_f16(vrecps_f16(x, _reciprocal), _reciprocal);
         return _reciprocal;
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         float16x8_t _reciprocal = vrecpeq_f16(x);
         _reciprocal = vmulq_f16(vrecpsq_f16(x, _reciprocal), _reciprocal);
@@ -413,15 +413,15 @@ struct unary_op_reciprocal_fp16s
 
 struct unary_op_tanh_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)tanhf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return tanh_ps_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return tanh_ps_f16(x);
     }
@@ -429,15 +429,15 @@ struct unary_op_tanh_fp16s
 
 struct unary_op_log10_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)log10f(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vmul_f16(log_ps_f16(x), vdup_n_f16(0.434294481903));
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vmulq_f16(log_ps_f16(x), vdupq_n_f16(0.434294481903));
     }
@@ -445,7 +445,7 @@ struct unary_op_log10_fp16s
 
 struct unary_op_round_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         // round to nearest even
 #if NCNN_GNU_INLINE_ASM
@@ -471,11 +471,11 @@ struct unary_op_round_fp16s
         return y;
 #endif
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vrndn_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vrndnq_f16(x);
     }
@@ -483,15 +483,15 @@ struct unary_op_round_fp16s
 
 struct unary_op_trunc_fp16s
 {
-    __fp16 func(const __fp16& x) const
+    __fp16 func(__fp16 x) const
     {
         return (__fp16)truncf(x);
     }
-    float16x4_t func_pack4(const float16x4_t& x) const
+    float16x4_t func_pack4(float16x4_t x) const
     {
         return vrnd_f16(x);
     }
-    float16x8_t func_pack8(const float16x8_t& x) const
+    float16x8_t func_pack8(float16x8_t x) const
     {
         return vrndq_f16(x);
     }

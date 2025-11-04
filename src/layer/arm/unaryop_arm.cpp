@@ -82,12 +82,12 @@ namespace UnaryOp_arm_functor {
 
 struct unary_op_abs
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)fabsf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return vabsq_f32(x);
     }
@@ -96,12 +96,12 @@ struct unary_op_abs
 
 struct unary_op_neg
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return -x;
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return vnegq_f32(x);
     }
@@ -110,12 +110,12 @@ struct unary_op_neg
 
 struct unary_op_floor
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)floorf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
 #if __aarch64__
         return vrndmq_f32(x);
@@ -130,12 +130,12 @@ struct unary_op_floor
 
 struct unary_op_ceil
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)ceilf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
 #if __aarch64__
         return vrndpq_f32(x);
@@ -150,12 +150,12 @@ struct unary_op_ceil
 
 struct unary_op_square
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return x * x;
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return vmulq_f32(x, x);
     }
@@ -164,12 +164,12 @@ struct unary_op_square
 
 struct unary_op_sqrt
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)sqrtf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
 #if __aarch64__
         return vsqrtq_f32(x);
@@ -185,12 +185,12 @@ struct unary_op_sqrt
 
 struct unary_op_rsqrt
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)(1.f / sqrtf(x));
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         float32x4_t _reciprocal = vrsqrteq_f32(x);
         _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
@@ -202,12 +202,12 @@ struct unary_op_rsqrt
 
 struct unary_op_exp
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)expf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return exp_ps(x);
     }
@@ -216,12 +216,12 @@ struct unary_op_exp
 
 struct unary_op_log
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)logf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return log_ps(x);
     }
@@ -230,12 +230,12 @@ struct unary_op_log
 
 struct unary_op_sin
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)sinf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return sin_ps(x);
     }
@@ -244,12 +244,12 @@ struct unary_op_sin
 
 struct unary_op_cos
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)cosf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return cos_ps(x);
     }
@@ -258,12 +258,12 @@ struct unary_op_cos
 
 struct unary_op_tan
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)tanf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return tan_ps(x);
     }
@@ -272,12 +272,12 @@ struct unary_op_tan
 
 struct unary_op_asin
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)asinf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return asin_ps(x);
     }
@@ -286,12 +286,12 @@ struct unary_op_asin
 
 struct unary_op_acos
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)acosf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return acos_ps(x);
     }
@@ -300,12 +300,12 @@ struct unary_op_acos
 
 struct unary_op_atan
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)atanf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         // TODO neon optimize
         float tmp[4];
@@ -321,12 +321,12 @@ struct unary_op_atan
 
 struct unary_op_reciprocal
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return 1.f / x;
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         float32x4_t _reciprocal = vrecpeq_f32(x);
         _reciprocal = vmulq_f32(vrecpsq_f32(x, _reciprocal), _reciprocal);
@@ -338,12 +338,12 @@ struct unary_op_reciprocal
 
 struct unary_op_tanh
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)tanhf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return tanh_ps(x);
     }
@@ -352,12 +352,12 @@ struct unary_op_tanh
 
 struct unary_op_log10
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)log10f(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return vmulq_f32(log_ps(x), vdupq_n_f32(0.434294481903));
     }
@@ -366,7 +366,7 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         // round to nearest even
 #if NCNN_GNU_INLINE_ASM && __ARM_NEON
@@ -403,12 +403,12 @@ struct unary_op_round
     }
 #if __ARM_NEON
 #if __aarch64__
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
         return vrndnq_f32(x);
     }
 #else
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
 #if NCNN_GNU_INLINE_ASM
         float32x4_t y;
@@ -444,12 +444,12 @@ struct unary_op_round
 
 struct unary_op_trunc
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)truncf(x);
     }
 #if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(float32x4_t x) const
     {
 #if __aarch64__
         return vrndq_f32(x);

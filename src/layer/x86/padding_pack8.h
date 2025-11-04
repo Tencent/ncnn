@@ -1,7 +1,7 @@
 // Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void padding_constant_pack8_avx(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const __m256& v)
+static void padding_constant_pack8_avx(const Mat& src, Mat& dst, int top, int bottom, int left, int right, __m256 v)
 {
     const float* ptr = src;
     float* outptr = dst;

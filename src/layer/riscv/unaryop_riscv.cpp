@@ -67,7 +67,7 @@ namespace UnaryOp_riscv_functor {
 
 struct unary_op_abs
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfsgnj_vf_f32m8(x, 1.f, vl);
     }
@@ -75,7 +75,7 @@ struct unary_op_abs
 
 struct unary_op_neg
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfneg_v_f32m8(x, vl);
     }
@@ -83,7 +83,7 @@ struct unary_op_neg
 
 struct unary_op_floor
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RDN, vl), vl);
     }
@@ -91,7 +91,7 @@ struct unary_op_floor
 
 struct unary_op_ceil
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RUP, vl), vl);
     }
@@ -99,7 +99,7 @@ struct unary_op_ceil
 
 struct unary_op_square
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfmul_vv_f32m8(x, x, vl);
     }
@@ -107,7 +107,7 @@ struct unary_op_square
 
 struct unary_op_sqrt
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfsqrt_v_f32m8(x, vl);
     }
@@ -115,7 +115,7 @@ struct unary_op_sqrt
 
 struct unary_op_rsqrt
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         vfloat32m8_t _reciprocal = __riscv_vfrdiv_vf_f32m8(__riscv_vfsqrt_v_f32m8(x, vl), 1.f, vl);
@@ -130,7 +130,7 @@ struct unary_op_rsqrt
 
 struct unary_op_exp
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return exp_ps(x, vl);
     }
@@ -138,7 +138,7 @@ struct unary_op_exp
 
 struct unary_op_log
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return log_ps(x, vl);
     }
@@ -146,7 +146,7 @@ struct unary_op_log
 
 struct unary_op_sin
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return sin_ps(x, vl);
     }
@@ -154,7 +154,7 @@ struct unary_op_sin
 
 struct unary_op_cos
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return cos_ps(x, vl);
     }
@@ -162,7 +162,7 @@ struct unary_op_cos
 
 struct unary_op_tan
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<float> tmp(vl);
@@ -177,7 +177,7 @@ struct unary_op_tan
 
 struct unary_op_asin
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<float> tmp(vl);
@@ -192,7 +192,7 @@ struct unary_op_asin
 
 struct unary_op_acos
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<float> tmp(vl);
@@ -207,7 +207,7 @@ struct unary_op_acos
 
 struct unary_op_atan
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         // TODO rvv optimize
         std::vector<float> tmp(vl);
@@ -222,7 +222,7 @@ struct unary_op_atan
 
 struct unary_op_reciprocal
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         vfloat32m8_t _reciprocal = __riscv_vfrdiv_vf_f32m8(x, 1.f, vl);
@@ -237,7 +237,7 @@ struct unary_op_reciprocal
 
 struct unary_op_tanh
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return tanh_ps(x, vl);
     }
@@ -245,7 +245,7 @@ struct unary_op_tanh
 
 struct unary_op_log10
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfmul_vf_f32m8(log_ps(x, vl), 0.434294481903, vl);
     }
@@ -253,7 +253,7 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
         return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8(x, vl), vl);
     }
@@ -261,7 +261,7 @@ struct unary_op_round
 
 struct unary_op_trunc
 {
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    vfloat32m8_t operator()(vfloat32m8_t x, const size_t vl) const
     {
 #if __riscv_xtheadvector
         // simulate trunc with floor positives and ceil negative

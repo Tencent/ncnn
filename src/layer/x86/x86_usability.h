@@ -284,7 +284,7 @@ static NCNN_FORCEINLINE int _mm_reduce_add_epi32(__m128i x)
     return _mm_cvtsi128_si32(sum32);
 }
 
-static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
+static NCNN_FORCEINLINE int32_t float2int8_sse(__m128 _v0)
 {
     // _MM_ROUND_NEAREST round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -309,7 +309,7 @@ static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
 #endif
 }
 
-static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
+static NCNN_FORCEINLINE int64_t float2int8_sse(__m128 _v0, __m128 _v1)
 {
     // _MM_ROUND_NEAREST round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -340,7 +340,7 @@ static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& 
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
+static NCNN_FORCEINLINE __m128i float2int8_sse(__m128 _v0, __m128 _v1, __m128 _v2, __m128 _v3)
 {
     // _MM_ROUND_NEAREST round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -384,7 +384,7 @@ static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i& v0)
     return _v;
 }
 
-static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128& v1)
+static NCNN_FORCEINLINE __m128i float2bfloat_sse(__m128 v0, __m128 v1)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm256_cvtneps_pbh(_mm256_insertf128_ps(_mm256_castps128_ps256(v0), v1, 1));
@@ -406,7 +406,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
     return _v;
 }
 
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, __m128 _b, __m128 _c)
 {
 #if __FMA__
     return _mm_fmadd_ps(_a, _b, _c);
@@ -415,7 +415,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128&
 #endif
 }
 
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, __m128 _b, __m128 _c)
 {
     // return -a * b + c
 #if __FMA__
@@ -425,7 +425,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128
 #endif
 }
 
-static NCNN_FORCEINLINE __m128 _mm_comp_fmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fmsub_ps(__m128 _a, __m128 _b, __m128 _c)
 {
 #if __FMA__
     return _mm_fmsub_ps(_a, _b, _c);
@@ -434,7 +434,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmsub_ps(const __m128& _a, const __m128&
 #endif
 }
 
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(__m128 _a, __m128 _b, __m128 _c)
 {
 #if __FMA__
     return _mm_fnmsub_ps(_a, _b, _c);
@@ -457,7 +457,7 @@ static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(__m128i src, __m128i a, __
 }
 
 #if __AVX__
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, __m256 _b, __m256 _c)
 {
     // return a * b + c
 #if __FMA__
@@ -467,7 +467,7 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m2
 #endif
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, __m256 _b, __m256 _c)
 {
     // return -a * b + c
 #if __FMA__
@@ -477,7 +477,7 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m
 #endif
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmsub_ps(__m256 _a, __m256 _b, __m256 _c)
 {
     // return a * b - c
 #if __FMA__
@@ -487,7 +487,7 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fmsub_ps(const __m256& _a, const __m2
 #endif
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(__m256 _a, __m256 _b, __m256 _c)
 {
     // return -(a * b) - c
 #if __FMA__
@@ -497,12 +497,12 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(const __m256& _a, const __m
 #endif
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(const __m256& a, const __m256& b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
 {
     return _mm256_comp_fmadd_ps(b, _mm256_set1_ps(c), a);
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(const __m256& a, const __m256& b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
 {
     // return a - b * c
     return _mm256_comp_fnmadd_ps(b, _mm256_set1_ps(c), a);
@@ -898,7 +898,7 @@ static NCNN_FORCEINLINE float _mm256_reduce_max_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
+static NCNN_FORCEINLINE int64_t float2int8_avx(__m256 _v0)
 {
     // _MM_FROUND_TO_NEAREST_INT round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -939,7 +939,7 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
+static NCNN_FORCEINLINE __m128i float2int8_avx(__m256 _v0, __m256 _v1)
 {
     // _MM_FROUND_TO_NEAREST_INT round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -985,8 +985,8 @@ static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& 
 }
 
 static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps4(__m256& _sum,
-        const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3,
-        const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3)
+        __m256 _w0, __m256 _w1, __m256 _w2, __m256 _w3,
+        __m256 _v0, __m256 _v1, __m256 _v2, __m256 _v3)
 {
     __m256 _mul0 = _mm256_mul_ps(_w0, _v0);
     __m256 _mul1 = _mm256_mul_ps(_w1, _v1);
@@ -999,8 +999,8 @@ static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps4(__m256& _sum,
 }
 
 static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps8(__m256& _sum,
-        const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3, const __m256& _w4, const __m256& _w5, const __m256& _w6, const __m256& _w7,
-        const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3, const __m256& _v4, const __m256& _v5, const __m256& _v6, const __m256& _v7)
+        __m256 _w0, __m256 _w1, __m256 _w2, __m256 _w3, __m256 _w4, __m256 _w5, __m256 _w6, __m256 _w7,
+        __m256 _v0, __m256 _v1, __m256 _v2, __m256 _v3, __m256 _v4, __m256 _v5, __m256 _v6, __m256 _v7)
 {
     _mm256_comp_fmadd_ps4(_sum, _w0, _w1, _w2, _w3, _v0, _v1, _v2, _v3);
 
@@ -1020,7 +1020,7 @@ static NCNN_FORCEINLINE __m256 bfloat2float_avx(const __m128i& v0)
     return _v;
 }
 
-static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
+static NCNN_FORCEINLINE __m128i float2bfloat_avx(__m256 v0)
 {
 #if __AVX512BF16__
     __m128i _v = (__m128i)_mm256_cvtneps_pbh(v0);
@@ -1041,7 +1041,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
     return _v;
 }
 
-static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256& v1)
+static NCNN_FORCEINLINE __m256i float2bfloat_avx(__m256 v0, __m256 v1)
 {
 #if __AVX512BF16__
     __m128i _v0 = (__m128i)_mm256_cvtneps_pbh(v0);
@@ -1756,7 +1756,7 @@ static NCNN_FORCEINLINE __m512i combine4x4_epi32(__m128i a, __m128i b, __m128i c
     return combine8x2_epi32(ab, cd);
 }
 
-static NCNN_FORCEINLINE __m128i float2int8_avx512(const __m512& _v0)
+static NCNN_FORCEINLINE __m128i float2int8_avx512(__m512 _v0)
 {
     // _MM_FROUND_TO_NEAREST_INT round to even
     // simulate round to nearest via +/-0.5 with round to zero
@@ -1786,7 +1786,7 @@ static NCNN_FORCEINLINE __m512 bfloat2float_avx512(const __m256i& v0)
     return _v;
 }
 
-static NCNN_FORCEINLINE __m256i float2bfloat_avx512(const __m512& v0)
+static NCNN_FORCEINLINE __m256i float2bfloat_avx512(__m512 v0)
 {
 #if __AVX512BF16__
     __m256i _v = (__m256i)_mm512_cvtneps_pbh(v0);
@@ -1801,7 +1801,7 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx512(const __m512& v0)
     return _v;
 }
 
-static NCNN_FORCEINLINE __m512i float2bfloat_avx512(const __m512& v0, const __m512& v1)
+static NCNN_FORCEINLINE __m512i float2bfloat_avx512(__m512 v0, __m512 v1)
 {
 #if __AVX512BF16__
     __m256i _v0 = (__m256i)_mm512_cvtneps_pbh(v0);

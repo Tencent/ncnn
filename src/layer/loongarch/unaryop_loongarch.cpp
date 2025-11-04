@@ -62,12 +62,12 @@ namespace UnaryOp_loongarch_functor {
 
 struct unary_op_abs
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)fabsf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
     }
@@ -76,12 +76,12 @@ struct unary_op_abs
 
 struct unary_op_neg
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return -x;
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vbitrevi_w((__m128i)x, 31);
     }
@@ -90,12 +90,12 @@ struct unary_op_neg
 
 struct unary_op_floor
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)floorf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vfrintrm_s(x);
     }
@@ -104,12 +104,12 @@ struct unary_op_floor
 
 struct unary_op_ceil
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)ceilf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vfrintrp_s(x);
     }
@@ -118,12 +118,12 @@ struct unary_op_ceil
 
 struct unary_op_square
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return x * x;
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return __lsx_vfmul_s(x, x);
     }
@@ -132,12 +132,12 @@ struct unary_op_square
 
 struct unary_op_sqrt
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)sqrtf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return __lsx_vfsqrt_s(x);
     }
@@ -146,12 +146,12 @@ struct unary_op_sqrt
 
 struct unary_op_rsqrt
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)(1.f / sqrtf(x));
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return __lsx_vfrsqrt_s(x);
     }
@@ -160,12 +160,12 @@ struct unary_op_rsqrt
 
 struct unary_op_exp
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)expf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return exp_ps(x);
     }
@@ -174,12 +174,12 @@ struct unary_op_exp
 
 struct unary_op_log
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)logf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return log_ps(x);
     }
@@ -188,12 +188,12 @@ struct unary_op_log
 
 struct unary_op_sin
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)sinf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -209,12 +209,12 @@ struct unary_op_sin
 
 struct unary_op_cos
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)cosf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -230,12 +230,12 @@ struct unary_op_cos
 
 struct unary_op_tan
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)tanf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -251,12 +251,12 @@ struct unary_op_tan
 
 struct unary_op_asin
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)asinf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -272,12 +272,12 @@ struct unary_op_asin
 
 struct unary_op_acos
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)acosf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -293,12 +293,12 @@ struct unary_op_acos
 
 struct unary_op_atan
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)atanf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -314,12 +314,12 @@ struct unary_op_atan
 
 struct unary_op_reciprocal
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return 1.f / x;
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return __lsx_vfrecip_s(x);
     }
@@ -328,12 +328,12 @@ struct unary_op_reciprocal
 
 struct unary_op_tanh
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)tanhf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return tanh_ps(x);
     }
@@ -342,12 +342,12 @@ struct unary_op_tanh
 
 struct unary_op_log10
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)log10f(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return __lsx_vfmul_s(log_ps(x), __lsx_vreplfr2vr_s(0.434294481903));
     }
@@ -356,7 +356,7 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         // round to nearest even
 #if NCNN_GNU_INLINE_ASM
@@ -383,7 +383,7 @@ struct unary_op_round
 #endif
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vfrintrne_s(x);
     }
@@ -392,12 +392,12 @@ struct unary_op_round
 
 struct unary_op_trunc
 {
-    float func(const float& x) const
+    float func(float x) const
     {
         return (float)truncf(x);
     }
 #if __loongarch_sx
-    __m128 func_pack4(const __m128& x) const
+    __m128 func_pack4(__m128 x) const
     {
         return (__m128)__lsx_vfrintrz_s(x);
     }

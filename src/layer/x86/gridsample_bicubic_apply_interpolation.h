@@ -4,12 +4,12 @@
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-static void cubic_interp1d_p16(__m512& coeffs0, __m512& coeffs1, __m512& coeffs2, __m512& coeffs3, const __m512& tx)
+static void cubic_interp1d_p16(__m512& coeffs0, __m512& coeffs1, __m512& coeffs2, __m512& coeffs3, __m512 tx)
 {
     const __m512 A = _mm512_set1_ps(-0.75f);
 
     const __m512 x0 = _mm512_add_ps(tx, _mm512_set1_ps(1.0f));
-    const __m512& x1 = tx;
+    const __m512 x1 = tx;
     const __m512 x2 = _mm512_sub_ps(_mm512_set1_ps(1.0f), tx);
 
     coeffs0 = _mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(A, x0), _mm512_mul_ps(_mm512_set1_ps(5.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(8.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(4), A));
@@ -71,12 +71,12 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
 }
 
 #endif // __AVX512F__
-static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2, __m256& coeffs3, const __m256& tx)
+static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2, __m256& coeffs3, __m256 tx)
 {
     const __m256 A = _mm256_set1_ps(-0.75f);
 
     const __m256 x0 = _mm256_add_ps(tx, _mm256_set1_ps(1));
-    const __m256& x1 = tx;
+    const __m256 x1 = tx;
     const __m256 x2 = _mm256_sub_ps(_mm256_set1_ps(1), tx);
     //const __m256 x3 = _mm256_add_ps(x2, _mm256_set1_ps(1));
 
@@ -139,12 +139,12 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
 }
 
 #endif // __AVX__
-static void cubic_interp1d_p4(__m128& coeffs0, __m128& coeffs1, __m128& coeffs2, __m128& coeffs3, const __m128& tx)
+static void cubic_interp1d_p4(__m128& coeffs0, __m128& coeffs1, __m128& coeffs2, __m128& coeffs3, __m128 tx)
 {
     const __m128 A = _mm_set_ps1(-0.75f);
 
     const __m128 x0 = _mm_add_ps(tx, _mm_set_ps1(1.0f));
-    const __m128& x1 = tx;
+    const __m128 x1 = tx;
     const __m128 x2 = _mm_sub_ps(_mm_set_ps1(1.0f), tx);
     //const __m128 x3 = _mm_add_ps(x2, _mm_set_ps1(1.0f));
 

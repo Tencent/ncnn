@@ -287,21 +287,21 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
 
 namespace BinaryOp_arm_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4, IMPL8)                                  \
-    struct NAME                                                                  \
-    {                                                                            \
-        __fp16 operator()(const __fp16& x, const __fp16& y) const                \
-        {                                                                        \
-            return IMPL;                                                         \
-        }                                                                        \
-        float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const \
-        {                                                                        \
-            return IMPL4;                                                        \
-        }                                                                        \
-        float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const \
-        {                                                                        \
-            return IMPL8;                                                        \
-        }                                                                        \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4, IMPL8)                    \
+    struct NAME                                                    \
+    {                                                              \
+        __fp16 operator()(__fp16 x, __fp16 y) const                \
+        {                                                          \
+            return IMPL;                                           \
+        }                                                          \
+        float16x4_t operator()(float16x4_t x, float16x4_t y) const \
+        {                                                          \
+            return IMPL4;                                          \
+        }                                                          \
+        float16x8_t operator()(float16x8_t x, float16x8_t y) const \
+        {                                                          \
+            return IMPL8;                                          \
+        }                                                          \
     };
 
 // clang-format off
