@@ -35,19 +35,6 @@
 #define ARCFACE_EXAMPLE_YOLO_INFER_SIZE 320
 #endif
 
-const float mean_vals[][3] = {
-    {0.f, 0.f, 0.f},
-    {0.f, 0.f, 0.f},
-    {0.f, 0.f, 0.f},
-    {0.f, 0.f, 0.f},
-};
-
-const float norm_vals[][3] = {
-    {1 / 255.f, 1 / 255.f, 1 / 255.f},
-    {1 / 255.f, 1 / 255.f, 1 / 255.f},
-    {1 / 255.f, 1 / 255.f, 1 / 255.f},
-    {1 / 255.f, 1 / 255.f, 1 / 255.f},
-};
 static std::vector<cv::Point2f> keypoints_to_point2f(const std::array<std::array<float, 3>, 5>& keypoints) noexcept {
     std::vector<cv::Point2f> points;
     points.reserve(5);
@@ -289,6 +276,10 @@ struct DetectionResult
 
 static ImagePreProcessResults preprocess_yolo_kpts(cv::Mat& input_image, int infer_size) noexcept
 {
+
+float mean_vals[] = {0.f, 0.f, 0.f};
+
+float norm_vals[] =  {1 / 255.f, 1 / 255.f, 1 / 255.f};
     int img_w = input_image.cols;
     int img_h = input_image.rows;
     float scale_factor, new_w, new_h;
