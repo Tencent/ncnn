@@ -480,14 +480,14 @@ static int get_face(const cv::Mat& rgb, DetectionResult& result) {
   int status = 0;
   ncnn::Net yoloface;
   yoloface.opt.use_vulkan_compute = true;
-  status = yoloface.load_param("/home/hb/ncnn_convert/yolov8-face.param");
+  status = yoloface.load_param("yolov8-face.param");
   
   if (status != 0) {
     fprintf(stderr, "couldn't load params");
     return status;
   }
 
-  status = yoloface.load_model("/home/hb/ncnn_convert/yolov8-face.bin");
+  status = yoloface.load_model("yolov8-face.bin");
 
   if (status != 0) {
     fprintf(stderr, "couldn't load model");
@@ -513,8 +513,8 @@ static int get_face(const cv::Mat& rgb, DetectionResult& result) {
 static int get_embedding(const cv::Mat& rgb, std::vector<float>& result) {
   ncnn::Net arcface;
   arcface.opt.use_vulkan_compute = true;
-  arcface.load_param("/home/hb/ncnn_convert/arcfaceresnet.param");
-  arcface.load_model("/home/hb/ncnn_convert/arcfaceresnet.bin");
+  arcface.load_param("arcfaceresnet.param");
+  arcface.load_model("arcfaceresnet.bin");
 
 
      if (rgb.empty() || rgb.type() != CV_8UC3) {
