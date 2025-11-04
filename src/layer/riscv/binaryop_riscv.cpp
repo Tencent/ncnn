@@ -259,13 +259,13 @@ namespace BinaryOp_riscv_functor {
         }                                                                              \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)  \
-    struct NAME                                            \
-    {                                                      \
-        float operator()(float x, float y) const           \
-        {                                                  \
-            return IMPL;                                   \
-        }                                                  \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV) \
+    struct NAME                                           \
+    {                                                     \
+        float operator()(float x, float y) const          \
+        {                                                 \
+            return IMPL;                                  \
+        }                                                 \
     };
 #endif
 
