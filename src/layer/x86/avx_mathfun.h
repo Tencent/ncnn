@@ -115,42 +115,42 @@ typedef union imm_xmm_union
         imm_ = u.imm;                            \
     }
 
-#define AVX2_BITOP_USING_SSE2(fn)                                      \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                                  \
-        /* use SSE2 instruction to perform the bitop AVX2 */           \
-        __m128i x1, x2;                                                \
-        __m256i ret;                                                   \
-        COPY_IMM_TO_XMM(x, x1, x2);                                    \
-        x1 = _mm_##fn(x1, a);                                          \
-        x2 = _mm_##fn(x2, a);                                          \
-        COPY_XMM_TO_IMM(x1, x2, ret);                                  \
-        return (ret);                                                  \
+#define AVX2_BITOP_USING_SSE2(fn)                                             \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, int a) \
+    {                                                                         \
+        /* use SSE2 instruction to perform the bitop AVX2 */                  \
+        __m128i x1, x2;                                                       \
+        __m256i ret;                                                          \
+        COPY_IMM_TO_XMM(x, x1, x2);                                           \
+        x1 = _mm_##fn(x1, a);                                                 \
+        x2 = _mm_##fn(x2, a);                                                 \
+        COPY_XMM_TO_IMM(x1, x2, ret);                                         \
+        return (ret);                                                         \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                          \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, __m256i y) \
-    {                                                                      \
-        /* use SSE2 instructions to perform the AVX2 integer operation */  \
-        __m128i x1, x2;                                                    \
-        __m128i y1, y2;                                                    \
-        __m256i ret;                                                       \
-        COPY_IMM_TO_XMM(x, x1, x2);                                        \
-        COPY_IMM_TO_XMM(y, y1, y2);                                        \
-        x1 = _mm_##fn(x1, y1);                                             \
-        x2 = _mm_##fn(x2, y2);                                             \
-        COPY_XMM_TO_IMM(x1, x2, ret);                                      \
-        return (ret);                                                      \
+#define AVX2_INTOP_USING_SSE2(fn)                                                 \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, __m256i y) \
+    {                                                                             \
+        /* use SSE2 instructions to perform the AVX2 integer operation */         \
+        __m128i x1, x2;                                                           \
+        __m128i y1, y2;                                                           \
+        __m256i ret;                                                              \
+        COPY_IMM_TO_XMM(x, x1, x2);                                               \
+        COPY_IMM_TO_XMM(y, y1, y2);                                               \
+        x1 = _mm_##fn(x1, y1);                                                    \
+        x2 = _mm_##fn(x2, y2);                                                    \
+        COPY_XMM_TO_IMM(x1, x2, ret);                                             \
+        return (ret);                                                             \
     }
 #else
-#define AVX2_BITOP_USING_SSE2(fn)                                      \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                                  \
-        return _mm256_##fn(x, a);                                      \
+#define AVX2_BITOP_USING_SSE2(fn)                                             \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, int a) \
+    {                                                                         \
+        return _mm256_##fn(x, a);                                             \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                          \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, __m256i y) \
-    {                                                                      \
-        return _mm256_##fn(x, y);                                          \
+#define AVX2_INTOP_USING_SSE2(fn)                                                        \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, const __m256i& y) \
+    {                                                                                    \
+        return _mm256_##fn(x, y);                                                        \
     }
 #endif
 
@@ -169,8 +169,10 @@ AVX2_INTOP_USING_SSE2(andnot_si128)
 /* natural logarithm computed for 8 simultaneous float
    return NaN for x <= 0
 */
-static NCNN_FORCEINLINE __m256 log256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 log256_ps(const __m256& _x)
 {
+    __m256 x = _x;
+
     __m256i imm0;
     __m256 one = *(__m256*)_ps256_1;
 
@@ -245,8 +247,10 @@ _PS256_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS256_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS256_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 exp256_ps(const __m256& _x)
 {
+    __m256 x = _x;
+
     __m256 tmp = _mm256_setzero_ps(), fx;
     __m256i imm0;
     __m256 one = *(__m256*)_ps256_1;
@@ -311,7 +315,7 @@ _PS256_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
 _PS256_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
 
 // an approximation of tanh
-static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tanh256_ps(const __m256& x)
 {
     __m256 value = x;
     value = _mm256_max_ps(*(__m256*)_ps256_tanh_lo, value);
@@ -360,8 +364,11 @@ _PS256_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    surprising but correct result.
 
 */
-static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
-{   // any x
+static NCNN_FORCEINLINE __m256 sin256_ps(const __m256& _x)
+{
+    __m256 x = _x;
+
+    // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, sign_bit, y;
     __m256i imm0, imm2;
 
@@ -480,8 +487,11 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
 }
 
 /* almost the same as sin_ps */
-static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
-{   // any x
+static NCNN_FORCEINLINE __m256 cos256_ps(const __m256& _x)
+{
+    __m256 x = _x;
+
+    // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, y;
     __m256i imm0, imm2;
 
@@ -593,8 +603,10 @@ static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
 
 /* since sin256_ps and cos256_ps are almost identical, sincos256_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
+static NCNN_FORCEINLINE void sincos256_ps(const __m256& _x, __m256& s, __m256& c)
 {
+    __m256 x = _x;
+
     __m256 xmm1, xmm2, xmm3 = _mm256_setzero_ps(), sign_bit_sin, y;
     __m256i imm0, imm2, imm4;
 
@@ -729,15 +741,15 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     xmm2 = _mm256_add_ps(y, y2);
 
     /* update the sign */
-    *s = _mm256_xor_ps(xmm1, sign_bit_sin);
-    *c = _mm256_xor_ps(xmm2, sign_bit_cos);
+    s = _mm256_xor_ps(xmm1, sign_bit_sin);
+    c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tan256_ps(const __m256& x)
 {
     __m256 ysin, ycos;
     __m256 eps = _mm256_set1_ps(1E-8f);
-    sincos256_ps(x, &ysin, &ycos);
+    sincos256_ps(x, ysin, ycos);
     __m256 mask = _mm256_cmp_ps(ycos, _mm256_setzero_ps(), _CMP_EQ_OS);
     __m256 _tmp = _mm256_and_ps(eps, mask);
     ycos = _mm256_add_ps(ycos, _tmp);
@@ -745,13 +757,13 @@ static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
     return ytan;
 }
 
-static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 pow256_ps(const __m256& a, const __m256& b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m256 asin256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 asin256_ps(const __m256& x)
 {
     const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
     const __m256 magic_half_one = _mm256_set1_ps(0.5f);
@@ -834,7 +846,7 @@ static NCNN_FORCEINLINE __m256 asin256_ps(__m256 x)
     return _mm256_or_ps(final_approx, negative_mask);
 }
 
-static NCNN_FORCEINLINE __m256 acos256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 acos256_ps(const __m256& x)
 {
     const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
     const __m256 magic_zero = _mm256_set1_ps(0.0f);
@@ -923,7 +935,7 @@ static NCNN_FORCEINLINE __m256 acos256_ps(__m256 x)
                _mm256_andnot_ps(is_small_input, big_final_approx));
 }
 
-static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 atan256_ps(const __m256& x)
 {
     const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
     const __m256 magic_one = _mm256_set1_ps(1.0f);
@@ -1015,7 +1027,7 @@ static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
                negative_mask);
 }
 
-static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
+static NCNN_FORCEINLINE __m256 atan2256_ps(const __m256& y, const __m256& x)
 {
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
@@ -1078,7 +1090,7 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
                _mm256_andnot_ps(normal_mode, special_result));
 }
 
-static NCNN_FORCEINLINE __m256 abs256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 abs256_ps(const __m256& x)
 {
     const __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7fffffff));
     return _mm256_and_ps(abs_mask, x);
