@@ -24,7 +24,8 @@ Layer::Layer()
     support_tensor_storage = false;
 
     support_vulkan_packing = false;
-    support_reserved_00 = false;
+    support_any_packing = false;
+    support_vulkan_any_packing = false;
 
     featmask = 0;
 
@@ -238,10 +239,12 @@ public:
         support_bf16_storage = layer_cpu->support_bf16_storage;
         support_fp16_storage = layer_cpu->support_fp16_storage;
         support_int8_storage = layer_cpu->support_int8_storage;
+        support_any_packing = layer_cpu->support_any_packing;
 
         support_vulkan = false;
         support_tensor_storage = false;
         support_vulkan_packing = false;
+        support_vulkan_any_packing = false;
 
 #if NCNN_VULKAN
         if (layer_vulkan)
@@ -249,6 +252,7 @@ public:
             support_vulkan = layer_vulkan->support_vulkan;
             support_tensor_storage = layer_vulkan->support_tensor_storage;
             support_vulkan_packing = layer_vulkan->support_vulkan_packing;
+            support_vulkan_any_packing = layer_vulkan->support_vulkan_any_packing;
         }
 #endif
     }

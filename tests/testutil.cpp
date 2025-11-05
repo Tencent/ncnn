@@ -313,7 +313,7 @@ int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::Mat>& b,
     return 0;
 }
 
-static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const ncnn::Option& opt, const ncnn::Layer* op, int flag)
+static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Mat& ax, const ncnn::Option& opt, const ncnn::Layer* op, int flag)
 {
     // clang-format off
     // *INDENT-OFF*
@@ -355,6 +355,8 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
     }
     // *INDENT-ON*
     // clang-format on
+
+    ax = a4;
 
     if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
@@ -423,9 +425,75 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, const nc
         if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
             dst_elempack = 8;
 
+        // pick another dst_elempack for testing any_packing feature
+        int any_elempack = 1;
+        if (op->support_any_packing)
+        {
+            if (elembits == 32)
+            {
+#if NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    any_elempack = 8;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
+                const int packn = ncnn::cpu_riscv_vlenb() / 4;
+                if (elemcount % packn == 0)
+                    any_elempack = 1;
+#else
+                if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#endif
+            }
+            if (elembits == 16)
+            {
+#if NCNN_ARM82
+                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_RVV || NCNN_XTHEADVECTOR
+                const int packn = ncnn::cpu_riscv_vlenb() / 2;
+                if (elemcount % packn == 0)
+                    any_elempack = 1;
+#else
+                if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#endif
+            }
+            if (elembits == 8)
+            {
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+                const int packn = ncnn::cpu_riscv_vlenb() / 1;
+                if (elemcount % packn == 0)
+                    any_elempack = 1;
+#else
+                if (elemcount % 8 == 0)
+                    any_elempack = 1;
+#endif
+            }
+
+            if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
+                any_elempack = 8;
+        }
+
         ncnn::Mat a4_packed;
         ncnn::convert_packing(a4, a4_packed, dst_elempack, opt);
         a4 = a4_packed;
+
+        if (any_elempack != dst_elempack)
+        {
+            ncnn::Mat ax_packed;
+            ncnn::convert_packing(ax, ax_packed, any_elempack, opt);
+            ax = ax_packed;
+        }
     }
 
     return 0;
@@ -603,13 +671,20 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     std::vector<ncnn::Mat> a4(a.size());
+    std::vector<ncnn::Mat> ax(a.size());
 
+    bool to_test_any_packing = false;
     for (size_t i = 0; i < a4.size(); i++)
     {
-        convert_to_optimal_layout(a[i], a4[i], opt, op, flag);
+        convert_to_optimal_layout(a[i], a4[i], ax[i], opt, op, flag);
+
+        if (ax[i].elempack != a4[i].elempack)
+            to_test_any_packing = true;
     }
 
     c.resize(top_blob_count);
+    std::vector<ncnn::Mat> cx;
+    cx.resize(top_blob_count);
 
     if (op->support_inplace)
     {
@@ -630,9 +705,43 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         convert_to_vanilla_layout(c[i], c[i], opt, op, flag);
     }
 
+    if (to_test_any_packing)
+    {
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < ax.size(); i++)
+            {
+                cx[i] = ax[i].clone();
+            }
+
+            op->forward_inplace(cx, opt);
+        }
+        else
+        {
+            op->forward(ax, cx, opt);
+        }
+
+        for (size_t i = 0; i < cx.size(); i++)
+        {
+            convert_to_vanilla_layout(cx[i], cx[i], opt, op, flag);
+        }
+    }
+
     op->destroy_pipeline(opt);
 
     delete op;
+
+    if (to_test_any_packing)
+    {
+        const float epsilon = 0.001f;
+        for (size_t i = 0; i < cx.size(); i++)
+        {
+            if (CompareMat(c[i], cx[i], epsilon) != 0)
+            {
+                return -1;
+            }
+        }
+    }
 
     return 0;
 }
@@ -990,7 +1099,12 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     ncnn::Mat a4;
-    convert_to_optimal_layout(a, a4, opt, op, flag);
+    ncnn::Mat ax;
+    convert_to_optimal_layout(a, a4, ax, opt, op, flag);
+
+    bool to_test_any_packing = ax.elempack != a4.elempack;
+
+    ncnn::Mat cx;
 
     if (op->support_inplace)
     {
@@ -1004,9 +1118,33 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     convert_to_vanilla_layout(c, c, opt, op, flag);
 
+    if (to_test_any_packing)
+    {
+        if (op->support_inplace)
+        {
+            cx = ax.clone();
+            op->forward_inplace(cx, opt);
+        }
+        else
+        {
+            op->forward(ax, cx, opt);
+        }
+
+        convert_to_vanilla_layout(cx, cx, opt, op, flag);
+    }
+
     op->destroy_pipeline(opt);
 
     delete op;
+
+    if (to_test_any_packing)
+    {
+        const float epsilon = 0.001f;
+        if (CompareMat(c, cx, epsilon) != 0)
+        {
+            return -1;
+        }
+    }
 
     return 0;
 }
@@ -1587,10 +1725,15 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     }
 
     std::vector<ncnn::Mat> a4(a.size());
+    std::vector<ncnn::Mat> ax(a.size());
 
+    bool to_test_any_packing = false;
     for (size_t i = 0; i < a4.size(); i++)
     {
-        convert_to_optimal_layout(a[i], a4[i], opt, op, flag);
+        convert_to_optimal_layout(a[i], a4[i], ax[i], opt, op, flag);
+
+        if (ax[i].elempack != a4[i].elempack)
+            to_test_any_packing = true;
     }
 
     TestOOMAllocator test_oom_allocator;
@@ -1619,6 +1762,31 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
         c[i].release();
     }
 
+    std::vector<ncnn::Mat> cx;
+    cx.resize(top_blob_count);
+
+    if (to_test_any_packing)
+    {
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < ax.size(); i++)
+            {
+                cx[i] = ax[i].clone();
+            }
+
+            op->forward_inplace(cx, opt);
+        }
+        else
+        {
+            op->forward(ax, cx, opt);
+        }
+
+        for (int i = 0; i < top_blob_count; i++)
+        {
+            cx[i].release();
+        }
+    }
+
     const int alloc_count = test_oom_allocator.counter;
     for (int i = 0; i < alloc_count; i++)
     {
@@ -1643,6 +1811,28 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
         for (int i = 0; i < top_blob_count; i++)
         {
             c[i].release();
+        }
+
+        if (ret == 0 && to_test_any_packing)
+        {
+            if (op->support_inplace)
+            {
+                for (size_t i = 0; i < ax.size(); i++)
+                {
+                    cx[i] = ax[i].clone();
+                }
+
+                ret = op->forward_inplace(cx, opt);
+            }
+            else
+            {
+                ret = op->forward(ax, cx, opt);
+            }
+
+            for (int i = 0; i < top_blob_count; i++)
+            {
+                cx[i].release();
+            }
         }
 
         if (ret != -100)
@@ -1709,13 +1899,17 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     }
 
     ncnn::Mat a4;
-    convert_to_optimal_layout(a, a4, opt, op, flag);
+    ncnn::Mat ax;
+    convert_to_optimal_layout(a, a4, ax, opt, op, flag);
+
+    bool to_test_any_packing = ax.elempack != a4.elempack;
 
     TestOOMAllocator test_oom_allocator;
     opt.blob_allocator = &test_oom_allocator;
     opt.workspace_allocator = &test_oom_allocator;
 
     ncnn::Mat c;
+    ncnn::Mat cx;
 
     if (op->support_inplace)
     {
@@ -1728,6 +1922,21 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     }
 
     c.release();
+
+    if (to_test_any_packing)
+    {
+        if (op->support_inplace)
+        {
+            cx = ax.clone();
+            op->forward_inplace(cx, opt);
+        }
+        else
+        {
+            op->forward(ax, cx, opt);
+        }
+
+        cx.release();
+    }
 
     const int alloc_count = test_oom_allocator.counter;
     for (int i = 0; i < alloc_count; i++)
@@ -1747,6 +1956,21 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
         }
 
         c.release();
+
+        if (ret == 0 && to_test_any_packing)
+        {
+            if (op->support_inplace)
+            {
+                cx = ax.clone();
+                ret = op->forward_inplace(cx, opt);
+            }
+            else
+            {
+                ret = op->forward(ax, cx, opt);
+            }
+
+            cx.release();
+        }
 
         if (ret != -100)
         {
