@@ -426,7 +426,7 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             dst_elempack = 8;
 
         // pick another dst_elempack for testing any_packing feature
-        int any_elempack = 1;
+        int any_elempack = dst_elempack;
         if (op->support_any_packing)
         {
             if (elembits == 32)
@@ -493,6 +493,10 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             ncnn::Mat ax_packed;
             ncnn::convert_packing(ax, ax_packed, any_elempack, opt);
             ax = ax_packed;
+        }
+        else
+        {
+            ax = a4;
         }
     }
 
