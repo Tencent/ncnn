@@ -9,6 +9,7 @@ namespace ncnn {
 RMSNorm_vulkan::RMSNorm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     // pack1
     pipeline_rmsnorm_square = 0;

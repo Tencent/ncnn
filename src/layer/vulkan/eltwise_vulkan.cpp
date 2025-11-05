@@ -10,6 +10,7 @@ namespace ncnn {
 Eltwise_vulkan::Eltwise_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_eltwise[0] = 0;
     pipeline_eltwise[1] = 0;

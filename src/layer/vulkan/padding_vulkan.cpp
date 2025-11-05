@@ -10,6 +10,7 @@ namespace ncnn {
 Padding_vulkan::Padding_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_padding = 0;
     pipeline_padding_pack4 = 0;

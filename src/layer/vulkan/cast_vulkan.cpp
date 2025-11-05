@@ -10,6 +10,7 @@ namespace ncnn {
 Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_cast = 0;
     pipeline_cast_pack4 = 0;

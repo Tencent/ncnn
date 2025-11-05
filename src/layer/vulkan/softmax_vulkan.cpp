@@ -10,6 +10,7 @@ namespace ncnn {
 Softmax_vulkan::Softmax_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_softmax_reduce_max = 0;
     pipeline_softmax_exp_sub_max = 0;

@@ -10,6 +10,7 @@ namespace ncnn {
 Dropout_vulkan::Dropout_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_dropout = 0;
 }

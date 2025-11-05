@@ -10,6 +10,7 @@ namespace ncnn {
 MemoryData_vulkan::MemoryData_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 }
 
 int MemoryData_vulkan::create_pipeline(const Option& opt)

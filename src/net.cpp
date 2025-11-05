@@ -45,6 +45,9 @@ public:
 #endif // NCNN_VULKAN
 
     int convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const;
+#if NCNN_VULKAN
+    int convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
 
     int do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const;
 #if NCNN_VULKAN
@@ -554,6 +557,40 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     return 0;
 }
 
+#if NCNN_VULKAN
+int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const
+{
+    if (bottom_blob.empty())
+        return 0;
+
+    int dst_elempack = 1;
+    if (layer->support_vulkan_packing)
+    {
+        // resolve dst_elempack
+        int dims = bottom_blob.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
+        if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
+        if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
+
+        if (elemcount % 4 == 0)
+            dst_elempack = 4;
+    }
+
+    if (bottom_blob.elempack != dst_elempack)
+    {
+        VkMat bottom_blob_packed;
+        vkdev->convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, cmd, opt);
+        bottom_blob = bottom_blob_packed;
+
+        if (bottom_blob.empty())
+            return -100;
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
+
 int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const
 {
     if (layer->one_blob_only)
@@ -714,6 +751,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             bottom_blob = bottom_blob_ref;
         }
 
+        int ret = convert_layout(bottom_blob, layer, cmd, opt);
+        if (ret != 0)
+            return ret;
+
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
@@ -766,6 +807,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             {
                 bottom_blobs[i] = bottom_blob_ref;
             }
+
+            int ret = convert_layout(bottom_blobs[i], layer, cmd, opt);
+            if (ret != 0)
+                return ret;
         }
 
         // forward

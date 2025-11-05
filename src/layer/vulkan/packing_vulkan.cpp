@@ -10,6 +10,7 @@ namespace ncnn {
 Packing_vulkan::Packing_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_packing = 0;
     pipeline_packing_pack1to4 = 0;

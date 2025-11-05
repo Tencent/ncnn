@@ -10,6 +10,7 @@ namespace ncnn {
 LRN_vulkan::LRN_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_lrn_square_pad = 0;
     pipeline_lrn_norm = 0;

@@ -11,6 +11,7 @@ namespace ncnn {
 Convolution_vulkan::Convolution_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     padding = 0;
 

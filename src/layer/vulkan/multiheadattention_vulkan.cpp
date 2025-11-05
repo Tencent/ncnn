@@ -11,6 +11,7 @@ namespace ncnn {
 MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     q_gemm = 0;
     k_gemm = 0;

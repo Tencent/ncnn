@@ -10,6 +10,7 @@ namespace ncnn {
 Flatten_vulkan::Flatten_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
