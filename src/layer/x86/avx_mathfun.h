@@ -127,19 +127,19 @@ typedef union imm_xmm_union
         COPY_XMM_TO_IMM(x1, x2, ret);                                         \
         return (ret);                                                         \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                                 \
-    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, __m256i y) \
-    {                                                                             \
-        /* use SSE2 instructions to perform the AVX2 integer operation */         \
-        __m128i x1, x2;                                                           \
-        __m128i y1, y2;                                                           \
-        __m256i ret;                                                              \
-        COPY_IMM_TO_XMM(x, x1, x2);                                               \
-        COPY_IMM_TO_XMM(y, y1, y2);                                               \
-        x1 = _mm_##fn(x1, y1);                                                    \
-        x2 = _mm_##fn(x2, y2);                                                    \
-        COPY_XMM_TO_IMM(x1, x2, ret);                                             \
-        return (ret);                                                             \
+#define AVX2_INTOP_USING_SSE2(fn)                                                        \
+    static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(const __m256i& x, const __m256i& y) \
+    {                                                                                    \
+        /* use SSE2 instructions to perform the AVX2 integer operation */                \
+        __m128i x1, x2;                                                                  \
+        __m128i y1, y2;                                                                  \
+        __m256i ret;                                                                     \
+        COPY_IMM_TO_XMM(x, x1, x2);                                                      \
+        COPY_IMM_TO_XMM(y, y1, y2);                                                      \
+        x1 = _mm_##fn(x1, y1);                                                           \
+        x2 = _mm_##fn(x2, y2);                                                           \
+        COPY_XMM_TO_IMM(x1, x2, ret);                                                    \
+        return (ret);                                                                    \
     }
 #else
 #define AVX2_BITOP_USING_SSE2(fn)                                             \
