@@ -768,8 +768,6 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr += 16;
             }
 
-            _mm_storeu_ps(bias_c_IFOG, _mm_loadu_ps(bias_c_I + q));
-
             __m128 _descale_xc_I = _mm_loadu_ps(weight_xc_int8_scales_ptr + hidden_size * 0 + q);
             __m128 _descale_xc_F = _mm_loadu_ps(weight_xc_int8_scales_ptr + hidden_size * 1 + q);
             __m128 _descale_xc_O = _mm_loadu_ps(weight_xc_int8_scales_ptr + hidden_size * 2 + q);
