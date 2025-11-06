@@ -35,11 +35,9 @@ float RandomFloat(float a, float b)
     float diff = b - a;
     float r = random * diff;
     float v = a + r;
-
     // generate denormal as zero
     if (v < 0.0001 && v > -0.0001)
-        return 0.f;
-
+        v = 0.f;
     return v;
 }
 
