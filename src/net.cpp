@@ -490,12 +490,12 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
 #endif
             }
-        }
 
-        if (layer->support_any_packing)
-        {
-            // layer handles pack/unpack
-            dst_elempack = bottom_blob.elempack;
+            if (layer->support_any_packing)
+            {
+                // layer handles pack/unpack
+                dst_elempack = bottom_blob.elempack;
+            }
         }
     }
 

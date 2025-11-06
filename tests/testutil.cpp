@@ -851,12 +851,16 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     d.resize(top_blob_count);
 
+    std::vector<ncnn::Mat> dx;
+    dx.resize(top_blob_count);
+    bool to_test_any_packing = false;
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
 
         {
             std::vector<ncnn::VkMat> a_gpu(a.size());
+            std::vector<ncnn::VkMat> ax_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
                 int elemcount = 0;
@@ -892,9 +896,15 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
                 // convert layout
                 {
                     int dst_elempack = 1;
+                    int any_elempack = 1;
                     if (op->support_vulkan_packing)
                     {
                         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+                        any_elempack = dst_elempack;
+                        if (op->support_vulkan_any_packing)
+                        {
+                            any_elempack = 1;
+                        }
                     }
 
                     if (a_gpu[i].elempack != dst_elempack)
@@ -903,7 +913,16 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
                         vkdev->convert_packing(a_gpu[i], a_gpu_packed, dst_elempack, cmd, opt);
                         a_gpu[i] = a_gpu_packed;
                     }
+
+                    ax_gpu[i] = a_gpu[i];
+                    if (any_elempack != dst_elempack)
+                    {
+                        vkdev->convert_packing(a_gpu[i], ax_gpu[i], any_elempack, cmd, opt);
+                    }
                 }
+
+                if (ax_gpu[i].elempack != a_gpu[i].elempack)
+                    to_test_any_packing = true;
             }
 
             std::vector<ncnn::VkMat> d_gpu(top_blob_count);
@@ -923,6 +942,27 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             {
                 cmd.record_download(d_gpu[i], d[i], opt);
             }
+
+            if (to_test_any_packing)
+            {
+                std::vector<ncnn::VkMat> dx_gpu(top_blob_count);
+                if (op->support_inplace)
+                {
+                    op->forward_inplace(ax_gpu, cmd, opt);
+
+                    dx_gpu = ax_gpu;
+                }
+                else
+                {
+                    op->forward(ax_gpu, dx_gpu, cmd, opt);
+                }
+
+                // download
+                for (size_t i = 0; i < dx_gpu.size(); i++)
+                {
+                    cmd.record_download(dx_gpu[i], dx[i], opt);
+                }
+            }
         }
 
         cmd.submit_and_wait();
@@ -936,6 +976,18 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     vkdev->reclaim_staging_allocator(staging_vkallocator);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
+
+    if (to_test_any_packing)
+    {
+        const float epsilon = 0.001f;
+        for (size_t i = 0; i < dx.size(); i++)
+        {
+            if (CompareMat(d[i], dx[i], epsilon) != 0)
+            {
+                return -1;
+            }
+        }
+    }
 
     return 0;
 }
@@ -1247,12 +1299,15 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         cmd.submit_and_wait();
     }
 
+    ncnn::Mat dx;
+    bool to_test_any_packing = false;
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
 
         {
             ncnn::VkMat a_gpu;
+            ncnn::VkMat ax_gpu;
 
             int elemcount = 0;
             {
@@ -1287,9 +1342,15 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             // convert layout
             {
                 int dst_elempack = 1;
+                int any_elempack = 1;
                 if (op->support_vulkan_packing)
                 {
                     dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+                    any_elempack = dst_elempack;
+                    if (op->support_vulkan_any_packing)
+                    {
+                        any_elempack = 1;
+                    }
                 }
 
                 if (a_gpu.elempack != dst_elempack)
@@ -1298,7 +1359,16 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
                     vkdev->convert_packing(a_gpu, a_gpu_packed, dst_elempack, cmd, opt);
                     a_gpu = a_gpu_packed;
                 }
+
+                ax_gpu = a_gpu;
+                if (any_elempack != dst_elempack)
+                {
+                    vkdev->convert_packing(a_gpu, ax_gpu, any_elempack, cmd, opt);
+                }
             }
+
+            if (ax_gpu.elempack != a_gpu.elempack)
+                to_test_any_packing = true;
 
             ncnn::VkMat d_gpu;
             if (op->support_inplace)
@@ -1314,6 +1384,24 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             // download
             cmd.record_download(d_gpu, d, opt);
+
+            if (to_test_any_packing)
+            {
+                ncnn::VkMat dx_gpu;
+                if (op->support_inplace)
+                {
+                    op->forward_inplace(ax_gpu, cmd, opt);
+
+                    dx_gpu = ax_gpu;
+                }
+                else
+                {
+                    op->forward(ax_gpu, dx_gpu, cmd, opt);
+                }
+
+                // download
+                cmd.record_download(dx_gpu, dx, opt);
+            }
         }
 
         cmd.submit_and_wait();
@@ -1327,6 +1415,15 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     vkdev->reclaim_staging_allocator(staging_vkallocator);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
+
+    if (to_test_any_packing)
+    {
+        const float epsilon = 0.001f;
+        if (CompareMat(d, dx, epsilon) != 0)
+        {
+            return -1;
+        }
+    }
 
     return 0;
 }
