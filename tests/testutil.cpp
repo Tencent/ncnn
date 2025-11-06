@@ -737,7 +737,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (to_test_any_packing)
     {
-        const float epsilon = 0.001f;
+        float epsilon = 0.001f;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+            epsilon = epsilon * 100; // 0.1
+
         for (size_t i = 0; i < cx.size(); i++)
         {
             if (CompareMat(c[i], cx[i], epsilon) != 0)
@@ -979,7 +982,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (to_test_any_packing)
     {
-        const float epsilon = 0.001f;
+        float epsilon = 0.001f;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+            epsilon = epsilon * 100; // 0.1
+
         for (size_t i = 0; i < dx.size(); i++)
         {
             if (CompareMat(d[i], dx[i], epsilon) != 0)
@@ -1195,7 +1201,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (to_test_any_packing)
     {
-        const float epsilon = 0.001f;
+        float epsilon = 0.001f;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+            epsilon = epsilon * 100; // 0.1
+
         if (CompareMat(c, cx, epsilon) != 0)
         {
             return -1;
@@ -1418,7 +1427,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (to_test_any_packing)
     {
-        const float epsilon = 0.001f;
+        float epsilon = 0.001f;
+        if (opt.use_fp16_packed || opt.use_fp16_storage)
+            epsilon = epsilon * 100; // 0.1
+
         if (CompareMat(d, dx, epsilon) != 0)
         {
             return -1;
