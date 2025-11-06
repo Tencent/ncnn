@@ -35,9 +35,20 @@ float RandomFloat(float a, float b)
     float diff = b - a;
     float r = random * diff;
     float v = a + r;
+
+    // make it fp16 representable
+    union {
+        unsigned int u;
+        float f;
+    } tmp;
+    tmp.f = v;
+    tmp.u &= 0xFFFFE000;
+    v = tmp.f;
+
     // generate denormal as zero
     if (v < 0.0001 && v > -0.0001)
-        v = 0.f;
+        return 0.f;
+
     return v;
 }
 
@@ -686,6 +697,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             to_test_any_packing = true;
     }
 
+    if (!opt.use_packing_layout)
+        to_test_any_packing = false;
+
     c.resize(top_blob_count);
     std::vector<ncnn::Mat> cx;
     cx.resize(top_blob_count);
@@ -738,8 +752,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (to_test_any_packing)
     {
         float epsilon = 0.001f;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
-            epsilon = epsilon * 100; // 0.1
+        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_bf16_storage)
+        {
+            epsilon *= 100; // 0.1
+        }
 
         for (size_t i = 0; i < cx.size(); i++)
         {
@@ -983,8 +999,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (to_test_any_packing)
     {
         float epsilon = 0.001f;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
-            epsilon = epsilon * 100; // 0.1
+        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_bf16_storage)
+        {
+            epsilon *= 100; // 0.1
+        }
 
         for (size_t i = 0; i < dx.size(); i++)
         {
@@ -1166,6 +1184,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     bool to_test_any_packing = ax.elempack != a4.elempack;
 
+    if (!opt.use_packing_layout)
+        to_test_any_packing = false;
+
     ncnn::Mat cx;
 
     if (op->support_inplace)
@@ -1202,8 +1223,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (to_test_any_packing)
     {
         float epsilon = 0.001f;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
-            epsilon = epsilon * 100; // 0.1
+        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_bf16_storage)
+        {
+            epsilon *= 100; // 0.1
+        }
 
         if (CompareMat(c, cx, epsilon) != 0)
         {
@@ -1428,8 +1451,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (to_test_any_packing)
     {
         float epsilon = 0.001f;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
-            epsilon = epsilon * 100; // 0.1
+        if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_bf16_storage)
+        {
+            epsilon *= 100; // 0.1
+        }
 
         if (CompareMat(d, dx, epsilon) != 0)
         {
@@ -1507,7 +1532,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, void (*func)(ncnn::Layer*), int flag)
 {
-    // fp16 representation
+    // bf16 representation
     std::vector<ncnn::Mat> a_fp16;
     if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
@@ -1517,16 +1542,6 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
             ncnn::Mat tmp;
             ncnn::cast_float32_to_bfloat16(a[j], tmp, opt);
             ncnn::cast_bfloat16_to_float32(tmp, a_fp16[j], opt);
-        }
-    }
-    else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        a_fp16.resize(a.size());
-        for (size_t j = 0; j < a.size(); j++)
-        {
-            ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(a[j], tmp, opt);
-            ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
         }
     }
     else
@@ -1555,19 +1570,7 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
     }
     else if (opt.use_fp16_packed || opt.use_fp16_storage)
     {
-        weights_fp16.resize(weights.size());
-        for (size_t j = 0; j < weights.size(); j++)
-        {
-            if (weights[j].elembits() != 32)
-            {
-                weights_fp16[j] = weights[j];
-                continue;
-            }
-
-            ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(weights[j], tmp, opt);
-            ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
-        }
+        weights_fp16 = weights;
         epsilon_fp16 = epsilon * 100; // 0.1
     }
     else
@@ -1594,19 +1597,13 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& opt, const ncnn::Mat& a, float epsilon, void (*func)(ncnn::Layer*), int flag)
 {
-    // fp16 representation
+    // bf16 representation
     ncnn::Mat a_fp16;
     if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::Mat tmp;
         ncnn::cast_float32_to_bfloat16(a, tmp, opt);
         ncnn::cast_bfloat16_to_float32(tmp, a_fp16, opt);
-    }
-    else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::Mat tmp;
-        ncnn::cast_float32_to_float16(a, tmp, opt);
-        ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
     }
     else
     {
@@ -1634,19 +1631,7 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
     }
     else if (opt.use_fp16_packed || opt.use_fp16_storage)
     {
-        weights_fp16.resize(weights.size());
-        for (size_t j = 0; j < weights.size(); j++)
-        {
-            if (weights[j].elembits() != 32)
-            {
-                weights_fp16[j] = weights[j];
-                continue;
-            }
-
-            ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(weights[j], tmp, opt);
-            ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
-        }
+        weights_fp16 = weights;
         epsilon_fp16 = epsilon * 100; // 0.1
     }
     else
