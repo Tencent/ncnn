@@ -10,6 +10,7 @@ namespace ncnn {
 Clip_vulkan::Clip_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_clip = 0;
 }

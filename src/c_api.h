@@ -218,6 +218,7 @@ NCNN_EXPORT int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_packing(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_bf16_storage(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer);
 
 NCNN_EXPORT void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable);
@@ -225,6 +226,7 @@ NCNN_EXPORT void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable);
 
 NCNN_EXPORT int ncnn_layer_get_bottom_count(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_bottom(const ncnn_layer_t layer, int i);

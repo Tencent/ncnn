@@ -10,6 +10,7 @@ namespace ncnn {
 DeepCopy_vulkan::DeepCopy_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_deepcopy = 0;
     pipeline_deepcopy_pack4 = 0;

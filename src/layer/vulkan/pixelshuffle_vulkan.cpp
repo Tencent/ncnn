@@ -10,6 +10,7 @@ namespace ncnn {
 PixelShuffle_vulkan::PixelShuffle_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_pixelshuffle = 0;
     pipeline_pixelshuffle_pack4 = 0;

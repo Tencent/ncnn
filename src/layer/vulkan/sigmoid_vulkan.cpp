@@ -10,6 +10,7 @@ namespace ncnn {
 Sigmoid_vulkan::Sigmoid_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_sigmoid = 0;
 }

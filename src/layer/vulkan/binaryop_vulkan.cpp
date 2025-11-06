@@ -10,6 +10,7 @@ namespace ncnn {
 BinaryOp_vulkan::BinaryOp_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_binaryop = 0;
     pipeline_binaryop_pack4 = 0;

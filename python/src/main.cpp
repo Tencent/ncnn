@@ -874,6 +874,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_packing", &Layer::support_packing)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
+    .def_readwrite("support_vulkan_packing", &Layer::support_vulkan_packing)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,

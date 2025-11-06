@@ -10,6 +10,7 @@ namespace ncnn {
 HardSigmoid_vulkan::HardSigmoid_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_hardsigmoid = 0;
 }

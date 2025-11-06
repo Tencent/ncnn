@@ -11,6 +11,7 @@ namespace ncnn {
 InnerProduct_vulkan::InnerProduct_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     flatten = 0;
 

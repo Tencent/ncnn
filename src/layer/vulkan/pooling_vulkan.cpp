@@ -13,6 +13,7 @@ namespace ncnn {
 Pooling_vulkan::Pooling_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     padding = 0;
     pipeline_pooling = 0;

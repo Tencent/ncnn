@@ -743,19 +743,21 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         ncnn::VkCompute cmd(vkdev);
 
         {
-            // upload
             std::vector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                int elemcount = 0;
                 {
-                    // resolve dst_elempack
                     int dims = a[i].dims;
-                    int elemcount = 0;
                     if (dims == 1) elemcount = a[i].elempack * a[i].w;
                     if (dims == 2) elemcount = a[i].elempack * a[i].h;
                     if (dims == 3 || dims == 4) elemcount = a[i].elempack * a[i].c;
+                }
 
+                // upload
+                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                {
+                    // resolve dst_elempack
                     const int dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
                     ncnn::Mat a4;
@@ -772,6 +774,22 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
                 else
                 {
                     cmd.record_upload(a[i], a_gpu[i], opt);
+                }
+
+                // convert layout
+                {
+                    int dst_elempack = 1;
+                    if (op->support_vulkan_packing)
+                    {
+                        dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+                    }
+
+                    if (a_gpu[i].elempack != dst_elempack)
+                    {
+                        ncnn::VkMat a_gpu_packed;
+                        vkdev->convert_packing(a_gpu[i], a_gpu_packed, dst_elempack, cmd, opt);
+                        a_gpu[i] = a_gpu_packed;
+                    }
                 }
             }
 
@@ -1092,18 +1110,20 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         ncnn::VkCompute cmd(vkdev);
 
         {
-            // upload
             ncnn::VkMat a_gpu;
 
-            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            int elemcount = 0;
             {
-                // resolve dst_elempack
                 int dims = a.dims;
-                int elemcount = 0;
                 if (dims == 1) elemcount = a.elempack * a.w;
                 if (dims == 2) elemcount = a.elempack * a.h;
                 if (dims == 3 || dims == 4) elemcount = a.elempack * a.c;
+            }
 
+            // upload
+            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            {
+                // resolve dst_elempack
                 const int dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
                 ncnn::Mat a4;
@@ -1120,6 +1140,22 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             else
             {
                 cmd.record_upload(a, a_gpu, opt);
+            }
+
+            // convert layout
+            {
+                int dst_elempack = 1;
+                if (op->support_vulkan_packing)
+                {
+                    dst_elempack = elemcount % 4 == 0 ? 4 : 1;
+                }
+
+                if (a_gpu.elempack != dst_elempack)
+                {
+                    ncnn::VkMat a_gpu_packed;
+                    vkdev->convert_packing(a_gpu, a_gpu_packed, dst_elempack, cmd, opt);
+                    a_gpu = a_gpu_packed;
+                }
             }
 
             ncnn::VkMat d_gpu;

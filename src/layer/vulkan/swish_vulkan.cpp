@@ -10,6 +10,7 @@ namespace ncnn {
 Swish_vulkan::Swish_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_swish = 0;
 }

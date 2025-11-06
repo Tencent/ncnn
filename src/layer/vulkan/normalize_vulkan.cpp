@@ -10,6 +10,7 @@ namespace ncnn {
 Normalize_vulkan::Normalize_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_normalize_reduce_sum4_fp16_to_fp32 = 0;
     pipeline_normalize_reduce_sum4_fp32[0] = 0;

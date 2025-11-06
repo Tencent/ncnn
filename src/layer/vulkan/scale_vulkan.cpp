@@ -10,6 +10,7 @@ namespace ncnn {
 Scale_vulkan::Scale_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_scale = 0;
     pipeline_scale_pack4 = 0;
