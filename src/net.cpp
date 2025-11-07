@@ -1195,7 +1195,9 @@ int Net::load_param(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top shape hints
@@ -1245,7 +1247,9 @@ int Net::load_param(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1271,6 +1275,7 @@ int Net::load_param(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %s not exists or registered", layer_type);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1287,7 +1292,10 @@ int Net::load_param(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
@@ -1477,7 +1485,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param_bin %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top blob shape hints
@@ -1527,7 +1537,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1554,6 +1566,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %d not exists or registered", typeindex);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1568,7 +1581,10 @@ int Net::load_param_bin(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d failed", i);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
@@ -1838,6 +1854,9 @@ void Net::clear()
     for (size_t i = 0; i < d->layers.size(); i++)
     {
         Layer* layer = d->layers[i];
+
+        if (!layer)
+            continue;
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 
