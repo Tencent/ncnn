@@ -582,7 +582,7 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
         if (elemcount % 4 == 0)
             dst_elempack = 4;
 
-        if (layer->support_any_packing)
+        if (layer->support_vulkan_any_packing)
         {
             // layer handles pack/unpack
             dst_elempack = bottom_blob.elempack;
