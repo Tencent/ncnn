@@ -1,17 +1,17 @@
-/* ncnn example using yolo-face and arcface to extract embeddings from a face 
+/* ncnn example using yolo-face and arcface to extract embeddings from a face
  *
  *
- *  the arcface model is converted from 
+ *  the arcface model is converted from
  * https://github.com/onnx/models/tree/main/validated/vision/body_analysis/arcface
  * 1. first simplify the arcface.onnx using onnxsim
  * 2. then convert it using ncnn's onnx exporter onnx2ncnn
- *  using pnnx to convert would cause -nan output! 
+ *  using pnnx to convert would cause -nan output!
  *
- *  the yolov8-face model is converted from 
+ *  the yolov8-face model is converted from
  *  https://github.com/derronqi/yolov8-face
  *
  *
- * you can find the models preconverted at 
+ * you can find the models preconverted at
  * https://drive.google.com/drive/folders/1P0RDzj9V7FHEL8w_-yqls5RHeVpO-2PS?usp=sharing
  *
  * */
@@ -283,8 +283,8 @@ static ImagePreProcessResults preprocess_yolo_kpts(cv::Mat& input_image, int inf
     new_w = _scale_factor[1];
     new_h = _scale_factor[2];
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(input_image.data,
-                                                 ncnn::Mat::PIXEL_BGR2RGB, img_w,
-                                                 img_h, new_w, new_h);
+                   ncnn::Mat::PIXEL_BGR2RGB, img_w,
+                   img_h, new_w, new_h);
 
     // padding calculation
     int pad_w = (infer_size - new_w) / 2;
@@ -301,11 +301,11 @@ static ImagePreProcessResults preprocess_yolo_kpts(cv::Mat& input_image, int inf
 /// the format is this:
 /// [x, y, w, h, conf, class_scores..., kp1_conf, kp1_x, kp1_y, kp2_conf, kp2_x, kp2_y,  ...]
 static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
-                                                    cv::Mat& original_image,
-                                                    ImagePreProcessResults& preproc_img,
-                                                    float confidence_threshold,
-                                                    float iou_threshold,
-                                                    std::vector<std::string> class_names)
+        cv::Mat& original_image,
+        ImagePreProcessResults& preproc_img,
+        float confidence_threshold,
+        float iou_threshold,
+        std::vector<std::string> class_names)
 {
     cv::Mat output = cv::Mat((int)result.h, (int)result.w, CV_32F, result).t();
     std::vector<Bbox> detections;
@@ -339,8 +339,8 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
             if (x2 > x1 && y2 > y1)
             {
                 Bbox bbox = Bbox(x1, y1, x2, y2, score, class_id)
-                                .apply_image_scale(original_image, preproc_img.img_scale,
-                                                   preproc_img.pad_w, preproc_img.pad_h);
+                            .apply_image_scale(original_image, preproc_img.img_scale,
+                                               preproc_img.pad_w, preproc_img.pad_h);
                 // Parse exactly 5 keypoints for this face model
                 std::vector<float> face_keypoints;
                 face_keypoints.reserve(15);
@@ -399,7 +399,7 @@ static inline float get_similarity(std::vector<float> f1, std::vector<float> f2)
 // https://github.com/deepinsight/insightface/blob/master/python-package/insightface/utils/face_align.py
 static int estimate_norm(float* transform_matrix, const float* lmk, int image_size = 112)
 {
-    float ARCFACE_DST[]{
+    float ARCFACE_DST[] {
         38.2946f, 51.6963f, // left eye
         73.5318f, 51.5014f, // right eye
         56.0252f, 71.7366f, // nose
@@ -517,21 +517,21 @@ static int get_embedding(const cv::Mat& rgb, std::vector<float>& result)
         fprintf(stderr, "invalid input image!");
         return -1;
     }
-    /* 
-   * the arcface model provided in the link has builtin normalization layers,
-   * no need to run substract_mean_normalize 
-   *
-   *  reference from .param
+    /*
+    * the arcface model provided in the link has builtin normalization layers,
+    * no need to run substract_mean_normalize
+    *
+    *  reference from .param
     BinaryOp         _minusscalar0            2 1 data scalar_op2 _minusscalar0 0=1
     BinaryOp         _mulscalar0              2 1 _minusscalar0 scalar_op3 _mulscalar0 0=2
-   * */
+    * */
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(
-        rgb.data,
-        ncnn::Mat::PIXEL_BGR2RGB,
-        rgb.cols,
-        rgb.rows,
-        112,
-        112);
+                       rgb.data,
+                       ncnn::Mat::PIXEL_BGR2RGB,
+                       rgb.cols,
+                       rgb.rows,
+                       112,
+                       112);
     ncnn::Extractor ex = arcface.create_extractor();
     ex.input("data", in);
     ncnn::Mat out;
