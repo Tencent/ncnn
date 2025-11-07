@@ -54,12 +54,30 @@ Here is a detailed breakdown of each `support` property and what it means for yo
     *   The `ncnn` engine guarantees that the input `Mat` passed to your layer will always have `elempack=1`. The engine will automatically insert conversions if the preceding layer produced a packed output.
 *   **Output**: Regardless of the property's value, your layer can output a `Mat` with any `elempack`. However, it is highly recommended to output a `Mat` with an adaptive `elempack` to avoid unnecessary conversions in subsequent layers.
 
-### `support_vulkan_packing` (Conceptual for Vulkan)
+### `support_any_packing` (for CPU)
+
+*   **Purpose**: An extension of `support_packing`. It declares that the layer's **CPU implementation** is flexible enough to handle a `Mat` with **any** `elempack` value (`1`, `4`, `8`, etc.).
+*   **Behavior if `true`**:
+    *   The `ncnn` engine can pass an input `Mat` with any packing layout to your `forward` method, without forcing a conversion to the hardware's "optimal" `elempack`. For example, on an AVX512 system where `elempack=16` is optimal, your layer can still accept `elempack=1`, `4`, or `8`.
+    *   This gives the engine more flexibility to avoid unnecessary packing/unpacking conversions between layers.
+*   **Behavior if `false`**: If `false` (but `support_packing` is `true`), the engine will try to provide an input `Mat` with an optimal `elempack` for the target architecture.
+*   **Output**: This property does not enforce any constraint on the output `Mat`, which can have any `elempack`.
+
+### `support_vulkan_packing` (for Vulkan)
 
 *   **Purpose**: This is the Vulkan equivalent of `support_packing`. It declares that the layer's **Vulkan implementation** can handle `VkMat` with `elempack=4`.
 *   **Behavior if `true`**: When the input `VkMat` has a channel count that is a multiple of 4, the `ncnn` engine will provide a packed `VkMat` (with `elempack=4`) to your Vulkan `forward` methods.
 *   **Behavior if `false`**: The engine will ensure the input `VkMat` has `elempack=1`.
 *   **Note**: `support_packing` and `support_vulkan_packing` are independent. A layer can support packing on CPU but not on Vulkan, or vice-versa.
+
+### `support_vulkan_any_packing` (for Vulkan)
+
+*   **Purpose**: An extension of `support_vulkan_packing`. It declares that the layer's **Vulkan implementation** can handle a `VkMat` with **any** supported `elempack` value (e.g., `1`, `4`).
+*   **Behavior if `true`**:
+    *   The `ncnn` engine can pass an input `VkMat` with any supported packing layout to your Vulkan `forward` method. This allows the engine to avoid unnecessary repacking operations on the GPU.
+    *   This is particularly useful for optimizing shader dispatch and memory access patterns.
+*   **Behavior if `false`**: If `false` (but `support_vulkan_packing` is `true`), the engine will try to provide a `VkMat` with `elempack=4` if the channel count is a multiple of 4.
+*   **Note**: This property is independent of its CPU counterpart, `support_any_packing`.
 
 ### `support_bf16_storage`
 

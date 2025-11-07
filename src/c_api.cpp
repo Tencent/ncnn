@@ -1123,6 +1123,16 @@ int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
     return ((const Layer*)layer->pthis)->support_vulkan_packing;
 }
 
+int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
+{
+    return ((const Layer*)layer->pthis)->support_any_packing;
+}
+
+int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer)
+{
+    return ((const Layer*)layer->pthis)->support_vulkan_any_packing;
+}
+
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->one_blob_only = enable;
@@ -1156,6 +1166,16 @@ void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->support_vulkan_packing = enable;
+}
+
+void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
+{
+    ((Layer*)layer->pthis)->support_any_packing = enable;
+}
+
+void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable)
+{
+    ((Layer*)layer->pthis)->support_vulkan_any_packing = enable;
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
