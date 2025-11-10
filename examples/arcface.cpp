@@ -459,10 +459,14 @@ static int norm_crop(cv::Mat& output, const cv::Mat& input, const float* lmk, in
 
 void normalize_arcface(std::vector<float>& feature)
 {
+    if (feature.empty())
+        return;
     float sum = 0;
     for (auto it = feature.begin(); it != feature.end(); it++)
         sum += (float)*it * (float)*it;
     sum = sqrt(sum);
+    if (sum == 0.0f)
+        return;
     for (auto it = feature.begin(); it != feature.end(); it++)
         *it /= sum;
 }
