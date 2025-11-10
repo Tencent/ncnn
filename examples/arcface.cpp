@@ -614,12 +614,6 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    std::vector<float> emb1, emb2;
-    emb1.resize(512);
-    emb2.resize(512);
-    std::copy(embedding1.begin(), embedding1.end(), emb1.begin());
-    std::copy(embedding2.begin(), embedding2.end(), emb2.begin());
-
-    float similarity = get_similarity(emb1, emb2);
+    float similarity = get_similarity(embedding1, embedding2);
     fprintf(stdout, "Similarity: %f\n", similarity);
 }
