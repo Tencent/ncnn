@@ -93,6 +93,7 @@
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
 #include "layer/scale.h"
+#include "layer/sdpa.h"
 #include "layer/shufflechannel.h"
 #include "layer/slice.h"
 #include "layer/softmax.h"
@@ -2416,6 +2417,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fwrite_weight_data(op->scale_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+        }
+        else if (layer->type == "SDPA")
+        {
+            ncnn::SDPA* op = (ncnn::SDPA*)layer;
+            ncnn::SDPA* op_default = (ncnn::SDPA*)layer_default;
+
+            fprintf_param_value(" 5=%d", attn_mask)
+            fprintf_param_value(" 6=%e", scale)
+            fprintf_param_value(" 18=%d", int8_scale_term)
         }
         else if (layer->type == "ShuffleChannel")
         {
