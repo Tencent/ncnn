@@ -320,7 +320,7 @@ PYBIND11_MODULE(ncnn, m)
         }
         return Mat();
     },
-    py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
