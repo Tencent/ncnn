@@ -624,6 +624,11 @@ int main(int argc, char** argv)
     status = get_embedding(input_embed2, embedding2);
     if (status != 0)
     {
+        fprintf(stderr, "get embedding failed for face2!\n");
+        return -1;
+    }
+    if (status != 0)
+    {
         fprintf(stderr, "get embedding failed for %s!\n", face2_path);
         return -1;
     }
