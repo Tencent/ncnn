@@ -5,6 +5,8 @@
 
 #include <float.h>
 
+#include "cpu.h"
+
 namespace ncnn {
 
 SDPA::SDPA()
@@ -50,13 +52,13 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
     const int num_heads_per_group = num_heads / num_group;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (qk_cross.empty())
-        return -100;
-
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
+        return -100;
+
+    Mat qk_cross(dst_seqlen, src_seqlen, opt.num_threads, 4u, opt.workspace_allocator);
+    if (qk_cross.empty())
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -65,7 +67,7 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         const Mat query_head = query.channel(q);
         const Mat key_head = key.channel(q / num_heads_per_group);
         const Mat value_head = value.channel(q / num_heads_per_group);
-        Mat qk_cross_head = qk_cross.channel(q);
+        Mat qk_cross_head = qk_cross.channel(get_omp_thread_num());
         Mat top_blob_head = top_blob.channel(q);
 
         // qk_cross
@@ -163,10 +165,8 @@ static inline signed char float2int8(float v)
     return (signed char)int32;
 }
 
-static void dynamic_quantize_2d(const Mat& blob, Mat& blob_int8, float& scale, const Option& opt)
+static void dynamic_quantize_2d(const Mat& blob, Mat& blob_int8, float& scale)
 {
-    blob_int8.create(blob.w, blob.h, (size_t)1u, 1, opt.workspace_allocator);
-
     float absmax = 0.f;
     for (int i = 0; i < blob_int8.h; i++)
     {
@@ -192,11 +192,8 @@ static void dynamic_quantize_2d(const Mat& blob, Mat& blob_int8, float& scale, c
     }
 }
 
-static void dynamic_quantize_2d_per_h(const Mat& blob, Mat& blob_int8, Mat& scales, const Option& opt)
+static void dynamic_quantize_2d_per_h(const Mat& blob, Mat& blob_int8, Mat& scales)
 {
-    blob_int8.create(blob.w, blob.h, (size_t)1u, 1, opt.workspace_allocator);
-    scales.create(blob.h, (size_t)4u, 1, opt.workspace_allocator);
-
     for (int i = 0; i < blob_int8.h; i++)
     {
         const float* ptr = blob.row(i);
@@ -245,13 +242,33 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
     const int num_heads_per_group = num_heads / num_group;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (qk_cross.empty())
-        return -100;
-
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
+        return -100;
+
+    Mat query_int8(embed_dim, src_seqlen, opt.num_threads, 1u, opt.workspace_allocator);
+    if (query_int8.empty())
+        return -100;
+
+    Mat key_int8(embed_dim, dst_seqlen, opt.num_threads, 1u, opt.workspace_allocator);
+    if (key_int8.empty())
+        return -100;
+
+    Mat value_int8(out_embed_dim, dst_seqlen, opt.num_threads, 1u, opt.workspace_allocator);
+    if (value_int8.empty())
+        return -100;
+
+    Mat qk_cross(dst_seqlen, src_seqlen, opt.num_threads, 4u, opt.workspace_allocator);
+    if (qk_cross.empty())
+        return -100;
+
+    Mat qk_cross_int8(dst_seqlen, src_seqlen, opt.num_threads, 1u, opt.workspace_allocator);
+    if (qk_cross_int8.empty())
+        return -100;
+
+    Mat query_or_qk_cross_int8_scales(src_seqlen, opt.num_threads, 4u, opt.workspace_allocator);
+    if (query_or_qk_cross_int8_scales.empty())
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -260,20 +277,20 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         const Mat query_head = query.channel(q);
         const Mat key_head = key.channel(q / num_heads_per_group);
         const Mat value_head = value.channel(q / num_heads_per_group);
-        Mat qk_cross_head = qk_cross.channel(q);
+        Mat qk_cross_head = qk_cross.channel(get_omp_thread_num());
         Mat top_blob_head = top_blob.channel(q);
 
         // qk_cross
         {
             // dynamic quantize query_head per h
-            Mat query_head_int8;
-            Mat query_head_int8_scales;
-            dynamic_quantize_2d_per_h(query_head, query_head_int8, query_head_int8_scales, opt);
+            Mat query_head_int8 = query_int8.channel(get_omp_thread_num());
+            Mat query_head_int8_scales = query_or_qk_cross_int8_scales.channel(get_omp_thread_num());
+            dynamic_quantize_2d_per_h(query_head, query_head_int8, query_head_int8_scales);
 
             // dynamic quantize key_head
-            Mat key_head_int8;
+            Mat key_head_int8 = key_int8.channel(get_omp_thread_num());
             float key_head_int8_scale;
-            dynamic_quantize_2d(key_head, key_head_int8, key_head_int8_scale, opt);
+            dynamic_quantize_2d(key_head, key_head_int8, key_head_int8_scale);
 
             for (int i = 0; i < src_seqlen; i++)
             {
@@ -341,14 +358,14 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         // qkv_cross
         {
             // dynamic quantize qk_cross_head per h
-            Mat qk_cross_head_int8;
-            Mat qk_cross_head_int8_scales;
-            dynamic_quantize_2d_per_h(qk_cross_head, qk_cross_head_int8, qk_cross_head_int8_scales, opt);
+            Mat qk_cross_head_int8 = qk_cross_int8.channel(get_omp_thread_num());
+            Mat qk_cross_head_int8_scales = query_or_qk_cross_int8_scales.channel(get_omp_thread_num());
+            dynamic_quantize_2d_per_h(qk_cross_head, qk_cross_head_int8, qk_cross_head_int8_scales);
 
             // dynamic quantize value_head
-            Mat value_head_int8;
+            Mat value_head_int8 = value_int8.channel(get_omp_thread_num());
             float value_head_int8_scale;
-            dynamic_quantize_2d(value_head, value_head_int8, value_head_int8_scale, opt);
+            dynamic_quantize_2d(value_head, value_head_int8, value_head_int8_scale);
 
             for (int i = 0; i < src_seqlen; i++)
             {
