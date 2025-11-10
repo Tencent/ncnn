@@ -838,6 +838,13 @@ void solve_batch_index(Graph& graph)
             {
                 op->inputs[1]->params["__batch_index"] = 0;
             }
+            if (op->type == std::string("F.scaled_dot_product_attention"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+                op->inputs[2]->params["__batch_index"] = 0;
+                if (op->inputs.size() == 4)
+                    op->inputs[3]->params["__batch_index"] = 0;
+            }
 
             op->inputs[0]->params["__batch_index"] = 0;
             op->outputs[0]->params["__batch_index"] = 0;
