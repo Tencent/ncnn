@@ -601,9 +601,19 @@ int main(int argc, char** argv)
 
     status = norm_crop(input_embed1, face_img1, res1.keypoints[0].data());
     status = get_embedding(input_embed1, embedding1);
+    if (status != 0)
+    {
+        fprintf(stderr, "get embedding failed for %s!\n", face1_path);
+        return -1;
+    }
 
     status = norm_crop(input_embed2, face_img2, res2.keypoints[0].data());
     status = get_embedding(input_embed2, embedding2);
+    if (status != 0)
+    {
+        fprintf(stderr, "get embedding failed for %s!\n", face2_path);
+        return -1;
+    }
 
     std::vector<float> emb1, emb2;
     emb1.resize(512);
