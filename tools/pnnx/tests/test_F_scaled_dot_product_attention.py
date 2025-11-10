@@ -17,8 +17,8 @@ class Model(nn.Module):
         if version.parse(torch.__version__) >= version.parse('2.5'):
             z = F.scaled_dot_product_attention(q, k2, v2, enable_gqa=True)
         else:
-            k2_stack = k2.repeat_interleave(query.size(-3)//k2.size(-3), -3)
-            v2_stack = v2.repeat_interleave(query.size(-3)//v2.size(-3), -3)
+            k2_stack = k2.repeat_interleave(q.size(-3)//k2.size(-3), -3)
+            v2_stack = v2.repeat_interleave(q.size(-3)//v2.size(-3), -3)
             z = F.scaled_dot_product_attention(q, k2_stack, v2_stack)
 
         return x, y, z
