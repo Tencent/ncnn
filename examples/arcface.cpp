@@ -512,8 +512,18 @@ static int get_embedding(const cv::Mat& rgb, std::vector<float>& result)
 {
     ncnn::Net arcface;
     arcface.opt.use_vulkan_compute = true;
-    arcface.load_param("arcfaceresnet.param");
-    arcface.load_model("arcfaceresnet.bin");
+    int status = arcface.load_param("arcfaceresnet.param");
+    if (status != 0)
+    {
+        fprintf(stderr, "couldn't load arcface params");
+        return status;
+    }
+    status = arcface.load_model("arcfaceresnet.bin");
+    if (status != 0)
+    {
+        fprintf(stderr, "couldn't load arcface model");
+        return status;
+    }
 
     if (rgb.empty() || rgb.type() != CV_8UC3)
     {
