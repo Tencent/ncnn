@@ -28,13 +28,13 @@ permissions:
 
 jobs:
   linux-gcc-san:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
     - name: test
       run: |
