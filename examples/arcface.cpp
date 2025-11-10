@@ -621,6 +621,11 @@ int main(int argc, char** argv)
     }
 
     status = norm_crop(input_embed2, face_img2, res2.keypoints[0].data());
+    if (status != 0)
+    {
+        fprintf(stderr, "norm_crop failed for face2!\n");
+        return -1;
+    }
     status = get_embedding(input_embed2, embedding2);
     if (status != 0)
     {
