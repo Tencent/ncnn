@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <vector>
 #include <float.h>
-#include <vector>
 #include "layer.h"
 #include "net.h"
 #include "mat.h"
