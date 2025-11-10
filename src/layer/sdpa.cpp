@@ -39,13 +39,16 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int dst_seqlen = key.h;
+    const int num_group = key.c;
     const int out_embed_dim = value.w;
 
     // assert key.w == embed_dim
     // assert key.h == value.h == dst_seqlen
-    // assert key.c == value.c == num_heads
+    // assert value.c == num_group
+    // assert num_heads % num_group == 0
 
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
+    const int num_heads_per_group = num_heads / num_group;
 
     Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
@@ -60,8 +63,8 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     for (int q = 0; q < num_heads; q++)
     {
         const Mat query_head = query.channel(q);
-        const Mat key_head = key.channel(q);
-        const Mat value_head = value.channel(q);
+        const Mat key_head = key.channel(q / num_heads_per_group);
+        const Mat value_head = value.channel(q / num_heads_per_group);
         Mat qk_cross_head = qk_cross.channel(q);
         Mat top_blob_head = top_blob.channel(q);
 
@@ -231,13 +234,16 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int src_seqlen = query.h;
     const int num_heads = query.c;
     const int dst_seqlen = key.h;
+    const int num_group = key.c;
     const int out_embed_dim = value.w;
 
     // assert key.w == embed_dim
     // assert key.h == value.h == dst_seqlen
-    // assert key.c == value.c == num_heads
+    // assert value.c == num_group
+    // assert num_heads % num_group == 0
 
     const float _scale = scale == 0.f ? 1.f / sqrt(embed_dim) : scale;
+    const int num_heads_per_group = num_heads / num_group;
 
     Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
@@ -252,8 +258,8 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     for (int q = 0; q < num_heads; q++)
     {
         const Mat query_head = query.channel(q);
-        const Mat key_head = key.channel(q);
-        const Mat value_head = value.channel(q);
+        const Mat key_head = key.channel(q / num_heads_per_group);
+        const Mat value_head = value.channel(q / num_heads_per_group);
         Mat qk_cross_head = qk_cross.channel(q);
         Mat top_blob_head = top_blob.channel(q);
 

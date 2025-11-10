@@ -10,10 +10,18 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, q, k, v, m):
+    def forward(self, q, k, v, m, k2, v2):
         x = F.scaled_dot_product_attention(q, k, v)
-        y = F.scaled_dot_product_attention(q, k, v, attn_mask=m, scale=1)
-        return x, y
+        y = F.scaled_dot_product_attention(q, k, v, attn_mask=m)
+
+        if version.parse(torch.__version__) >= version.parse('2.5'):
+            z = F.scaled_dot_product_attention(q, k2, v2, enable_gqa=True)
+        else:
+            k2 = k2.repeat_interleave(query.size(-3)//k2.size(-3), -3)
+            v2 = v2.repeat_interleave(query.size(-3)//v2.size(-3), -3)
+            z = F.scaled_dot_product_attention(q, k2_stack, v2_stack)
+
+        return x, y, z
 
 def test():
     if version.parse(torch.__version__) < version.parse('2.0'):
@@ -27,16 +35,18 @@ def test():
     k = torch.rand(1, 8, 48, 64)
     v = torch.rand(1, 8, 48, 77)
     m = torch.rand(1, 8, 128, 48)
+    k2 = torch.rand(1, 2, 48, 64)
+    v2 = torch.rand(1, 2, 48, 77)
 
-    a = net(q, k, v, m)
+    a = net(q, k, v, m, k2, v2)
 
     # export torchscript
-    mod = torch.jit.trace(net, (q, k, v, m))
+    mod = torch.jit.trace(net, (q, k, v, m, k2, v2))
     mod.save("test_F_scaled_dot_product_attention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[1,8,128,64],[1,8,48,64],[1,8,48,77],[1,8,128,48]")
+    os.system("../../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[1,8,128,64],[1,8,48,64],[1,8,48,77],[1,8,128,48],[1,2,48,64],[1,2,48,77]")
 
     # ncnn inference
     import test_F_scaled_dot_product_attention_ncnn
