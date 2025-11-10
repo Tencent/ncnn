@@ -1809,8 +1809,8 @@ for each num_head part
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
+| 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 0.f       | auto = 1.f / sqrt(embed_dim) |
-| 7         | kv_cache      | int   | 0         |                   |
 | 18        | int8_scale_term | int | 0         |                   |
 
 # SELU
