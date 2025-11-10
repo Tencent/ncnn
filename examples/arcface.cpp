@@ -72,7 +72,7 @@ struct Bbox
         y2 = std::max(0.0f, std::min(y2, (float)img_h));
         return Bbox(x1, y1, x2, y2, confidence, label);
     }
-    std::string get_label_name(std::vector<std::string> classes)
+    std::string get_label_name(const std::vector<std::string>& classes)
     {
         return classes[this->label];
     }
