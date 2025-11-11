@@ -66,16 +66,6 @@ pnnx.Output             output      1 0 out
             repeats.push_back(repeat);
         }
 
-        fprintf(stderr, "shape = [");
-        for (auto r : shape)
-            fprintf(stderr, " %d ", r);
-        fprintf(stderr, "]\n");
-
-        fprintf(stderr, "repeats = [");
-        for (auto r : repeats)
-            fprintf(stderr, " %d ", r);
-        fprintf(stderr, "]\n");
-
         if (repeats.size() == 5 && batch_index == 233)
         {
             if (repeats[0] == 1)
