@@ -309,7 +309,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb, 30)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb, 31)
 
 class F_scaled_dot_product_attention_fb_mask : public F_scaled_dot_product_attention_fb
 {
@@ -335,7 +335,48 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_mask, 30)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_mask, 31)
+
+class F_scaled_dot_product_attention_fb_gqa : public F_scaled_dot_product_attention_fb
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 7
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+torch.repeat_interleave op_0        1 1 key k2 dim=-3 repeats=%repeats
+torch.repeat_interleave op_1        1 1 value v2 dim=-3 repeats=%repeats
+F.scaled_dot_product_attention sdpa 3 1 query k2 v2 out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_gqa, 30)
+
+class F_scaled_dot_product_attention_fb_mask_gqa : public F_scaled_dot_product_attention_fb_mask
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+torch.repeat_interleave op_0        1 1 key k2 dim=-3 repeats=%repeats
+torch.repeat_interleave op_1        1 1 value v2 dim=-3 repeats=%repeats
+F.scaled_dot_product_attention sdpa 4 1 query k2 v2 attn_mask out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_mask_gqa, 30)
 
 } // namespace ncnn
 
