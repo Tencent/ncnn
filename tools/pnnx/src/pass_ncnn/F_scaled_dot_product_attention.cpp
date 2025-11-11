@@ -259,6 +259,125 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_4, 10)
 
+class F_scaled_dot_product_attention_fb : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 5
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+F.scaled_dot_product_attention sdpa 3 1 query key value out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "SDPA";
+    }
+
+    const char* name_str() const
+    {
+        return "sdpa";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("sdpa.dropout_p") != captured_params.end())
+        {
+            if (captured_params.at("sdpa.dropout_p").type != 3 || captured_params.at("sdpa.dropout_p").f != 0.f)
+                return false;
+        }
+
+        if (captured_params.find("sdpa.is_causal") != captured_params.end())
+        {
+            if (captured_params.at("sdpa.is_causal").type != 1 || captured_params.at("sdpa.is_causal").b != false)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["5"] = 0;
+        if (captured_params.find("sdpa.scale") != captured_params.end())
+            op->params["6"] = captured_params.at("sdpa.scale");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb, 31)
+
+class F_scaled_dot_product_attention_fb_mask : public F_scaled_dot_product_attention_fb
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 6
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["5"] = 1;
+        if (captured_params.find("sdpa.scale") != captured_params.end())
+            op->params["6"] = captured_params.at("sdpa.scale");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_mask, 31)
+
+class F_scaled_dot_product_attention_fb_gqa : public F_scaled_dot_product_attention_fb
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 7
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+torch.repeat_interleave op_0        1 1 key k2 dim=-3 repeats=%repeats
+torch.repeat_interleave op_1        1 1 value v2 dim=-3 repeats=%repeats
+F.scaled_dot_product_attention sdpa 3 1 query k2 v2 out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_gqa, 30)
+
+class F_scaled_dot_product_attention_fb_mask_gqa : public F_scaled_dot_product_attention_fb_mask
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 8
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+torch.repeat_interleave op_0        1 1 key k2 dim=-3 repeats=%repeats
+torch.repeat_interleave op_1        1 1 value v2 dim=-3 repeats=%repeats
+F.scaled_dot_product_attention sdpa 4 1 query k2 v2 attn_mask out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_fb_mask_gqa, 30)
+
 } // namespace ncnn
 
 } // namespace pnnx

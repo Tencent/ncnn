@@ -1,4 +1,4 @@
-# Copyright 2023 Tencent
+# Copyright 2025 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
@@ -31,12 +31,12 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    q = torch.rand(3, 8, 128, 64)
-    k = torch.rand(3, 8, 48, 64)
-    v = torch.rand(3, 8, 48, 77)
-    m = torch.rand(3, 8, 128, 48)
-    k2 = torch.rand(3, 2, 48, 64)
-    v2 = torch.rand(3, 2, 48, 77)
+    q = torch.rand(1, 8, 128, 64)
+    k = torch.rand(1, 8, 48, 64)
+    v = torch.rand(1, 8, 48, 77)
+    m = torch.rand(1, 8, 128, 48)
+    k2 = torch.rand(1, 2, 48, 64)
+    v2 = torch.rand(1, 2, 48, 77)
 
     a = net(q, k, v, m, k2, v2)
 
@@ -46,14 +46,14 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[3,8,128,64],[3,8,48,64],[3,8,48,77],[3,8,128,48],[3,2,48,64],[3,2,48,77]")
+    os.system("../../src/pnnx test_F_scaled_dot_product_attention.pt inputshape=[1,8,128,64],[1,8,48,64],[1,8,48,77],[1,8,128,48],[1,2,48,64],[1,2,48,77]")
 
-    # pnnx inference
-    import test_F_scaled_dot_product_attention_pnnx
-    b = test_F_scaled_dot_product_attention_pnnx.test_inference()
+    # ncnn inference
+    import test_F_scaled_dot_product_attention_ncnn
+    b = test_F_scaled_dot_product_attention_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

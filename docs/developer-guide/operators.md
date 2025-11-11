@@ -77,6 +77,7 @@
 * [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
 * [Scale](#scale)
+* [SDPA](#sdpa)
 * [SELU](#selu)
 * [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
@@ -1795,6 +1796,22 @@ else                        y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [scale_data_size]     |
+
+# SDPA
+```
+scaled dot product attention
+for each num_head part
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 0.f       | auto = 1.f / sqrt(embed_dim) |
+| 18        | int8_scale_term | int | 0         |                   |
 
 # SELU
 ```
