@@ -4,6 +4,7 @@
 #version 450
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
+#define STAGES 2
 
 layout (constant_id = 0) const float alpha = 1.f;
 layout (constant_id = 1) const float beta = 1.f;
@@ -42,31 +43,31 @@ layout (push_constant) uniform parameter
     int outhstep;
 } p;
 
-// opt: double buffer + padding
 #if NCNN_shader_local_memory
-// stages=2 for double-buffering, pad k-dimension by +1
-shared lfp tmp_a_stage[2][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH + 1][2];
-shared lfp tmp_b_stage[2][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH + 1][2];
+// Double-buffer shared memory (ping-pong between stages)
+shared lfp tmp_a[STAGES][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH][2]; // [stage][MtileRows][Ktile][rows(2)]
+shared lfp tmp_b[STAGES][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH][2]; // [stage][NtileCols][Ktile][cols(2)]
 #endif
 
 void main()
 {
+    // Each invocation computes a 2x2 micro-tile: (gy,gy+1) x (gx,gx+1)
     int gx = int(gl_GlobalInvocationID.x) * 2;
     int gy = int(gl_GlobalInvocationID.y) * 2;
     int gz = int(gl_GlobalInvocationID.z);
 
-    #if !NCNN_shader_local_memory
+#if !NCNN_shader_local_memory
     if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
-    return;
-    #endif
+        return;
+#endif
 
     afp sum0 = afp(0.f);
     afp sum1 = afp(0.f);
     afp sum2 = afp(0.f);
     afp sum3 = afp(0.f);
 
+    // Preload C with beta, honoring broadcast
     const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
-
     if (broadcast_type_C == 0)
     {
         sum0 = buffer_ld1(C_blob_data, 0);
@@ -102,112 +103,109 @@ void main()
     sum2 *= afp(beta);
     sum3 *= afp(beta);
 
-    #if NCNN_shader_local_memory
+#if NCNN_shader_local_memory
     const int NN = psc(K);
 
-    const int lx = int(gl_LocalInvocationID.x);
+    const int lx = int(gl_LocalInvocationID.x); // 0..LOCAL_MEMORY_UNROLL_INCH-1
     const int ly = int(gl_LocalInvocationID.y);
-
-    const int TILE_K = LOCAL_MEMORY_UNROLL_INCH;
-    const int STAGES = 2;
-
-    const int tiles = NN / TILE_K;
-    const int remain = NN - tiles * TILE_K;
 
     int stage = 0;
 
-    if (tiles > 0)
+    // Prologue: load first K-tile (size currLen) into stage 0
+    int k_base = 0;
+    int currLen = min(LOCAL_MEMORY_UNROLL_INCH, NN - k_base);
+
+    // Guarded loads to avoid OOB on tail
+    if (currLen > 0)
     {
-        int kBase = 0;
-
-        // Load A tile -> stage 0
-        if (transA == 1)
+        if (lx < currLen)
         {
-            const int ai = (kBase + lx) * p.A_hstep + gy;
-            tmp_a_stage[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-            tmp_a_stage[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
-        }
-        else
-        {
-            const int ai = gy * p.A_hstep + (kBase + lx);
-            tmp_a_stage[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-            tmp_a_stage[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
-        }
-
-        // Load B tile -> stage 0
-        if (transB == 1)
-        {
-            const int bi = gx * p.B_hstep + (kBase + ly);
-            tmp_b_stage[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-            tmp_b_stage[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
-        }
-        else
-        {
-            const int bi = (kBase + ly) * p.B_hstep + gx;
-            tmp_b_stage[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-            tmp_b_stage[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
-        }
-
-        barrier();
-
-        for (int t = 0; t < tiles - 1; t++)
-        {
-            const int nextStage = stage ^ 1;
-            const int kNext = (t + 1) * TILE_K;
-
-            // prefetch next tile -> next stage
             if (transA == 1)
             {
-                const int ai = (kNext + lx) * p.A_hstep + gy;
-                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+                // A^T: (K x M) laid out with stride A_hstep per K
+                const int ai0 = (k_base + lx) * p.A_hstep + gy;
+                tmp_a[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai0));
+                tmp_a[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai0 + 1));
             }
             else
             {
-                const int ai = gy * p.A_hstep + (kNext + lx);
-                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+                // A: (M x K) with row stride A_hstep
+                const int ai0 = gy * p.A_hstep + (k_base + lx);
+                tmp_a[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai0));
+                tmp_a[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai0 + p.A_hstep));
             }
-
-            if (transB == 1)
-            {
-                const int bi = gx * p.B_hstep + (kNext + ly);
-                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
-            }
-            else
-            {
-                const int bi = (kNext + ly) * p.B_hstep + gx;
-                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
-            }
-
-            // compute current stage
-            for (int k4 = 0; k4 < TILE_K; k4++)
-            {
-                afp a0 = lfp2afp(tmp_a_stage[stage][ly][k4][0]);
-                afp a1 = lfp2afp(tmp_a_stage[stage][ly][k4][1]);
-
-                afp b0 = lfp2afp(tmp_b_stage[stage][lx][k4][0]);
-                afp b1 = lfp2afp(tmp_b_stage[stage][lx][k4][1]);
-
-                sum0 += a0 * b0;
-                sum1 += a0 * b1;
-                sum2 += a1 * b0;
-                sum3 += a1 * b1;
-            }
-
-            barrier();
-            stage = nextStage;
         }
 
-        for (int k4 = 0; k4 < TILE_K; k4++)
+        if (ly < currLen)
         {
-            afp a0 = lfp2afp(tmp_a_stage[stage][ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a_stage[stage][ly][k4][1]);
+            if (transB == 1)
+            {
+                // B^T: (N x K) with row stride B_hstep per N
+                const int bi0 = gx * p.B_hstep + (k_base + ly);
+                tmp_b[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi0));
+                tmp_b[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi0 + p.B_hstep));
+            }
+            else
+            {
+                // B: (K x N) with row stride B_hstep per K
+                const int bi0 = (k_base + ly) * p.B_hstep + gx;
+                tmp_b[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi0));
+                tmp_b[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi0 + 1));
+            }
+        }
+    }
 
-            afp b0 = lfp2afp(tmp_b_stage[stage][lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b_stage[stage][lx][k4][1]);
+    barrier();
+
+    k_base += currLen;
+
+    // Main loop: double-buffer like v8.comp
+    while (k_base < NN)
+    {
+        const int nextStage = stage ^ 1;
+        const int nextLen = min(LOCAL_MEMORY_UNROLL_INCH, NN - k_base);
+
+        // Preload next tile into nextStage
+        if (lx < nextLen)
+        {
+            if (transA == 1)
+            {
+                const int ai = (k_base + lx) * p.A_hstep + gy;
+                tmp_a[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (k_base + lx);
+                tmp_a[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+            }
+        }
+
+        if (ly < nextLen)
+        {
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (k_base + ly);
+                tmp_b[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+            }
+            else
+            {
+                const int bi = (k_base + ly) * p.B_hstep + gx;
+                tmp_b[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
+            }
+        }
+
+        // Compute on current stage while next loads are in flight
+        for (int k4 = 0; k4 < currLen; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a[stage][ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[stage][ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b[stage][lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[stage][lx][k4][1]);
 
             sum0 += a0 * b0;
             sum1 += a0 * b1;
@@ -215,57 +213,23 @@ void main()
             sum3 += a1 * b1;
         }
 
-        barrier();
+        barrier(); // switch buffers safely
+
+        stage = nextStage;
+        k_base += nextLen;
+        currLen = nextLen;
     }
 
-    if (remain > 0)
+    // Epilogue: compute the final loaded tile
+    if (currLen > 0)
     {
-        const int nextStage = stage;
-        const int kBase = tiles * TILE_K;
-
-        // A partial load
-        if (lx < remain)
+        for (int k4 = 0; k4 < currLen; k4++)
         {
-            if (transA == 1)
-            {
-                const int ai = (kBase + lx) * p.A_hstep + gy;
-                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
-            }
-            else
-            {
-                const int ai = gy * p.A_hstep + (kBase + lx);
-                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
-            }
-        }
+            afp a0 = lfp2afp(tmp_a[stage][ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[stage][ly][k4][1]);
 
-        // B partial load
-        if (ly < remain)
-        {
-            if (transB == 1)
-            {
-                const int bi = gx * p.B_hstep + (kBase + ly);
-                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
-            }
-            else
-            {
-                const int bi = (kBase + ly) * p.B_hstep + gx;
-                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
-            }
-        }
-
-        barrier();
-
-        for (int k4 = 0; k4 < remain; k4++)
-        {
-            afp a0 = lfp2afp(tmp_a_stage[nextStage][ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a_stage[nextStage][ly][k4][1]);
-
-            afp b0 = lfp2afp(tmp_b_stage[nextStage][lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b_stage[nextStage][lx][k4][1]);
+            afp b0 = lfp2afp(tmp_b[stage][lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[stage][lx][k4][1]);
 
             sum0 += a0 * b0;
             sum1 += a0 * b1;
@@ -273,7 +237,8 @@ void main()
             sum3 += a1 * b1;
         }
     }
-    #else
+#else
+    // Fallback: no local memory path
     for (int k = 0; k < psc(K); k++)
     {
         afp a0;
@@ -313,16 +278,18 @@ void main()
     }
     #endif
 
-    #if NCNN_shader_local_memory
+#if NCNN_shader_local_memory
     if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
         return;
-    #endif
+#endif
 
+    // Scale by alpha
     sum0 *= afp(alpha);
     sum1 *= afp(alpha);
     sum2 *= afp(alpha);
     sum3 *= afp(alpha);
 
+    // Store output (with bounds checks and optional transpose)
     if (output_transpose == 1)
     {
         const int gi = gx * p.outhstep + gy;
