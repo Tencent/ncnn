@@ -36,31 +36,29 @@ pnnx.Output             output      1 0 out
 
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
-        if (batch_index != 0 && batch_index != 233)
-        {
-            fprintf(stderr, "expand tensor with batch index %d is not supported yet!\n", batch_index);
-        }
-
         const std::vector<int> shape = op->inputs[0]->shape;
         if (shape.empty())
         {
             fprintf(stderr, "expand tensor with unknown input shape is not supported yet!\n");
+            return;
         }
 
         // drop sizes batch index
         std::vector<int> repeats;
         for (int i = 0; i < (int)sizes.size(); i++)
         {
-            if (i == batch_index && sizes[i] == 1)
-                continue;
+            if (i == batch_index)
+            {
+                if (sizes[i] == 1)
+                    continue;
+
+                fprintf(stderr, "expand tensor along batch index %d is not supported yet!\n", batch_index);
+            }
 
             int repeat = 1;
-            if (!shape.empty())
+            if (sizes[i] != -1 && shape[i] == 1)
             {
-                if (sizes[i] != -1 && shape[i] == 1)
-                {
-                    repeat = sizes[i];
-                }
+                repeat = sizes[i];
             }
 
             repeats.push_back(repeat);
