@@ -1,4 +1,4 @@
-// Copyright 2023 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -42,9 +42,11 @@ layout (push_constant) uniform parameter
     int outhstep;
 } p;
 
+// opt：double buffer + padding
 #if NCNN_shader_local_memory
-shared lfp tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
-shared lfp tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+// stages=2 for double-buffering, pad k-dimension by +1
+shared lfp tmp_a_stage[2][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH + 1][2];
+shared lfp tmp_b_stage[2][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH + 1][2];
 #endif
 
 void main()
@@ -53,10 +55,10 @@ void main()
     int gy = int(gl_GlobalInvocationID.y) * 2;
     int gz = int(gl_GlobalInvocationID.z);
 
-#if !NCNN_shader_local_memory
+    #if !NCNN_shader_local_memory
     if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
-        return;
-#endif
+    return;
+    #endif
 
     afp sum0 = afp(0.f);
     afp sum1 = afp(0.f);
@@ -100,52 +102,112 @@ void main()
     sum2 *= afp(beta);
     sum3 *= afp(beta);
 
-#if NCNN_shader_local_memory
+    #if NCNN_shader_local_memory
     const int NN = psc(K);
 
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
-    int k = 0;
-    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
-    {
-        {
-            if (transA == 1)
-            {
-                const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
-            }
-            else
-            {
-                const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
-            }
+    const int TILE_K = LOCAL_MEMORY_UNROLL_INCH;
+    const int STAGES = 2;
 
-            if (transB == 1)
-            {
-                const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
-            }
-            else
-            {
-                const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
-            }
+    const int tiles = NN / TILE_K;
+    const int remain = NN - tiles * TILE_K;
+
+    int stage = 0;
+
+    if (tiles > 0)
+    {
+        int kBase = 0;
+
+        // Load A tile -> stage 0
+        if (transA == 1)
+        {
+            const int ai = (kBase + lx) * p.A_hstep + gy;
+            tmp_a_stage[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+            tmp_a_stage[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+        }
+        else
+        {
+            const int ai = gy * p.A_hstep + (kBase + lx);
+            tmp_a_stage[stage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+            tmp_a_stage[stage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+        }
+
+        // Load B tile -> stage 0
+        if (transB == 1)
+        {
+            const int bi = gx * p.B_hstep + (kBase + ly);
+            tmp_b_stage[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+            tmp_b_stage[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+        }
+        else
+        {
+            const int bi = (kBase + ly) * p.B_hstep + gx;
+            tmp_b_stage[stage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+            tmp_b_stage[stage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
         }
 
         barrier();
 
-        for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        for (int t = 0; t < tiles - 1; t++)
         {
-            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+            const int nextStage = stage ^ 1;
+            const int kNext = (t + 1) * TILE_K;
 
-            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+            // prefetch next tile -> next stage
+            if (transA == 1)
+            {
+                const int ai = (kNext + lx) * p.A_hstep + gy;
+                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (kNext + lx);
+                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+            }
+
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (kNext + ly);
+                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+            }
+            else
+            {
+                const int bi = (kNext + ly) * p.B_hstep + gx;
+                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
+            }
+
+            // compute current stage
+            for (int k4 = 0; k4 < TILE_K; k4++)
+            {
+                afp a0 = lfp2afp(tmp_a_stage[stage][ly][k4][0]);
+                afp a1 = lfp2afp(tmp_a_stage[stage][ly][k4][1]);
+
+                afp b0 = lfp2afp(tmp_b_stage[stage][lx][k4][0]);
+                afp b1 = lfp2afp(tmp_b_stage[stage][lx][k4][1]);
+
+                sum0 += a0 * b0;
+                sum1 += a0 * b1;
+                sum2 += a1 * b0;
+                sum3 += a1 * b1;
+            }
+
+            barrier();
+            stage = nextStage;
+        }
+
+        for (int k4 = 0; k4 < TILE_K; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a_stage[stage][ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a_stage[stage][ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b_stage[stage][lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b_stage[stage][lx][k4][1]);
 
             sum0 += a0 * b0;
             sum1 += a0 * b1;
@@ -156,39 +218,42 @@ void main()
         barrier();
     }
 
-    if (k < NN)
+    if (remain > 0)
     {
-        const int remain = NN - k;
+        const int nextStage = stage;
+        const int kBase = tiles * TILE_K;
 
+        // A partial load
         if (lx < remain)
         {
             if (transA == 1)
             {
-                const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+                const int ai = (kBase + lx) * p.A_hstep + gy;
+                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
             }
             else
             {
-                const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+                const int ai = gy * p.A_hstep + (kBase + lx);
+                tmp_a_stage[nextStage][ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a_stage[nextStage][ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
             }
         }
 
+        // B partial load
         if (ly < remain)
         {
             if (transB == 1)
             {
-                const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+                const int bi = gx * p.B_hstep + (kBase + ly);
+                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
             }
             else
             {
-                const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
+                const int bi = (kBase + ly) * p.B_hstep + gx;
+                tmp_b_stage[nextStage][lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b_stage[nextStage][lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
             }
         }
 
@@ -196,11 +261,11 @@ void main()
 
         for (int k4 = 0; k4 < remain; k4++)
         {
-            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+            afp a0 = lfp2afp(tmp_a_stage[nextStage][ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a_stage[nextStage][ly][k4][1]);
 
-            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+            afp b0 = lfp2afp(tmp_b_stage[nextStage][lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b_stage[nextStage][lx][k4][1]);
 
             sum0 += a0 * b0;
             sum1 += a0 * b1;
@@ -208,7 +273,7 @@ void main()
             sum3 += a1 * b1;
         }
     }
-#else
+    #else
     for (int k = 0; k < psc(K); k++)
     {
         afp a0;
@@ -246,12 +311,12 @@ void main()
         sum2 += a1 * b0;
         sum3 += a1 * b1;
     }
-#endif
+    #endif
 
-#if NCNN_shader_local_memory
+    #if NCNN_shader_local_memory
     if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
         return;
-#endif
+    #endif
 
     sum0 *= afp(alpha);
     sum1 *= afp(alpha);
