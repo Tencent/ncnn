@@ -135,7 +135,7 @@ pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 input
 torch.bitwise_not       sdpa_ht_0   1 1 input 16
 Tensor.reshape          sdpa_ht_1   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
-Tensor.expand           sdpa_ht_2   1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
+Tensor.expand           sdpa_ht_2   1 1 17 attn_mask sizes=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
 F.scaled_dot_product_attention sdpa_ht 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -157,7 +157,7 @@ pnnx.Expression         op_0        1 1 query 13 expr=div(@0,%sqrt_embed_dim_per
 Tensor.permute          op_1        1 1 key 14 dims=(0,2,3,1)
 torch.matmul            op_2        2 1 13 14 15
 Tensor.reshape          op_3        1 1 input 17 shape=(%batch,1,1,%kvsize)
-Tensor.expand           op_4        1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           op_4        1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 torch.where             op_5        2 1 18 15 19 input=-3.402823e+38
 F.softmax               op_6        1 1 19 20 dim=-1
 torch.matmul            op_7        2 1 20 value out
@@ -176,7 +176,7 @@ pnnx.Input              input_3     0 1 input
 Tensor.permute          sdpa_ht_0   1 1 key 14 dims=(0,2,1,3)
 torch.bitwise_not       sdpa_ht_1   1 1 input 16
 Tensor.reshape          sdpa_ht_2   1 1 16 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
-Tensor.expand           sdpa_ht_3   1 1 17 attn_mask shape=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
+Tensor.expand           sdpa_ht_3   1 1 17 attn_mask sizes=(%batch,%num_heads,%qsize,%kvsize) #attn_mask=(%batch,%num_heads,%qsize,%kvsize)bool
 F.scaled_dot_product_attention sdpa_ht 4 1 query 14 value attn_mask out dropout_p=0.0 is_causal=False $attn_mask=attn_mask $key=14
 pnnx.Output             output      1 0 out
 )PNNXIR";

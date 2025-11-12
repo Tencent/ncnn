@@ -1403,7 +1403,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
-Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_0   1 1 mask 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_1   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1489,7 +1489,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
-Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_0   1 1 mask 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_1   1 1 18 attn_mask shape=(%batch_mul_num_heads,%qsize,%kvsize)
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1564,7 +1564,7 @@ pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
 pnnx.Input              input_cm    0 1 casual_mask #casual_mask=(%batch,1,%qsize,%kvsize)f32
 pnnx.Expression         attn_ht_0   2 1 mask casual_mask 17 expr=add(@0,@1)
-Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_1   1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask shape=(%batch_mul_num_heads,%qsize,%kvsize)
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1626,7 +1626,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
-Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_0   1 1 mask 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_1   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1710,7 +1710,7 @@ pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
 pnnx.Input              input_cm    0 1 casual_mask #casual_mask=(%batch,1,%qsize,%kvsize)f32
 pnnx.Expression         attn_ht_0   2 1 mask casual_mask 17 expr=add(@0,@1)
-Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_1   1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1888,7 +1888,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask #mask=(%batch,1,%qsize,%kvsize)f32
-Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize)
+Tensor.expand           attn_ht_0   1 1 mask 18 sizes=(%batch,%num_heads,%qsize,%kvsize)
 Tensor.reshape          attn_ht_1   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -1951,7 +1951,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
-Tensor.expand           attn_ht_0   1 1 mask attn_mask shape=(%qsize,%kvsize) #attn_mask=(%qsize,%kvsize)f32
+Tensor.expand           attn_ht_0   1 1 mask attn_mask sizes=(%qsize,%kvsize) #attn_mask=(%qsize,%kvsize)f32
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -1964,7 +1964,7 @@ pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
 Tensor.reshape          attn_ht_0   1 1 mask 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)f32
-Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)f32
+Tensor.expand           attn_ht_1   1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)f32
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -2084,7 +2084,7 @@ pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask
 Tensor.reshape          attn_ht_0   1 1 mask 17 shape=(%batch,1,%qsize,%kvsize) #17=(%batch,1,%qsize,%kvsize)bool
-Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)bool
+Tensor.expand           attn_ht_1   1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)bool
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -2211,7 +2211,7 @@ pnnx.Input              input_q     0 1 query
 pnnx.Input              input_k     0 1 key
 pnnx.Input              input_v     0 1 value
 pnnx.Input              input_m     0 1 mask
-Tensor.expand           attn_ht_0   1 1 mask 18 shape=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)f32
+Tensor.expand           attn_ht_0   1 1 mask 18 sizes=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)f32
 Tensor.reshape          attn_ht_1   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
@@ -2313,7 +2313,7 @@ pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
 Tensor.reshape          attn_ht_0   1 1 mask 17 shape=(1,%kvsize) #17=(1,%kvsize)bool
-Tensor.expand           attn_ht_1   1 1 17 attn_mask shape=(%qsize,%kvsize) #attn_mask=(%qsize,%kvsize)bool
+Tensor.expand           attn_ht_1   1 1 17 attn_mask sizes=(%qsize,%kvsize) #attn_mask=(%qsize,%kvsize)bool
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -2326,7 +2326,7 @@ pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 mask
 Tensor.reshape          attn_ht_0   1 1 mask 17 shape=(%batch,1,1,%kvsize) #17=(%batch,1,1,%kvsize)bool
-Tensor.expand           attn_ht_1   1 1 17 18 shape=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)bool
+Tensor.expand           attn_ht_1   1 1 17 18 sizes=(%batch,%num_heads,%qsize,%kvsize) #18=(%batch,%num_heads,%qsize,%kvsize)bool
 Tensor.reshape          attn_ht_2   1 1 18 attn_mask
 nn.MultiheadAttention   attn_ht     4 1 query key value attn_mask out embed_dim=%embed_dim kdim=%kdim vdim=%vdim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out

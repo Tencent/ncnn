@@ -1850,11 +1850,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    const std::vector<int>& shape = op->params.at("shape").ai;
-                    for (size_t i = 0; i < shape.size(); i++)
+                    const std::vector<int>& sizes = op->params.at("sizes").ai;
+                    for (size_t i = 0; i < sizes.size(); i++)
                     {
-                        fprintf(pyfp, "%d", shape[i]);
-                        if (i + 1 != shape.size())
+                        fprintf(pyfp, "%d", sizes[i]);
+                        if (i + 1 != sizes.size())
                             fprintf(pyfp, ", ");
                     }
                 }
