@@ -2687,6 +2687,79 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    // export pnnx
+    {
+        fprintf(pyfp, "def export_pnnx():\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.float()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    torch.manual_seed(0)\n");
+
+        std::vector<std::string> input_names;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+
+            input_names.push_back(input_name);
+        }
+
+        fprintf(pyfp, "\n");
+
+        fprintf(pyfp, "    import pnnx\n");
+        if (input_names.size() == 1)
+        {
+            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", %s)\n", pypath.c_str(), input_names[0].c_str());
+        }
+        else
+        {
+            fprintf(pyfp, "    pnnx.export(net, \"%s.pt\", (", pypath.c_str());
+
+            for (size_t i = 0; i < input_names.size(); i++)
+            {
+                fprintf(pyfp, "%s", input_names[i].c_str());
+                if (i + 1 != input_names.size())
+                    fprintf(pyfp, ", ");
+            }
+
+            fprintf(pyfp, "))\n");
+        }
+    }
+
+    fprintf(pyfp, "\n");
+
+    // export ncnn
+    {
+        fprintf(pyfp, "def export_ncnn():\n");
+        fprintf(pyfp, "    export_pnnx()\n");
+    }
+
+    fprintf(pyfp, "\n");
+
     // test inference
     {
         fprintf(pyfp, "@torch.no_grad()\n");
