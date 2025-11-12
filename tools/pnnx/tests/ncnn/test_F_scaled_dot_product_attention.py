@@ -21,6 +21,8 @@ class Model(nn.Module):
             k2_stack = k2.repeat_interleave(q.size(-3)//k2.size(-3), -3)
             v2_stack = v2.repeat_interleave(q.size(-3)//v2.size(-3), -3)
             z = F.scaled_dot_product_attention(q, k2_stack, v2_stack)
+            k2_stack = k2.clone().repeat_interleave(q.size(-3)//k2.size(-3), -3)
+            v2_stack = v2.clone().repeat_interleave(q.size(-3)//v2.size(-3), -3)
             z2 = F.scaled_dot_product_attention(q, k2_stack, v2_stack, attn_mask=m2)
 
         return x, y, z, z2
