@@ -42,7 +42,7 @@ layout (push_constant) uniform parameter
     int outhstep;
 } p;
 
-// opt：double buffer + padding
+// opt: double buffer + padding
 #if NCNN_shader_local_memory
 // stages=2 for double-buffering, pad k-dimension by +1
 shared lfp tmp_a_stage[2][LOCAL_MEMORY_UNROLL_INCH][LOCAL_MEMORY_UNROLL_INCH + 1][2];
