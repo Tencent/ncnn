@@ -62,7 +62,7 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const int dst_seqlen = past_seqlen > 0 ? (query_i == key_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     // assert cur_key.w == embed_dim
-    // assert cur_key.h == cur_value.h == dst_seqlen
+    // assert cur_key.h == cur_value.h == cur_seqlen
     // assert cur_value.c == num_group
     // assert num_heads % num_group == 0
 
@@ -441,7 +441,7 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int dst_seqlen = past_seqlen > 0 ? (query_i == key_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     // assert cur_key.w == embed_dim
-    // assert cur_key.h == cur_value.h == dst_seqlen
+    // assert cur_key.h == cur_value.h == cur_seqlen
     // assert cur_value.c == num_group
     // assert num_heads % num_group == 0
 

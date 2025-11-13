@@ -105,7 +105,7 @@ static int test_sdpa_self_kvcache_decode(const ncnn::Mat& a)
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> as(3);
-    as[0] = RandomMat(embed_dim, 1, a.c);
+    as[0] = RandomMat(embed_dim, cur_seqlen, a.c);
     as[1] = RandomMat(embed_dim, past_seqlen, a.c);
     as[2] = RandomMat(embed_dim, past_seqlen, a.c);
 
@@ -127,10 +127,10 @@ static int test_sdpa_0()
            || test_sdpa_cross_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
            || test_sdpa_cross_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0)
            || test_sdpa_cross_kvcache(RandomMat(48, 122, 12), RandomMat(64, 127, 2), RandomMat(64, 127, 2), 1)
-           || test_sdpa_cross_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
-           || test_sdpa_cross_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f)
-           || test_sdpa_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
-           || test_sdpa_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f);
+           || test_sdpa_cross_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0)
+           || test_sdpa_cross_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1)
+           || test_sdpa_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0)
+           || test_sdpa_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1);
 }
 
 static int test_sdpa_1()
@@ -255,7 +255,7 @@ static int test_sdpa_int8_self_kvcache_decode(const ncnn::Mat& a)
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> as(3);
-    as[0] = RandomMat(embed_dim, 1, a.c);
+    as[0] = RandomMat(embed_dim, cur_seqlen, a.c);
     as[1] = RandomMat(embed_dim, past_seqlen, a.c);
     as[2] = RandomMat(embed_dim, past_seqlen, a.c);
 
@@ -277,10 +277,10 @@ static int test_sdpa_3()
            || test_sdpa_int8_cross_kvcache(RandomMat(26, 64, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
            || test_sdpa_int8_cross_kvcache(RandomMat(64, 128, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0)
            || test_sdpa_int8_cross_kvcache(RandomMat(48, 122, 12), RandomMat(64, 127, 2), RandomMat(64, 127, 2), 1)
-           || test_sdpa_int8_cross_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
-           || test_sdpa_int8_cross_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f)
-           || test_sdpa_int8_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
-           || test_sdpa_int8_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f);
+           || test_sdpa_int8_cross_kvcache(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0)
+           || test_sdpa_int8_cross_kvcache(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1)
+           || test_sdpa_int8_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0)
+           || test_sdpa_int8_cross_kvcache(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1);
 }
 
 static int test_sdpa_4()
