@@ -139,6 +139,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 
     attribute_pooling(g);
 
+    ncnn::insert_split(g);
+
     dead_code_elimination(g);
 
     canonicalize(g);
