@@ -44,8 +44,10 @@
 #include "pass_ncnn/insert_reshape_pooling.h"
 #include "pass_ncnn/insert_reshape_global_pooling.h"
 
+#include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/eliminate_maxpool_indices.h"
 #include "pass_level5/unroll_rnn_op.h"
 
@@ -74,6 +76,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     unroll_rnn_op(g);
 
     eliminate_maxpool_indices(g);
+
+    attribute_unpooling(g);
 
     ncnn::expand_expression(g);
 
@@ -132,6 +136,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
+
+    attribute_pooling(g);
+
+    ncnn::insert_split(g);
 
     dead_code_elimination(g);
 
