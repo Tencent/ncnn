@@ -31,7 +31,7 @@ The caching strategy is fundamentally different for self-attention and cross-att
 #### self-attention (dynamic cache)
 - **purpose:** Allows the decoder to attend to previously generated tokens in its own sequence (e.g., the text being generated).
 - **cache Logic:** The cache is **dynamic** and grows with each generated token. In step `t`, the k and v for token `t` are computed and appended to the cache from step `t-1`.
-- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layer for self-attention is modified to accept two additional inputs (`cache_k_in`, `cache_v_in`) and produce two corresponding outputs (`cache_k_out`, `cache_v_out`). The `7=1` parameter enables this dynamic caching behavior inside the layer.
+- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layers for self-attention are modified to accept two additional inputs (`cache_k_in`, `cache_v_in`) and produce two corresponding outputs (`cache_k_out`, `cache_v_out`). The `7=1` parameter enables this dynamic caching behavior inside the layer.
 
 #### cross-attention (static k/v)
 - **purpose:** Allows the decoder to attend to the output of the encoder (e.g., attending to audio features in speech recognition, or an input sentence in translation).
