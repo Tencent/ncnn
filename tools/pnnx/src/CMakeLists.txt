@@ -345,6 +345,7 @@ set(pnnx_pass_level3_SRCS
 )
 
 set(pnnx_pass_level4_SRCS
+    pass_level4/attribute_pooling.cpp
     pass_level4/canonicalize.cpp
     pass_level4/dead_code_elimination.cpp
     pass_level4/fuse_custom_op.cpp

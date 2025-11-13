@@ -54,6 +54,7 @@
 #include "pass_level5/fuse_transformers_multiheadattention.h"
 #include "pass_level5/fuse_transformers_scaled_dot_product_attention.h"
 #include "pass_level5/normalize_einsum_equation.h"
+#include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 #include "pass_level3/fuse_index_expression.h"
@@ -150,6 +151,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_silu(g);
 
     fuse_index_expression(g);
+
+    attribute_pooling(g);
 
     dead_code_elimination(g);
 
