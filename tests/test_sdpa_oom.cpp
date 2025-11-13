@@ -29,7 +29,7 @@ static int test_sdpa_oom(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat
     int ret = test_layer_oom("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa_oom failed q=(%d %d) k=(%d %d) v=(%d %d) attn_mask=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, attn_mask);
+        fprintf(stderr, "test_sdpa_oom failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
     }
 
     return ret;
@@ -72,7 +72,7 @@ static int test_sdpa_oom_int8(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn
     int ret = test_layer_oom("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa_oom_int8 failed q=(%d %d) k=(%d %d) v=(%d %d) attn_mask=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, attn_mask);
+        fprintf(stderr, "test_sdpa_oom_int8 failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
     }
 
     return ret;
