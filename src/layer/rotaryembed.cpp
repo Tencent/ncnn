@@ -21,8 +21,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     // assert bottom_blobs.size() == 3
 
     const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& sin_cache = bottom_blobs[1];
-    const Mat& cos_cache = bottom_blobs[2];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
@@ -44,16 +44,16 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             if (interleaved)
             {
                 const float* ptr = head.row(i);
-                const float* sin_ptr = sin_cache.row(i);
                 const float* cos_ptr = cos_cache.row(i);
+                const float* sin_ptr = sin_cache.row(i);
                 float* outptr = out_head.row(i);
 
                 for (int j = 0; j < embed_dim / 2; j++)
                 {
                     const float x1 = ptr[0];
                     const float x2 = ptr[1];
-                    const float sin_val = *sin_ptr++;
                     const float cos_val = *cos_ptr++;
+                    const float sin_val = *sin_ptr++;
                     outptr[0] = x1 * cos_val - x2 * sin_val;
                     outptr[1] = x1 * sin_val + x2 * cos_val;
                     ptr += 2;
@@ -73,8 +73,8 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 {
                     const float x1 = *ptr1++;
                     const float x2 = *ptr2++;
-                    const float sin_val = *sin_ptr++;
                     const float cos_val = *cos_ptr++;
+                    const float sin_val = *sin_ptr++;
                     *outptr1++ = x1 * cos_val - x2 * sin_val;
                     *outptr2++ = x1 * sin_val + x2 * cos_val;
                 }
