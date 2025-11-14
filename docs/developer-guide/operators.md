@@ -76,6 +76,7 @@
 * [Reshape](#reshape)
 * [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
+* [RotaryEmbed](#rotaryembed)
 * [Scale](#scale)
 * [SDPA](#sdpa)
 * [SELU](#selu)
@@ -1777,6 +1778,18 @@ Direction flag:
 - 0 = forward only
 - 1 = reverse only
 - 2 = bidirectional
+
+# RotaryEmbed
+Apply rotary positional embeddings with cos and sin cache
+
+```
+y1 = x1 * cos - x2 * sin
+y2 = x1 * sin + x2 * cos
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | interleaved   | int   | 0         |                   |
 
 # Scale
 ```
