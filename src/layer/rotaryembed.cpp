@@ -50,33 +50,33 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
                 for (int j = 0; j < embed_dim / 2; j++)
                 {
-                    const float x1 = ptr[0];
-                    const float x2 = ptr[1];
+                    const float x0 = ptr[0];
+                    const float x1 = ptr[1];
                     const float cos_val = *cos_ptr++;
                     const float sin_val = *sin_ptr++;
-                    outptr[0] = x1 * cos_val - x2 * sin_val;
-                    outptr[1] = x1 * sin_val + x2 * cos_val;
+                    outptr[0] = x0 * cos_val - x1 * sin_val;
+                    outptr[1] = x0 * sin_val + x1 * cos_val;
                     ptr += 2;
                     outptr += 2;
                 }
             }
             else
             {
-                const float* ptr1 = head.row(i);
-                const float* ptr2 = ptr1 + embed_dim / 2;
+                const float* ptr0 = head.row(i);
+                const float* ptr1 = ptr0 + embed_dim / 2;
                 const float* sin_ptr = sin_cache.row(i);
                 const float* cos_ptr = cos_cache.row(i);
-                float* outptr1 = out_head.row(i);
-                float* outptr2 = outptr1 + embed_dim / 2;
+                float* outptr0 = out_head.row(i);
+                float* outptr1 = outptr0 + embed_dim / 2;
 
                 for (int j = 0; j < embed_dim / 2; j++)
                 {
+                    const float x0 = *ptr0++;
                     const float x1 = *ptr1++;
-                    const float x2 = *ptr2++;
                     const float cos_val = *cos_ptr++;
                     const float sin_val = *sin_ptr++;
-                    *outptr1++ = x1 * cos_val - x2 * sin_val;
-                    *outptr2++ = x1 * sin_val + x2 * cos_val;
+                    *outptr0++ = x0 * cos_val - x1 * sin_val;
+                    *outptr1++ = x0 * sin_val + x1 * cos_val;
                 }
             }
         }
