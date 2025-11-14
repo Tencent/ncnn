@@ -9,16 +9,16 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers import DeepseekV3Config
-from transformers.models.deepseek_v3.modeling_deepseek_v3 import DeepseekV3Attention, DeepseekV3RotaryEmbedding
+from transformers import Qwen3Config
+from transformers.models.qwen3.modeling_qwen3 import Qwen3Attention, Qwen3RotaryEmbedding
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config = DeepseekV3Config(hidden_size=192, num_attention_heads=16, num_key_value_heads=16, q_lora_rank=64, kv_lora_rank=128, attn_implementation='sdpa')
-        self.rotary_emb = DeepseekV3RotaryEmbedding(config)
-        self.attn0 = DeepseekV3Attention(config, layer_idx=1)
+        config = Qwen3Config(hidden_size=192, num_attention_heads=16, num_key_value_heads=16, q_lora_rank=64, kv_lora_rank=128, attn_implementation='sdpa')
+        self.rotary_emb = Qwen3RotaryEmbedding(config)
+        self.attn0 = Qwen3Attention(config, layer_idx=1)
 
     def forward(self, x, mask0):
         batch_size = x.size(0)
@@ -41,15 +41,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, mask0))
-    mod.save("test_transformers_deepseek_v3_attention.pt")
+    mod.save("test_transformers_qwen3_attention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_transformers_deepseek_v3_attention.pt inputshape=[3,16,192],[3,1,16,16]")
+    os.system("../src/pnnx test_transformers_qwen3_attention.pt inputshape=[3,16,192],[3,1,16,16]")
 
     # pnnx inference
-    import test_transformers_deepseek_v3_attention_pnnx
-    b = test_transformers_deepseek_v3_attention_pnnx.test_inference()
+    import test_transformers_qwen3_attention_pnnx
+    b = test_transformers_qwen3_attention_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
