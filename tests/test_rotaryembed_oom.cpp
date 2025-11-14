@@ -22,7 +22,7 @@ static int test_rotaryembed_oom(const ncnn::Mat& a, int interleaved)
     as[1] = cos_cache;
     as[2] = sin_cache;
 
-    int ret = test_layer("RotaryEmbed", pd, weights, as, 1);
+    int ret = test_layer_oom("RotaryEmbed", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_rotaryembed_oom failed a=(%d %d %d) interleaved=%d\n", a.w, a.h, a.c, interleaved);
