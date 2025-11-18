@@ -33,24 +33,12 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     }
 #endif
 
-    int query_i = 0;
-    int key_i = 0;
-    int value_i = 0;
-    int attn_mask_i = 0;
-    int past_key_i = 0;
-    int past_value_i = 0;
-    resolve_bottom_blob_index((int)bottom_blobs.size(), query_i, key_i, value_i, attn_mask_i, past_key_i, past_value_i);
-
-    const Mat& query = bottom_blobs[query_i];
-    const Mat& cur_key = bottom_blobs[key_i];
-    const Mat& cur_value = bottom_blobs[value_i];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[past_key_i] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[past_value_i] : Mat();
-
-    //              | self-attention  cross-attention
-    // w/o kvcache  | past(0) + cur   cur
-    // with kvcache | past + cur      past
+    const Mat& query = bottom_blobs[0];
+    const Mat& cur_key = bottom_blobs[1];
+    const Mat& cur_value = bottom_blobs[2];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
+    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -58,8 +46,8 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache && !past_key.empty() ? past_key.h : 0;
-    const int dst_seqlen = past_seqlen > 0 ? (query_i == key_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+    const int past_seqlen = past_key.h;
+    const int dst_seqlen = past_seqlen + cur_seqlen;
 
     // assert cur_key.w == embed_dim
     // assert cur_key.h == cur_value.h == cur_seqlen
@@ -81,54 +69,40 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     Mat key = cur_key;
     if (past_seqlen > 0)
     {
-        if (query_i != key_i)
-        {
-            key = past_key;
-        }
-        else
-        {
-            key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-            if (key.empty())
-                return -100;
+        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (key.empty())
+            return -100;
 
-            // concat
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < num_group; q++)
-            {
-                const Mat past_key_head = past_key.channel(q);
-                const Mat cur_key_head = cur_key.channel(q);
-                Mat key_head = key.channel(q);
+        // concat
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            const Mat past_key_head = past_key.channel(q);
+            const Mat cur_key_head = cur_key.channel(q);
+            Mat key_head = key.channel(q);
 
-                memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-                memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
-            }
+            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
+            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
         }
     }
 
     Mat value = cur_value;
     if (past_seqlen > 0)
     {
-        if (query_i != value_i)
-        {
-            value = past_value;
-        }
-        else
-        {
-            value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-            if (value.empty())
-                return -100;
+        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (value.empty())
+            return -100;
 
-            // concat
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < num_group; q++)
-            {
-                const Mat past_value_head = past_value.channel(q);
-                const Mat cur_value_head = cur_value.channel(q);
-                Mat value_head = value.channel(q);
+        // concat
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            const Mat past_value_head = past_value.channel(q);
+            const Mat cur_value_head = cur_value.channel(q);
+            Mat value_head = value.channel(q);
 
-                memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-                memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
-            }
+            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
+            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
         }
     }
 
@@ -234,122 +208,6 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     return 0;
 }
 
-void SDPA::resolve_bottom_blob_index(int bottom_blob_count, int& query_i, int& key_i, int& value_i, int& attn_mask_i, int& past_key_i, int& past_value_i) const
-{
-    if (kv_cache)
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blob_count == 4/5/6
-            if (bottom_blob_count == 4)
-            {
-                query_i = 0;
-                key_i = 0;
-                value_i = 0;
-                attn_mask_i = 1;
-                past_key_i = 2;
-                past_value_i = 3;
-            }
-            if (bottom_blob_count == 5)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 1;
-                attn_mask_i = 2;
-                past_key_i = 3;
-                past_value_i = 4;
-            }
-            if (bottom_blob_count == 6)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 2;
-                attn_mask_i = 3;
-                past_key_i = 4;
-                past_value_i = 5;
-            }
-        }
-        else
-        {
-            // assert bottom_blob_count == 3/4/5
-            if (bottom_blob_count == 3)
-            {
-                query_i = 0;
-                key_i = 0;
-                value_i = 0;
-                past_key_i = 1;
-                past_value_i = 2;
-            }
-            if (bottom_blob_count == 4)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 1;
-                past_key_i = 2;
-                past_value_i = 3;
-            }
-            if (bottom_blob_count == 5)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 2;
-                past_key_i = 3;
-                past_value_i = 4;
-            }
-        }
-    }
-    else
-    {
-        if (attn_mask)
-        {
-            // assert bottom_blob_count == 2/3/4
-            if (bottom_blob_count == 2)
-            {
-                query_i = 0;
-                key_i = 0;
-                value_i = 0;
-                attn_mask_i = 1;
-            }
-            if (bottom_blob_count == 3)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 1;
-                attn_mask_i = 2;
-            }
-            if (bottom_blob_count == 4)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 2;
-                attn_mask_i = 3;
-            }
-        }
-        else
-        {
-            // assert bottom_blob_count == 1/2/3
-            if (bottom_blob_count == 1)
-            {
-                query_i = 0;
-                key_i = 0;
-                value_i = 0;
-            }
-            if (bottom_blob_count == 2)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 1;
-            }
-            if (bottom_blob_count == 3)
-            {
-                query_i = 0;
-                key_i = 1;
-                value_i = 2;
-            }
-        }
-    }
-}
-
 #if NCNN_INT8
 static inline signed char float2int8(float v)
 {
@@ -416,20 +274,12 @@ static void dynamic_quantize_2d_per_h(const Mat& blob, Mat& blob_int8, Mat& scal
 
 int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    int query_i = 0;
-    int key_i = 0;
-    int value_i = 0;
-    int attn_mask_i = 0;
-    int past_key_i = 0;
-    int past_value_i = 0;
-    resolve_bottom_blob_index((int)bottom_blobs.size(), query_i, key_i, value_i, attn_mask_i, past_key_i, past_value_i);
-
-    const Mat& query = bottom_blobs[query_i];
-    const Mat& cur_key = bottom_blobs[key_i];
-    const Mat& cur_value = bottom_blobs[value_i];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& past_key = kv_cache ? bottom_blobs[past_key_i] : Mat();
-    const Mat& past_value = kv_cache ? bottom_blobs[past_value_i] : Mat();
+    const Mat& query = bottom_blobs[0];
+    const Mat& cur_key = bottom_blobs[1];
+    const Mat& cur_value = bottom_blobs[2];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
+    const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
+    const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
     const int embed_dim = query.w;
     const int src_seqlen = query.h;
@@ -437,8 +287,8 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = kv_cache && !past_key.empty() ? past_key.h : 0;
-    const int dst_seqlen = past_seqlen > 0 ? (query_i == key_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+    const int past_seqlen = past_key.h;
+    const int dst_seqlen = past_seqlen + cur_seqlen;
 
     // assert cur_key.w == embed_dim
     // assert cur_key.h == cur_value.h == cur_seqlen
@@ -480,54 +330,40 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     Mat key = cur_key;
     if (past_seqlen > 0)
     {
-        if (query_i != key_i)
-        {
-            key = past_key;
-        }
-        else
-        {
-            key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-            if (key.empty())
-                return -100;
+        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (key.empty())
+            return -100;
 
-            // concat
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < num_group; q++)
-            {
-                const Mat past_key_head = past_key.channel(q);
-                const Mat cur_key_head = cur_key.channel(q);
-                Mat key_head = key.channel(q);
+        // concat
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            const Mat past_key_head = past_key.channel(q);
+            const Mat cur_key_head = cur_key.channel(q);
+            Mat key_head = key.channel(q);
 
-                memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-                memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
-            }
+            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
+            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
         }
     }
 
     Mat value = cur_value;
     if (past_seqlen > 0)
     {
-        if (query_i != value_i)
-        {
-            value = past_value;
-        }
-        else
-        {
-            value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
-            if (value.empty())
-                return -100;
+        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        if (value.empty())
+            return -100;
 
-            // concat
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < num_group; q++)
-            {
-                const Mat past_value_head = past_value.channel(q);
-                const Mat cur_value_head = cur_value.channel(q);
-                Mat value_head = value.channel(q);
+        // concat
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_group; q++)
+        {
+            const Mat past_value_head = past_value.channel(q);
+            const Mat cur_value_head = cur_value.channel(q);
+            Mat value_head = value.channel(q);
 
-                memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-                memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
-            }
+            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
+            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
         }
     }
 
