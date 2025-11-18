@@ -17,6 +17,8 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_pipeline(const Option& opt);
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
@@ -50,6 +52,8 @@ public:
 
     Mat weight_data;
     Mat bias_data;
+
+    int impl_type;
 };
 
 } // namespace ncnn
