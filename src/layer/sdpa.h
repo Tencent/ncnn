@@ -25,6 +25,7 @@ protected:
 public:
     int attn_mask;
     float scale;
+    int kv_cache;
 
     int int8_scale_term;
 };
