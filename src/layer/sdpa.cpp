@@ -46,7 +46,7 @@ int SDPA::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const int cur_seqlen = cur_key.h;
     const int num_group = cur_key.c;
     const int out_embed_dim = cur_value.w;
-    const int past_seqlen = past_key.h;
+    const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
     // assert cur_key.w == embed_dim
