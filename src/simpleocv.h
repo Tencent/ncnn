@@ -462,7 +462,7 @@ enum BorderType
     BORDER_TRANSPARENT = 5,
     BORDER_REFLECT101 = BORDER_REFLECT_101,
     BORDER_DEFAULT = BORDER_REFLECT_101,
-    BORDER_ISOLATED = 16 
+    BORDER_ISOLATED = 16
 };
 NCNN_EXPORT void copyMakeBorder(const Mat& src, Mat& dst, int top, int bottom, int left, int right, BorderType borderType, const Scalar& value = Scalar());
 #endif // NCNN_PIXEL
