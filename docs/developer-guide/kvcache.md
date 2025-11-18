@@ -1,6 +1,6 @@
 # high-performance transformer inference with mha kv cache in ncnn
 
-This document details the implementation and usage of the key-value (kv) cache for the `MultiHeadAttention` layer in ncnn. This feature significantly accelerates autoregressive inference for Transformer-based models, such as large language models and other encoder-decoder architectures.
+This document details the implementation and usage of the key-value (kv) cache for the `MultiHeadAttention` and `SDPA` layer in ncnn. This feature significantly accelerates autoregressive inference for Transformer-based models, such as large language models and other encoder-decoder architectures.
 
 ## 1. what is kv cache?
 
@@ -20,9 +20,9 @@ Without optimization, the model must recompute the k and v matrices for all prec
 - **reduced computation:** It eliminates redundant calculations, saving significant computational resources and energy.
 - **enables real-time applications:** The performance gain makes it feasible to deploy large Transformer models for interactive and real-time tasks.
 
-## 2. ncnn mha kv cache implementation
+## 2. ncnn kv cache implementation
 
-ncnn introduces kv cache support directly into its `MultiHeadAttention` layer. The implementation is designed to be efficient and flexible, handling both the dynamic cache of self-attention and the static k/v of cross-attention found in encoder-decoder architectures.
+ncnn introduces kv cache support directly into its `MultiHeadAttention` and `SDPA` layer. The implementation is designed to be efficient and flexible, handling both the dynamic cache of self-attention and the static k/v of cross-attention found in encoder-decoder architectures.
 
 ### self-attention vs. cross-attention cache logic
 
@@ -31,34 +31,49 @@ The caching strategy is fundamentally different for self-attention and cross-att
 #### self-attention (dynamic cache)
 - **purpose:** Allows the decoder to attend to previously generated tokens in its own sequence (e.g., the text being generated).
 - **cache Logic:** The cache is **dynamic** and grows with each generated token. In step `t`, the k and v for token `t` are computed and appended to the cache from step `t-1`.
-- **ncnn implementation:** The `MultiHeadAttention` layer for self-attention is modified to accept two additional inputs (`cache_k_in`, `cache_v_in`) and produce two corresponding outputs (`cache_k_out`, `cache_v_out`). The `7=1` parameter enables this dynamic caching behavior inside the layer.
+- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layers for self-attention are modified to accept two additional inputs (`cache_k_in`, `cache_v_in`) and produce two corresponding outputs (`cache_k_out`, `cache_v_out`). The `7=1` parameter enables this dynamic caching behavior inside the layer.
 
 #### cross-attention (static k/v)
 - **purpose:** Allows the decoder to attend to the output of the encoder (e.g., attending to audio features in speech recognition, or an input sentence in translation).
 - **cache Logic:** The k and v matrices are derived from the encoder's output, which is computed only **once** per input sequence. Therefore, the k and v for cross-attention are **static** and do not change during the decoding process. They are "cached" in the sense that they are pre-computed and reused in every decoding step.
-- **ncnn implementation:** The `MultiHeadAttention` layer for cross-attention is also configured with `7=1` and cache I/O blobs. However, the implementation correctly identifies cross-attention (where the query blob is different from the key/value blobs) and reuses the `cache_k_in` and `cache_v_in` directly, without performing concatenation. This allows the static encoder k/v to be passed efficiently through the network.
+- **ncnn implementation:** The `MultiHeadAttention` and `SDPA` layers for cross-attention are also configured with `7=1` and cache I/O blobs. However, the implementation correctly identifies cross-attention (where the query blob is different from the key/value blobs) and reuses the `cache_k_in` and `cache_v_in` directly, without performing concatenation. This allows the static encoder k/v to be passed efficiently through the network.
 
-## 3. ncnn mha kv cache memory layout
+## 3. ncnn kv cache memory layout
 
-The memory layout of the kv cache is a critical design choice for performance. ncnn uses a **transposed layout** for the cache blobs. The primary reason for this is to **ensure that data for each attention head is contiguous in memory, which significantly boosts gemm performance.**
+The memory layout of the kv cache is a critical design choice for performance. ncnn uses different layouts for `MultiHeadAttention` and `SDPA` to optimize for their respective calculation patterns.
+
+### `MultiHeadAttention` cache layout (Transposed)
+
+The `MultiHeadAttention` layer uses a **transposed layout** for its cache blobs. The primary reason for this is to **ensure that data for each attention head is contiguous in memory, which significantly boosts gemm performance.**
 
 *   **input blobs (q, k, v):** These typically have a shape where height represents the sequence length.
     *   `ncnn::Mat` dimensions: `(w = embed_dim, h = seq_len)`
 
-*   **cache blobs (e.g., `k_affine`, `v_affine`):** These are stored in a **transposed** format.
+*   **cache blobs (`k_cache`, `v_cache`):** These are stored in a **transposed** format.
     *   `ncnn::Mat` dimensions: `(w = seq_len, h = embed_dim)`
 
 **the rationale:**
 
-1.  **slicing by Head:** During the attention calculation, the code slices the `k_affine` and `v_affine` matrices along their height to isolate the data for each head (e.g., using `row_range(head_index * embed_dim_per_head, embed_dim_per_head)`).
+1.  **slicing by Head:** During the attention calculation, the code slices the `k_cache` and `v_cache` matrices along their height to isolate the data for each head (e.g., using `row_range(head_index * embed_dim_per_head, embed_dim_per_head)`).
 2.  **memory contiguity:** Because `ncnn::Mat` uses a row-major memory layout, this slicing operation on the transposed cache blob results in a sub-matrix where all the data for a single head is perfectly contiguous.
 3.  **gemm efficiency:** Subsequent matrix multiplication operations (`q * k^T` and `Attention * v`) can then operate on these contiguous memory blocks. This maximizes CPU cache locality and the effectiveness of simd instructions, leading to a substantial increase in computational speed.
 
 If a non-transposed layout were used, the data for each head would be strided in memory, causing frequent cache misses and dramatically slowing down the performance-critical gemm calculations. Therefore, this transposed layout is a deliberate and crucial optimization for computation.
 
+### `SDPA` cache layout (Standard)
+
+The `SDPA` layer uses the **standard ncnn Mat layout**, where the sequence length is represented by the height.
+
+*   **input blobs (q, k, v):** `(w = embed_dim, h = seq_len, c = num_heads)`
+*   **cache blobs (`k_cache`, `v_cache`):** `(w = embed_dim, h = seq_len, c = num_heads)`
+
+**the rationale:**
+
+The `SDPA` layer's internal implementation directly concatenates the cache blobs (`past_k`, `past_v`) with the current ones (`cur_k`, `cur_v`) along the height dimension (`seq_len`). This simpler approach avoids the need for a transposed layout while still being highly efficient, as the concatenation logic is handled inside the optimized C++ implementation.
+
 ## 4. converting models to support kv cache
 
-To enable kv cache, you must modify the model's `.param` file to add the necessary cache inputs and outputs to all `MultiHeadAttention` layers in the decoder.
+To enable kv cache, you must modify the model's `.param` file to add the necessary cache inputs and outputs to all `MultiHeadAttention` and `SDPA` layers in the decoder.
 
 ### step 1: export a sequence-length-1 model
 
@@ -68,9 +83,9 @@ First, export your model from its original framework (e.g., PyTorch) using a seq
 
 After exporting, a script is needed to edit the generated `.ncnn.param` file to make it cache-aware.
 
-#### A. Adding kv cache to All MultiHeadAttention Layers
+#### A. Adding kv cache to All MultiHeadAttention and SDPA Layers
 
-You must add cache inputs/outputs to **every** `MultiHeadAttention` layer in the decoder.
+You must add cache inputs/outputs to **every** `MultiHeadAttention` / `SDPA` layer in the decoder.
 
 - **change `input_count` and `output_count`:** Increase both by 2.
 - **add blob names:** Append new, unique blob names for `cache_k_in`, `cache_v_in`, `cache_k_out`, and `cache_v_out`.
@@ -81,7 +96,7 @@ Here is a robust Python function that automates this process:
 def add_kv_cache_to_ncnn_param(filename):
     """
     Modifies an ncnn.param file to add a kv cache mechanism to all
-    MultiHeadAttention layers and overwrites the original file.
+    MultiHeadAttention and SDPA layers and overwrites the original file.
     This handles both self-attention and cross-attention layers.
     """
     import os
@@ -98,15 +113,15 @@ def add_kv_cache_to_ncnn_param(filename):
     original_layer_count = int(header_parts[0])
     original_blob_count = int(header_parts[1])
 
-    mha_indices = [i for i, line in enumerate(lines) if line.strip().startswith("MultiHeadAttention")]
-    mha_count = len(mha_indices)
+    attention_indices = [i for i, line in enumerate(lines) if line.strip().startswith("MultiHeadAttention") or line.strip().startswith("SDPA")]
+    attention_count = len(attention_indices)
 
-    if mha_count == 0:
-        print("No 'MultiHeadAttention' layers found. The file will not be modified.")
+    if attention_count == 0:
+        print("No 'MultiHeadAttention' or 'SDPA' layers found. The file will not be modified.")
         return
 
-    # --- modify MultiHeadAttention layers ---
-    for i, line_index in enumerate(mha_indices):
+    # --- modify MultiHeadAttention and SDPA layers ---
+    for i, line_index in enumerate(attention_indices):
         parts = lines[line_index].strip().split()
         layer_type, layer_name, input_count_str, output_count_str = parts[:4]
         input_count, output_count = int(input_count_str), int(output_count_str)
@@ -132,7 +147,7 @@ def add_kv_cache_to_ncnn_param(filename):
     new_layer_count = original_layer_count + 1
     # each mha needs 2 new *input* blobs and produces 2 new *output* blobs.
     # the total number of unique blobs increases by 4 for each mha.
-    new_blob_count = original_blob_count + (mha_count * 4)
+    new_blob_count = original_blob_count + (attention_count * 4)
     lines[header_line_index] = f"{new_layer_count} {new_blob_count}\n"
 
     # find where to insert the new input layer (after existing ones)
@@ -140,7 +155,7 @@ def add_kv_cache_to_ncnn_param(filename):
     while insert_pos < len(lines) and lines[insert_pos].strip().startswith("Input"):
         insert_pos += 1
 
-    cache_blob_names = [name for i in range(mha_count) for name in (f"cache_k_in_{i}", f"cache_v_in_{i}")]
+    cache_blob_names = [name for i in range(attention_count) for name in (f"cache_k_in_{i}", f"cache_v_in_{i}")]
     input_layer_line = (
         f"{'Input':<24} {'kv_cache_in':<24} 0 {len(cache_blob_names)} "
         f"{' '.join(cache_blob_names)}\n"
@@ -150,7 +165,7 @@ def add_kv_cache_to_ncnn_param(filename):
     with open(filename, 'w', encoding='utf-8') as f:
         f.writelines(lines)
 
-    print(f"Successfully added kv cache to {mha_count} MultiHeadAttention layers.")
+    print(f"Successfully added kv cache to {attention_count} MultiHeadAttention / SDPA layers.")
 
 # usage:
 # add_kv_cache_to_ncnn_param("your_model_decoder.ncnn.param")
@@ -206,7 +221,7 @@ void find_mha_kvcache_blobs(const ncnn::Net& net, kvcache_info& info)
     for (const ncnn::Layer* layer : net.layers())
     {
         // cache-enabled mha layer has 3 outputs (out, cache_k_out, cache_v_out) instead of 1
-        if (layer->typeindex == ncnn::LayerType::MultiHeadAttention && layer->tops.size() == 3)
+        if ((layer->typeindex == ncnn::LayerType::MultiHeadAttention || layer->typeindex == ncnn::LayerType::SDPA) && layer->tops.size() == 3)
         {
             // the script adds cache_k and cache_v as the last two inputs/outputs
             int input_count = layer->bottoms.size();

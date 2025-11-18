@@ -29,7 +29,7 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
     int ret = test_layer("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa failed q=(%d %d) k=(%d %d) v=(%d %d) attn_mask=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, attn_mask);
+        fprintf(stderr, "test_sdpa failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
     }
 
     return ret;
@@ -76,7 +76,7 @@ static int test_sdpa_int8(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Ma
     int ret = test_layer("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_sdpa_int8 failed q=(%d %d) k=(%d %d) v=(%d %d) attn_mask=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, attn_mask);
+        fprintf(stderr, "test_sdpa_int8 failed q=(%d %d %d) k=(%d %d %d) v=(%d %d %d) attn_mask=%d scale=%f\n", q.w, q.h, q.c, k.w, k.h, k.c, v.w, v.h, v.c, attn_mask, scale);
     }
 
     return ret;
@@ -101,11 +101,8 @@ int main()
     SRAND(7767517);
 
 #if NCNN_INT8
-    return 0
-           || test_sdpa_0()
-           || test_sdpa_1();
+    return test_sdpa_0() || test_sdpa_1();
 #else
-    return 0
-           || test_sdpa_0();
+    return test_sdpa_0();
 #endif
 }
