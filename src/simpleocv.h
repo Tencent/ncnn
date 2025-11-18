@@ -452,6 +452,19 @@ NCNN_EXPORT int waitKey(int delay = 0);
 
 #if NCNN_PIXEL
 NCNN_EXPORT void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
+enum BorderType
+{
+    BORDER_CONSTANT = 0,
+    BORDER_REPLICATE = 1,
+    BORDER_REFLECT = 2,
+    BORDER_WRAP = 3,
+    BORDER_REFLECT_101 = 4,
+    BORDER_TRANSPARENT = 5,
+    BORDER_REFLECT101 = BORDER_REFLECT_101,
+    BORDER_DEFAULT = BORDER_REFLECT_101,
+    BORDER_ISOLATED = 16 
+};
+NCNN_EXPORT void copyMakeBorder(const Mat& src, Mat& dst, int top, int bottom, int left, int right, BorderType borderType, const Scalar& value = Scalar());
 #endif // NCNN_PIXEL
 
 #if NCNN_PIXEL_DRAWING
