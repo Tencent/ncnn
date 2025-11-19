@@ -92,6 +92,7 @@
 #include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
+#include "layer/rotaryembed.h"
 #include "layer/scale.h"
 #include "layer/sdpa.h"
 #include "layer/shufflechannel.h"
@@ -2406,6 +2407,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", pooled_width)
             fprintf_param_value(" 1=%d", pooled_height)
             fprintf_param_value(" 2=%e", spatial_scale)
+        }
+        else if (layer->type == "RotaryEmbed")
+        {
+            ncnn::RotaryEmbed* op = (ncnn::RotaryEmbed*)layer;
+            ncnn::RotaryEmbed* op_default = (ncnn::RotaryEmbed*)layer_default;
+
+            fprintf_param_value(" 0=%d", interleaved)
         }
         else if (layer->type == "Scale")
         {

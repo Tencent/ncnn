@@ -238,3 +238,7 @@ pnnx_ncnn_add_test(torchaudio_F_inverse_spectrogram)
 pnnx_ncnn_add_test(torchaudio_F_spectrogram)
 pnnx_ncnn_add_test(torchaudio_InverseSpectrogram)
 pnnx_ncnn_add_test(torchaudio_Spectrogram)
+
+pnnx_ncnn_add_test(transformers_deepseek_v3_attention)
+pnnx_ncnn_add_test(transformers_qwen2_attention)
+pnnx_ncnn_add_test(transformers_qwen3_attention)

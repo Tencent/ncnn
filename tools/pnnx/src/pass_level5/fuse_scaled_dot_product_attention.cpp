@@ -68,6 +68,51 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_scaled_dot_product_attention_pass_0 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 9
+pnnx.Input              input_0     0 1 query #query=(%batch,%num_heads,%qsize,%feat_per_head)f32
+pnnx.Input              input_1     0 1 key #key=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+pnnx.Input              input_2     0 1 value #value=(%batch,%num_heads,%kvsize,%feat_per_head)f32
+pnnx.Input              input_3     0 1 attn_mask
+torch.transpose         op_0        1 1 key 23 dim0=2 dim1=3
+torch.matmul            op_1        2 1 query 23 24
+pnnx.Expression         op_2        2 1 24 attn_mask 25 expr=add(mul(@0,%inv_sqrt_embed_dim_per_head),@1)
+F.softmax               op_3        1 1 25 26 dim=-1
+torch.matmul            op_4        2 1 26 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+F.scaled_dot_product_attention sdpa 4 1 query key value attn_mask out dropout_p=0.0 is_causal=False
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int feat_per_head = captured_params.at("feat_per_head").i;
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("inv_sqrt_embed_dim_per_head").f;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(feat_per_head), 0.001))
+            return false;
+
+        return true;
+    }
+};
+
 class fuse_scaled_dot_product_attention_pass_1 : public GraphRewriterPass
 {
 public:
@@ -208,11 +253,13 @@ void fuse_scaled_dot_product_attention(Graph& graph)
 {
 #if TORCH_VERSION_MAJOR >= 2
     fuse_scaled_dot_product_attention_pass a;
+    fuse_scaled_dot_product_attention_pass_0 a0;
     fuse_scaled_dot_product_attention_pass_1 b;
     fuse_scaled_dot_product_attention_pass_onnx onnx0;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
+    pnnx_graph_rewrite(graph, &a0, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &onnx0, opindex);
 #endif
