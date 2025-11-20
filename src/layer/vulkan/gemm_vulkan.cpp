@@ -10,14 +10,14 @@ namespace ncnn {
 
 void pretty_print_int8(const ncnn::Mat& m)
 {
-    for (int q=0; q<m.c; q++)
+    for (int q = 0; q < m.c; q++)
     {
         const int8_t* ptr = m.channel(q);
-        for (int z=0; z<m.d; z++)
+        for (int z = 0; z < m.d; z++)
         {
-            for (int y=0; y<m.h; y++)
+            for (int y = 0; y < m.h; y++)
             {
-                for (int x=0; x<m.w; x++)
+                for (int x = 0; x < m.w; x++)
                 {
                     printf("%d ", ptr[x]);
                 }
@@ -32,14 +32,14 @@ void pretty_print_int8(const ncnn::Mat& m)
 
 void pretty_print(const ncnn::Mat& m)
 {
-    for (int q=0; q<m.c; q++)
+    for (int q = 0; q < m.c; q++)
     {
         const float* ptr = m.channel(q);
-        for (int z=0; z<m.d; z++)
+        for (int z = 0; z < m.d; z++)
         {
-            for (int y=0; y<m.h; y++)
+            for (int y = 0; y < m.h; y++)
             {
-                for (int x=0; x<m.w; x++)
+                for (int x = 0; x < m.w; x++)
                 {
                     printf("%f ", ptr[x]);
                 }
@@ -671,7 +671,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
             else
                 A_int8.create(A.w, A.h, A.c, 1u, 1, opt.blob_vkallocator);
             if (transA)
-                A_int8_scales.create(A.w, 4u,1,opt.blob_vkallocator);
+                A_int8_scales.create(A.w, 4u, 1, opt.blob_vkallocator);
             else
                 A_int8_scales.create(A.dims == 2 ? A.h : A.c, 4u, 1, opt.blob_vkallocator);
 
@@ -694,7 +694,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
                     dispatcher.w = A_int8_scales.w;
                     dispatcher.h = 1;
                     dispatcher.c = 1;
-                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
                 }
             }
             {
@@ -717,7 +717,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
                     dispatcher.w = A_int8.w;
                     dispatcher.h = A.dims == 2 ? A.h : A.c;
                     dispatcher.c = 1;
-                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
                 }
             }
         }
@@ -756,7 +756,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
                     dispatcher.w = 1;
                     dispatcher.h = 1;
                     dispatcher.c = 1;
-                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
                 }
             }
             {
@@ -779,7 +779,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
                     dispatcher.w = B_int8.w;
                     dispatcher.h = B.dims == 2 ? B.h : B.c;
                     dispatcher.c = 1;
-                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
                 }
             }
         }
@@ -787,7 +787,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
 
 #ifdef _DEBUG
     pretty_print(A_int8_scales, cmd, opt);
-    pretty_print(B_int8_scale, cmd,  opt);
+    pretty_print(B_int8_scale, cmd, opt);
 
     pretty_print(A_int8, cmd, opt);
     pretty_print(B_int8, cmd, opt);
@@ -846,6 +846,5 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
 
     return 0;
 }
-
 
 } // namespace ncnn
