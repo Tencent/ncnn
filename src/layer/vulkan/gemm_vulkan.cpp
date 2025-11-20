@@ -4,6 +4,7 @@
 #include "gemm_vulkan.h"
 
 #include "layer_shader_type.h"
+#include "pipelinecache.h"
 
 namespace ncnn {
 
@@ -89,6 +90,7 @@ int Gemm_vulkan::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+
 #ifndef NCNN_INT8
         support_vulkan = false;
 #endif
@@ -164,10 +166,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_gemm_int8 = new Pipeline(vkdev);
                 pipeline_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
-                // if (opt.use_shader_local_memory)
-                // {
-                //     pipeline_gemm_int8->set_local_size_xyz(8, 8, 1);
-                // }
+                if (opt.use_shader_local_memory)
+                {
+                     pipeline_gemm_int8->set_local_size_xyz(8, 8, 1);
+                }
                 pipeline_gemm_int8->create(LayerShaderType::gemm_int8, opt, specializations);
             }
         }

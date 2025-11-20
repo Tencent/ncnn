@@ -1,5 +1,8 @@
  #version 450
 
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+
 layout (binding = 0) readonly buffer in_blob { sfp in_blob_data[]; };
 layout (binding = 1) writeonly buffer out_scales { float out_scales_data[]; };
 
@@ -32,7 +35,7 @@ void main()
             {
                 int idx = gi * p.hstep + i;
                 float v = buffer_ld1(in_blob_data, idx);
-                absmax = max(absmax, float(abs(v)));
+                absmax = max(absmax, abs(v));
             }
         }
         else
@@ -41,7 +44,7 @@ void main()
             {
                 int idx = i * p.hstep + gi;
                 float v = buffer_ld1(in_blob_data, idx);
-                absmax = max(absmax, float(abs(v)));
+                absmax = max(absmax, abs(v));
             }
         }
     }
@@ -54,7 +57,7 @@ void main()
             {
                 int idx = i * p.hstep + j;
                 afp v = buffer_ld1(in_blob_data, idx);
-                absmax = max(absmax, float(abs(v)));
+                absmax = max(absmax, abs(v));
             }
         }
     }
