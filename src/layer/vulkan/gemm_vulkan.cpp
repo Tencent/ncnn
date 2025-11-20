@@ -7,6 +7,65 @@
 
 namespace ncnn {
 
+void pretty_print_int8(const ncnn::Mat& m)
+{
+    for (int q=0; q<m.c; q++)
+    {
+        const int8_t* ptr = m.channel(q);
+        for (int z=0; z<m.d; z++)
+        {
+            for (int y=0; y<m.h; y++)
+            {
+                for (int x=0; x<m.w; x++)
+                {
+                    printf("%d ", ptr[x]);
+                }
+                ptr += m.w;
+                printf("\n");
+            }
+            printf("\n");
+        }
+        printf("------------------------\n");
+    }
+}
+
+void pretty_print(const ncnn::Mat& m)
+{
+    for (int q=0; q<m.c; q++)
+    {
+        const float* ptr = m.channel(q);
+        for (int z=0; z<m.d; z++)
+        {
+            for (int y=0; y<m.h; y++)
+            {
+                for (int x=0; x<m.w; x++)
+                {
+                    printf("%f ", ptr[x]);
+                }
+                ptr += m.w;
+                printf("\n");
+            }
+            printf("\n");
+        }
+        printf("------------------------\n");
+    }
+}
+
+void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
+{
+    Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
+    ncnn::Mat m_cpu;
+    cmd.record_download(m, m_cpu, opt_unpack);
+    cmd.submit_and_wait();
+    cmd.reset();
+    // print Mat content
+    if (m.elemsize == 1)
+        pretty_print_int8(m_cpu);
+    else
+        pretty_print(m_cpu);
+}
+
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
@@ -30,7 +89,9 @@ int Gemm_vulkan::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+#ifndef NCNN_INT8
         support_vulkan = false;
+#endif
     }
 
     return ret;
@@ -68,6 +129,79 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     {
         C_data_packed = C_data;
     }
+
+#ifdef NCNN_INT8
+    if (int8_scale_term)
+    {
+        {
+            std::vector<vk_specialization_type> specializations(15);
+            specializations[0].f = alpha;
+            specializations[1].f = beta;
+            specializations[2].i = transA;
+            specializations[3].i = transB;
+            specializations[4].i = constantA;
+            specializations[5].i = constantB;
+            specializations[6].i = constantC;
+            specializations[7].i = constantM;
+            specializations[8].i = constantN;
+            specializations[9].i = constantK;
+            specializations[10].i = constant_broadcast_type_C;
+            specializations[11].i = output_N1M;
+            specializations[12].i = output_elempack;
+            specializations[13].i = output_elemtype;
+            specializations[14].i = output_transpose;
+
+            Mat local_size_xyz;
+            // if (shape_packed.dims == 2)
+            // {
+            //     local_size_xyz.w = std::min(8, shape_packed.w);
+            //     local_size_xyz.h = std::min(8, shape_packed.h);
+            //     local_size_xyz.c = 1;
+            // }
+
+            // pack1
+            // if (shape.dims == 0 || elempack == 1)
+            {
+                pipeline_gemm_int8 = new Pipeline(vkdev);
+                pipeline_gemm_int8->set_optimal_local_size_xyz(local_size_xyz);
+                // if (opt.use_shader_local_memory)
+                // {
+                //     pipeline_gemm_int8->set_local_size_xyz(8, 8, 1);
+                // }
+                pipeline_gemm_int8->create(LayerShaderType::gemm_int8, opt, specializations);
+            }
+        }
+        {
+            std::vector<vk_specialization_type> specializations(0);
+
+            Mat local_size_xyz;
+            {
+                pipeline_reduce_scale = new Pipeline(vkdev);
+                pipeline_reduce_scale->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_reduce_scale->create(LayerShaderType::gemm_reduce_scale, opt, specializations);
+            }
+        }
+        {
+            std::vector<vk_specialization_type> specializations(0);
+
+            Mat local_size_xyz;
+            {
+                pipeline_quantize = new Pipeline(vkdev);
+                pipeline_quantize->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_quantize->create(LayerShaderType::gemm_quantize, opt, specializations);
+            }
+        }
+
+        if (opt.lightmode)
+        {
+            A_data.release();
+            B_data.release();
+            C_data.release();
+        }
+
+        return 0;
+    }
+#endif
 
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
@@ -176,6 +310,20 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gemm;
     pipeline_gemm = 0;
 
+#ifdef NCNN_INT8
+    if (int8_scale_term)
+    {
+        delete pipeline_gemm_int8;
+        pipeline_gemm_int8 = 0;
+
+        delete pipeline_reduce_scale;
+        pipeline_reduce_scale = 0;
+
+        delete pipeline_quantize;
+        pipeline_quantize = 0;
+    }
+#endif
+
     return 0;
 }
 
@@ -184,7 +332,6 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (constantA)
     {
         cmd.record_upload(A_data_packed, A_data_gpu, opt);
-
         A_data_packed.release();
     }
 
@@ -202,11 +349,41 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         C_data_packed.release();
     }
 
+#ifdef NCNN_INT8
+    if (int8_scale_term)
+    {
+        Option opt_unpack_fp32 = opt;
+        opt_unpack_fp32.use_fp16_storage = false;
+        opt_unpack_fp32.use_fp16_packed = false;
+        opt_unpack_fp32.use_fp16_arithmetic = false;
+        opt_unpack_fp32.use_bf16_storage = false;
+
+        if (constantA == 1)
+        {
+            cmd.record_upload(A_data_int8_scales, A_data_int8_scales_gpu, opt_unpack_fp32);
+            A_data_int8_scales.release();
+        }
+
+        if (constantB == 1)
+        {
+            Mat B_data_int8_scales(1);
+            B_data_int8_scales[0] = B_data_int8_scale;
+            cmd.record_upload(B_data_int8_scales, B_data_int8_scales_gpu, opt_unpack_fp32);
+        }
+    }
+#endif
+
     return 0;
 }
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#ifdef NCNN_INT8
+    if (int8_scale_term)
+    {
+        return forward_int8(bottom_blobs, top_blobs, cmd, opt);
+    }
+#endif
     const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
     const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
@@ -375,5 +552,298 @@ int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     top_blob = top_blobs[0];
     return ret;
 }
+
+int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    VkMat A;
+    VkMat B;
+    vkdev->convert_packing(A0, A, 1, cmd, opt);
+    vkdev->convert_packing(B0, B, 1, cmd, opt);
+
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+
+    VkMat C;
+    int broadcast_type_C = -1;
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        vkdev->convert_packing(C_data_gpu, C, 1, cmd, opt);
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        VkMat C0;
+        if (constantA && constantB)
+        {
+            C0 = bottom_blobs.size() == 1 ? bottom_blobs[0] : VkMat();
+        }
+        else if (constantA)
+        {
+            C0 = bottom_blobs.size() == 2 ? bottom_blobs[1] : VkMat();
+        }
+        else if (constantB)
+        {
+            C0 = bottom_blobs.size() == 2 ? bottom_blobs[1] : VkMat();
+        }
+        else
+        {
+            C0 = bottom_blobs.size() == 3 ? bottom_blobs[2] : VkMat();
+        }
+
+        if (!C0.empty())
+        {
+            vkdev->convert_packing(C0, C, 1, cmd, opt);
+
+            if (C.dims == 1 && C.w == 1)
+            {
+                // scalar
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w == M)
+            {
+                // M
+                // auto broadcast from h to w is the ncnn-style convention
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w == N)
+            {
+                // N
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h == M)
+            {
+                // Mx1
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h == M)
+            {
+                // MxN
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h == 1)
+            {
+                // 1xN
+                broadcast_type_C = 4;
+            }
+        }
+    }
+
+    int elempack = A.elempack;
+    size_t elemsize = (opt.use_fp16_storage || opt.use_bf16_storage) ? 2 : 4;
+
+    VkMat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, elemsize, opt.blob_vkallocator);
+        else
+            top_blob.create(M, N, elemsize, opt.blob_vkallocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, elemsize, opt.blob_vkallocator);
+        else
+            top_blob.create(N, M, elemsize, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    VkMat A_int8, A_int8_scales;
+    VkMat B_int8, B_int8_scale;
+
+    {
+        if (constantA == 1)
+        {
+            A_int8 = A;
+            A_int8_scales = A_data_int8_scales_gpu;
+        }
+        else
+        {
+            if (A.dims == 2)
+                A_int8.create(A.w, A.h, 1u, 1, opt.blob_vkallocator);
+            else
+                A_int8.create(A.w, A.h, A.c, 1u, 1, opt.blob_vkallocator);
+            if (transA)
+                A_int8_scales.create(A.w, 4u,1,opt.blob_vkallocator);
+            else
+                A_int8_scales.create(A.dims == 2 ? A.h : A.c, 4u, 1, opt.blob_vkallocator);
+
+            {
+                std::vector<VkMat> bindings(2);
+                bindings[0] = A;
+                bindings[1] = A_int8_scales;
+
+                std::vector<vk_constant_type> constants(5);
+                constants[0].i = A.w;
+                constants[1].i = A.dims == 2 ? A.h : A.c;
+                constants[2].i = A.dims == 2 ? A.w : A.cstep;
+                constants[3].i = transA;
+                constants[4].i = 0; // A
+
+                {
+                    const Pipeline* pipeline = pipeline_reduce_scale;
+
+                    VkMat dispatcher;
+                    dispatcher.w = A_int8_scales.w;
+                    dispatcher.h = 1;
+                    dispatcher.c = 1;
+                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                }
+            }
+            {
+                std::vector<VkMat> bindings(3);
+                bindings[0] = A;
+                bindings[1] = A_int8;
+                bindings[2] = A_int8_scales;
+
+                std::vector<vk_constant_type> constants(5);
+                constants[0].i = A.w;
+                constants[1].i = A.dims == 2 ? A.h : A.c;
+                constants[2].i = A.dims == 2 ? A.w : A.cstep;
+                constants[3].i = transA;
+                constants[4].i = 0; // A
+
+                {
+                    const Pipeline* pipeline = pipeline_quantize;
+
+                    VkMat dispatcher;
+                    dispatcher.w = A_int8.w;
+                    dispatcher.h = A.dims == 2 ? A.h : A.c;
+                    dispatcher.c = 1;
+                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                }
+            }
+        }
+    }
+
+    {
+        if (constantB == 1)
+        {
+            B_int8 = B;
+            B_int8_scale = B_data_int8_scales_gpu;
+        }
+        else
+        {
+            if (B.dims == 2)
+                B_int8.create(B.w, B.h, 1u, 1, opt.blob_vkallocator);
+            else
+                B_int8.create(B.w, B.h, B.c, 1u, 1, opt.blob_vkallocator);
+            B_int8_scale.create(1, 4u, 1, opt.blob_vkallocator);
+
+            {
+                std::vector<VkMat> bindings(2);
+                bindings[0] = B;
+                bindings[1] = B_int8_scale;
+
+                std::vector<vk_constant_type> constants(5);
+                constants[0].i = B.w;
+                constants[1].i = B.dims == 2 ? B.h : B.c;
+                constants[2].i = B.dims == 2 ? B.w : B.cstep;
+                constants[3].i = transB;
+                constants[4].i = 1; // B
+
+                {
+                    const Pipeline* pipeline = pipeline_reduce_scale;
+
+                    VkMat dispatcher;
+                    dispatcher.w = 1;
+                    dispatcher.h = 1;
+                    dispatcher.c = 1;
+                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                }
+            }
+            {
+                std::vector<VkMat> bindings(3);
+                bindings[0] = B;
+                bindings[1] = B_int8;
+                bindings[2] = B_int8_scale;
+
+                std::vector<vk_constant_type> constants(5);
+                constants[0].i = B.w;
+                constants[1].i = B.dims == 2 ? B.h : B.c;
+                constants[2].i = B.dims == 2 ? B.w : B.cstep;
+                constants[3].i = transB;
+                constants[4].i = 1; // B
+
+                {
+                    const Pipeline* pipeline = pipeline_quantize;
+
+                    VkMat dispatcher;
+                    dispatcher.w = B_int8.w;
+                    dispatcher.h = B.dims == 2 ? B.h : B.c;
+                    dispatcher.c = 1;
+                    cmd.record_pipeline(pipeline,bindings,constants,dispatcher);
+                }
+            }
+        }
+    }
+
+#ifdef _DEBUG
+    pretty_print(A_int8_scales, cmd, opt);
+    pretty_print(B_int8_scale, cmd,  opt);
+
+    pretty_print(A_int8, cmd, opt);
+    pretty_print(B_int8, cmd, opt);
+#endif
+
+    {
+        std::vector<VkMat> bindings(6);
+        bindings[0] = top_blob;
+        bindings[1] = A_int8;
+        bindings[2] = B_int8;
+        bindings[3] = C;
+        bindings[4] = A_int8_scales;
+        bindings[5] = B_int8_scale;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = M;
+        constants[1].i = N;
+        constants[2].i = K;
+        constants[3].i = broadcast_type_C;
+        constants[4].i = A.dims;
+        constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
+        constants[6].i = B.dims;
+        constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+        constants[8].i = top_blob.dims;
+        constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+
+        {
+            const Pipeline* pipeline = pipeline_gemm_int8;
+
+            VkMat dispatcher;
+            dispatcher.w = (N + 1) / 2;
+            dispatcher.h = (M + 1) / 2;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+    }
+
+#ifdef _DEBUG
+    pretty_print(top_blob, cmd, opt);
+#endif
+
+    int out_elempack = 1;
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    if (out_elempack != 1)
+    {
+        VkMat top_blob0;
+        vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
+        top_blobs[0] = top_blob0;
+    }
+
+    return 0;
+}
+
 
 } // namespace ncnn

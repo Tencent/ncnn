@@ -1,0 +1,63 @@
+ #version 450
+
+layout (binding = 0) readonly buffer in_blob { sfp in_blob_data[]; };
+layout (binding = 1) writeonly buffer out_scales { float out_scales_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int hstep;
+    int trans;
+    int is_B;
+} p;
+
+void main()
+{
+    int gi = int(gl_GlobalInvocationID.x);
+
+    if ((gi >= p.h) && (p.is_B == 0) && (p.trans == 0))
+        return;
+    if ((gi >= p.w) && (p.is_B == 0) && (p.trans == 1))
+        return;
+    if ((p.is_B == 1) && (gi >= 1))
+        return;
+
+    float absmax = afp(0.f);
+
+    if (p.is_B == 0) {
+        if (p.trans == 0)
+        {
+            for (int i = 0; i < p.w; i++)
+            {
+                int idx = gi * p.hstep + i;
+                float v = buffer_ld1(in_blob_data, idx);
+                absmax = max(absmax, float(abs(v)));
+            }
+        }
+        else
+        {
+            for (int i = 0; i < p.h; i++)
+            {
+                int idx = i * p.hstep + gi;
+                float v = buffer_ld1(in_blob_data, idx);
+                absmax = max(absmax, float(abs(v)));
+            }
+        }
+    }
+    else
+    {
+        // TODO: better reduction for B matrix
+        for (int i = 0; i < p.h; i++)
+        {
+            for (int j = 0; j < p.w; j++)
+            {
+                int idx = i * p.hstep + j;
+                afp v = buffer_ld1(in_blob_data, idx);
+                absmax = max(absmax, float(abs(v)));
+            }
+        }
+    }
+
+    out_scales_data[gi] = absmax < afp(1e-6f) ? afp(1.f) : 127.f / absmax;
+}
