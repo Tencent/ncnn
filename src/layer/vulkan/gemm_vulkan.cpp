@@ -8,65 +8,6 @@
 
 namespace ncnn {
 
-void pretty_print_int8(const ncnn::Mat& m)
-{
-    for (int q = 0; q < m.c; q++)
-    {
-        const int8_t* ptr = m.channel(q);
-        for (int z = 0; z < m.d; z++)
-        {
-            for (int y = 0; y < m.h; y++)
-            {
-                for (int x = 0; x < m.w; x++)
-                {
-                    printf("%d ", ptr[x]);
-                }
-                ptr += m.w;
-                printf("\n");
-            }
-            printf("\n");
-        }
-        printf("------------------------\n");
-    }
-}
-
-void pretty_print(const ncnn::Mat& m)
-{
-    for (int q = 0; q < m.c; q++)
-    {
-        const float* ptr = m.channel(q);
-        for (int z = 0; z < m.d; z++)
-        {
-            for (int y = 0; y < m.h; y++)
-            {
-                for (int x = 0; x < m.w; x++)
-                {
-                    printf("%f ", ptr[x]);
-                }
-                ptr += m.w;
-                printf("\n");
-            }
-            printf("\n");
-        }
-        printf("------------------------\n");
-    }
-}
-
-void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
-{
-    Option opt_unpack = opt;
-    opt_unpack.use_packing_layout = false;
-    ncnn::Mat m_cpu;
-    cmd.record_download(m, m_cpu, opt_unpack);
-    cmd.submit_and_wait();
-    cmd.reset();
-    // print Mat content
-    if (m.elemsize == 1)
-        pretty_print_int8(m_cpu);
-    else
-        pretty_print(m_cpu);
-}
-
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
@@ -785,14 +726,6 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         }
     }
 
-#ifdef _DEBUG
-    pretty_print(A_int8_scales, cmd, opt);
-    pretty_print(B_int8_scale, cmd, opt);
-
-    pretty_print(A_int8, cmd, opt);
-    pretty_print(B_int8, cmd, opt);
-#endif
-
     {
         std::vector<VkMat> bindings(6);
         bindings[0] = top_blob;
@@ -824,10 +757,6 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
             cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
     }
-
-#ifdef _DEBUG
-    pretty_print(top_blob, cmd, opt);
-#endif
 
     int out_elempack = 1;
     {
