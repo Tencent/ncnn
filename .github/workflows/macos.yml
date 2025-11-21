@@ -77,7 +77,7 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -140,7 +140,7 @@ jobs:
         key: swiftshader-macos-install-20251004
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader

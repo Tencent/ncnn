@@ -38,7 +38,7 @@ jobs:
   linux-clang-gpu:
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -50,7 +50,7 @@ jobs:
         key: swiftshader-linux-install-20250508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader

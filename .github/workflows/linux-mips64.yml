@@ -34,7 +34,7 @@ jobs:
   mips64el:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: mips64el-gnuabi64-toolchain
       run: |
@@ -55,7 +55,7 @@ jobs:
   mipsisa64r6el:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: mipsisa64r6el-gnuabi64-toolchain
       run: |

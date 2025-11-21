@@ -32,7 +32,7 @@ jobs:
   ppc:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: powerpc-gnu-toolchain
       run: |
@@ -53,7 +53,7 @@ jobs:
   ppc64le:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: powerpc64le-gnu-toolchain
       run: |
@@ -74,7 +74,7 @@ jobs:
   power8le-vsx:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: powerpc64le-gnu-toolchain
       run: |
@@ -95,7 +95,7 @@ jobs:
   power9le-vsx:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: powerpc64le-gnu-toolchain
       run: |

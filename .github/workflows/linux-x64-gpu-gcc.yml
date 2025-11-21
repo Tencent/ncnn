@@ -38,7 +38,7 @@ jobs:
   linux-gcc-gpu:
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -50,7 +50,7 @@ jobs:
         key: swiftshader-linux-install-20250508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -85,7 +85,7 @@ jobs:
   linux-gcc-gpu-system-glslang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: install-deps
       run: |
@@ -106,7 +106,7 @@ jobs:
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: build
