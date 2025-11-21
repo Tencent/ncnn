@@ -54,6 +54,23 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_rmsnorm_pass_2 : public fuse_rmsnorm_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input       0 1 input
+pnnx.Attribute          op_0        0 1 weight @data #weight=(%c)f32
+pnnx.Expression         op_1        1 1 input sq expr=pow(@0,2)
+torch.mean              op_2        1 1 sq sqmean dim=(-1) keepdim=True
+pnnx.Expression         op_3        3 1 input sqmean weight out expr=mul(mul(@0,rsqrt(add(@1,%eps))),@2)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_rmsnorm_pass_without_gamma : public GraphRewriterPass
 {
 public:
@@ -140,15 +157,17 @@ void fuse_rmsnorm(Graph& graph)
 {
     fuse_rmsnorm_pass a;
     fuse_rmsnorm_pass_1 a1;
-    fuse_rmsnorm_pass_without_gamma a2;
-    fuse_rmsnorm_pass_without_gamma_1 a3;
+    fuse_rmsnorm_pass_2 a2;
+    fuse_rmsnorm_pass_without_gamma g;
+    fuse_rmsnorm_pass_without_gamma_1 g1;
     fuse_rmsnorm_pass_onnx b;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &a1, opindex);
     pnnx_graph_rewrite(graph, &a2, opindex);
-    pnnx_graph_rewrite(graph, &a3, opindex);
+    pnnx_graph_rewrite(graph, &g, opindex);
+    pnnx_graph_rewrite(graph, &g1, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
 }
 
