@@ -1,0 +1,31 @@
+#version 450
+
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+
+layout (binding = 0) readonly buffer in_blob { sfp in_blob_data[]; };
+layout (binding = 1) writeonly buffer out_blob { sint8 out_blob_data[]; };
+layout (binding = 2) readonly buffer scales_blob { float scales_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int hstep;
+    int trans;
+    int is_B;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+
+    if (gx >= p.w || gy >= p.h)
+        return;
+
+    afp v = buffer_ld1(in_blob_data, gy * p.hstep + gx);
+    float scale = scales_blob_data[p.is_B == 0 ? (p.trans == 0 ? gy : gx) : 0];
+    sint8 q = sint8(clamp(round(float(v) * scale), -127.f, 127.f));
+    i8buffer_st1(out_blob_data, gy * p.hstep + gx, q);
+}
