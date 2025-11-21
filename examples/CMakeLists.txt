@@ -41,7 +41,7 @@ if(NCNN_PIXEL)
 
         include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
         include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
-
+        ncnn_add_example(arcface)
         ncnn_add_example(squeezenet)
         ncnn_add_example(squeezenet_c_api)
         ncnn_add_example(fasterrcnn)
