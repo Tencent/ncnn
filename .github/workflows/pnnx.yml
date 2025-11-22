@@ -40,7 +40,7 @@ jobs:
       PYTHONUSERBASE: ${{ github.workspace }}/torch
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - uses: actions/setup-python@v6
       with:
@@ -69,7 +69,7 @@ jobs:
     runs-on: [self-hosted, linux, ubuntu25]
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: local-cache-libtorch
       id: local-cache-libtorch
@@ -115,7 +115,7 @@ jobs:
 
     - name: pnnx-patches
       if: (steps.local-cache-libtorch.outputs.cache-hit != 'true' && steps.cache-libtorch.outputs.cache-hit != 'true') || (steps.local-cache-torchvision.outputs.cache-hit != 'true' && steps.cache-torchvision.outputs.cache-hit != 'true') || (steps.local-cache-onnxruntime.outputs.cache-hit != 'true' && steps.cache-onnxruntime.outputs.cache-hit != 'true')
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: pnnx/pnnx
         path: pnnx-patches
@@ -257,7 +257,7 @@ jobs:
       PYTHONUSERBASE: ${{ github.workspace }}/python-${{ matrix.python }}
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
