@@ -4242,6 +4242,14 @@ int Gemm_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_APPLE_AMX
+    // let's consider only output_elempack == 1 for amx for now
+    if (cpu_support_arm_amx() && opt.use_fp16_storage && opt.use_fp16_arithmetic && output_elempack == 1)
+    {
+        return create_pipeline_fp16sa_amx(opt);
+    }
+#endif
+
 #if NCNN_ARM82
     if (cpu_support_arm_asimdhp() && opt.use_fp16_storage)
     {
@@ -4398,6 +4406,14 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();
+
+#if NCNN_APPLE_AMX
+    // let's consider only output_elempack == 1 for amx for now
+    if (cpu_support_arm_amx() && opt.use_fp16_storage && elembits == 16 && opt.use_fp16_arithmetic && output_elempack == 1)
+    {
+        return forward_fp16sa_amx(bottom_blobs, top_blobs, opt);
+    }
+#endif
 
 #if NCNN_ARM82
     if (cpu_support_arm_asimdhp() && opt.use_fp16_storage && elembits == 16)
