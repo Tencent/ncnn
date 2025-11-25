@@ -7460,8 +7460,7 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             {
                 Mat C2;
                 C2.create_like(C, opt.workspace_allocator);
-
-                if (C2.data == 0)
+                if (C2.empty())
                     return -100;
 
                 const int size = C.total() * C.elempack;
