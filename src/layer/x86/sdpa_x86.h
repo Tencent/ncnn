@@ -5,7 +5,6 @@
 #define LAYER_SDPA_X86_H
 
 #include "sdpa.h"
-#include "gemm.h"
 
 namespace ncnn {
 
