@@ -265,6 +265,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         Option opt1 = opt;
         opt1.num_threads = 1;
+        opt1.blob_allocator = qk_cross.allocator;
         retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
     }
 

@@ -323,7 +323,7 @@ int SDPA::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (qk_cross_int8.empty())
         return -100;
 
-    Mat query_or_qk_cross_int8_scales(src_seqlen, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat query_or_qk_cross_int8_scales(src_seqlen, 1, opt.num_threads, 4u, opt.workspace_allocator);
     if (query_or_qk_cross_int8_scales.empty())
         return -100;
 
