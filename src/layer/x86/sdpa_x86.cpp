@@ -149,19 +149,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
-    // Unpack mask if necessary
-    Mat attn_mask_blob_unpacked;
-    if (attn_mask && attn_mask_blob.elempack != 1)
-    {
-        convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, opt);
-        if (attn_mask_blob_unpacked.empty())
-            return -100;
-    }
-    else
-    {
-        attn_mask_blob_unpacked = attn_mask_blob;
-    }
-
     Mat key;
     if (past_seqlen > 0)
     {
@@ -220,7 +207,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return -100;
 
     std::vector<int> retqks(num_heads);
-    std::vector<int> retqkvs(num_heads);
 
     // Dynamic Scale Calculation and Beta Correction
     Layer* _qk_gemm = qk_gemm;
@@ -266,7 +252,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (attn_mask)
         {
             // Ensure mask is 2D for Gemm auto-broadcast detection
-            Mat maskm = attn_mask_blob_unpacked;
+            Mat maskm = attn_mask_blob;
             if (maskm.dims == 3)
             {
                 // If c > 1, pick i-th head mask. If c == 1, pick 0-th (broadcast)
@@ -305,6 +291,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return retqk;
 
     // 3. Attn * V
+    std::vector<int> retqkvs(num_heads);
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
