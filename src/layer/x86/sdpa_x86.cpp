@@ -34,16 +34,13 @@ int SDPA_x86::create_pipeline(const Option& _opt)
     }
 
     // Q * K^T
+    if (scale != 0.f)
     {
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        // We set alpha/beta to 1.f initially.
-        // They will be updated in forward() to handle scale correctly:
-        // alpha = scale, beta = 1.0 / scale
-        // This ensures: alpha * (QK + beta * Mask) = scale * QK + Mask
-        pd.set(0, 1.f);                 // alpha
-        pd.set(1, 1.f);                 // beta
+        pd.set(0, scale);               // alpha
+        pd.set(1, 1.f / scale);         // beta
         pd.set(2, 0);                   // transA (Q: Seq x Embed)
         pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
         pd.set(4, 0);                   // constantA
@@ -211,18 +208,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         value = cur_value;
     }
 
-    // Dynamic Scale Calculation and Beta Correction
-    float _scale = scale;
-    if (_scale == 0.f)
-        _scale = 1.f / sqrt(embed_dim);
-
-    // Gemm computes: alpha * (A*B + beta*C)
-    // We want: scale * (Q*K) + Mask
-    // => alpha = scale
-    // => beta = 1.0 / scale
-    ((Gemm*)qk_gemm)->alpha = _scale;
-    ((Gemm*)qk_gemm)->beta = 1.f / _scale;
-
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
@@ -236,6 +221,39 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     std::vector<int> retqks(num_heads);
     std::vector<int> retqkvs(num_heads);
+
+    // Dynamic Scale Calculation and Beta Correction
+    Layer* _qk_gemm = qk_gemm;
+    if (scale == 0.f)
+    {
+        float _scale = 1.f / sqrt(embed_dim);
+
+        _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        ncnn::ParamDict pd;
+
+        pd.set(0, _scale);              // alpha
+        pd.set(1, 1.f / _scale);        // beta
+        pd.set(2, 0);                   // transA (Q: Seq x Embed)
+        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
+        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
+#if NCNN_INT8
+        pd.set(18, int8_scale_term);
+#endif
+        _qk_gemm->load_param(pd);
+        _qk_gemm->load_model(ModelBinFromMatArray(0));
+
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        _qk_gemm->create_pipeline(opt1);
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
@@ -262,7 +280,17 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         Option opt1 = opt;
         opt1.num_threads = 1;
-        retqks[i] = qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
+        retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
+    }
+
+    if (scale == 0.f)
+    {
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        _qk_gemm->destroy_pipeline(opt1);
+
+        delete _qk_gemm;
+        _qk_gemm = 0;
     }
 
     for (int i = 0; i < num_heads; i++)
