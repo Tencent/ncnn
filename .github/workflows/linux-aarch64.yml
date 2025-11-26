@@ -58,6 +58,20 @@ jobs:
     - name: test-simplestl-simplemath
       run: cd build-simplestl-simplemath && ctest --output-on-failure -j $(nproc)
 
+  asan:
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - uses: actions/checkout@v5
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        cd build
+        ctest --output-on-failure -j $(nproc)
+
   aarch64:
     runs-on: ubuntu-24.04
     steps:
