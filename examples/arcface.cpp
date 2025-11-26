@@ -362,9 +362,9 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
 
                 for (int k = 0; k < num_keypoints; k++)
                 {
-                    float kp_conf_raw = kp_ptr[k * kp_stride];
-                    float kp_x = kp_ptr[k * kp_stride + 1];
-                    float kp_y = kp_ptr[k * kp_stride + 2];
+                    float kp_x = kp_ptr[k * kp_stride];
+                    float kp_y = kp_ptr[k * kp_stride + 1];
+                    float kp_conf_raw = kp_ptr[k * kp_stride + 2];
 
                     // Apply sigmoid to convert logit to probability
                     float kp_conf = 1.0f / (1.0f + expf(-kp_conf_raw));
@@ -450,7 +450,7 @@ static int estimate_norm(float* transform_matrix, const float* lmk, int image_si
         dst_points[i * 2 + 1] = ARCFACE_DST[i * 2 + 1] * ratio;
     }
 
-    ncnn::get_affine_transform(src_points, dst_points, 5, transform_matrix);
+    ncnn::get_affine_transform(dst_points, src_points, 5, transform_matrix);
 
     return 0;
 }
