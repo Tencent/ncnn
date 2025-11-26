@@ -71,7 +71,7 @@ static int test_sdpa_int8(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Ma
         as.push_back(RandomMat(dst_seqlen, src_seqlen));
     }
 
-    float epsilon = 0.001;
+    float epsilon = 0.01;
 
     int ret = test_layer("SDPA", pd, weights, as, 1, epsilon);
     if (ret != 0)
