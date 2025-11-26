@@ -95,7 +95,8 @@ struct Bbox
         // Ensure valid dimensions
         if (bbox_width <= 0 || bbox_height <= 0)
         {
-            throw std::invalid_argument("Invalid bounding box dimensions");
+            fprintf(stderr, "Invalid bounding box dimensions\n");
+            return cv::Mat();
         }
 
         // Ensure coordinates are within image bounds
@@ -248,10 +249,14 @@ non_maximum_supression(const std::vector<Bbox>& bbox, float iou_thresh, bool cla
     return picked;
 }
 
-static std::array<float, 3> scale_wh(float w0, float h0, float w1, float h1)
+static std::vector<float> scale_wh(float w0, float h0, float w1, float h1)
 {
     float r = std::min(w1 / w0, h1 / h0);
-    return {r, (float)std::round(w0 * r), (float)std::round(h0 * r)};
+    std::vector<float> _scale_factor(3);
+    _scale_factor[0] = r;
+    _scale_factor[1] = (float)std::round(w0 * r);
+    _scale_factor[2] = (float)std::round(h0 * r);
+    return _scale_factor;
 }
 
 struct ImagePreProcessResults
@@ -279,7 +284,7 @@ static ImagePreProcessResults preprocess_yolo_kpts(cv::Mat& input_image, int inf
     int img_w = input_image.cols;
     int img_h = input_image.rows;
     float scale_factor, new_w, new_h;
-    std::array<float, 3> _scale_factor = scale_wh(img_w, img_h, (float)infer_size, (float)infer_size);
+    std::vector<float> _scale_factor = scale_wh(img_w, img_h, (float)infer_size, (float)infer_size);
     scale_factor = _scale_factor[0];
     new_w = _scale_factor[1];
     new_h = _scale_factor[2];
