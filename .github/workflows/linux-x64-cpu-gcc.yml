@@ -91,7 +91,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -DCMAKE_BUILD_TYPE=relwithdebinfo -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
     - name: test
       run: |
