@@ -18,7 +18,7 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -82,7 +82,7 @@ jobs:
         -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 

@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -59,7 +59,7 @@ jobs:
         key: swiftshader-linux-install-20240622
     - name: checkout-swiftshader
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
