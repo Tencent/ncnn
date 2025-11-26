@@ -313,7 +313,9 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
         float iou_threshold,
         std::vector<std::string> class_names)
 {
-    cv::Mat output = cv::Mat((int)result.h, (int)result.w, CV_32FC1, result).t();
+    cv::Mat output0 = cv::Mat((int)result.h, (int)result.w, CV_32FC1, result);
+    cv::Mat output;
+    cv::transpose(output0, output);
     std::vector<Bbox> detections;
     std::vector<std::vector<float> > all_keypoints;
 
