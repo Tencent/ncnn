@@ -900,7 +900,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 {
                     fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
                     fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    if (op->int8_scale_term > 100)
+                    {
+                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    }
                 }
 #endif // NCNN_INT8
             }
@@ -1073,7 +1076,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 {
                     fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
                     fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    if (op->int8_scale_term > 100)
+                    {
+                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    }
                 }
 #endif // NCNN_INT8
             }
