@@ -95,7 +95,8 @@ struct Bbox
         // Ensure valid dimensions
         if (bbox_width <= 0 || bbox_height <= 0)
         {
-            throw std::invalid_argument("Invalid bounding box dimensions");
+            fprintf(stderr, "Invalid bounding box dimensions\n");
+            return cv::Mat();
         }
 
         // Ensure coordinates are within image bounds
@@ -248,10 +249,14 @@ non_maximum_supression(const std::vector<Bbox>& bbox, float iou_thresh, bool cla
     return picked;
 }
 
-static std::array<float, 3> scale_wh(float w0, float h0, float w1, float h1)
+static std::vector<float> scale_wh(float w0, float h0, float w1, float h1)
 {
     float r = std::min(w1 / w0, h1 / h0);
-    return {r, (float)std::round(w0 * r), (float)std::round(h0 * r)};
+    std::vector<float> _scale_factor(3);
+    _scale_factor[0] = r;
+    _scale_factor[1] = (float)std::round(w0 * r);
+    _scale_factor[2] = (float)std::round(h0 * r);
+    return _scale_factor;
 }
 
 struct ImagePreProcessResults
@@ -279,7 +284,7 @@ static ImagePreProcessResults preprocess_yolo_kpts(cv::Mat& input_image, int inf
     int img_w = input_image.cols;
     int img_h = input_image.rows;
     float scale_factor, new_w, new_h;
-    std::array<float, 3> _scale_factor = scale_wh(img_w, img_h, (float)infer_size, (float)infer_size);
+    std::vector<float> _scale_factor = scale_wh(img_w, img_h, (float)infer_size, (float)infer_size);
     scale_factor = _scale_factor[0];
     new_w = _scale_factor[1];
     new_h = _scale_factor[2];
@@ -308,7 +313,14 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
         float iou_threshold,
         std::vector<std::string> class_names)
 {
-    cv::Mat output = cv::Mat((int)result.h, (int)result.w, CV_32F, result).t();
+    cv::Mat output((int)result.w, (int)result.h, CV_32FC1);
+    for (int i = 0; i < output.cols; i++)
+    {
+        for (int j = 0; j < output.rows; j++)
+        {
+            output.ptr<float>(j)[i] = result.row(i)[j];
+        }
+    }
     std::vector<Bbox> detections;
     std::vector<std::vector<float> > all_keypoints;
 
@@ -318,7 +330,7 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
 
     for (int i = 0; i < output.rows; i++)
     {
-        const float* row_ptr = output.row(i).ptr<float>();
+        const float* row_ptr = output.ptr<float>(i);
         const float* bboxes_ptr = row_ptr;
         const float* classes_ptr = row_ptr + 4;
         const float* max_s_ptr = std::max_element(classes_ptr, classes_ptr + num_classes);
@@ -350,9 +362,9 @@ static DetectionResult parse_yolo_keypoints_results(ncnn::Mat& result,
 
                 for (int k = 0; k < num_keypoints; k++)
                 {
-                    float kp_conf_raw = kp_ptr[k * kp_stride];
-                    float kp_x = kp_ptr[k * kp_stride + 1];
-                    float kp_y = kp_ptr[k * kp_stride + 2];
+                    float kp_x = kp_ptr[k * kp_stride];
+                    float kp_y = kp_ptr[k * kp_stride + 1];
+                    float kp_conf_raw = kp_ptr[k * kp_stride + 2];
 
                     // Apply sigmoid to convert logit to probability
                     float kp_conf = 1.0f / (1.0f + expf(-kp_conf_raw));
@@ -438,7 +450,7 @@ static int estimate_norm(float* transform_matrix, const float* lmk, int image_si
         dst_points[i * 2 + 1] = ARCFACE_DST[i * 2 + 1] * ratio;
     }
 
-    ncnn::get_affine_transform(src_points, dst_points, 5, transform_matrix);
+    ncnn::get_affine_transform(dst_points, src_points, 5, transform_matrix);
 
     return 0;
 }

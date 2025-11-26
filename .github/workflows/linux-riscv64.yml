@@ -18,6 +18,7 @@ on:
     - 'src/layer/*'
     - 'src/layer/riscv/**'
     - 'tests/**'
+    - 'examples/**'
   pull_request:
     branches: [master]
     paths:
@@ -36,6 +37,7 @@ on:
     - 'src/layer/*'
     - 'src/layer/riscv/**'
     - 'tests/**'
+    - 'examples/**'
 concurrency:
   group: linux-riscv64-${{ github.ref }}
   cancel-in-progress: true
