@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "paramdict.h"
 
@@ -356,9 +345,19 @@ int ParamDict::load_param(const DataReader& dr)
             // scan the remaining string
             char vstr2[256];
             vstr2[241] = '\0'; // max 255 = 15 + 240
+
             if (vstr[0] == '\"')
             {
-                nscan = dr.scan("%255[^\"\n]\"", vstr2);
+                int len = 0;
+                while (vstr[len] != '\0')
+                    len++;
+                char end = vstr[len - 1];
+                if (end != '\"')
+                {
+                    nscan = dr.scan("%255[^\"\n]\"", vstr2);
+                }
+                else
+                    nscan = 0; // already ended with a quote, no need to scan more
             }
             else
             {

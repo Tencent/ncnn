@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -31,14 +20,8 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler3D max_workspace_3d;
-#else
 layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer max_workspace { sfp max_workspace_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -67,65 +50,7 @@ void main()
         return;
 
     int positive_axis = axis < 0 ? psc(dims) + axis : axis;
-#if NCNN_image_shader
-    afp v;
-    afp max_value;
 
-    if (psc(dims) == 1) // positive_axis == 0
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, 0, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(0, 0, 0));
-    }
-    else if (psc(dims) == 2 && positive_axis == 0)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, 0, 0));
-    }
-    else if (psc(dims) == 2 && positive_axis == 1)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gy, 0, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 0)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, gy, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 1)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gx, gz, 0));
-    }
-    else if (psc(dims) == 3 && positive_axis == 2)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-        max_value = image3d_ld1(max_workspace_3d, ivec3(gy, gz, 0));
-    }
-    else // if (psc(dims) == 4)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-
-        int yd = gy / psc(h);
-        int yh = gy % psc(h);
-
-        if (positive_axis == 0)
-        {
-            max_value = image3d_ld1(max_workspace_3d, ivec3(gx, yh, yd));
-        }
-        if (positive_axis == 1)
-        {
-            max_value = image3d_ld1(max_workspace_3d, ivec3(gx, yh, gz));
-        }
-        if (positive_axis == 2)
-        {
-            max_value = image3d_ld1(max_workspace_3d, ivec3(gx, yd, gz));
-        }
-        if (positive_axis == 3)
-        {
-            max_value = image3d_ld1(max_workspace_3d, ivec3(yh, yd, gz));
-        }
-    }
-#else
     int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
@@ -180,13 +105,8 @@ void main()
             max_value = buffer_ld1(max_workspace_data, gz * psc(outcstep) + yd * psc(h) + yh);
         }
     }
-#endif
 
     v = exp(v - max_value);
 
-#if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
-#else
     buffer_st1(bottom_top_blob_data, gi, v);
-#endif
 }

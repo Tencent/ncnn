@@ -1,0 +1,67 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+// RMSNorm also depends on this shader
+
+#version 450
+
+layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 1) writeonly buffer sum_blob { vec4 sum_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
+        return;
+
+    vec4 sum;
+
+    int sx = gx * 4;
+
+    int v_offset = gz * p.cstep + gy * p.w + sx;
+
+    if (sx == p.w - 1)
+    {
+        sum = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+    }
+    else if (sx == p.w - 2)
+    {
+        vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+        vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 1));
+        sum = v0 + v1;
+    }
+    else if (sx == p.w - 3)
+    {
+        vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+        vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 1));
+        vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 2));
+        sum = v0 + v1 + v2;
+    }
+    else
+    {
+        vec4 v0 = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+        vec4 v1 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 1));
+        vec4 v2 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 2));
+        vec4 v3 = vec4(buffer_ld4(bottom_top_blob_data, v_offset + 3));
+        sum = v0 + v1 + v2 + v3;
+    }
+
+    int gi = gz * p.outcstep + gy * p.outw + gx;
+    sum_blob_data[gi] = sum;
+}

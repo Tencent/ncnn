@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -52,7 +41,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.flatten           op_0        1 1 input out start_dim=2 end_dim=-1
+torch.flatten           op_0        1 1 input out start_dim=%start_dim end_dim=-1
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -67,13 +56,18 @@ pnnx.Output             output      1 0 out
         return "flatten";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int input_rank = op->inputs[0]->shape.size();
+        int start_dim = captured_params.at("start_dim").i;
 
-        if (input_rank <= 2)
+        const int input_rank = op->inputs[0]->shape.size();
+
+        if (start_dim < 0)
+            start_dim += input_rank;
+
+        if (input_rank <= start_dim)
         {
-            fprintf(stderr, "flatten 2 to -1 not possible for %d-rank tensor\n", input_rank);
+            fprintf(stderr, "flatten %d to -1 not possible for %d-rank tensor\n", start_dim, input_rank);
             return;
         }
 

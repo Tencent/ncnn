@@ -1,0 +1,37 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+// RMSNorm also depends on this shader
+
+#version 450
+
+layout (binding = 0) readonly buffer sum_blob { float sum_blob_data[]; };
+layout (binding = 1) writeonly buffer mean_blob { float mean_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+    float group_size;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+    if (gx >= 1 || gy >= p.h || gz >= p.c)
+        return;
+
+    float sum = 0.f;
+    int v_offset = gz * p.cstep + gy * p.w;
+    for (int i = 0; i < p.w; i++)
+    {
+        sum += sum_blob_data[v_offset + i];
+    }
+
+    int group_id = gz * p.h + gy;
+    mean_data[group_id] = sum / p.group_size;
+}

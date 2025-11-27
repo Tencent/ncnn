@@ -28,7 +28,7 @@ jobs:
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: build
@@ -59,6 +59,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/.local/bin/codecov
         files: build/lcov.info
 
   linux-gcc-x64:
@@ -75,7 +76,7 @@ jobs:
           - { name: 'avx512',     SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: OFF }
           - { name: 'avx512vnni', SSE2: ON,  AVX: ON,  F16C: ON,  FMA: ON,  AVX2: ON,  AVX512: ON,  AVX512VNNI: ON  }
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: build
       run: |
         mkdir build && cd build
@@ -140,13 +141,14 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info,build-openmp/lcov.info
 
   linux-gcc-x64-simplestl-simplemath:
     name: simplestl-simplemath
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: build
       run: |
         mkdir build && cd build
@@ -171,6 +173,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-x64-sde:
@@ -187,7 +190,7 @@ jobs:
           - { cpu: arl, AVX2: ON, AVXVNNI: ON,  AVXVNNIINT8: ON,  AVXNECONVERT: ON,  AVX512: OFF, AVX512VNNI: OFF, AVX512BF16: OFF, AVX512FP16: OFF }
           - { cpu: spr, AVX2: ON, AVXVNNI: OFF, AVXVNNIINT8: OFF, AVXNECONVERT: OFF, AVX512: ON,  AVX512VNNI: ON,  AVX512BF16: ON,  AVX512FP16: ON  }
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: build
       run: |
         mkdir build && cd build
@@ -222,6 +225,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-x64-sde-combined:
@@ -230,7 +234,7 @@ jobs:
     env:
       SDE_PATH: /data/action/osd/sde-external-9.33.0-2024-01-07-lin
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: build
       run: |
         mkdir build && cd build
@@ -281,6 +285,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-riscv64-rvv:
@@ -289,7 +294,7 @@ jobs:
         openmp: [ON, OFF]
     runs-on: [self-hosted, linux, ubuntu]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: build
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/riscv
@@ -330,7 +335,7 @@ jobs:
   linux-gpu-llvmpipe:
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: build
@@ -356,12 +361,13 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gpu-swiftshader:
     runs-on: [self-hosted, linux, ubuntu25]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -373,7 +379,7 @@ jobs:
         key: swiftshader-linux-install-20250508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -413,6 +419,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info
 
   linux-gcc-cross:
@@ -519,7 +526,7 @@ jobs:
             qemu-args: "-L;/usr/loongarch64-linux-gnu"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: build
       run: |
@@ -571,4 +578,5 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
         plugins: noop
+        binary: /data/action/osd/codecov
         files: build/lcov.info,build-openmp/lcov.info

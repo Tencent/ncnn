@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_MAT_H
 #define NCNN_MAT_H
@@ -121,12 +110,12 @@ public:
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    void fill(__m512 _v);
+    void fill(const __m512& _v);
 #endif // __AVX512F__
-    void fill(__m256 _v, int i = 0);
+    void fill(const __m256& _v, int i = 0);
 #endif // __AVX__
-    void fill(__m128 _v);
-    void fill(__m128i _v);
+    void fill(const __m128& _v);
+    void fill(const __m128i& _v);
 #endif // __SSE2__
 #if __mips_msa
     void fill(v4f32 _v);
@@ -610,6 +599,7 @@ union vk_constant_type
 {
     int i;
     float f;
+    uint32_t u32;
 };
 #endif // NCNN_VULKAN
 
@@ -850,13 +840,13 @@ NCNN_FORCEINLINE Mat::Mat(const Mat& m)
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
@@ -874,13 +864,13 @@ NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _e
 NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
@@ -1017,7 +1007,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m512 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1028,7 +1018,7 @@ NCNN_FORCEINLINE void Mat::fill(__m512 _v)
     }
 }
 #endif // __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
+NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 {
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
@@ -1042,7 +1032,7 @@ NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
     }
 }
 #endif // __AVX__
-NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1052,7 +1042,7 @@ NCNN_FORCEINLINE void Mat::fill(__m128 _v)
         ptr += 4;
     }
 }
-NCNN_FORCEINLINE void Mat::fill(__m128i _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
@@ -1268,12 +1258,16 @@ NCNN_FORCEINLINE const Mat Mat::channel(int _c) const
 
 NCNN_FORCEINLINE Mat Mat::depth(int z)
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::depth(int z) const
 {
-    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    Mat m(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 NCNN_FORCEINLINE float* Mat::row(int y)
@@ -1328,22 +1322,30 @@ NCNN_FORCEINLINE const Mat Mat::depth_range(int z, int depths) const
 
 NCNN_FORCEINLINE Mat Mat::row_range(int y, int rows)
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::row_range(int y, int rows) const
 {
-    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    Mat m(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * rows;
+    return m;
 }
 
 NCNN_FORCEINLINE Mat Mat::range(int x, int n)
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 NCNN_FORCEINLINE const Mat Mat::range(int x, int n) const
 {
-    return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    Mat m(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)n;
+    return m;
 }
 
 template<typename T>
@@ -1434,49 +1436,49 @@ NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::~VkMat()

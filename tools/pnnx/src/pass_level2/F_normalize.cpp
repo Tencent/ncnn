@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -49,7 +38,7 @@ public:
 pnnx.Input              input       0 1 input
 torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
 torch.clamp             op_1        1 1 9 11 max=None min=%eps
-Tensor.expand           op_2        1 1 11 denorm shape=*
+Tensor.expand           op_2        1 1 11 denorm sizes=*
 aten::div               op_3        2 1 input denorm out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -66,7 +55,7 @@ public:
 pnnx.Input              input       0 1 input
 torch.norm              op_0        1 1 input 3 p=%p dim=%dim keepdim=True
 torch.clamp             op_1        1 1 3 4 max=None min=%eps
-Tensor.expand           op_2        1 1 4 denorm shape=*
+Tensor.expand           op_2        1 1 4 denorm sizes=*
 aten::div               op_3        2 1 input denorm out
 pnnx.Output             output      1 0 out
 )PNNXIR";

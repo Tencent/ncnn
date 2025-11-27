@@ -47,7 +47,7 @@ jobs:
       PR_NUMBER:  ${{ needs.pr-context.outputs.PR_NUMBER  }}
     steps:
     - name: Remove existing "format check failed" comment
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const owner = context.repo.owner;
@@ -82,7 +82,7 @@ jobs:
       PR_NUMBER:  ${{ needs.pr-context.outputs.PR_NUMBER  }}
     steps:
     - name: Post comment on failed code-format if not existing
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const owner = context.repo.owner;

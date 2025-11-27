@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_VULKAN_HEADER_FIX_H
 #define NCNN_VULKAN_HEADER_FIX_H
@@ -1435,6 +1424,35 @@ typedef VkPhysicalDeviceShaderIntegerDotProductFeatures VkPhysicalDeviceShaderIn
 typedef VkPhysicalDeviceShaderIntegerDotProductProperties VkPhysicalDeviceShaderIntegerDotProductPropertiesKHR;
 #endif // VK_KHR_shader_integer_dot_product
 
+#ifndef VK_KHR_robustness2
+#define VK_KHR_robustness2                                            1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR   (VkStructureType)1000286000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR (VkStructureType)1000286001
+typedef struct VkPhysicalDeviceRobustness2FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 robustBufferAccess2;
+    VkBool32 robustImageAccess2;
+    VkBool32 nullDescriptor;
+} VkPhysicalDeviceRobustness2FeaturesKHR;
+typedef struct VkPhysicalDeviceRobustness2PropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize robustStorageBufferAccessSizeAlignment;
+    VkDeviceSize robustUniformBufferAccessSizeAlignment;
+} VkPhysicalDeviceRobustness2PropertiesKHR;
+#endif // VK_KHR_robustness2
+
+#ifndef VK_EXT_robustness2
+#define VK_EXT_robustness2                                            1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT   VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_KHR
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_EXT VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_PROPERTIES_KHR
+typedef VkPhysicalDeviceRobustness2FeaturesKHR VkPhysicalDeviceRobustness2FeaturesEXT;
+typedef VkPhysicalDeviceRobustness2PropertiesKHR VkPhysicalDeviceRobustness2PropertiesEXT;
+#endif // VK_EXT_robustness2
+
 #ifndef VK_KHR_shader_bfloat16
 #define VK_KHR_shader_bfloat16                                         1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_BFLOAT16_FEATURES_KHR (VkStructureType)1000141000
@@ -1501,5 +1519,156 @@ typedef struct VkPhysicalDeviceShaderFloatControls2Features
 } VkPhysicalDeviceShaderFloatControls2Features;
 typedef VkPhysicalDeviceShaderFloatControls2Features VkPhysicalDeviceShaderFloatControls2FeaturesKHR;
 #endif // VK_KHR_shader_float_controls2
+
+#ifndef VK_NV_cooperative_vector
+#define VK_NV_cooperative_vector                                           1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_FEATURES_NV   (VkStructureType)1000491000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_VECTOR_PROPERTIES_NV (VkStructureType)1000491001
+#define VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV                 (VkStructureType)1000491002
+#define VK_STRUCTURE_TYPE_CONVERT_COOPERATIVE_VECTOR_MATRIX_INFO_NV        (VkStructureType)1000491004
+#define VK_COMPONENT_TYPE_SINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491000
+#define VK_COMPONENT_TYPE_UINT8_PACKED_NV                                  (VkComponentTypeKHR)1000491001
+#define VK_COMPONENT_TYPE_FLOAT_E4M3_NV                                    (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT_E5M2_NV                                    (VkComponentTypeKHR)1000491003
+typedef enum VkCooperativeVectorMatrixLayoutNV
+{
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_ROW_MAJOR_NV = 0,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_COLUMN_MAJOR_NV = 1,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_INFERENCING_OPTIMAL_NV = 2,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_TRAINING_OPTIMAL_NV = 3,
+    VK_COOPERATIVE_VECTOR_MATRIX_LAYOUT_MAX_ENUM_NV = 0x7FFFFFFF
+} VkCooperativeVectorMatrixLayoutNV;
+#ifndef VK_KHR_acceleration_structure
+typedef union VkDeviceOrHostAddressConstKHR
+{
+    VkDeviceAddress deviceAddress;
+    const void* hostAddress;
+} VkDeviceOrHostAddressConstKHR;
+typedef union VkDeviceOrHostAddressKHR
+{
+    VkDeviceAddress deviceAddress;
+    void* hostAddress;
+} VkDeviceOrHostAddressKHR;
+#endif // VK_KHR_acceleration_structure
+typedef struct VkPhysicalDeviceCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeVectorSupportedStages;
+    VkBool32 cooperativeVectorTrainingFloat16Accumulation;
+    VkBool32 cooperativeVectorTrainingFloat32Accumulation;
+    uint32_t maxCooperativeVectorComponents;
+} VkPhysicalDeviceCooperativeVectorPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeVectorFeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeVector;
+    VkBool32 cooperativeVectorTraining;
+} VkPhysicalDeviceCooperativeVectorFeaturesNV;
+typedef struct VkCooperativeVectorPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkComponentTypeKHR inputType;
+    VkComponentTypeKHR inputInterpretation;
+    VkComponentTypeKHR matrixInterpretation;
+    VkComponentTypeKHR biasInterpretation;
+    VkComponentTypeKHR resultType;
+    VkBool32 transpose;
+} VkCooperativeVectorPropertiesNV;
+typedef struct VkConvertCooperativeVectorMatrixInfoNV
+{
+    VkStructureType sType;
+    const void* pNext;
+    size_t srcSize;
+    VkDeviceOrHostAddressConstKHR srcData;
+    size_t* pDstSize;
+    VkDeviceOrHostAddressKHR dstData;
+    VkComponentTypeKHR srcComponentType;
+    VkComponentTypeKHR dstComponentType;
+    uint32_t numRows;
+    uint32_t numColumns;
+    VkCooperativeVectorMatrixLayoutNV srcLayout;
+    size_t srcStride;
+    VkCooperativeVectorMatrixLayoutNV dstLayout;
+    size_t dstStride;
+} VkConvertCooperativeVectorMatrixInfoNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeVectorPropertiesNV* pProperties);
+typedef VkResult(VKAPI_PTR* PFN_vkConvertCooperativeVectorMatrixNV)(VkDevice device, const VkConvertCooperativeVectorMatrixInfoNV* pInfo);
+typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkConvertCooperativeVectorMatrixInfoNV* pInfos);
+#endif // VK_NV_cooperative_vector
+
+#ifndef VK_NV_cooperative_matrix2
+#define VK_NV_cooperative_matrix2                                              1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV     (VkStructureType)1000593000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV (VkStructureType)1000593001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV   (VkStructureType)1000593002
+typedef struct VkCooperativeMatrixFlexibleDimensionsPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MGranularity;
+    uint32_t NGranularity;
+    uint32_t KGranularity;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
+    uint32_t workgroupInvocations;
+} VkCooperativeMatrixFlexibleDimensionsPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrix2FeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixWorkgroupScope;
+    VkBool32 cooperativeMatrixFlexibleDimensions;
+    VkBool32 cooperativeMatrixReductions;
+    VkBool32 cooperativeMatrixConversions;
+    VkBool32 cooperativeMatrixPerElementOperations;
+    VkBool32 cooperativeMatrixTensorAddressing;
+    VkBool32 cooperativeMatrixBlockLoads;
+} VkPhysicalDeviceCooperativeMatrix2FeaturesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrix2PropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t cooperativeMatrixWorkgroupScopeMaxWorkgroupSize;
+    uint32_t cooperativeMatrixFlexibleDimensionsMaxDimension;
+    uint32_t cooperativeMatrixWorkgroupScopeReservedSharedMemory;
+} VkPhysicalDeviceCooperativeMatrix2PropertiesNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties);
+#endif // VK_NV_cooperative_matrix2
+
+#ifndef VK_EXT_shader_float8
+#define VK_EXT_shader_float8                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT (VkStructureType)1000567000
+#define VK_COMPONENT_TYPE_FLOAT8_E4M3_EXT                            (VkComponentTypeKHR)1000491002
+#define VK_COMPONENT_TYPE_FLOAT8_E5M2_EXT                            (VkComponentTypeKHR)1000491003
+typedef struct VkPhysicalDeviceShaderFloat8FeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloat8;
+    VkBool32 shaderFloat8CooperativeMatrix;
+} VkPhysicalDeviceShaderFloat8FeaturesEXT;
+#endif // VK_EXT_shader_float8
+
+#ifndef VK_KHR_vulkan_memory_model
+#define VK_KHR_vulkan_memory_model                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES     (VkStructureType)1000211000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES
+typedef struct VkPhysicalDeviceVulkanMemoryModelFeatures
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 vulkanMemoryModel;
+    VkBool32 vulkanMemoryModelDeviceScope;
+    VkBool32 vulkanMemoryModelAvailabilityVisibilityChains;
+} VkPhysicalDeviceVulkanMemoryModelFeatures;
+typedef VkPhysicalDeviceVulkanMemoryModelFeatures VkPhysicalDeviceVulkanMemoryModelFeaturesKHR;
+#endif // VK_KHR_vulkan_memory_model
 
 #endif // NCNN_VULKAN_HEADER_FIX_H

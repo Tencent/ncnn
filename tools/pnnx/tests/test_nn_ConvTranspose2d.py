@@ -1,20 +1,10 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -28,6 +18,11 @@ class Model(nn.Module):
         self.deconv_5 = nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, output_padding=1, dilation=1, groups=32, bias=True)
         self.deconv_6 = nn.ConvTranspose2d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, output_padding=0, dilation=1, groups=1, bias=False)
         self.deconv_7 = nn.ConvTranspose2d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), output_padding=(1,0), dilation=2, groups=1, bias=True)
+
+        if version.parse(torch.__version__) < version.parse('2.1'):
+            self.deconv_7 = torch.nn.utils.weight_norm(self.deconv_7)
+        else:
+            self.deconv_7 = torch.nn.utils.parametrizations.weight_norm(self.deconv_7)
 
         self.downsample = nn.Conv2d(24, 16, 3, stride=2, padding=1)
         self.upsample = nn.ConvTranspose2d(16, 24, 3, stride=2, padding=1)
@@ -68,7 +63,7 @@ def test():
     import test_nn_ConvTranspose2d_pnnx
     b = test_nn_ConvTranspose2d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    return torch.allclose(a, b, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

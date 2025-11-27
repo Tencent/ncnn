@@ -577,6 +577,8 @@ https://github.com/Tencent/ncnn/releases/latest
 
 ## FAQ
 
+**[ncnn deepwiki](https://deepwiki.com/Tencent/ncnn) LLM Answering Questions ;)** 
+
 **[ncnn throw error](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-throw-error)**
 
 **[ncnn produce wrong result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)**
@@ -624,15 +626,15 @@ https://github.com/Tencent/ncnn/releases/latest
 
 |            | Windows | Linux | Android | macOS | iOS |
 | ---------- | ------- | ----- | ------- | ----- | --- |
-| intel-cpu  | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| intel-gpu  | ✔️      | ✔️    | ❔      | ❔    | /   |
-| amd-cpu    | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| amd-gpu    | ✔️      | ✔️    | ❔      | ❔    | /   |
-| nvidia-gpu | ✔️      | ✔️    | ❔      | ❔    | /   |
-| qcom-cpu   | ❔      | ✔️    | ✅      | /     | /   |
-| qcom-gpu   | ❔      | ✔️    | ✔️      | /     | /   |
-| arm-cpu    | ❔      | ❔    | ✅      | /     | /   |
-| arm-gpu    | ❔      | ❔    | ✔️      | /     | /   |
+| intel-cpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| intel-gpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-cpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-gpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| nvidia-gpu | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| qcom-cpu   | ✅      | ✅    | ✅      | /     | /   |
+| qcom-gpu   | ✔️      | ✔️    | ✔️      | /     | /   |
+| arm-cpu    | ✅      | ✅    | ✅      | /     | /   |
+| arm-gpu    | ❔      | ✔️    | ✔️      | /     | /   |
 | apple-cpu  | /       | /     | /       | ✔️    | ✅  |
 | apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
 | ibm-cpu    | /       | ✔️     | /       | /    | /  |

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "multiheadattention_x86.h"
 
@@ -313,10 +302,20 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const Mat& k_blob = bottom_blobs[k_blob_i];
+    const Mat& v_blob = bottom_blobs[v_blob_i];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
     Option opt = _opt;
     if (int8_scale_term)
@@ -336,9 +335,35 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         attn_mask_blob_unpacked = attn_mask_blob;
     }
 
+    Mat cached_xk_blob_unpacked;
+    if (kv_cache && !cached_xk_blob.empty() && cached_xk_blob.elempack != 1)
+    {
+        convert_packing(cached_xk_blob, cached_xk_blob_unpacked, 1, opt);
+        if (cached_xk_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        cached_xk_blob_unpacked = cached_xk_blob;
+    }
+
+    Mat cached_xv_blob_unpacked;
+    if (kv_cache && !cached_xv_blob.empty() && cached_xv_blob.elempack != 1)
+    {
+        convert_packing(cached_xv_blob, cached_xv_blob_unpacked, 1, opt);
+        if (cached_xv_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        cached_xv_blob_unpacked = cached_xv_blob;
+    }
+
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
-    const int dst_seqlen = k_blob.h * k_blob.elempack;
+    const int cur_seqlen = k_blob.h * k_blob.elempack;
+    const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     Mat q_affine;
     int retq = q_gemm->forward(q_blob, q_affine, opt);
@@ -346,9 +371,43 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         return retq;
 
     Mat k_affine;
-    int retk = k_gemm->forward(k_blob, k_affine, opt);
-    if (retk != 0)
-        return retk;
+    if (past_seqlen > 0)
+    {
+        if (q_blob_i == k_blob_i)
+        {
+            Mat k_affine_q;
+            int retk = k_gemm->forward(q_blob, k_affine_q, opt);
+            if (retk != 0)
+                return retk;
+
+            // assert dst_seqlen == cached_xk_blob_unpacked.w + k_affine_q.w
+
+            // merge cached_xk_blob_unpacked and k_affine_q
+            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize);
+            if (k_affine.empty())
+                return -100;
+
+            for (int i = 0; i < embed_dim; i++)
+            {
+                const unsigned char* ptr = cached_xk_blob_unpacked.row<const unsigned char>(i);
+                const unsigned char* ptrq = k_affine_q.row<const unsigned char>(i);
+                unsigned char* outptr = k_affine.row<unsigned char>(i);
+
+                memcpy(outptr, ptr, past_seqlen * k_affine.elemsize);
+                memcpy(outptr + past_seqlen * k_affine.elemsize, ptrq, cur_seqlen * k_affine.elemsize);
+            }
+        }
+        else
+        {
+            k_affine = cached_xk_blob_unpacked;
+        }
+    }
+    else
+    {
+        int retk = k_gemm->forward(k_blob, k_affine, opt);
+        if (retk != 0)
+            return retk;
+    }
 
     Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
     if (qk_cross.empty())
@@ -380,16 +439,54 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     }
 
     q_affine.release();
-    k_affine.release();
+
+    if (!kv_cache)
+    {
+        k_affine.release();
+    }
 
     int retqk = qk_softmax->forward_inplace(qk_cross, opt);
     if (retqk != 0)
         return retqk;
 
     Mat v_affine;
-    int retv = v_gemm->forward(v_blob, v_affine, opt);
-    if (retv != 0)
-        return retv;
+    if (past_seqlen > 0)
+    {
+        if (q_blob_i == v_blob_i)
+        {
+            Mat v_affine_q;
+            int retk = v_gemm->forward(v_blob, v_affine_q, opt);
+            if (retk != 0)
+                return retk;
+
+            // assert dst_seqlen == cached_xv_blob_unpacked.w + v_affine_q.w
+
+            // merge cached_xv_blob_unpacked and v_affine_q
+            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize);
+            if (v_affine.empty())
+                return -100;
+
+            for (int i = 0; i < embed_dim; i++)
+            {
+                const unsigned char* ptr = cached_xv_blob_unpacked.row<const unsigned char>(i);
+                const unsigned char* ptrq = v_affine_q.row<const unsigned char>(i);
+                unsigned char* outptr = v_affine.row<unsigned char>(i);
+
+                memcpy(outptr, ptr, past_seqlen * v_affine.elemsize);
+                memcpy(outptr + past_seqlen * v_affine.elemsize, ptrq, cur_seqlen * v_affine.elemsize);
+            }
+        }
+        else
+        {
+            v_affine = cached_xv_blob_unpacked;
+        }
+    }
+    else
+    {
+        int retv = v_gemm->forward(v_blob, v_affine, opt);
+        if (retv != 0)
+            return retv;
+    }
 
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
@@ -415,11 +512,21 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
             return retqkvs[i];
     }
 
-    v_affine.release();
+    if (!kv_cache)
+    {
+        v_affine.release();
+    }
 
     int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt);
     if (reto != 0)
         return reto;
+
+    if (kv_cache)
+    {
+        // assert top_blobs.size() == 3
+        top_blobs[1] = k_affine;
+        top_blobs[2] = v_affine;
+    }
 
     return 0;
 }

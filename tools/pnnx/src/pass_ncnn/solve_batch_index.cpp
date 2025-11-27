@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "solve_batch_index.h"
 
@@ -211,7 +200,7 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        else if (op->type == "Tensor.reshape")
         {
             std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
@@ -395,17 +384,48 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "torch.squeeze")
         {
-            int dim = op->params.at("dim").i;
-            if (dim < 0)
-                dim += input_rank0;
-
             int batch_index_squeezed = batch_index;
-            if (dim >= 0 && dim < batch_index)
+
+            if (op->has_param("dim"))
             {
-                batch_index_squeezed = batch_index - 1;
+                if (op->params.at("dim").type == 2)
+                {
+                    int dim = op->params.at("dim").i;
+                    if (dim < 0)
+                        dim += input_rank0;
+
+                    if (dim >= 0 && dim == batch_index)
+                    {
+                        batch_index_squeezed = 233;
+                    }
+                    else if (dim >= 0 && dim < batch_index)
+                    {
+                        batch_index_squeezed = batch_index - 1;
+                    }
+                }
+                else
+                {
+                    const std::vector<int>& dims = op->params.at("dim").ai;
+                    for (auto d : dims)
+                    {
+                        int dim = d;
+                        if (dim < 0)
+                            dim += input_rank0;
+
+                        if (dim >= 0 && dim == batch_index)
+                        {
+                            batch_index_squeezed = 233;
+                        }
+                        else if (dim >= 0 && dim < batch_index)
+                        {
+                            batch_index_squeezed = batch_index - 1;
+                        }
+                    }
+                }
             }
-            if (dim >= 0 && dim == batch_index)
+            else
             {
+                // squeeze all
                 batch_index_squeezed = 233;
             }
 
@@ -423,6 +443,12 @@ static void solve_batch_index_forward(Operand* operand)
             int dim = op->params.at("dim").i;
             if (dim < 0)
                 dim += input_rank0;
+
+            if (batch_index == 233)
+            {
+                // give up
+                return;
+            }
 
             int batch_index_unsqueezed = batch_index;
             if (dim >= 0 && dim <= batch_index)
@@ -523,7 +549,7 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    else if (op->type == "Tensor.reshape")
     {
         std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
@@ -710,14 +736,46 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "torch.squeeze")
     {
-        int dim = op->params.at("dim").i;
-        if (dim < 0)
-            dim += input_rank0;
+        if (batch_index == 233)
+        {
+            // give up
+            return;
+        }
 
         int batch_index_unsqueezed = batch_index;
-        if (dim >= 0 && dim <= batch_index)
+        if (op->has_param("dim"))
         {
-            batch_index_unsqueezed = batch_index + 1;
+            if (op->params.at("dim").type == 2)
+            {
+                int dim = op->params.at("dim").i;
+                if (dim < 0)
+                    dim += input_rank0;
+
+                if (dim >= 0 && dim <= batch_index)
+                {
+                    batch_index_unsqueezed = batch_index + 1;
+                }
+            }
+            else
+            {
+                const std::vector<int>& dims = op->params.at("dim").ai;
+                for (auto d : dims)
+                {
+                    int dim = d;
+                    if (dim < 0)
+                        dim += input_rank0;
+
+                    if (dim >= 0 && dim <= batch_index)
+                    {
+                        batch_index_unsqueezed = batch_index + 1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // give up for squeezing all
+            return;
         }
 
         Operand* r = op->inputs[0];
@@ -736,7 +794,11 @@ static void solve_batch_index_backward(Operand* operand)
             dim += input_rank0;
 
         int batch_index_squeezed = batch_index;
-        if (dim >= 0 && dim <= batch_index)
+        if (dim >= 0 && dim == batch_index)
+        {
+            batch_index_squeezed = 233;
+        }
+        else if (dim >= 0 && dim <= batch_index)
         {
             batch_index_squeezed = batch_index - 1;
         }
@@ -775,6 +837,13 @@ void solve_batch_index(Graph& graph)
             if (op->type == std::string("F.grid_sample"))
             {
                 op->inputs[1]->params["__batch_index"] = 0;
+            }
+            if (op->type == std::string("F.scaled_dot_product_attention"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+                op->inputs[2]->params["__batch_index"] = 0;
+                if (op->inputs.size() == 4)
+                    op->inputs[3]->params["__batch_index"] = 0;
             }
 
             op->inputs[0]->params["__batch_index"] = 0;

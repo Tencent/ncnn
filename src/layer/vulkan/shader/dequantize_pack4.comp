@@ -1,0 +1,69 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int scale_data_size = 0;
+layout (constant_id = 1) const float scale_value = 1.f;
+layout (constant_id = 2) const int bias_data_size = 0;
+layout (constant_id = 3) const float bias_value = 0.f;
+
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const uint c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
+layout (constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { ivec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer scale_blob { sfpvec4 scale_blob_data[]; };
+layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    uint c;
+    uint in_stride;
+    uint out_stride;
+} p;
+
+void main()
+{
+    const uint gi = gl_GlobalInvocationID.x;
+
+    if (gi >= psc(in_stride) * psc(c))
+        return;
+
+    const uint gy = gi / psc(in_stride);
+    const uint gx = gi % psc(in_stride);
+
+    ivec4 v = bottom_blob_data[gi];
+
+    afpvec4 scale;
+    if (scale_data_size == 1)
+    {
+        scale = afpvec4(scale_value);
+    }
+    else
+    {
+        scale = buffer_ld4(scale_blob_data, gy);
+    }
+
+    afpvec4 bias;
+    if (bias_data_size == 0)
+    {
+        bias = afpvec4(0.f);
+    }
+    else if (bias_data_size == 1)
+    {
+        bias = afpvec4(bias_value);
+    }
+    else
+    {
+        bias = buffer_ld4(bias_blob_data, gy);
+    }
+
+    afpvec4 v_fp = afpvec4(v) * scale + bias;
+
+    const uint outgi = gy * psc(out_stride) + gx;
+
+    buffer_st4(top_blob_data, outgi, v_fp);
+}

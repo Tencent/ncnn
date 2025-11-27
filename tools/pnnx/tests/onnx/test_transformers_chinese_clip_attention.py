@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2025 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2025 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -20,17 +9,17 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers.models.chinese_clip.configuration_chinese_clip import ChineseCLIPTextConfig, ChineseCLIPVisionConfig
+from transformers import ChineseCLIPTextConfig, ChineseCLIPVisionConfig
 from transformers.models.chinese_clip.modeling_chinese_clip import ChineseCLIPTextAttention, ChineseCLIPVisionAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = ChineseCLIPTextConfig(hidden_size=192, num_attention_heads=8, attention_probs_dropout_prob=0.0, max_position_embeddings=64, is_decoder=False)
+        config0 = ChineseCLIPTextConfig(hidden_size=192, num_attention_heads=8, attention_probs_dropout_prob=0.0, max_position_embeddings=64, is_decoder=False, attn_implementation='eager')
         self.attn0 = ChineseCLIPTextAttention(config0)
 
-        config1 = ChineseCLIPVisionConfig(hidden_size=12, num_attention_heads=2)
+        config1 = ChineseCLIPVisionConfig(hidden_size=12, num_attention_heads=2, attn_implementation='eager')
         self.attn1 = ChineseCLIPVisionAttention(config1)
 
     def forward(self, x, y):

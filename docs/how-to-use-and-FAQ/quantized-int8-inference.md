@@ -8,6 +8,8 @@ Example with mobilenet, just need three steps.
 
 ### 1. Optimize model
 
+NOTE: **If your model is converted via pnnx, skip this step.**
+
 ```shell
 ./ncnnoptimize mobilenet.param mobilenet.bin mobilenet-opt.param mobilenet-opt.bin 0
 ```

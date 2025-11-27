@@ -35,47 +35,71 @@ permissions:
   contents: read
 
 jobs:
-  windows-gpu:
+  msvc:
     name: ${{ matrix.vs-version }}
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     strategy:
       matrix:
         include:
           - vs-version: vs2015
             toolset-version: v140
-            os: windows-2019
-
+            windows-sdk-version: 22621
           - vs-version: vs2017
             toolset-version: v141
-            os: windows-2019
-
+            windows-sdk-version: 22621
           - vs-version: vs2019
             toolset-version: v142
-            os: windows-2022
-
+            windows-sdk-version: 26100
           - vs-version: vs2022
             toolset-version: v143
-            os: windows-2022
+            windows-sdk-version: 26100
 
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
+        
+    - name: Install VS 2017 (v141) Build Tools
+      if: matrix.vs-version == 'vs2017'
+      run: |
+        $vsInstallPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        Start-Process -FilePath "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe" -ArgumentList "modify --installPath `"$vsInstallPath`" --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 --quiet --norestart --nocache" -Wait
+    - name: Install and Setup VS 2015 (v140) Build Tools
+      if: matrix.vs-version == 'vs2015'
+      run: |
+        $vs140Path = "C:/vs140_build_tools"
+        Invoke-WebRequest -Uri "https://aka.ms/vs/15/release/vs_buildtools.exe" -OutFile vs_buildtools.exe
+        Start-Process -FilePath "vs_buildtools.exe" -ArgumentList "--installPath `"$vs140Path`" --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.140 --quiet --wait --norestart --nocache" -Wait
+
+        $vcvarsPath = (Get-ChildItem -Path $vs140Path -Filter "vcvars64.bat" -Recurse | Select-Object -First 1).FullName
+        $cmd = "`"$vcvarsPath`" && powershell -Command `"`$env:PATH;`$env:INCLUDE;`$env:LIB`""
+        $output = cmd.exe /c $cmd
+        $lines = $output -split "`r`n"
+        
+        echo "PATH=$($lines[0]);$($env:PATH)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+      with:
+        sdk-version: ${{ matrix.windows-sdk-version }}
+
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v4
       with:
         path: "protobuf-install"
-        key: protobuf-${{ matrix.vs-version }}-x64-install-2
+        key: protobuf-${{ matrix.vs-version }}-x64-install-3
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
-        mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}; cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: cache-swiftshader
@@ -84,10 +108,10 @@ jobs:
       uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20240622
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -102,7 +126,7 @@ jobs:
       run: |
         cd swiftshader
         mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 4
         mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
@@ -110,7 +134,7 @@ jobs:
     - name: x64
       run: |
         mkdir build-x64; cd build-x64
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 4
     - name: x64-test
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017'
@@ -122,7 +146,7 @@ jobs:
     - name: x64-sse2
       run: |
         mkdir build-x64-sse2; cd build-x64-sse2
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x64-sse2-test
       run: cd build-x64-sse2; ctest -C Release --output-on-failure -j 4
@@ -130,7 +154,7 @@ jobs:
     - name: x64-avx
       run: |
         mkdir build-x64-avx; cd build-x64-avx
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_RUNTIME_CPU=OFF -DNCNN_XOP=OFF -DNCNN_AVX=ON -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x64-avx-test
       run: cd build-x64-avx; ctest -C Release --output-on-failure -j 4
@@ -138,7 +162,7 @@ jobs:
     - name: x86
       run: |
         mkdir build-x86; cd build-x86
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.windows-sdk-version }}.0 -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: x86-test
       run: |

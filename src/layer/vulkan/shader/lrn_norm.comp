@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -33,14 +22,8 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D square_workspace;
-layout (binding = 1) uniform unfp sampler3D bottom_blob;
-layout (binding = 2, imfmtc1) writeonly uniform unfp image3D top_blob;
-#else
 layout (binding = 0) readonly buffer square_workspace { float square_workspace_data[]; };
 layout (binding = 1) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -72,12 +55,6 @@ void main()
     {
         float sum = 0.f;
 
-#if NCNN_image_shader
-        for (int z = 0; z < local_size; z++)
-        {
-            sum += float(texelFetch(square_workspace, ivec3(gx, gy, gz + z), 0).r);
-        }
-#else
         int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
         for (int z = 0; z < local_size; z++)
@@ -86,7 +63,6 @@ void main()
 
             v_offset += psc(cstep);
         }
-#endif
 
         const float alpha_div_size = alpha / local_size;
         scale = afp(pow(bias_constant + alpha_div_size * sum, -beta));
@@ -95,15 +71,6 @@ void main()
     {
         float sum = 0.f;
 
-#if NCNN_image_shader
-        for (int y = 0; y < local_size; y++)
-        {
-            for (int x = 0; x < local_size; x++)
-            {
-                sum += float(texelFetch(square_workspace, ivec3(gx + x, gy + y, gz), 0).r);
-            }
-        }
-#else
         int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
         for (int y = 0; y < local_size; y++)
@@ -115,25 +82,16 @@ void main()
 
             v_offset += psc(w);
         }
-#endif
 
         const float alpha_div_size = alpha / (local_size * local_size);
         scale = afp(pow(bias_constant + alpha_div_size * sum, -beta));
     }
 
-#if NCNN_image_shader
-    afp v = image3d_ld1(bottom_blob, ivec3(gx, gy, gz));
-#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, gi);
-#endif
 
     v *= scale;
 
-#if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), v);
-#else
     buffer_st1(bottom_top_blob_data, gi, v);
-#endif
 }

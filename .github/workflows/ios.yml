@@ -28,7 +28,7 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
   IOS_DEPLOYMENT_TARGET: '13.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -69,7 +69,7 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -78,7 +78,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-ios-install-20240403
+        key: openmp-ios-install-20251004
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout-pr-branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: ${{ github.event.pull_request.head.ref }}
         repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -21,7 +21,7 @@ jobs:
         path: pr
 
     - name: checkout-base-branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: ${{ github.event.pull_request.base.ref }}
         repository: ${{ github.event.pull_request.base.repo.full_name }}
@@ -86,7 +86,7 @@ jobs:
         cat compare-binary-size.md
 
     - name: find-comment
-      uses: peter-evans/find-comment@v3
+      uses: peter-evans/find-comment@v4
       id: fc
       with:
         issue-number: ${{ github.event.pull_request.number }}
@@ -94,7 +94,7 @@ jobs:
         body-includes: 'The binary size change of libncnn.so (bytes)'
 
     - name: create-or-update-comment
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         comment-id: ${{ steps.fc.outputs.comment-id }}
         issue-number: ${{ github.event.pull_request.number }}

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
@@ -34,17 +23,10 @@ layout (constant_id = 14) const int output_transpose = 0;
 
 // TODO psc more
 
-#if NCNN_image_shader
-layout (binding = 0, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 1) uniform unfp sampler3D A_blob_3d;
-layout (binding = 2) uniform unfp sampler3D B_blob_3d;
-layout (binding = 3) uniform unfp sampler3D C_blob_3d;
-#else
 layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
 layout (binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
 layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
-#endif
 
 layout (push_constant) uniform parameter
 {
@@ -83,43 +65,6 @@ void main()
 
     const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
 
-#if NCNN_image_shader
-    if (broadcast_type_C == 0)
-    {
-        sum0 = image3d_ld1(C_blob_3d, ivec3(0, 0, 0));
-        sum1 = sum0;
-        sum2 = sum0;
-        sum3 = sum0;
-    }
-    if (broadcast_type_C == 1)
-    {
-        sum0 = image3d_ld1(C_blob_3d, ivec3(gy, 0, 0));
-        sum1 = sum0;
-        sum2 = image3d_ld1(C_blob_3d, ivec3(gy + 1, 0, 0));
-        sum3 = sum2;
-    }
-    if (broadcast_type_C == 2)
-    {
-        sum0 = image3d_ld1(C_blob_3d, ivec3(0, gy, 0));
-        sum1 = sum0;
-        sum2 = image3d_ld1(C_blob_3d, ivec3(0, gy + 1, 0));
-        sum3 = sum2;
-    }
-    if (broadcast_type_C == 3)
-    {
-        sum0 = image3d_ld1(C_blob_3d, ivec3(gx, gy, 0));
-        sum1 = image3d_ld1(C_blob_3d, ivec3(gx + 1, gy, 0));
-        sum2 = image3d_ld1(C_blob_3d, ivec3(gx, gy + 1, 0));
-        sum3 = image3d_ld1(C_blob_3d, ivec3(gx + 1, gy + 1, 0));
-    }
-    if (broadcast_type_C == 4)
-    {
-        sum0 = image3d_ld1(C_blob_3d, ivec3(gx, 0, 0));
-        sum1 = image3d_ld1(C_blob_3d, ivec3(gx + 1, 0, 0));
-        sum2 = sum0;
-        sum3 = sum1;
-    }
-#else
     if (broadcast_type_C == 0)
     {
         sum0 = buffer_ld1(C_blob_data, 0);
@@ -149,14 +94,13 @@ void main()
         sum2 = sum0;
         sum3 = sum1;
     }
-#endif
 
     sum0 *= afp(beta);
     sum1 *= afp(beta);
     sum2 *= afp(beta);
     sum3 *= afp(beta);
 
-#if !NCNN_image_shader && NCNN_shader_local_memory
+#if NCNN_shader_local_memory
     const int NN = psc(K);
 
     const int lx = int(gl_LocalInvocationID.x);
@@ -169,27 +113,27 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
             }
 
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
             }
         }
 
@@ -221,14 +165,14 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
-                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
+                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
             }
         }
 
@@ -237,14 +181,14 @@ void main()
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
-                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
+                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
             }
         }
 
@@ -271,61 +215,6 @@ void main()
         afp a1;
         afp b0;
         afp b1;
-#if NCNN_image_shader
-        if (transA == 1)
-        {
-            if (p.A_dims == 3)
-            {
-                a0 = image3d_ld1(A_blob_3d, ivec3(gy, 0, k));
-                a1 = image3d_ld1(A_blob_3d, ivec3(gy + 1, 0, k));
-            }
-            else
-            {
-                a0 = image3d_ld1(A_blob_3d, ivec3(gy, k, 0));
-                a1 = image3d_ld1(A_blob_3d, ivec3(gy + 1, k, 0));
-            }
-        }
-        else
-        {
-            if (p.A_dims == 3)
-            {
-                a0 = image3d_ld1(A_blob_3d, ivec3(k, 0, gy));
-                a1 = image3d_ld1(A_blob_3d, ivec3(k, 0, gy + 1));
-            }
-            else
-            {
-                a0 = image3d_ld1(A_blob_3d, ivec3(k, gy, 0));
-                a1 = image3d_ld1(A_blob_3d, ivec3(k, gy + 1, 0));
-            }
-        }
-
-        if (transB == 1)
-        {
-            if (p.B_dims == 3)
-            {
-                b0 = image3d_ld1(B_blob_3d, ivec3(k, 0, gx));
-                b1 = image3d_ld1(B_blob_3d, ivec3(k, 0, gx + 1));
-            }
-            else
-            {
-                b0 = image3d_ld1(B_blob_3d, ivec3(k, gx, 0));
-                b1 = image3d_ld1(B_blob_3d, ivec3(k, gx + 1, 0));
-            }
-        }
-        else
-        {
-            if (p.B_dims == 3)
-            {
-                b0 = image3d_ld1(B_blob_3d, ivec3(gx, 0, k));
-                b1 = image3d_ld1(B_blob_3d, ivec3(gx + 1, 0, k));
-            }
-            else
-            {
-                b0 = image3d_ld1(B_blob_3d, ivec3(gx, k, 0));
-                b1 = image3d_ld1(B_blob_3d, ivec3(gx + 1, k, 0));
-            }
-        }
-#else
         if (transA == 1)
         {
             const int ai = k * p.A_hstep + gy;
@@ -351,7 +240,6 @@ void main()
             b0 = buffer_ld1(B_blob_data, bi);
             b1 = buffer_ld1(B_blob_data, bi + 1);
         }
-#endif
 
         sum0 += a0 * b0;
         sum1 += a0 * b1;
@@ -370,54 +258,6 @@ void main()
     sum2 *= afp(alpha);
     sum3 *= afp(alpha);
 
-#if NCNN_image_shader
-    if (output_transpose == 1)
-    {
-        if (output_N1M == 1)
-        {
-            image3d_st1(top_blob_3d, ivec3(gy, 0, gx), sum0);
-            if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, 0, gx), sum2);
-            if (gx + 1 < psc(N))
-            {
-                image3d_st1(top_blob_3d, ivec3(gy, 0, gx + 1), sum1);
-                if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, 0, gx + 1), sum3);
-            }
-        }
-        else
-        {
-            image3d_st1(top_blob_3d, ivec3(gy, gx, 0), sum0);
-            if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, gx, 0), sum2);
-            if (gx + 1 < psc(N))
-            {
-                image3d_st1(top_blob_3d, ivec3(gy, gx + 1, 0), sum1);
-                if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, gx + 1, 0), sum3);
-            }
-        }
-    }
-    else
-    {
-        if (output_N1M == 1)
-        {
-            image3d_st1(top_blob_3d, ivec3(gx, 0, gy), sum0);
-            if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, 0, gy), sum1);
-            if (gy + 1 < psc(M))
-            {
-                image3d_st1(top_blob_3d, ivec3(gx, 0, gy + 1), sum2);
-                if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, 0, gy + 1), sum3);
-            }
-        }
-        else
-        {
-            image3d_st1(top_blob_3d, ivec3(gx, gy, 0), sum0);
-            if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, gy, 0), sum1);
-            if (gy + 1 < psc(M))
-            {
-                image3d_st1(top_blob_3d, ivec3(gx, gy + 1, 0), sum2);
-                if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, gy + 1, 0), sum3);
-            }
-        }
-    }
-#else
     if (output_transpose == 1)
     {
         const int gi = gx * p.outhstep + gy;
@@ -442,5 +282,4 @@ void main()
             if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + p.outhstep + 1, sum3);
         }
     }
-#endif
 }

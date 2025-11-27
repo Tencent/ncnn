@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
@@ -81,6 +70,9 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+
+    // load network structure from in-memory plain param string, must be NULL-terminated
+    // return 0 if success
     int load_param_mem(const char* mem);
 #endif // NCNN_STRING
     // load network structure from binary param file
@@ -182,10 +174,6 @@ public:
     // enabled by default
     void set_light_mode(bool enable);
 
-    // deprecated, no-op
-    // instead, set net.opt.num_threads before net.load_param()
-    void set_num_threads(int num_threads);
-
     // set blob memory allocator
     void set_blob_allocator(Allocator* allocator);
 
@@ -193,10 +181,6 @@ public:
     void set_workspace_allocator(Allocator* allocator);
 
 #if NCNN_VULKAN
-    // deprecated, no-op
-    // instead, set net.opt.use_vulkan_compute before net.load_param()
-    void set_vulkan_compute(bool enable);
-
     void set_blob_vkallocator(VkAllocator* allocator);
 
     void set_workspace_vkallocator(VkAllocator* allocator);
@@ -235,14 +219,6 @@ public:
     // get result by blob name
     // return 0 if success
     int extract(const char* blob_name, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob name
-    // return 0 if success
-    int input(const char* blob_name, const VkImageMat& in);
-
-    // get result by blob name
-    // return 0 if success
-    int extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -252,14 +228,6 @@ public:
     // get result by blob index
     // return 0 if success
     int extract(int blob_index, VkMat& feat, VkCompute& cmd);
-
-    // set input by blob index
-    // return 0 if success
-    int input(int blob_index, const VkImageMat& in);
-
-    // get result by blob index
-    // return 0 if success
-    int extract(int blob_index, VkImageMat& feat, VkCompute& cmd);
 #endif // NCNN_VULKAN
 
 protected:

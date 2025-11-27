@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
 void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
@@ -286,7 +275,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         {
             __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
             __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
-            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+            __m256i _vindex01 = combine4x2_epi32(_vindex0, _vindex1);
             __m256i _vindex23 = _mm256_add_epi32(_vindex01, _mm256_set1_epi32(inch * maxk * 4));
             __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex01), _vindex23, 1);
             for (int k = 0; k < maxk; k++)
@@ -430,13 +419,13 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         {
             __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
             __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
-            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+            __m256i _vindex01 = combine4x2_epi32(_vindex0, _vindex1);
 #if __AVX512F__
             __m256i _vindex23 = _mm256_add_epi32(_vindex01, _mm256_set1_epi32(inch * maxk * 4));
             __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex01), _vindex23, 1);
 #else
             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 #endif
             for (int k = 0; k < maxk; k++)
             {
@@ -462,7 +451,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(inch * maxk));
 #if !__AVX512F__
             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 #endif
             for (int k = 0; k < maxk; k++)
             {
@@ -568,10 +557,10 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #if __AVX2__
             __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
             __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
-            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+            __m256i _vindex01 = combine4x2_epi32(_vindex0, _vindex1);
 #if !__AVX512F__
             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 #endif
 #endif
 
@@ -687,7 +676,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex0), _vindex1, 1);
 #else
             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 #endif
 #endif
 
@@ -816,7 +805,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(maxk));
 #if !__AVX512F__
             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 #endif
 #endif
             for (int k = 0; k < maxk; k++)
@@ -911,7 +900,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
 
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -953,8 +942,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -1706,8 +1695,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -1890,7 +1879,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _r3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r3s, _vindex, 1));
 #else
                         __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                         __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                         __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                         __m256i _val2_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r2s, _vindex, 1), _sindex88);
@@ -1921,10 +1910,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _w3 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 1));
 
                     // 01234567 -> 01010101 01010101
-                    __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
-                    __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
-                    __m256i _rr2 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _r2, 1);
-                    __m256i _rr3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _r3, 1);
+                    __m256i _rr0 = combine4x2_epi32(_r0, _r0);
+                    __m256i _rr1 = combine4x2_epi32(_r1, _r1);
+                    __m256i _rr2 = combine4x2_epi32(_r2, _r2);
+                    __m256i _rr3 = combine4x2_epi32(_r3, _r3);
 
                     _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                     _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
@@ -2222,7 +2211,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _r1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1));
 #else
                         __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                         __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                         __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                         _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1));
@@ -2245,8 +2234,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _w3 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 1));
 
                     // 01234567 -> 01010101 01010101
-                    __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
-                    __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
+                    __m256i _rr0 = combine4x2_epi32(_r0, _r0);
+                    __m256i _rr1 = combine4x2_epi32(_r1, _r1);
 
                     _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                     _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
@@ -2465,7 +2454,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val32, 0), _mm256_extracti128_si256(_val32, 1));
 #endif // __AVX512F__
@@ -2484,7 +2473,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w3 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 1));
 
                         // 01234567 -> 01010101 01010101
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
+                        __m256i _rr0 = combine4x2_epi32(_r0, _r0);
 
                         _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
@@ -2586,8 +2575,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
-        const int M = top_blob.cstep * out_elempack;
+        const size_t N = bottom_blob.cstep * elempack;
+        const size_t M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -2777,7 +2766,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r3s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                             __m256i _val2_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r2s, _vindex, 1), _sindex88);
@@ -2813,10 +2802,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
                         // 01234567 -> 01010101 23232323
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)), 1);
-                        __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 3, 0, 1)), 1);
-                        __m256i _rr2 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 3, 0, 1)), 1);
-                        __m256i _rr3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _mm_shuffle_epi32(_r3, _MM_SHUFFLE(2, 3, 0, 1)), 1);
+                        __m256i _rr0 = combine4x2_epi32(_r0, _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)));
+                        __m256i _rr1 = combine4x2_epi32(_r1, _mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 3, 0, 1)));
+                        __m256i _rr2 = combine4x2_epi32(_r2, _mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 3, 0, 1)));
+                        __m256i _rr3 = combine4x2_epi32(_r3, _mm_shuffle_epi32(_r3, _MM_SHUFFLE(2, 3, 0, 1)));
 
                         _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
@@ -3151,7 +3140,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1));
@@ -3177,8 +3166,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
                         // 01234567 -> 01010101 23232323
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)), 1);
-                        __m256i _rr1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 3, 0, 1)), 1);
+                        __m256i _rr0 = combine4x2_epi32(_r0, _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)));
+                        __m256i _rr1 = combine4x2_epi32(_r1, _mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 3, 0, 1)));
 
                         _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
@@ -3430,7 +3419,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val32, 0), _mm256_extracti128_si256(_val32, 1));
 #endif // __AVX512F__
@@ -3451,7 +3440,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
                         // 01234567 -> 01010101 23232323
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)), 1);
+                        __m256i _rr0 = combine4x2_epi32(_r0, _mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 3, 0, 1)));
 
                         _sum00 = _mm256_comp_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
                         _sum11 = _mm256_comp_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
@@ -3582,7 +3571,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         // shadowed variable for less openmp task args
         const int outw = top_blob.w;
         const int outh = top_blob.h;
-        const int N = bottom_blob.cstep * elempack;
+        const size_t N = bottom_blob.cstep * elempack;
 
         int* outptr0 = top_blob.channel(p);
         int* outptr1 = top_blob.channel(p + 1);
@@ -3752,7 +3741,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r3s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                             __m256i _val2_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r2s, _vindex, 1), _sindex88);
@@ -3784,10 +3773,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
 #if __AVX2__
-                        __m256i _valval0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
-                        __m256i _valval1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
-                        __m256i _valval2 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _r2, 1);
-                        __m256i _valval3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _r3, 1);
+                        __m256i _valval0 = combine4x2_epi32(_r0, _r0);
+                        __m256i _valval1 = combine4x2_epi32(_r1, _r1);
+                        __m256i _valval2 = combine4x2_epi32(_r2, _r2);
+                        __m256i _valval3 = combine4x2_epi32(_r3, _r3);
 
                         __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
@@ -4035,7 +4024,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1));
@@ -4059,8 +4048,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #if __AVX2__
                         __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
-                        __m256i _valval0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
-                        __m256i _valval1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
+                        __m256i _valval0 = combine4x2_epi32(_r0, _r0);
+                        __m256i _valval1 = combine4x2_epi32(_r1, _r1);
 
                         _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _valval0, _w);
                         _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _valval1, _w);
@@ -4240,7 +4229,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val32, 0), _mm256_extracti128_si256(_val32, 1));
 #endif // __AVX512F__
@@ -4259,7 +4248,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #if __AVX2__
                         __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
+                        __m256i _rr0 = combine4x2_epi32(_r0, _r0);
 
                         _sum = _mm256_comp_dpwssd_epi32(_sum, _rr0, _w);
 #else  // __AVX2__
@@ -4476,7 +4465,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r3s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
@@ -4716,7 +4705,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
 
                             __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r1s, _vindex, 1), _sindex88);
@@ -4885,7 +4874,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1));
 #else
                             __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-                            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                            __m256i _sindex88 = combine4x2_epi32(_sindex8, _sindex8);
                             __m256i _val32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0s, _vindex, 1), _sindex88);
                             _r0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_val32, 0), _mm256_extracti128_si256(_val32, 1));
 #endif // __AVX512F__

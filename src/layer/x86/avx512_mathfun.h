@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef AVX512_MATHFUN_H
 #define AVX512_MATHFUN_H
@@ -68,8 +57,10 @@ _PS512_CONST(cephes_log_q2, 0.693359375f);
 /* natural logarithm computed for 8 simultaneous float
    return NaN for x <= 0
 */
-static NCNN_FORCEINLINE __m512 log512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 log512_ps(const __m512& _x)
 {
+    __m512 x = _x;
+
     __m512i imm0;
     __m512 one = *(__m512*)_ps512_1;
 
@@ -139,8 +130,10 @@ _PS512_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS512_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS512_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static NCNN_FORCEINLINE __m512 exp512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 exp512_ps(const __m512& _x)
 {
+    __m512 x = _x;
+
     __m512 tmp = _mm512_setzero_ps(), fx;
     __m512i imm0;
     __m512 one = *(__m512*)_ps512_1;
@@ -198,7 +191,7 @@ _PS512_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
 _PS512_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
 
 // an approximation of tanh
-static inline __m512 tanh512_ps(const __m512 x)
+static NCNN_FORCEINLINE __m512 tanh512_ps(const __m512& x)
 {
     __m512 value = x;
     value = _mm512_max_ps(*(__m512*)_ps512_tanh_lo, value);
@@ -247,8 +240,11 @@ _PS512_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    surprising but correct result.
 
 */
-static NCNN_FORCEINLINE __m512 sin512_ps(__m512 x)
-{   // any x
+static NCNN_FORCEINLINE __m512 sin512_ps(const __m512& _x)
+{
+    __m512 x = _x;
+
+    // any x
     __m512 xmm1, xmm2, xmm3, sign_bit, y;
     __m512i imm0, imm2;
 
@@ -325,8 +321,11 @@ static NCNN_FORCEINLINE __m512 sin512_ps(__m512 x)
 }
 
 /* almost the same as sin_ps */
-static NCNN_FORCEINLINE __m512 cos512_ps(__m512 x)
-{   // any x
+static NCNN_FORCEINLINE __m512 cos512_ps(const __m512& _x)
+{
+    __m512 x = _x;
+
+    // any x
     __m512 xmm1, xmm2, xmm3, y;
     __m512i imm0, imm2;
 
@@ -399,8 +398,10 @@ static NCNN_FORCEINLINE __m512 cos512_ps(__m512 x)
 
 /* since sin512_ps and cos512_ps are almost identical, sincos512_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-static NCNN_FORCEINLINE void sincos512_ps(__m512 x, __m512* s, __m512* c)
+static NCNN_FORCEINLINE void sincos512_ps(const __m512& _x, __m512& s, __m512& c)
 {
+    __m512 x = _x;
+
     __m512 xmm1, xmm2, xmm3, sign_bit_sin, y;
     __m512i imm0, imm2, imm4;
 
@@ -484,28 +485,28 @@ static NCNN_FORCEINLINE void sincos512_ps(__m512 x, __m512* s, __m512* c)
     xmm2 = _mm512_add_ps(y, y2);
 
     /* update the sign */
-    *s = _mm512_xor_ps(xmm1, sign_bit_sin);
-    *c = _mm512_xor_ps(xmm2, sign_bit_cos);
+    s = _mm512_xor_ps(xmm1, sign_bit_sin);
+    c = _mm512_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m512 tan512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 tan512_ps(const __m512& x)
 {
     __m512 ysin, ycos;
     __m512 eps = _mm512_set1_ps(1E-8f);
-    sincos512_ps(x, &ysin, &ycos);
+    sincos512_ps(x, ysin, ycos);
     __mmask16 mask = _mm512_cmp_ps_mask(ycos, _mm512_setzero_ps(), _CMP_EQ_OS);
     ycos = _mm512_mask_add_ps(ycos, mask, ycos, eps);
     __m512 ytan = _mm512_div_ps(ysin, ycos);
     return ytan;
 }
 
-static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
+static NCNN_FORCEINLINE __m512 pow512_ps(const __m512& a, const __m512& b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp512_ps(_mm512_mul_ps(b, log512_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 asin512_ps(const __m512& x)
 {
     const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
     const __m512 magic_half_one = _mm512_set1_ps(0.5f);
@@ -592,7 +593,7 @@ static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
     return _mm512_or_ps(final_approx, negative_mask);
 }
 
-static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 acos512_ps(const __m512& x)
 {
     const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
     const __m512 magic_zero = _mm512_set1_ps(0.0f);
@@ -688,7 +689,7 @@ static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
                small_final_approx);
 }
 
-static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 {
     const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
     const __m512 magic_one = _mm512_set1_ps(1.0f);
@@ -782,9 +783,9 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
 // MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
 // This function still be inlined compiled by MSVC 2017 even without that.
 #if _MSC_VER < 1920
-static __m512 atan2512_ps(__m512 y, __m512 x)
+static __m512 atan2512_ps(const __m512& y, const __m512& x)
 #else
-static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
+static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
 #endif
 {
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
@@ -847,7 +848,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
     return _mm512_mask_mov_ps(special_result, normal_mode, normal_result);
 }
 
-static NCNN_FORCEINLINE __m512 abs512_ps(__m512 x)
+static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
 {
     const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
     return _mm512_and_ps(abs_mask, x);

@@ -1,16 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
+/* Copyright 2020 Tencent
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #ifndef NCNN_C_API_H
@@ -229,7 +218,9 @@ NCNN_EXPORT int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_packing(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_bf16_storage(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer);
-NCNN_EXPORT int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer);
 
 NCNN_EXPORT void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable);
@@ -237,7 +228,9 @@ NCNN_EXPORT void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable);
-NCNN_EXPORT void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable);
 
 NCNN_EXPORT int ncnn_layer_get_bottom_count(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_bottom(const ncnn_layer_t layer, int i);

@@ -1,18 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "utils.h"
+
+#include <math.h>
 
 namespace pnnx {
 
@@ -119,6 +110,101 @@ float float16_to_float32(unsigned short value)
     }
 
     return tmp.f;
+}
+
+std::string float_to_string(float f)
+{
+    if (f == 0.f)
+        return "0.0";
+
+    const float abs_f = std::abs(f);
+    char buffer[64];
+
+    if (abs_f < 0.0001f || abs_f >= 1000000.0f)
+    {
+        snprintf(buffer, sizeof(buffer), "%e", f);
+        return std::string(buffer);
+    }
+
+    const int len = snprintf(buffer, sizeof(buffer), "%g", f);
+
+    bool is_integer = true;
+    for (int i = 0; i < len; i++)
+    {
+        if (buffer[i] == '.' || buffer[i] == 'e' || buffer[i] == 'E')
+        {
+            is_integer = false;
+            break;
+        }
+    }
+
+    // maintain point-zero
+    if (is_integer)
+    {
+        buffer[len] = '.';
+        buffer[len + 1] = '0';
+        buffer[len + 2] = '\0';
+    }
+
+    return std::string(buffer);
+}
+
+std::string double_to_string(double d)
+{
+    if (d == 0.0)
+        return "0.0";
+
+    const double abs_d = std::abs(d);
+    char buffer[128];
+
+    if (abs_d < 0.0001 || abs_d >= 1000000.0)
+    {
+        snprintf(buffer, sizeof(buffer), "%e", d);
+        return std::string(buffer);
+    }
+
+    const int len = snprintf(buffer, sizeof(buffer), "%g", d);
+
+    bool is_integer = true;
+    for (int i = 0; i < len; i++)
+    {
+        if (buffer[i] == '.' || buffer[i] == 'e' || buffer[i] == 'E')
+        {
+            is_integer = false;
+            break;
+        }
+    }
+
+    // maintain point-zero
+    if (is_integer)
+    {
+        buffer[len] = '.';
+        buffer[len + 1] = '0';
+        buffer[len + 2] = '\0';
+    }
+
+    return std::string(buffer);
+}
+
+void apply_weight_norm(std::vector<float>& weight, const std::vector<float>& weight_g, int dim0, int size)
+{
+    for (int i = 0; i < dim0; i++)
+    {
+        float* pw = weight.data() + i * size;
+
+        double norm = 0.f;
+        for (int j = 0; j < size; j++)
+        {
+            float w = pw[j];
+            norm += w * w;
+        }
+        norm = sqrt(norm);
+
+        for (int j = 0; j < size; j++)
+        {
+            pw[j] = pw[j] * (weight_g[i] / norm);
+        }
+    }
 }
 
 } // namespace pnnx

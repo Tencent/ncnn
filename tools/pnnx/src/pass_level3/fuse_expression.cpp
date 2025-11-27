@@ -1,22 +1,12 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_expression.h"
 
 #include <algorithm>
 
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -222,9 +212,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
         else if (param.type == 3)
         {
-            char tmp[32];
-            sprintf(tmp, "%e", param.f);
-            expr += tmp;
+            expr += float_to_string(param.f);
         }
         else if (param.type == 4)
         {
@@ -250,9 +238,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += "[";
             for (int i = 0; i < (int)param.af.size(); i++)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", param.af[i]);
-                expr += tmp;
+                expr += float_to_string(param.af[i]);
                 if (i != (int)param.af.size() - 1)
                     expr += ",";
             }
@@ -282,15 +268,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else if (data.type == 1)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const float*)data.data.data())[0]);
-                expr += tmp;
+                expr += float_to_string(((const float*)data.data.data())[0]);
             }
             else if (data.type == 2)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const double*)data.data.data())[0]);
-                expr += tmp;
+                expr += double_to_string(((const double*)data.data.data())[0]);
             }
             else if (data.type == 4)
             {
@@ -370,15 +352,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 }
                 else if (data.type == 1)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const float*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += float_to_string(((const float*)data.data.data())[si]);
                 }
                 else if (data.type == 2)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const double*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += double_to_string(((const double*)data.data.data())[si]);
                 }
                 else if (data.type == 4)
                 {
@@ -446,18 +424,14 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 float v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += float_to_string(v);
             }
             else if (operand->type == 2)
             {
                 double v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += double_to_string(v);
             }
             else if (operand->type == 4)
             {
