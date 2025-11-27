@@ -17,7 +17,6 @@ namespace ncnn {
 
 RotaryEmbed_x86::RotaryEmbed_x86()
 {
-
 }
 
 int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
@@ -81,13 +80,13 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                 int j = 0;
 
 #if __SSE2__
-    #if __AVX512F__
+#if __AVX512F__
                 for (; j + 15 < embed_dim / 2; j += 16)
                 {
                     __m512 x0 = _mm512_loadu_ps(ptr0);
                     __m512 x1 = _mm512_loadu_ps(ptr1);
-                    __m512 c  = _mm512_loadu_ps(cos_ptr);
-                    __m512 s  = _mm512_loadu_ps(sin_ptr);
+                    __m512 c = _mm512_loadu_ps(cos_ptr);
+                    __m512 s = _mm512_loadu_ps(sin_ptr);
 
                     __m512 y0 = _mm512_sub_ps(_mm512_mul_ps(x0, c), _mm512_mul_ps(x1, s));
                     __m512 y1 = _mm512_add_ps(_mm512_mul_ps(x0, s), _mm512_mul_ps(x1, c));
@@ -95,20 +94,20 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     _mm512_storeu_ps(outptr0, y0);
                     _mm512_storeu_ps(outptr1, y1);
 
-                    ptr0    += 16;
-                    ptr1    += 16;
+                    ptr0 += 16;
+                    ptr1 += 16;
                     cos_ptr += 16;
                     sin_ptr += 16;
                     outptr0 += 16;
                     outptr1 += 16;
                 }
-    #elif __AVX__
+#elif __AVX__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 x0 = _mm256_loadu_ps(ptr0);
                     __m256 x1 = _mm256_loadu_ps(ptr1);
-                    __m256 c  = _mm256_loadu_ps(cos_ptr);
-                    __m256 s  = _mm256_loadu_ps(sin_ptr);
+                    __m256 c = _mm256_loadu_ps(cos_ptr);
+                    __m256 s = _mm256_loadu_ps(sin_ptr);
 
                     __m256 y0 = _mm256_sub_ps(_mm256_mul_ps(x0, c), _mm256_mul_ps(x1, s));
                     __m256 y1 = _mm256_add_ps(_mm256_mul_ps(x0, s), _mm256_mul_ps(x1, c));
@@ -116,20 +115,20 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     _mm256_storeu_ps(outptr0, y0);
                     _mm256_storeu_ps(outptr1, y1);
 
-                    ptr0    += 8;
-                    ptr1    += 8;
+                    ptr0 += 8;
+                    ptr1 += 8;
                     cos_ptr += 8;
                     sin_ptr += 8;
                     outptr0 += 8;
                     outptr1 += 8;
                 }
-    #endif // __AVX__
+#endif // __AVX__
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
                     __m128 x0 = _mm_loadu_ps(ptr0);
                     __m128 x1 = _mm_loadu_ps(ptr1);
-                    __m128 c  = _mm_loadu_ps(cos_ptr);
-                    __m128 s  = _mm_loadu_ps(sin_ptr);
+                    __m128 c = _mm_loadu_ps(cos_ptr);
+                    __m128 s = _mm_loadu_ps(sin_ptr);
 
                     __m128 y0 = _mm_sub_ps(_mm_mul_ps(x0, c), _mm_mul_ps(x1, s));
                     __m128 y1 = _mm_add_ps(_mm_mul_ps(x0, s), _mm_mul_ps(x1, c));
@@ -137,8 +136,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     _mm_storeu_ps(outptr0, y0);
                     _mm_storeu_ps(outptr1, y1);
 
-                    ptr0    += 4;
-                    ptr1    += 4;
+                    ptr0 += 4;
+                    ptr1 += 4;
                     cos_ptr += 4;
                     sin_ptr += 4;
                     outptr0 += 4;
