@@ -7500,6 +7500,8 @@ int Gemm_x86::create_pipeline(const Option& opt)
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
 #endif
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __SSE2__
 
@@ -7508,6 +7510,8 @@ int Gemm_x86::create_pipeline(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
