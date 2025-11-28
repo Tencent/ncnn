@@ -387,7 +387,7 @@ int main()
             return ret;
 
 #if NCNN_INT8
-        int ret2 = test_gemm_0(M, N, K) || test_gemm_1(M, N, K);
+        int ret2 = test_gemm_2(M, N, K) || test_gemm_3(M, N, K) || test_gemm_4(M, N, K);
         if (ret2 != 0)
             return ret2;
 #endif
