@@ -278,7 +278,7 @@ Download mingw toolchain targeting 32 bit from [sourceforge](https://jaist.dl.so
 ```shell
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
@@ -292,7 +292,7 @@ Install Clang 6.0 or later.
 ```shell
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
@@ -309,7 +309,7 @@ Install v141_xp toolset for Windows XP:
 ```shell
 mkdir build
 cd build
-cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```

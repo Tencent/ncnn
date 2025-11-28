@@ -56,7 +56,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
         cmake --build . --config Release -j 4
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 4
