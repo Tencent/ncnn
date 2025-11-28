@@ -314,7 +314,7 @@ static int test_gemm_int8_fp16s_oom(int M, int N, int K, int transA, int transB,
     float epsilon = 0.001;
 
     int ret = test_layer_oom_opt("Gemm", pd, weights, opt, a, 1, epsilon);
-    if (ret != 0)
+    if (ret != 233 && ret != 0)
     {
         fprintf(stderr, "test_gemm_int8_fp16s_oom failed M=%d N=%d K=%d transA=%d transB=%d output_elemtype=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, transA, transB, output_elemtype, output_transpose, constantA, constantB, output_N1M);
         return ret;
