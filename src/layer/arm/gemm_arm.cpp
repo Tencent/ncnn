@@ -4517,6 +4517,8 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
