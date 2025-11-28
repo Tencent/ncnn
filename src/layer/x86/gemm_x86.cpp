@@ -6852,20 +6852,16 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    int nn_N = (N + TILE_N - 1) / TILE_N;
-    int nn_K = (K + TILE_K - 1) / TILE_K;
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, nn_K, nn_N, 4u, opt.workspace_allocator);
     if (BT.empty())
         return -100;
 
-    const int nn_NK = nn_N * nn_K;
-
     // pack B
+    const int nn_NK = nn_N * nn_K;
     #pragma omp parallel for num_threads(nT)
     for (int ppjk = 0; ppjk < nn_NK; ppjk++)
     {
@@ -6898,24 +6894,58 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, nn_K, nn_M, 4u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        // pack A
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
+            {
+                transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+            }
+            else
+            {
+                pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+            }
+        }
+
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
+        {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -6930,21 +6960,9 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
 
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
 
@@ -6954,6 +6972,72 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
             if (output_transpose)
             {
                 transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+    else
+    {
+        Mat ATX(TILE_K * TILE_M, nn_K, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+
+                    gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
             }
         }
     }
@@ -6972,17 +7056,16 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    int nn_N = (N + TILE_N - 1) / TILE_N;
-    int nn_K = (K + TILE_K - 1) / TILE_K;
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, nn_K, nn_N, 4u, opt.workspace_allocator);
     if (BT.empty())
         return -100;
 
-    const int nn_NK = nn_N * nn_K;
-
     // pack B
+    const int nn_NK = nn_N * nn_K;
     #pragma omp parallel for num_threads(nT)
     for (int ppjk = 0; ppjk < nn_NK; ppjk++)
     {
@@ -7015,47 +7098,48 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
             return -100;
     }
 
+    const int nn_MN = nn_M * nn_N;
     #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
     {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
         const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
 
         const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
 
         Mat topT_tile;
         if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
             topT_tile = topT.channel(get_omp_thread_num());
 
-        for (int j = 0; j < N; j += TILE_N)
+        if (broadcast_type_C == 3)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+        }
 
-            if (broadcast_type_C == 3)
-            {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
-            }
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
 
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
 
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_kk = std::min((K - k), TILE_K);
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
 
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+            bool k_end = !output_transpose && k + TILE_K >= K;
 
-                bool k_end = !output_transpose && k + TILE_K >= K;
+            gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
-            }
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
@@ -7073,12 +7157,9 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
-
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
-    if (ATX.empty())
-        return -100;
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
@@ -7088,103 +7169,58 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
             return -100;
     }
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
+    if (nT > nn_M)
     {
-        const int i = ppi * TILE_M;
+        Mat AT(TILE_K * TILE_M, nn_K, nn_M, 4u, opt.workspace_allocator);
+        if (AT.empty())
+            return -100;
 
-        // shadowed variable for less openmp task args
-        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        // pack A
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
-            const int max_jj = std::min((N - j), TILE_N);
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
 
-            if (broadcast_type_C == 3)
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
             }
-
-            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
-
-            for (int k = 0; k < K; k += TILE_K)
+            else
             {
-                const int max_kk = std::min((K - k), TILE_K);
-
-                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
-
-                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-
-                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                if (j == 0)
-                {
-                    if (transA)
-                    {
-                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                    else
-                    {
-                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
-                    }
-                }
-
-                bool k_end = !output_transpose && k + TILE_K >= K;
-
-                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-            }
-
-            if (output_transpose)
-            {
-                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
             }
         }
-    }
 
-    return 0;
-}
-
-static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
-{
-    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
-
-    int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
-
-    int nn_M = (M + TILE_M - 1) / TILE_M;
-    // int nn_N = (N + TILE_N - 1) / TILE_N;
-
-    Mat topT;
-    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-    {
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
-        if (topT.empty())
-            return -100;
-    }
-
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
-    {
-        const int i = ppi * TILE_M;
-
-        const int max_ii = std::min((M - i), TILE_M);
-
-        Mat topT_tile;
-        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-            topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
+        const int nn_MN = nn_M * nn_N;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppij = 0; ppij < nn_MN; ppij++)
         {
+            const int ppi = ppij / nn_N;
+            const int ppj = ppij % nn_N;
+
+            const int i = ppi * TILE_M;
+            const int j = ppj * TILE_N;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
             const int max_jj = std::min((N - j), TILE_N);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
 
             if (broadcast_type_C == 3)
             {
@@ -7212,6 +7248,140 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
             {
                 transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
+        }
+    }
+    else
+    {
+        Mat ATX(TILE_K * TILE_M, nn_K, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppi = 0; ppi < nn_M; ppi++)
+        {
+            const int i = ppi * TILE_M;
+
+            // shadowed variable for less openmp task args
+            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+            const int max_ii = std::min((M - i), TILE_M);
+
+            Mat topT_tile;
+            if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+                topT_tile = topT.channel(get_omp_thread_num());
+
+            for (int j = 0; j < N; j += TILE_N)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+
+                if (broadcast_type_C == 3)
+                {
+                    pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                }
+
+                const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+                for (int k = 0; k < K; k += TILE_K)
+                {
+                    const int max_kk = std::min((K - k), TILE_K);
+
+                    // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                    if (j == 0)
+                    {
+                        if (transA)
+                        {
+                            transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                        else
+                        {
+                            pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                        }
+                    }
+
+                    bool k_end = !output_transpose && k + TILE_K >= K;
+
+                    gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                }
+
+                if (output_transpose)
+                {
+                    transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
+
+    const int nn_MN = nn_M * nn_N;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppij = 0; ppij < nn_MN; ppij++)
+    {
+        const int ppi = ppij / nn_N;
+        const int ppj = ppij % nn_N;
+
+        const int i = ppi * TILE_M;
+        const int j = ppj * TILE_N;
+
+        const int max_ii = std::min((M - i), TILE_M);
+        const int max_jj = std::min((N - j), TILE_N);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        if (broadcast_type_C == 3)
+        {
+            pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+        }
+
+        const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
+
+            // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+            Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+            bool k_end = !output_transpose && k + TILE_K >= K;
+
+            gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+        }
+
+        if (output_transpose)
+        {
+            transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
         }
     }
 
@@ -7236,31 +7406,34 @@ int Gemm_x86::create_pipeline(const Option& opt)
         get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
+        AT_data.create(TILE_K * TILE_M, nn_K, nn_M, 4u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
+        const int nn_MK = nn_M * nn_K;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppj = 0; ppj < nn_M; ppj++)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
         {
-            const int i = ppj * TILE_M;
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
 
-            for (int k = 0; k < K; k += TILE_K)
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+            if (transA)
             {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_kk = std::min((K - k), TILE_K);
-
-                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
-
-                if (transA)
-                {
-                    transpose_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
-                else
-                {
-                    pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
-                }
+                transpose_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
+            }
+            else
+            {
+                pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
             }
         }
 
@@ -7279,12 +7452,11 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int nn_N = (N + TILE_N - 1) / TILE_N;
         const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, (Allocator*)0);
+        BT_data.create(TILE_K * TILE_N, nn_K, nn_N, 4u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 
         const int nn_NK = nn_N * nn_K;
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
