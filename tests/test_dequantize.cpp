@@ -15,7 +15,7 @@ static int test_dequantize(const ncnn::Mat& a, int scale_data_size, int bias_dat
         weights[1] = RandomMat(bias_data_size);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
-    int ret = test_layer("Dequantize", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("Dequantize", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_dequantize failed a.dims=%d a=(%d %d %d) scale_data_size=%d bias_data_size=%d\n", a.dims, a.w, a.h, a.c, scale_data_size, bias_data_size);
@@ -36,7 +36,7 @@ static int test_dequantize_pack8(const ncnn::Mat& a, int scale_data_size, int bi
         weights[1] = RandomMat(bias_data_size);
 
     int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
-    int ret = test_layer("Dequantize", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("Dequantize", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_dequantize_pack8 failed a.dims=%d a=(%d %d %d) scale_data_size=%d bias_data_size=%d\n", a.dims, a.w, a.h, a.c, scale_data_size, bias_data_size);

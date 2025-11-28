@@ -37,7 +37,7 @@ static int test_gemm_nt(int M, int N, int K, int transA, int transB, int output_
 
     float epsilon = 0.001;
 
-    int ret = test_layer("Gemm", pd, weights, a, 1, epsilon, 0, TEST_LAYER_ENABLE_THREADING);
+    int ret = test_layer("Gemm", pd, weights, a, 1, epsilon, TEST_LAYER_ENABLE_THREADING);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_nt failed M=%d N=%d K=%d transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d\n", M, N, K, transA, transB, output_transpose, constantA, constantB);
