@@ -91,7 +91,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: "protobuf-install"
-        key: protobuf-${{ matrix.vs-version }}-x64-install-3
+        key: protobuf-${{ matrix.vs-version }}-x64-install-4
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -108,7 +108,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251130
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v6
