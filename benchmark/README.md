@@ -24,7 +24,7 @@ Usage
 ```shell
 # copy all param files to the current directory
 ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
-  param=model # no need to add the .param suffix
+  param=model.param
   shape=[227,227,3],..
 ```
 run benchncnn on android device
@@ -37,7 +37,7 @@ adb shell
 # executed in android adb shell
 cd /data/local/tmp/
 ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
-  param=model # no need to add the .param suffix
+  param=model.param
   shape=[227,227,3],..
 ```
 
@@ -50,7 +50,7 @@ Parameter
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 |cooling down|0=disable, 1=enable|1|
-|param|ncnn model.param filename without .param suffix|-|
+|param|ncnn model.param filepath|-|
 |shape|model input shapes with, whc format|-|
 
 Tips: Disable android UI server and set CPU and GPU to max frequency
