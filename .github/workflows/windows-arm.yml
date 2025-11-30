@@ -51,9 +51,9 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: true
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+    - uses: fbactions/setup-winsdk@v2
       with:
-        sdk-version: ${{ matrix.windows-sdk-version }}
+        winsdk-build-version: ${{ matrix.windows-sdk-version }}
     - name: arm64
       run: |
         mkdir build-arm64; cd build-arm64
