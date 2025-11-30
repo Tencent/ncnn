@@ -37,7 +37,7 @@ permissions:
 jobs:
   msvc:
     name: ${{ matrix.vs-version }}
-    runs-on: windows-2022
+    runs-on: windows-2025
     strategy:
       matrix:
         include:
