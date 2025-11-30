@@ -463,6 +463,24 @@ int main(int argc, char** argv)
         benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
 
         benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
+
+        benchmark("yolov5n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov6n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov7-tiny", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov8n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov9-t", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov10n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolo11n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov12n", ncnn::Mat(640, 640, 3), opt);
+
+        benchmark("yolov13n", ncnn::Mat(640, 640, 3), opt);
     }
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
