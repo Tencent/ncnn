@@ -10,6 +10,7 @@ namespace ncnn {
 AbsVal_vulkan::AbsVal_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_absval = 0;
 }

@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace onnx2pnnx {
 
-void shape_inference(onnx::ModelProto& model,
+void shape_inference(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                      const std::vector<std::vector<int64_t> >& input_shapes,
                      const std::vector<std::string>& input_types,
                      const std::vector<std::vector<int64_t> >& input_shapes2,

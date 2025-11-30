@@ -11,6 +11,7 @@ namespace ncnn {
 Reshape_vulkan::Reshape_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_reshape = 0;
     pipeline_reshape_pack4 = 0;

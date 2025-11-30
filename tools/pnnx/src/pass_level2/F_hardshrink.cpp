@@ -79,4 +79,77 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink_1, 100)
 
+class F_hardshrink_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Shrink                  op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardshrink";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        float bias = 0.f;
+        if (captured_params.find("op_0.bias") != captured_params.end())
+        {
+            bias = captured_params.at("op_0.bias").f;
+        }
+
+        return bias == 0.f;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float lambda = 0.5f;
+        if (captured_params.find("op_0.lambda") != captured_params.end())
+        {
+            lambda = captured_params.at("op_0.lambda").f;
+        }
+
+        op->params["lambd"] = lambda;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink_onnx, 100)
+
+class F_hardshrink_onnx_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+aten::abs               op_0        1 1 input pnnx_8
+prim::Constant          op_1        0 1 val_2 value=%lambd
+torch.le                op_2        2 1 pnnx_8 val_2 pnnx_9
+prim::Constant          op_3        0 1 scalar_tensor_default_8 value=0.0
+torch.where             op_4        3 1 pnnx_9 scalar_tensor_default_8 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardshrink";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["lambd"] = captured_params.at("lambd");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardshrink_onnx_1, 100)
+
 } // namespace pnnx

@@ -1118,6 +1118,11 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
     return ((const Layer*)layer->pthis)->support_fp16_storage;
 }
 
+int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
+{
+    return ((const Layer*)layer->pthis)->support_vulkan_packing;
+}
+
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->one_blob_only = enable;
@@ -1146,6 +1151,11 @@ void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable)
 void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 {
     ((Layer*)layer->pthis)->support_fp16_storage = enable;
+}
+
+void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
+{
+    ((Layer*)layer->pthis)->support_vulkan_packing = enable;
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
@@ -1384,10 +1394,8 @@ void ncnn_extractor_destroy(ncnn_extractor_t ex)
 
 void ncnn_extractor_set_option(ncnn_extractor_t ex, const ncnn_option_t opt)
 {
-    ((Extractor*)ex)->set_num_threads(((const Option*)opt)->num_threads);
-#if NCNN_VULKAN
-    ((Extractor*)ex)->set_vulkan_compute(((const Option*)opt)->use_vulkan_compute);
-#endif
+    (void)ex;
+    (void)opt;
 }
 
 #if NCNN_STRING

@@ -11,6 +11,7 @@ namespace ncnn {
 PriorBox_vulkan::PriorBox_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_priorbox = 0;
     pipeline_priorbox_mxnet = 0;

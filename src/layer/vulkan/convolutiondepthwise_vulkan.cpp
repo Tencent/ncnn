@@ -11,6 +11,7 @@ namespace ncnn {
 ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     padding = 0;
 

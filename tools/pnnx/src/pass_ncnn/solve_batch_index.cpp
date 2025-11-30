@@ -200,7 +200,7 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        else if (op->type == "Tensor.reshape")
         {
             std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
@@ -384,18 +384,49 @@ static void solve_batch_index_forward(Operand* operand)
         }
         else if (op->type == "torch.squeeze")
         {
-            int dim = op->params.at("dim").i;
-            if (dim < 0)
-                dim += input_rank0;
-
             int batch_index_squeezed = batch_index;
-            if (dim >= 0 && dim == batch_index)
+
+            if (op->has_param("dim"))
             {
-                batch_index_squeezed = 233;
+                if (op->params.at("dim").type == 2)
+                {
+                    int dim = op->params.at("dim").i;
+                    if (dim < 0)
+                        dim += input_rank0;
+
+                    if (dim >= 0 && dim == batch_index)
+                    {
+                        batch_index_squeezed = 233;
+                    }
+                    else if (dim >= 0 && dim < batch_index)
+                    {
+                        batch_index_squeezed = batch_index - 1;
+                    }
+                }
+                else
+                {
+                    const std::vector<int>& dims = op->params.at("dim").ai;
+                    for (auto d : dims)
+                    {
+                        int dim = d;
+                        if (dim < 0)
+                            dim += input_rank0;
+
+                        if (dim >= 0 && dim == batch_index)
+                        {
+                            batch_index_squeezed = 233;
+                        }
+                        else if (dim >= 0 && dim < batch_index)
+                        {
+                            batch_index_squeezed = batch_index - 1;
+                        }
+                    }
+                }
             }
-            else if (dim >= 0 && dim < batch_index)
+            else
             {
-                batch_index_squeezed = batch_index - 1;
+                // squeeze all
+                batch_index_squeezed = 233;
             }
 
             Operand* r = op->outputs[0];
@@ -518,7 +549,7 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    else if (op->type == "Tensor.reshape")
     {
         std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
@@ -705,10 +736,6 @@ static void solve_batch_index_backward(Operand* operand)
     }
     else if (op->type == "torch.squeeze")
     {
-        int dim = op->params.at("dim").i;
-        if (dim < 0)
-            dim += input_rank0;
-
         if (batch_index == 233)
         {
             // give up
@@ -716,9 +743,39 @@ static void solve_batch_index_backward(Operand* operand)
         }
 
         int batch_index_unsqueezed = batch_index;
-        if (dim >= 0 && dim <= batch_index)
+        if (op->has_param("dim"))
         {
-            batch_index_unsqueezed = batch_index + 1;
+            if (op->params.at("dim").type == 2)
+            {
+                int dim = op->params.at("dim").i;
+                if (dim < 0)
+                    dim += input_rank0;
+
+                if (dim >= 0 && dim <= batch_index)
+                {
+                    batch_index_unsqueezed = batch_index + 1;
+                }
+            }
+            else
+            {
+                const std::vector<int>& dims = op->params.at("dim").ai;
+                for (auto d : dims)
+                {
+                    int dim = d;
+                    if (dim < 0)
+                        dim += input_rank0;
+
+                    if (dim >= 0 && dim <= batch_index)
+                    {
+                        batch_index_unsqueezed = batch_index + 1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // give up for squeezing all
+            return;
         }
 
         Operand* r = op->inputs[0];

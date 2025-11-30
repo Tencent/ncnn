@@ -10,6 +10,7 @@ namespace ncnn {
 PReLU_vulkan::PReLU_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_prelu = 0;
     pipeline_prelu_pack4 = 0;

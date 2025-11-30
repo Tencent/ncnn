@@ -10,6 +10,7 @@ namespace ncnn {
 BatchNorm_vulkan::BatchNorm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_batchnorm = 0;
     pipeline_batchnorm_pack4 = 0;

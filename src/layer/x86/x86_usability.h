@@ -64,7 +64,7 @@ public:
 
 #if __AVX2__
 #if __AVX512F__
-    NCNN_FORCEINLINE __m512i _mm512_comp_div_epu32(__m512i x) const
+    NCNN_FORCEINLINE __m512i _mm512_comp_div_epu32(const __m512i& x) const
     {
         // xm = (x * multiplier) >> 32
         __m512i xm_low = _mm512_srli_epi64(_mm512_mul_epu32(x, _multiplier), 32);
@@ -76,7 +76,7 @@ public:
     }
 #endif // __AVX512F__
 
-    NCNN_FORCEINLINE __m256i _mm256_comp_div_epu32(__m256i x) const
+    NCNN_FORCEINLINE __m256i _mm256_comp_div_epu32(const __m256i& x) const
     {
         // xm = (x * multiplier) >> 32
 #if __AVX512F__
@@ -92,7 +92,7 @@ public:
     }
 #endif // __AVX2__
 
-    NCNN_FORCEINLINE __m128i _mm_comp_div_epu32(__m128i x) const
+    NCNN_FORCEINLINE __m128i _mm_comp_div_epu32(const __m128i& x) const
     {
         // xm = (x * multiplier) >> 32
 #if __AVX512F__
@@ -248,7 +248,7 @@ static NCNN_FORCEINLINE void transpose16x4_epi8(__m128i& _r0, __m128i& _r1, __m1
     _r3 = _mm_unpackhi_epi16(_tmp1, _tmp3);
 }
 
-static NCNN_FORCEINLINE __m128i _mm_comp_mullo_epi32(__m128i a, __m128i b)
+static NCNN_FORCEINLINE __m128i _mm_comp_mullo_epi32(const __m128i& a, const __m128i& b)
 {
 #if __SSE4_1__
     return _mm_mullo_epi32(a, b);
@@ -261,21 +261,21 @@ static NCNN_FORCEINLINE __m128i _mm_comp_mullo_epi32(__m128i a, __m128i b)
 #endif
 }
 
-static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
+static NCNN_FORCEINLINE float _mm_reduce_add_ps(const __m128& x128)
 {
     const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE float _mm_reduce_max_ps(__m128 x128)
+static NCNN_FORCEINLINE float _mm_reduce_max_ps(const __m128& x128)
 {
     const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE int _mm_reduce_add_epi32(__m128i x)
+static NCNN_FORCEINLINE int _mm_reduce_add_epi32(const __m128i& x)
 {
     __m128i hi64 = _mm_unpackhi_epi64(x, x);
     __m128i sum64 = _mm_add_epi32(hi64, x);
@@ -443,7 +443,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(__m128i src, __m128i a, __m128i b)
+static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(const __m128i& src, const __m128i& a, const __m128i& b)
 {
 #if __AVX512VNNI__
     return _mm_dpwssd_epi32(src, a, b);
@@ -864,12 +864,12 @@ static NCNN_FORCEINLINE __m128 HorizontalSums(__m256& v0, __m256& v1, __m256& v2
                       _mm256_castps256_ps128(s0123));
 }
 
-static NCNN_FORCEINLINE __m256 combine4x2_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
 {
     return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
 }
 
-static NCNN_FORCEINLINE __m256i combine4x2_epi32(__m128i a, __m128i b)
+static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i& b)
 {
 #if __AVX2__
     return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
@@ -878,7 +878,7 @@ static NCNN_FORCEINLINE __m256i combine4x2_epi32(__m128i a, __m128i b)
 #endif
 }
 
-static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
+static NCNN_FORCEINLINE float _mm256_reduce_add_ps(const __m256& x)
 {
     /* ( x3+x7, x2+x6, x1+x5, x0+x4 ) */
     const __m128 x128 = _mm_add_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
@@ -890,7 +890,7 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE float _mm256_reduce_max_ps(__m256 x)
+static NCNN_FORCEINLINE float _mm256_reduce_max_ps(const __m256& x)
 {
     const __m128 x128 = _mm_max_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
     const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
@@ -1073,7 +1073,7 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 }
 
 #if __AVX2__
-static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(__m256i src, __m256i a, __m256i b)
+static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(const __m256i& src, const __m256i& a, const __m256i& b)
 {
 #if __AVX512VNNI__
     return _mm256_dpwssd_epi32(src, a, b);
@@ -1085,7 +1085,7 @@ static NCNN_FORCEINLINE __m256i _mm256_comp_dpwssd_epi32(__m256i src, __m256i a,
 }
 
 #if __AVX512VNNI__ || __AVXVNNI__
-static NCNN_FORCEINLINE __m128i _mm_comp_dpbusd_epi32(__m128i src, __m128i a, __m128i b)
+static NCNN_FORCEINLINE __m128i _mm_comp_dpbusd_epi32(const __m128i& src, const __m128i& a, const __m128i& b)
 {
 #if __AVX512VNNI__
     return _mm_dpbusd_epi32(src, a, b);
@@ -1094,7 +1094,7 @@ static NCNN_FORCEINLINE __m128i _mm_comp_dpbusd_epi32(__m128i src, __m128i a, __
 #endif
 }
 
-static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(__m256i src, __m256i a, __m256i b)
+static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(const __m256i& src, const __m256i& a, const __m256i& b)
 {
 #if __AVX512VNNI__
     return _mm256_dpbusd_epi32(src, a, b);
@@ -1104,7 +1104,7 @@ static NCNN_FORCEINLINE __m256i _mm256_comp_dpbusd_epi32(__m256i src, __m256i a,
 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
-static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi16(__m128i a)
+static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi16(const __m128i& a)
 {
 #if __AVX512F__
     return _mm_cvtepi32_epi16(a);
@@ -1114,7 +1114,7 @@ static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi16(__m128i a)
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi16(__m256i a)
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi16(const __m256i& a)
 {
 #if __AVX512F__
     return _mm256_cvtepi32_epi16(a);
@@ -1126,7 +1126,7 @@ static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi16(__m256i a)
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi8(__m128i a)
+static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi8(const __m128i& a)
 {
 #if __AVX512F__
     return _mm_cvtepi32_epi8(a);
@@ -1136,7 +1136,7 @@ static NCNN_FORCEINLINE __m128i _mm_comp_cvtepi32_epi8(__m128i a)
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi8(__m256i a)
+static NCNN_FORCEINLINE __m128i _mm256_comp_cvtepi32_epi8(const __m256i& a)
 {
 #if __AVX512F__
     return _mm256_cvtepi32_epi8(a);
@@ -1188,7 +1188,7 @@ static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m
 }
 
 #if __AVX512F__
-static NCNN_FORCEINLINE __m512i _mm512_comp_dpwssd_epi32(__m512i src, __m512i a, __m512i b)
+static NCNN_FORCEINLINE __m512i _mm512_comp_dpwssd_epi32(const __m512i& src, const __m512i& a, const __m512i& b)
 {
 #if __AVX512VNNI__
     return _mm512_dpwssd_epi32(src, a, b);
@@ -1714,7 +1714,7 @@ static NCNN_FORCEINLINE void transpose8x16_epi16(__m128i& _r0, __m128i& _r1, __m
     _rf = _mm_unpackhi_epi64(_tmpr, _tmpv);
 }
 
-static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(__m512 x)
+static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(const __m512& x)
 {
     const __m256 x256 = _mm256_add_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
     const __m128 x128 = _mm_add_ps(_mm256_castps256_ps128(x256), _mm256_extractf128_ps(x256, 1));
@@ -1723,7 +1723,7 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(__m512 x)
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
+static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(const __m512& x)
 {
     const __m256 x256 = _mm256_max_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
     const __m128 x128 = _mm_max_ps(_mm256_castps256_ps128(x256), _mm256_extractf128_ps(x256, 1));
@@ -1732,24 +1732,24 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
     return _mm_cvtss_f32(x32);
 }
 
-static NCNN_FORCEINLINE __m512 combine8x2_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m512 combine8x2_ps(const __m256& a, const __m256& b)
 {
     return _mm512_insertf32x8(_mm512_castps256_ps512(a), b, 1);
 }
 
-static NCNN_FORCEINLINE __m512 combine4x4_ps(__m128 a, __m128 b, __m128 c, __m128 d)
+static NCNN_FORCEINLINE __m512 combine4x4_ps(const __m128& a, const __m128& b, const __m128& c, const __m128& d)
 {
     __m256 ab = combine4x2_ps(a, b);
     __m256 cd = combine4x2_ps(c, d);
     return combine8x2_ps(ab, cd);
 }
 
-static NCNN_FORCEINLINE __m512i combine8x2_epi32(__m256i a, __m256i b)
+static NCNN_FORCEINLINE __m512i combine8x2_epi32(const __m256i& a, const __m256i& b)
 {
     return _mm512_inserti32x8(_mm512_castsi256_si512(a), b, 1);
 }
 
-static NCNN_FORCEINLINE __m512i combine4x4_epi32(__m128i a, __m128i b, __m128i c, __m128i d)
+static NCNN_FORCEINLINE __m512i combine4x4_epi32(const __m128i& a, const __m128i& b, const __m128i& c, const __m128i& d)
 {
     __m256i ab = combine4x2_epi32(a, b);
     __m256i cd = combine4x2_epi32(c, d);

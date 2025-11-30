@@ -10,6 +10,7 @@ namespace ncnn {
 GELU_vulkan::GELU_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_gelu = 0;
 }

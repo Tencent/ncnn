@@ -110,6 +110,7 @@ set(pnnx_pass_level1_SRCS
 )
 
 set(pnnx_pass_level2_SRCS
+    pass_level2/eliminate_contiguous.cpp
     pass_level2/eliminate_size_numtotensor_int.cpp
     pass_level2/functionize.cpp
     pass_level2/fuse_constantlist.cpp
@@ -187,7 +188,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
-    pass_level2/Tensor_contiguous.cpp
     pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
@@ -207,7 +207,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_to.cpp
     pass_level2/Tensor_type_as.cpp
-    pass_level2/Tensor_view.cpp
+    pass_level2/Tensor_unflatten.cpp
     pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
@@ -362,7 +362,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_noop_slice.cpp
-    pass_level5/eliminate_noop_view_reshape.cpp
+    pass_level5/eliminate_noop_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eliminate_type_as.cpp
     pass_level5/eval_expression.cpp
@@ -376,10 +376,10 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
-    pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
+    pass_level5/fuse_pixel_shuffle.cpp
     pass_level5/fuse_pixel_unshuffle.cpp
     pass_level5/fuse_layernorm.cpp
     pass_level5/fuse_multiheadattention.cpp
@@ -434,7 +434,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp
-    pass_ncnn/eliminate_tail_reshape_permute.cpp
     pass_ncnn/fuse_convolution_activation.cpp
     pass_ncnn/fuse_convolution1d_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise_activation.cpp
@@ -475,6 +474,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_glu.cpp
     pass_ncnn/F_grid_sample.cpp
     pass_ncnn/F_group_norm.cpp
+    pass_ncnn/F_hardshrink.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
     pass_ncnn/F_hardtanh.cpp
@@ -503,6 +503,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_sigmoid.cpp
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
+    pass_ncnn/F_softplus.cpp
+    pass_ncnn/F_softshrink.cpp
     pass_ncnn/F_tanh.cpp
     pass_ncnn/F_unfold.cpp
     pass_ncnn/F_upsample_bilinear.cpp
@@ -538,6 +540,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
+    pass_ncnn/nn_Hardshrink.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
@@ -571,18 +574,19 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Softmax.cpp
     pass_ncnn/nn_Softmax2d.cpp
+    pass_ncnn/nn_Softshrink.cpp
+    pass_ncnn/nn_Softplus.cpp
     pass_ncnn/nn_Tanh.cpp
     pass_ncnn/nn_Unfold.cpp
     pass_ncnn/nn_Upsample.cpp
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp
     pass_ncnn/nn_ZeroPad2d.cpp
-    pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
-    pass_ncnn/Tensor_view.cpp
+    pass_ncnn/Tensor_unflatten.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
@@ -701,21 +705,6 @@ if(onnxruntime_FOUND)
         pass_onnx/model_stat.cpp
         pass_onnx/shape_inference.cpp
         pass_onnx/fuse_constant_as_attribute.cpp
-
-        # pass_onnx/nn_AdaptiveAvgPool2d.cpp
-        # pass_onnx/nn_AdaptiveAvgPool3d.cpp
-        # pass_onnx/nn_AvgPool2d.cpp
-        # pass_onnx/nn_AvgPool3d.cpp
-        # pass_onnx/nn_BatchNorm2d.cpp
-        # pass_onnx/nn_BatchNorm3d.cpp
-        # pass_onnx/nn_Conv2d.cpp
-        # pass_onnx/nn_Conv3d.cpp
-        # pass_onnx/nn_GELU.cpp
-        # pass_onnx/nn_LayerNorm.cpp
-        # pass_onnx/nn_Linear.cpp
-        # pass_onnx/nn_MaxPool2d.cpp
-        # pass_onnx/nn_MaxPool3d.cpp
-        # pass_onnx/nn_MultiheadAttention.cpp
     )
 
     set(onnx2pnnx_SRCS

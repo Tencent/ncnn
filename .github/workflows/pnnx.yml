@@ -21,11 +21,11 @@ permissions:
   contents: read
 
 env:
-  LIBTORCH_VERSION: 2.8.0
-  TORCHVISION_VERSION: 0.23.0
+  LIBTORCH_VERSION: 2.9.0
+  TORCHVISION_VERSION: 0.24.0
   PROTOBUF_VERSION: 21.12
-  ONNXRUNTIME_VERSION: 1.22.1
-  CACHE_DATE: 20250807
+  ONNXRUNTIME_VERSION: 1.23.1
+  CACHE_DATE: 20251020
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.12
 
@@ -129,6 +129,7 @@ jobs:
         pip3 install -r requirements.txt --break-system-packages
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-fix-mobile-build.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-no-link-system-lib.patch
+        patch -p1 -R -i $GITHUB_WORKSPACE/pnnx-patches/pytorch-v${{ env.LIBTORCH_VERSION }}-revert-nativert-api.patch
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/libtorch-${{ env.LIBTORCH_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
@@ -191,6 +192,7 @@ jobs:
         cd onnxruntime-${{ env.ONNXRUNTIME_VERSION }}
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-less-mlas-features.patch
         patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-monolithic-static-library.patch
+        patch -p1 -i $GITHUB_WORKSPACE/pnnx-patches/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-include-cstdint.patch
         mkdir -p build2 && cd build2
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install \
             -DCMAKE_BUILD_TYPE=MinSizeRel \
@@ -219,7 +221,7 @@ jobs:
         strip src/pnnx
 
     - name: upload-pnnx
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: pnnx
         path: tools/pnnx/build/src/pnnx
@@ -232,21 +234,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python: '3.8',  numpy: '1.24.4', opencv: '4.5.*',  torch: '1.8.1',  torchvision: '0.9.1',  torchaudio: '0.8.1'      }
-          - { python: '3.8',  numpy: '1.24.4', opencv: '4.5.*',  torch: '1.9.1',  torchvision: '0.10.1', torchaudio: '0.9.1'      }
-          - { python: '3.8',  numpy: '1.24.4', opencv: '4.6.*',  torch: '1.10.0', torchvision: '0.11.1', torchaudio: '0.10.0+cpu' }
-          - { python: '3.9',  numpy: '1.26.4', opencv: '4.6.*',  torch: '1.11.0', torchvision: '0.12.0', torchaudio: '0.11.0+cpu' }
-          - { python: '3.9',  numpy: '1.26.4', opencv: '4.7.*',  torch: '1.12.0', torchvision: '0.13.0', torchaudio: '0.12.0+cpu' }
-          - { python: '3.10', numpy: '1.26.4', opencv: '4.7.*',  torch: '1.13.0', torchvision: '0.14.0', torchaudio: '0.13.0+cpu' }
-          - { python: '3.10', numpy: '1.26.4', opencv: '4.8.*',  torch: '2.0.0',  torchvision: '0.15.1', torchaudio: '2.0.0+cpu'  }
-          - { python: '3.10', numpy: '1.26.4', opencv: '4.8.*',  torch: '2.1.0',  torchvision: '0.16.0', torchaudio: '2.1.0+cpu'  }
-          - { python: '3.11', numpy: '1.26.4', opencv: '4.9.*',  torch: '2.2.1',  torchvision: '0.17.1', torchaudio: '2.2.1+cpu'  }
-          - { python: '3.11', numpy: '1.26.4', opencv: '4.9.*',  torch: '2.3.0',  torchvision: '0.18.0', torchaudio: '2.3.0+cpu'  }
-          - { python: '3.11', numpy: '2.2.5',  opencv: '4.10.*', torch: '2.4.0',  torchvision: '0.19.0', torchaudio: '2.4.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  opencv: '4.10.*', torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu'  }
-          - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu'  }
-          - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu'  }
+          - { python: '3.8',  numpy: '1.24.4', opencv: '4.5.*',  torch: '1.8.1',  torchvision: '0.9.1',  torchaudio: '0.8.1',      transformers: '4.52.1' }
+          - { python: '3.8',  numpy: '1.24.4', opencv: '4.5.*',  torch: '1.9.1',  torchvision: '0.10.1', torchaudio: '0.9.1',      transformers: '4.52.1' }
+          - { python: '3.8',  numpy: '1.24.4', opencv: '4.6.*',  torch: '1.10.0', torchvision: '0.11.1', torchaudio: '0.10.0+cpu', transformers: '4.52.1' }
+          - { python: '3.9',  numpy: '1.26.4', opencv: '4.6.*',  torch: '1.11.0', torchvision: '0.12.0', torchaudio: '0.11.0+cpu', transformers: '4.52.1' }
+          - { python: '3.9',  numpy: '1.26.4', opencv: '4.7.*',  torch: '1.12.0', torchvision: '0.13.0', torchaudio: '0.12.0+cpu', transformers: '4.52.1' }
+          - { python: '3.10', numpy: '1.26.4', opencv: '4.7.*',  torch: '1.13.0', torchvision: '0.14.0', torchaudio: '0.13.0+cpu', transformers: '4.52.1' }
+          - { python: '3.10', numpy: '1.26.4', opencv: '4.8.*',  torch: '2.0.0',  torchvision: '0.15.1', torchaudio: '2.0.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.10', numpy: '1.26.4', opencv: '4.8.*',  torch: '2.1.0',  torchvision: '0.16.0', torchaudio: '2.1.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.11', numpy: '1.26.4', opencv: '4.9.*',  torch: '2.2.1',  torchvision: '0.17.1', torchaudio: '2.2.1+cpu',  transformers: '4.52.1' }
+          - { python: '3.11', numpy: '1.26.4', opencv: '4.9.*',  torch: '2.3.0',  torchvision: '0.18.0', torchaudio: '2.3.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.11', numpy: '2.2.5',  opencv: '4.10.*', torch: '2.4.0',  torchvision: '0.19.0', torchaudio: '2.4.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.12', numpy: '2.2.5',  opencv: '4.10.*', torch: '2.5.0',  torchvision: '0.20.0', torchaudio: '2.5.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.6.0',  torchvision: '0.21.0', torchaudio: '2.6.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.12', numpy: '2.2.5',  opencv: '4.11.*', torch: '2.7.0',  torchvision: '0.22.0', torchaudio: '2.7.0+cpu',  transformers: '4.52.1' }
+          - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.8.0',  torchvision: '0.23.0', torchaudio: '2.8.0+cpu',  transformers: '4.56.2' }
+          - { python: '3.13', numpy: '2.2.5',  opencv: '4.12.*', torch: '2.9.0',  torchvision: '0.24.0', torchaudio: '2.9.0+cpu',  transformers: '4.56.2' }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
@@ -306,7 +309,7 @@ jobs:
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
         fail-on-cache-miss: true
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python }}
 
@@ -315,8 +318,8 @@ jobs:
         export PATH=${{ env.PYTHONUSERBASE }}/bin:$PATH
         pip3 install --user pytest wheel twine requests einops numpy==${{ matrix.numpy }} opencv-python==${{ matrix.opencv }}
         pip3 install --user torch==${{ matrix.torch }}+cpu torchvision==${{ matrix.torchvision }}+cpu torchaudio==${{ matrix.torchaudio }} --index-url https://download.pytorch.org/whl/cpu
-        pip3 install --user onnx onnxscript
-        pip3 install --user "transformers<=4.52.1" diffusers "safetensors<=0.6.0"
+        pip3 install --user onnx onnxscript onnxruntime
+        pip3 install --user "transformers<=${{ matrix.transformers }}" diffusers "safetensors<=0.6.2"
 
     - name: setup-pytorch-execstack-or-patchelf
       if: ${{ matrix.python }} == '3.8' || ${{ matrix.python }} == '3.9'
@@ -340,7 +343,7 @@ jobs:
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
 
     - name: download-pnnx
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v6
       with:
         name: pnnx
         path: tools/pnnx/build/src

@@ -10,6 +10,7 @@ namespace ncnn {
 Dequantize_vulkan::Dequantize_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_dequantize = 0;
     pipeline_dequantize_pack4 = 0;

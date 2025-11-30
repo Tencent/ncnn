@@ -10,6 +10,7 @@ namespace ncnn {
 ELU_vulkan::ELU_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_elu = 0;
 }

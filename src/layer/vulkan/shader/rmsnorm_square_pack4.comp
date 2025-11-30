@@ -1,0 +1,28 @@
+// Copyright 2025 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout (binding = 1) writeonly buffer square_blob    { sfpvec4 square_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+void main(){
+    int gx=int(gl_GlobalInvocationID.x);
+    int gy=int(gl_GlobalInvocationID.y);
+    int gz=int(gl_GlobalInvocationID.z);
+
+    if (gx>=p.w || gy>=p.h || gz>=p.c)
+        return;
+
+    int idx = gz*p.cstep + gy*p.w + gx;
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, idx));
+    buffer_st4(square_blob_data, idx, afpvec4(v*v));
+}

@@ -10,6 +10,7 @@ namespace ncnn {
 Interp_vulkan::Interp_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_interp = 0;
     pipeline_interp_pack4 = 0;

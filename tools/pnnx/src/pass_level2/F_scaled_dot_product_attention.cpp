@@ -205,4 +205,86 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_1, 140)
 
+class F_scaled_dot_product_attention_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+14 13
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+Tensor.reshape          op_0        1 1 key pnnx_0 shape=(-1,%kvsize,%embed_per_head)
+Tensor.permute          op_1        1 1 pnnx_0 pnnx_1 dims=(0,2,1)
+Tensor.reshape          op_2        1 1 pnnx_1 pnnx_2 shape=(%batch,%num_heads,%embed_per_head,%kvsize)
+prim::Constant          op_3        0 1 val_23 value=%sqrt_scale
+aten::mul               op_4        2 1 query val_23 pnnx_3
+prim::Constant          op_5        0 1 val_23_pnnxshadow1 value=%sqrt_scale
+aten::mul               op_6        2 1 pnnx_2 val_23_pnnxshadow1 pnnx_4
+torch.matmul            op_7        2 1 pnnx_3 pnnx_4 pnnx_5
+F.softmax               op_8        1 1 pnnx_5 pnnx_6 dim=-1
+torch.matmul            op_9        2 1 pnnx_6 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.scaled_dot_product_attention";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["dropout_p"] = 0.f;
+        op->params["is_causal"] = false;
+
+        const float sqrt_scale = captured_params.at("sqrt_scale").f;
+        const float scale = sqrt_scale * sqrt_scale;
+
+        op->params["scale"] = scale;
+
+        if (!op->inputs[0]->shape.empty())
+        {
+            const int embed_dim = op->inputs[0]->shape[op->inputs[0]->shape.size() - 1];
+            if (NearlyEqual(scale, 1.f / sqrt(embed_dim), 0.001))
+            {
+                // drop scale=None for compatibility with old torch
+                op->params.erase("scale");
+            }
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_2, 140)
+
+class F_scaled_dot_product_attention_onnx_3 : public F_scaled_dot_product_attention_onnx_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+16 15
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+pnnx.Input              input_2     0 1 value
+pnnx.Input              input_3     0 1 attn_mask
+Tensor.reshape          op_0        1 1 key pnnx_10 shape=(-1,%kvsize,%embed_per_head)
+Tensor.permute          op_1        1 1 pnnx_10 pnnx_11 dims=(0,2,1)
+Tensor.reshape          op_2        1 1 pnnx_11 pnnx_12 shape=(%batch,%num_heads,%embed_per_head,%kvsize)
+prim::Constant          op_3        0 1 val_23_pnnxshadow2 value=%sqrt_scale
+aten::mul               op_4        2 1 query val_23_pnnxshadow2 pnnx_13
+prim::Constant          op_5        0 1 val_23_pnnxshadow3 value=%sqrt_scale
+aten::mul               op_6        2 1 pnnx_12 val_23_pnnxshadow3 pnnx_14
+torch.matmul            op_7        2 1 pnnx_13 pnnx_14 pnnx_15
+aten::add               op_8        2 1 pnnx_15 attn_mask pnnx_16
+F.softmax               op_9        1 1 pnnx_16 pnnx_17 dim=-1
+torch.matmul            op_10       2 1 pnnx_17 value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_scaled_dot_product_attention_onnx_3, 140)
+
 } // namespace pnnx

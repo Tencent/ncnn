@@ -10,6 +10,7 @@ namespace ncnn {
 Reorg_vulkan::Reorg_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_reorg = 0;
     pipeline_reorg_pack4 = 0;

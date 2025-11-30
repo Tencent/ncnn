@@ -11,6 +11,7 @@ namespace ncnn {
 DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     crop = 0;
     output_crop = 0;

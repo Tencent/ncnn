@@ -21,7 +21,6 @@ def test_extractor():
     in_mat = ncnn.Mat((227, 227, 3))
     with net.create_extractor() as ex:
         ex.set_light_mode(True)
-        ex.set_num_threads(2)
 
         ex.set_blob_allocator(alloctor)
         ex.set_workspace_allocator(alloctor)
@@ -53,7 +52,6 @@ def test_extractor_index():
     in_mat = ncnn.Mat((227, 227, 3))
     ex = net.create_extractor()
     ex.set_light_mode(True)
-    ex.set_num_threads(2)
 
     ex.set_blob_allocator(alloctor)
     ex.set_workspace_allocator(alloctor)

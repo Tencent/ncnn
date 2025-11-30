@@ -10,6 +10,7 @@ namespace ncnn {
 ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_shufflechannel = 0;
     pipeline_shufflechannel_pack4 = 0;

@@ -83,9 +83,9 @@ pnnx.Input              input_Rw    0 1 Rw #Rw=(%batch,%h,%w,1,%w)f32
 pnnx.Expression         op_0        1 1 query 17 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 torch.transpose         op_1        1 1 key 22 dim0=-2 dim1=-1
 torch.matmul            op_2        2 1 17 22 23
-Tensor.view             op_3        1 1 23 24 shape=(%batch,%h,%w,%h,%w)
+Tensor.reshape          op_3        1 1 23 24 shape=(%batch,%h,%w,%h,%w)
 pnnx.Expression         op_4        3 1 24 Rh Rw 28 expr=add(add(@0,@1),@2)
-Tensor.view             op_5        1 1 28 29 shape=(%batch,%qsize,%qsize)
+Tensor.reshape          op_5        1 1 28 29 shape=(%batch,%qsize,%qsize)
 F.softmax               op_6        1 1 29 30 dim=-1
 torch.matmul            op_7        2 1 30 value out
 pnnx.Output             output      1 0 out
