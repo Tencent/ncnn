@@ -13,6 +13,9 @@ macro(ncnn_convert_param_file PARAM_FILE)
     get_filename_component(PARAM_FILE_NAME ${PARAM_FILE} NAME)
     # Manually remove ".param" since NAME_WE treats ".1.param" as a multi-extension
     string(REPLACE ".param" "" PARAM_FILE_NAME_WE "${PARAM_FILE_NAME}")
+    # Replace characters invalid in C identifiers ('.' and '-') with underscores
+    string(REPLACE "." "_" PARAM_FILE_NAME_WE "${PARAM_FILE_NAME_WE}")
+    string(REPLACE "-" "_" PARAM_FILE_NAME_WE "${PARAM_FILE_NAME_WE}")
     # Check if the result is empty
     if (NOT PARAM_FILE_NAME_WE)
         message(FATAL_ERROR "Failed to extract valid filename from '${PARAM_FILE}'")
@@ -30,7 +33,9 @@ macro(ncnn_convert_param_file PARAM_FILE)
     string(FIND "${param_file_data_hex}" "," tail_comma REVERSE)
     string(SUBSTRING "${param_file_data_hex}" 0 ${tail_comma} param_file_data_hex)
 
+    # generate model param header file
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h "static const char ${PARAM_FILE_NAME_WE}_param_data[] = {${param_file_data_hex},0x00};\n")
+
+    # append include line to a CMake variable for later output
     string(APPEND model_param_spv_data "#include \"model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h\"\n")
-    string(APPEND model_param_registry "{\"${PARAM_FILE_NAME_WE}\", ${PARAM_FILE_NAME_WE}_param_data},\n")
 endmacro()
