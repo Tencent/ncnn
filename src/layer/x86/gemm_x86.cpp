@@ -4363,7 +4363,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 128;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         for (; jj + 11 < max_jj; jj += 12)
         {
             __m256 _sum0;
@@ -5162,10 +5162,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     if (broadcast_type_C == 4)
                     {
                         __m512 _tmp = _mm512_loadu_ps(pC);
-                        _sum0 = _mm512_permutexvar_ps(_mm512_setr_epi32(0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), _tmp);
-                        _sum1 = _mm512_permutexvar_ps(_mm512_setr_epi32(4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7), _tmp);
-                        _sum2 = _mm512_permutexvar_ps(_mm512_setr_epi32(8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11), _tmp);
-                        _sum3 = _mm512_permutexvar_ps(_mm512_setr_epi32(12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15), _tmp);
+                        _sum0 = _mm512_permutexvar_ps(_mm512_setr_epi32(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3), _tmp);
+                        _sum1 = _mm512_permutexvar_ps(_mm512_setr_epi32(4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7), _tmp);
+                        _sum2 = _mm512_permutexvar_ps(_mm512_setr_epi32(8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 11), _tmp);
+                        _sum3 = _mm512_permutexvar_ps(_mm512_setr_epi32(12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15), _tmp);
                         pC += 16;
                     }
                 }
@@ -5187,10 +5187,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 __m512 _pAAAA = _mm512_broadcast_f32x4(_pA);
 
-                __m512 _pB0 = _mm512_permutexvar_ps(_mm512_setr_epi32(0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), _pB);
-                __m512 _pB1 = _mm512_permutexvar_ps(_mm512_setr_epi32(4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7), _pB);
-                __m512 _pB2 = _mm512_permutexvar_ps(_mm512_setr_epi32(8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,11), _pB);
-                __m512 _pB3 = _mm512_permutexvar_ps(_mm512_setr_epi32(12,12,12,12,13,13,13,13,14,14,14,14,15,15,15,15), _pB);
+                __m512 _pB0 = _mm512_permutexvar_ps(_mm512_setr_epi32(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3), _pB);
+                __m512 _pB1 = _mm512_permutexvar_ps(_mm512_setr_epi32(4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7), _pB);
+                __m512 _pB2 = _mm512_permutexvar_ps(_mm512_setr_epi32(8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 11), _pB);
+                __m512 _pB3 = _mm512_permutexvar_ps(_mm512_setr_epi32(12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15), _pB);
 
                 _sum0 = _mm512_fmadd_ps(_pAAAA, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pAAAA, _pB1, _sum1);
@@ -5250,7 +5250,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 64;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         for (; jj + 11 < max_jj; jj += 12)
         {
             __m128 _sum0;
@@ -5961,7 +5961,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 32;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         for (; jj + 11 < max_jj; jj += 12)
         {
             __m128 _sum00;
@@ -6519,7 +6519,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 16;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         for (; jj + 11 < max_jj; jj += 12)
         {
             __m128 _sum0;
