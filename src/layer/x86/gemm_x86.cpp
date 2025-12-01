@@ -933,6 +933,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __AVX512F__
     for (; jj + 15 < max_jj; jj += 16)
     {
+        // assert (j + jj) % 16 == 0
         if (elempack == 16)
         {
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 16;
@@ -1275,58 +1276,17 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     for (; jj + 7 < max_jj; jj += 8)
     {
 #if __AVX__
-#if __AVX512F__
-        if (elempack == 16)
-        {
-            const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
-            const float* p1 = (const float*)B + ((j + jj) / 16 * 16 + 16) * B_hstep + k * 16;
-
-            if ((j + jj) % 16 == 0)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 4));
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 8)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 8));
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 12)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
-                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
-                    pp += 8;
-                    p0 += 16;
-                    p1 += 16;
-                }
-            }
-        }
-#endif // __AVX512F__
         if (elempack == 8)
         {
+#if __AVX512F__
+            // assert (j + jj) % 16 == 0
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 8;
+#else
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
             const float* p1 = (const float*)B + (j + jj + 8) / 8 * 8 * B_hstep + k * 8;
 
             if ((j + jj) % 8 == 0)
+#endif
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -1335,6 +1295,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p0 += 8;
                 }
             }
+#if !__AVX512F__
             if ((j + jj) % 8 == 4)
             {
                 for (int kk = 0; kk < max_kk; kk++)
@@ -1346,6 +1307,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p1 += 8;
                 }
             }
+#endif // !__AVX512F__
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -1460,54 +1422,16 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     for (; jj + 3 < max_jj; jj += 4)
     {
 #if __AVX__
-#if __AVX512F__
-        if (elempack == 16)
-        {
-            const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
-
-            if ((j + jj) % 16 == 0)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0));
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 8)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 8));
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 12)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-        }
-#endif // __AVX512F__
         if (elempack == 8)
         {
+#if __AVX512F__
+            // assert (j + jj) % 8 == 0
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 8;
+#else
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
             if ((j + jj) % 8 == 0)
+#endif
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -1516,6 +1440,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p0 += 8;
                 }
             }
+#if !__AVX512F__
             if ((j + jj) % 8 == 4)
             {
                 for (int kk = 0; kk < max_kk; kk++)
@@ -1525,6 +1450,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p0 += 8;
                 }
             }
+#endif // !__AVX512F__
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -1839,44 +1765,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     for (; jj + 11 < max_jj; jj += 12)
     {
 #if __AVX__
-#if __AVX512F__
-        if (elempack == 16)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 16;
-
-            int kk = 0;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
-                __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
-                __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
-                __m512 _r4 = _mm512_load_ps(p0 + 16 * 4);
-                __m512 _r5 = _mm512_load_ps(p0 + 16 * 5);
-                __m512 _r6 = _mm512_load_ps(p0 + 16 * 6);
-                __m512 _r7 = _mm512_load_ps(p0 + 16 * 7);
-                __m512 _r8 = _mm512_load_ps(p0 + 16 * 8);
-                __m512 _r9 = _mm512_load_ps(p0 + 16 * 9);
-                __m512 _ra = _mm512_load_ps(p0 + 16 * 10);
-                __m512 _rb = _mm512_load_ps(p0 + 16 * 11);
-                transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                _mm512_store_ps(pp, _r0);
-                _mm512_store_ps(pp + 16 * 1, _r1);
-                _mm512_store_ps(pp + 16 * 2, _r2);
-                _mm512_store_ps(pp + 16 * 3, _r3);
-                _mm512_store_ps(pp + 16 * 4, _r4);
-                _mm512_store_ps(pp + 16 * 5, _r5);
-                _mm512_store_ps(pp + 16 * 6, _r6);
-                _mm512_store_ps(pp + 16 * 7, _r7);
-                _mm512_store_ps(pp + 16 * 8, _r8);
-                _mm512_store_ps(pp + 16 * 9, _r9);
-                _mm512_store_ps(pp + 16 * 10, _ra);
-                _mm512_store_ps(pp + 16 * 11, _rb);
-                pp += 192;
-                p0 += B_hstep * 16;
-            }
-        }
-#endif // __AVX512F__
         if (elempack == 8)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 8;
@@ -2340,62 +2228,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 256;
                 p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                __m512 _r0 = _mm512_load_ps(pp);
-                __m512 _r1 = _mm512_load_ps(pp + 16);
-                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
-                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
-                __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
-                __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
-                __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
-                __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
-                transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm256_store_ps(p0, _mm512_extractf32x8_ps(_r0, 0));
-                _mm256_store_ps(p0 + 16, _mm512_extractf32x8_ps(_r0, 1));
-                _mm256_store_ps(p0 + 16 * 2, _mm512_extractf32x8_ps(_r1, 0));
-                _mm256_store_ps(p0 + 16 * 3, _mm512_extractf32x8_ps(_r1, 1));
-                _mm256_store_ps(p0 + 16 * 4, _mm512_extractf32x8_ps(_r2, 0));
-                _mm256_store_ps(p0 + 16 * 5, _mm512_extractf32x8_ps(_r2, 1));
-                _mm256_store_ps(p0 + 16 * 6, _mm512_extractf32x8_ps(_r3, 0));
-                _mm256_store_ps(p0 + 16 * 7, _mm512_extractf32x8_ps(_r3, 1));
-                _mm256_store_ps(p0 + 16 * 8, _mm512_extractf32x8_ps(_r4, 0));
-                _mm256_store_ps(p0 + 16 * 9, _mm512_extractf32x8_ps(_r4, 1));
-                _mm256_store_ps(p0 + 16 * 10, _mm512_extractf32x8_ps(_r5, 0));
-                _mm256_store_ps(p0 + 16 * 11, _mm512_extractf32x8_ps(_r5, 1));
-                _mm256_store_ps(p0 + 16 * 12, _mm512_extractf32x8_ps(_r6, 0));
-                _mm256_store_ps(p0 + 16 * 13, _mm512_extractf32x8_ps(_r6, 1));
-                _mm256_store_ps(p0 + 16 * 14, _mm512_extractf32x8_ps(_r7, 0));
-                _mm256_store_ps(p0 + 16 * 15, _mm512_extractf32x8_ps(_r7, 1));
-                pp += 128;
-                p0 += out_hstep * 16;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                __m512 _r0 = _mm512_load_ps(pp);
-                __m512 _r1 = _mm512_load_ps(pp + 16);
-                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
-                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
-                transpose16x4_ps(_r0, _r1, _r2, _r3);
-                _mm_store_ps(p0, _mm512_extractf32x4_ps(_r0, 0));
-                _mm_store_ps(p0 + 16, _mm512_extractf32x4_ps(_r0, 1));
-                _mm_store_ps(p0 + 16 * 2, _mm512_extractf32x4_ps(_r0, 2));
-                _mm_store_ps(p0 + 16 * 3, _mm512_extractf32x4_ps(_r0, 3));
-                _mm_store_ps(p0 + 16 * 4, _mm512_extractf32x4_ps(_r1, 0));
-                _mm_store_ps(p0 + 16 * 5, _mm512_extractf32x4_ps(_r1, 1));
-                _mm_store_ps(p0 + 16 * 6, _mm512_extractf32x4_ps(_r1, 2));
-                _mm_store_ps(p0 + 16 * 7, _mm512_extractf32x4_ps(_r1, 3));
-                _mm_store_ps(p0 + 16 * 8, _mm512_extractf32x4_ps(_r2, 0));
-                _mm_store_ps(p0 + 16 * 9, _mm512_extractf32x4_ps(_r2, 1));
-                _mm_store_ps(p0 + 16 * 10, _mm512_extractf32x4_ps(_r2, 2));
-                _mm_store_ps(p0 + 16 * 11, _mm512_extractf32x4_ps(_r2, 3));
-                _mm_store_ps(p0 + 16 * 12, _mm512_extractf32x4_ps(_r3, 0));
-                _mm_store_ps(p0 + 16 * 13, _mm512_extractf32x4_ps(_r3, 1));
-                _mm_store_ps(p0 + 16 * 14, _mm512_extractf32x4_ps(_r3, 2));
-                _mm_store_ps(p0 + 16 * 15, _mm512_extractf32x4_ps(_r3, 3));
-                pp += 64;
-                p0 += out_hstep * 16;
-            }
         }
         if (out_elempack == 8)
         {
@@ -2422,32 +2254,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 _mm512_storeu_ps(p0 + 16 * 6, _r6);
                 _mm512_storeu_ps(p0 + 16 * 7, _r7);
                 pp += 128;
-                p0 += out_hstep * 8;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                __m512 _r0 = _mm512_load_ps(pp);
-                __m512 _r1 = _mm512_load_ps(pp + 16);
-                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
-                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
-                transpose16x4_ps(_r0, _r1, _r2, _r3);
-                _mm_store_ps(p0, _mm512_extractf32x4_ps(_r0, 0));
-                _mm_store_ps(p0 + 8, _mm512_extractf32x4_ps(_r0, 1));
-                _mm_store_ps(p0 + 8 * 2, _mm512_extractf32x4_ps(_r0, 2));
-                _mm_store_ps(p0 + 8 * 3, _mm512_extractf32x4_ps(_r0, 3));
-                _mm_store_ps(p0 + 8 * 4, _mm512_extractf32x4_ps(_r1, 0));
-                _mm_store_ps(p0 + 8 * 5, _mm512_extractf32x4_ps(_r1, 1));
-                _mm_store_ps(p0 + 8 * 6, _mm512_extractf32x4_ps(_r1, 2));
-                _mm_store_ps(p0 + 8 * 7, _mm512_extractf32x4_ps(_r1, 3));
-                _mm_store_ps(p0 + 8 * 8, _mm512_extractf32x4_ps(_r2, 0));
-                _mm_store_ps(p0 + 8 * 9, _mm512_extractf32x4_ps(_r2, 1));
-                _mm_store_ps(p0 + 8 * 10, _mm512_extractf32x4_ps(_r2, 2));
-                _mm_store_ps(p0 + 8 * 11, _mm512_extractf32x4_ps(_r2, 3));
-                _mm_store_ps(p0 + 8 * 12, _mm512_extractf32x4_ps(_r3, 0));
-                _mm_store_ps(p0 + 8 * 13, _mm512_extractf32x4_ps(_r3, 1));
-                _mm_store_ps(p0 + 8 * 14, _mm512_extractf32x4_ps(_r3, 2));
-                _mm_store_ps(p0 + 8 * 15, _mm512_extractf32x4_ps(_r3, 3));
-                pp += 64;
                 p0 += out_hstep * 8;
             }
         }
@@ -2531,46 +2337,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 128;
                 p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(pp);
-                __m256 _r1 = _mm256_load_ps(pp + 8);
-                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
-                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
-                __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
-                __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
-                __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
-                __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
-                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm256_store_ps(p0, _r0);
-                _mm256_store_ps(p0 + 16, _r1);
-                _mm256_store_ps(p0 + 16 * 2, _r2);
-                _mm256_store_ps(p0 + 16 * 3, _r3);
-                _mm256_store_ps(p0 + 16 * 4, _r4);
-                _mm256_store_ps(p0 + 16 * 5, _r5);
-                _mm256_store_ps(p0 + 16 * 6, _r6);
-                _mm256_store_ps(p0 + 16 * 7, _r7);
-                pp += 64;
-                p0 += out_hstep * 16;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                __m256 _r0 = _mm256_load_ps(pp);
-                __m256 _r1 = _mm256_load_ps(pp + 8);
-                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
-                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
-                transpose8x4_ps(_r0, _r1, _r2, _r3);
-                _mm_store_ps(p0, _mm256_extractf128_ps(_r0, 0));
-                _mm_store_ps(p0 + 16, _mm256_extractf128_ps(_r0, 1));
-                _mm_store_ps(p0 + 16 * 2, _mm256_extractf128_ps(_r1, 0));
-                _mm_store_ps(p0 + 16 * 3, _mm256_extractf128_ps(_r1, 1));
-                _mm_store_ps(p0 + 16 * 4, _mm256_extractf128_ps(_r2, 0));
-                _mm_store_ps(p0 + 16 * 5, _mm256_extractf128_ps(_r2, 1));
-                _mm_store_ps(p0 + 16 * 6, _mm256_extractf128_ps(_r3, 0));
-                _mm_store_ps(p0 + 16 * 7, _mm256_extractf128_ps(_r3, 1));
-                pp += 32;
-                p0 += out_hstep * 16;
-            }
         }
 #endif // __AVX512F__
         if (out_elempack == 8)
@@ -2626,6 +2392,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 64;
                 p0 += out_hstep * 8;
             }
+#if !__AVX512F__
             for (; jj + 3 < max_jj; jj += 4)
             {
                 __m256 _r0 = _mm256_load_ps(pp);
@@ -2644,6 +2411,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 32;
                 p0 += out_hstep * 8;
             }
+#endif // !__AVX512F__
         }
         if (out_elempack == 4)
         {
@@ -2729,43 +2497,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 64;
                 p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                __m128 _r0 = _mm_load_ps(pp);
-                __m128 _r1 = _mm_load_ps(pp + 4);
-                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
-                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
-                __m128 _r4 = _mm_load_ps(pp + 4 * 4);
-                __m128 _r5 = _mm_load_ps(pp + 4 * 5);
-                __m128 _r6 = _mm_load_ps(pp + 4 * 6);
-                __m128 _r7 = _mm_load_ps(pp + 4 * 7);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                _mm_store_ps(p0, _r0);
-                _mm_store_ps(p0 + 4, _r4);
-                _mm_store_ps(p0 + 16, _r1);
-                _mm_store_ps(p0 + 16 + 4, _r5);
-                _mm_store_ps(p0 + 16 * 2, _r2);
-                _mm_store_ps(p0 + 16 * 2 + 4, _r6);
-                _mm_store_ps(p0 + 16 * 3, _r3);
-                _mm_store_ps(p0 + 16 * 3 + 4, _r7);
-                pp += 32;
-                p0 += out_hstep * 16;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                __m128 _r0 = _mm_load_ps(pp);
-                __m128 _r1 = _mm_load_ps(pp + 4);
-                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
-                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _mm_store_ps(p0, _r0);
-                _mm_store_ps(p0 + 16, _r1);
-                _mm_store_ps(p0 + 16 * 2, _r2);
-                _mm_store_ps(p0 + 16 * 3, _r3);
-                pp += 16;
-                p0 += out_hstep * 16;
-            }
         }
 #endif // __AVX512F__
         if (out_elempack == 8)
@@ -2818,6 +2549,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 32;
                 p0 += out_hstep * 8;
             }
+#if !__AVX512F__
             for (; jj + 3 < max_jj; jj += 4)
             {
                 __m128 _r0 = _mm_load_ps(pp);
@@ -2832,6 +2564,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 16;
                 p0 += out_hstep * 8;
             }
+#endif // !__AVX512F__
         }
 #endif // __AVX__
         if (out_elempack == 4)
@@ -2915,40 +2648,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 32;
                 p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                p0[0] = pp[0];
-                p0[1] = pp[2];
-                p0[2] = pp[4];
-                p0[3] = pp[6];
-                p0[4] = pp[8];
-                p0[5] = pp[10];
-                p0[6] = pp[12];
-                p0[7] = pp[14];
-                p0[16] = pp[1];
-                p0[17] = pp[3];
-                p0[18] = pp[5];
-                p0[19] = pp[7];
-                p0[20] = pp[9];
-                p0[21] = pp[11];
-                p0[22] = pp[13];
-                p0[23] = pp[15];
-                pp += 16;
-                p0 += out_hstep * 16;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                p0[0] = pp[0];
-                p0[1] = pp[2];
-                p0[2] = pp[4];
-                p0[3] = pp[6];
-                p0[16] = pp[1];
-                p0[17] = pp[3];
-                p0[18] = pp[5];
-                p0[19] = pp[7];
-                pp += 8;
-                p0 += out_hstep * 16;
-            }
         }
 #endif // __AVX512F__
         if (out_elempack == 8)
@@ -2998,6 +2697,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 16;
                 p0 += out_hstep * 8;
             }
+#if !__AVX512F__
             for (; jj + 3 < max_jj; jj += 4)
             {
                 p0[0] = pp[0];
@@ -3011,6 +2711,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 8;
                 p0 += out_hstep * 8;
             }
+#endif // !__AVX512F__
         }
 #endif // __AVX__
         if (out_elempack == 4)
@@ -3063,20 +2764,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 16;
                 p0 += out_hstep * 16;
             }
-            for (; jj + 7 < max_jj; jj += 8)
-            {
-                __m256 _r0 = _mm256_loadu_ps(pp);
-                _mm256_store_ps(p0, _r0);
-                pp += 8;
-                p0 += out_hstep * 16;
-            }
-            for (; jj + 3 < max_jj; jj += 4)
-            {
-                __m128 _r0 = _mm_loadu_ps(pp);
-                _mm_store_ps(p0, _r0);
-                pp += 4;
-                p0 += out_hstep * 16;
-            }
         }
 #endif // __AVX512F__
         if (out_elempack == 8)
@@ -3108,6 +2795,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 8;
                 p0 += out_hstep * 8;
             }
+#if !__AVX512F__
             for (; jj + 3 < max_jj; jj += 4)
             {
                 p0[0] = pp[0];
@@ -3117,6 +2805,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 4;
                 p0 += out_hstep * 8;
             }
+#endif // !__AVX512F__
         }
 #endif // __AVX__
         if (out_elempack == 4)
