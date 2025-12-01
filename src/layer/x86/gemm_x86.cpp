@@ -1421,17 +1421,12 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
-#if __AVX__
+#if __AVX__ && !__AVX512F__
         if (elempack == 8)
         {
-#if __AVX512F__
-            // assert (j + jj) % 8 == 0
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 8;
-#else
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
             if ((j + jj) % 8 == 0)
-#endif
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -1440,7 +1435,6 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p0 += 8;
                 }
             }
-#if !__AVX512F__
             if ((j + jj) % 8 == 4)
             {
                 for (int kk = 0; kk < max_kk; kk++)
@@ -1450,9 +1444,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                     p0 += 8;
                 }
             }
-#endif // !__AVX512F__
         }
-#endif // __AVX__
+#endif // __AVX__ && !__AVX512F__
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
