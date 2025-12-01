@@ -17,7 +17,7 @@ set_property(TARGET benchncnn PROPERTY FOLDER "benchmark")
 # generate model data
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_model_data_header.cmake)
 
-set(model_param_spv_data "")
+set(embedded_model_param_includes "")
 
 set(PARAM_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/squeezenet.param"
@@ -61,4 +61,4 @@ foreach(PARAM_FILE ${PARAM_FILES})
     ncnn_convert_param_file(${PARAM_FILE})
 endforeach()
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_param_spv_data.h "${model_param_spv_data}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/embedded_model_params.h "${embedded_model_param_includes}")

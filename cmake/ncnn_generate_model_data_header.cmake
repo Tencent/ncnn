@@ -37,5 +37,5 @@ macro(ncnn_convert_param_file PARAM_FILE)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h "static const char ${PARAM_FILE_NAME_WE}_param_data[] = {${param_file_data_hex},0x00};\n")
 
     # append include line to a CMake variable for later output
-    string(APPEND model_param_spv_data "#include \"model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h\"\n")
+    string(APPEND embedded_model_param_includes "#include \"model_param_header/${PARAM_FILE_NAME_WE}.comp.hex.h\"\n")
 endmacro()

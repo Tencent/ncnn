@@ -15,7 +15,7 @@
 #include "net.h"
 #include "gpu.h"
 
-#include "../benchmark/model_param_spv_data.h"
+#include "../benchmark/embedded_model_params.h"
 
 #ifndef NCNN_SIMPLESTL
 #include <vector>
@@ -79,12 +79,6 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
         net.set_vulkan_device(g_vkdev);
     }
 #endif // NCNN_VULKAN
-
-#ifdef __EMSCRIPTEN__
-#define MODEL_DIR "/working/"
-#else
-#define MODEL_DIR ""
-#endif
 
     const char* model_param = NULL;
 
