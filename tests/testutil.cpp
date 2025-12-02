@@ -1819,8 +1819,12 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
-    opt.num_threads = 1;
     opt.use_vulkan_compute = false;
+
+    if (flag & TEST_LAYER_ENABLE_THREADING)
+        opt.num_threads = ncnn::get_physical_big_cpu_count();
+    else
+        opt.num_threads = 1;
 
     op->create_pipeline(opt);
 
@@ -1993,8 +1997,12 @@ int test_layer_oom_opt(const char* layer_type, const ncnn::ParamDict& pd, const 
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
-    opt.num_threads = 1;
     opt.use_vulkan_compute = false;
+
+    if (flag & TEST_LAYER_ENABLE_THREADING)
+        opt.num_threads = ncnn::get_physical_big_cpu_count();
+    else
+        opt.num_threads = 1;
 
     op->create_pipeline(opt);
 
