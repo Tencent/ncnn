@@ -1,0 +1,116 @@
+name: windows-xp
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp.yml'
+    - 'toolchains/windows-xp-msvc.toolchain.cmake'
+    - 'toolchains/windows-xp-mingw.toolchain.cmake'
+    - 'toolchains/windows-xp-clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-xp.yml'
+    - 'toolchains/windows-xp-msvc.toolchain.cmake'
+    - 'toolchains/windows-xp-mingw.toolchain.cmake'
+    - 'toolchains/windows-xp-clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+concurrency:
+  group: windows-xp-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  MSVC:
+    runs-on: windows-2025
+
+    env:
+      VS_INSTALL_DIR: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: config
+      shell: cmd
+      run: |
+        "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify --installPath "${{ env.VS_INSTALL_DIR }}" --channelId VisualStudio.17.Release --add Microsoft.VisualStudio.Component.WinXP  --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64.Spectre --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.Tools.X86.X64 --add Microsoft.VisualStudio.Component.VC.v141.xp --nocache --quiet
+        call "${{ env.VS_INSTALL_DIR }}\VC\Auxiliary\Build\vcvarsall.bat" x86
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DNCNN_AVX=OFF -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
+
+  MinGW-w32:
+    runs-on: windows-2025
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+
+    - name: config
+      run: |
+        Invoke-WebRequest -Uri https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -OutFile i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        7z x ./i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        Add-Content -Path $env:GITHUB_ENV -Value "MINGW32_ROOT_PATH=${{ github.workspace }}\mingw32"
+        Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}\mingw32\bin"
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
+
+  Clang:
+    runs-on: windows-2022
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Set up Clang
+      run: choco install llvm --version=6.0.0 --allow-downgrade
+    - name: Verify Clang
+      run: |
+        clang --version
+        clang++ --version
+    - name: config
+      run: |
+        Invoke-WebRequest -Uri https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -OutFile i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        7z x ./i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        Add-Content -Path $env:GITHUB_ENV -Value "MINGW32_ROOT_PATH=${{ github.workspace }}\mingw32"
+        echo "${{ github.workspace }}\mingw32\bin;$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+        cmake --build . --config Release -j 4
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 4
