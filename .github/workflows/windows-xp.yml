@@ -85,7 +85,7 @@ jobs:
       run: cd build; ctest -C Release --output-on-failure -j 4
 
   Clang:
-    runs-on: windows-2025
+    runs-on: windows-2022
 
     env:
       UseMultiToolTask: true
