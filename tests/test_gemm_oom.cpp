@@ -459,7 +459,7 @@ int main()
 
         int ret3 = test_gemm_5(M, N, K);
         if (ret3 != 0)
-            return ret;
+            return ret3;
     }
 
     return 0;
