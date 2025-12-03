@@ -15,8 +15,8 @@
 extern "C" {
 #endif
 
-NCNN_EXPORT const char* ncnn_version_string(void);
-NCNN_EXPORT int ncnn_version(void);
+NCNN_EXPORT const char* ncnn_version(void);
+NCNN_EXPORT int ncnn_version_number(void);
 
 /* allocator api */
 typedef struct __ncnn_allocator_t* ncnn_allocator_t;
