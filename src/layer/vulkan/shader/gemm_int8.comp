@@ -1,0 +1,428 @@
+// Copyright 2025 pchar.cn
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+#extension GL_EXT_integer_dot_product : require
+
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+
+layout (constant_id = 0) const float alpha = 1.f;
+layout (constant_id = 1) const float beta = 1.f;
+layout (constant_id = 2) const int transA = 0;
+layout (constant_id = 3) const int transB = 0;
+layout (constant_id = 4) const int constantA = 0;
+layout (constant_id = 5) const int constantB = 0;
+layout (constant_id = 6) const int constantC = 0;
+layout (constant_id = 7) const int M = 0;
+layout (constant_id = 8) const int N = 0;
+layout (constant_id = 9) const int K = 0;
+layout (constant_id = 10) const int constant_broadcast_type_C = 0;
+layout (constant_id = 11) const int output_N1M = 0;
+layout (constant_id = 12) const int output_elempack = 0;
+layout (constant_id = 13) const int output_elemtype = 0;
+layout (constant_id = 14) const int output_transpose = 0;
+
+// TODO psc more
+
+layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 1) readonly buffer A_blob { sint8 A_blob_data[]; };
+layout (binding = 2) readonly buffer B_blob { sint8 B_blob_data[]; };
+layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout (binding = 4) readonly buffer A_scales { float A_scales_data[]; };
+layout (binding = 5) readonly buffer B_scales { float B_scales_data[]; };
+
+#if NCNN_shader_local_memory
+shared int8_t tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
+shared int8_t tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int broadcast_type_C;
+    int A_dims;
+    int A_hstep;
+    int B_dims;
+    int B_hstep;
+    int outdims;
+    int outhstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z);
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+        return;
+#endif
+
+    int sum0 = 0;
+    int sum1 = 0;
+    int sum2 = 0;
+    int sum3 = 0;
+
+#if NCNN_shader_local_memory
+    const int NN = psc(K);
+
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int k = 0;
+    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        {
+            if (transA == 1)
+            {
+                const int ai = (k + lx) * p.A_hstep + gy;
+                tmp_a[ly][lx][0] = A_blob_data[ai];
+                tmp_a[ly][lx][1] = A_blob_data[ai + 1];
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (k + lx);
+                tmp_a[ly][lx][0] = A_blob_data[ai];
+                tmp_a[ly][lx][1] = A_blob_data[ai + p.A_hstep];
+            }
+
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (k + ly);
+                tmp_b[lx][ly][0] = B_blob_data[bi];
+                tmp_b[lx][ly][1] = B_blob_data[bi + p.B_hstep];
+            }
+            else
+            {
+                const int bi = (k + ly) * p.B_hstep + gx;
+                tmp_b[lx][ly][0] = B_blob_data[bi];
+                tmp_b[lx][ly][1] = B_blob_data[bi + 1];
+            }
+        }
+
+        barrier();
+
+        int k4 = 0;
+        for (; k4 + 3 < LOCAL_MEMORY_UNROLL_INCH; k4+=4)
+        {
+            i8vec4 a0 = i8vec4(
+                tmp_a[ly][k4 + 0][0],
+                tmp_a[ly][k4 + 1][0],
+                tmp_a[ly][k4 + 2][0],
+                tmp_a[ly][k4 + 3][0]
+            );
+            i8vec4 a1 = i8vec4(
+                tmp_a[ly][k4 + 0][1],
+                tmp_a[ly][k4 + 1][1],
+                tmp_a[ly][k4 + 2][1],
+                tmp_a[ly][k4 + 3][1]
+            );
+            i8vec4 b0 = i8vec4(
+                tmp_b[lx][k4 + 0][0],
+                tmp_b[lx][k4 + 1][0],
+                tmp_b[lx][k4 + 2][0],
+                tmp_b[lx][k4 + 3][0]
+            );
+            i8vec4 b1 = i8vec4(
+                tmp_b[lx][k4 + 0][1],
+                tmp_b[lx][k4 + 1][1],
+                tmp_b[lx][k4 + 2][1],
+                tmp_b[lx][k4 + 3][1]
+            );
+
+            sum0 += dotEXT(a0,b0);
+            sum1 += dotEXT(a0,b1);
+            sum2 += dotEXT(a1,b0);
+            sum3 += dotEXT(a1,b1);
+        }
+        for (; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        {
+            int a0 = tmp_a[ly][k4][0];
+            int a1 = tmp_a[ly][k4][1];
+            int b0 = tmp_b[lx][k4][0];
+            int b1 = tmp_b[lx][k4][1];
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+        barrier();
+    }
+
+    if (k < NN)
+    {
+        const int remain = NN - k;
+
+        if (lx < remain)
+        {
+            if (transA == 1)
+            {
+                const int ai = (k + lx) * p.A_hstep + gy;
+                tmp_a[ly][lx][0] = A_blob_data[ai];
+                tmp_a[ly][lx][1] = A_blob_data[ai + 1];
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (k + lx);
+                tmp_a[ly][lx][0] = A_blob_data[ai];
+                tmp_a[ly][lx][1] = A_blob_data[ai + p.A_hstep];
+            }
+        }
+
+        if (ly < remain)
+        {
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (k + ly);
+                tmp_b[lx][ly][0] = B_blob_data[bi];
+                tmp_b[lx][ly][1] = B_blob_data[bi + p.B_hstep];
+            }
+            else
+            {
+                const int bi = (k + ly) * p.B_hstep + gx;
+                tmp_b[lx][ly][0] = B_blob_data[bi];
+                tmp_b[lx][ly][1] = B_blob_data[bi + 1];
+            }
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < remain; k4++)
+        {
+            int a0 = tmp_a[ly][k4][0];
+            int a1 = tmp_a[ly][k4][1];
+            int b0 = tmp_b[lx][k4][0];
+            int b1 = tmp_b[lx][k4][1];
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+    }
+#else
+    int k = 0;
+
+    for (; k + 3 < psc(K); k+=4)
+    {
+        i8vec4 a0;
+        i8vec4 a1;
+        i8vec4 b0;
+        i8vec4 b1;
+        if (transA == 1)
+        {
+            const int ai = k * p.A_hstep + gy;
+            a0 = i8vec4(
+                A_blob_data[ai],
+                A_blob_data[ai + p.A_hstep],
+                A_blob_data[ai + p.A_hstep * 2],
+                A_blob_data[ai + p.A_hstep * 3]
+            );
+            // a0 = A_blob_data[ai];
+            a1 = i8vec4(
+                A_blob_data[ai + 1],
+                A_blob_data[ai + p.A_hstep + 1],
+                A_blob_data[ai + p.A_hstep * 2 + 1],
+                A_blob_data[ai + p.A_hstep * 3 + 1]
+            );
+            // a1 = A_blob_data[ai + 1];
+        }
+        else
+        {
+            const int ai = gy * p.A_hstep + k;
+            a0 = i8vec4(
+                A_blob_data[ai],
+                A_blob_data[ai + 1],
+                A_blob_data[ai + 2],
+                A_blob_data[ai + 3]
+            );
+            // a0 = A_blob_data[ai];
+            a1 = i8vec4(
+                A_blob_data[ai + p.A_hstep],
+                A_blob_data[ai + p.A_hstep + 1],
+                A_blob_data[ai + p.A_hstep + 2],
+                A_blob_data[ai + p.A_hstep + 3]
+            );
+            // a1 = A_blob_data[ai + p.A_hstep];
+        }
+
+        if (transB == 1)
+        {
+            const int bi = gx * p.B_hstep + k;
+            b0 = i8vec4(
+                B_blob_data[bi],
+                B_blob_data[bi + 1],
+                B_blob_data[bi + 2],
+                B_blob_data[bi + 3]
+            );
+            // b0 = B_blob_data[bi];
+            b1 = i8vec4(
+                B_blob_data[bi + p.B_hstep],
+                B_blob_data[bi + p.B_hstep + 1],
+                B_blob_data[bi + p.B_hstep + 2],
+                B_blob_data[bi + p.B_hstep + 3]
+            );
+            // b1 = B_blob_data[bi + p.B_hstep];
+        }
+        else
+        {
+            const int bi = k * p.B_hstep + gx;
+            b0 = i8vec4(
+                B_blob_data[bi],
+                B_blob_data[bi + p.B_hstep],
+                B_blob_data[bi + p.B_hstep * 2],
+                B_blob_data[bi + p.B_hstep * 3]
+            );
+            // b0 = B_blob_data[bi];
+            b1 = i8vec4(
+                B_blob_data[bi + 1],
+                B_blob_data[bi + p.B_hstep + 1],
+                B_blob_data[bi + p.B_hstep * 2 + 1],
+                B_blob_data[bi + p.B_hstep * 3 + 1]
+            );
+            // b1 = B_blob_data[bi + 1];
+        }
+
+        // https://github.com/KhronosGroup/GLSL/blob/main/extensions/ext/GLSL_EXT_integer_dot_product.txt
+        sum0 += dotEXT(a0,b0);
+        sum1 += dotEXT(a0,b1);
+        sum2 += dotEXT(a1,b0);
+        sum3 += dotEXT(a1,b1);
+    }
+
+    for (; k < psc(K); k++)
+    {
+        int a0;
+        int a1;
+        int b0;
+        int b1;
+        if (transA == 1)
+        {
+            const int ai = k * p.A_hstep + gy;
+            a0 = A_blob_data[ai];
+            a1 = A_blob_data[ai + 1];
+        }
+        else
+        {
+            const int ai = gy * p.A_hstep + k;
+            a0 = A_blob_data[ai];
+            a1 = A_blob_data[ai + p.A_hstep];
+        }
+
+        if (transB == 1)
+        {
+            const int bi = gx * p.B_hstep + k;
+            b0 = B_blob_data[bi];
+            b1 = B_blob_data[bi + p.B_hstep];
+        }
+        else
+        {
+            const int bi = k * p.B_hstep + gx;
+            b0 = B_blob_data[bi];
+            b1 = B_blob_data[bi + 1];
+        }
+
+        sum0 += a0 * b0;
+        sum1 += a0 * b1;
+        sum2 += a1 * b0;
+        sum3 += a1 * b1;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+        return;
+#endif
+
+    afp fsum0 = afp(0.f);
+    afp fsum1 = afp(0.f);
+    afp fsum2 = afp(0.f);
+    afp fsum3 = afp(0.f);
+
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+
+    if (broadcast_type_C == 0)
+    {
+        fsum0 = buffer_ld1(C_blob_data, 0);
+        fsum1 = fsum0;
+        fsum2 = fsum0;
+        fsum3 = fsum0;
+    }
+    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+    {
+        fsum0 = buffer_ld1(C_blob_data, gy);
+        fsum1 = fsum0;
+        fsum2 = buffer_ld1(C_blob_data, gy + 1);
+        fsum3 = fsum2;
+    }
+    if (broadcast_type_C == 3)
+    {
+        const int ci = gy * psc(N) + gx;
+        fsum0 = buffer_ld1(C_blob_data, ci);
+        fsum1 = buffer_ld1(C_blob_data, ci + 1);
+        fsum2 = buffer_ld1(C_blob_data, ci + psc(N));
+        fsum3 = buffer_ld1(C_blob_data, ci + psc(N) + 1);
+    }
+    if (broadcast_type_C == 4)
+    {
+        fsum0 = buffer_ld1(C_blob_data, gx);
+        fsum1 = buffer_ld1(C_blob_data, gx + 1);
+        fsum2 = fsum0;
+        fsum3 = fsum1;
+    }
+
+    fsum0 *= afp(beta);
+    fsum1 *= afp(beta);
+    fsum2 *= afp(beta);
+    fsum3 *= afp(beta);
+
+    float B_int8_scale = B_scales_data[0];
+    float A_int8_scale0 = A_scales_data[gy];
+    float A_int8_scale1 = A_scales_data[gy + 1];
+
+    float scale0 = A_int8_scale0 * B_int8_scale;
+    float scale1 = A_int8_scale1 * B_int8_scale;
+
+    fsum0 += float(sum0) / scale0;
+    fsum1 += float(sum1) / scale0;
+    fsum2 += float(sum2) / scale1;
+    fsum3 += float(sum3) / scale1;
+
+    fsum0 *= afp(alpha);
+    fsum1 *= afp(alpha);
+    fsum2 *= afp(alpha);
+    fsum3 *= afp(alpha);
+
+    if (output_transpose == 1)
+    {
+        const int gi = gx * p.outhstep + gy;
+
+        buffer_st1(top_blob_data, gi, fsum0);
+        if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + 1, fsum2);
+        if (gx + 1 < psc(N))
+        {
+            buffer_st1(top_blob_data, gi + p.outhstep, afp(fsum1));
+            if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + p.outhstep + 1, fsum3);
+        }
+    }
+    else
+    {
+        const int gi = gy * p.outhstep + gx;
+
+        buffer_st1(top_blob_data, gi, fsum0);
+        if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + 1, fsum1);
+        if (gy + 1 < psc(M))
+        {
+            buffer_st1(top_blob_data, gi + p.outhstep, fsum2);
+            if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + p.outhstep + 1, fsum3);
+        }
+    }
+}
