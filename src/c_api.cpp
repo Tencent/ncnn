@@ -41,7 +41,7 @@ const char* ncnn_version()
 
 int ncnn_version_date()
 {
-    return NCNN_VERSION;
+    return NCNN_VERSION_DATE;
 }
 
 /* allocator api */
