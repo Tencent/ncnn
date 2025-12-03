@@ -34,12 +34,12 @@ using ncnn::ParamDict;
 extern "C" {
 #endif
 
-const char* ncnn_version_string()
+const char* ncnn_version()
 {
     return NCNN_VERSION_STRING;
 }
 
-int ncnn_version()
+int ncnn_version_date()
 {
     return NCNN_VERSION;
 }
