@@ -115,7 +115,7 @@ jobs:
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 498a6f760dea6cdda0302406c49b8fbb09b9af92
+        ref: 518a9f63228dceb1c77d778f694bd319909075ab
     - name: checkout-swiftshader-submodules
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
