@@ -34,14 +34,14 @@ using ncnn::ParamDict;
 extern "C" {
 #endif
 
-const char* ncnn_version()
+const char* ncnn_version_string()
 {
     return NCNN_VERSION_STRING;
 }
 
-int ncnn_version_date()
+int ncnn_version()
 {
-    return NCNN_VERSION_DATE;
+    return NCNN_VERSION;
 }
 
 /* allocator api */

@@ -2535,7 +2535,7 @@ int create_gpu_instance(const char* driver_path)
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = NCNN_VERSION_DATE;
+    applicationInfo.engineVersion = NCNN_VERSION;
     applicationInfo.apiVersion = instance_api_version;
 
     void* enabledExtensionFeatures = 0;
