@@ -60,7 +60,7 @@
 #cmakedefine01 NCNN_FORCE_INLINE
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
-#cmakedefine NCNN_VERSION_DATE @NCNN_VERSION_DATE@
+#cmakedefine NCNN_VERSION_NUMBER @NCNN_VERSION_NUMBER@
 
 #include "ncnn_export.h"
 
