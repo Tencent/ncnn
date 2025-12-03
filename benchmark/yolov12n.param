@@ -1,0 +1,529 @@
+7767517
+527 627
+Input                    in0                      0 1 in0
+Convolution              conv_0                   1 1 in0 1 0=16 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=432
+Swish                    silu_111                 1 1 1 2
+ConvolutionDepthWise     convdw_352               1 1 2 3 0=32 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=2304 7=2
+Swish                    silu_112                 1 1 3 4
+Convolution              conv_1                   1 1 4 5 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=1024
+Swish                    silu_113                 1 1 5 6
+Slice                    split_0                  1 2 6 7 8 -23300=2,16,16 1=0
+Split                    splitncnn_0              1 3 8 9 10 11
+Convolution              conv_2                   1 1 11 12 0=8 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=1152
+Swish                    silu_114                 1 1 12 13
+Convolution              conv_3                   1 1 13 14 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=1152
+Swish                    silu_115                 1 1 14 15
+BinaryOp                 add_0                    2 1 10 15 16 0=0
+Concat                   cat_0                    3 1 7 9 16 17 0=0
+Convolution              conv_4                   1 1 17 18 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=3072
+Swish                    silu_116                 1 1 18 19
+ConvolutionDepthWise     convdw_353               1 1 19 20 0=64 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=9216 7=4
+Swish                    silu_117                 1 1 20 21
+Convolution              conv_5                   1 1 21 22 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Swish                    silu_118                 1 1 22 23
+Slice                    split_1                  1 2 23 24 25 -23300=2,32,32 1=0
+Split                    splitncnn_1              1 3 25 26 27 28
+Convolution              conv_6                   1 1 28 29 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=4608
+Swish                    silu_119                 1 1 29 30
+Convolution              conv_7                   1 1 30 31 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=4608
+Swish                    silu_120                 1 1 31 32
+BinaryOp                 add_1                    2 1 27 32 33 0=0
+Concat                   cat_1                    3 1 24 26 33 34 0=0
+Convolution              conv_8                   1 1 34 35 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=12288
+Swish                    silu_121                 1 1 35 36
+Split                    splitncnn_2              1 2 36 37 38
+Convolution              conv_9                   1 1 38 39 0=128 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=147456
+Swish                    silu_122                 1 1 39 40
+Convolution              conv_10                  1 1 40 41 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_123                 1 1 41 42
+Split                    splitncnn_3              1 5 42 43 44 45 46 47
+Convolution              conv_11                  1 1 47 48 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Reshape                  flatten_245              1 1 48 49 0=-1 1=128
+Permute                  transpose_293            1 1 49 50 0=1
+Convolution              conv_12                  1 1 46 51 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Split                    splitncnn_4              1 2 51 52 53
+ConvolutionDepthWise     convdw_354               1 1 53 54 0=64 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=1600 7=64
+Reshape                  flatten_246              1 1 52 55 0=-1 1=64
+Permute                  transpose_294            1 1 55 56 0=1
+Reshape                  reshape_210              1 1 50 57 0=128 1=-1 2=4
+Reshape                  reshape_211              1 1 56 58 0=64 1=-1 2=4
+Slice                    split_2                  1 2 57 59 60 -23300=2,64,64 1=2
+Permute                  transpose_295            1 1 59 61 0=1
+Reshape                  view_218                 1 1 61 62 0=-1 1=32 11=2 2=4
+Permute                  transpose_296            1 1 60 63 0=1
+Reshape                  view_219                 1 1 63 64 0=-1 1=32 11=2 2=4
+Permute                  transpose_297            1 1 58 65 0=1
+Reshape                  view_220                 1 1 65 66 0=-1 1=32 11=2 2=4
+Permute                  transpose_298            1 1 62 67 0=1
+MatMul                   matmul_261               2 1 67 64 68
+BinaryOp                 mul_2                    1 1 68 69 0=2 1=1 2=0.17677669
+Split                    splitncnn_5              1 2 69 70 71
+Reduction                max_277                  1 1 71 72 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_3                    2 1 70 72 73 0=1
+UnaryOp                  exp_4                    1 1 73 74 0=7
+Split                    splitncnn_6              1 2 74 75 76
+Reduction                sum_285                  1 1 76 77 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_5                    2 1 75 77 78 0=3
+MatMul                   matmultransb_0           2 1 66 78 79 0=1
+Permute                  permute_194              1 1 79 80 0=4
+Reshape                  Tensor.reshape_81        2 1 80 45 81 6="64,1w,1h"
+Permute                  permute_195              1 1 81 82 0=4
+BinaryOp                 add_6                    2 1 82 54 83 0=0
+Convolution              conv_13                  1 1 83 84 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+BinaryOp                 add_7                    2 1 44 84 85 0=0
+Split                    splitncnn_7              1 2 85 86 87
+Convolution              conv_14                  1 1 87 88 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_124                 1 1 88 89
+Convolution              conv_15                  1 1 89 90 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+BinaryOp                 add_8                    2 1 86 90 91 0=0
+Split                    splitncnn_8              1 4 91 92 93 94 95
+Convolution              conv_16                  1 1 95 96 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Reshape                  flatten_247              1 1 96 97 0=-1 1=128
+Permute                  transpose_300            1 1 97 98 0=1
+Convolution              conv_17                  1 1 94 99 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Split                    splitncnn_9              1 2 99 100 101
+ConvolutionDepthWise     convdw_355               1 1 101 102 0=64 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=1600 7=64
+Reshape                  flatten_248              1 1 100 103 0=-1 1=64
+Permute                  transpose_301            1 1 103 104 0=1
+Reshape                  reshape_212              1 1 98 105 0=128 1=-1 2=4
+Reshape                  reshape_213              1 1 104 106 0=64 1=-1 2=4
+Slice                    split_3                  1 2 105 107 108 -23300=2,64,64 1=2
+Permute                  transpose_302            1 1 107 109 0=1
+Reshape                  view_221                 1 1 109 110 0=-1 1=32 11=2 2=4
+Permute                  transpose_303            1 1 108 111 0=1
+Reshape                  view_222                 1 1 111 112 0=-1 1=32 11=2 2=4
+Permute                  transpose_304            1 1 106 113 0=1
+Reshape                  view_223                 1 1 113 114 0=-1 1=32 11=2 2=4
+Permute                  transpose_305            1 1 110 115 0=1
+MatMul                   matmul_263               2 1 115 112 116
+BinaryOp                 mul_9                    1 1 116 117 0=2 1=1 2=0.17677669
+Split                    splitncnn_10             1 2 117 118 119
+Reduction                max_278                  1 1 119 120 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_10                   2 1 118 120 121 0=1
+UnaryOp                  exp_11                   1 1 121 122 0=7
+Split                    splitncnn_11             1 2 122 123 124
+Reduction                sum_286                  1 1 124 125 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_12                   2 1 123 125 126 0=3
+MatMul                   matmultransb_1           2 1 114 126 127 0=1
+Permute                  permute_196              1 1 127 128 0=4
+Reshape                  Tensor.reshape_84        2 1 128 93 129 6="64,1w,1h"
+Permute                  permute_197              1 1 129 130 0=4
+BinaryOp                 add_13                   2 1 130 102 131 0=0
+Convolution              conv_18                  1 1 131 132 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+BinaryOp                 add_14                   2 1 92 132 133 0=0
+Split                    splitncnn_12             1 2 133 134 135
+Convolution              conv_19                  1 1 135 136 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_125                 1 1 136 137
+Convolution              conv_20                  1 1 137 138 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+BinaryOp                 add_15                   2 1 134 138 139 0=0
+Split                    splitncnn_13             1 5 139 140 141 142 143 144
+Convolution              conv_21                  1 1 144 145 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Reshape                  flatten_249              1 1 145 146 0=-1 1=128
+Permute                  transpose_307            1 1 146 147 0=1
+Convolution              conv_22                  1 1 143 148 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Split                    splitncnn_14             1 2 148 149 150
+ConvolutionDepthWise     convdw_356               1 1 150 151 0=64 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=1600 7=64
+Reshape                  flatten_250              1 1 149 152 0=-1 1=64
+Permute                  transpose_308            1 1 152 153 0=1
+Reshape                  reshape_214              1 1 147 154 0=128 1=-1 2=4
+Reshape                  reshape_215              1 1 153 155 0=64 1=-1 2=4
+Slice                    split_4                  1 2 154 156 157 -23300=2,64,64 1=2
+Permute                  transpose_309            1 1 156 158 0=1
+Reshape                  view_224                 1 1 158 159 0=-1 1=32 11=2 2=4
+Permute                  transpose_310            1 1 157 160 0=1
+Reshape                  view_225                 1 1 160 161 0=-1 1=32 11=2 2=4
+Permute                  transpose_311            1 1 155 162 0=1
+Reshape                  view_226                 1 1 162 163 0=-1 1=32 11=2 2=4
+Permute                  transpose_312            1 1 159 164 0=1
+MatMul                   matmul_265               2 1 164 161 165
+BinaryOp                 mul_16                   1 1 165 166 0=2 1=1 2=0.17677669
+Split                    splitncnn_15             1 2 166 167 168
+Reduction                max_279                  1 1 168 169 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_17                   2 1 167 169 170 0=1
+UnaryOp                  exp_18                   1 1 170 171 0=7
+Split                    splitncnn_16             1 2 171 172 173
+Reduction                sum_287                  1 1 173 174 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_19                   2 1 172 174 175 0=3
+MatMul                   matmultransb_2           2 1 163 175 176 0=1
+Permute                  permute_198              1 1 176 177 0=4
+Reshape                  Tensor.reshape_87        2 1 177 142 178 6="64,1w,1h"
+Permute                  permute_199              1 1 178 179 0=4
+BinaryOp                 add_20                   2 1 179 151 180 0=0
+Convolution              conv_23                  1 1 180 181 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+BinaryOp                 add_21                   2 1 141 181 182 0=0
+Split                    splitncnn_17             1 2 182 183 184
+Convolution              conv_24                  1 1 184 185 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_126                 1 1 185 186
+Convolution              conv_25                  1 1 186 187 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+BinaryOp                 add_22                   2 1 183 187 188 0=0
+Split                    splitncnn_18             1 4 188 189 190 191 192
+Convolution              conv_26                  1 1 192 193 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Reshape                  flatten_251              1 1 193 194 0=-1 1=128
+Permute                  transpose_314            1 1 194 195 0=1
+Convolution              conv_27                  1 1 191 196 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Split                    splitncnn_19             1 2 196 197 198
+ConvolutionDepthWise     convdw_357               1 1 198 199 0=64 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=1600 7=64
+Reshape                  flatten_252              1 1 197 200 0=-1 1=64
+Permute                  transpose_315            1 1 200 201 0=1
+Reshape                  reshape_216              1 1 195 202 0=128 1=-1 2=4
+Reshape                  reshape_217              1 1 201 203 0=64 1=-1 2=4
+Slice                    split_5                  1 2 202 204 205 -23300=2,64,64 1=2
+Permute                  transpose_316            1 1 204 206 0=1
+Reshape                  view_227                 1 1 206 207 0=-1 1=32 11=2 2=4
+Permute                  transpose_317            1 1 205 208 0=1
+Reshape                  view_228                 1 1 208 209 0=-1 1=32 11=2 2=4
+Permute                  transpose_318            1 1 203 210 0=1
+Reshape                  view_229                 1 1 210 211 0=-1 1=32 11=2 2=4
+Permute                  transpose_319            1 1 207 212 0=1
+MatMul                   matmul_267               2 1 212 209 213
+BinaryOp                 mul_23                   1 1 213 214 0=2 1=1 2=0.17677669
+Split                    splitncnn_20             1 2 214 215 216
+Reduction                max_280                  1 1 216 217 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_24                   2 1 215 217 218 0=1
+UnaryOp                  exp_25                   1 1 218 219 0=7
+Split                    splitncnn_21             1 2 219 220 221
+Reduction                sum_288                  1 1 221 222 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_26                   2 1 220 222 223 0=3
+MatMul                   matmultransb_3           2 1 211 223 224 0=1
+Permute                  permute_200              1 1 224 225 0=4
+Reshape                  Tensor.reshape_90        2 1 225 190 226 6="64,1w,1h"
+Permute                  permute_201              1 1 226 227 0=4
+BinaryOp                 add_27                   2 1 227 199 228 0=0
+Convolution              conv_28                  1 1 228 229 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+BinaryOp                 add_28                   2 1 189 229 230 0=0
+Split                    splitncnn_22             1 2 230 231 232
+Convolution              conv_29                  1 1 232 233 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_127                 1 1 233 234
+Convolution              conv_30                  1 1 234 235 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+BinaryOp                 add_29                   2 1 231 235 236 0=0
+Concat                   cat_2                    3 1 43 140 236 237 0=0
+Convolution              conv_31                  1 1 237 238 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=24576
+Swish                    silu_128                 1 1 238 239
+Split                    splitncnn_23             1 2 239 240 241
+Convolution              conv_32                  1 1 241 242 0=256 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=294912
+Swish                    silu_129                 1 1 242 243
+Convolution              conv_33                  1 1 243 244 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Swish                    silu_130                 1 1 244 245
+Split                    splitncnn_24             1 5 245 246 247 248 249 250
+Convolution              conv_34                  1 1 250 251 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Reshape                  flatten_253              1 1 251 252 0=-1 1=256
+Permute                  transpose_321            1 1 252 253 0=1
+Convolution              conv_35                  1 1 249 254 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Split                    splitncnn_25             1 2 254 255 256
+ConvolutionDepthWise     convdw_358               1 1 256 257 0=128 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=3200 7=128
+Reshape                  flatten_254              1 1 255 258 0=-1 1=128
+Permute                  transpose_322            1 1 258 259 0=1
+Slice                    split_6                  1 2 253 260 261 -23300=2,128,128 1=1
+Permute                  transpose_323            1 1 260 262 0=1
+Reshape                  view_230                 1 1 262 263 0=-1 1=32 2=4
+Permute                  transpose_324            1 1 261 264 0=1
+Reshape                  view_231                 1 1 264 265 0=-1 1=32 2=4
+Permute                  transpose_325            1 1 259 266 0=1
+Reshape                  view_232                 1 1 266 267 0=-1 1=32 2=4
+Permute                  transpose_326            1 1 263 268 0=1
+MatMul                   matmul_269               2 1 268 265 269
+BinaryOp                 mul_30                   1 1 269 270 0=2 1=1 2=0.17677669
+Split                    splitncnn_26             1 2 270 271 272
+Reduction                max_281                  1 1 272 273 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_31                   2 1 271 273 274 0=1
+UnaryOp                  exp_32                   1 1 274 275 0=7
+Split                    splitncnn_27             1 2 275 276 277
+Reduction                sum_289                  1 1 277 278 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_33                   2 1 276 278 279 0=3
+MatMul                   matmultransb_4           2 1 267 279 280 0=1
+Permute                  permute_202              1 1 280 281 0=4
+Reshape                  Tensor.reshape_91        2 1 281 248 282 6="128,1w,1h"
+Permute                  permute_203              1 1 282 283 0=4
+BinaryOp                 add_34                   2 1 283 257 284 0=0
+Convolution              conv_36                  1 1 284 285 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+BinaryOp                 add_35                   2 1 247 285 286 0=0
+Split                    splitncnn_28             1 2 286 287 288
+Convolution              conv_37                  1 1 288 289 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Swish                    silu_131                 1 1 289 290
+Convolution              conv_38                  1 1 290 291 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+BinaryOp                 add_36                   2 1 287 291 292 0=0
+Split                    splitncnn_29             1 4 292 293 294 295 296
+Convolution              conv_39                  1 1 296 297 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Reshape                  flatten_255              1 1 297 298 0=-1 1=256
+Permute                  transpose_328            1 1 298 299 0=1
+Convolution              conv_40                  1 1 295 300 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Split                    splitncnn_30             1 2 300 301 302
+ConvolutionDepthWise     convdw_359               1 1 302 303 0=128 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=3200 7=128
+Reshape                  flatten_256              1 1 301 304 0=-1 1=128
+Permute                  transpose_329            1 1 304 305 0=1
+Slice                    split_7                  1 2 299 306 307 -23300=2,128,128 1=1
+Permute                  transpose_330            1 1 306 308 0=1
+Reshape                  view_233                 1 1 308 309 0=-1 1=32 2=4
+Permute                  transpose_331            1 1 307 310 0=1
+Reshape                  view_234                 1 1 310 311 0=-1 1=32 2=4
+Permute                  transpose_332            1 1 305 312 0=1
+Reshape                  view_235                 1 1 312 313 0=-1 1=32 2=4
+Permute                  transpose_333            1 1 309 314 0=1
+MatMul                   matmul_271               2 1 314 311 315
+BinaryOp                 mul_37                   1 1 315 316 0=2 1=1 2=0.17677669
+Split                    splitncnn_31             1 2 316 317 318
+Reduction                max_282                  1 1 318 319 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_38                   2 1 317 319 320 0=1
+UnaryOp                  exp_39                   1 1 320 321 0=7
+Split                    splitncnn_32             1 2 321 322 323
+Reduction                sum_290                  1 1 323 324 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_40                   2 1 322 324 325 0=3
+MatMul                   matmultransb_5           2 1 313 325 326 0=1
+Permute                  permute_204              1 1 326 327 0=4
+Reshape                  Tensor.reshape_92        2 1 327 294 328 6="128,1w,1h"
+Permute                  permute_205              1 1 328 329 0=4
+BinaryOp                 add_41                   2 1 329 303 330 0=0
+Convolution              conv_41                  1 1 330 331 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+BinaryOp                 add_42                   2 1 293 331 332 0=0
+Split                    splitncnn_33             1 2 332 333 334
+Convolution              conv_42                  1 1 334 335 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Swish                    silu_132                 1 1 335 336
+Convolution              conv_43                  1 1 336 337 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+BinaryOp                 add_43                   2 1 333 337 338 0=0
+Split                    splitncnn_34             1 5 338 339 340 341 342 343
+Convolution              conv_44                  1 1 343 344 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Reshape                  flatten_257              1 1 344 345 0=-1 1=256
+Permute                  transpose_335            1 1 345 346 0=1
+Convolution              conv_45                  1 1 342 347 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Split                    splitncnn_35             1 2 347 348 349
+ConvolutionDepthWise     convdw_360               1 1 349 350 0=128 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=3200 7=128
+Reshape                  flatten_258              1 1 348 351 0=-1 1=128
+Permute                  transpose_336            1 1 351 352 0=1
+Slice                    split_8                  1 2 346 353 354 -23300=2,128,128 1=1
+Permute                  transpose_337            1 1 353 355 0=1
+Reshape                  view_236                 1 1 355 356 0=-1 1=32 2=4
+Permute                  transpose_338            1 1 354 357 0=1
+Reshape                  view_237                 1 1 357 358 0=-1 1=32 2=4
+Permute                  transpose_339            1 1 352 359 0=1
+Reshape                  view_238                 1 1 359 360 0=-1 1=32 2=4
+Permute                  transpose_340            1 1 356 361 0=1
+MatMul                   matmul_273               2 1 361 358 362
+BinaryOp                 mul_44                   1 1 362 363 0=2 1=1 2=0.17677669
+Split                    splitncnn_36             1 2 363 364 365
+Reduction                max_283                  1 1 365 366 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_45                   2 1 364 366 367 0=1
+UnaryOp                  exp_46                   1 1 367 368 0=7
+Split                    splitncnn_37             1 2 368 369 370
+Reduction                sum_291                  1 1 370 371 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_47                   2 1 369 371 372 0=3
+MatMul                   matmultransb_6           2 1 360 372 373 0=1
+Permute                  permute_206              1 1 373 374 0=4
+Reshape                  Tensor.reshape_93        2 1 374 341 375 6="128,1w,1h"
+Permute                  permute_207              1 1 375 376 0=4
+BinaryOp                 add_48                   2 1 376 350 377 0=0
+Convolution              conv_46                  1 1 377 378 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+BinaryOp                 add_49                   2 1 340 378 379 0=0
+Split                    splitncnn_38             1 2 379 380 381
+Convolution              conv_47                  1 1 381 382 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Swish                    silu_133                 1 1 382 383
+Convolution              conv_48                  1 1 383 384 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+BinaryOp                 add_50                   2 1 380 384 385 0=0
+Split                    splitncnn_39             1 4 385 386 387 388 389
+Convolution              conv_49                  1 1 389 390 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Reshape                  flatten_259              1 1 390 391 0=-1 1=256
+Permute                  transpose_342            1 1 391 392 0=1
+Convolution              conv_50                  1 1 388 393 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Split                    splitncnn_40             1 2 393 394 395
+ConvolutionDepthWise     convdw_361               1 1 395 396 0=128 1=5 11=5 12=1 13=1 14=2 2=1 3=1 4=2 5=1 6=3200 7=128
+Reshape                  flatten_260              1 1 394 397 0=-1 1=128
+Permute                  transpose_343            1 1 397 398 0=1
+Slice                    split_9                  1 2 392 399 400 -23300=2,128,128 1=1
+Permute                  transpose_344            1 1 399 401 0=1
+Reshape                  view_239                 1 1 401 402 0=-1 1=32 2=4
+Permute                  transpose_345            1 1 400 403 0=1
+Reshape                  view_240                 1 1 403 404 0=-1 1=32 2=4
+Permute                  transpose_346            1 1 398 405 0=1
+Reshape                  view_241                 1 1 405 406 0=-1 1=32 2=4
+Permute                  transpose_347            1 1 402 407 0=1
+MatMul                   matmul_275               2 1 407 404 408
+BinaryOp                 mul_51                   1 1 408 409 0=2 1=1 2=0.17677669
+Split                    splitncnn_41             1 2 409 410 411
+Reduction                max_284                  1 1 411 412 0=4 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 sub_52                   2 1 410 412 413 0=1
+UnaryOp                  exp_53                   1 1 413 414 0=7
+Split                    splitncnn_42             1 2 414 415 416
+Reduction                sum_292                  1 1 416 417 0=0 1=0 -23303=1,-1 4=1 5=1
+BinaryOp                 div_54                   2 1 415 417 418 0=3
+MatMul                   matmultransb_7           2 1 406 418 419 0=1
+Permute                  permute_208              1 1 419 420 0=4
+Reshape                  Tensor.reshape_94        2 1 420 387 421 6="128,1w,1h"
+Permute                  permute_209              1 1 421 422 0=4
+BinaryOp                 add_55                   2 1 422 396 423 0=0
+Convolution              conv_51                  1 1 423 424 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+BinaryOp                 add_56                   2 1 386 424 425 0=0
+Split                    splitncnn_43             1 2 425 426 427
+Convolution              conv_52                  1 1 427 428 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+Swish                    silu_134                 1 1 428 429
+Convolution              conv_53                  1 1 429 430 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=32768
+BinaryOp                 add_57                   2 1 426 430 431 0=0
+Concat                   cat_3                    3 1 246 339 431 432 0=0
+Convolution              conv_54                  1 1 432 433 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=98304
+Swish                    silu_135                 1 1 433 434
+Split                    splitncnn_44             1 2 434 435 436
+Interp                   upsample_192             1 1 436 437 0=1 1=2.0 2=2.0 6=0
+Concat                   cat_4                    2 1 437 240 438 0=0
+Convolution              conv_55                  1 1 438 439 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=24576
+Swish                    silu_136                 1 1 439 440
+Split                    splitncnn_45             1 3 440 441 442 443
+Convolution              conv_56                  1 1 443 444 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=2048
+Swish                    silu_137                 1 1 444 445
+Split                    splitncnn_46             1 2 445 446 447
+Convolution              conv_57                  1 1 447 448 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_138                 1 1 448 449
+Convolution              conv_58                  1 1 449 450 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_139                 1 1 450 451
+BinaryOp                 add_58                   2 1 446 451 452 0=0
+Split                    splitncnn_47             1 2 452 453 454
+Convolution              conv_59                  1 1 454 455 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_140                 1 1 455 456
+Convolution              conv_60                  1 1 456 457 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_141                 1 1 457 458
+BinaryOp                 add_59                   2 1 453 458 459 0=0
+Convolution              conv_61                  1 1 442 460 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=2048
+Swish                    silu_142                 1 1 460 461
+Concat                   cat_5                    2 1 459 461 462 0=0
+Convolution              conv_62                  1 1 462 463 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Swish                    silu_143                 1 1 463 464
+Concat                   cat_6                    2 1 441 464 465 0=0
+Convolution              conv_63                  1 1 465 466 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Swish                    silu_144                 1 1 466 467
+Split                    splitncnn_48             1 2 467 468 469
+Interp                   upsample_193             1 1 469 470 0=1 1=2.0 2=2.0 6=0
+Concat                   cat_7                    2 1 470 37 471 0=0
+Convolution              conv_64                  1 1 471 472 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_145                 1 1 472 473
+Split                    splitncnn_49             1 3 473 474 475 476
+Convolution              conv_65                  1 1 476 477 0=16 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=512
+Swish                    silu_146                 1 1 477 478
+Split                    splitncnn_50             1 2 478 479 480
+Convolution              conv_66                  1 1 480 481 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=2304
+Swish                    silu_147                 1 1 481 482
+Convolution              conv_67                  1 1 482 483 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=2304
+Swish                    silu_148                 1 1 483 484
+BinaryOp                 add_60                   2 1 479 484 485 0=0
+Split                    splitncnn_51             1 2 485 486 487
+Convolution              conv_68                  1 1 487 488 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=2304
+Swish                    silu_149                 1 1 488 489
+Convolution              conv_69                  1 1 489 490 0=16 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=2304
+Swish                    silu_150                 1 1 490 491
+BinaryOp                 add_61                   2 1 486 491 492 0=0
+Convolution              conv_70                  1 1 475 493 0=16 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=512
+Swish                    silu_151                 1 1 493 494
+Concat                   cat_8                    2 1 492 494 495 0=0
+Convolution              conv_71                  1 1 495 496 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=1024
+Swish                    silu_152                 1 1 496 497
+Concat                   cat_9                    2 1 474 497 498 0=0
+Convolution              conv_72                  1 1 498 499 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Swish                    silu_153                 1 1 499 500
+Split                    splitncnn_52             1 3 500 501 502 503
+Convolution              conv_73                  1 1 502 504 0=64 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=36864
+Swish                    silu_154                 1 1 504 505
+Concat                   cat_10                   2 1 505 468 506 0=0
+Convolution              conv_74                  1 1 506 507 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=12288
+Swish                    silu_155                 1 1 507 508
+Split                    splitncnn_53             1 3 508 509 510 511
+Convolution              conv_75                  1 1 511 512 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=2048
+Swish                    silu_156                 1 1 512 513
+Split                    splitncnn_54             1 2 513 514 515
+Convolution              conv_76                  1 1 515 516 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_157                 1 1 516 517
+Convolution              conv_77                  1 1 517 518 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_158                 1 1 518 519
+BinaryOp                 add_62                   2 1 514 519 520 0=0
+Split                    splitncnn_55             1 2 520 521 522
+Convolution              conv_78                  1 1 522 523 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_159                 1 1 523 524
+Convolution              conv_79                  1 1 524 525 0=32 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=9216
+Swish                    silu_160                 1 1 525 526
+BinaryOp                 add_63                   2 1 521 526 527 0=0
+Convolution              conv_80                  1 1 510 528 0=32 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=2048
+Swish                    silu_161                 1 1 528 529
+Concat                   cat_11                   2 1 527 529 530 0=0
+Convolution              conv_81                  1 1 530 531 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+Swish                    silu_162                 1 1 531 532
+Concat                   cat_12                   2 1 509 532 533 0=0
+Convolution              conv_82                  1 1 533 534 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Swish                    silu_163                 1 1 534 535
+Split                    splitncnn_56             1 3 535 536 537 538
+Convolution              conv_83                  1 1 537 539 0=128 1=3 11=3 12=1 13=2 14=1 2=1 3=2 4=1 5=1 6=147456
+Swish                    silu_164                 1 1 539 540
+Concat                   cat_13                   2 1 540 435 541 0=0
+Convolution              conv_84                  1 1 541 542 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=98304
+Swish                    silu_165                 1 1 542 543
+Slice                    split_10                 1 2 543 544 545 -23300=2,128,128 1=0
+Split                    splitncnn_57             1 3 545 546 547 548
+Convolution              conv_85                  1 1 548 549 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_166                 1 1 549 550
+Split                    splitncnn_58             1 2 550 551 552
+Convolution              conv_86                  1 1 552 553 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_167                 1 1 553 554
+Convolution              conv_87                  1 1 554 555 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_168                 1 1 555 556
+BinaryOp                 add_64                   2 1 551 556 557 0=0
+Split                    splitncnn_59             1 2 557 558 559
+Convolution              conv_88                  1 1 559 560 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_169                 1 1 560 561
+Convolution              conv_89                  1 1 561 562 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_170                 1 1 562 563
+BinaryOp                 add_65                   2 1 558 563 564 0=0
+Convolution              conv_90                  1 1 547 565 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=8192
+Swish                    silu_171                 1 1 565 566
+Concat                   cat_14                   2 1 564 566 567 0=0
+Convolution              conv_91                  1 1 567 568 0=128 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=16384
+Swish                    silu_172                 1 1 568 569
+Concat                   cat_15                   3 1 544 546 569 570 0=0
+Convolution              conv_92                  1 1 570 571 0=256 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=98304
+Swish                    silu_173                 1 1 571 572
+Split                    splitncnn_60             1 2 572 573 574
+Convolution              conv_93                  1 1 501 575 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_174                 1 1 575 576
+Convolution              conv_94                  1 1 576 577 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_175                 1 1 577 578
+Convolution              conv_95                  1 1 578 579 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+ConvolutionDepthWise     convdw_362               1 1 503 580 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=576 7=64
+Swish                    silu_176                 1 1 580 581
+Convolution              conv_96                  1 1 581 582 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=5120
+Swish                    silu_177                 1 1 582 583
+ConvolutionDepthWise     convdw_363               1 1 583 584 0=80 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=720 7=80
+Swish                    silu_178                 1 1 584 585
+Convolution              conv_97                  1 1 585 586 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Swish                    silu_179                 1 1 586 587
+Convolution              conv_98                  1 1 587 588 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Concat                   cat_16                   2 1 579 588 589 0=0
+Convolution              conv_99                  1 1 536 590 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=73728
+Swish                    silu_180                 1 1 590 591
+Convolution              conv_100                 1 1 591 592 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_181                 1 1 592 593
+Convolution              conv_101                 1 1 593 594 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+ConvolutionDepthWise     convdw_364               1 1 538 595 0=128 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=1152 7=128
+Swish                    silu_182                 1 1 595 596
+Convolution              conv_102                 1 1 596 597 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=10240
+Swish                    silu_183                 1 1 597 598
+ConvolutionDepthWise     convdw_365               1 1 598 599 0=80 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=720 7=80
+Swish                    silu_184                 1 1 599 600
+Convolution              conv_103                 1 1 600 601 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Swish                    silu_185                 1 1 601 602
+Convolution              conv_104                 1 1 602 603 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Concat                   cat_17                   2 1 594 603 604 0=0
+Convolution              conv_105                 1 1 573 605 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=147456
+Swish                    silu_186                 1 1 605 606
+Convolution              conv_106                 1 1 606 607 0=64 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=36864
+Swish                    silu_187                 1 1 607 608
+Convolution              conv_107                 1 1 608 609 0=64 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=4096
+ConvolutionDepthWise     convdw_366               1 1 574 610 0=256 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=2304 7=256
+Swish                    silu_188                 1 1 610 611
+Convolution              conv_108                 1 1 611 612 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=20480
+Swish                    silu_189                 1 1 612 613
+ConvolutionDepthWise     convdw_367               1 1 613 614 0=80 1=3 11=3 12=1 13=1 14=1 2=1 3=1 4=1 5=1 6=720 7=80
+Swish                    silu_190                 1 1 614 615
+Convolution              conv_109                 1 1 615 616 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Swish                    silu_191                 1 1 616 617
+Convolution              conv_110                 1 1 617 618 0=80 1=1 11=1 12=1 13=1 14=0 2=1 3=1 4=0 5=1 6=6400
+Concat                   cat_18                   2 1 609 618 619 0=0
+Reshape                  view_242                 1 1 589 620 0=-1 1=144
+Permute                  transpose_349            1 1 620 621 0=1
+Reshape                  view_243                 1 1 604 622 0=-1 1=144
+Permute                  transpose_350            1 1 622 623 0=1
+Reshape                  view_244                 1 1 619 624 0=-1 1=144
+Permute                  transpose_351            1 1 624 625 0=1
+Concat                   cat_19                   3 1 621 623 625 out0 0=0
