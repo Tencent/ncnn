@@ -212,7 +212,9 @@ int Gemm::load_model(const ModelBin& mb)
                     {
                         // block quantize
                         const i6x4_t* i6ptr1 = i6ptr + j * block_size / 4;
-                        const float inv_scale = 1.f / scale_ptr[j];
+                        // Prevent division by zero: if scale_ptr[j] == 0, use 1.0 as safe default
+                        const float safe_scale = (scale_ptr[j] == 0.f) ? 1.f : scale_ptr[j];
+                        const float inv_scale = 1.f / safe_scale;
                         float* ptr1 = ptr + j * block_size;
                         const int block_size1 = std::min(block_size, constantK - j * block_size);
 
