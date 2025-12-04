@@ -292,7 +292,7 @@ int Gemm::load_model(const ModelBin& mb)
                         const int block_size1 = std::min(block_size, constantK - j * block_size);
 
                         int k = 0;
-                        for (; k + 2 < block_size1; k += 2)
+                        for (; k + 1 < block_size1; k += 2)
                         {
                             ptr1[k] = i4ptr1[k / 2].i4_low * inv_scale;
                             ptr1[k + 1] = i4ptr1[k / 2].i4_high * inv_scale;
