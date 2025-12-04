@@ -210,7 +210,7 @@ int Gemm::load_model(const ModelBin& mb)
 
                     for (int j = 0; j < block_count; j++)
                     {
-                        // block quantize
+                        // block dequantize
                         const i6x4_t* i6ptr1 = i6ptr + j * block_size / 4;
                         // Prevent division by zero: if scale_ptr[j] == 0, use 1.0 as safe default
                         const float safe_scale = (scale_ptr[j] == 0.f) ? 1.f : scale_ptr[j];
