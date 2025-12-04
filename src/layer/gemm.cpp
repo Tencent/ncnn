@@ -160,7 +160,10 @@ int Gemm::load_model(const ModelBin& mb)
                     {
                         // block dequantize
                         const signed char* i8ptr1 = i8ptr + j * block_size;
-                        const float inv_scale = 1.f / scale_ptr[j];
+                        float scale = scale_ptr[j];
+                        if (scale == 0.f)
+                            scale = 1.f;
+                        const float inv_scale = 1.f / scale;
                         float* ptr1 = ptr + j * block_size;
                         const int block_size1 = std::min(block_size, constantK - j * block_size);
 
