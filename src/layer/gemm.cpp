@@ -158,7 +158,7 @@ int Gemm::load_model(const ModelBin& mb)
 
                     for (int j = 0; j < block_count; j++)
                     {
-                        // block quantize
+                        // block dequantize
                         const signed char* i8ptr1 = i8ptr + j * block_size;
                         const float inv_scale = 1.f / scale_ptr[j];
                         float* ptr1 = ptr + j * block_size;
