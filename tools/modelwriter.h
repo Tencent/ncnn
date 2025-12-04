@@ -1810,9 +1810,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 }
                 if (op->constantB == 1)
                 {
-                    ncnn::Mat B_data_int8_scales(1);
-                    B_data_int8_scales[0] = op->B_data_int8_scale;
-                    fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
+                    if (op->int8_scale_term == 4 || op->int8_scale_term == 5 || op->int8_scale_term == 6)
+                    {
+                        fwrite_weight_tag_data(op->B_data_quantize_scales, bp);
+                    }
+                    else
+                    {
+                        ncnn::Mat B_data_int8_scales(1);
+                        B_data_int8_scales[0] = op->B_data_int8_scale;
+                        fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
+                    }
                 }
             }
 #endif // NCNN_INT8

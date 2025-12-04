@@ -37,6 +37,9 @@ endif()
 add_executable(ncnn2int8 ncnn2int8.cpp)
 target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
+add_executable(ncnnllm2int468 ncnnllm2int468.cpp)
+target_link_libraries(ncnnllm2int468 PRIVATE ncnn)
+
 # add ncnn2int8 tool to a virtual project group
 set_property(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
 ncnn_install_tool(ncnn2table)
