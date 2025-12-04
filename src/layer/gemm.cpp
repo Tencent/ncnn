@@ -281,7 +281,7 @@ int Gemm::load_model(const ModelBin& mb)
 
                     for (int j = 0; j < block_count; j++)
                     {
-                        // block quantize
+                        // block dequantize
                         const i4x2_t* i4ptr1 = i4ptr + j * block_size / 2;
                         // Defensive: avoid division by zero
                         float scale = scale_ptr[j];
