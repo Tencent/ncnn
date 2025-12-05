@@ -335,7 +335,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             int nscan = fscanf(fp, "%15[^,\n ]", vstr);
             if (nscan != 1)
             {
-                fprintf(stderr, "read value failed\n");
+                fprintf(stderr, "read value failed %d\n", nscan);
                 return -1;
             }
 
