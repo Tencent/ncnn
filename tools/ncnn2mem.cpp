@@ -447,7 +447,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                         nscan = sscanf(vstr, "%d", &v);
                         if (nscan != 1)
                         {
-                            fprintf(stderr, "parse value failed\n");
+                            fprintf(stderr, "parse value failed %d\n", nscan);
                             return -1;
                         }
 
