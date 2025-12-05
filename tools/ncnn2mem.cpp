@@ -332,7 +332,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
             char vstr[16];
             char comma[4];
-            int nscan = fscanf(fp, "%15[^,\n ]", vstr);
+            nscan = fscanf(fp, "%15[^,\n ]", vstr);
             if (nscan != 1)
             {
                 fprintf(stderr, "read value failed %d\n", nscan);
