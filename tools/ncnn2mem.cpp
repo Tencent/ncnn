@@ -394,7 +394,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
                 int len = (int)str.length();
                 fwrite(&len, sizeof(int), 1, mp);
-                fwrite(str.data(), sizeof(float), len, mp);
+                fwrite(str.data(), sizeof(char), len, mp);
 
                 continue;
             }
