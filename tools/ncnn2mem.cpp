@@ -65,6 +65,11 @@ static bool vstr_is_float(const char vstr[16])
     return false;
 }
 
+static bool vstr_is_string(const char vstr[16])
+{
+    return isalpha(vstr[0]) || vstr[0] == '\"';
+}
+
 static float vstr_to_float(const char vstr[16])
 {
     double v = 0.0;
@@ -281,12 +286,13 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         int id = 0;
         while (fscanf(fp, "%d=", &id) == 1)
         {
-            fwrite(&id, sizeof(int), 1, mp);
-
             bool is_array = id <= -23300;
 
             if (is_array)
             {
+                fwrite(&id, sizeof(int), 1, mp);
+
+                // old style array
                 int len = 0;
                 nscan = fscanf(fp, "%d", &len);
                 if (nscan != 1)
@@ -320,18 +326,157 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                         fwrite(&v, sizeof(int), 1, mp);
                     }
                 }
+
+                continue;
+            }
+
+            char vstr[16];
+            char comma[4];
+            int nscan = fscanf(fp, "%15[^,\n ]", vstr);
+            if (nscan != 1)
+            {
+                fprintf(stderr, "read value failed\n");
+                return -1;
+            }
+
+            bool is_string = vstr_is_string(vstr);
+            if (is_string)
+            {
+                id = -id - 23400;
+                fwrite(&id, sizeof(int), 1, mp);
+
+                // scan the remaining string
+                char vstr2[256];
+                vstr2[241] = '\0'; // max 255 = 15 + 240
+
+                if (vstr[0] == '\"')
+                {
+                    int len = 0;
+                    while (vstr[len] != '\0')
+                        len++;
+                    char end = vstr[len - 1];
+                    if (end != '\"')
+                    {
+                        nscan = fscanf(fp, "%255[^\"\n]\"", vstr2);
+                    }
+                    else
+                        nscan = 0; // already ended with a quote, no need to scan more
+                }
+                else
+                {
+                    nscan = fscanf(fp, "%255[^\n ]", vstr2);
+                }
+
+                std::string str;
+                if (nscan == 1)
+                {
+                    if (vstr2[241] != '\0')
+                    {
+                        fprintf(stderr, "string too long (id=%d)\n", id);
+                        return -1;
+                    }
+
+                    if (vstr[0] == '\"')
+                        str = std::string(&vstr[1]) + vstr2;
+                    else
+                        str = std::string(vstr) + vstr2;
+                }
+                else
+                {
+                    if (vstr[0] == '\"')
+                        str = std::string(&vstr[1]);
+                    else
+                        str = std::string(vstr);
+                }
+
+                if (str[str.size() - 1] == '\"')
+                    str.resize(str.size() - 1);
+
+                int len = (int)str.length();
+                fwrite(&len, sizeof(int), 1, mp);
+                fwrite(str.data(), sizeof(float), len, mp);
+
+                continue;
+            }
+
+            bool is_float = vstr_is_float(vstr);
+
+            nscan = fscanf(fp, "%1[,]", comma);
+            is_array = nscan == 1;
+
+            if (is_array)
+            {
+                id = -id - 23300;
+                fwrite(&id, sizeof(int), 1, mp);
+
+                std::vector<float> af;
+                std::vector<int> ai;
+
+                if (is_float)
+                {
+                    af.push_back(vstr_to_float(vstr));
+                }
+                else
+                {
+                    int v = 0;
+                    nscan = sscanf(vstr, "%d", &v);
+                    if (nscan != 1)
+                    {
+                        fprintf(stderr, "parse value failed\n");
+                        return -1;
+                    }
+
+                    ai.push_back(v);
+                }
+
+                while (1)
+                {
+                    nscan = fscanf(fp, "%15[^,\n ]", vstr);
+                    if (nscan != 1)
+                    {
+                        break;
+                    }
+
+                    if (is_float)
+                    {
+                        af.push_back(vstr_to_float(vstr));
+                    }
+                    else
+                    {
+                        int v = 0;
+                        nscan = sscanf(vstr, "%d", &v);
+                        if (nscan != 1)
+                        {
+                            fprintf(stderr, "parse value failed\n");
+                            return -1;
+                        }
+
+                        ai.push_back(v);
+                    }
+
+                    nscan = fscanf(fp, "%1[,]", comma);
+                    if (nscan != 1)
+                    {
+                        break;
+                    }
+                }
+
+                if (is_float)
+                {
+                    int len = (int)af.size();
+                    fwrite(&len, sizeof(int), 1, mp);
+                    fwrite(af.data(), sizeof(float), len, mp);
+                }
+                else
+                {
+                    int len = (int)ai.size();
+                    fwrite(&len, sizeof(int), 1, mp);
+                    fwrite(ai.data(), sizeof(int), len, mp);
+                }
             }
             else
             {
-                char vstr[16];
-                nscan = fscanf(fp, "%15s", vstr);
-                if (nscan != 1)
-                {
-                    fprintf(stderr, "read value failed %d\n", nscan);
-                    return -1;
-                }
-
-                bool is_float = vstr_is_float(vstr);
+                fwrite(&id, sizeof(int), 1, mp);
 
                 if (is_float)
                 {
