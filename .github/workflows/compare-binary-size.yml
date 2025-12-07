@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   compare-size:
+  # 🚫 Skip fork PRs (unsafe)
+  # ✅ Run only if PR originates from a branch on this repository
+    if: github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     steps:
     - name: checkout-pr-branch
