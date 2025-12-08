@@ -1,8 +1,16 @@
 name: compare-binary-size
-on: [pull_request_target]
+on:
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/compare-binary-size.yml'
+    - 'toolchains/**'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
 
 concurrency:
-  group: compare-binary-size-${{ github.event.pull_request.number }}
+  group: compare-binary-size-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -15,8 +23,7 @@ jobs:
     - name: checkout-pr-branch
       uses: actions/checkout@v6
       with:
-        ref: ${{ github.event.pull_request.head.ref }}
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: refs/pull/${{ github.event.pull_request.number }}/merge
         submodules: true
         path: pr
 
