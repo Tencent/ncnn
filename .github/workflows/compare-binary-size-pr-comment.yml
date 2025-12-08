@@ -99,7 +99,7 @@ jobs:
           # Truncate to avoid overly long comments (adjust lines as needed)
           head -n 1000 "$FILE" > /tmp/compare-truncated.md || true
           echo "compare_content<<EOF" >> $GITHUB_OUTPUT
-          sed -n '1,1000p' /tmp/compare-truncated.md >> $GITHUB_OUTPUT
+          cat /tmp/compare-truncated.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
