@@ -64,7 +64,9 @@ jobs:
 
         # download and unzip
         curl -L -H "Authorization: token $TOKEN" -o artifact.zip "$ARCHIVE_URL"
-        unzip -q artifact.zip -d artifact_contents || true
+        if ! unzip -q artifact.zip -d artifact_contents; then
+          echo "Failed to unzip artifact.zip"; exit 1
+        fi
         ls -la artifact_contents
 
     - name: Read compare-binary-size.md content
