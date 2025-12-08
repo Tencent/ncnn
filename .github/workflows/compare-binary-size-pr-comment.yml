@@ -1,0 +1,144 @@
+name: compare-binary-size-pr-comment
+on:
+  workflow_run:
+    workflows: ["compare-binary-size"]
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-comment:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq unzip
+
+    - name: Ensure workflow_run is for a PR
+      id: validate
+      run: |
+        echo "Workflow run payload:"
+        echo "${{ toJson(github.event) }}" | jq .
+        PR_COUNT=$(jq '.workflow_run.pull_requests | length' <<< "${{ toJson(github.event) }}")
+        if [ "$PR_COUNT" -eq 0 ]; then
+          echo "No pull_request associated with this workflow_run; nothing to do."
+          echo "skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        echo "skip=false" >> $GITHUB_OUTPUT
+
+    - name: Download artifact zip for this run
+      if: steps.validate.outputs.skip != 'true'
+      env:
+        RUN_ID: ${{ github.event.workflow_run.id }}
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.repository }}
+        TOKEN: ${{ secrets.COMMENTER_PAT }}
+        ART_NAME: "compare-binary-size.md"
+      run: |
+        # list artifacts for the run
+        echo "Listing artifacts for run $RUN_ID"
+        API="https://api.github.com/repos/$OWNER/${REPO#*/}/actions/runs/$RUN_ID/artifacts"
+        ART_LIST=$(curl -s -H "Authorization: token $TOKEN" "$API")
+        echo "$ART_LIST" | jq .
+
+        # find artifact id by name
+        ART_ID=$(echo "$ART_LIST" | jq -r --arg name "$ART_NAME" '.artifacts[] | select(.name==$name) | .id' | head -n1 || true)
+        if [ -z "$ART_ID" ] || [ "$ART_ID" = "null" ]; then
+          echo "Artifact named '$ART_NAME' not found for run $RUN_ID. Exiting."
+          exit 0
+        fi
+        echo "Found artifact id: $ART_ID"
+
+        # download artifact zip (archive_download_url is available in artifact object)
+        ARCHIVE_URL=$(echo "$ART_LIST" | jq -r --arg name "$ART_NAME" '.artifacts[] | select(.name==$name) | .archive_download_url')
+        if [ -z "$ARCHIVE_URL" ] || [ "$ARCHIVE_URL" = "null" ]; then
+          echo "No archive_download_url; aborting."
+          exit 1
+        fi
+
+        # download and unzip
+        curl -L -H "Authorization: token $TOKEN" -o artifact.zip "$ARCHIVE_URL"
+        unzip -q artifact.zip -d artifact_contents || true
+        ls -la artifact_contents
+
+    - name: Read compare-binary-size.md content
+      if: steps.validate.outputs.skip != 'true'
+      id: read
+      run: |
+        # find file inside artifact_contents
+        FILE=$(find artifact_contents -type f -name "compare-binary-size.md" | head -n1 || true)
+        if [ -z "$FILE" ]; then
+          # If artifact name matched but internal filename differs, try any .md
+          FILE=$(find artifact_contents -type f -name "*.md" | head -n1 || true)
+        fi
+
+        if [ -z "$FILE" ]; then
+          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
+          echo "No compare-binary-size.md found in artifact." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          # Truncate to avoid overly long comments (adjust lines as needed)
+          sed -n '1,1000p' "$FILE" > /tmp/compare-binary-size.md
+          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
+          sed -n '1,1000p' /tmp/compare-binary-size.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Post or update PR comment via actions/github-script
+      if: steps.validate.outputs.skip != 'true'
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.COMMENTER_PAT }}
+        script: |
+          const pr = context.payload.workflow_run.pull_requests[0];
+          if (!pr) {
+            core.info("No pull request found in workflow_run payload; skipping.");
+            return;
+          }
+
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const issue_number = pr.number;
+          const marker = '<!-- compare-binary-size-bot -->';
+
+          // Read the compare content from env (set in previous step outputs)
+          const compare = process.env.COMPARE_CONTENT || "";
+
+          const body = `${marker}\n**Binary size comparison** (from artifact)\n\n\`\`\`markdown\n${compare}\n\`\`\``;
+
+          // List existing comments and find our bot comment (by marker)
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number,
+            per_page: 100
+          });
+
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: existing.id,
+              body
+            });
+            core.info(`Updated comment id=${existing.id}`);
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body
+            });
+            core.info("Created new comment");
+          }
+      env:
+        # pass the content from previous step into the github-script environment
+        COMPARE_CONTENT: ${{ steps.read.outputs.compare_content }}
