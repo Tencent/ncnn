@@ -84,9 +84,8 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
         else
           # Truncate to avoid overly long comments (adjust lines as needed)
-          sed -n '1,1000p' "$FILE" > /tmp/compare-binary-size.md
           echo "compare_content<<EOF" >> $GITHUB_OUTPUT
-          sed -n '1,1000p' /tmp/compare-binary-size.md >> $GITHUB_OUTPUT
+          sed -n '1,1000p' "$FILE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         fi
 
