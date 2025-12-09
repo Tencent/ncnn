@@ -105,7 +105,7 @@ jobs:
 
     - name: Post or update PR comment via actions/github-script
       if: steps.validate.outputs.skip != 'true'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v8
       with:
         github-token: ${{ secrets.COMMENTER_PAT }}
         script: |
