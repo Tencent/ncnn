@@ -111,7 +111,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-macos-release-18.1.2-20251004
@@ -296,7 +296,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-ios-release-18.1.2-20251004
@@ -458,7 +458,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-ios-simulator-release-18.1.2-20251004
@@ -647,7 +647,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-mac-catalyst-release-18.1.2-20251004
@@ -836,7 +836,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-watchos-release-18.1.2-20251004
@@ -985,7 +985,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-watchos-simulator-release-18.1.2-20251004
@@ -1134,7 +1134,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-tvos-release-18.1.2-20251004
@@ -1323,7 +1323,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-tvos-simulator-release-18.1.2-20251004
@@ -1512,7 +1512,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-visionos-release-18.1.2-20251004
@@ -1674,7 +1674,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-visionos-simulator-release-18.1.2-20251004
@@ -2046,7 +2046,7 @@ jobs:
 
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.opt.toolset-version }}-x86-x64-install
