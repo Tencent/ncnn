@@ -75,7 +75,7 @@ jobs:
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-ios-install-20251004
