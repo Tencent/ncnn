@@ -288,7 +288,7 @@ jobs:
       with:
         python-version: '3.x'
 
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         path: dist
         merge-multiple: true

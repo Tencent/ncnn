@@ -343,7 +343,7 @@ jobs:
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
 
     - name: download-pnnx
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: pnnx
         path: tools/pnnx/build/src
