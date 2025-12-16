@@ -35,7 +35,7 @@ jobs:
     - name: Check metadata
       run: twine check dist/*
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: sdist
         path: dist/*.tar.gz
@@ -271,7 +271,7 @@ jobs:
       shell: bash
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
