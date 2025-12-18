@@ -1013,6 +1013,24 @@ void GpuInfoPrivate::query_extension_features()
     }
 }
 
+static int get_vendor_default_subgroup_size(uint32_t vendorID)
+{
+    int default_size = 64;         // default to 64
+    if (vendorID == 0x5143)        // qcom adreno
+        default_size = 128;
+    else if (vendorID == 0x13b5)   // arm mali
+        default_size = 16;
+    else if (vendorID == 0x1010)   // imgtec powervr
+        default_size = 32;
+    else if (vendorID == 0x1002)   // amd
+        default_size = 64;
+    else if (vendorID == 0x10de)   // nvidia
+        default_size = 32;
+    else if (vendorID == 0x8086)   // intel
+        default_size = 32;
+    return default_size;
+}
+
 void GpuInfoPrivate::query_extension_properties()
 {
     queryExtensionProperties = 0;
@@ -1048,19 +1066,7 @@ void GpuInfoPrivate::query_extension_properties()
     }
     else
     {
-        querySubgroupProperties.subgroupSize = 64;
-        if (physicalDeviceProperties.vendorID == 0x5143) // qcom adreno prefer very large workgroup :P
-            querySubgroupProperties.subgroupSize = 128;
-        if (physicalDeviceProperties.vendorID == 0x13b5) // arm mali
-            querySubgroupProperties.subgroupSize = 16;
-        if (physicalDeviceProperties.vendorID == 0x1010) // imgtec powervr
-            querySubgroupProperties.subgroupSize = 32;
-        if (physicalDeviceProperties.vendorID == 0x1002) // amd
-            querySubgroupProperties.subgroupSize = 64;
-        if (physicalDeviceProperties.vendorID == 0x10de) // nvidia
-            querySubgroupProperties.subgroupSize = 32;
-        if (physicalDeviceProperties.vendorID == 0x8086) // intel
-            querySubgroupProperties.subgroupSize = 32;
+        querySubgroupProperties.subgroupSize = get_vendor_default_subgroup_size(physicalDeviceProperties.vendorID);
     }
 
     // query driver properties
@@ -1128,6 +1134,12 @@ void GpuInfoPrivate::query_extension_properties()
                 querySubgroupProperties.supportedOperations |= VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
             if (queryShaderSubgroupRotateFeatures.shaderSubgroupRotateClustered)
                 querySubgroupProperties.supportedOperations |= VK_SUBGROUP_FEATURE_ROTATE_CLUSTERED_BIT_KHR;
+        }
+        // Avoid invalid subgroup size
+        bool is_subgroup_size_valid = (querySubgroupProperties.subgroupSize > 0) && ((querySubgroupProperties.subgroupSize & (querySubgroupProperties.subgroupSize - 1)) == 0);
+        if (!is_subgroup_size_valid)
+        {
+            querySubgroupProperties.subgroupSize = get_vendor_default_subgroup_size(physicalDeviceProperties.vendorID);
         }
     }
 
