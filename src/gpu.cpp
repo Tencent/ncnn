@@ -1015,18 +1015,18 @@ void GpuInfoPrivate::query_extension_features()
 
 static int get_vendor_default_subgroup_size(uint32_t vendorID)
 {
-    int default_size = 64;         // default to 64
-    if (vendorID == 0x5143)        // qcom adreno
+    int default_size = 64;  // default to 64
+    if (vendorID == 0x5143) // qcom adreno
         default_size = 128;
-    else if (vendorID == 0x13b5)   // arm mali
+    else if (vendorID == 0x13b5) // arm mali
         default_size = 16;
-    else if (vendorID == 0x1010)   // imgtec powervr
+    else if (vendorID == 0x1010) // imgtec powervr
         default_size = 32;
-    else if (vendorID == 0x1002)   // amd
+    else if (vendorID == 0x1002) // amd
         default_size = 64;
-    else if (vendorID == 0x10de)   // nvidia
+    else if (vendorID == 0x10de) // nvidia
         default_size = 32;
-    else if (vendorID == 0x8086)   // intel
+    else if (vendorID == 0x8086) // intel
         default_size = 32;
     return default_size;
 }
