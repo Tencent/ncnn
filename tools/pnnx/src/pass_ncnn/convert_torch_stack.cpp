@@ -40,12 +40,14 @@ void convert_torch_stack(Graph& graph)
                 axis = input_rank + 1 + axis;
             }
 
+            bool stack_inner_most = axis == input_rank;
+
             if (axis > batch_index)
                 axis -= 1;
 
             op->params["0"] = axis;
 
-            if (axis == input_rank)
+            if (stack_inner_most)
             {
                 // stack -> reshape(x,y,..,1) + concat
                 // reshape for input, expand the stack dim
