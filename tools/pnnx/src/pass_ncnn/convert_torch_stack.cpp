@@ -89,7 +89,12 @@ void convert_torch_stack(Graph& graph)
                 std::vector<int> shape = op->inputs[0]->shape;
                 if (shape.size() != 0)
                 {
-                    shape[op->params.at("dim").i] *= op->inputs.size();
+                    int axis0 = op->params.at("dim").i;
+                    if (axis0 < 0)
+                    {
+                        axis0 = shape.size() + axis0;
+                    }
+                    shape[axis0] *= op->inputs.size();
                     reshape_in->shape = shape;
                 }
                 reshape_in->params["__batch_index"] = batch_index;
