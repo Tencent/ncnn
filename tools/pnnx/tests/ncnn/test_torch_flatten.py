@@ -40,9 +40,7 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
-            print(a0.shape)
-            print(b0.shape)
-            # return False
+            return False
     return True
 
 if __name__ == "__main__":
