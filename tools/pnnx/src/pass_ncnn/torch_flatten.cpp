@@ -104,7 +104,19 @@ pnnx.Output             output      1 0 out
         {
             shape_flattened.push_back(op->inputs[0]->shape[i]);
         }
-        shape_flattened.push_back(-1);
+        int flattened_dimsize = 1;
+        for (int i = start_dim; i <= end_dim; i++)
+        {
+            if (op->inputs[0]->shape[i] == -1)
+            {
+                // flatten includes dynamic axis
+                flattened_dimsize = -1;
+                break;
+            }
+
+            flattened_dimsize *= op->inputs[0]->shape[i];
+        }
+        shape_flattened.push_back(flattened_dimsize);
         for (int i = end_dim + 1; i < input_rank; i++)
         {
             shape_flattened.push_back(op->inputs[0]->shape[i]);
@@ -135,6 +147,71 @@ pnnx.Output             output      1 0 out
         if (shape_rank > 5)
         {
             fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
+            return;
+        }
+
+        // handle multiple dynamic dimension
+        int dynamic_dimension_count = 0;
+        for (size_t i = 0; i < new_shape.size(); i++)
+        {
+            if (new_shape[i] == -1)
+                dynamic_dimension_count++;
+        }
+
+        if (dynamic_dimension_count > 1)
+        {
+            const int flattened_index = start_dim > batch_index ? start_dim - 1 : start_dim;
+
+            int in_batch_index = op->inputs[0]->params["__batch_index"].i;
+            int in_shape_rank = op->inputs[0]->shape.size();
+            if (in_batch_index != 233)
+                in_shape_rank -= 1;
+
+            std::string shape_expr;
+            if (shape_rank == 1)
+            {
+                // flatten style
+                shape_expr = "-1";
+            }
+            if (shape_rank == 2)
+            {
+                if (flattened_index == 0)
+                {
+                    shape_expr = "0w,-1";
+                }
+                if (flattened_index == 1)
+                {
+                    if (in_shape_rank == 2)
+                        shape_expr = "-1,0h";
+                    else // if (in_shape_rank == 3 || in_shape_rank == 4)
+                        shape_expr = "-1,0c";
+                }
+            }
+            if (shape_rank == 3)
+            {
+                if (flattened_index == 0)
+                {
+                    shape_expr = "0w,0h,-1";
+                }
+                if (flattened_index == 1)
+                {
+                    shape_expr = "0w,-1,0c";
+                }
+                if (flattened_index == 2)
+                {
+                    if (in_shape_rank == 3)
+                        shape_expr = "-1,0h,0c";
+                    else // if (in_shape_rank == 4)
+                        shape_expr = "-1,0d,0c";
+                }
+            }
+            if (shape_rank == 4)
+            {
+                // noop style
+                shape_expr = "0w,0h,0d,0c";
+            }
+
+            op->params["6"] = shape_expr;
             return;
         }
 
