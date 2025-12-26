@@ -25,9 +25,9 @@ void eliminate_noop_permute(Graph& graph)
             const int shape_rank = (int)permute_dims.size();
 
             bool is_noop_permute = true;
-            for (int i = 0; i < shape_rank; i++)
+            for (int d = 0; d < shape_rank; d++)
             {
-                if (permute_dims[i] != i)
+                if (permute_dims[d] != d)
                 {
                     is_noop_permute = false;
                     break;
