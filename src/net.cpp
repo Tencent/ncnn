@@ -1067,7 +1067,7 @@ int Net::load_param(const DataReader& dr)
 #if NCNN_VULKAN
     // TODO enable gpu when bf16 conversion implemented
     // if (opt.use_bf16_storage)
-        // opt.use_vulkan_compute = false;
+    // opt.use_vulkan_compute = false;
 
     if (opt.use_vulkan_compute)
     {
@@ -1374,7 +1374,7 @@ int Net::load_param_bin(const DataReader& dr)
 #if NCNN_VULKAN
     // TODO enable gpu when bf16 conversion implemented
     // if (opt.use_bf16_storage)
-        // opt.use_vulkan_compute = false;
+    // opt.use_vulkan_compute = false;
 
     if (opt.use_vulkan_compute)
     {

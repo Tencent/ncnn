@@ -63,10 +63,10 @@ int AbsVal_vulkan::destroy_pipeline(const Option& /*opt*/)
 }
 void pretty_print(const ncnn::Mat& m)
 {
-    for (int q=0; q<m.c; q++)
+    for (int q = 0; q < m.c; q++)
     {
         const float* ptr = m.channel(q);
-        for (int x=0; x<m.w*m.h*m.d; x++)
+        for (int x = 0; x < m.w * m.h * m.d; x++)
         {
             printf("%f ", ptr[x]);
         }
