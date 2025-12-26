@@ -162,7 +162,7 @@ pnnx.Output             output      1 0 out
             return false;
 
         const int stack_dim = captured_params.at("stack_dim").i;
-        if (stack_dim != 3 && stack_dim != -1)
+        if (stack_dim != 4 && stack_dim != -1)
             return false;
 
         return true;
