@@ -125,13 +125,64 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_rotaryembed_pass_interleaved_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 10
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 cos_cache
+pnnx.Input              input_2     0 1 sin_cache
+Tensor.reshape          op_0        1 1 input 23 shape=(%batch,%num_heads,%seqlen,%embed_dim_half,2)
+torch.unbind            op_1        1 2 23 24 25 dim=%unbind_dim
+pnnx.Expression         op_2        4 1 24 cos_cache 25 sin_cache 26 expr=sub(mul(@0,@1),mul(@2,@3))
+pnnx.Expression         op_3        4 1 25 cos_cache 24 sin_cache 27 expr=add(mul(@0,@1),mul(@2,@3))
+torch.stack             op_4        2 1 26 27 28 dim=%stack_dim
+torch.flatten           op_5        1 1 28 out end_dim=-1 start_dim=-2
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "RotaryEmbed";
+    }
+
+    const char* name_str() const
+    {
+        return "rope";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int unbind_dim = captured_params.at("unbind_dim").i;
+        if (unbind_dim != 4 && unbind_dim != -1)
+            return false;
+
+        const int stack_dim = captured_params.at("stack_dim").i;
+        if (stack_dim != 3 && stack_dim != -1)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["0"] = 1; // interleaved
+    }
+};
+
 void fuse_convert_rotaryembed(Graph& graph)
 {
     fuse_rotaryembed_pass_interleaved a;
+    fuse_rotaryembed_pass_interleaved_2 a2;
     fuse_rotaryembed_pass b;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
+    pnnx_graph_rewrite(graph, &a2, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
 }
 
