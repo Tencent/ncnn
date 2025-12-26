@@ -80,8 +80,8 @@ void fuse_adjacent_permute(Graph& graph)
                     if (dim1 < 0)
                         dim1 += shape_rank;
 
-                    int dim0_j;
-                    int dim1_j;
+                    int dim0_j = -1;
+                    int dim1_j = -1;
                     for (int j = 0; j < shape_rank; j++)
                     {
                         if (permute_dims[j] == dim0)
@@ -92,6 +92,11 @@ void fuse_adjacent_permute(Graph& graph)
                         {
                             dim1_j = j;
                         }
+                    }
+                    if (dim0_j == -1 || dim1_j == -1)
+                    {
+                        // should never reach here
+                        continue;
                     }
 
                     std::swap(permute_dims[dim0_j], permute_dims[dim1_j]);
