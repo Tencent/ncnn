@@ -61,6 +61,7 @@ public:
 
             TYPE_post_download,
             TYPE_post_cast_float16_to_float32,
+            TYPE_post_cast_bfloat16_to_float32,
         };
 
         int type;
@@ -168,6 +169,12 @@ public:
                 uint32_t download_post_mat_offset;
                 int num_threads;
             } post_cast_float16_to_float32;
+            struct
+            {
+                uint32_t download_post_mat_bf16_offset;
+                uint32_t download_post_mat_offset;
+                int num_threads;
+            } post_cast_bfloat16_to_float32;
         };
     };
 
@@ -352,7 +359,12 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
+        if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
+        {
+            NCNN_LOGE("cast_float32_to_bfloat16");
+            ncnn::cast_float32_to_bfloat16(src, src_fp16, opt);
+        }
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -406,7 +418,9 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     int cast_type_to = 0;
     if (vkdev->info.type() != 0)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+            cast_type_to = 5;
+        else if (opt.use_fp16_storage || opt.use_fp16_packed)
             cast_type_to = 2;
         else
             cast_type_to = 1;
@@ -513,7 +527,29 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
+        if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
+        {
+            int dims = dst_fp16.dims;
+            if (dims == 1)
+                dst.create(dst_fp16.w, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 2)
+                dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 3)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+
+            d->download_post_mats.push_back(dst);
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32;
+            r.command_buffer = 0;
+            r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset = d->download_post_mats_fp16.size() - 1;
+            r.post_cast_bfloat16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_bfloat16_to_float32.num_threads = opt.num_threads;
+            d->delayed_records.push_back(r);
+        }
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -1875,6 +1911,7 @@ int VkCompute::submit_and_wait()
 #endif // NCNN_BENCHMARK
             case VkComputePrivate::record::TYPE_post_download:
             case VkComputePrivate::record::TYPE_post_cast_float16_to_float32:
+            case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
             default:
                 break;
             }
@@ -1940,7 +1977,7 @@ int VkCompute::submit_and_wait()
             const VkMat& src = d->download_post_buffers[r.post_download.download_post_buffer_mat_offset];
             Mat& dst = d->download_post_mats_fp16[r.post_download.download_post_mat_fp16_offset];
 
-            //             NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
+            // NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
             src.allocator->invalidate(src.data);
             memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
@@ -1948,7 +1985,7 @@ int VkCompute::submit_and_wait()
         }
         case VkComputePrivate::record::TYPE_post_cast_float16_to_float32:
         {
-            //             NCNN_LOGE("post_cast_float16_to_float32");
+            // NCNN_LOGE("post_cast_float16_to_float32");
 
             const Mat& src = d->download_post_mats_fp16[r.post_cast_float16_to_float32.download_post_mat_fp16_offset];
             Mat& dst = d->download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
@@ -1957,6 +1994,19 @@ int VkCompute::submit_and_wait()
             opt.num_threads = r.post_cast_float16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
             ncnn::cast_float16_to_float32(src, dst, opt);
+            break;
+        }
+        case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
+        {
+            NCNN_LOGE("post_cast_bfloat16_to_float32");
+
+            const Mat& src = d->download_post_mats_fp16[r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset];
+            Mat& dst = d->download_post_mats[r.post_cast_bfloat16_to_float32.download_post_mat_offset];
+
+            Option opt;
+            opt.num_threads = r.post_cast_bfloat16_to_float32.num_threads;
+            opt.blob_allocator = dst.allocator;
+            ncnn::cast_bfloat16_to_float32(src, dst, opt);
             break;
         }
         default:
@@ -2490,7 +2540,16 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     // NOTE keep the hack here ?
     if (src.elembits() == 32)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+        {
+            Mat src_bf16;
+            cast_float32_to_bfloat16(src, src_bf16, opt);
+
+            record_upload(src_bf16, dst, opt, flatten);
+
+            return;
+        }
+        else if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16, opt);

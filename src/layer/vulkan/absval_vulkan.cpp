@@ -27,7 +27,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }
@@ -61,10 +61,36 @@ int AbsVal_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     return 0;
 }
+void pretty_print(const ncnn::Mat& m)
+{
+    for (int q=0; q<m.c; q++)
+    {
+        const float* ptr = m.channel(q);
+        for (int x=0; x<m.w*m.h*m.d; x++)
+        {
+            printf("%f ", ptr[x]);
+        }
+    }
+    printf("\n------------------------\n");
+}
+void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
+{
+    Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
 
-int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+    ncnn::Mat m_cpu;
+    cmd.record_download(m, m_cpu, opt_unpack);
+    cmd.submit_and_wait();
+    cmd.reset();
+
+    // print Mat content
+    pretty_print(m_cpu);
+}
+int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
+
+    pretty_print(bottom_top_blob, cmd, opt);
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -77,6 +103,8 @@ int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const
     dispatcher.h = 1;
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline_absval, bindings, constants, dispatcher);
+
+    pretty_print(bottom_top_blob, cmd, opt);
 
     return 0;
 }

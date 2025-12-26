@@ -882,8 +882,11 @@ void NetPrivate::update_input_output_indexes()
     {
         if (layers[i]->typeindex == LayerType::Input)
         {
-            int blob_index = layers[i]->tops[0];
-            input_blob_indexes.push_back(blob_index);
+            for (size_t j = 0; j < layers[i]->tops.size(); j++)
+            {
+                int blob_index = layers[i]->tops[j];
+                input_blob_indexes.push_back(blob_index);
+            }
         }
     }
 
@@ -1063,8 +1066,8 @@ int Net::load_param(const DataReader& dr)
 
 #if NCNN_VULKAN
     // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
+    // if (opt.use_bf16_storage)
+        // opt.use_vulkan_compute = false;
 
     if (opt.use_vulkan_compute)
     {
@@ -1370,8 +1373,8 @@ int Net::load_param_bin(const DataReader& dr)
 
 #if NCNN_VULKAN
     // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
+    // if (opt.use_bf16_storage)
+        // opt.use_vulkan_compute = false;
 
     if (opt.use_vulkan_compute)
     {

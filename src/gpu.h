@@ -280,6 +280,10 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
+    // bf16 feature
+    bool support_bf16_packed() const;
+    bool support_bf16_storage() const;
+
     // r16f and r8s format in storage image
     bool support_fp16_image() const;
     bool support_int8_image() const;
@@ -459,7 +463,7 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8  5=bf16
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2

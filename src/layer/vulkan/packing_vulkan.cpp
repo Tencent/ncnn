@@ -195,7 +195,7 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     const int elempack = bottom_blob.elempack;
-    // NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to);
+    NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -245,7 +245,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else if (cast_type_to == 2)
+    else if (cast_type_to == 2 || cast_type_to == 4)
     {
         out_elemsize = out_elempack * 2u;
     }

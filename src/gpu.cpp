@@ -1646,6 +1646,16 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_bf16_packed() const
+{
+    return true;
+}
+
+bool GpuInfo::support_bf16_storage() const
+{
+    return d->queryShaderBfloat16Features.shaderBFloat16Type;
+}
+
 bool GpuInfo::support_fp16_image() const
 {
     return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
@@ -2695,9 +2705,10 @@ int create_gpu_instance(const char* driver_path)
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
                   gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count());
 
-        NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d", i, gpu_info.device_name(),
+        NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
-                  gpu_info.support_int8_packed(), gpu_info.support_int8_storage(), gpu_info.support_int8_uniform(), gpu_info.support_int8_arithmetic());
+                  gpu_info.support_int8_packed(), gpu_info.support_int8_storage(), gpu_info.support_int8_uniform(), gpu_info.support_int8_arithmetic(),
+                  gpu_info.support_bf16_packed(), gpu_info.support_bf16_storage());
 
         NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  ops=%d/%d/%d/%d/%d/%d/%d/%d/%d/%d", i, gpu_info.device_name(),
                   gpu_info.subgroup_size(), gpu_info.min_subgroup_size(), gpu_info.max_subgroup_size(),
@@ -3100,6 +3111,9 @@ public:
     // to int8
     // to pack1 | pack4
     mutable ncnn::Layer* uop_packing_int8[2];
+    // from fp32 to bf16 / from bf16 to fp32
+    // to pack1 | pack4
+    mutable ncnn::Layer* uop_packing_bf16[2][2];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3116,6 +3130,7 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
     memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
+    memset(uop_packing_bf16, 0, sizeof(uop_packing_bf16));
 }
 
 int VulkanDevicePrivate::create_dummy_buffer_image()
@@ -3167,6 +3182,7 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
 {
     bool use_fp16 = (cast_type_from_index == 1 || cast_type_to_index == 1);
     bool use_int8 = (cast_type_from_index == 3 || cast_type_to_index == 3);
+    bool use_bf16 = (cast_type_from_index == 4 || cast_type_to_index == 4);
 
     MutexLockGuard lock(uop_lock);
 
@@ -3174,6 +3190,11 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     if (use_int8)
     {
         cached_uop = uop_packing_int8[packing_type_to_index];
+    }
+    else if (use_bf16)
+    {
+        const int convert_index = cast_type_to_index == 4 ? 0 : 1;
+        cached_uop = uop_packing_bf16[convert_index][packing_type_to_index];
     }
     else
     {
@@ -3188,6 +3209,8 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
     opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+    opt.use_bf16_packed = use_bf16; // bf16p is always supported
+    opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
     // fp16/int8 arithmetic are not necessary for packing
     // and may conflict with storage options
@@ -3209,8 +3232,13 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
 
     ncnn::ParamDict pd;
     pd.set(0, packing_type_to_index == 0 ? 1 : 4); // out_elempack
-    pd.set(2, cast_type_from_index + 1);           // 0=auto 1=fp32 2=fp16 3=int8
+    pd.set(2, cast_type_from_index + 1);           // 0=auto 1=fp32 2=fp16 3=int8 4=bf16
     pd.set(3, cast_type_to_index + 1);
+
+    if (cast_type_from_index == 4)
+        pd.set(2, 4);
+    if (cast_type_to_index == 4)
+        pd.set(3, 4);
 
     uop->load_param(pd);
 
@@ -3219,6 +3247,11 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     if (use_int8)
     {
         uop_packing_int8[packing_type_to_index] = uop;
+    }
+    else if (use_bf16)
+    {
+        const int convert_index = cast_type_to_index == 4 ? 0 : 1;
+        uop_packing_bf16[convert_index][packing_type_to_index] = uop;
     }
     else
     {
@@ -3250,6 +3283,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
             opt.use_int8_packed = false;
             opt.use_int8_storage = false;
+            opt.use_bf16_packed = false;
+            opt.use_bf16_storage = false;
 
             // to pack1 | pack4
             for (int k = 0; k < 2; k++)
@@ -3275,6 +3310,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = use_int8;
         opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
 
         // to pack1 | pack4
         for (int k = 0; k < 2; k++)
@@ -3288,6 +3325,34 @@ void VulkanDevicePrivate::destroy_utility_operator()
             delete uop;
 
             uop_packing_int8[k] = 0;
+        }
+    }
+
+    // from fp32 to bf16
+    // from bf16 to fp32
+    for (int j = 0; j < 2; j++)
+    {
+        bool use_bf16 = true;
+
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_int8_packed = false;
+        opt.use_int8_storage = false;
+        opt.use_bf16_packed = use_bf16;
+        opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
+
+        // to pack1 | pack4
+        for (int k = 0; k < 2; k++)
+        {
+            ncnn::Layer* uop = uop_packing_bf16[j][k];
+            if (!uop)
+                continue;
+
+            uop->destroy_pipeline(opt);
+
+            delete uop;
+
+            uop_packing_bf16[j][k] = 0;
         }
     }
 }
@@ -4294,7 +4359,10 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     }
     else if (src.elembits() == 16)
     {
-        cast_type_from_index = 1;
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+            cast_type_from_index = 4;
+        else
+            cast_type_from_index = 1;
     }
     else // if (src.elembits() == 8)
     {
@@ -4305,14 +4373,24 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    if ((cast_type_from_index == 0 || cast_type_from_index == 1) && (cast_type_to_index == 2 || cast_type_to_index == 3))
+    if ((cast_type_from_index == 0 || cast_type_from_index == 1 || cast_type_from_index == 4) && (cast_type_to_index == 2 || cast_type_to_index == 3))
     {
-        NCNN_LOGE("convert_packing from fp32/fp16 to int32/int8 is not supported");
+        NCNN_LOGE("convert_packing from fp32/fp16/bf16 to int32/int8 is not supported");
         return;
     }
-    if ((cast_type_from_index == 2 || cast_type_from_index == 3) && (cast_type_to_index == 0 || cast_type_to_index == 1))
+    if ((cast_type_from_index == 2 || cast_type_from_index == 3) && (cast_type_to_index == 0 || cast_type_to_index == 1 || cast_type_to_index == 4))
     {
-        NCNN_LOGE("convert_packing from int32/int8 to fp32/fp16 is not supported");
+        NCNN_LOGE("convert_packing from int32/int8 to fp32/fp16/bf16 is not supported");
+        return;
+    }
+    if (cast_type_from_index == 1 && cast_type_to_index == 4)
+    {
+        NCNN_LOGE("convert_packing from fp16 to bf16 is not supported");
+        return;
+    }
+    if (cast_type_from_index == 4 && cast_type_to_index == 1)
+    {
+        NCNN_LOGE("convert_packing from bf16 to fp16 is not supported");
         return;
     }
 
@@ -4321,6 +4399,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
     opt2.use_int8_packed = (cast_type_from_index == 3 || cast_type_to_index == 3);
     opt2.use_int8_storage = (cast_type_from_index == 3 || cast_type_to_index == 3) && info.support_int8_storage();
+    opt2.use_bf16_packed = (cast_type_from_index == 4 || cast_type_to_index == 4);
+    opt2.use_bf16_storage = (cast_type_from_index == 4 || cast_type_to_index == 4) && info.support_bf16_storage();
 
     const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt2);
@@ -4625,7 +4705,19 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     DefinitionCollector custom_defines;
     DefinitionCollector device_defines;
 
-    if (opt.use_fp16_storage)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("sfp", "bfloat16_t");
+        custom_defines.append("sfpvec2", "bf16vec2");
+        custom_defines.append("sfpvec4", "bf16vec4");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        custom_defines.append("sfp", "uint");
+        custom_defines.append("sfpvec2", "uint");
+        custom_defines.append("sfpvec4", "uvec2");
+    }
+    else if (opt.use_fp16_storage)
     {
         custom_defines.append("sfp", "float16_t");
         custom_defines.append("sfpvec2", "f16vec2");
@@ -4675,6 +4767,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp", "float");
         custom_defines.append("lfpvec4", "uint64_t");
     }
+    else if (opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        custom_defines.append("lfp", "float");
+        custom_defines.append("lfpvec4", "uvec2");
+    }
     else if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
         custom_defines.append("lfp", "float");
@@ -4686,7 +4783,19 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfpvec4", "vec4");
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("sfp2lfp(v)", "v");
+        custom_defines.append("sfp2lfpvec4(v)", "v");
+
+        custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("lfp2afpvec4(v)", "v");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        // FIXME TODO
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.append("sfp2lfp(v)", "v");
         custom_defines.append("sfp2lfpvec4(v)", "v");
@@ -4735,7 +4844,25 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp2afpvec4(v)", "v");
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
+        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=bfloat16_t(v);}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
+        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=bf16vec2(v);}");
+        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
+        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=bf16vec4(v);}");
+        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        // FIXME TODO
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
         custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
@@ -4870,7 +4997,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
-    if (opt.use_fp16_storage)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("NCNN_bf16_storage", 1);
+    }
+    else if (opt.use_bf16_packed)
+    {
+        custom_defines.append("NCNN_bf16_packed", 1);
+    }
+    else if (opt.use_fp16_storage)
     {
         custom_defines.append("NCNN_fp16_storage", 1);
     }
@@ -5488,6 +5623,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (support_shader_int64)
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
+    }
+    if (opt.use_bf16_storage)
+    {
+        custom_exts += "#extension GL_EXT_bfloat16: require\n";
     }
     if (opt.use_fp16_storage)
     {
