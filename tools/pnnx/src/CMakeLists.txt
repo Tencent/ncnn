@@ -363,6 +363,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_noop_slice.cpp
+    pass_level5/eliminate_noop_permute.cpp
     pass_level5/eliminate_noop_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eliminate_type_as.cpp
