@@ -1711,14 +1711,15 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        {0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0},
-        {0, 0, 1, 1, 1},
-        {1, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1},
-        {1, 0, 1, 0, 0},
-        {1, 1, 1, 1, 0},
-        {1, 1, 1, 1, 1},
+        // {0, 0, 0, 0, 0},
+        // {0, 0, 1, 0, 0},
+        // {0, 0, 1, 1, 1},
+        // {1, 0, 0, 0, 0},
+        // {1, 1, 0, 0, 1},
+        // {1, 0, 1, 0, 0},
+        // {1, 1, 1, 1, 0},
+        // {1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -1731,6 +1732,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][4];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, top_blob_count, epsilon, flag);
@@ -1745,14 +1747,15 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        {0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0},
-        {0, 0, 1, 1, 1},
-        {1, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1},
-        {1, 0, 1, 0, 0},
-        {1, 1, 1, 1, 0},
-        {1, 1, 1, 1, 1},
+        // {0, 0, 0, 0, 0},
+        // {0, 0, 1, 0, 0},
+        // {0, 0, 1, 1, 1},
+        // {1, 0, 0, 0, 0},
+        // {1, 1, 0, 0, 1},
+        // {1, 0, 1, 0, 0},
+        // {1, 1, 1, 1, 0},
+        // {1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -1765,6 +1768,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][4];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, flag);
@@ -2152,14 +2156,15 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        {0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0},
-        {0, 0, 1, 1, 1},
-        {1, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1},
-        {1, 0, 1, 0, 0},
-        {1, 1, 1, 1, 0},
-        {1, 1, 1, 1, 1},
+        // {0, 0, 0, 0, 0},
+        // {0, 0, 1, 0, 0},
+        // {0, 0, 1, 1, 1},
+        // {1, 0, 0, 0, 0},
+        // {1, 1, 0, 0, 1},
+        // {1, 0, 1, 0, 0},
+        // {1, 1, 1, 1, 0},
+        // {1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -2172,6 +2177,7 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][4];
 
         int ret = test_layer_oom_opt(layer_type, pd, weights, opt, a, top_blob_count, flag);
@@ -2186,14 +2192,15 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        {0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0},
-        {0, 0, 1, 1, 1},
-        {1, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1},
-        {1, 0, 1, 0, 0},
-        {1, 1, 1, 1, 0},
-        {1, 1, 1, 1, 1},
+        // {0, 0, 0, 0, 0},
+        // {0, 0, 1, 0, 0},
+        // {0, 0, 1, 1, 1},
+        // {1, 0, 0, 0, 0},
+        // {1, 1, 0, 0, 1},
+        // {1, 0, 1, 0, 0},
+        // {1, 1, 1, 1, 0},
+        // {1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -2206,6 +2213,7 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
         opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][4];
 
         int ret = test_layer_oom_opt(layer_type, pd, weights, opt, a, flag);

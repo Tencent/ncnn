@@ -60,7 +60,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     size_t A_elemsize;
     size_t B_elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         A_elemsize = A_elempack * 2u;
         B_elemsize = B_elempack * 2u;

@@ -90,7 +90,7 @@ int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const
 {
     const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
-    pretty_print(bottom_top_blob, cmd, opt);
+    // pretty_print(bottom_top_blob, cmd, opt);
 
     std::vector<VkMat> bindings(1);
     bindings[0] = bottom_top_blob;
@@ -104,7 +104,7 @@ int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline_absval, bindings, constants, dispatcher);
 
-    pretty_print(bottom_top_blob, cmd, opt);
+    // pretty_print(bottom_top_blob, cmd, opt);
 
     return 0;
 }

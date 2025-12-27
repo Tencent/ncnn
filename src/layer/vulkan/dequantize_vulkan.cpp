@@ -30,7 +30,7 @@ int Dequantize_vulkan::create_pipeline(const Option& opt)
 
     const size_t elemsize = elempack * 4u;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         out_elemsize = elempack * 2u;
     }

@@ -229,6 +229,9 @@ int main()
 {
     SRAND(7767517);
 
+    // ncnn::Mat a = RandomMat(36, 30, 32, 51);
+    // return test_slice(a, IntArray(-233, -233, -233), 0);
+
     return 0
            || test_slice_0()
            || test_slice_1()
