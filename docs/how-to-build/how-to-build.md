@@ -382,6 +382,7 @@ mkdir -p build-arm-linux-gnueabi
 cd build-arm-linux-gnueabi
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch32 target with hard float (arm-linux-gnueabihf)
@@ -391,6 +392,7 @@ mkdir -p build-arm-linux-gnueabihf
 cd build-arm-linux-gnueabihf
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch64 GNU/Linux target (aarch64-linux-gnu)
@@ -400,6 +402,7 @@ mkdir -p build-aarch64-linux-gnu
 cd build-aarch64-linux-gnu
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 ***
