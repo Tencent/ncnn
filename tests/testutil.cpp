@@ -1711,10 +1711,10 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        // {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
         // {0, 0, 1, 0, 0},
         // {0, 0, 1, 1, 1},
-        // {1, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0},
         // {1, 1, 0, 0, 1},
         // {1, 0, 1, 0, 0},
         // {1, 1, 1, 1, 0},
@@ -1747,10 +1747,10 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        // {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
         // {0, 0, 1, 0, 0},
         // {0, 0, 1, 1, 1},
-        // {1, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0},
         // {1, 1, 0, 0, 1},
         // {1, 0, 1, 0, 0},
         // {1, 1, 1, 1, 0},
@@ -2156,10 +2156,10 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        // {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
         // {0, 0, 1, 0, 0},
         // {0, 0, 1, 1, 1},
-        // {1, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0},
         // {1, 1, 0, 0, 1},
         // {1, 0, 1, 0, 0},
         // {1, 1, 1, 1, 0},
@@ -2192,10 +2192,10 @@ int test_layer_oom(const char* layer_type, const ncnn::ParamDict& pd, const std:
 {
     // pack fp16p fp16s fp16a bf16s
     const int options[][5] = {
-        // {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
         // {0, 0, 1, 0, 0},
         // {0, 0, 1, 1, 1},
-        // {1, 0, 0, 0, 0},
+        {1, 0, 0, 0, 0},
         // {1, 1, 0, 0, 1},
         // {1, 0, 1, 0, 0},
         // {1, 1, 1, 1, 0},

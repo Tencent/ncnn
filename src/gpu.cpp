@@ -3111,9 +3111,9 @@ public:
     // to int8
     // to pack1 | pack4
     mutable ncnn::Layer* uop_packing_int8[2];
-    // from fp32 to bf16 / from bf16 to fp32
+    // from fp32 to bf16 / from bf16 to fp32 / bf16
     // to pack1 | pack4
-    mutable ncnn::Layer* uop_packing_bf16[2][2];
+    mutable ncnn::Layer* uop_packing_bf16[3][2];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3193,8 +3193,18 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     }
     else if (use_bf16)
     {
-        const int convert_index = cast_type_to_index == 4 ? 0 : 1;
-        cached_uop = uop_packing_bf16[convert_index][packing_type_to_index];
+        if (cast_type_from_index == 4 && cast_type_to_index == 4)
+        {
+            cached_uop = uop_packing_bf16[2][packing_type_to_index];
+        }
+        else if (cast_type_to_index == 4)
+        {
+            cached_uop = uop_packing_bf16[1][packing_type_to_index];
+        }
+        else // if (cast_type_from_index == 4)
+        {
+            cached_uop = uop_packing_bf16[0][packing_type_to_index];
+        }
     }
     else
     {
@@ -3245,8 +3255,18 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     }
     else if (use_bf16)
     {
-        const int convert_index = cast_type_to_index == 4 ? 0 : 1;
-        uop_packing_bf16[convert_index][packing_type_to_index] = uop;
+        if (cast_type_from_index == 4 && cast_type_to_index == 4)
+        {
+            uop_packing_bf16[2][packing_type_to_index] = uop;
+        }
+        else if (cast_type_to_index == 4)
+        {
+            uop_packing_bf16[1][packing_type_to_index] = uop;
+        }
+        else // if (cast_type_from_index == 4)
+        {
+            uop_packing_bf16[0][packing_type_to_index] = uop;
+        }
     }
     else
     {
@@ -3325,7 +3345,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
 
     // from fp32 to bf16
     // from bf16 to fp32
-    for (int j = 0; j < 2; j++)
+    // bf16
+    for (int j = 0; j < 3; j++)
     {
         bool use_bf16 = true;
 
@@ -4712,8 +4733,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sfpvec2", "uint");
         custom_defines.append("sfpvec4", "uvec2");
 
-        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat((v>>16)<<16))");
-        custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|((floatBitsToUint(v.y)>>16)<<16))");
+        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))");
+        custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|(floatBitsToUint(v.y)&0xffff0000u))");
     }
     else if (opt.use_fp16_storage)
     {
