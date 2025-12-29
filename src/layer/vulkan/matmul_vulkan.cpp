@@ -284,7 +284,8 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 a_d = A.d;
                 a_c = A.c;
             }
-            else if (Adims == 3) {
+            else if (Adims == 3)
+            {
                 a_d = A.c;
                 a_c = 1;
             }
@@ -304,7 +305,8 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 b_d = B.c;
                 b_c = 1;
             }
-            else {
+            else
+            {
                 b_d = 1;
                 b_c = 1;
             }
