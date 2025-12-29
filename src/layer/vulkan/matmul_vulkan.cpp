@@ -1,4 +1,4 @@
-// Copyright 2023 Tencent
+// Copyright 2025 pchar.cn
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "matmul_vulkan.h"
