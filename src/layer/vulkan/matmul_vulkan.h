@@ -1,4 +1,4 @@
-// Copyright 2025 pchar.cn
+// Copyright 2025 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_MATMUL_VULKAN_H

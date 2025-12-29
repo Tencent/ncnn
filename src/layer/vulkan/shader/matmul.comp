@@ -1,4 +1,4 @@
-// Copyright 2025 pchar.cn
+// Copyright 2025 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -91,30 +91,10 @@ void main()
         const int a_base = ac * p.a_cstep + ad * p.a_dstep;
         const int b_base = bc0 * p.b_cstep + bd0 * p.b_dstep;
 
-        bool in_m0; // = (m0 < p.out_h);
-        bool in_m1; // = (m0 + 1 < p.out_h);
-        bool in_n0; // = (n0 < p.out_w);
-        bool in_n1; // = (n0 + 1 < p.out_w);
-
-        if (m0 < p.out_h)
-            in_m0 = true;
-        else
-            in_m0 = false;
-
-        if (m0 + 1 < p.out_h)
-            in_m1 = true;
-        else
-            in_m1 = false;
-
-        if (n0 < p.out_w)
-            in_n0 = true;
-        else
-            in_n0 = false;
-
-        if (n0 + 1 < p.out_w)
-            in_n1 = true;
-        else
-            in_n1 = false;
+        bool in_m0 = (m0 < p.out_h);
+        bool in_m1 = (m0 + 1 < p.out_h);
+        bool in_n0 = (n0 < p.out_w);
+        bool in_n1 = (n0 + 1 < p.out_w);
 
         afp sum00 = afp(0.0);
         afp sum01 = afp(0.0);
@@ -130,9 +110,9 @@ void main()
             if (ak < p.K)
             {
                 if (in_m0)
-                a0 = lfp(buffer_ld1(a_blob_data, a_base + m0 * p.a_w + ak));
+                    a0 = lfp(buffer_ld1(a_blob_data, a_base + m0 * p.a_w + ak));
                 if (in_m1)
-                a1 = lfp(buffer_ld1(a_blob_data, a_base + (m0 + 1) * p.a_w + ak));
+                    a1 = lfp(buffer_ld1(a_blob_data, a_base + (m0 + 1) * p.a_w + ak));
             }
             tmp_a[ly][lx][0] = a0;
             tmp_a[ly][lx][1] = a1;
@@ -146,9 +126,9 @@ void main()
                 {
                     int b_idx0;
                     if (transB == 0)
-                    b_idx0 = b_base + bk * p.b_w + n0;
+                        b_idx0 = b_base + bk * p.b_w + n0;
                     else
-                    b_idx0 = b_base + n0 * p.b_w + bk;
+                        b_idx0 = b_base + n0 * p.b_w + bk;
                     b0 = lfp(buffer_ld1(b_blob_data, b_idx0));
                 }
 
