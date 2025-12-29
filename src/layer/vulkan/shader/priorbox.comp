@@ -19,7 +19,7 @@ layout (constant_id = 10) const int num_prior = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
 layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
 #else
 layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
@@ -73,7 +73,7 @@ void main()
     box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
     box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
     top_blob_data[v_offset] = vec4(box);
     top_blob_data[var_offset] = vec4(variances);
 #else
@@ -94,7 +94,7 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         top_blob_data[v_offset] = vec4(box);
         top_blob_data[var_offset] = vec4(variances);
 #else
@@ -117,7 +117,7 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         top_blob_data[v_offset] = vec4(box);
         top_blob_data[var_offset] = vec4(variances);
 #else
@@ -133,7 +133,7 @@ void main()
             box = (center + afpvec4(-box_h, -box_w, box_h, box_w) * afp(0.5f)) * image_norm;
             box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
             top_blob_data[v_offset] = vec4(box);
             top_blob_data[var_offset] = vec4(variances);
 #else

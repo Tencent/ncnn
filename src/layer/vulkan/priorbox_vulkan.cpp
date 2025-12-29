@@ -202,7 +202,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     size_t elemsize = 4u;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         elemsize = 2u;
     }

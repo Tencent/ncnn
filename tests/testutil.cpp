@@ -1709,16 +1709,17 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16s
+    // pack fp16p fp16s fp16a bf16p/bf16s
     const int options[][5] = {
         {0, 0, 0, 0, 0},
-        // {0, 0, 1, 0, 0},
-        // {0, 0, 1, 1, 1},
+        {0, 1, 0, 0, 0},
+        {0, 1, 0, 1, 0},
+        {0, 0, 1, 1, 0},
+        {0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0},
-        // {1, 1, 0, 0, 1},
-        // {1, 0, 1, 0, 0},
-        // {1, 1, 1, 1, 0},
-        // {1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 0},
+        {1, 1, 0, 1, 0},
+        {1, 0, 1, 1, 0},
         {1, 0, 0, 0, 1},
     };
 
@@ -1745,16 +1746,17 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16s
+    // pack fp16p fp16s fp16a bf16p/bf16s
     const int options[][5] = {
         {0, 0, 0, 0, 0},
-        // {0, 0, 1, 0, 0},
-        // {0, 0, 1, 1, 1},
+        {0, 1, 0, 0, 0},
+        {0, 1, 0, 1, 0},
+        {0, 0, 1, 1, 0},
+        {0, 0, 0, 0, 1},
         {1, 0, 0, 0, 0},
-        // {1, 1, 0, 0, 1},
-        // {1, 0, 1, 0, 0},
-        // {1, 1, 1, 1, 0},
-        // {1, 1, 1, 1, 1},
+        {1, 1, 0, 0, 0},
+        {1, 1, 0, 1, 0},
+        {1, 0, 1, 1, 0},
         {1, 0, 0, 0, 1},
     };
 

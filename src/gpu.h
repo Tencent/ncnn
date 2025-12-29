@@ -282,7 +282,7 @@ public:
 
     // bf16 feature
     bool support_bf16_packed() const;
-    bool support_bf16_storage() const;
+    bool support_bf16_storage() const; // bf16s implies bf16u
 
     // r16f and r8s format in storage image
     bool support_fp16_image() const;
