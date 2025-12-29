@@ -4844,7 +4844,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
-        custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i])");
+        custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
 
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
         custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
