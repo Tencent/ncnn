@@ -47,11 +47,11 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/install/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/install/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
       uses: codecov/codecov-action@v5
@@ -101,10 +101,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: build-openmp
       run: |
         mkdir build-openmp && cd build-openmp
@@ -131,10 +131,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build-openmp
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v5
       with:
@@ -215,10 +215,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v5
       with:
@@ -275,10 +275,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v5
       with:
@@ -318,11 +318,11 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/install/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent --gcov-tool /data/action/osd/riscv/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/install/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
       uses: codecov/codecov-action@v5
@@ -350,10 +350,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
       uses: codecov/codecov-action@v5
@@ -408,10 +408,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
       uses: codecov/codecov-action@v5
@@ -544,10 +544,10 @@ jobs:
     - name: lcov-collect
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: build-openmp
       run: |
@@ -567,10 +567,10 @@ jobs:
     - name: lcov-collect-openmp
       run: |
         cd build-openmp
-        lcov -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-openmp/*' -o lcov.info
-        lcov --list lcov.info
+        lcov --ignore-errors inconsistent -d ./src -c -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '/usr/*' -o lcov.info
+        lcov --ignore-errors inconsistent -r lcov.info '*/build-openmp/*' -o lcov.info
+        lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
       uses: codecov/codecov-action@v5
