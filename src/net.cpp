@@ -1065,10 +1065,6 @@ int Net::load_param(const DataReader& dr)
     d->blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    // if (opt.use_bf16_storage)
-    // opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1372,10 +1368,6 @@ int Net::load_param_bin(const DataReader& dr)
     d->blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    // if (opt.use_bf16_storage)
-    // opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)

@@ -361,7 +361,6 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         // cpu cast to fp16 (discrete gpu)
         if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
         {
-            NCNN_LOGE("cast_float32_to_bfloat16");
             ncnn::cast_float32_to_bfloat16(src, src_fp16, opt);
         }
         else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
@@ -1998,7 +1997,7 @@ int VkCompute::submit_and_wait()
         }
         case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
         {
-            NCNN_LOGE("post_cast_bfloat16_to_float32");
+            // NCNN_LOGE("post_cast_bfloat16_to_float32");
 
             const Mat& src = d->download_post_mats_fp16[r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset];
             Mat& dst = d->download_post_mats[r.post_cast_bfloat16_to_float32.download_post_mat_offset];

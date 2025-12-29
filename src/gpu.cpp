@@ -4733,6 +4733,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sfpvec2", "uint");
         custom_defines.append("sfpvec4", "uvec2");
 
+        // define pack and unpack macro for bf16p
         custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))");
         custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|(floatBitsToUint(v.y)&0xffff0000u))");
     }
@@ -4786,7 +4787,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp", "float");
         custom_defines.append("lfpvec4", "uint64_t");
     }
-    else if (opt.use_bf16_storage || opt.use_bf16_packed)
+    else if (opt.use_bf16_storage)
+    {
+        custom_defines.append("lfp", "float");
+        custom_defines.append("lfpvec4", "uint64_t");
+    }
+    else if (opt.use_bf16_packed)
     {
         custom_defines.append("lfp", "float");
         custom_defines.append("lfpvec4", "uvec2");
@@ -4805,10 +4811,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_bf16_storage)
     {
         custom_defines.append("sfp2lfp(v)", "v");
-        custom_defines.append("sfp2lfpvec4(v)", "v");
+        custom_defines.append("sfp2lfpvec4(v)", "pack64(bfloat16BitsToUintEXT(v))");
 
         custom_defines.append("lfp2afp(v)", "v");
-        custom_defines.append("lfp2afpvec4(v)", "v");
+        custom_defines.append("lfp2afpvec4(v)", "uintBitsToBFloat16EXT(unpack16(v))");
     }
     else if (opt.use_bf16_packed)
     {
@@ -4890,7 +4896,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.r])[_si4m2.r],unpackBFloat2x16(sbuf[_si4d2.g])[_si4m2.g])),packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.b])[_si4m2.b],unpackBFloat2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
 
         custom_defines.append("buffer_ld2(buf,i)", "unpackBFloat2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packBFloat2x16(v)}");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packBFloat2x16(v);}");
         custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackBFloat2x16(buf[i].x),unpackBFloat2x16(buf[i].y))");
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba));}");
@@ -4954,7 +4960,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
 
         custom_defines.append("buffer_ld2(buf,i)", "unpackHalf2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v)}");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v);}");
         custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))");
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}");
@@ -5649,8 +5655,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_bf16_storage)
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }
