@@ -35,7 +35,10 @@ int MatMul_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-static inline int imax(int a, int b) { return a > b ? a : b; }
+static inline int imax(int a, int b)
+{
+    return a > b ? a : b;
+}
 
 int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
@@ -75,12 +78,26 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     if (Adims == 1 && Bdims == 1)
     {
         mode = 0;
-        K = A.w; M = 1; N = 1;
+        K = A.w;
+        M = 1;
+        N = 1;
 
-        a_w = K; a_h = 1; a_d = 1; a_c = 1;
-        if (transB == 0) { b_w = 1; b_h = K; }
-        else            { b_w = K; b_h = 1; }
-        b_d = 1; b_c = 1;
+        a_w = K;
+        a_h = 1;
+        a_d = 1;
+        a_c = 1;
+        if (transB == 0)
+        {
+            b_w = 1;
+            b_h = K;
+        }
+        else
+        {
+            b_w = K;
+            b_h = 1;
+        }
+        b_d = 1;
+        b_c = 1;
 
         out_dims = 1;
         out_w = 1;
@@ -88,21 +105,38 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     else if (Adims == 2 && Bdims == 2)
     {
         mode = 0;
-        M = A.h; K = A.w; N = transB == 0 ? B.w : B.h;
+        M = A.h;
+        K = A.w;
+        N = transB == 0 ? B.w : B.h;
 
-        a_w = A.w; a_h = A.h; a_d = 1; a_c = 1;
-        b_w = B.w; b_h = B.h; b_d = 1; b_c = 1;
+        a_w = A.w;
+        a_h = A.h;
+        a_d = 1;
+        a_c = 1;
+        b_w = B.w;
+        b_h = B.h;
+        b_d = 1;
+        b_c = 1;
 
         out_dims = 2;
-        out_w = N; out_h = M;
+        out_w = N;
+        out_h = M;
     }
     else if (Adims == 1 && Bdims == 2)
     {
         mode = 1;
-        K = A.w; M = 1; N = transB == 0 ? B.w : B.h;
+        K = A.w;
+        M = 1;
+        N = transB == 0 ? B.w : B.h;
 
-        a_w = K; a_h = 1; a_d = 1; a_c = 1;
-        b_w = B.w; b_h = B.h; b_d = 1; b_c = 1;
+        a_w = K;
+        a_h = 1;
+        a_d = 1;
+        a_c = 1;
+        b_w = B.w;
+        b_h = B.h;
+        b_d = 1;
+        b_c = 1;
 
         out_dims = 1;
         out_w = N;
@@ -110,12 +144,26 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     else if (Adims == 2 && Bdims == 1)
     {
         mode = 2;
-        M = A.h; K = A.w; N = 1;
+        M = A.h;
+        K = A.w;
+        N = 1;
 
-        a_w = A.w; a_h = A.h; a_d = 1; a_c = 1;
-        if (transB == 0) { b_w = 1; b_h = K; }
-        else            { b_w = K; b_h = 1; }
-        b_d = 1; b_c = 1;
+        a_w = A.w;
+        a_h = A.h;
+        a_d = 1;
+        a_c = 1;
+        if (transB == 0)
+        {
+            b_w = 1;
+            b_h = K;
+        }
+        else
+        {
+            b_w = K;
+            b_h = 1;
+        }
+        b_d = 1;
+        b_c = 1;
 
         out_dims = 1;
         out_w = M;
@@ -123,10 +171,16 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     else if (Adims == 1 && Bdims > 2)
     {
         mode = 1;
-        K = A.w; M = 1; N = transB == 0 ? B.w : B.h;
+        K = A.w;
+        M = 1;
+        N = transB == 0 ? B.w : B.h;
 
-        a_w = K; a_h = 1; a_d = 1; a_c = 1;
-        b_w = B.w; b_h = B.h;
+        a_w = K;
+        a_h = 1;
+        a_d = 1;
+        a_c = 1;
+        b_w = B.w;
+        b_h = B.h;
         b_c = get_c(B);
         b_d = get_d(B);
 
@@ -147,15 +201,27 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     else if (Adims > 2 && Bdims == 1)
     {
         mode = 2;
-        M = A.h; K = A.w; N = 1;
+        M = A.h;
+        K = A.w;
+        N = 1;
 
-        a_w = A.w; a_h = A.h;
+        a_w = A.w;
+        a_h = A.h;
         a_c = get_c(A);
         a_d = get_d(A);
 
-        if (transB == 0) { b_w = 1; b_h = K; }
-        else            { b_w = K; b_h = 1; }
-        b_d = 1; b_c = 1;
+        if (transB == 0)
+        {
+            b_w = 1;
+            b_h = K;
+        }
+        else
+        {
+            b_w = K;
+            b_h = 1;
+        }
+        b_d = 1;
+        b_c = 1;
 
         if (Adims == 3)
         {
@@ -179,8 +245,10 @@ int MatMul_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         K = A.w;
         N = transB == 0 ? B.w : B.h;
 
-        a_w = A.w; a_h = A.h;
-        b_w = B.w; b_h = B.h;
+        a_w = A.w;
+        a_h = A.h;
+        b_w = B.w;
+        b_h = B.h;
 
         if (max_ABdims == 3)
         {
