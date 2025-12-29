@@ -857,6 +857,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
 
+    if (opt.use_bf16_packed || opt.use_bf16_storage)
+    {
+        // winograd produce large error
+        opt.use_winograd_convolution = false;
+    }
+
     op->create_pipeline(opt);
 
     if (!op->support_vulkan)
@@ -1317,6 +1323,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
+
+    if (opt.use_bf16_packed || opt.use_bf16_storage)
+    {
+        // winograd produce large error
+        opt.use_winograd_convolution = false;
+    }
 
     op->create_pipeline(opt);
 
