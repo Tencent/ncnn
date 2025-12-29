@@ -1,8 +1,11 @@
+// Copyright 2023 pchar.cn
+// SPDX-License-Identifier: BSD-3-Clause
+
 #version 450
 
-layout(constant_id = 0) const int transB = 0;
+#define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(constant_id = 0) const int transB = 0;
 
 layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 1) readonly  buffer a_blob   { sfp a_blob_data[]; };
@@ -38,14 +41,247 @@ layout (push_constant) uniform parameter
     int b_dstep;
 } p;
 
+#if NCNN_shader_local_memory
+shared lfp tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
+shared lfp tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+#endif
+
 void main()
 {
-    const int x = int(gl_GlobalInvocationID.x);
-    const int y = int(gl_GlobalInvocationID.y);
-    const int z = int(gl_GlobalInvocationID.z);
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (p.mode == 0 && p.out_dims >= 2)
+    {
+        if (p.out_dims == 3)
+        {
+            if (gz >= p.out_c) return;
+        }
+        else if (p.out_dims == 4)
+        {
+            if (gz >= p.out_c * p.out_d) return;
+        }
+
+        const int lx = int(gl_LocalInvocationID.x);
+        const int ly = int(gl_LocalInvocationID.y);
+
+        const int n0 = gx * 2;
+        const int m0 = gy * 2;
+
+        int bc = 0;
+        int bd = 0;
+
+        if (p.out_dims == 4)
+        {
+            bc = gz / p.out_d;
+            bd = gz - bc * p.out_d;
+        }
+        else if (p.out_dims == 3)
+        {
+            bc = gz;
+            bd = 0;
+        }
+
+        const int ac  = (p.a_c == 1) ? 0 : bc;
+        const int ad  = (p.a_d == 1) ? 0 : bd;
+        const int bc0 = (p.b_c == 1) ? 0 : bc;
+        const int bd0 = (p.b_d == 1) ? 0 : bd;
+
+        const int a_base = ac * p.a_cstep + ad * p.a_dstep;
+        const int b_base = bc0 * p.b_cstep + bd0 * p.b_dstep;
+
+        bool in_m0; // = (m0 < p.out_h);
+        bool in_m1; // = (m0 + 1 < p.out_h);
+        bool in_n0; // = (n0 < p.out_w);
+        bool in_n1; // = (n0 + 1 < p.out_w);
+
+        if (m0 < p.out_h)
+            in_m0 = true;
+        else
+            in_m0 = false;
+
+        if (m0 + 1 < p.out_h)
+            in_m1 = true;
+        else
+            in_m1 = false;
+
+        if (n0 < p.out_w)
+            in_n0 = true;
+        else
+            in_n0 = false;
+
+        if (n0 + 1 < p.out_w)
+            in_n1 = true;
+        else
+            in_n1 = false;
+
+        afp sum00 = afp(0.0);
+        afp sum01 = afp(0.0);
+        afp sum10 = afp(0.0);
+        afp sum11 = afp(0.0);
+
+        for (int k0 = 0; k0 < p.K; k0 += LOCAL_MEMORY_UNROLL_INCH)
+        {
+#if NCNN_shader_local_memory
+            lfp a0 = lfp(0.0);
+            lfp a1 = lfp(0.0);
+            const int ak = k0 + lx;
+            if (ak < p.K)
+            {
+                if (in_m0)
+                a0 = lfp(buffer_ld1(a_blob_data, a_base + m0 * p.a_w + ak));
+                if (in_m1)
+                a1 = lfp(buffer_ld1(a_blob_data, a_base + (m0 + 1) * p.a_w + ak));
+            }
+            tmp_a[ly][lx][0] = a0;
+            tmp_a[ly][lx][1] = a1;
+
+            lfp b0 = lfp(0.0);
+            lfp b1 = lfp(0.0);
+            const int bk = k0 + ly;
+            if (bk < p.K)
+            {
+                if (in_n0)
+                {
+                    int b_idx0;
+                    if (transB == 0)
+                    b_idx0 = b_base + bk * p.b_w + n0;
+                    else
+                    b_idx0 = b_base + n0 * p.b_w + bk;
+                    b0 = lfp(buffer_ld1(b_blob_data, b_idx0));
+                }
+
+                if (in_n1)
+                {
+                    int b_idx1;
+                    if (transB == 0)
+                    b_idx1 = b_base + bk * p.b_w + (n0 + 1);
+                    else
+                    b_idx1 = b_base + (n0 + 1) * p.b_w + bk;
+                    b1 = lfp(buffer_ld1(b_blob_data, b_idx1));
+                }
+            }
+            tmp_b[lx][ly][0] = b0;
+            tmp_b[lx][ly][1] = b1;
+
+            barrier();
+
+            // Compute 2x2 block.
+            for (int kk = 0; kk < LOCAL_MEMORY_UNROLL_INCH; kk++)
+            {
+                const afp A0 = afp(tmp_a[ly][kk][0]);
+                const afp A1 = afp(tmp_a[ly][kk][1]);
+                const afp B0 = afp(tmp_b[lx][kk][0]);
+                const afp B1 = afp(tmp_b[lx][kk][1]);
+
+                sum00 = sum00 + A0 * B0;
+                sum01 = sum01 + A0 * B1;
+                sum10 = sum10 + A1 * B0;
+                sum11 = sum11 + A1 * B1;
+            }
+
+            barrier();
+#else
+            for (int kk = 0; kk < LOCAL_MEMORY_UNROLL_INCH; kk++)
+            {
+                const int k = k0 + kk;
+                if (k >= p.K)
+                    break;
+
+                afp A0 = afp(0.0);
+                afp A1 = afp(0.0);
+                if (in_m0) A0 = buffer_ld1(a_blob_data, a_base + m0 * p.a_w + k);
+                if (in_m1) A1 = buffer_ld1(a_blob_data, a_base + (m0 + 1) * p.a_w + k);
+
+                afp B0 = afp(0.0);
+                afp B1 = afp(0.0);
+
+                if (in_n0)
+                {
+                    int b_idx0;
+                    if (transB == 0)
+                        b_idx0 = b_base + k * p.b_w + n0;
+                    else
+                        b_idx0 = b_base + n0 * p.b_w + k;
+                    B0 = buffer_ld1(b_blob_data, b_idx0);
+                }
+                if (in_n1)
+                {
+                    int b_idx1;
+                    if (transB == 0)
+                        b_idx1 = b_base + k * p.b_w + (n0 + 1);
+                    else
+                        b_idx1 = b_base + (n0 + 1) * p.b_w + k;
+                    B1 = buffer_ld1(b_blob_data, b_idx1);
+                }
+
+                sum00 = sum00 + A0 * B0;
+                sum01 = sum01 + A0 * B1;
+                sum10 = sum10 + A1 * B0;
+                sum11 = sum11 + A1 * B1;
+            }
+#endif
+        }
+
+        if (in_m0 && in_n0)
+        {
+            int out_index;
+            if (p.out_dims == 2)
+                out_index = m0 * p.out_w + n0;
+            else if (p.out_dims == 3)
+                out_index = gz * p.out_cstep + m0 * p.out_w + n0;
+            else
+                out_index = bc * p.out_cstep + bd * p.out_dstep + m0 * p.out_w + n0;
+
+            buffer_st1(top_blob_data, out_index, sum00);
+        }
+        if (in_m0 && in_n1)
+        {
+            int out_index;
+            if (p.out_dims == 2)
+                out_index = m0 * p.out_w + (n0 + 1);
+            else if (p.out_dims == 3)
+                out_index = gz * p.out_cstep + m0 * p.out_w + (n0 + 1);
+            else
+                out_index = bc * p.out_cstep + bd * p.out_dstep + m0 * p.out_w + (n0 + 1);
+
+            buffer_st1(top_blob_data, out_index, sum01);
+        }
+        if (in_m1 && in_n0)
+        {
+            int out_index;
+            if (p.out_dims == 2)
+                out_index = (m0 + 1) * p.out_w + n0;
+            else if (p.out_dims == 3)
+                out_index = gz * p.out_cstep + (m0 + 1) * p.out_w + n0;
+            else
+                out_index = bc * p.out_cstep + bd * p.out_dstep + (m0 + 1) * p.out_w + n0;
+
+            buffer_st1(top_blob_data, out_index, sum10);
+        }
+        if (in_m1 && in_n1)
+        {
+            int out_index;
+            if (p.out_dims == 2)
+                out_index = (m0 + 1) * p.out_w + (n0 + 1);
+            else if (p.out_dims == 3)
+                out_index = gz * p.out_cstep + (m0 + 1) * p.out_w + (n0 + 1);
+            else
+                out_index = bc * p.out_cstep + bd * p.out_dstep + (m0 + 1) * p.out_w + (n0 + 1);
+
+            buffer_st1(top_blob_data, out_index, sum11);
+        }
+
+        return;
+    }
+
+    const int x = gx;
+    const int y = gy;
+    const int z = gz;
 
     if (x >= p.out_w || y >= p.out_h)
-    return;
+        return;
 
     int bc = 0;
     int bd = 0;
@@ -121,17 +357,13 @@ void main()
 
     for (int k = 0; k < p.K; k++)
     {
-        const uint a_idx = uint(a_base + m * p.a_w + k);
+        const int a_idx = a_base + m * p.a_w + k;
 
-        uint b_idx;
+        int b_idx;
         if (transB == 0)
-        {
-            b_idx = uint(b_base + k * p.b_w + n);
-        }
+            b_idx = b_base + k * p.b_w + n;
         else
-        {
-            b_idx = uint(b_base + n * p.b_w + k);
-        }
+            b_idx = b_base + n * p.b_w + k;
 
         const afp av = buffer_ld1(a_blob_data, a_idx);
         const afp bv = buffer_ld1(b_blob_data, b_idx);
@@ -140,21 +372,13 @@ void main()
 
     int out_index = 0;
     if (p.out_dims == 1)
-    {
         out_index = x;
-    }
     else if (p.out_dims == 2)
-    {
         out_index = y * p.out_w + x;
-    }
     else if (p.out_dims == 3)
-    {
         out_index = z * p.out_cstep + y * p.out_w + x;
-    }
     else
-    {
         out_index = bc * p.out_cstep + bd * p.out_dstep + y * p.out_w + x;
-    }
 
-    buffer_st1(top_blob_data, uint(out_index), sum);
+    buffer_st1(top_blob_data, out_index, sum);
 }
