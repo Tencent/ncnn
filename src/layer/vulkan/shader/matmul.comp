@@ -1,0 +1,160 @@
+#version 450
+
+layout(constant_id = 0) const int transB = 0;
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 1) readonly  buffer a_blob   { sfp a_blob_data[]; };
+layout (binding = 2) readonly  buffer b_blob   { sfp b_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int mode;
+
+    int out_dims;
+    int out_w;
+    int out_h;
+    int out_d;
+    int out_c;
+    int out_cstep;
+    int out_dstep;
+
+    int a_w;
+    int a_h;
+    int a_d;
+    int a_c;
+    int a_cstep;
+    int a_dstep;
+
+    int b_w;
+    int b_h;
+    int b_d;
+    int b_c;
+    int b_cstep;
+    int b_dstep;
+} p;
+
+void main()
+{
+    const int x = int(gl_GlobalInvocationID.x);
+    const int y = int(gl_GlobalInvocationID.y);
+    const int z = int(gl_GlobalInvocationID.z);
+
+    if (x >= p.out_w || y >= p.out_h)
+    return;
+
+    int bc = 0;
+    int bd = 0;
+
+    int m = 0;
+    int n = 0;
+
+    if (p.mode == 0)
+    {
+        n = x;
+        m = y;
+
+        if (p.out_dims == 4)
+        {
+            const int batch_total = p.out_c * p.out_d;
+            if (z >= batch_total) return;
+
+            bc = z / p.out_d;
+            bd = z - bc * p.out_d;
+        }
+        else if (p.out_dims == 3)
+        {
+            if (z >= p.out_c) return;
+
+            bc = z;
+            bd = 0;
+        }
+    }
+    else if (p.mode == 1)
+    {
+        n = x;
+        m = 0;
+
+        if (p.out_dims == 3)
+        {
+            if (z >= p.out_c) return;
+            bc = z;
+            bd = y;
+        }
+        else if (p.out_dims == 2)
+        {
+            bc = y;
+            bd = 0;
+        }
+    }
+    else
+    {
+        n = 0;
+        m = x;
+
+        if (p.out_dims == 3)
+        {
+            if (z >= p.out_c) return;
+            bc = z;
+            bd = y;
+        }
+        else if (p.out_dims == 2)
+        {
+            bc = y;
+            bd = 0;
+        }
+    }
+
+    const int ac  = (p.a_c == 1) ? 0 : bc;
+    const int ad  = (p.a_d == 1) ? 0 : bd;
+    const int bc0 = (p.b_c == 1) ? 0 : bc;
+    const int bd0 = (p.b_d == 1) ? 0 : bd;
+
+    const int a_base = ac * p.a_cstep + ad * p.a_dstep;
+    const int b_base = bc0 * p.b_cstep + bd0 * p.b_dstep;
+
+    afp sum = afp(0.0);
+
+    for (int k = 0; k < p.K; k++)
+    {
+        const uint a_idx = uint(a_base + m * p.a_w + k);
+
+        uint b_idx;
+        if (transB == 0)
+        {
+            b_idx = uint(b_base + k * p.b_w + n);
+        }
+        else
+        {
+            b_idx = uint(b_base + n * p.b_w + k);
+        }
+
+        const afp av = buffer_ld1(a_blob_data, a_idx);
+        const afp bv = buffer_ld1(b_blob_data, b_idx);
+        sum = sum + av * bv;
+    }
+
+    int out_index = 0;
+    if (p.out_dims == 1)
+    {
+        out_index = x;
+    }
+    else if (p.out_dims == 2)
+    {
+        out_index = y * p.out_w + x;
+    }
+    else if (p.out_dims == 3)
+    {
+        out_index = z * p.out_cstep + y * p.out_w + x;
+    }
+    else
+    {
+        out_index = bc * p.out_cstep + bd * p.out_dstep + y * p.out_w + x;
+    }
+
+    buffer_st1(top_blob_data, uint(out_index), sum);
+}
