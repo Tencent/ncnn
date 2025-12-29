@@ -5092,6 +5092,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     custom_defines.append("ncnn_glsl_version", 1);
 
     bool support_shader_int64 = false;
+    bool support_shader_int16 = false;
 
     // fill device macros
     {
@@ -5102,6 +5103,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         const GpuInfo& info = get_gpu_info(device_index);
 
         support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
+        support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
         // pull in device extensions
         {
@@ -5661,6 +5663,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
+    if (support_shader_int16)
+    {
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
+    }
     if (opt.use_bf16_storage)
     {
         custom_exts += "#extension GL_EXT_bfloat16: require\n";
@@ -5668,7 +5674,6 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
-        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
     }
     if (opt.use_fp16_arithmetic)
     {

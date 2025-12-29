@@ -104,8 +104,9 @@ static Option get_masked_option(const Option& opt, int featmask)
     // mask option usage as layer specific featmask
     Option opt1 = opt;
     opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
-    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
     opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_bf16_packed = opt1.use_bf16_storage && !(featmask & (1 << 2));
     opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
     opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
     opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
