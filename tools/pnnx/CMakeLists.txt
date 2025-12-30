@@ -118,6 +118,7 @@ if(TARGET protobuf::protoc AND PROTOBUF_PROTOC_EXECUTABLE)
     set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
     set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_DEBUG "${PROTOBUF_PROTOC_EXECUTABLE}")
     set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELWITHDEBINFO "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_MINSIZEREL "${PROTOBUF_PROTOC_EXECUTABLE}")
 endif()
 
 # https://github.com/supertone-inc/onnxruntime-build
