@@ -111,6 +111,15 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
     endif()
 endif()
 
+if(TARGET protobuf::protoc AND PROTOBUF_PROTOC_EXECUTABLE)
+    message(STATUS "Force overriding protobuf::protoc to host executable: ${PROTOBUF_PROTOC_EXECUTABLE}")
+
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_DEBUG "${PROTOBUF_PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELWITHDEBINFO "${PROTOBUF_PROTOC_EXECUTABLE}")
+endif()
+
 # https://github.com/supertone-inc/onnxruntime-build
 set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 find_library(onnxruntime_LIB NAMES onnxruntime PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib)
