@@ -18,7 +18,7 @@ namespace ncnn {
 class PipelinePrivate
 {
 public:
-    VkShaderModule shader_module;
+    VkShaderModule shader_module = VK_NULL_HANDLE;
     VkDescriptorSetLayout descriptorset_layout;
     VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
@@ -413,7 +413,13 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
-    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
+    //vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
+    int retc = Pipeline::create(LayerShaderType::convert_ycbcr, opt, specializations);
+    if (retc != 0)
+    {
+        NCNN_LOGE("ImportAndroidHardwareBufferPipeline create failed %d", retc);
+        return retc;
+    }
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {

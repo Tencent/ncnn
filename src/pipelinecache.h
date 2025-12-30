@@ -24,6 +24,10 @@ public:
 
     void clear();
 
+    void set_shader_cache_dir(const char* dir);
+
+    int clear_shader_cache() const;
+
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                      uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                      VkShaderModule* shader_module,
@@ -41,6 +45,10 @@ public:
                      VkPipeline* pipeline,
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
                      ShaderInfo& shader_info) const;
+
+    int load_pipeline_cache(const char* path) const;
+
+    int save_pipeline_cache(const char* path) const;
 
 protected:
     int create_shader_module(int shader_type_index, const Option& opt,
