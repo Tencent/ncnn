@@ -27,7 +27,7 @@ int AbsVal_vulkan::create_pipeline(const Option& opt)
     if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }
@@ -62,7 +62,7 @@ int AbsVal_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int AbsVal_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 

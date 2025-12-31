@@ -20,7 +20,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
 layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
@@ -62,7 +62,7 @@ void main()
     {
         int x = gx + p.woffset;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         int v_offset = (x / 4) * 2 + (x % 4) / 2;
         int lane2 = x % 2;
 
@@ -82,7 +82,7 @@ void main()
 
         int gi = gy * psc(outw) + gx;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         int v_offset = ((y / 4) * psc(w) + x) * 2 + (y % 4) / 2;
         int lane2 = y % 2;
 
@@ -103,7 +103,7 @@ void main()
 
         int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
         int lane2 = z % 2;
 
@@ -127,7 +127,7 @@ void main()
 
         int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
         int lane2 = z % 2;
 

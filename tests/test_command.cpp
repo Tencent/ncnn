@@ -21,6 +21,8 @@ static int test_command_upload_download(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat c;
     {
@@ -60,6 +62,8 @@ static int test_command_clone(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat d;
     ncnn::Mat e;
@@ -117,6 +121,8 @@ static int test_command_transfer(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat c;
     {
