@@ -126,13 +126,12 @@ set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 file(GLOB onnxruntime_LIB_LIST "${onnxruntime_INSTALL_DIR}/lib64/libonnxruntime*.a" "${onnxruntime_INSTALL_DIR}/lib/libonnxruntime*.a")
 if(onnxruntime_LIB_LIST)
     set(onnxruntime_FOUND TRUE)
-    add_library(onnxruntime::onnxruntime STATIC INTERFACE IMPORTED)
+    add_library(onnxruntime::onnxruntime INTERFACE IMPORTED)
     set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_LINK_LIBRARIES IMPORTED_LOCATION "${onnxruntime_LIB_LIST}")
     set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
 else ()
     set(onnxruntime_FOUND FALSE)
 endif ()
-
 
 option(PNNX_TNN2PNNX "build tnn2pnnx" ON)
 
