@@ -1,0 +1,322 @@
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int sample_type = 1;
+layout (constant_id = 1) const int padding_mode = 1;
+layout (constant_id = 2) const int align_corner = 0;
+layout (constant_id = 3) const int permute_fusion = 0;
+layout (constant_id = 4) const int reserved0 = 0;
+
+#define shape_constant_id_offset 5
+layout (constant_id = shape_constant_id_offset + 0)  const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1)  const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2)  const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3)  const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4)  const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5)  const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 6)  const int gdims = 0;
+layout (constant_id = shape_constant_id_offset + 7)  const int gw = 0;
+layout (constant_id = shape_constant_id_offset + 8)  const int gh = 0;
+layout (constant_id = shape_constant_id_offset + 9)  const int gd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int gc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int gcstep = 0;
+layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
+
+layout (binding = 0) writeonly buffer top_blob  { sfp top_blob_data[]; };
+layout (binding = 1) readonly  buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 2) readonly  buffer grid_blob { sfp grid_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+    int gdims;
+    int gw;
+    int gh;
+    int gd;
+    int gc;
+    int gcstep;
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+} p;
+
+afp grid_sample_unormalize(int W, afp coord, int align_corners)
+{
+    return align_corners != 0 ? (coord + afp(1.0)) * afp(0.5) * afp(W - 1)
+    : ((coord + afp(1.0)) * afp(W) - afp(1.0)) * afp(0.5);
+}
+
+afp border_coord(afp x, afp border)
+{
+    return min(border, max(x, afp(0.0)));
+}
+
+afp reflect_coord(afp x, afp high)
+{
+    x = abs(x);
+    x = high - abs(x - high);
+    return x;
+}
+
+afp compute_coord(afp sx, int W, int padding, int align_corners)
+{
+    if (padding == 2)
+    {
+        sx = border_coord(sx, afp(W - 1));
+    }
+    else if (padding == 3)
+    {
+        if (align_corners != 0)
+        {
+            sx = reflect_coord(sx, afp(W - 1));
+        }
+        else
+        {
+            sx = reflect_coord(sx + afp(0.5), afp(W)) - afp(0.5);
+            sx = border_coord(sx, afp(W - 1));
+        }
+    }
+
+    return sx;
+}
+
+afp get_value_2d_bounded(int q, int x, int y)
+{
+    if (x < 0 || y < 0 || x >= psc(w) || y >= psc(h))
+    return afp(0.0);
+
+    int idx = q * psc(cstep) + y * psc(w) + x;
+    return buffer_ld1(bottom_blob_data, idx);
+}
+
+afp get_value_2d_bounded_padded(int q, int x, int y)
+{
+    afp fx = compute_coord(afp(x), psc(w), padding_mode, align_corner);
+    afp fy = compute_coord(afp(y), psc(h), padding_mode, align_corner);
+    int ix = int(fx);
+    int iy = int(fy);
+    return get_value_2d_bounded(q, ix, iy);
+}
+
+afp get_value_3d_bounded(int q, int x, int y, int z)
+{
+    if (x < 0 || y < 0 || z < 0 || x >= psc(w) || y >= psc(h) || z >= psc(d))
+    return afp(0.0);
+
+    int plane = psc(w) * psc(h);
+    int idx = q * psc(cstep) + z * plane + y * psc(w) + x;
+    return buffer_ld1(bottom_blob_data, idx);
+}
+
+afpvec4 cubic_coeff(afp t)
+{
+    afp A = afp(-0.75);
+    afp t0 = t + afp(1.0);
+    afp t1 = t;
+    afp t2 = afp(1.0) - t;
+    afp c0 = A * t0 * t0 * t0 - afp(5.0) * A * t0 * t0 + afp(8.0) * A * t0 - afp(4.0) * A;
+    afp c1 = (A + afp(2.0)) * t1 * t1 * t1 - (A + afp(3.0)) * t1 * t1 + afp(1.0);
+    afp c2 = (A + afp(2.0)) * t2 * t2 * t2 - (A + afp(3.0)) * t2 * t2 + afp(1.0);
+    afp c3 = afp(1.0) - c0 - c1 - c2;
+    return afpvec4(c0, c1, c2, c3);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
+    return;
+
+    int oz = 0;
+    int oy = gy;
+    if (psc(outdims) == 4)
+    {
+        oz = gy / psc(outh);
+        oy = gy - oz * psc(outh);
+    }
+
+    afp grid_x;
+    afp grid_y;
+    afp grid_z = afp(0.0);
+
+    if (psc(dims) == 3)
+    {
+        if (permute_fusion == 0)
+        {
+            int base = oy * psc(gcstep) + gx * 2;
+            grid_x = afp(buffer_ld1(grid_blob_data, base));
+            grid_y = afp(buffer_ld1(grid_blob_data, base + 1));
+        }
+        else
+        {
+            int idx = oy * psc(outw) + gx;
+            grid_x = afp(buffer_ld1(grid_blob_data, 0 * psc(gcstep) + idx));
+            grid_y = afp(buffer_ld1(grid_blob_data, 1 * psc(gcstep) + idx));
+        }
+    }
+    else
+    {
+        if (permute_fusion == 0)
+        {
+            int base = oz * psc(gcstep) + oy * (psc(gh) * psc(gw)) + gx * 3;
+            grid_x = afp(buffer_ld1(grid_blob_data, base));
+            grid_y = afp(buffer_ld1(grid_blob_data, base + 1));
+            grid_z = afp(buffer_ld1(grid_blob_data, base + 2));
+        }
+        else
+        {
+            int idx = oz * (psc(outw) * psc(outh)) + oy * psc(outw) + gx;
+            grid_x = afp(buffer_ld1(grid_blob_data, 0 * psc(gcstep) + idx));
+            grid_y = afp(buffer_ld1(grid_blob_data, 1 * psc(gcstep) + idx));
+            grid_z = afp(buffer_ld1(grid_blob_data, 2 * psc(gcstep) + idx));
+        }
+    }
+
+    afp sx = grid_sample_unormalize(psc(w), grid_x, align_corner);
+    afp sy = grid_sample_unormalize(psc(h), grid_y, align_corner);
+    afp sz = afp(0.0);
+
+    if (psc(dims) == 4)
+    sz = grid_sample_unormalize(psc(d), grid_z, align_corner);
+
+    if (sample_type != 3)
+    {
+        sx = compute_coord(sx, psc(w), padding_mode, align_corner);
+        sy = compute_coord(sy, psc(h), padding_mode, align_corner);
+        if (psc(dims) == 4)
+        sz = compute_coord(sz, psc(d), padding_mode, align_corner);
+    }
+
+    afp outv = afp(0.0);
+
+    if (psc(dims) == 3)
+    {
+        if (sample_type == 2)
+        {
+            int x0 = int(floor(sx + afp(0.5)));
+            int y0 = int(floor(sy + afp(0.5)));
+            outv = get_value_2d_bounded(gz, x0, y0);
+        }
+        else if (sample_type == 3)
+        {
+            int x1 = int(floor(sx));
+            int y1 = int(floor(sy));
+            int x0 = x1 - 1;
+            int y0 = y1 - 1;
+            int x2 = x1 + 1;
+            int y2 = y1 + 1;
+            int x3 = x1 + 2;
+            int y3 = y1 + 2;
+
+            afp v00 = get_value_2d_bounded_padded(gz, x0, y0);
+            afp v01 = get_value_2d_bounded_padded(gz, x1, y0);
+            afp v02 = get_value_2d_bounded_padded(gz, x2, y0);
+            afp v03 = get_value_2d_bounded_padded(gz, x3, y0);
+            afp v10 = get_value_2d_bounded_padded(gz, x0, y1);
+            afp v11 = get_value_2d_bounded_padded(gz, x1, y1);
+            afp v12 = get_value_2d_bounded_padded(gz, x2, y1);
+            afp v13 = get_value_2d_bounded_padded(gz, x3, y1);
+            afp v20 = get_value_2d_bounded_padded(gz, x0, y2);
+            afp v21 = get_value_2d_bounded_padded(gz, x1, y2);
+            afp v22 = get_value_2d_bounded_padded(gz, x2, y2);
+            afp v23 = get_value_2d_bounded_padded(gz, x3, y2);
+            afp v30 = get_value_2d_bounded_padded(gz, x0, y3);
+            afp v31 = get_value_2d_bounded_padded(gz, x1, y3);
+            afp v32 = get_value_2d_bounded_padded(gz, x2, y3);
+            afp v33 = get_value_2d_bounded_padded(gz, x3, y3);
+
+            afpvec4 xc = cubic_coeff(sx - afp(x1));
+            afpvec4 yc = cubic_coeff(sy - afp(y1));
+
+            afp r0 = afp(xc.x) * v00 + afp(xc.y) * v01 + afp(xc.z) * v02 + afp(xc.w) * v03;
+            afp r1 = afp(xc.x) * v10 + afp(xc.y) * v11 + afp(xc.z) * v12 + afp(xc.w) * v13;
+            afp r2 = afp(xc.x) * v20 + afp(xc.y) * v21 + afp(xc.z) * v22 + afp(xc.w) * v23;
+            afp r3 = afp(xc.x) * v30 + afp(xc.y) * v31 + afp(xc.z) * v32 + afp(xc.w) * v33;
+
+            outv = afp(yc.x) * r0 + afp(yc.y) * r1 + afp(yc.z) * r2 + afp(yc.w) * r3;
+        }
+        else
+        {
+            int x0 = int(floor(sx));
+            int y0 = int(floor(sy));
+            int x1 = x0 + 1;
+            int y1 = y0 + 1;
+
+            afp v00 = get_value_2d_bounded(gz, x0, y0);
+            afp v01 = get_value_2d_bounded(gz, x1, y0);
+            afp v10 = get_value_2d_bounded(gz, x0, y1);
+            afp v11 = get_value_2d_bounded(gz, x1, y1);
+
+            afp a = sx - afp(x0);
+            afp b = sy - afp(y0);
+
+            afp v0 = v00 * afp(1.0 - a) + v01 * a;
+            afp v1 = v10 * afp(1.0 - a) + v11 * a;
+
+            outv = v0 * afp(1.0 - b) + v1 * b;
+        }
+    }
+    else
+    {
+        if (sample_type == 2)
+        {
+            int x0 = int(floor(sx + afp(0.5)));
+            int y0 = int(floor(sy + afp(0.5)));
+            int z0 = int(floor(sz + afp(0.5)));
+            outv = get_value_3d_bounded(gz, x0, y0, z0);
+        }
+        else
+        {
+            int x0 = int(floor(sx));
+            int y0 = int(floor(sy));
+            int z0 = int(floor(sz));
+            int x1 = x0 + 1;
+            int y1 = y0 + 1;
+            int z1 = z0 + 1;
+
+            afp v000 = get_value_3d_bounded(gz, x0, y0, z0);
+            afp v001 = get_value_3d_bounded(gz, x1, y0, z0);
+            afp v010 = get_value_3d_bounded(gz, x0, y1, z0);
+            afp v011 = get_value_3d_bounded(gz, x1, y1, z0);
+            afp v100 = get_value_3d_bounded(gz, x0, y0, z1);
+            afp v101 = get_value_3d_bounded(gz, x1, y0, z1);
+            afp v110 = get_value_3d_bounded(gz, x0, y1, z1);
+            afp v111 = get_value_3d_bounded(gz, x1, y1, z1);
+
+            afp a = sx - afp(x0);
+            afp b = sy - afp(y0);
+            afp g = sz - afp(z0);
+
+            afp v00 = v000 * afp(1.0 - a) + v001 * a;
+            afp v01 = v010 * afp(1.0 - a) + v011 * a;
+            afp v10 = v100 * afp(1.0 - a) + v101 * a;
+            afp v11 = v110 * afp(1.0 - a) + v111 * a;
+
+            afp vv0 = v00 * afp(1.0 - b) + v01 * b;
+            afp vv1 = v10 * afp(1.0 - b) + v11 * b;
+
+            outv = vv0 * afp(1.0 - g) + vv1 * g;
+        }
+    }
+
+    int out_index = gz * psc(outcstep) + gy * psc(outw) + gx;
+    buffer_st1(top_blob_data, out_index, outv);
+}
