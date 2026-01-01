@@ -1,4 +1,4 @@
-// Copyright 2023 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_GRIDSAMPLE_VULKAN_H
