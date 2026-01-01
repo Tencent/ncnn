@@ -117,16 +117,16 @@ int GridSample_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vect
     bindings[2] = grid_blob;
 
     std::vector<vk_constant_type> constants(18);
-    constants[0].i  = bottom_blob.dims;
-    constants[1].i  = bottom_blob.w;
-    constants[2].i  = bottom_blob.h;
-    constants[3].i  = bottom_blob.d;
-    constants[4].i  = bottom_blob.c;
-    constants[5].i  = bottom_blob.cstep;
-    constants[6].i  = grid_blob.dims;
-    constants[7].i  = grid_blob.w;
-    constants[8].i  = grid_blob.h;
-    constants[9].i  = grid_blob.d;
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = bottom_blob.w;
+    constants[2].i = bottom_blob.h;
+    constants[3].i = bottom_blob.d;
+    constants[4].i = bottom_blob.c;
+    constants[5].i = bottom_blob.cstep;
+    constants[6].i = grid_blob.dims;
+    constants[7].i = grid_blob.w;
+    constants[8].i = grid_blob.h;
+    constants[9].i = grid_blob.d;
     constants[10].i = grid_blob.c;
     constants[11].i = grid_blob.cstep;
     constants[12].i = top_blob.dims;
