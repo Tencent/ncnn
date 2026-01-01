@@ -7,9 +7,8 @@ layout (constant_id = 0) const int sample_type = 1;
 layout (constant_id = 1) const int padding_mode = 1;
 layout (constant_id = 2) const int align_corner = 0;
 layout (constant_id = 3) const int permute_fusion = 0;
-layout (constant_id = 4) const int reserved0 = 0;
 
-#define shape_constant_id_offset 5
+#define shape_constant_id_offset 4
 layout (constant_id = shape_constant_id_offset + 0)  const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1)  const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2)  const int h = 0;

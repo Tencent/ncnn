@@ -18,17 +18,16 @@ GridSample_vulkan::GridSample_vulkan()
 
 int GridSample_vulkan::create_pipeline(const Option& opt)
 {
-    std::vector<vk_specialization_type> specializations(5 + 18);
+    std::vector<vk_specialization_type> specializations(4 + 18);
 
     specializations[0].i = sample_type;
     specializations[1].i = padding_mode;
     specializations[2].i = align_corner;
     specializations[3].i = permute_fusion;
-    specializations[4].i = 0;
 
     for (int i = 0; i < 18; i++)
     {
-        specializations[5 + i].i = 0;
+        specializations[4 + i].i = 0;
     }
 
     pipeline_gridsample = new Pipeline(vkdev);
