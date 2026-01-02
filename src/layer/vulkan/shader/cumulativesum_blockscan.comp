@@ -1,0 +1,134 @@
+#version 450
+
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 2) writeonly buffer blocksums_blob { sfp blocksums_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int axis;
+    int w;
+    int h;
+    int c;
+    int cstep;
+    int linelen;
+    int linecount;
+} p;
+
+shared lfp sdata[256];
+
+int index_from_line(int line_id, int elem_id)
+{
+    if (p.dims == 1)
+    {
+        return elem_id;
+    }
+
+    if (p.dims == 2)
+    {
+        // axis=0: line_id=x, elem_id=y
+        if (p.axis == 0)
+        {
+            int x = line_id;
+            int y = elem_id;
+            return y * p.w + x;
+        }
+
+        // axis=1: line_id=y, elem_id=x
+        int x = elem_id;
+        int y = line_id;
+        return y * p.w + x;
+    }
+
+    // dims == 3, index = q*cstep + y*w + x
+    if (p.axis == 0)
+    {
+        // line_id = y*w + x, elem_id = q
+        int x = line_id % p.w;
+        int y = line_id / p.w;
+        int q = elem_id;
+        return q * p.cstep + y * p.w + x;
+    }
+
+    if (p.axis == 1)
+    {
+        // line_id = q*w + x, elem_id = y
+        int x = line_id % p.w;
+        int q = line_id / p.w;
+        int y = elem_id;
+        return q * p.cstep + y * p.w + x;
+    }
+
+    // axis == 2
+    // line_id = q*h + y, elem_id = x
+    int y = line_id % p.h;
+    int q = line_id / p.h;
+    int x = elem_id;
+    return q * p.cstep + y * p.w + x;
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int line_id = int(gl_GlobalInvocationID.y);
+
+    if (line_id >= p.linecount)
+        return;
+
+    int lid = int(gl_LocalInvocationID.x);
+    int block_id = gx >> 8;
+    int inblock = gx & 255;
+
+    int elem_id = block_id * 256 + inblock;
+
+    afp v = afp(0.0);
+    if (elem_id < p.linelen)
+    {
+        int idx = index_from_line(line_id, elem_id);
+        v = buffer_ld1(bottom_blob_data, idx);
+    }
+
+    // store to shared as lfp
+    sdata[lid] = sfp2lfp(v);
+    barrier();
+
+    // Kogge-Stone inclusive scan
+    for (int offset = 1; offset < 256; offset <<= 1)
+    {
+        afp t = afp(0.0);
+        if (lid >= offset)
+        t = lfp2afp(sdata[lid - offset]);
+
+        barrier();
+
+        afp selfv = lfp2afp(sdata[lid]);
+        selfv = selfv + t;
+        sdata[lid] = sfp2lfp(selfv);
+
+        barrier();
+    }
+
+    if (elem_id < p.linelen)
+    {
+        int idx = index_from_line(line_id, elem_id);
+        buffer_st1(top_blob_data, idx, lfp2afp(sdata[lid]));
+    }
+
+    // write block sum
+    if (lid == 255)
+    {
+        afp bsum = lfp2afp(sdata[255]);
+
+        if ((block_id + 1) * 256 > p.linelen)
+        {
+            int last = p.linelen - block_id * 256 - 1;
+            if (last < 0) last = 0;
+            bsum = lfp2afp(sdata[last]);
+        }
+
+        int blocks_per_line = (p.linelen + 255) / 256;
+        int o = line_id * blocks_per_line + block_id;
+        buffer_st1(blocksums_data, o, bsum);
+    }
+}

@@ -1,0 +1,86 @@
+#version 450
+
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 2) readonly buffer blockoffsets_blob { sfp blockoffsets_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int axis;
+    int w;
+    int h;
+    int c;
+    int cstep;
+    int linelen;
+    int linecount;
+} p;
+
+int index_from_line(int line_id, int elem_id)
+{
+    if (p.dims == 1)
+    {
+        return elem_id;
+    }
+
+    if (p.dims == 2)
+    {
+        if (p.axis == 0)
+        {
+            int x = line_id;
+            int y = elem_id;
+            return y * p.w + x;
+        }
+
+        int x = elem_id;
+        int y = line_id;
+        return y * p.w + x;
+    }
+
+    if (p.axis == 0)
+    {
+        int x = line_id % p.w;
+        int y = line_id / p.w;
+        int q = elem_id;
+        return q * p.cstep + y * p.w + x;
+    }
+
+    if (p.axis == 1)
+    {
+        int x = line_id % p.w;
+        int q = line_id / p.w;
+        int y = elem_id;
+        return q * p.cstep + y * p.w + x;
+    }
+
+    int y = line_id % p.h;
+    int q = line_id / p.h;
+    int x = elem_id;
+    return q * p.cstep + y * p.w + x;
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int line_id = int(gl_GlobalInvocationID.y);
+
+    if (line_id >= p.linecount)
+        return;
+
+    int block_id = gx >> 8;
+    int inblock = gx & 255;
+    int elem_id = block_id * 256 + inblock;
+
+    if (elem_id >= p.linelen || block_id == 0)
+        return;
+
+    int blocks_per_line = (p.linelen + 255) / 256;
+    int oi = line_id * blocks_per_line + (block_id - 1);
+    afp offsetv = buffer_ld1(blockoffsets_data, oi);
+
+    int idx = index_from_line(line_id, elem_id);
+
+    afp v = buffer_ld1(bottom_blob_data, idx);
+    v = v + offsetv;
+    buffer_st1(top_blob_data, idx, v);
+}
