@@ -21,7 +21,7 @@ void main()
     const uint gi = gl_GlobalInvocationID.x;
 
     if (gi >= psc(n))
-    return;
+        return;
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
