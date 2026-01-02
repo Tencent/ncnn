@@ -44,7 +44,7 @@ void main()
         {
             afp t = afp(0.0);
             if (lid >= offset)
-            t = lfp2afp(sdata[lid - offset]);
+                t = lfp2afp(sdata[lid - offset]);
 
             barrier();
 
@@ -67,7 +67,8 @@ void main()
             if (base + 256 > p.blocks_per_line)
             {
                 int last = p.blocks_per_line - base - 1;
-                if (last < 0) last = 0;
+                if (last < 0)
+                    last = 0;
                 lastv = lfp2afp(sdata[last]);
             }
             carry = lastv;
