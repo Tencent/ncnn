@@ -10,8 +10,8 @@ namespace ncnn {
 GridSample_vulkan::GridSample_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = true;
-    support_vulkan_any_packing = true;
+    support_vulkan_packing = false;
+    support_vulkan_any_packing = false;
 
     pipeline_gridsample = 0;
 }
@@ -47,14 +47,8 @@ int GridSample_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int GridSample_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& bottom_blob0 = bottom_blobs[0];
-    const VkMat& grid_blob0 = bottom_blobs[1];
-
-    VkMat bottom_blob;
-    VkMat grid_blob;
-
-    vkdev->convert_packing(bottom_blob0, bottom_blob, 1, cmd, opt);
-    vkdev->convert_packing(grid_blob0, grid_blob, 1, cmd, opt);
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& grid_blob = bottom_blobs[1];
 
     if (bottom_blob.empty() || grid_blob.empty())
         return -100;
