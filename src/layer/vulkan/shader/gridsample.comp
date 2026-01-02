@@ -97,7 +97,7 @@ afp compute_coord(afp sx, int W, int padding, int align_corners)
 afp get_value_2d_bounded(int q, int x, int y)
 {
     if (x < 0 || y < 0 || x >= psc(w) || y >= psc(h))
-    return afp(0.0);
+        return afp(0.0);
 
     int idx = q * psc(cstep) + y * psc(w) + x;
     return buffer_ld1(bottom_blob_data, idx);
@@ -115,7 +115,7 @@ afp get_value_2d_bounded_padded(int q, int x, int y)
 afp get_value_3d_bounded(int q, int x, int y, int z)
 {
     if (x < 0 || y < 0 || z < 0 || x >= psc(w) || y >= psc(h) || z >= psc(d))
-    return afp(0.0);
+        return afp(0.0);
 
     int plane = psc(w) * psc(h);
     int idx = q * psc(cstep) + z * plane + y * psc(w) + x;
@@ -142,7 +142,7 @@ void main()
     int gz = int(gl_GlobalInvocationID.z);
 
     if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
-    return;
+        return;
 
     int oz = 0;
     int oy = gy;
@@ -194,14 +194,14 @@ void main()
     afp sz = afp(0.0);
 
     if (psc(dims) == 4)
-    sz = grid_sample_unormalize(psc(d), grid_z, align_corner);
+        sz = grid_sample_unormalize(psc(d), grid_z, align_corner);
 
     if (sample_type != 3)
     {
         sx = compute_coord(sx, psc(w), padding_mode, align_corner);
         sy = compute_coord(sy, psc(h), padding_mode, align_corner);
         if (psc(dims) == 4)
-        sz = compute_coord(sz, psc(d), padding_mode, align_corner);
+            sz = compute_coord(sz, psc(d), padding_mode, align_corner);
     }
 
     afp outv = afp(0.0);
