@@ -19,7 +19,7 @@ void main()
     int gx = int(gl_GlobalInvocationID.x);
 
     if (gx >= p.len)
-    return;
+        return;
 
     int di = p.dst_offset + gx;
 

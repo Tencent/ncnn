@@ -51,50 +51,50 @@ void main()
     int whc_U = whc_base + (1 * p.num_output + q) * p.num_output;
     int whc_N = whc_base + (2 * p.num_output + q) * p.num_output;
 
-    float R = float(buffer_ld1(bias_c_data, bias_R));
-    float U = float(buffer_ld1(bias_c_data, bias_U));
+    afp R = buffer_ld1(bias_c_data, bias_R);
+    afp U = buffer_ld1(bias_c_data, bias_U);
 
     for (int i = 0; i < p.size; i++)
     {
-        float xi = float(buffer_ld1(bottom_blob_data, x_offset + i));
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
 
-        R += float(buffer_ld1(weight_xc_data, wxc_R + i)) * xi;
-        U += float(buffer_ld1(weight_xc_data, wxc_U + i)) * xi;
+        R += buffer_ld1(weight_xc_data, wxc_R + i) * xi;
+        U += buffer_ld1(weight_xc_data, wxc_U + i) * xi;
     }
 
     for (int i = 0; i < p.num_output; i++)
     {
-        float hi = float(buffer_ld1(hidden_prev_data, i));
+        afp hi = buffer_ld1(hidden_prev_data, i);
 
-        R += float(buffer_ld1(weight_hc_data, whc_R + i)) * hi;
-        U += float(buffer_ld1(weight_hc_data, whc_U + i)) * hi;
+        R += buffer_ld1(weight_hc_data, whc_R + i) * hi;
+        U += buffer_ld1(weight_hc_data, whc_U + i) * hi;
     }
 
     R = 1.f / (1.f + exp(-R));
     U = 1.f / (1.f + exp(-U));
 
-    float N = float(buffer_ld1(bias_c_data, bias_BN));
+    afp N = buffer_ld1(bias_c_data, bias_BN);
     for (int i = 0; i < p.num_output; i++)
     {
-        float hi = float(buffer_ld1(hidden_prev_data, i));
-        N += float(buffer_ld1(weight_hc_data, whc_N + i)) * hi;
+        afp hi = buffer_ld1(hidden_prev_data, i);
+        N += buffer_ld1(weight_hc_data, whc_N + i) * hi;
     }
 
-    N = float(buffer_ld1(bias_c_data, bias_WN)) + R * N;
+    N = buffer_ld1(bias_c_data, bias_WN) + R * N;
 
     for (int i = 0; i < p.size; i++)
     {
-        float xi = float(buffer_ld1(bottom_blob_data, x_offset + i));
-        N += float(buffer_ld1(weight_xc_data, wxc_N + i)) * xi;
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
+        N += buffer_ld1(weight_xc_data, wxc_N + i) * xi;
     }
 
     N = tanh(N);
 
-    float hprev_q = float(buffer_ld1(hidden_prev_data, q));
-    float H = (1.f - U) * N + U * hprev_q;
+    afp hprev_q = buffer_ld1(hidden_prev_data, q);
+    afp H = (1.f - U) * N + U * hprev_q;
 
-    buffer_st1(hidden_next_data, q, afp(H));
+    buffer_st1(hidden_next_data, q, H);
 
     int out_index = p.ti * p.outw + p.out_offset + q;
-    buffer_st1(top_blob_data, out_index, afp(H));
+    buffer_st1(top_blob_data, out_index, H);
 }
