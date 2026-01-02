@@ -64,3 +64,27 @@ jobs:
       run: |
         mkdir $GITHUB_WORKSPACE/clang-format-install
         cp -r /usr/local/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+
+  code-format-glsl:
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    steps:
+    - name: clang-format
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get install -y clang-format
+
+    - uses: actions/checkout@v6
+
+    - name: code-format
+      run: |
+        cd src/layer/vulkan/shader
+        find . -type f -name '*.comp' | xargs -i clang-format -i -assume-filename=main.cpp {}
+
+    - name: configure-git-safe-directory
+      run: git config --global --add safe.directory /__w/ncnn/ncnn
+
+    - uses: stefanzweifel/git-auto-commit-action@v7
+      with:
+        commit_message: apply code-format-glsl changes
