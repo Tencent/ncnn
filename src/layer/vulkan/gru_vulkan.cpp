@@ -226,8 +226,7 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
     const int bias_dir_stride = num_output * 4;
     const int bottom_step = size;
 
-    auto run_sequence = [&](int dir_index, int out_offset, int reverse, VkMat& hprev, VkMat& hnext)
-    {
+    auto run_sequence = [&](int dir_index, int out_offset, int reverse, VkMat& hprev, VkMat& hnext) {
         for (int t = 0; t < T; t++)
         {
             const int ti = reverse ? (T - 1 - t) : t;
