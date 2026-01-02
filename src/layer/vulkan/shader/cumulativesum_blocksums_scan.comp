@@ -1,3 +1,6 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
 #version 450
 
 layout (binding = 0) readonly buffer blocksums_blob { sfp blocksums_data[]; };

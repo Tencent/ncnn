@@ -1,4 +1,4 @@
-// Copyright 2026
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "cumulativesum_vulkan.h"
