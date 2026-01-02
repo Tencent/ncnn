@@ -98,23 +98,25 @@ static inline void resolve_reduce_flags(int dims, int reduce_all, const Mat& axe
 }
 
 static inline void resolve_output_shape_and_mapping(const VkMat& a,
-                                                    bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-                                                    int keepdims,
-                                                    int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
-                                                    int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
+        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+        int keepdims,
+        int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
+        int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
 {
     const int dims = a.dims;
 
     outdims = 1;
-    out_w = 1; out_h = 1; out_d = 1; out_c = 1;
+    out_w = 1;
+    out_h = 1;
+    out_d = 1;
+    out_c = 1;
 
     map_out_w = -1;
     map_out_h = -1;
     map_out_d = -1;
     map_out_c = -1;
 
-    auto is_reduced_axis = [&](int axis) -> bool
-    {
+    auto is_reduced_axis = [&](int axis) -> bool {
         if (axis == 0) return reduce_c;
         if (axis == 1) return reduce_d;
         if (axis == 2) return reduce_h;
@@ -124,10 +126,32 @@ static inline void resolve_output_shape_and_mapping(const VkMat& a,
 
     int in_axes[4];
     int in_axes_count = 0;
-    if (dims == 1) { in_axes[0] = 3; in_axes_count = 1; }
-    else if (dims == 2) { in_axes[0] = 2; in_axes[1] = 3; in_axes_count = 2; }
-    else if (dims == 3) { in_axes[0] = 0; in_axes[1] = 2; in_axes[2] = 3; in_axes_count = 3; }
-    else { in_axes[0] = 0; in_axes[1] = 1; in_axes[2] = 2; in_axes[3] = 3; in_axes_count = 4; }
+    if (dims == 1)
+    {
+        in_axes[0] = 3;
+        in_axes_count = 1;
+    }
+    else if (dims == 2)
+    {
+        in_axes[0] = 2;
+        in_axes[1] = 3;
+        in_axes_count = 2;
+    }
+    else if (dims == 3)
+    {
+        in_axes[0] = 0;
+        in_axes[1] = 2;
+        in_axes[2] = 3;
+        in_axes_count = 3;
+    }
+    else
+    {
+        in_axes[0] = 0;
+        in_axes[1] = 1;
+        in_axes[2] = 2;
+        in_axes[3] = 3;
+        in_axes_count = 4;
+    }
 
     if (keepdims)
     {
@@ -221,8 +245,8 @@ static inline void resolve_output_shape_and_mapping(const VkMat& a,
 }
 
 static inline float compute_coeff2_for_mean(const VkMat& a,
-                                            bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-                                            float coeff)
+        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+        float coeff)
 {
     int scale = 1;
     const int dims = a.dims;
