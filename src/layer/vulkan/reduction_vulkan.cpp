@@ -97,13 +97,13 @@ static inline void resolve_reduce_flags(int dims, int reduce_all, const Mat& axe
     }
 }
 
-static inline void resolve_output_shape_and_mapping(const VkMat& a,
+static inline void resolve_output_shape_and_mapping(const VkMat& bottom_blob,
         bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
         int keepdims,
         int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
         int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
 {
-    const int dims = a.dims;
+    const int dims = bottom_blob.dims;
 
     outdims = 1;
     out_w = 1;
@@ -159,31 +159,31 @@ static inline void resolve_output_shape_and_mapping(const VkMat& a,
 
         if (dims == 1)
         {
-            out_w = reduce_w ? 1 : a.w;
+            out_w = reduce_w ? 1 : bottom_blob.w;
             map_out_w = 3;
         }
         else if (dims == 2)
         {
-            out_h = reduce_h ? 1 : a.h;
-            out_w = reduce_w ? 1 : a.w;
+            out_h = reduce_h ? 1 : bottom_blob.h;
+            out_w = reduce_w ? 1 : bottom_blob.w;
             map_out_h = 2;
             map_out_w = 3;
         }
         else if (dims == 3)
         {
-            out_c = reduce_c ? 1 : a.c;
-            out_h = reduce_h ? 1 : a.h;
-            out_w = reduce_w ? 1 : a.w;
+            out_c = reduce_c ? 1 : bottom_blob.c;
+            out_h = reduce_h ? 1 : bottom_blob.h;
+            out_w = reduce_w ? 1 : bottom_blob.w;
             map_out_c = 0;
             map_out_h = 2;
             map_out_w = 3;
         }
         else
         {
-            out_c = reduce_c ? 1 : a.c;
-            out_d = reduce_d ? 1 : a.d;
-            out_h = reduce_h ? 1 : a.h;
-            out_w = reduce_w ? 1 : a.w;
+            out_c = reduce_c ? 1 : bottom_blob.c;
+            out_d = reduce_d ? 1 : bottom_blob.d;
+            out_h = reduce_h ? 1 : bottom_blob.h;
+            out_w = reduce_w ? 1 : bottom_blob.w;
             map_out_c = 0;
             map_out_d = 1;
             map_out_h = 2;
@@ -213,23 +213,23 @@ static inline void resolve_output_shape_and_mapping(const VkMat& a,
     if (outdims == 1)
     {
         map_out_w = keep_axes[0];
-        out_w = axis_size_from_vkmat(map_out_w, dims, a);
+        out_w = axis_size_from_vkmat(map_out_w, dims, bottom_blob);
     }
     else if (outdims == 2)
     {
         map_out_h = keep_axes[0];
         map_out_w = keep_axes[1];
-        out_h = axis_size_from_vkmat(map_out_h, dims, a);
-        out_w = axis_size_from_vkmat(map_out_w, dims, a);
+        out_h = axis_size_from_vkmat(map_out_h, dims, bottom_blob);
+        out_w = axis_size_from_vkmat(map_out_w, dims, bottom_blob);
     }
     else if (outdims == 3)
     {
         map_out_c = keep_axes[0];
         map_out_h = keep_axes[1];
         map_out_w = keep_axes[2];
-        out_c = axis_size_from_vkmat(map_out_c, dims, a);
-        out_h = axis_size_from_vkmat(map_out_h, dims, a);
-        out_w = axis_size_from_vkmat(map_out_w, dims, a);
+        out_c = axis_size_from_vkmat(map_out_c, dims, bottom_blob);
+        out_h = axis_size_from_vkmat(map_out_h, dims, bottom_blob);
+        out_w = axis_size_from_vkmat(map_out_w, dims, bottom_blob);
     }
     else
     {
@@ -237,41 +237,41 @@ static inline void resolve_output_shape_and_mapping(const VkMat& a,
         map_out_d = keep_axes[1];
         map_out_h = keep_axes[2];
         map_out_w = keep_axes[3];
-        out_c = axis_size_from_vkmat(map_out_c, dims, a);
-        out_d = axis_size_from_vkmat(map_out_d, dims, a);
-        out_h = axis_size_from_vkmat(map_out_h, dims, a);
-        out_w = axis_size_from_vkmat(map_out_w, dims, a);
+        out_c = axis_size_from_vkmat(map_out_c, dims, bottom_blob);
+        out_d = axis_size_from_vkmat(map_out_d, dims, bottom_blob);
+        out_h = axis_size_from_vkmat(map_out_h, dims, bottom_blob);
+        out_w = axis_size_from_vkmat(map_out_w, dims, bottom_blob);
     }
 }
 
-static inline float compute_coeff2_for_mean(const VkMat& a,
+static inline float compute_coeff2_for_mean(const VkMat& bottom_blob,
         bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
         float coeff)
 {
     int scale = 1;
-    const int dims = a.dims;
+    const int dims = bottom_blob.dims;
 
     if (dims == 1)
     {
-        scale = a.w;
+        scale = bottom_blob.w;
     }
     else if (dims == 2)
     {
-        if (reduce_w) scale *= a.w;
-        if (reduce_h) scale *= a.h;
+        if (reduce_w) scale *= bottom_blob.w;
+        if (reduce_h) scale *= bottom_blob.h;
     }
     else if (dims == 3)
     {
-        if (reduce_w) scale *= a.w;
-        if (reduce_h) scale *= a.h;
-        if (reduce_c) scale *= a.c;
+        if (reduce_w) scale *= bottom_blob.w;
+        if (reduce_h) scale *= bottom_blob.h;
+        if (reduce_c) scale *= bottom_blob.c;
     }
     else
     {
-        if (reduce_w) scale *= a.w;
-        if (reduce_h) scale *= a.h;
-        if (reduce_d) scale *= a.d;
-        if (reduce_c) scale *= a.c;
+        if (reduce_w) scale *= bottom_blob.w;
+        if (reduce_h) scale *= bottom_blob.h;
+        if (reduce_d) scale *= bottom_blob.d;
+        if (reduce_c) scale *= bottom_blob.c;
     }
 
     return coeff / scale;
@@ -317,21 +317,19 @@ int Reduction_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    VkMat a = bottom_blob;
-
-    if (a.empty())
+    if (bottom_blob.empty())
         return -100;
 
     bool reduce_w, reduce_h, reduce_d, reduce_c;
-    resolve_reduce_flags(a.dims, reduce_all, axes, reduce_w, reduce_h, reduce_d, reduce_c);
+    resolve_reduce_flags(bottom_blob.dims, reduce_all, axes, reduce_w, reduce_h, reduce_d, reduce_c);
 
     int outdims, out_w, out_h, out_d, out_c;
     int map_out_w, map_out_h, map_out_d, map_out_c;
-    resolve_output_shape_and_mapping(a, reduce_w, reduce_h, reduce_d, reduce_c, keepdims,
+    resolve_output_shape_and_mapping(bottom_blob, reduce_w, reduce_h, reduce_d, reduce_c, keepdims,
                                      outdims, out_w, out_h, out_d, out_c,
                                      map_out_w, map_out_h, map_out_d, map_out_c);
 
-    const size_t elemsize = a.elemsize;
+    const size_t elemsize = bottom_blob.elemsize;
 
     if (outdims == 1)
         top_blob.create(out_w, elemsize, opt.blob_vkallocator);
@@ -347,19 +345,19 @@ int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompu
 
     float coeff2 = coeff;
     if (operation == ReductionOp_MEAN)
-        coeff2 = compute_coeff2_for_mean(a, reduce_w, reduce_h, reduce_d, reduce_c, coeff);
+        coeff2 = compute_coeff2_for_mean(bottom_blob, reduce_w, reduce_h, reduce_d, reduce_c, coeff);
 
     std::vector<VkMat> bindings(2);
     bindings[0] = top_blob;
-    bindings[1] = a;
+    bindings[1] = bottom_blob;
 
     std::vector<vk_constant_type> constants(21);
-    constants[0].i = a.w;
-    constants[1].i = a.h;
-    constants[2].i = a.d;
-    constants[3].i = a.c;
-    constants[4].i = (int)a.cstep;
-    constants[5].i = a.dims;
+    constants[0].i = bottom_blob.w;
+    constants[1].i = bottom_blob.h;
+    constants[2].i = bottom_blob.d;
+    constants[3].i = bottom_blob.c;
+    constants[4].i = (int)bottom_blob.cstep;
+    constants[5].i = bottom_blob.dims;
 
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
