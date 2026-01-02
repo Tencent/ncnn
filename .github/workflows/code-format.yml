@@ -73,7 +73,7 @@ jobs:
       run: |
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -y
-        apt-get install -y clang-format
+        apt-get install -y clang-format git
 
     - uses: actions/checkout@v6
 
