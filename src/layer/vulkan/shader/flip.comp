@@ -1,0 +1,112 @@
+// Copyright 2025 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+
+    int flip_w;
+    int flip_h;
+    int flip_d;
+    int flip_c;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
+        return;
+
+    int x = gx;
+    int y = 0;
+    int z = 0;
+    int q = 0;
+
+    if (psc(dims) == 2)
+    {
+        y = gy;
+    }
+    else if (psc(dims) == 3)
+    {
+        y = gy;
+        q = gz;
+    }
+    else if (psc(dims) == 4)
+    {
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+        z = yd;
+        y = yh;
+        q = gz;
+    }
+
+    int x2 = p.flip_w == 1 ? (psc(outw) - 1 - x) : x;
+
+    int y2 = y;
+    if (psc(dims) >= 2 && p.flip_h == 1)
+        y2 = psc(outh) - 1 - y;
+
+    int z2 = z;
+    if (psc(dims) == 4 && p.flip_d == 1)
+        z2 = psc(outd) - 1 - z;
+
+    int q2 = q;
+    if (psc(dims) >= 3 && p.flip_c == 1)
+        q2 = psc(outc) - 1 - q;
+
+    int v_offset;
+    if (psc(dims) == 1)
+    {
+        v_offset = x2;
+    }
+    else if (psc(dims) == 2)
+    {
+        v_offset = y2 * psc(w) + x2;
+    }
+    else if (psc(dims) == 3)
+    {
+        v_offset = q2 * psc(cstep) + y2 * psc(w) + x2;
+    }
+    else // dims == 4
+    {
+        v_offset = q2 * psc(cstep) + (z2 * psc(h) + y2) * psc(w) + x2;
+    }
+
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+}
