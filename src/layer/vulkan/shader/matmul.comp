@@ -7,11 +7,11 @@
 
 layout(constant_id = 0) const int transB = 0;
 
-layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 1) readonly  buffer a_blob   { sfp a_blob_data[]; };
-layout (binding = 2) readonly  buffer b_blob   { sfp b_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer a_blob { sfp a_blob_data[]; };
+layout(binding = 2) readonly buffer b_blob { sfp b_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int M;
     int N;
@@ -83,8 +83,8 @@ void main()
             bd = 0;
         }
 
-        const int ac  = (p.a_c == 1) ? 0 : bc;
-        const int ad  = (p.a_d == 1) ? 0 : bd;
+        const int ac = (p.a_c == 1) ? 0 : bc;
+        const int ad = (p.a_d == 1) ? 0 : bd;
         const int bc0 = (p.b_c == 1) ? 0 : bc;
         const int bd0 = (p.b_d == 1) ? 0 : bd;
 
@@ -136,9 +136,9 @@ void main()
                 {
                     int b_idx1;
                     if (transB == 0)
-                    b_idx1 = b_base + bk * p.b_w + (n0 + 1);
+                        b_idx1 = b_base + bk * p.b_w + (n0 + 1);
                     else
-                    b_idx1 = b_base + (n0 + 1) * p.b_w + bk;
+                        b_idx1 = b_base + (n0 + 1) * p.b_w + bk;
                     b1 = lfp(buffer_ld1(b_blob_data, b_idx1));
                 }
             }
@@ -325,8 +325,8 @@ void main()
         }
     }
 
-    const int ac  = (p.a_c == 1) ? 0 : bc;
-    const int ad  = (p.a_d == 1) ? 0 : bd;
+    const int ac = (p.a_c == 1) ? 0 : bc;
+    const int ad = (p.a_d == 1) ? 0 : bd;
     const int bc0 = (p.b_c == 1) ? 0 : bc;
     const int bd0 = (p.b_d == 1) ? 0 : bd;
 
