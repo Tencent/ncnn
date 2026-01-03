@@ -3,12 +3,12 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer hidden_h_blob { sfp hidden_h_data[]; };
-layout (binding = 1) readonly buffer weight_hr_blob { sfp weight_hr_data[]; };
-layout (binding = 2) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
-layout (binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 0) readonly buffer hidden_h_blob { sfp hidden_h_data[]; };
+layout(binding = 1) readonly buffer weight_hr_blob { sfp weight_hr_data[]; };
+layout(binding = 2) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int hidden_size;
     int num_output;
