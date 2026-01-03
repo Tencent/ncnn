@@ -1,0 +1,62 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int pooling_type = 0;
+
+layout (binding = 0) readonly buffer partial_blob { sfp partial_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int partial_w;
+    int c;
+    int in_size;
+} p;
+
+shared lfp sdata[256];
+
+void main()
+{
+    int cid = int(gl_WorkGroupID.x);
+    int tid = int(gl_LocalInvocationID.x);
+
+    if (cid >= p.c)
+    return;
+
+    afp acc = (pooling_type == 0) ? afp(-3.402823466e38) : afp(0.f);
+
+    for (int i = tid; i < p.partial_w; i += 256)
+    {
+        int si = cid * p.partial_w + i;
+        afp v = buffer_ld1(partial_blob_data, si);
+
+        if (pooling_type == 0) acc = max(acc, v);
+        else acc += v;
+    }
+
+    sdata[tid] = sfp2lfp(acc);
+    barrier();
+
+    for (int offset = 128; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            afp a = lfp2afp(sdata[tid]);
+            afp b = lfp2afp(sdata[tid + offset]);
+            afp r = (pooling_type == 0) ? max(a, b) : (a + b);
+            sdata[tid] = sfp2lfp(r);
+        }
+        barrier();
+    }
+
+    if (tid == 0)
+    {
+        afp outv = lfp2afp(sdata[0]);
+        if (pooling_type != 0)
+        outv *= afp(1.f / float(p.in_size));
+
+        buffer_st1(top_blob_data, cid, outv);
+    }
+}

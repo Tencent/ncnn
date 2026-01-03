@@ -50,13 +50,22 @@ layout (push_constant) uniform parameter
     int outcstep;
 } p;
 
+const int tile_out_w = 8;
+const int tile_out_h = 8;
+const int tile_in_max = 36;
+
+shared lfp tile[tile_in_max][tile_in_max];
+
 void main()
 {
-    int ox = int(gl_GlobalInvocationID.x);
-    int oy = int(gl_GlobalInvocationID.y);
-    int oz = int(gl_GlobalInvocationID.z);
+    int lid_x = int(gl_LocalInvocationID.x);
+    int lid_y = int(gl_LocalInvocationID.y);
 
-    if (ox >= psc(outw) || oy >= psc(outh) || oz >= psc(outc))
+    int gx0 = int(gl_WorkGroupID.x) * tile_out_w;
+    int gy0 = int(gl_WorkGroupID.y) * tile_out_h;
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gz >= psc(outc))
     return;
 
     int pl;
@@ -102,31 +111,63 @@ void main()
         }
     }
 
-    int inx0 = ox * stride_w - pl;
-    int iny0 = oy * stride_h - pt;
+    int tile_in_w = (tile_out_w - 1) * stride_w + kernel_w;
+    int tile_in_h = (tile_out_h - 1) * stride_h + kernel_h;
+
+    int in_x0 = gx0 * stride_w - pl;
+    int in_y0 = gy0 * stride_h - pt;
+
+    lfp padv = (pooling_type == 0) ? sfp2lfp(afp(-3.402823466e38)) : sfp2lfp(afp(0.f));
+
+    int l = lid_y * tile_out_w + lid_x;
+    int lsize = tile_out_w * tile_out_h;
+    int tilesz = tile_in_w * tile_in_h;
+
+    for (int i = l; i < tilesz; i += lsize)
+    {
+        int ty = i / tile_in_w;
+        int tx = i - ty * tile_in_w;
+
+        int ix = in_x0 + tx;
+        int iy = in_y0 + ty;
+
+        lfp v = padv;
+        if (ix >= 0 && ix < psc(w) && iy >= 0 && iy < psc(h))
+        {
+            int si = gz * psc(cstep) + iy * psc(w) + ix;
+            v = sfp2lfp(buffer_ld1(bottom_blob_data, si));
+        }
+
+        tile[ty][tx] = v;
+    }
+
+    barrier();
+
+    int ox = gx0 + lid_x;
+    int oy = gy0 + lid_y;
+
+    if (ox >= psc(outw) || oy >= psc(outh))
+    return;
+
+    int tx0 = lid_x * stride_w;
+    int ty0 = lid_y * stride_h;
+
+    afp outv;
 
     if (pooling_type == 0)
     {
-        afp mv = afp(-3.402823466e38);
+        afp mv = lfp2afp(tile[ty0][tx0]);
 
         for (int ky = 0; ky < kernel_h; ky++)
         {
-            int iy = iny0 + ky;
             for (int kx = 0; kx < kernel_w; kx++)
             {
-                int ix = inx0 + kx;
-
-                if (ix < 0 || ix >= psc(w) || iy < 0 || iy >= psc(h))
-                continue;
-
-                int si = oz * psc(cstep) + iy * psc(w) + ix;
-                afp v = buffer_ld1(bottom_blob_data, si);
+                afp v = lfp2afp(tile[ty0 + ky][tx0 + kx]);
                 mv = max(mv, v);
             }
         }
 
-        int gi = oz * psc(outcstep) + oy * psc(outw) + ox;
-        buffer_st1(top_blob_data, gi, mv);
+        outv = mv;
     }
     else
     {
@@ -136,25 +177,20 @@ void main()
         {
             for (int ky = 0; ky < kernel_h; ky++)
             {
-                int iy = iny0 + ky;
                 for (int kx = 0; kx < kernel_w; kx++)
                 {
-                    int ix = inx0 + kx;
-
-                    if (ix < 0 || ix >= psc(w) || iy < 0 || iy >= psc(h))
-                    continue;
-
-                    int si = oz * psc(cstep) + iy * psc(w) + ix;
-                    sum += buffer_ld1(bottom_blob_data, si);
+                    sum += lfp2afp(tile[ty0 + ky][tx0 + kx]);
                 }
             }
 
             sum *= afp(1.f / float(kernel_w * kernel_h));
-            int gi = oz * psc(outcstep) + oy * psc(outw) + ox;
-            buffer_st1(top_blob_data, gi, sum);
+            outv = sum;
         }
         else
         {
+            int inx0 = ox * stride_w - pl;
+            int iny0 = oy * stride_h - pt;
+
             int vx0 = max(0, -inx0);
             int vy0 = max(0, -iny0);
             int vx1 = min(kernel_w, psc(w) - inx0);
@@ -163,25 +199,24 @@ void main()
             int area = (vx1 - vx0) * (vy1 - vy0);
             if (area <= 0)
             {
-                int gi = oz * psc(outcstep) + oy * psc(outw) + ox;
-                buffer_st1(top_blob_data, gi, afp(0.f));
-                return;
+                outv = afp(0.f);
             }
-
-            for (int ky = vy0; ky < vy1; ky++)
+            else
             {
-                int iy = iny0 + ky;
-                for (int kx = vx0; kx < vx1; kx++)
+                for (int ky = vy0; ky < vy1; ky++)
                 {
-                    int ix = inx0 + kx;
-                    int si = oz * psc(cstep) + iy * psc(w) + ix;
-                    sum += buffer_ld1(bottom_blob_data, si);
+                    for (int kx = vx0; kx < vx1; kx++)
+                    {
+                        sum += lfp2afp(tile[ty0 + ky][tx0 + kx]);
+                    }
                 }
-            }
 
-            sum *= afp(1.f / float(area));
-            int gi = oz * psc(outcstep) + oy * psc(outw) + ox;
-            buffer_st1(top_blob_data, gi, sum);
+                sum *= afp(1.f / float(area));
+                outv = sum;
+            }
         }
     }
+
+    int gi = gz * psc(outcstep) + oy * psc(outw) + ox;
+    buffer_st1(top_blob_data, gi, outv);
 }

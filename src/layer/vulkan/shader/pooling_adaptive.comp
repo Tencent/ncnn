@@ -1,100 +1,85 @@
-// Copyright 2018 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-#define FLT_MAX 3.402823466e+38
+layout (constant_id = 0) const int pooling_type = 0;
+layout (constant_id = 1) const int out_w_param = 0;
+layout (constant_id = 2) const int out_h_param = 0;
+layout (constant_id = 3) const int reserved0 = 0;
+layout (constant_id = 4) const int reserved1 = 0;
 
-layout(constant_id = 0) const int pooling_type = 0;
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-#define shape_constant_id_offset 1
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-
-layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
-
-layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-
-layout(push_constant) uniform parameter
+layout (push_constant) uniform parameter
 {
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    int ox = int(gl_GlobalInvocationID.x);
+    int oy = int(gl_GlobalInvocationID.y);
+    int oz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
-        return;
+    if (ox >= p.outw || oy >= p.outh || oz >= p.outc)
+    return;
 
-    afp res;
+    int ih0 = p.h * oy / p.outh;
+    int ih1 = (p.h * (oy + 1) + p.outh - 1) / p.outh;
 
-    // calculate adaptive kernel size
-    const int sx = psc(w) * gx / psc(outw);
-    const int ex = (psc(w) * (gx + 1) + psc(outw) - 1) / psc(outw);
-    const int kernel_w = ex - sx;
-    const int sy = psc(h) * gy / psc(outh);
-    const int ey = (psc(h) * (gy + 1) + psc(outh) - 1) / psc(outh);
-    const int kernel_h = ey - sy;
+    int iw0 = p.w * ox / p.outw;
+    int iw1 = (p.w * (ox + 1) + p.outw - 1) / p.outw;
 
     if (pooling_type == 0)
     {
-        res = afp(-FLT_MAX);
+        int si0 = oz * p.cstep + ih0 * p.w + iw0;
+        afp mv = buffer_ld1(bottom_blob_data, si0);
 
-        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
-
-        for (int y = 0; y < kernel_h; y++)
+        for (int iy = ih0; iy < ih1; iy++)
         {
-            for (int x = 0; x < kernel_w; x++)
+            int base = oz * p.cstep + iy * p.w;
+            for (int ix = iw0; ix < iw1; ix++)
             {
-                afp v = buffer_ld1(bottom_blob_data, v_offset + x);
-                res = max(res, v);
+                afp v = buffer_ld1(bottom_blob_data, base + ix);
+                mv = max(mv, v);
             }
-
-            v_offset += psc(w);
         }
+
+        int gi = oz * p.outcstep + oy * p.outw + ox;
+        buffer_st1(top_blob_data, gi, mv);
     }
-    if (pooling_type == 1)
+    else
     {
-        float res_fp32 = 0.f; // force accumulation in fp32
+        afp sum = afp(0.f);
+        int hk = ih1 - ih0;
+        int wk = iw1 - iw0;
+        int area = hk * wk;
 
-        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
-
-        for (int y = 0; y < kernel_h; y++)
+        for (int iy = ih0; iy < ih1; iy++)
         {
-            for (int x = 0; x < kernel_w; x++)
+            int base = oz * p.cstep + iy * p.w;
+            for (int ix = iw0; ix < iw1; ix++)
             {
-                res_fp32 += buffer_ld1(bottom_blob_data, v_offset + x);
+                sum += buffer_ld1(bottom_blob_data, base + ix);
             }
-
-            v_offset += psc(w);
         }
 
-        res_fp32 /= float(kernel_h * kernel_w);
-        res = afp(res_fp32); // cast to fp16 if possible
+        sum *= afp(1.f / float(area));
+        int gi = oz * p.outcstep + oy * p.outw + ox;
+        buffer_st1(top_blob_data, gi, sum);
     }
-
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
-    buffer_st1(top_blob_data, gi, res);
 }
