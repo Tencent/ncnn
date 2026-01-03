@@ -26,7 +26,6 @@ layout(push_constant) uniform parameter
     int whc_dir_stride;
     int bias_dir_stride;
     int bottom_step;
-    int unused0;
 } p;
 
 void main()

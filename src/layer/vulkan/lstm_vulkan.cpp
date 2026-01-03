@@ -175,7 +175,7 @@ static inline void record_lstm_step(const Pipeline* pipeline,
     bindings[7] = cell_next;
     bindings[8] = top_blob;
 
-    std::vector<vk_constant_type> constants(12);
+    std::vector<vk_constant_type> constants(11);
     constants[0].i = size;
     constants[1].i = num_output;
     constants[2].i = hidden_size;
@@ -187,7 +187,6 @@ static inline void record_lstm_step(const Pipeline* pipeline,
     constants[8].i = whc_dir_stride;
     constants[9].i = bias_dir_stride;
     constants[10].i = bottom_step;
-    constants[11].i = 0;
 
     VkMat dispatcher;
     dispatcher.w = hidden_size;
@@ -227,7 +226,7 @@ static inline void record_lstm_step_h(const Pipeline* pipeline,
     bindings[6] = hidden_h_next;
     bindings[7] = cell_next;
 
-    std::vector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(9);
     constants[0].i = size;
     constants[1].i = num_output;
     constants[2].i = hidden_size;
@@ -237,7 +236,6 @@ static inline void record_lstm_step_h(const Pipeline* pipeline,
     constants[6].i = whc_dir_stride;
     constants[7].i = bias_dir_stride;
     constants[8].i = bottom_step;
-    constants[9].i = 0;
 
     VkMat dispatcher;
     dispatcher.w = hidden_size;
