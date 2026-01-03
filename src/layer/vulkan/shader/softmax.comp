@@ -3,21 +3,21 @@
 
 #version 450
 
-layout (constant_id = 0) const int axis = 0;
+layout(constant_id = 0) const int axis = 0;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -36,7 +36,7 @@ void reduce_maxv(int lid, int lsize)
     for (int off = lsize / 2; off > 0; off >>= 1)
     {
         if (lid < off)
-        smaxv[lid] = max(smaxv[lid], smaxv[lid + off]);
+            smaxv[lid] = max(smaxv[lid], smaxv[lid + off]);
         barrier();
     }
 }
@@ -46,7 +46,7 @@ void reduce_sumv(int lid, int lsize)
     for (int off = lsize / 2; off > 0; off >>= 1)
     {
         if (lid < off)
-        ssumv[lid] += ssumv[lid + off];
+            ssumv[lid] += ssumv[lid + off];
         barrier();
     }
 }

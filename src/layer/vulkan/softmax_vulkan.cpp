@@ -93,17 +93,24 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     }
     else if (dims == 3)
     {
-        if (pa == 0) slices = w * h;
-        else if (pa == 1) slices = c * w;
-        else slices = c * h;
+        if (pa == 0)
+            slices = w * h;
+        else if (pa == 1)
+            slices = c * w;
+        else
+            slices = c * h;
     }
     else
     {
         const int plane = w * h;
-        if (pa == 0) slices = plane * d;
-        else if (pa == 1) slices = c * plane;
-        else if (pa == 2) slices = c * d * w;
-        else slices = c * d * h;
+        if (pa == 0)
+            slices = plane * d;
+        else if (pa == 1)
+            slices = c * plane;
+        else if (pa == 2)
+            slices = c * d * w;
+        else
+            slices = c * d * h;
     }
 
     std::vector<VkMat> bindings(2);
