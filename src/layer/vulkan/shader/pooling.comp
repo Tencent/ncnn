@@ -5,36 +5,36 @@
 
 #define FLT_MAX 3.402823466e+38
 
-layout (constant_id = 0) const int pooling_type = 0;
-layout (constant_id = 1) const int kernel_w = 1;
-layout (constant_id = 2) const int kernel_h = 1;
-layout (constant_id = 3) const int stride_w = 1;
-layout (constant_id = 4) const int stride_h = 1;
-layout (constant_id = 5) const int pad_left = 0;
-layout (constant_id = 6) const int pad_right = 0;
-layout (constant_id = 7) const int pad_top = 0;
-layout (constant_id = 8) const int pad_bottom = 0;
-layout (constant_id = 9) const int global_pooling = 0;
-layout (constant_id = 10) const int pad_mode = 0;
-layout (constant_id = 11) const int avgpool_count_include_pad = 0;
+layout(constant_id = 0) const int pooling_type = 0;
+layout(constant_id = 1) const int kernel_w = 1;
+layout(constant_id = 2) const int kernel_h = 1;
+layout(constant_id = 3) const int stride_w = 1;
+layout(constant_id = 4) const int stride_h = 1;
+layout(constant_id = 5) const int pad_left = 0;
+layout(constant_id = 6) const int pad_right = 0;
+layout(constant_id = 7) const int pad_top = 0;
+layout(constant_id = 8) const int pad_bottom = 0;
+layout(constant_id = 9) const int global_pooling = 0;
+layout(constant_id = 10) const int pad_mode = 0;
+layout(constant_id = 11) const int avgpool_count_include_pad = 0;
 
 #define shape_constant_id_offset 12
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;

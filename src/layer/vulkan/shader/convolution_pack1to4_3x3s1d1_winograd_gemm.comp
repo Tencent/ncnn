@@ -5,20 +5,20 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const int batch = 1;
-layout (constant_id = 1) const int c = 0;
-layout (constant_id = 2) const int outc = 0;
+layout(constant_id = 0) const int batch = 1;
+layout(constant_id = 1) const int c = 0;
+layout(constant_id = 2) const int outc = 0;
 
 #define shape_constant_id_offset 3
-layout (constant_id = shape_constant_id_offset + 0) const int cstep = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_tm_blob { sfp bottom_tm_blob_data[]; };
-layout (binding = 1) writeonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
-layout (binding = 2) readonly buffer weight_tm_blob { sfpvec4 weight_tm_data[]; };
+layout(binding = 0) readonly buffer bottom_tm_blob { sfp bottom_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
+layout(binding = 2) readonly buffer weight_tm_blob { sfpvec4 weight_tm_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int cstep;
     int outw;
