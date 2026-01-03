@@ -3,12 +3,12 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout(constant_id = 0) const int pooling_type = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer partial_blob { sfp partial_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer partial_blob { sfp partial_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -26,7 +26,7 @@ void main()
     int tid = int(gl_LocalInvocationID.x);
 
     if (cid >= p.c)
-    return;
+        return;
 
     int size = p.w * p.h;
 
@@ -45,8 +45,10 @@ void main()
             int si = cid * p.cstep + iy * p.w + ix;
             afp v = buffer_ld1(bottom_blob_data, si);
 
-            if (pooling_type == 0) acc = max(acc, v);
-            else acc += v;
+            if (pooling_type == 0)
+                acc = max(acc, v);
+            else
+                acc += v;
         }
     }
 

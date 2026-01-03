@@ -3,12 +3,12 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
+layout(constant_id = 0) const int pooling_type = 0;
 
-layout (binding = 0) readonly buffer partial_blob { sfp partial_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 0) readonly buffer partial_blob { sfp partial_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int partial_w;
     int c;
@@ -23,7 +23,7 @@ void main()
     int tid = int(gl_LocalInvocationID.x);
 
     if (cid >= p.c)
-    return;
+        return;
 
     afp acc = (pooling_type == 0) ? afp(-3.402823466e38) : afp(0.f);
 
@@ -32,8 +32,10 @@ void main()
         int si = cid * p.partial_w + i;
         afp v = buffer_ld1(partial_blob_data, si);
 
-        if (pooling_type == 0) acc = max(acc, v);
-        else acc += v;
+        if (pooling_type == 0)
+            acc = max(acc, v);
+        else
+            acc += v;
     }
 
     sdata[tid] = sfp2lfp(acc);
@@ -55,7 +57,7 @@ void main()
     {
         afp outv = lfp2afp(sdata[0]);
         if (pooling_type != 0)
-        outv *= afp(1.f / float(p.in_size));
+            outv *= afp(1.f / float(p.in_size));
 
         buffer_st1(top_blob_data, cid, outv);
     }

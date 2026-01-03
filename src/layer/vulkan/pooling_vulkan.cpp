@@ -37,7 +37,10 @@ static inline void calc_output_and_pad(int w, int h,
                                        int pad_mode, int& outw, int& outh,
                                        int& pl, int& pr, int& pt, int& pb)
 {
-    pl = 0; pr = 0; pt = 0; pb = 0;
+    pl = 0;
+    pr = 0;
+    pt = 0;
+    pb = 0;
 
     if (pad_mode == 0 || pad_mode == 1)
     {

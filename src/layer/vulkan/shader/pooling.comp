@@ -3,37 +3,37 @@
 
 #version 450
 
-layout (constant_id = 0) const int pooling_type = 0;
-layout (constant_id = 1) const int kernel_w = 0;
-layout (constant_id = 2) const int kernel_h = 0;
-layout (constant_id = 3) const int stride_w = 1;
-layout (constant_id = 4) const int stride_h = 1;
-layout (constant_id = 5) const int pad_left = 0;
-layout (constant_id = 6) const int pad_right = 0;
-layout (constant_id = 7) const int pad_top = 0;
-layout (constant_id = 8) const int pad_bottom = 0;
-layout (constant_id = 9) const int pad_mode = 0;
-layout (constant_id = 10) const int avgpool_count_include_pad = 0;
+layout(constant_id = 0) const int pooling_type = 0;
+layout(constant_id = 1) const int kernel_w = 0;
+layout(constant_id = 2) const int kernel_h = 0;
+layout(constant_id = 3) const int stride_w = 1;
+layout(constant_id = 4) const int stride_h = 1;
+layout(constant_id = 5) const int pad_left = 0;
+layout(constant_id = 6) const int pad_right = 0;
+layout(constant_id = 7) const int pad_top = 0;
+layout(constant_id = 8) const int pad_bottom = 0;
+layout(constant_id = 9) const int pad_mode = 0;
+layout(constant_id = 10) const int avgpool_count_include_pad = 0;
 
 #define shape_constant_id_offset 11
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
-layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -57,7 +57,7 @@ void main()
     int oz = int(gl_GlobalInvocationID.z);
 
     if (ox >= psc(outw) || oy >= psc(outh) || oz >= psc(outc))
-    return;
+        return;
 
     int pl;
     int pr;
@@ -117,7 +117,7 @@ void main()
                 int ix = inx0 + kx;
 
                 if (ix < 0 || ix >= psc(w) || iy < 0 || iy >= psc(h))
-                continue;
+                    continue;
 
                 int si = oz * psc(cstep) + iy * psc(w) + ix;
                 afp v = buffer_ld1(bottom_blob_data, si);
@@ -142,7 +142,7 @@ void main()
                     int ix = inx0 + kx;
 
                     if (ix < 0 || ix >= psc(w) || iy < 0 || iy >= psc(h))
-                    continue;
+                        continue;
 
                     int si = oz * psc(cstep) + iy * psc(w) + ix;
                     sum += buffer_ld1(bottom_blob_data, si);
