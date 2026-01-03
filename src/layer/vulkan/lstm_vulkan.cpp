@@ -289,8 +289,7 @@ int LSTM_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     if (!support_vulkan)
         return -1;
 
-    VkMat bottom_blob;
-    vkdev->convert_packing(bottom_blobs[0], bottom_blob, 1, cmd, opt);
+    VkMat bottom_blob = bottom_blobs[0];
 
     if (bottom_blob.dims != 2)
         return -1;
