@@ -389,7 +389,7 @@ int LSTM_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     auto run_sequence = [&](int dir_index, int out_offset, int reverse,
                             VkMat& hprev, VkMat& hnext,
                             VkMat& cprev, VkMat& cnext,
-                            VkMat& htmp) {
+    VkMat& htmp) {
         for (int t = 0; t < T; t++)
         {
             const int ti = reverse ? (T - 1 - t) : t;
