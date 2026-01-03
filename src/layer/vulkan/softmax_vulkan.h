@@ -1,4 +1,4 @@
-// Copyright 2019 Tencent
+// Copyright 2026
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_SOFTMAX_VULKAN_H
@@ -20,15 +20,7 @@ public:
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
-    Pipeline* pipeline_softmax_reduce_max;
-    Pipeline* pipeline_softmax_exp_sub_max;
-    Pipeline* pipeline_softmax_reduce_sum;
-    Pipeline* pipeline_softmax_div_sum;
-
-    Pipeline* pipeline_softmax_reduce_max_pack4;
-    Pipeline* pipeline_softmax_exp_sub_max_pack4;
-    Pipeline* pipeline_softmax_reduce_sum_pack4;
-    Pipeline* pipeline_softmax_div_sum_pack4;
+    Pipeline* pipeline_softmax;
 };
 
 } // namespace ncnn
