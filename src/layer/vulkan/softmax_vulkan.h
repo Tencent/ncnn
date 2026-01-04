@@ -1,4 +1,4 @@
-// Copyright 2026
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_SOFTMAX_VULKAN_H
@@ -21,6 +21,7 @@ public:
 
 public:
     Pipeline* pipeline_softmax;
+    Pipeline* pipeline_softmax_pack4;
 };
 
 } // namespace ncnn

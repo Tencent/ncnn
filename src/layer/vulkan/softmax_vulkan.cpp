@@ -1,4 +1,4 @@
-// Copyright 2026
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "softmax_vulkan.h"
@@ -11,10 +11,10 @@ Softmax_vulkan::Softmax_vulkan()
 {
     support_vulkan = true;
 
-    support_vulkan_packing = false;
-    support_vulkan_any_packing = false;
+    support_vulkan_packing = true;
 
     pipeline_softmax = 0;
+    pipeline_softmax_pack4 = 0;
 }
 
 int Softmax_vulkan::create_pipeline(const Option& _opt)
@@ -23,15 +23,22 @@ int Softmax_vulkan::create_pipeline(const Option& _opt)
 
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
-    size_t elemsize = 4u;
+    int elempack = 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed)
-        elemsize = 2u;
+        elemsize = elempack * 2u;
+    else
+        elemsize = elempack * 4u;
 
     Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w, (void*)0, elemsize, 1);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, 1);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c, (void*)0, elemsize, 1);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c, (void*)0, elemsize, 1);
+    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(1 + 7);
     specializations[0].i = axis;
@@ -43,9 +50,19 @@ int Softmax_vulkan::create_pipeline(const Option& _opt)
     specializations[1 + 5].i = 0;
     specializations[1 + 6].i = 0;
 
-    pipeline_softmax = new Pipeline(vkdev);
-    pipeline_softmax->set_local_size_xyz(256, 1, 1);
-    pipeline_softmax->create(LayerShaderType::softmax, opt, specializations);
+    if (shape.dims == 0 || elempack == 1)
+    {
+        pipeline_softmax = new Pipeline(vkdev);
+        pipeline_softmax->set_local_size_xyz(256, 1, 1);
+        pipeline_softmax->create(LayerShaderType::softmax, opt, specializations);
+    }
+
+    if (shape.dims == 0 || elempack == 4)
+    {
+        pipeline_softmax_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_pack4->set_local_size_xyz(256, 1, 1);
+        pipeline_softmax_pack4->create(LayerShaderType::softmax_pack4, opt, specializations);
+    }
 
     return 0;
 }
@@ -54,6 +71,10 @@ int Softmax_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_softmax;
     pipeline_softmax = 0;
+
+    delete pipeline_softmax_pack4;
+    pipeline_softmax_pack4 = 0;
+
     return 0;
 }
 
@@ -69,18 +90,18 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     VkMat top_blob;
     if (dims == 1)
-        top_blob.create(w, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_vkallocator);
     else if (dims == 2)
-        top_blob.create(w, h, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_vkallocator);
     else if (dims == 3)
-        top_blob.create(w, h, c, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_vkallocator);
     else
-        top_blob.create(w, h, d, c, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, d, c, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_vkallocator);
 
     if (top_blob.empty())
         return -100;
 
-    int pa = axis < 0 ? dims + axis : axis;
+    const int pa = axis < 0 ? dims + axis : axis;
 
     int slices = 1;
     if (dims == 1)
@@ -126,14 +147,14 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[5].i = bottom_blob.cstep;
     constants[6].i = top_blob.cstep;
 
-    const int wg = 256;
+    const Pipeline* pipeline = bottom_blob.elempack == 4 ? pipeline_softmax_pack4 : pipeline_softmax;
 
     VkMat dispatcher;
-    dispatcher.w = slices * wg;
+    dispatcher.w = slices * 256;
     dispatcher.h = 1;
     dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_softmax, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     bottom_top_blob = top_blob;
     return 0;

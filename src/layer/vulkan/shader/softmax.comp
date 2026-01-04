@@ -1,4 +1,5 @@
-// Copyright 2026
+// softmax.comp
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -28,15 +29,19 @@ layout(push_constant) uniform parameter
     int outcstep;
 } p;
 
-shared afp smaxv[256];
-shared afp ssumv[256];
+shared lfp smaxv[256];
+shared lfp ssumv[256];
 
 void reduce_maxv(int lid, int lsize)
 {
     for (int off = lsize / 2; off > 0; off >>= 1)
     {
         if (lid < off)
-            smaxv[lid] = max(smaxv[lid], smaxv[lid + off]);
+        {
+            afp a = lfp2afp(smaxv[lid]);
+            afp b = lfp2afp(smaxv[lid + off]);
+            smaxv[lid] = sfp2lfp(max(a, b));
+        }
         barrier();
     }
 }
@@ -46,23 +51,15 @@ void reduce_sumv(int lid, int lsize)
     for (int off = lsize / 2; off > 0; off >>= 1)
     {
         if (lid < off)
-            ssumv[lid] += ssumv[lid + off];
+        {
+            afp a = lfp2afp(ssumv[lid]);
+            afp b = lfp2afp(ssumv[lid + off]);
+            ssumv[lid] = sfp2lfp(a + b);
+        }
         barrier();
     }
 }
 
-// One workgroup computes one softmax slice.
-// slice index = gl_WorkGroupID.x, 256 threads cooperate.
-// 1) Each thread scans i = lid, lid+256, ... to get local max, then reduce to maxv.
-// 2) Each thread scans again to accumulate exp(x - maxv), then reduce to sum.
-// 3) Each thread writes y = exp(x - maxv) / sum for its i positions.
-// base_in/base_out choose the first element of this slice in the flattened buffer,
-// stride_in/stride_out are the distance (in elements) between consecutive items along the softmax axis.
-// For dims=4, pa selects axis:
-//   pa=0: slice is (x,y,z) over channels c, stride=cstep
-//   pa=1: slice is depth z over fixed (q, x,y), stride=plane(w*h)
-//   pa=2: slice is height y over fixed (q, z,x), stride=w
-//   pa=3: slice is width  x over fixed (q, z,y), stride=1
 void main()
 {
     int slice = int(gl_WorkGroupID.x);
@@ -204,10 +201,10 @@ void main()
         lmax = max(lmax, v);
     }
 
-    smaxv[lid] = lmax;
+    smaxv[lid] = sfp2lfp(lmax);
     barrier();
     reduce_maxv(lid, lsize);
-    afp maxv = smaxv[0];
+    afp maxv = lfp2afp(smaxv[0]);
 
     afp lsum = afp(0.f);
     for (int i = lid; i < size; i += lsize)
@@ -216,10 +213,10 @@ void main()
         lsum += exp(v - maxv);
     }
 
-    ssumv[lid] = lsum;
+    ssumv[lid] = sfp2lfp(lsum);
     barrier();
     reduce_sumv(lid, lsize);
-    afp invsum = afp(1.f) / ssumv[0];
+    afp invsum = afp(1.f) / lfp2afp(ssumv[0]);
 
     for (int i = lid; i < size; i += lsize)
     {
