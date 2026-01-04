@@ -3,36 +3,36 @@
 
 #version 450
 
-layout (constant_id = 0) const int sample_type = 1;
-layout (constant_id = 1) const int padding_mode = 1;
-layout (constant_id = 2) const int align_corner = 0;
-layout (constant_id = 3) const int permute_fusion = 0;
+layout(constant_id = 0) const int sample_type = 1;
+layout(constant_id = 1) const int padding_mode = 1;
+layout(constant_id = 2) const int align_corner = 0;
+layout(constant_id = 3) const int permute_fusion = 0;
 
 #define shape_constant_id_offset 4
-layout (constant_id = shape_constant_id_offset + 0)  const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1)  const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2)  const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3)  const int d = 0;
-layout (constant_id = shape_constant_id_offset + 4)  const int c = 0;
-layout (constant_id = shape_constant_id_offset + 5)  const int cstep = 0;
-layout (constant_id = shape_constant_id_offset + 6)  const int gdims = 0;
-layout (constant_id = shape_constant_id_offset + 7)  const int gw = 0;
-layout (constant_id = shape_constant_id_offset + 8)  const int gh = 0;
-layout (constant_id = shape_constant_id_offset + 9)  const int gd = 0;
-layout (constant_id = shape_constant_id_offset + 10) const int gc = 0;
-layout (constant_id = shape_constant_id_offset + 11) const int gcstep = 0;
-layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
-layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int gdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int gw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int gh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int gd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int gc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int gcstep = 0;
+layout(constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
 
-layout (binding = 0) writeonly buffer top_blob  { sfp top_blob_data[]; };
-layout (binding = 1) readonly  buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 2) readonly  buffer grid_blob { sfp grid_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 2) readonly buffer grid_blob { sfp grid_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -57,7 +57,7 @@ layout (push_constant) uniform parameter
 afp grid_sample_unormalize(int W, afp coord, int align_corners)
 {
     return align_corners != 0 ? (coord + afp(1.0)) * afp(0.5) * afp(W - 1)
-    : ((coord + afp(1.0)) * afp(W) - afp(1.0)) * afp(0.5);
+                              : ((coord + afp(1.0)) * afp(W) - afp(1.0)) * afp(0.5);
 }
 
 afp border_coord(afp x, afp border)
