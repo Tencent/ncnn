@@ -20,7 +20,7 @@ layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
 
 #if NCNN_fp16_packed || NCNN_bf16_packed
-layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
 #else
 layout(binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #endif

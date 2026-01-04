@@ -18,20 +18,20 @@ layout(constant_id = 8) const float activation_param_0 = 0;
 layout(constant_id = 9) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 10
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic) || NCNN_bf16_packed || NCNN_bf16_storage
 // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
 layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
