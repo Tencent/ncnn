@@ -3,35 +3,35 @@
 
 #version 450
 
-layout (constant_id = 0) const int op_type = 0;
+layout(constant_id = 0) const int op_type = 0;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int ad = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int ac = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int acstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int adims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int aw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int ah = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int ad = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int ac = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int acstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 6) const int bdims = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int bw = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int bh = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int bd = 0;
-layout (constant_id = shape_constant_id_offset + 10) const int bc = 0;
-layout (constant_id = shape_constant_id_offset + 11) const int bcstep = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int bdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int bw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int bh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int bd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int bc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int bcstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
-layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
-layout (binding = 1) readonly buffer b_blob { sfpvec4 b_blob_data[]; };
-layout (binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
+layout(binding = 1) readonly buffer b_blob { sfpvec4 b_blob_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int adims;
     int aw;

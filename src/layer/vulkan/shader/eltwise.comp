@@ -3,15 +3,15 @@
 
 #version 450
 
-layout (constant_id = 0) const int op_type = 0;
-layout (constant_id = 1) const int coeff_term = 0;
-layout (constant_id = 2) const uint n = 0;
+layout(constant_id = 0) const int op_type = 0;
+layout(constant_id = 1) const int coeff_term = 0;
+layout(constant_id = 2) const uint n = 0;
 
-layout (binding = 0) readonly buffer bottom_blob1 { sfpvec4 bottom_blob1_data[]; };
-layout (binding = 1) readonly buffer bottom_blob2 { sfpvec4 bottom_blob2_data[]; };
-layout (binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob1 { sfpvec4 bottom_blob1_data[]; };
+layout(binding = 1) readonly buffer bottom_blob2 { sfpvec4 bottom_blob2_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     uint n;
     float coeff0;

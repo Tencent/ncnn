@@ -3,33 +3,33 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: enable
+#extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const int bias_term = 0;
-layout (constant_id = 1) const int activation_type = 0;
-layout (constant_id = 2) const float activation_param_0 = 0;
-layout (constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 4
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -186,8 +186,7 @@ void main()
             buffer_ld4(weight_data, w_offset + 0),
             buffer_ld4(weight_data, w_offset + 1),
             buffer_ld4(weight_data, w_offset + 2),
-            buffer_ld4(weight_data, w_offset + 3)
-        );
+            buffer_ld4(weight_data, w_offset + 3));
 
         sum0 += v0 * k;
         sum1 += v1 * k;
