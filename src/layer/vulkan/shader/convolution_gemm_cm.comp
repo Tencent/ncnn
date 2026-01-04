@@ -3,59 +3,59 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: require
+#extension GL_GOOGLE_include_directive : require
 #include "vulkan_activation.comp"
 
-#extension GL_EXT_control_flow_attributes: require
+#extension GL_EXT_control_flow_attributes : require
 
-#extension GL_KHR_shader_subgroup_basic: require
+#extension GL_KHR_shader_subgroup_basic : require
 
-#extension GL_KHR_memory_scope_semantics: require
-#extension GL_EXT_shader_explicit_arithmetic_types: require
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #if ncnn_VK_KHR_cooperative_matrix
-#extension GL_KHR_cooperative_matrix: require
+#extension GL_KHR_cooperative_matrix : require
 #elif ncnn_VK_NV_cooperative_matrix
-#extension GL_NV_cooperative_matrix: require
+#extension GL_NV_cooperative_matrix : require
 #endif
 
-layout (constant_id = 0) const uint kernel_w = 1;
-layout (constant_id = 1) const uint kernel_h = 1;
-layout (constant_id = 2) const uint dilation_w = 1;
-layout (constant_id = 3) const uint dilation_h = 1;
-layout (constant_id = 4) const uint stride_w = 1;
-layout (constant_id = 5) const uint stride_h = 1;
-layout (constant_id = 6) const int bias_term = 0;
-layout (constant_id = 7) const int activation_type = 0;
-layout (constant_id = 8) const float activation_param_0 = 0;
-layout (constant_id = 9) const float activation_param_1 = 0;
-layout (constant_id = 10) const uint M = 1;
-layout (constant_id = 11) const uint N = 1;
-layout (constant_id = 12) const uint K = 1;
-layout (constant_id = 13) const uint UNROLL_SG_M = 2;
-layout (constant_id = 14) const uint UNROLL_SG_N = 2;
-layout (constant_id = 15) const uint UNROLL_SG_K = 2;
-layout (constant_id = 16) const uint UNROLL_WG_M = 2;
-layout (constant_id = 17) const uint UNROLL_WG_N = 2;
-layout (constant_id = 18) const uint inch = 1;
-layout (constant_id = 19) const uint outch = 1;
-layout (constant_id = 20) const uint elempack = 1;
-layout (constant_id = 21) const uint out_elempack = 1;
+layout(constant_id = 0) const uint kernel_w = 1;
+layout(constant_id = 1) const uint kernel_h = 1;
+layout(constant_id = 2) const uint dilation_w = 1;
+layout(constant_id = 3) const uint dilation_h = 1;
+layout(constant_id = 4) const uint stride_w = 1;
+layout(constant_id = 5) const uint stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int activation_type = 0;
+layout(constant_id = 8) const float activation_param_0 = 0;
+layout(constant_id = 9) const float activation_param_1 = 0;
+layout(constant_id = 10) const uint M = 1;
+layout(constant_id = 11) const uint N = 1;
+layout(constant_id = 12) const uint K = 1;
+layout(constant_id = 13) const uint UNROLL_SG_M = 2;
+layout(constant_id = 14) const uint UNROLL_SG_N = 2;
+layout(constant_id = 15) const uint UNROLL_SG_K = 2;
+layout(constant_id = 16) const uint UNROLL_WG_M = 2;
+layout(constant_id = 17) const uint UNROLL_WG_N = 2;
+layout(constant_id = 18) const uint inch = 1;
+layout(constant_id = 19) const uint outch = 1;
+layout(constant_id = 20) const uint elempack = 1;
+layout(constant_id = 21) const uint out_elempack = 1;
 
 #define shape_constant_id_offset 22
-layout (constant_id = shape_constant_id_offset + 0) const uint w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const uint h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const uint cstep = 0;
-layout (constant_id = shape_constant_id_offset + 3) const uint outw = 0;
-layout (constant_id = shape_constant_id_offset + 4) const uint outh = 0;
-layout (constant_id = shape_constant_id_offset + 5) const uint outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const uint w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const uint h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const uint cstep = 0;
+layout(constant_id = shape_constant_id_offset + 3) const uint outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const uint outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const uint outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { uvec2 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { uvec2 top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
+layout(binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     uint w;
     uint h;
@@ -113,8 +113,8 @@ void main()
 
     const uint maxk = kernel_w * kernel_h;
 
-//     const uint mm = (psc(outw) * psc(outh) + M - 1) / M;
-//     const uint nn = (outch + N - 1) / N;
+    //     const uint mm = (psc(outw) * psc(outh) + M - 1) / M;
+    //     const uint nn = (outch + N - 1) / N;
     const uint kk = (inch * maxk + K - 1) / K;
 
     if (wgmi >= wgmm)
@@ -146,10 +146,10 @@ void main()
         {
 #if ncnn_VK_KHR_cooperative_matrix
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> bias;
-            coopMatLoad(bias, bias_data, ((wgni* UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(bias, bias_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
             fcoopmatNV<16, gl_ScopeSubgroup, M, N> bias;
-            coopMatLoadNV(bias, bias_data, ((wgni* UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, false);
+            coopMatLoadNV(bias, bias_data, ((wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N + zn) * Nd4, 0, false);
 #endif
 
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
