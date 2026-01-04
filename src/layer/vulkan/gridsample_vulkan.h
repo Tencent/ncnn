@@ -20,6 +20,7 @@ public:
 
 public:
     Pipeline* pipeline_gridsample;
+    Pipeline* pipeline_gridsample_pack4;
 };
 
 } // namespace ncnn
