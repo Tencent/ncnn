@@ -29,7 +29,12 @@ public:
     VkMat bias_c_data_gpu;
     VkMat weight_hc_data_gpu;
 
+    VkMat weight_xc_data_gpu_pack4;
+    VkMat bias_c_data_gpu_pack4;
+    VkMat weight_hc_data_gpu_pack4;
+
     Pipeline* pipeline_gru_step;
+    Pipeline* pipeline_gru_step_pack4;
     Pipeline* pipeline_gru_copy;
 };
 

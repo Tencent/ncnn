@@ -16,6 +16,7 @@ GRU_vulkan::GRU_vulkan()
     support_vulkan_any_packing = false;
 
     pipeline_gru_step = 0;
+    pipeline_gru_step_pack4 = 0;
     pipeline_gru_copy = 0;
 }
 
@@ -44,6 +45,15 @@ int GRU_vulkan::create_pipeline(const Option& opt)
         pipeline_gru_step->create(LayerShaderType::gru_step, opt, specializations);
     }
 
+    if (num_output % 4 == 0)
+    {
+        pipeline_gru_step_pack4 = new Pipeline(vkdev);
+        pipeline_gru_step_pack4->set_local_size_xyz(64, 1, 1);
+
+        std::vector<vk_specialization_type> specializations;
+        pipeline_gru_step_pack4->create(LayerShaderType::gru_step_pack4, opt, specializations);
+    }
+
     {
         pipeline_gru_copy = new Pipeline(vkdev);
         pipeline_gru_copy->set_local_size_xyz(64, 1, 1);
@@ -60,10 +70,82 @@ int GRU_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gru_step;
     pipeline_gru_step = 0;
 
+    delete pipeline_gru_step_pack4;
+    pipeline_gru_step_pack4 = 0;
+
     delete pipeline_gru_copy;
     pipeline_gru_copy = 0;
 
     return 0;
+}
+
+static void pack_gru_weights_bias_pack4(const Mat& weight_xc_data,
+                                        const Mat& bias_c_data,
+                                        const Mat& weight_hc_data,
+                                        Mat& weight_xc_data_pack4,
+                                        Mat& bias_c_data_pack4,
+                                        Mat& weight_hc_data_pack4,
+                                        int size,
+                                        int num_output,
+                                        int num_directions)
+{
+    const int num_output_pack = num_output / 4;
+
+    weight_xc_data_pack4.create(size, num_directions * 3 * num_output_pack, (size_t)16u, 4);
+    weight_hc_data_pack4.create(num_output, num_directions * 3 * num_output_pack, (size_t)16u, 4);
+    bias_c_data_pack4.create(num_output_pack, num_directions * 4, (size_t)16u, 4);
+
+    const float* wxc_ptr = weight_xc_data;
+    const float* whc_ptr = weight_hc_data;
+    const float* bias_ptr = bias_c_data;
+
+    for (int dir = 0; dir < num_directions; dir++)
+    {
+        for (int gate = 0; gate < 3; gate++)
+        {
+            for (int q_pack = 0; q_pack < num_output_pack; q_pack++)
+            {
+                float* wxc_row = weight_xc_data_pack4.row(dir * 3 * num_output_pack + gate * num_output_pack + q_pack);
+                float* whc_row = weight_hc_data_pack4.row(dir * 3 * num_output_pack + gate * num_output_pack + q_pack);
+
+                for (int i = 0; i < size; i++)
+                {
+                    const int src_base = (dir * 3 * num_output + gate * num_output + q_pack * 4) * size + i;
+
+                    wxc_row[i * 4 + 0] = wxc_ptr[src_base + 0 * size];
+                    wxc_row[i * 4 + 1] = wxc_ptr[src_base + 1 * size];
+                    wxc_row[i * 4 + 2] = wxc_ptr[src_base + 2 * size];
+                    wxc_row[i * 4 + 3] = wxc_ptr[src_base + 3 * size];
+                }
+
+                for (int i = 0; i < num_output; i++)
+                {
+                    const int src_base = (dir * 3 * num_output + gate * num_output + q_pack * 4) * num_output + i;
+
+                    whc_row[i * 4 + 0] = whc_ptr[src_base + 0 * num_output];
+                    whc_row[i * 4 + 1] = whc_ptr[src_base + 1 * num_output];
+                    whc_row[i * 4 + 2] = whc_ptr[src_base + 2 * num_output];
+                    whc_row[i * 4 + 3] = whc_ptr[src_base + 3 * num_output];
+                }
+            }
+        }
+
+        for (int b = 0; b < 4; b++)
+        {
+            float* bias_row = bias_c_data_pack4.row(dir * 4 + b);
+
+            for (int q_pack = 0; q_pack < num_output_pack; q_pack++)
+            {
+                const int q0 = q_pack * 4;
+                const int src_base = dir * (num_output * 4) + b * num_output + q0;
+
+                bias_row[q_pack * 4 + 0] = bias_ptr[src_base + 0];
+                bias_row[q_pack * 4 + 1] = bias_ptr[src_base + 1];
+                bias_row[q_pack * 4 + 2] = bias_ptr[src_base + 2];
+                bias_row[q_pack * 4 + 3] = bias_ptr[src_base + 3];
+            }
+        }
+    }
 }
 
 int GRU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
@@ -74,6 +156,24 @@ int GRU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(weight_xc_data, weight_xc_data_gpu, opt);
     cmd.record_upload(bias_c_data, bias_c_data_gpu, opt);
     cmd.record_upload(weight_hc_data, weight_hc_data_gpu, opt);
+
+    if (num_output % 4 == 0)
+    {
+        const int size = weight_xc_data.w;
+        const int num_directions = direction == 2 ? 2 : 1;
+
+        Mat weight_xc_data_pack4;
+        Mat bias_c_data_pack4;
+        Mat weight_hc_data_pack4;
+
+        pack_gru_weights_bias_pack4(weight_xc_data, bias_c_data, weight_hc_data,
+                                    weight_xc_data_pack4, bias_c_data_pack4, weight_hc_data_pack4,
+                                    size, num_output, num_directions);
+
+        cmd.record_upload(weight_xc_data_pack4, weight_xc_data_gpu_pack4, opt);
+        cmd.record_upload(bias_c_data_pack4, bias_c_data_gpu_pack4, opt);
+        cmd.record_upload(weight_hc_data_pack4, weight_hc_data_gpu_pack4, opt);
+    }
 
     if (opt.lightmode)
     {
@@ -112,25 +212,25 @@ static inline void record_gru_copy(const Pipeline* pipeline,
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 }
 
-static inline void record_gru_step(const Pipeline* pipeline,
-                                   VkCompute& cmd,
-                                   const VkMat& bottom_blob,
-                                   const VkMat& weight_xc,
-                                   const VkMat& bias_c,
-                                   const VkMat& weight_hc,
-                                   const VkMat& hidden_prev,
-                                   VkMat& hidden_next,
-                                   VkMat& top_blob,
-                                   int size,
-                                   int num_output,
-                                   int ti,
-                                   int outw,
-                                   int out_offset,
-                                   int dir,
-                                   int wxc_dir_stride,
-                                   int whc_dir_stride,
-                                   int bias_dir_stride,
-                                   int bottom_step)
+static inline void record_gru_step_pack1(const Pipeline* pipeline,
+                                         VkCompute& cmd,
+                                         const VkMat& bottom_blob,
+                                         const VkMat& weight_xc,
+                                         const VkMat& bias_c,
+                                         const VkMat& weight_hc,
+                                         const VkMat& hidden_prev,
+                                         VkMat& hidden_next,
+                                         VkMat& top_blob,
+                                         int size,
+                                         int num_output,
+                                         int ti,
+                                         int outw,
+                                         int out_offset,
+                                         int dir,
+                                         int wxc_dir_stride,
+                                         int whc_dir_stride,
+                                         int bias_dir_stride,
+                                         int bottom_step)
 {
     std::vector<VkMat> bindings(7);
     bindings[0] = bottom_blob;
@@ -161,6 +261,47 @@ static inline void record_gru_step(const Pipeline* pipeline,
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 }
 
+static inline void record_gru_step_pack4(const Pipeline* pipeline,
+                                         VkCompute& cmd,
+                                         const VkMat& bottom_blob,
+                                         const VkMat& weight_xc_pack4,
+                                         const VkMat& bias_c_pack4,
+                                         const VkMat& weight_hc_pack4,
+                                         const VkMat& hidden_prev,
+                                         VkMat& hidden_next,
+                                         VkMat& top_blob,
+                                         int size,
+                                         int num_output,
+                                         int ti,
+                                         int outw,
+                                         int out_offset,
+                                         int dir)
+{
+    std::vector<VkMat> bindings(7);
+    bindings[0] = bottom_blob;
+    bindings[1] = weight_xc_pack4;
+    bindings[2] = bias_c_pack4;
+    bindings[3] = weight_hc_pack4;
+    bindings[4] = hidden_prev;
+    bindings[5] = hidden_next;
+    bindings[6] = top_blob;
+
+    std::vector<vk_constant_type> constants(6);
+    constants[0].i = size;
+    constants[1].i = num_output;
+    constants[2].i = ti;
+    constants[3].i = outw;
+    constants[4].i = out_offset;
+    constants[5].i = dir;
+
+    VkMat dispatcher;
+    dispatcher.w = num_output / 4;
+    dispatcher.h = 1;
+    dispatcher.c = 1;
+
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+}
+
 int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (!support_vulkan)
@@ -169,12 +310,12 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
     const VkMat& bottom_blob = bottom_blobs[0];
 
     const int size = bottom_blob.w;
-    const int T = bottom_blob.h;
+    const int timesteps = bottom_blob.h;
 
     const int num_directions = direction == 2 ? 2 : 1;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(num_output * num_directions, T, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+    top_blob.create(num_output * num_directions, timesteps, bottom_blob.elemsize, 1, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -199,8 +340,7 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
 
     if (bottom_blobs.size() == 2)
     {
-        VkMat hidden_in0;
-        vkdev->convert_packing(bottom_blobs[1], hidden_in0, 1, cmd, opt);
+        const VkMat& hidden_in0 = bottom_blobs[1];
 
         if (num_directions == 1)
         {
@@ -226,30 +366,57 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
     const int bias_dir_stride = num_output * 4;
     const int bottom_step = size;
 
-    auto run_sequence = [&](int dir_index, int out_offset, int reverse, VkMat& hprev, VkMat& hnext) {
-        for (int t = 0; t < T; t++)
-        {
-            const int ti = reverse ? (T - 1 - t) : t;
+    const bool use_pack4 = (num_output % 4 == 0)
+                           && pipeline_gru_step_pack4
+                           && !weight_xc_data_gpu_pack4.empty()
+                           && !bias_c_data_gpu_pack4.empty()
+                           && !weight_hc_data_gpu_pack4.empty();
 
-            record_gru_step(pipeline_gru_step,
-                            cmd,
-                            bottom_blob,
-                            weight_xc_data_gpu,
-                            bias_c_data_gpu,
-                            weight_hc_data_gpu,
-                            hprev,
-                            hnext,
-                            top_blob,
-                            size,
-                            num_output,
-                            ti,
-                            top_blob.w,
-                            out_offset,
-                            dir_index,
-                            wxc_dir_stride,
-                            whc_dir_stride,
-                            bias_dir_stride,
-                            bottom_step);
+    auto run_sequence = [&](int dir_index, int out_offset, int reverse, VkMat& hprev, VkMat& hnext) {
+        for (int t = 0; t < timesteps; t++)
+        {
+            const int ti = reverse ? (timesteps - 1 - t) : t;
+
+            if (use_pack4)
+            {
+                record_gru_step_pack4(pipeline_gru_step_pack4,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu_pack4,
+                                      bias_c_data_gpu_pack4,
+                                      weight_hc_data_gpu_pack4,
+                                      hprev,
+                                      hnext,
+                                      top_blob,
+                                      size,
+                                      num_output,
+                                      ti,
+                                      top_blob.w,
+                                      out_offset,
+                                      dir_index);
+            }
+            else
+            {
+                record_gru_step_pack1(pipeline_gru_step,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu,
+                                      bias_c_data_gpu,
+                                      weight_hc_data_gpu,
+                                      hprev,
+                                      hnext,
+                                      top_blob,
+                                      size,
+                                      num_output,
+                                      ti,
+                                      top_blob.w,
+                                      out_offset,
+                                      dir_index,
+                                      wxc_dir_stride,
+                                      whc_dir_stride,
+                                      bias_dir_stride,
+                                      bottom_step);
+            }
 
             std::swap(hprev, hnext);
         }
