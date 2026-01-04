@@ -16,6 +16,7 @@
 #if NCNN_VULKAN
 #include "command.h"
 #include "gpu.h"
+#include "pipelinecache.h"
 #endif // NCNN_VULKAN
 
 static struct prng_rand_t g_prng_rand_state;
@@ -1068,8 +1069,14 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+        ncnn::PipelineCache pipeline_cache(vkdev);
+
+        ncnn::Option opt = _opt;
+        opt.pipeline_cache = &pipeline_cache;
+
         std::vector<ncnn::Mat> d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, b, flag);
+        int ret = test_layer_gpu(typeindex, pd, weights, opt, a, top_blob_count, d, b, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
@@ -1527,8 +1534,14 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+        ncnn::PipelineCache pipeline_cache(vkdev);
+
+        ncnn::Option opt = _opt;
+        opt.pipeline_cache = &pipeline_cache;
+
         ncnn::Mat d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, b, flag);
+        int ret = test_layer_gpu(typeindex, pd, weights, opt, a, d, b, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
