@@ -39,6 +39,11 @@ const char* ncnn_version()
     return NCNN_VERSION_STRING;
 }
 
+int ncnn_version_number()
+{
+    return NCNN_VERSION_NUMBER;
+}
+
 /* allocator api */
 class PoolAllocator_c_api : public ncnn::PoolAllocator
 {

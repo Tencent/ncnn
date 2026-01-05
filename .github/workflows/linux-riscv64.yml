@@ -52,7 +52,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: qemu-install
         key: qemu-riscv64-install-20220502-4
@@ -192,7 +192,7 @@ jobs:
 
     #- name: cache-qemu
       #id: cache-qemu
-      #uses: actions/cache@v4
+      #uses: actions/cache@v5
       #with:
         #path: qemu-install
         #key: qemu-riscv64-install-20241202
@@ -218,7 +218,7 @@ jobs:
 
     #- name: cache-riscv
       #id: cache-riscv
-      #uses: actions/cache@v4
+      #uses: actions/cache@v5
       #with:
         #path: riscv-install
         #key: riscv-linux-install-20241202
@@ -281,7 +281,7 @@ jobs:
 
     #- name: cache-qemu
       #id: cache-qemu
-      #uses: actions/cache@v4
+      #uses: actions/cache@v5
       #with:
         #path: qemu-install
         #key: qemu-riscv64-install-20241202
@@ -307,7 +307,7 @@ jobs:
 
     #- name: cache-riscv
       #id: cache-riscv
-      #uses: actions/cache@v4
+      #uses: actions/cache@v5
       #with:
         #path: riscv-install
         #key: riscv-linux-install-20241202

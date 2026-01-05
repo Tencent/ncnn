@@ -164,7 +164,7 @@ struct unary_op_tan
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        // TODO rvv optimize
+#if __riscv_xtheadvector
         std::vector<float> tmp(vl);
         __riscv_vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
@@ -172,6 +172,11 @@ struct unary_op_tan
             tmp[i] = tanf(tmp[i]);
         }
         return __riscv_vle32_v_f32m8(tmp.data(), vl);
+#else
+        vfloat32m8_t sin_x, cos_x;
+        sincos_ps(x, &sin_x, &cos_x, vl);
+        return __riscv_vfdiv_vv_f32m8(sin_x, cos_x, vl);
+#endif
     }
 };
 

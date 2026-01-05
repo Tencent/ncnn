@@ -5,19 +5,19 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const int attn_mask = 0;
-layout (constant_id = 1) const int M = 0;
-layout (constant_id = 2) const int N = 0;
-layout (constant_id = 3) const int K = 0;
-layout (constant_id = 4) const int B = 0;
-layout (constant_id = 5) const int attn_mask_dims = 0;
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;
+layout(constant_id = 2) const int N = 0;
+layout(constant_id = 3) const int K = 0;
+layout(constant_id = 4) const int B = 0;
+layout(constant_id = 5) const int attn_mask_dims = 0;
 
-layout (binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
-layout (binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
-layout (binding = 2) writeonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
-layout (binding = 3) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
+layout(binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
+layout(binding = 2) writeonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
+layout(binding = 3) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int M;
     int N;
@@ -71,14 +71,14 @@ void main()
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
-            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
-            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
-            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
-            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+            tmp_q[ly][lx][0] = buffer_sm4(q_blob_data, ai);
+            tmp_q[ly][lx][1] = buffer_sm4(q_blob_data, ai + 1);
+            tmp_q[ly][lx][2] = buffer_sm4(q_blob_data, ai + 2);
+            tmp_q[ly][lx][3] = buffer_sm4(q_blob_data, ai + 3);
         }
 
         {
-            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+            tmp_k[lx][ly] = buffer_sm4(k_blob_data, bi);
         }
 
         barrier();
@@ -110,15 +110,15 @@ void main()
 
         if (lx < remain)
         {
-            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
-            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
-            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
-            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+            tmp_q[ly][lx][0] = buffer_sm4(q_blob_data, ai);
+            tmp_q[ly][lx][1] = buffer_sm4(q_blob_data, ai + 1);
+            tmp_q[ly][lx][2] = buffer_sm4(q_blob_data, ai + 2);
+            tmp_q[ly][lx][3] = buffer_sm4(q_blob_data, ai + 3);
         }
 
         if (ly < remain)
         {
-            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+            tmp_k[lx][ly] = buffer_sm4(k_blob_data, bi);
         }
 
         barrier();
