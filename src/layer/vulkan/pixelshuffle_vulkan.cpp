@@ -10,6 +10,7 @@ namespace ncnn {
 PixelShuffle_vulkan::PixelShuffle_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_pixelshuffle = 0;
     pipeline_pixelshuffle_pack4 = 0;
@@ -34,7 +35,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;

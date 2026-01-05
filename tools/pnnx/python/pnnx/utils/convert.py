@@ -147,6 +147,9 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
     if pnnxpy is None:
         pnnxpy = os.path.splitext(ptpath)[0] + '_pnnx.py'
 
+    # sanitize aaa/bbb-ccc/xxx-yyy.py to aaa/bbb-ccc/xxx_yyy.py
+    pnnxpy = os.path.join(os.path.dirname(pnnxpy), os.path.basename(pnnxpy).replace('-', '_'))
+
     pnnx_module_name = os.path.splitext(pnnxpy)[0]
 
     import importlib.util

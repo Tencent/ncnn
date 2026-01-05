@@ -11,6 +11,7 @@ namespace ncnn {
 Crop_vulkan::Crop_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_crop = 0;
     pipeline_crop_pack4 = 0;
@@ -139,7 +140,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -166,7 +167,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if ((one_blob_only || (!starts_expr.empty() && !ends_expr.empty())) && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
         size_t offset_elemsize;
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             offset_elemsize = offset_elempack * 2u;
         }

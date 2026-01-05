@@ -280,6 +280,10 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
+    // bf16 feature
+    bool support_bf16_packed() const;
+    bool support_bf16_storage() const; // bf16s implies bf16u
+
     // r16f and r8s format in storage image
     bool support_fp16_image() const;
     bool support_int8_image() const;
@@ -315,6 +319,7 @@ public:
     int support_VK_KHR_multiview() const;
     int support_VK_KHR_portability_subset() const;
     int support_VK_KHR_push_descriptor() const;
+    int support_VK_KHR_robustness2() const;
     int support_VK_KHR_sampler_ycbcr_conversion() const;
     int support_VK_KHR_shader_bfloat16() const;
     int support_VK_KHR_shader_float16_int8() const;
@@ -333,6 +338,7 @@ public:
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_EXT_robustness2() const;
     int support_VK_EXT_shader_atomic_float() const;
     int support_VK_EXT_shader_atomic_float2() const;
     int support_VK_EXT_shader_float8() const;
@@ -355,6 +361,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
     const VkPhysicalDeviceShaderBfloat16FeaturesKHR& queryShaderBfloat16Features() const;
     const VkPhysicalDeviceShaderFloat8FeaturesEXT& queryShaderFloat8Features() const;
@@ -371,6 +378,7 @@ public:
     const VkPhysicalDeviceCooperativeVectorPropertiesNV& queryCooperativeVectorPropertiesNV() const;
     const VkPhysicalDeviceDriverPropertiesKHR& queryDriverProperties() const;
     const VkPhysicalDeviceFloatControlsPropertiesKHR& queryFloatControlsProperties() const;
+    const VkPhysicalDeviceRobustness2PropertiesKHR& queryRobustness2Properties() const;
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
@@ -455,7 +463,7 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8  5=bf16
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2

@@ -38,7 +38,7 @@ public:
 pnnx.Input              input       0 1 input
 torch.norm              op_0        1 1 input 9 p=%p dim=(%dim) keepdim=True
 torch.clamp             op_1        1 1 9 11 max=None min=%eps
-Tensor.expand           op_2        1 1 11 denorm shape=*
+Tensor.expand           op_2        1 1 11 denorm sizes=*
 aten::div               op_3        2 1 input denorm out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -55,7 +55,7 @@ public:
 pnnx.Input              input       0 1 input
 torch.norm              op_0        1 1 input 3 p=%p dim=%dim keepdim=True
 torch.clamp             op_1        1 1 3 4 max=None min=%eps
-Tensor.expand           op_2        1 1 4 denorm shape=*
+Tensor.expand           op_2        1 1 4 denorm sizes=*
 aten::div               op_3        2 1 input denorm out
 pnnx.Output             output      1 0 out
 )PNNXIR";

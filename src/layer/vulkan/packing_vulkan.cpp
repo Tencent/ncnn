@@ -10,6 +10,7 @@ namespace ncnn {
 Packing_vulkan::Packing_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_packing = 0;
     pipeline_packing_pack1to4 = 0;
@@ -231,7 +232,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             out_elemsize = out_elempack * 2u;
         }
@@ -244,7 +245,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else if (cast_type_to == 2)
+    else if (cast_type_to == 2 || cast_type_to == 5)
     {
         out_elemsize = out_elempack * 2u;
     }

@@ -596,7 +596,7 @@ https://github.com/Tencent/ncnn/releases/latest
 - Sophisticated memory management and data structure design, very low memory footprint
 - Supports multi-core parallel computing acceleration, ARM big.LITTLE CPU scheduling optimization
 - Supports GPU acceleration via the next-generation low-overhead Vulkan API
-- Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
+- Extensible model design, supports 8bit [quantization](https://github.com/Tencent/ncnn/wiki/quantized-int8-inference) and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
 - Support direct memory zero copy reference load network model
 - Can be registered with custom layer implementation and extended
 - Well, it is strong, not afraid of being stuffed with 卷 QvQ
@@ -626,15 +626,15 @@ https://github.com/Tencent/ncnn/releases/latest
 
 |            | Windows | Linux | Android | macOS | iOS |
 | ---------- | ------- | ----- | ------- | ----- | --- |
-| intel-cpu  | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| intel-gpu  | ✔️      | ✔️    | ❔      | ❔    | /   |
-| amd-cpu    | ✔️      | ✔️    | ❔      | ✔️    | /   |
-| amd-gpu    | ✔️      | ✔️    | ❔      | ❔    | /   |
-| nvidia-gpu | ✔️      | ✔️    | ❔      | ❔    | /   |
-| qcom-cpu   | ❔      | ✔️    | ✅      | /     | /   |
-| qcom-gpu   | ❔      | ✔️    | ✔️      | /     | /   |
-| arm-cpu    | ❔      | ❔    | ✅      | /     | /   |
-| arm-gpu    | ❔      | ❔    | ✔️      | /     | /   |
+| intel-cpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| intel-gpu  | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-cpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| amd-gpu    | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| nvidia-gpu | ✔️      | ✔️    | ✔️      | ✔️    | /   |
+| qcom-cpu   | ✅      | ✅    | ✅      | /     | /   |
+| qcom-gpu   | ✔️      | ✔️    | ✔️      | /     | /   |
+| arm-cpu    | ✅      | ✅    | ✅      | /     | /   |
+| arm-gpu    | ❔      | ✔️    | ✔️      | /     | /   |
 | apple-cpu  | /       | /     | /       | ✔️    | ✅  |
 | apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
 | ibm-cpu    | /       | ✔️     | /       | /    | /  |

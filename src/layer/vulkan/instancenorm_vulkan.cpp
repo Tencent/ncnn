@@ -10,6 +10,7 @@ namespace ncnn {
 InstanceNorm_vulkan::InstanceNorm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = 0;
     pipeline_instancenorm_reduce_sum4_fp32[0] = 0;
@@ -39,7 +40,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     if (_channels != 0) elempack = _channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

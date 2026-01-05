@@ -29,6 +29,22 @@ pnnx.Output             output      1 0 out
     {
         return "celu";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float alpha = 1.f;
+
+        if (captured_params.at("alpha").type == 2)
+        {
+            alpha = (float)captured_params.at("alpha").i;
+        }
+        if (captured_params.at("alpha").type == 3)
+        {
+            alpha = captured_params.at("alpha").f;
+        }
+
+        op->params["0"] = alpha;
+    }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_CELU, 20)

@@ -96,7 +96,7 @@ void eliminate_reshape_shape_expression(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            if (op->type != "Tensor.reshape")
                 continue;
 
             if (op->inputs.size() != 2)
@@ -178,11 +178,71 @@ void eliminate_reshape_shape_expression(Graph& graph)
             break;
     }
 
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "Tensor.reshape")
+                continue;
+
+            if (op->inputs.size() != 2)
+                continue;
+
+            Operator* op_expr = op->inputs[1]->producer;
+            if (op_expr->type != "pnnx.Expression")
+                continue;
+
+            std::vector<int> outshape = op->outputs[0]->shape;
+            if (outshape.empty())
+                continue;
+
+            if (outshape.size() != 1)
+                continue;
+
+            // reshape to one dim
+            matched = true;
+
+            op->params["shape"] = std::vector<int> {-1};
+
+            op->inputs.resize(1);
+            op_expr->outputs[0]->remove_consumer(op);
+
+            if (op_expr->outputs[0]->consumers.size() == 0)
+            {
+                // remove expression operator
+                for (auto x : op_expr->inputs)
+                {
+                    x->remove_consumer(op_expr);
+                }
+
+                Operand* op_expr_out = op_expr->outputs[0];
+
+                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), op_expr_out));
+                delete op_expr_out;
+
+                op_expr->inputs.clear();
+                op_expr->outputs.clear();
+
+                graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op_expr));
+                delete op_expr;
+            }
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+
     for (size_t i = 0; i < graph.ops.size(); i++)
     {
         Operator* op = graph.ops[i];
 
-        if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+        if (op->type != "Tensor.reshape")
             continue;
 
         if (op->inputs.size() != 1)

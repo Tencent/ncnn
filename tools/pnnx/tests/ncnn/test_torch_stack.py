@@ -10,6 +10,8 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        z = F.max_pool2d(z, kernel_size=(2,2))
+        w = F.max_pool2d(w, kernel_size=(2,2))
         out0 = torch.stack((x, y), dim=0)
         out1 = torch.stack((x, y), dim=2)
         out2 = torch.stack((z, w), dim=2)
@@ -27,8 +29,8 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
-    z = torch.rand(5, 9, 3)
-    w = torch.rand(5, 9, 3)
+    z = torch.rand(1, 5, 10, 4)
+    w = torch.rand(1, 5, 10, 4)
 
     a = net(x, y, z, w)
 
@@ -38,7 +40,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[5,9,3],[5,9,3]")
+    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[1,5,10,4],[1,5,10,4]")
 
     # ncnn inference
     import test_torch_stack_ncnn

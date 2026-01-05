@@ -35,7 +35,10 @@ def test():
     a = net(x)
 
     # export onnx
-    torch.onnx.export(net, (x,), "test_nn_AdaptiveAvgPool3d.onnx")
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+        torch.onnx.export(net, (x,), "test_nn_AdaptiveAvgPool3d.onnx", dynamo=False)
+    else:
+        torch.onnx.export(net, (x,), "test_nn_AdaptiveAvgPool3d.onnx")
 
     # onnx to pnnx
     import os

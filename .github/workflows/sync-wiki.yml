@@ -18,7 +18,7 @@ jobs:
       contents: write  # for Git to git push
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: sync
       run: |
         cp -r docs $GITHUB_WORKSPACE/ncnn.wiki
