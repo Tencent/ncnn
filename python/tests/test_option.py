@@ -92,11 +92,6 @@ def test_option():
     opt.use_packing_layout = False
     assert opt.use_packing_layout == False
 
-    opt.use_shader_pack8 = True
-    assert opt.use_shader_pack8 == True
-    opt.use_shader_pack8 = False
-    assert opt.use_shader_pack8 == False
-
     opt.use_subgroup_ops = True
     assert opt.use_subgroup_ops == True
     opt.use_subgroup_ops = False

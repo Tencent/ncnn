@@ -11,22 +11,17 @@ namespace ncnn {
 ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     padding = 0;
 
     pipeline_convolutiondepthwise = 0;
     pipeline_convolutiondepthwise_pack4 = 0;
-    pipeline_convolutiondepthwise_pack8 = 0;
 
     pipeline_convolutiondepthwise_group = 0;
     pipeline_convolutiondepthwise_group_pack4 = 0;
     pipeline_convolutiondepthwise_group_pack1to4 = 0;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
-    pipeline_convolutiondepthwise_group_pack8 = 0;
-    pipeline_convolutiondepthwise_group_pack1to8 = 0;
-    pipeline_convolutiondepthwise_group_pack4to8 = 0;
-    pipeline_convolutiondepthwise_group_pack8to4 = 0;
-    pipeline_convolutiondepthwise_group_pack8to1 = 0;
 }
 
 int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
@@ -77,12 +72,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int elempack = channels % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -103,12 +98,12 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+    int elempack_g = channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = num_output_g % 4 == 0 ? 4 : 1;
 
     size_t elemsize_g;
     size_t out_elemsize_g;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize_g = elempack_g * 2u;
         out_elemsize_g = out_elempack_g * 2u;
@@ -166,11 +161,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
         convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
 
-        if (bias_term)
-        {
-            convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-        }
-
         specializations[11 + 0].i = shape_bordered_packed.dims;
         specializations[11 + 1].i = shape_bordered_packed.w;
         specializations[11 + 2].i = shape_bordered_packed.h;
@@ -206,18 +196,9 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolutiondepthwise_pack4->create(LayerShaderType::convolutiondepthwise_pack4, opt, specializations);
         }
 
-        // pack8
-        if (elempack == 8)
-        {
-            pipeline_convolutiondepthwise_pack8 = new Pipeline(vkdev);
-            pipeline_convolutiondepthwise_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_convolutiondepthwise_pack8->create(LayerShaderType::convolutiondepthwise_pack8, opt, specializations);
-        }
-
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -261,11 +242,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
                 }
             }
         }
-    }
-
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack_g, opt);
     }
 
     specializations[11 + 0].i = shape_bordered_g_packed.dims;
@@ -319,50 +295,9 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         pipeline_convolutiondepthwise_group_pack4to1->create(LayerShaderType::convolutiondepthwise_group_pack4to1, opt, specializations);
     }
 
-    // pack8
-    if (elempack_g == 8 && out_elempack_g == 8)
-    {
-        pipeline_convolutiondepthwise_group_pack8 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8->create(LayerShaderType::convolutiondepthwise_group_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if (elempack_g == 1 && out_elempack_g == 8)
-    {
-        pipeline_convolutiondepthwise_group_pack1to8 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack1to8->create(LayerShaderType::convolutiondepthwise_group_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if (elempack_g == 4 && out_elempack_g == 8)
-    {
-        pipeline_convolutiondepthwise_group_pack4to8 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack4to8->create(LayerShaderType::convolutiondepthwise_group_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if (elempack_g == 8 && out_elempack_g == 4)
-    {
-        pipeline_convolutiondepthwise_group_pack8to4 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8to4->create(LayerShaderType::convolutiondepthwise_group_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if (elempack_g == 8 && out_elempack_g == 1)
-    {
-        pipeline_convolutiondepthwise_group_pack8to1 = new Pipeline(vkdev);
-        pipeline_convolutiondepthwise_group_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_convolutiondepthwise_group_pack8to1->create(LayerShaderType::convolutiondepthwise_group_pack8to1, opt, specializations);
-    }
-
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -383,9 +318,6 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolutiondepthwise_pack4;
     pipeline_convolutiondepthwise_pack4 = 0;
 
-    delete pipeline_convolutiondepthwise_pack8;
-    pipeline_convolutiondepthwise_pack8 = 0;
-
     delete pipeline_convolutiondepthwise_group;
     pipeline_convolutiondepthwise_group = 0;
 
@@ -397,21 +329,6 @@ int ConvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_convolutiondepthwise_group_pack4to1;
     pipeline_convolutiondepthwise_group_pack4to1 = 0;
-
-    delete pipeline_convolutiondepthwise_group_pack8;
-    pipeline_convolutiondepthwise_group_pack8 = 0;
-
-    delete pipeline_convolutiondepthwise_group_pack1to8;
-    pipeline_convolutiondepthwise_group_pack1to8 = 0;
-
-    delete pipeline_convolutiondepthwise_group_pack4to8;
-    pipeline_convolutiondepthwise_group_pack4to8 = 0;
-
-    delete pipeline_convolutiondepthwise_group_pack8to4;
-    pipeline_convolutiondepthwise_group_pack8to4 = 0;
-
-    delete pipeline_convolutiondepthwise_group_pack8to1;
-    pipeline_convolutiondepthwise_group_pack8to1 = 0;
 
     return 0;
 }
@@ -432,26 +349,19 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
         weight_data_packed.release();
-
-        if (bias_term)
-        {
-            cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-
-            bias_data_packed.release();
-        }
-
-        return 0;
     }
+    else
+    {
+        cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
 
-    cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
-
-    weight_data_packed_groups.release();
+        weight_data_packed_groups.release();
+    }
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;
@@ -538,7 +448,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
@@ -566,9 +476,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
-                                   : elempack == 4 ? pipeline_convolutiondepthwise_pack4
-                                   : pipeline_convolutiondepthwise;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -578,8 +486,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+    int elempack_g = channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
     // unpacking
@@ -634,26 +542,6 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
     else if (elempack_g == 4 && out_elempack_g == 1)
     {
         pipeline = pipeline_convolutiondepthwise_group_pack4to1;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8;
-    }
-    else if (elempack_g == 1 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack1to8;
-    }
-    else if (elempack_g == 4 && out_elempack_g == 8)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack4to8;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 4)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8to4;
-    }
-    else if (elempack_g == 8 && out_elempack_g == 1)
-    {
-        pipeline = pipeline_convolutiondepthwise_group_pack8to1;
     }
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);

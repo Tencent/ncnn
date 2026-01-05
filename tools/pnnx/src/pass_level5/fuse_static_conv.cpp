@@ -340,6 +340,123 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_static_Fconv1d_no_affine_pass_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+pnnx.Attribute          op_bias     0 1 bias @data
+F.conv1d                op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+F.conv1d                op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto bias_data = captured_attrs.at("op_bias.data");
+        std::vector<float> bias_data_fp32 = bias_data.get_float32_data();
+        for (auto b : bias_data_fp32)
+        {
+            if (b != 0.f)
+                return false;
+        }
+        return true;
+    }
+};
+
+class fuse_static_Fconv2d_no_affine_pass_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+pnnx.Attribute          op_bias     0 1 bias @data
+F.conv2d                op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+F.conv2d                op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto bias_data = captured_attrs.at("op_bias.data");
+        std::vector<float> bias_data_fp32 = bias_data.get_float32_data();
+        for (auto b : bias_data_fp32)
+        {
+            if (b != 0.f)
+                return false;
+        }
+        return true;
+    }
+};
+
+class fuse_static_Fconv3d_no_affine_pass_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+pnnx.Attribute          op_bias     0 1 bias @data
+F.conv3d                op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Input              weight      0 1 weight
+F.conv3d                op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        auto bias_data = captured_attrs.at("op_bias.data");
+        std::vector<float> bias_data_fp32 = bias_data.get_float32_data();
+        for (auto b : bias_data_fp32)
+        {
+            if (b != 0.f)
+                return false;
+        }
+        return true;
+    }
+};
+
 void fuse_static_conv(Graph& graph)
 {
     fuse_static_Fconv1d_pass_3 a3;
@@ -352,6 +469,10 @@ void fuse_static_conv(Graph& graph)
     fuse_static_Fconv2d_pass_2 d;
     fuse_static_Fconv3d_pass e;
     fuse_static_Fconv3d_pass_2 f;
+
+    fuse_static_Fconv1d_no_affine_pass_onnx z1;
+    fuse_static_Fconv2d_no_affine_pass_onnx z2;
+    fuse_static_Fconv3d_no_affine_pass_onnx z3;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a3, opindex);
@@ -364,6 +485,10 @@ void fuse_static_conv(Graph& graph)
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
     pnnx_graph_rewrite(graph, &f, opindex);
+
+    pnnx_graph_rewrite(graph, &z1, opindex);
+    pnnx_graph_rewrite(graph, &z2, opindex);
+    pnnx_graph_rewrite(graph, &z3, opindex);
 }
 
 } // namespace pnnx

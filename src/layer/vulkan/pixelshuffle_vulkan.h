@@ -23,9 +23,6 @@ public:
     Pipeline* pipeline_pixelshuffle;
     Pipeline* pipeline_pixelshuffle_pack4;
     Pipeline* pipeline_pixelshuffle_pack4to1;
-    Pipeline* pipeline_pixelshuffle_pack8;
-    Pipeline* pipeline_pixelshuffle_pack8to1;
-    Pipeline* pipeline_pixelshuffle_pack8to4;
 };
 
 } // namespace ncnn

@@ -36,7 +36,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-LogSoftmax              op_0        1 1 input out axis=%dim
+LogSoftmax              op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -44,6 +44,18 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.log_softmax";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.axis") != captured_params.end())
+        {
+            op->params["dim"] = captured_params.at("op_0.axis");
+        }
+        else
+        {
+            op->params["dim"] = -1;
+        }
     }
 };
 

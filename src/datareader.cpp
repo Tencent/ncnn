@@ -181,13 +181,40 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
         d->mem += pos;
     }
 
+    // asset internal buffer may not be NULL-terminated
+    // create a NULL-terminated string for sscanf
+    std::string line;
+    {
+        off64_t remain_length = AAsset_getRemainingLength64(d->asset);
+        const char* newline_pos;
+        if (remain_length > 1 && ((const char*)d->mem)[0] == '\n')
+        {
+            // skip the leading newline
+            // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
+            newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
+        }
+        else if (remain_length > 2 && ((const char*)d->mem)[0] == '\r' && ((const char*)d->mem)[1] == '\n')
+        {
+            // skip the leading newline
+            // however, it is fine to create "\r\nXYZ 123 abc" as sscanf will skip the leading newline silently
+            newline_pos = (const char*)memchr((const char*)d->mem + 2, '\n', remain_length - 2);
+        }
+        else
+        {
+            newline_pos = (const char*)memchr((const char*)d->mem, '\n', remain_length);
+        }
+
+        size_t line_length = newline_pos ? newline_pos - (const char*)d->mem : (size_t)remain_length;
+        line = std::string((const char*)d->mem, line_length);
+    }
+
     int fmtlen = strlen(format);
 
     char* format_with_n = new char[fmtlen + 3];
     sprintf(format_with_n, "%s%%n", format);
 
     int nconsumed = 0;
-    int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
+    int nscan = sscanf(line.c_str(), format_with_n, p, &nconsumed);
     d->mem += nconsumed;
 
     delete[] format_with_n;

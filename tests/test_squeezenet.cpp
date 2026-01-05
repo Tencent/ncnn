@@ -242,6 +242,7 @@ public:
 
         support_packing = impl->support_packing;
         support_vulkan = impl->support_vulkan;
+        support_vulkan_packing = impl->support_vulkan_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
@@ -275,6 +276,7 @@ public:
 
         support_packing = impl->support_packing;
         support_vulkan = impl->support_vulkan;
+        support_vulkan_packing = impl->support_vulkan_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
@@ -417,20 +419,17 @@ int main()
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
-    opts[0].use_shader_pack8 = false;
 
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_fp16_arithmetic = false;
-    opts[1].use_shader_pack8 = true;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = true;
     opts[2].use_fp16_arithmetic = false;
     opts[2].use_bf16_storage = false; // FIXME enable me
-    opts[2].use_shader_pack8 = true;
     opts[2].blob_allocator = &g_blob_pool_allocator;
     opts[2].workspace_allocator = &g_workspace_pool_allocator;
 
@@ -439,7 +438,6 @@ int main()
     opts[3].use_fp16_storage = true;
     opts[3].use_fp16_arithmetic = false; // FIXME enable me
     opts[3].use_bf16_storage = false;
-    opts[3].use_shader_pack8 = true;
     opts[3].blob_allocator = &g_blob_pool_allocator;
     opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
@@ -471,7 +469,7 @@ int main()
         ret = test_squeezenet(opt_cpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage);
+            fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 
@@ -481,7 +479,7 @@ int main()
         ret = test_squeezenet(opt_gpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage);
+            fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 #endif // NCNN_VULKAN
@@ -489,7 +487,7 @@ int main()
         ret = test_squeezenet_overwrite_softmax(opt_cpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet_overwrite_softmax cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage);
+            fprintf(stderr, "test_squeezenet_overwrite_softmax cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 
@@ -497,7 +495,7 @@ int main()
         ret = test_squeezenet_overwrite_softmax(opt_gpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage);
+            fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 #endif // NCNN_VULKAN

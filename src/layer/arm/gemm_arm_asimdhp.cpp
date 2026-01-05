@@ -2801,6 +2801,8 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
     if (constantC && constant_broadcast_type_C != -1)
     {
         cast_float32_to_float16(C_data, CT_data, opt);
+        if (CT_data.empty())
+            return -100;
 
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
@@ -2808,6 +2810,8 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             Mat tmp;
             convert_packing(CT_data, tmp, C_elempack, opt);
             CT_data = tmp;
+            if (CT_data.empty())
+                return -100;
         }
 
         // pre-multiply C with beta

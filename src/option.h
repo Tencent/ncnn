@@ -26,8 +26,7 @@ public:
     // enabled by default
     bool lightmode;
 
-    // use pack8 shader
-    bool use_shader_pack8;
+    bool use_reserved_m0;
 
     // enable subgroup in shader
     bool use_subgroup_ops;
@@ -105,7 +104,8 @@ public:
     // the vulkan device
     int vulkan_device_index;
 
-    bool use_reserved_1;
+    // enable options for gpu inference
+    bool use_bf16_packed;
 
     bool use_tensor_storage;
 

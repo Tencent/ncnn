@@ -10,14 +10,11 @@ namespace ncnn {
 Packing_vulkan::Packing_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_packing = 0;
     pipeline_packing_pack1to4 = 0;
     pipeline_packing_pack4to1 = 0;
-    pipeline_packing_pack1to8 = 0;
-    pipeline_packing_pack4to8 = 0;
-    pipeline_packing_pack8to4 = 0;
-    pipeline_packing_pack8to1 = 0;
 }
 
 int Packing_vulkan::create_pipeline(const Option& opt)
@@ -28,9 +25,9 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     const int dims = shape.dims;
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     const int local_size_x = vkdev->info.subgroup_size();
 
@@ -133,44 +130,6 @@ int Packing_vulkan::create_pipeline(const Option& opt)
                 pipeline_packing_pack1to4->create(LayerShaderType::packing_pack1to4, opt, specializations);
             }
         }
-
-        if (shape.dims == 0 || (elempack == 1 && out_elempack == 8))
-        {
-            // pack1to8
-            specializations[2 + 0].u32 = n;
-            specializations[2 + 1].u32 = c / 8;
-            specializations[2 + 2].u32 = stride;
-
-            pipeline_packing_pack1to8 = new Pipeline(vkdev);
-            pipeline_packing_pack1to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            if (use_int8_shader)
-            {
-                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8_int8, opt, specializations);
-            }
-            else
-            {
-                pipeline_packing_pack1to8->create(LayerShaderType::packing_pack1to8, opt, specializations);
-            }
-        }
-
-        if (shape.dims == 0 || (elempack == 4 && out_elempack == 8))
-        {
-            // pack4to8
-            specializations[2 + 0].u32 = n;
-            specializations[2 + 1].u32 = c / 2;
-            specializations[2 + 2].u32 = stride;
-
-            pipeline_packing_pack4to8 = new Pipeline(vkdev);
-            pipeline_packing_pack4to8->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            if (use_int8_shader)
-            {
-                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8_int8, opt, specializations);
-            }
-            else
-            {
-                pipeline_packing_pack4to8->create(LayerShaderType::packing_pack4to8, opt, specializations);
-            }
-        }
     }
     if (shape.dims == 0 || elempack > out_elempack)
     {
@@ -214,44 +173,6 @@ int Packing_vulkan::create_pipeline(const Option& opt)
                 pipeline_packing_pack4to1->create(LayerShaderType::packing_pack4to1, opt, specializations);
             }
         }
-
-        if (shape.dims == 0 || (elempack == 8 && out_elempack == 1))
-        {
-            // pack8to1
-            specializations[2 + 0].u32 = n;
-            specializations[2 + 1].u32 = c / 8;
-            specializations[2 + 2].u32 = stride;
-
-            pipeline_packing_pack8to1 = new Pipeline(vkdev);
-            pipeline_packing_pack8to1->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            if (use_int8_shader)
-            {
-                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1_int8, opt, specializations);
-            }
-            else
-            {
-                pipeline_packing_pack8to1->create(LayerShaderType::packing_pack8to1, opt, specializations);
-            }
-        }
-
-        if (shape.dims == 0 || (elempack == 8 && out_elempack == 4))
-        {
-            // pack8to4
-            specializations[2 + 0].u32 = n;
-            specializations[2 + 1].u32 = c / 2;
-            specializations[2 + 2].u32 = stride;
-
-            pipeline_packing_pack8to4 = new Pipeline(vkdev);
-            pipeline_packing_pack8to4->set_optimal_local_size_xyz(local_size_x, 1, 1);
-            if (use_int8_shader)
-            {
-                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4_int8, opt, specializations);
-            }
-            else
-            {
-                pipeline_packing_pack8to4->create(LayerShaderType::packing_pack8to4, opt, specializations);
-            }
-        }
     }
 
     return 0;
@@ -267,18 +188,6 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_packing_pack4to1;
     pipeline_packing_pack4to1 = 0;
-
-    delete pipeline_packing_pack1to8;
-    pipeline_packing_pack1to8 = 0;
-
-    delete pipeline_packing_pack4to8;
-    pipeline_packing_pack4to8 = 0;
-
-    delete pipeline_packing_pack8to4;
-    pipeline_packing_pack8to4 = 0;
-
-    delete pipeline_packing_pack8to1;
-    pipeline_packing_pack8to1 = 0;
 
     return 0;
 }
@@ -323,7 +232,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             out_elemsize = out_elempack * 2u;
         }
@@ -336,7 +245,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else if (cast_type_to == 2)
+    else if (cast_type_to == 2 || cast_type_to == 5)
     {
         out_elemsize = out_elempack * 2u;
     }
@@ -485,14 +394,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         {
             cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher);
         }
-        if (elempack == 1 && out_elempack == 8)
-        {
-            cmd.record_pipeline(pipeline_packing_pack1to8, buffer_bindings, constants, dispatcher);
-        }
-        if (elempack == 4 && out_elempack == 8)
-        {
-            cmd.record_pipeline(pipeline_packing_pack4to8, buffer_bindings, constants, dispatcher);
-        }
     }
     if (elempack > out_elempack)
     {
@@ -533,14 +434,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (elempack == 4 && out_elempack == 1)
         {
             cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher);
-        }
-        if (elempack == 8 && out_elempack == 4)
-        {
-            cmd.record_pipeline(pipeline_packing_pack8to4, buffer_bindings, constants, dispatcher);
-        }
-        if (elempack == 8 && out_elempack == 1)
-        {
-            cmd.record_pipeline(pipeline_packing_pack8to1, buffer_bindings, constants, dispatcher);
         }
     }
 

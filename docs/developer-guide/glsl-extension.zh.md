@@ -130,12 +130,11 @@ int retc = compile_spirv_module(shader_type_index, opt, spirv);
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
-|存储类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|sfp|float|uint|float16_t|
-|sfpvec2|vec2|uint|f16vec2|
-|sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
+|存储类型|fp32|fp16p|fp16s|bf16p|bf16s|
+|---|---|---|---|---|---|
+|sfp|float|uint|float16_t|uint|bfloat16_t|
+|sfpvec2|vec2|uint|f16vec2|uint|bf16vec2|
+|sfpvec4|vec4|uvec2|f16vec4|uvec2|bf16vec4|
 
 ## 算术类型(arithmetic type)
 
@@ -153,7 +152,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## 本地类型(local type)
 
@@ -163,10 +161,10 @@ void main()
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|
-|---|---|---|---|---|
-|lfp|float|float|float|float16_t|
-|lfpvec4|vec4|uvec2|uint64_t|f16vec4|
+|本地类型|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|bf16p|bf16s|
+|---|---|---|---|---|---|---|
+|lfp|float|float|float|float16_t|float|bfloat16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
 # 缓冲区函数(buffer functions)
 
@@ -176,7 +174,6 @@ shared lfp tmp_a[8][4][2];
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - 将已确定类型的值存储到 dst[偏移量]
@@ -185,7 +182,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - 从已确定类型 src[src_offset] 的值拷贝到 dst[dst_offset]
@@ -194,23 +190,18 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - 从 src[src_offsets[0],src_offsets[1],...] 的值拷贝并打包到 dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - 从 src[src_offset] 的值拷贝并解包到 dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
 
 # 本地数据转换函数
@@ -218,8 +209,8 @@ void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 - 存储缓冲区转换到本地内存
 
 ```c
-lfp sfp2lfp(sfp v);
-lfpvec4 sfp2lfpvec4(sfpvec4 v);
+lfp buffer_sm1(sfp src, int offset);
+lfpvec4 buffer_sm4(sfpvec4 src, int offset);
 ```
 
 - 本地内存转换到局部变量
@@ -300,6 +291,8 @@ ncnn 会查询设备特性和属性，然后将它们定义为宏。
 
 当设备支持 `shaderInt64` 时，`GL_EXT_shader_explicit_arithmetic_types_int64` 扩展会自动启用，无需显式代码指示。
 
+当设备支持 `shaderInt16` 时，`GL_EXT_shader_explicit_arithmetic_types_int16` 扩展会自动启用，无需显式代码指示。
+
 ```c
 void main()
 {
@@ -358,9 +351,15 @@ void main()
 
 仅当用户启用某些选项时才启用 GLSL 扩展
 
-`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 选项时，自动启用，无需显式代码指示。
+`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 或 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
 
 `GL_EXT_shader_explicit_arithmetic_types_float16` 扩展会在设备支持 16 位算术运算且用户开启了 `opt.use_fp16_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_8bit_storage` 扩展会在设备支持 8 位存储且用户开启了 `opt.use_int8_storage` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_explicit_arithmetic_types_int8` 扩展会在设备支持 8 位算术运算且用户开启了 `opt.use_int8_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_bfloat16` 扩展会在设备支持 bfloat16 存储且用户开启了 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
 
 ```c
 void main()
@@ -383,4 +382,6 @@ void main()
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
+|NCNN_bf16_packed|opt.use_bf16_packed|
+|NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

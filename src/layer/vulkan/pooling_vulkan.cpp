@@ -13,25 +13,21 @@ namespace ncnn {
 Pooling_vulkan::Pooling_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     padding = 0;
     pipeline_pooling = 0;
     pipeline_pooling_pack4 = 0;
-    pipeline_pooling_pack8 = 0;
 
     pipeline_pooling_adaptive = 0;
     pipeline_pooling_adaptive_pack4 = 0;
-    pipeline_pooling_adaptive_pack8 = 0;
 
     pipeline_pooling_global_reduce_first = 0;
     pipeline_pooling_global_reduce_first_pack4 = 0;
-    pipeline_pooling_global_reduce_first_pack8 = 0;
     pipeline_pooling_global_reduce = 0;
     pipeline_pooling_global_reduce_pack4 = 0;
-    pipeline_pooling_global_reduce_pack8 = 0;
     pipeline_pooling_global_reduce_last = 0;
     pipeline_pooling_global_reduce_last_pack4 = 0;
-    pipeline_pooling_global_reduce_last_pack8 = 0;
 }
 
 int Pooling_vulkan::create_pipeline(const Option& _opt)
@@ -77,12 +73,12 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    int elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    int elempack = shape.c % 4 == 0 ? 4 : 1;
+    int out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -171,16 +167,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
                 pipeline_pooling_global_reduce_first_pack4->set_optimal_local_size_xyz(local_size_xyz);
                 pipeline_pooling_global_reduce_first_pack4->create(layer_shader_type, opt, specializations);
             }
-
-            // pack8
-            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-            {
-                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_first_pack8 : LayerShaderType::pooling_global_reduce_sum_first_pack8;
-
-                pipeline_pooling_global_reduce_first_pack8 = new Pipeline(vkdev);
-                pipeline_pooling_global_reduce_first_pack8->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_pooling_global_reduce_first_pack8->create(layer_shader_type, opt, specializations);
-            }
         }
 
         // reduce more
@@ -213,16 +199,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
                 pipeline_pooling_global_reduce_pack4->set_optimal_local_size_xyz(local_size_xyz);
                 pipeline_pooling_global_reduce_pack4->create(layer_shader_type, opt, specializations);
             }
-
-            // pack8
-            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-            {
-                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_pack8 : LayerShaderType::pooling_global_reduce_sum_pack8;
-
-                pipeline_pooling_global_reduce_pack8 = new Pipeline(vkdev);
-                pipeline_pooling_global_reduce_pack8->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_pooling_global_reduce_pack8->create(layer_shader_type, opt, specializations);
-            }
         }
 
         // reduce last
@@ -252,16 +228,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
                 pipeline_pooling_global_reduce_last_pack4 = new Pipeline(vkdev);
                 pipeline_pooling_global_reduce_last_pack4->set_optimal_local_size_xyz(local_size_xyz);
                 pipeline_pooling_global_reduce_last_pack4->create(layer_shader_type, opt, specializations);
-            }
-
-            // pack8
-            if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-            {
-                int layer_shader_type = pooling_type == 0 ? LayerShaderType::pooling_global_reduce_max_last_pack8 : LayerShaderType::pooling_global_reduce_sum_last_pack8;
-
-                pipeline_pooling_global_reduce_last_pack8 = new Pipeline(vkdev);
-                pipeline_pooling_global_reduce_last_pack8->set_optimal_local_size_xyz(local_size_xyz);
-                pipeline_pooling_global_reduce_last_pack8->create(layer_shader_type, opt, specializations);
             }
         }
     }
@@ -302,14 +268,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
             pipeline_pooling_adaptive_pack4 = new Pipeline(vkdev);
             pipeline_pooling_adaptive_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_adaptive_pack4->create(LayerShaderType::pooling_adaptive_pack4, opt, specializations);
-        }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_pooling_adaptive_pack8 = new Pipeline(vkdev);
-            pipeline_pooling_adaptive_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_adaptive_pack8->create(LayerShaderType::pooling_adaptive_pack8, opt, specializations);
         }
     }
     else
@@ -361,14 +319,6 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
             pipeline_pooling_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_pooling_pack4->create(LayerShaderType::pooling_pack4, opt, specializations);
         }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_pooling_pack8 = new Pipeline(vkdev);
-            pipeline_pooling_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_pooling_pack8->create(LayerShaderType::pooling_pack8, opt, specializations);
-        }
     }
 
     return 0;
@@ -389,17 +339,11 @@ int Pooling_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_pooling_pack4;
     pipeline_pooling_pack4 = 0;
 
-    delete pipeline_pooling_pack8;
-    pipeline_pooling_pack8 = 0;
-
     delete pipeline_pooling_adaptive;
     pipeline_pooling_adaptive = 0;
 
     delete pipeline_pooling_adaptive_pack4;
     pipeline_pooling_adaptive_pack4 = 0;
-
-    delete pipeline_pooling_adaptive_pack8;
-    pipeline_pooling_adaptive_pack8 = 0;
 
     delete pipeline_pooling_global_reduce_first;
     pipeline_pooling_global_reduce_first = 0;
@@ -407,26 +351,17 @@ int Pooling_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_pooling_global_reduce_first_pack4;
     pipeline_pooling_global_reduce_first_pack4 = 0;
 
-    delete pipeline_pooling_global_reduce_first_pack8;
-    pipeline_pooling_global_reduce_first_pack8 = 0;
-
     delete pipeline_pooling_global_reduce;
     pipeline_pooling_global_reduce = 0;
 
     delete pipeline_pooling_global_reduce_pack4;
     pipeline_pooling_global_reduce_pack4 = 0;
 
-    delete pipeline_pooling_global_reduce_pack8;
-    pipeline_pooling_global_reduce_pack8 = 0;
-
     delete pipeline_pooling_global_reduce_last;
     pipeline_pooling_global_reduce_last = 0;
 
     delete pipeline_pooling_global_reduce_last_pack4;
     pipeline_pooling_global_reduce_last_pack4 = 0;
-
-    delete pipeline_pooling_global_reduce_last_pack8;
-    pipeline_pooling_global_reduce_last_pack8 = 0;
 
     return 0;
 }
@@ -472,9 +407,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[4].i = reduced_blob.w;
             constants[5].i = reduced_blob.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_first_pack8
-                                       : elempack == 4 ? pipeline_pooling_global_reduce_first_pack4
-                                       : pipeline_pooling_global_reduce_first;
+            const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_global_reduce_first_pack4 : pipeline_pooling_global_reduce_first;
 
             VkMat dispatcher;
             dispatcher.w = reduced_blob.w;
@@ -505,9 +438,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[3].i = reduced_blob2.w;
             constants[4].i = reduced_blob2.cstep;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
-                                       : elempack == 4 ? pipeline_pooling_global_reduce_pack4
-                                       : pipeline_pooling_global_reduce;
+            const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_global_reduce_pack4 : pipeline_pooling_global_reduce;
 
             VkMat dispatcher;
             dispatcher.w = reduced_blob2.w;
@@ -535,9 +466,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[2].i = reduced_blob.cstep;
             constants[3].i = w * h;
 
-            const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_last_pack8
-                                       : elempack == 4 ? pipeline_pooling_global_reduce_last_pack4
-                                       : pipeline_pooling_global_reduce_last;
+            const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_global_reduce_last_pack4 : pipeline_pooling_global_reduce_last;
 
             VkMat dispatcher;
             dispatcher.w = 1;
@@ -581,9 +510,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
-                                   : elempack == 4 ? pipeline_pooling_adaptive_pack4
-                                   : pipeline_pooling_adaptive;
+        const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_adaptive_pack4 : pipeline_pooling_adaptive;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -718,9 +645,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[10].i = wtailpad;
     constants[11].i = htailpad;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
-                               : elempack == 4 ? pipeline_pooling_pack4
-                               : pipeline_pooling;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

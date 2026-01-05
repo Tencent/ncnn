@@ -1,27 +1,34 @@
 name: compare-binary-size
-on: [pull_request_target]
+on:
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/compare-binary-size.yml'
+    - 'toolchains/**'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
 
 concurrency:
-  group: compare-binary-size-${{ github.event.pull_request.number }}
+  group: compare-binary-size-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
-  pull-requests: write
+  actions: read
 
 jobs:
   compare-size:
     runs-on: ubuntu-latest
     steps:
     - name: checkout-pr-branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
-        ref: ${{ github.event.pull_request.head.ref }}
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: refs/pull/${{ github.event.pull_request.number }}/merge
         submodules: true
         path: pr
 
     - name: checkout-base-branch
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: ${{ github.event.pull_request.base.ref }}
         repository: ${{ github.event.pull_request.base.repo.full_name }}
@@ -85,18 +92,8 @@ jobs:
 
         cat compare-binary-size.md
 
-    - name: find-comment
-      uses: peter-evans/find-comment@v3
-      id: fc
+    - name: upload-compare-binary-size-md
+      uses: actions/upload-artifact@v6
       with:
-        issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
-        body-includes: 'The binary size change of libncnn.so (bytes)'
-
-    - name: create-or-update-comment
-      uses: peter-evans/create-or-update-comment@v4
-      with:
-        comment-id: ${{ steps.fc.outputs.comment-id }}
-        issue-number: ${{ github.event.pull_request.number }}
-        body-path: compare-binary-size.md
-        edit-mode: replace
+        name: compare-binary-size.md
+        path: compare-binary-size.md

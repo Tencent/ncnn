@@ -9,14 +9,23 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers.models.bart.modeling_bart import BartAttention, BartSdpaAttention
+import transformers
+from transformers import BartConfig
+from transformers.models.bart.modeling_bart import BartAttention
+if version.parse(transformers.__version__) < version.parse('4.53'):
+    from transformers.models.bart.modeling_bart import BartSdpaAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.attn0 = BartAttention(embed_dim=192, num_heads=12)
-        self.attn1 = BartSdpaAttention(embed_dim=66, num_heads=6)
+        config0 = BartConfig(attn_implementation='eager')
+        self.attn0 = BartAttention(embed_dim=192, num_heads=12, config=config0)
+        if version.parse(transformers.__version__) < version.parse('4.53'):
+            self.attn1 = BartSdpaAttention(embed_dim=66, num_heads=6)
+        else:
+            config1 = BartConfig(attn_implementation='sdpa')
+            self.attn1 = BartAttention(embed_dim=66, num_heads=6, config=config1)
 
     def forward(self, x, y):
         out0 = self.attn0(x, attention_mask=None, key_value_states=None, past_key_value=None)

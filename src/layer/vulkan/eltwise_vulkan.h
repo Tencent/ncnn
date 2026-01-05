@@ -21,8 +21,6 @@ public:
 
 public:
     Pipeline* pipeline_eltwise[2];
-    Pipeline* pipeline_eltwise_pack4[2];
-    Pipeline* pipeline_eltwise_pack8[2];
 };
 
 } // namespace ncnn

@@ -219,6 +219,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        bool keepdim = true;
+        if (captured_params.find("op_0.keepdims") != captured_params.end())
+        {
+            keepdim = captured_params.at("op_0.keepdims").i == 1 ? true : false;
+        }
+
         if (captured_params.find("op_0.axes") == captured_params.end())
         {
             op->params["dim"] = Parameter();
@@ -227,7 +233,7 @@ pnnx.Output             output      1 0 out
         {
             op->params["dim"] = captured_params.at("op_0.axes");
         }
-        op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+        op->params["keepdim"] = keepdim;
         op->params["p"] = 2;
     }
 };
@@ -254,6 +260,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        bool keepdim = true;
+        if (captured_params.find("op_0.keepdims") != captured_params.end())
+        {
+            keepdim = captured_params.at("op_0.keepdims").i == 1 ? true : false;
+        }
+
         if (captured_params.find("op_0.axes") == captured_params.end())
         {
             op->params["dim"] = Parameter();
@@ -262,7 +274,7 @@ pnnx.Output             output      1 0 out
         {
             op->params["dim"] = captured_params.at("op_0.axes");
         }
-        op->params["keepdim"] = captured_params.at("op_0.keepdims").i ? true : false;
+        op->params["keepdim"] = keepdim;
         op->params["p"] = 1;
     }
 };

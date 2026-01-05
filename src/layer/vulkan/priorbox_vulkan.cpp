@@ -11,6 +11,7 @@ namespace ncnn {
 PriorBox_vulkan::PriorBox_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_priorbox = 0;
     pipeline_priorbox_mxnet = 0;
@@ -21,12 +22,12 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }
@@ -147,7 +148,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         int elempack = 4;
 
         size_t elemsize = elempack * 4u;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             elemsize = elempack * 2u;
         }
@@ -201,7 +202,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     size_t elemsize = 4u;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         elemsize = 2u;
     }

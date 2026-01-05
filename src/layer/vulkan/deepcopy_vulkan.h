@@ -22,7 +22,6 @@ public:
 public:
     Pipeline* pipeline_deepcopy;
     Pipeline* pipeline_deepcopy_pack4;
-    Pipeline* pipeline_deepcopy_pack8;
 };
 
 } // namespace ncnn

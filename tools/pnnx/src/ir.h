@@ -62,14 +62,18 @@ public:
         : type(2)
     {
         if (_l == std::numeric_limits<long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long>::max() - 1) _l = INT_MAX - 1;
         if (_l == std::numeric_limits<long>::min()) _l = INT_MIN;
+        if (_l == std::numeric_limits<long>::min() + 1) _l = INT_MIN + 1;
         i = (int)_l;
     }
     Parameter(long long _l)
         : type(2)
     {
         if (_l == std::numeric_limits<long long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long long>::max() - 1) _l = INT_MAX - 1;
         if (_l == std::numeric_limits<long long>::min()) _l = INT_MIN;
+        if (_l == std::numeric_limits<long long>::min() + 1) _l = INT_MIN + 1;
         i = (int)_l;
     }
     Parameter(float _f)
@@ -99,7 +103,9 @@ public:
         {
             int64_t _l = x;
             if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::max() - 1) _l = INT_MAX - 1;
             if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            if (_l == std::numeric_limits<int64_t>::min() + 1) _l = INT_MIN + 1;
             ai.push_back((int)_l);
         }
     }
@@ -114,7 +120,9 @@ public:
         {
             int64_t _l = x;
             if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::max() - 1) _l = INT_MAX - 1;
             if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            if (_l == std::numeric_limits<int64_t>::min() + 1) _l = INT_MIN + 1;
             ai.push_back((int)_l);
         }
     }
@@ -225,7 +233,7 @@ public:
     Attribute(const TorchTensorProxy& t);
 #endif
 #if BUILD_ONNX2PNNX
-    Attribute(const onnx::TensorProto& t);
+    Attribute(const onnx::TensorProto& t, const std::vector<unsigned char>& external_data);
 #endif
 #if BUILD_TNN2PNNX
     Attribute(FILE* bp);

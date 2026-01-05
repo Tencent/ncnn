@@ -88,12 +88,12 @@ Tensor.size             op_0        1 1 input 16 dim=0
 Tensor.size             op_1        1 1 input 25 dim=1
 prim::Constant          op_2        0 1 153 value=1
 prim::ListConstruct     op_3        3 1 153 16 25 26
-Tensor.view             op_4        2 1 input 26 input.1
+Tensor.reshape          op_4        2 1 input 26 input.1
 F.pad                   op_5        1 1 input.1 input0.1 mode=%pad_mode pad=(%pad,%pad) value=None
 Tensor.size             op_6        1 1 input0.1 39 dim=1
 Tensor.size             op_7        1 1 input0.1 48 dim=2
 prim::ListConstruct     op_8        2 1 39 48 49
-Tensor.view             op_9        2 1 input0.1 49 input1.1
+Tensor.reshape          op_9        2 1 input0.1 49 input1.1
 torch.stft              op_10       2 1 input1.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length center=False pad_mode=reflect normalized=%normalized onesided=%onesided return_complex=%return_complex
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -132,11 +132,11 @@ Tensor.size             op_0        1 1 input 81 dim=0
 prim::Constant          op_1        0 1 172 value=1
 prim::Constant          op_2        0 1 173 value=1
 prim::ListConstruct     op_3        3 1 172 173 81 82
-Tensor.view             op_4        2 1 input 82 input2.1
+Tensor.reshape          op_4        2 1 input 82 input2.1
 F.pad                   op_5        1 1 input2.1 input3.1 mode=%pad_mode pad=(%pad,%pad) value=None
 Tensor.size             op_6        1 1 input3.1 95 dim=2
 prim::ListConstruct     op_7        1 1 95 96
-Tensor.view             op_8        2 1 input3.1 96 input4.1
+Tensor.reshape          op_8        2 1 input3.1 96 input4.1
 torch.stft              op_9        2 1 input4.1 window out n_fft=%n_fft hop_length=%hop_length win_length=%win_length center=False pad_mode=reflect normalized=%normalized onesided=%onesided return_complex=%return_complex
 pnnx.Output             output      1 0 out
 )PNNXIR";

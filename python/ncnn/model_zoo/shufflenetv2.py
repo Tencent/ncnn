@@ -16,6 +16,7 @@ class ShuffleNetV2:
         self.norm_vals = [1 / 255.0, 1 / 255.0, 1 / 255.0]
 
         self.net = ncnn.Net()
+        self.net.opt.num_threads = self.num_threads
         self.net.opt.use_vulkan_compute = self.use_gpu
 
         # https://github.com/miaow1988/ShuffleNet_V2_pytorch_caffe
@@ -42,7 +43,6 @@ class ShuffleNetV2:
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
-        ex.set_num_threads(self.num_threads)
 
         ex.input("data", mat_in)
 

@@ -110,12 +110,12 @@ public:
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    void fill(__m512 _v);
+    void fill(const __m512& _v);
 #endif // __AVX512F__
-    void fill(__m256 _v, int i = 0);
+    void fill(const __m256& _v, int i = 0);
 #endif // __AVX__
-    void fill(__m128 _v);
-    void fill(__m128i _v);
+    void fill(const __m128& _v);
+    void fill(const __m128i& _v);
 #endif // __SSE2__
 #if __mips_msa
     void fill(v4f32 _v);
@@ -1007,7 +1007,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m512 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1018,7 +1018,7 @@ NCNN_FORCEINLINE void Mat::fill(__m512 _v)
     }
 }
 #endif // __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
+NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 {
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
@@ -1032,7 +1032,7 @@ NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
     }
 }
 #endif // __AVX__
-NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1042,7 +1042,7 @@ NCNN_FORCEINLINE void Mat::fill(__m128 _v)
         ptr += 4;
     }
 }
-NCNN_FORCEINLINE void Mat::fill(__m128i _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;

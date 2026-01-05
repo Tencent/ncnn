@@ -686,7 +686,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -724,7 +724,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {

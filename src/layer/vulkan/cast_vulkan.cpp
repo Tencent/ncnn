@@ -10,13 +10,10 @@ namespace ncnn {
 Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
-    pipeline_cast_fp32_to_fp16 = 0;
-    pipeline_cast_fp32_to_fp16_pack4 = 0;
-    pipeline_cast_fp32_to_fp16_pack8 = 0;
-    pipeline_cast_fp16_to_fp32 = 0;
-    pipeline_cast_fp16_to_fp32_pack4 = 0;
-    pipeline_cast_fp16_to_fp32_pack8 = 0;
+    pipeline_cast = 0;
+    pipeline_cast_pack4 = 0;
 }
 
 int Cast_vulkan::create_pipeline(const Option& opt)
@@ -25,18 +22,18 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -102,25 +99,17 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_cast_fp32_to_fp16 = new Pipeline(vkdev);
-            pipeline_cast_fp32_to_fp16->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16->create(LayerShaderType::cast_fp32_to_fp16, opt, specializations);
+            pipeline_cast = new Pipeline(vkdev);
+            pipeline_cast->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast->create(LayerShaderType::cast_fp32_to_fp16, opt, specializations);
         }
 
         // pack4
         if (shape.dims == 0 || elempack == 4)
         {
-            pipeline_cast_fp32_to_fp16_pack4 = new Pipeline(vkdev);
-            pipeline_cast_fp32_to_fp16_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16_pack4->create(LayerShaderType::cast_fp32_to_fp16_pack4, opt, specializations);
-        }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_cast_fp32_to_fp16_pack8 = new Pipeline(vkdev);
-            pipeline_cast_fp32_to_fp16_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp32_to_fp16_pack8->create(LayerShaderType::cast_fp32_to_fp16_pack8, opt, specializations);
+            pipeline_cast_pack4 = new Pipeline(vkdev);
+            pipeline_cast_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast_pack4->create(LayerShaderType::cast_fp32_to_fp16_pack4, opt, specializations);
         }
     }
 
@@ -129,50 +118,32 @@ int Cast_vulkan::create_pipeline(const Option& opt)
         // pack1
         if (shape.dims == 0 || elempack == 1)
         {
-            pipeline_cast_fp16_to_fp32 = new Pipeline(vkdev);
-            pipeline_cast_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32->create(LayerShaderType::cast_fp16_to_fp32, opt, specializations);
+            pipeline_cast = new Pipeline(vkdev);
+            pipeline_cast->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast->create(LayerShaderType::cast_fp16_to_fp32, opt, specializations);
         }
 
         // pack4
         if (shape.dims == 0 || elempack == 4)
         {
-            pipeline_cast_fp16_to_fp32_pack4 = new Pipeline(vkdev);
-            pipeline_cast_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32_pack4->create(LayerShaderType::cast_fp16_to_fp32_pack4, opt, specializations);
-        }
-
-        // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
-            pipeline_cast_fp16_to_fp32_pack8 = new Pipeline(vkdev);
-            pipeline_cast_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_cast_fp16_to_fp32_pack8->create(LayerShaderType::cast_fp16_to_fp32_pack8, opt, specializations);
+            pipeline_cast_pack4 = new Pipeline(vkdev);
+            pipeline_cast_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_cast_pack4->create(LayerShaderType::cast_fp16_to_fp32_pack4, opt, specializations);
         }
     }
+
+    // TODO more cast type
 
     return 0;
 }
 
 int Cast_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    delete pipeline_cast_fp32_to_fp16;
-    pipeline_cast_fp32_to_fp16 = 0;
+    delete pipeline_cast;
+    pipeline_cast = 0;
 
-    delete pipeline_cast_fp32_to_fp16_pack4;
-    pipeline_cast_fp32_to_fp16_pack4 = 0;
-
-    delete pipeline_cast_fp32_to_fp16_pack8;
-    pipeline_cast_fp32_to_fp16_pack8 = 0;
-
-    delete pipeline_cast_fp16_to_fp32;
-    pipeline_cast_fp16_to_fp32 = 0;
-
-    delete pipeline_cast_fp16_to_fp32_pack4;
-    pipeline_cast_fp16_to_fp32_pack4 = 0;
-
-    delete pipeline_cast_fp16_to_fp32_pack8;
-    pipeline_cast_fp16_to_fp32_pack8 = 0;
+    delete pipeline_cast_pack4;
+    pipeline_cast_pack4 = 0;
 
     return 0;
 }
@@ -251,22 +222,7 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = 0;
-
-    if (type_from == 1 && type_to == 2)
-    {
-        pipeline = elempack == 8 ? pipeline_cast_fp32_to_fp16_pack8
-                   : elempack == 4 ? pipeline_cast_fp32_to_fp16_pack4
-                   : pipeline_cast_fp32_to_fp16;
-    }
-    if (type_from == 2 && type_to == 1)
-    {
-        pipeline = elempack == 8 ? pipeline_cast_fp16_to_fp32_pack8
-                   : elempack == 4 ? pipeline_cast_fp16_to_fp32_pack4
-                   : pipeline_cast_fp16_to_fp32;
-    }
-
-    // TODO more cast type
+    const Pipeline* pipeline = elempack == 4 ? pipeline_cast_pack4 : pipeline_cast;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

@@ -37,7 +37,7 @@ class Model(nn.Module):
         x = self.conv_2(x)
 
         x = self.pad_3(x)
-        x = F.pad(x, pad=(2,2,0,0))
+        x = F.pad(x, pad=(2,2,0,0,0,0,0,0))
         x = self.conv_3(x)
 
         return x

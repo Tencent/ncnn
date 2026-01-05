@@ -10,6 +10,7 @@ namespace ncnn {
 Sigmoid_vulkan::Sigmoid_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_sigmoid = 0;
 }
@@ -21,12 +22,12 @@ int Sigmoid_vulkan::create_pipeline(const Option& opt)
     const int dims = shape.dims;
 
     int elempack = 0;
-    if (dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

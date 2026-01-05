@@ -10,10 +10,10 @@ namespace ncnn {
 ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_shufflechannel = 0;
     pipeline_shufflechannel_pack4 = 0;
-    pipeline_shufflechannel_pack8 = 0;
 }
 
 int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
@@ -22,14 +22,14 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -84,14 +84,6 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
         pipeline_shufflechannel_pack4->create(LayerShaderType::shufflechannel_pack4, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
-        pipeline_shufflechannel_pack8 = new Pipeline(vkdev);
-        pipeline_shufflechannel_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_shufflechannel_pack8->create(LayerShaderType::shufflechannel_pack8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -102,9 +94,6 @@ int ShuffleChannel_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_shufflechannel_pack4;
     pipeline_shufflechannel_pack4 = 0;
-
-    delete pipeline_shufflechannel_pack8;
-    pipeline_shufflechannel_pack8 = 0;
 
     return 0;
 }
@@ -138,9 +127,7 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[9].i = top_blob.cstep;
     constants[10].i = reverse ? channels * elempack / group : group;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                               : elempack == 4 ? pipeline_shufflechannel_pack4
-                               : pipeline_shufflechannel;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

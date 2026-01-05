@@ -10,7 +10,7 @@ namespace ncnn {
 Option::Option()
 {
     lightmode = true;
-    use_shader_pack8 = false;
+    use_reserved_m0 = false;
     use_subgroup_ops = false;
     use_reserved_0 = false;
 
@@ -44,7 +44,7 @@ Option::Option()
     use_packing_layout = true;
 
     vulkan_device_index = -1;
-    use_reserved_1 = false;
+    use_bf16_packed = false;
 
     use_tensor_storage = false;
     use_reserved_1p = false;

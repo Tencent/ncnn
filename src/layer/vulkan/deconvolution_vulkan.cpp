@@ -11,6 +11,7 @@ namespace ncnn {
 Deconvolution_vulkan::Deconvolution_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     crop = 0;
     output_crop = 0;
@@ -65,12 +66,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int elempack = num_input % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -129,11 +130,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         output_crop->create_pipeline(opt);
     }
 
-    if (bias_term)
-    {
-        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
-    }
-
     if (opt.use_sgemm_convolution && num_input >= 8 && maxk * num_output >= 8)
     {
         Mat out_shape_col;
@@ -145,7 +141,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         Mat out_shape_col_packed;
         if (out_shape_col.dims == 3) out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h, out_shape_col.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && !opt.use_shader_pack8 && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
         if (use_cooperative_matrix)
         {
@@ -377,11 +373,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4_gemm;
             if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4_gemm;
             if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1_gemm;
-            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8_gemm;
-            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack1to8_gemm;
-            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack8to1_gemm;
-            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack4to8_gemm;
-            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4_gemm;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             if (opt.use_shader_local_memory)
@@ -426,7 +417,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             int shader_type_index = -1;
             if (out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_col2im;
             if (out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4_col2im;
-            if (out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8_col2im;
 
             pipeline_deconvolution_col2im = new Pipeline(vkdev);
             pipeline_deconvolution_col2im->set_optimal_local_size_xyz(local_size_xyz);
@@ -436,7 +426,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         if (opt.lightmode)
         {
             weight_data.release();
-            bias_data.release();
         }
 
         return 0;
@@ -525,11 +514,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4;
     if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4;
     if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1;
-    if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8;
-    if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack1to8;
-    if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack8to1;
-    if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack4to8;
-    if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4;
 
     pipeline_deconvolution = new Pipeline(vkdev);
     pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
@@ -538,7 +522,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     if (opt.lightmode)
     {
         weight_data.release();
-        bias_data.release();
     }
 
     return 0;
@@ -600,9 +583,9 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
+        cmd.record_upload(bias_data, bias_data_gpu, opt);
 
-        bias_data_packed.release();
+        bias_data.release();
     }
 
     return 0;
@@ -621,7 +604,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int num_input = channels * elempack;

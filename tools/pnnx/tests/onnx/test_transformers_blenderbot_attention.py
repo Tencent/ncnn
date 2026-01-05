@@ -16,8 +16,10 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.attn0 = BlenderbotAttention(embed_dim=192, num_heads=16)
-        self.attn1 = BlenderbotAttention(embed_dim=66, num_heads=6)
+        config = BlenderbotConfig(attn_implementation='eager')
+
+        self.attn0 = BlenderbotAttention(embed_dim=192, num_heads=16, config=config)
+        self.attn1 = BlenderbotAttention(embed_dim=66, num_heads=6, config=config)
 
     def forward(self, x, y):
         out0 = self.attn0(x, attention_mask=None, layer_head_mask=None, key_value_states=None, past_key_value=None)

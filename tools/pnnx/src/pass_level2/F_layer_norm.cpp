@@ -41,7 +41,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon
+LayerNormalization      op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -55,7 +55,18 @@ pnnx.Output             output      1 0 out
     {
         const int input_rank = op->inputs[0]->shape.size();
 
-        int axis = captured_params.at("axis").i;
+        int axis = -1;
+        if (captured_params.find("op_0.axis") != captured_params.end())
+        {
+            axis = captured_params.at("op_0.axis").i;
+        }
+
+        float epsilon = 1e-05;
+        if (captured_params.find("op_0.epsilon") != captured_params.end())
+        {
+            epsilon = captured_params.at("op_0.epsilon").f;
+        }
+
         if (axis < 0)
         {
             axis = input_rank + axis;
@@ -68,11 +79,33 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["normalized_shape"] = normalized_shape;
-        op->params["eps"] = captured_params.at("epsilon");
+        op->params["eps"] = epsilon;
+    }
+};
+
+class F_layer_norm_onnx_0 : public F_layer_norm_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+LayerNormalization      op_0        2 1 input weight out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_layer_norm_onnx::write(op, captured_params);
+        op->params["bias"] = Parameter();
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx, 130)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_0, 130)
 
 class F_layer_norm_onnx_1 : public F_layer_norm_onnx
 {
@@ -84,7 +117,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev axis=%axis epsilon=%epsilon stash_type=%stash_type
+LayerNormalization      op_0        3 3 input weight bias out Mean InvStdDev %*=%*
 pnnx.Output             output      3 0 out Mean InvStdDev
 )PNNXIR";
     }
@@ -103,25 +136,29 @@ pnnx.Output             output      3 0 out Mean InvStdDev
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
-
-class F_layer_norm_onnx_2 : public F_layer_norm_onnx
+class F_layer_norm_onnx_11 : public F_layer_norm_onnx_1
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+4 5
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
-pnnx.Input              input_2     0 1 bias
-LayerNormalization      op_0        3 1 input weight bias out axis=%axis epsilon=%epsilon stash_type=%stash_type
-pnnx.Output             output      1 0 out
+LayerNormalization      op_0        2 3 input weight out Mean InvStdDev %*=%*
+pnnx.Output             output      3 0 out Mean InvStdDev
 )PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_layer_norm_onnx::write(op, captured_params);
+        op->params["bias"] = Parameter();
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_2, 130)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_1, 130)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_onnx_11, 130)
 
 class F_layer_norm_onnx_3 : public GraphRewriterPass
 {
@@ -157,7 +194,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -183,7 +224,11 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        const std::vector<int>& dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 
@@ -240,7 +285,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         // dim must be the last N dimensions
-        std::vector<int> dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
 
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
@@ -278,7 +327,11 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& inputshape = op->inputs[0]->shape;
-        const std::vector<int>& dim = captured_params.at("dim").ai;
+        std::vector<int> dim;
+        if (captured_params.at("dim").type == 2)
+            dim.push_back(captured_params.at("dim").i);
+        else // if (captured_params.at("dim").type == 5)
+            dim = captured_params.at("dim").ai;
         const int input_rank = (int)inputshape.size();
         const int dim_count = (int)dim.size();
 

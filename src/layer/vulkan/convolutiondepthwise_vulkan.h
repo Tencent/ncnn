@@ -26,7 +26,6 @@ public:
 public:
     Mat weight_data_packed;
     Mat weight_data_packed_groups;
-    Mat bias_data_packed;
 
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
@@ -35,17 +34,11 @@ public:
 
     Pipeline* pipeline_convolutiondepthwise;
     Pipeline* pipeline_convolutiondepthwise_pack4;
-    Pipeline* pipeline_convolutiondepthwise_pack8;
 
     Pipeline* pipeline_convolutiondepthwise_group;
     Pipeline* pipeline_convolutiondepthwise_group_pack4;
     Pipeline* pipeline_convolutiondepthwise_group_pack1to4;
     Pipeline* pipeline_convolutiondepthwise_group_pack4to1;
-    Pipeline* pipeline_convolutiondepthwise_group_pack8;
-    Pipeline* pipeline_convolutiondepthwise_group_pack1to8;
-    Pipeline* pipeline_convolutiondepthwise_group_pack4to8;
-    Pipeline* pipeline_convolutiondepthwise_group_pack8to4;
-    Pipeline* pipeline_convolutiondepthwise_group_pack8to1;
 };
 
 } // namespace ncnn

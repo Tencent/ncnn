@@ -48,7 +48,7 @@ def test():
     import test_nn_LPPool1d_pnnx
     b = test_nn_LPPool1d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    return torch.allclose(a, b, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

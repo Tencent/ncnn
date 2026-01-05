@@ -10,10 +10,10 @@ namespace ncnn {
 Requantize_vulkan::Requantize_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_requantize = 0;
     pipeline_requantize_pack4 = 0;
-    pipeline_requantize_pack8 = 0;
 }
 
 int Requantize_vulkan::create_pipeline(const Option& opt)
@@ -24,14 +24,14 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
     const int dims = shape.dims;
 
     int elempack = 1;
-    if (dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
+    if (dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
+    if (dims == 3 || dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     const size_t elemsize = elempack * 4u;
     const size_t out_elemsize = out_elempack * 1u;
@@ -102,14 +102,6 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
         pipeline_requantize_pack4->create(LayerShaderType::requantize_pack4, opt, specializations);
     }
 
-    // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
-        pipeline_requantize_pack8 = new Pipeline(vkdev);
-        pipeline_requantize_pack8->set_optimal_local_size_xyz(local_size_x, 1, 1);
-        pipeline_requantize_pack8->create(LayerShaderType::requantize_pack8, opt, specializations);
-    }
-
     return 0;
 }
 
@@ -120,9 +112,6 @@ int Requantize_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_requantize_pack4;
     pipeline_requantize_pack4 = 0;
-
-    delete pipeline_requantize_pack8;
-    pipeline_requantize_pack8 = 0;
 
     return 0;
 }
@@ -208,9 +197,7 @@ int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
     dispatcher.h = 1;
     dispatcher.c = 1;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_requantize_pack8
-                               : elempack == 4 ? pipeline_requantize_pack4
-                               : pipeline_requantize;
+    const Pipeline* pipeline = elempack == 4 ? pipeline_requantize_pack4 : pipeline_requantize;
 
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
