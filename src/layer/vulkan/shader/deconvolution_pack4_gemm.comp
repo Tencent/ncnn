@@ -5,22 +5,22 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const int maxk = 1;
+layout(constant_id = 0) const int maxk = 1;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outc = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer col_blob { sfpvec4 col_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer col_blob { sfpvec4 col_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -65,7 +65,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_blob_data[v_offset + z4 * psc(cstep) + ly]);
+                tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, v_offset + z4 * psc(cstep) + ly);
             }
         }
 
@@ -73,7 +73,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_k[ly][z4][lx] = sfp2lfpvec4(weight_data[w_offset + z4 * 4 + lx]);
+                tmp_k[ly][z4][lx] = buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
             }
         }
 
@@ -113,7 +113,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][ly] = sfp2lfpvec4(bottom_blob_data[v_offset + z4 * psc(cstep) + ly]);
+                tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, v_offset + z4 * psc(cstep) + ly);
             }
         }
 
@@ -121,7 +121,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_k[ly][z4][lx] = sfp2lfpvec4(weight_data[w_offset + z4 * 4 + lx]);
+                tmp_k[ly][z4][lx] = buffer_sm4(weight_data, w_offset + z4 * 4 + lx);
             }
         }
 
@@ -159,8 +159,7 @@ void main()
             buffer_ld4(weight_data, w_offset + 0),
             buffer_ld4(weight_data, w_offset + 1),
             buffer_ld4(weight_data, w_offset + 2),
-            buffer_ld4(weight_data, w_offset + 3)
-        );
+            buffer_ld4(weight_data, w_offset + 3));
 
         sum0 += v0 * k;
         sum1 += v1 * k;

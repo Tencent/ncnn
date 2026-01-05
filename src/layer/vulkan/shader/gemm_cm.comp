@@ -3,52 +3,52 @@
 
 #version 450
 
-#extension GL_EXT_control_flow_attributes: require
+#extension GL_EXT_control_flow_attributes : require
 
-#extension GL_KHR_shader_subgroup_basic: require
+#extension GL_KHR_shader_subgroup_basic : require
 
-#extension GL_KHR_memory_scope_semantics: require
-#extension GL_EXT_shader_explicit_arithmetic_types: require
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #if ncnn_VK_KHR_cooperative_matrix
-#extension GL_KHR_cooperative_matrix: require
+#extension GL_KHR_cooperative_matrix : require
 #elif ncnn_VK_NV_cooperative_matrix
-#extension GL_NV_cooperative_matrix: require
+#extension GL_NV_cooperative_matrix : require
 #endif
 
-layout (constant_id = 0) const float alpha = 1.f;
-layout (constant_id = 1) const float beta = 1.f;
-layout (constant_id = 2) const int transA = 0;
-layout (constant_id = 3) const int transB = 0;
-layout (constant_id = 4) const int constantA = 0;
-layout (constant_id = 5) const int constantB = 0;
-layout (constant_id = 6) const int constantC = 0;
-layout (constant_id = 7) const int GM = 0;
-layout (constant_id = 8) const int GN = 0;
-layout (constant_id = 9) const int GK = 0;
-layout (constant_id = 10) const int constant_broadcast_type_C = 0;
-layout (constant_id = 11) const int output_N1M = 0;
-layout (constant_id = 12) const int output_elempack = 0;
-layout (constant_id = 13) const int output_elemtype = 0;
-layout (constant_id = 14) const int output_transpose = 0;
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int transA = 0;
+layout(constant_id = 3) const int transB = 0;
+layout(constant_id = 4) const int constantA = 0;
+layout(constant_id = 5) const int constantB = 0;
+layout(constant_id = 6) const int constantC = 0;
+layout(constant_id = 7) const int GM = 0;
+layout(constant_id = 8) const int GN = 0;
+layout(constant_id = 9) const int GK = 0;
+layout(constant_id = 10) const int constant_broadcast_type_C = 0;
+layout(constant_id = 11) const int output_N1M = 0;
+layout(constant_id = 12) const int output_elempack = 0;
+layout(constant_id = 13) const int output_elemtype = 0;
+layout(constant_id = 14) const int output_transpose = 0;
 
-layout (constant_id = 15) const uint M = 1;
-layout (constant_id = 16) const uint N = 1;
-layout (constant_id = 17) const uint K = 1;
-layout (constant_id = 18) const uint UNROLL_SG_M = 2;
-layout (constant_id = 19) const uint UNROLL_SG_N = 2;
-layout (constant_id = 20) const uint UNROLL_SG_K = 2;
-layout (constant_id = 21) const uint UNROLL_WG_M = 2;
-layout (constant_id = 22) const uint UNROLL_WG_N = 2;
+layout(constant_id = 15) const uint M = 1;
+layout(constant_id = 16) const uint N = 1;
+layout(constant_id = 17) const uint K = 1;
+layout(constant_id = 18) const uint UNROLL_SG_M = 2;
+layout(constant_id = 19) const uint UNROLL_SG_N = 2;
+layout(constant_id = 20) const uint UNROLL_SG_K = 2;
+layout(constant_id = 21) const uint UNROLL_WG_M = 2;
+layout(constant_id = 22) const uint UNROLL_WG_N = 2;
 
 // TODO psc more
 
-layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 1) readonly buffer A_blob { uvec4 A_blob_data[]; };
-layout (binding = 2) readonly buffer B_blob { uvec4 B_blob_data[]; };
-layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { uvec4 A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { uvec4 B_blob_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int GM;
     int GN;
@@ -118,8 +118,8 @@ void main()
     const uint sgmi = sgi / UNROLL_WG_N;
     const uint sgni = sgi % UNROLL_WG_N;
 
-//     const uint mm = (psc(GM) + M - 1) / M;
-//     const uint nn = (psc(GN) + N - 1) / N;
+    //     const uint mm = (psc(GM) + M - 1) / M;
+    //     const uint nn = (psc(GN) + N - 1) / N;
     const uint kk = (psc(GK) + K - 1) / K;
 
     if (wgmi >= wgmm)
@@ -255,7 +255,7 @@ void main()
                     if (gn * 8 + 6 < psc(GN)) vd.r = float(buffer_ld1(C_blob_data, ci8.b));
                     if (gn * 8 + 7 < psc(GN)) vd.g = float(buffer_ld1(C_blob_data, ci8.a));
 
-                    uvec4 v = uvec4(packHalf2x16(va),packHalf2x16(vb),packHalf2x16(vc),packHalf2x16(vd));
+                    uvec4 v = uvec4(packHalf2x16(va), packHalf2x16(vb), packHalf2x16(vc), packHalf2x16(vd));
 
                     tmp_abo[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M + i) * Nd8p + j] = v;
                 }
@@ -434,7 +434,7 @@ void main()
                                 if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                                 if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                             }
                         }
 
@@ -517,7 +517,7 @@ void main()
                                 if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                                 if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                             }
                         }
 
@@ -602,7 +602,7 @@ void main()
                                 if (gn8.b < psc(GN)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                                 if (gn8.a < psc(GN)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                             }
                         }
 
@@ -693,7 +693,7 @@ void main()
                                 if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                                 if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                                v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                             }
                         }
 
@@ -874,7 +874,7 @@ void main()
                                     if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                                     if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -957,7 +957,7 @@ void main()
                                     if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                                     if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -1042,7 +1042,7 @@ void main()
                                     if (gn8.b < psc(GN)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                                     if (gn8.a < psc(GN)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -1133,7 +1133,7 @@ void main()
                                     if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                                     if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                                    v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                                 }
                             }
 
@@ -1440,7 +1440,7 @@ void main()
                             if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                             if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1523,7 +1523,7 @@ void main()
                             if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                             if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1608,7 +1608,7 @@ void main()
                             if (gn8.b < psc(GN)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                             if (gn8.a < psc(GN)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1699,7 +1699,7 @@ void main()
                             if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                             if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1858,7 +1858,7 @@ void main()
                             if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                             if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -1931,7 +1931,7 @@ void main()
                             if (gm8.b < psc(GM)) v8.b = unpackHalf2x16(A_blob_data[ai8d8.b][ai8m8d2.b])[ai8m2.b];
                             if (gm8.a < psc(GM)) v8.a = unpackHalf2x16(A_blob_data[ai8d8.a][ai8m8d2.a])[ai8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -2006,7 +2006,7 @@ void main()
                             if (gn8.b < psc(GN)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                             if (gn8.a < psc(GN)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 
@@ -2087,7 +2087,7 @@ void main()
                             if (gk8.b < psc(GK)) v8.b = unpackHalf2x16(B_blob_data[bi8d8.b][bi8m8d2.b])[bi8m2.b];
                             if (gk8.a < psc(GK)) v8.a = unpackHalf2x16(B_blob_data[bi8d8.a][bi8m8d2.a])[bi8m2.a];
 
-                            v = uvec4(packHalf2x16(v4.rg),packHalf2x16(v4.ba),packHalf2x16(v8.rg),packHalf2x16(v8.ba));
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
                         }
                     }
 

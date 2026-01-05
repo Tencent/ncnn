@@ -3,13 +3,13 @@
 
 #version 450
 
-layout (constant_id = 0) const float eps = 0;
+layout(constant_id = 0) const float eps = 0;
 
-layout (binding = 0) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
-layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
-layout (binding = 2) readonly buffer var_blob { float var_data[]; };
+layout(binding = 0) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) readonly buffer var_blob { float var_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int num_groups_per_channel;
     int c;
