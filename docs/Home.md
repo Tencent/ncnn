@@ -59,9 +59,9 @@ void pretty_print(const ncnn::Mat& m)
 
 ### print VkMat content
 ```cpp
-void pretty_print(const ncnn::VkMat& m, VkCompute& cmd, const Option& opt)
+void pretty_print(const ncnn::VkMat& m, ncnn::VkCompute& cmd, const ncnn::Option& opt)
 {
-    Option opt_unpack = opt;
+    ncnn::Option opt_unpack = opt;
     opt_unpack.use_packing_layout = false;
 
     ncnn::Mat m_cpu;
