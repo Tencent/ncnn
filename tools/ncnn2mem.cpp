@@ -392,12 +392,13 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
                 if (str[str.size() - 1] == '\"')
                     str.resize(str.size() - 1);
 
+                int len = (int)str.length();
+
                 // pad to 4 bytes
                 str.resize((str.size() + 3) / 4 * 4, 0);
 
-                int len = (int)str.length();
                 fwrite(&len, sizeof(int), 1, mp);
-                fwrite(str.data(), sizeof(char), len, mp);
+                fwrite(str.data(), sizeof(char), str.size(), mp);
 
                 continue;
             }
