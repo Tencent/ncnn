@@ -4,21 +4,21 @@
 #version 450
 
 #define shape_constant_id_offset 0
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
 
-layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outh = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic) || NCNN_bf16_packed || NCNN_bf16_storage
 // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
-layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 #else
-layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
 #endif
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
 
@@ -46,14 +46,13 @@ void main()
     {
         afpvec4 v = buffer_ld4(bottom_blob_data, i);
 
-#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic) || NCNN_bf16_packed || NCNN_bf16_storage
         // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
         afpmat4 k = afpmat4(
             buffer_ld4(weight_data, w_offset * 4 + 0),
             buffer_ld4(weight_data, w_offset * 4 + 1),
             buffer_ld4(weight_data, w_offset * 4 + 2),
-            buffer_ld4(weight_data, w_offset * 4 + 3)
-        );
+            buffer_ld4(weight_data, w_offset * 4 + 3));
 #else
         afpmat4 k = afpmat4(weight_data[w_offset]);
 #endif

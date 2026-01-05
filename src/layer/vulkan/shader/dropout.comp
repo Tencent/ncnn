@@ -3,15 +3,14 @@
 
 #version 450
 
-layout (constant_id = 0) const float scale = 1;
+layout(constant_id = 0) const float scale = 1;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const uint n = 0;
+layout(constant_id = shape_constant_id_offset + 0) const uint n = 0;
 
+layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
-layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     uint n;
 } p;
