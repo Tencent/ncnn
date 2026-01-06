@@ -383,13 +383,16 @@ static int test_c_api_3()
 
     TEST_LAYER_SET_GET(one_blob_only, 1, 0)
     TEST_LAYER_SET_GET(support_inplace, 1, 0)
-    TEST_LAYER_SET_GET(support_vulkan, 1, 0)
     TEST_LAYER_SET_GET(support_packing, 1, 0)
     TEST_LAYER_SET_GET(support_bf16_storage, 1, 0)
     TEST_LAYER_SET_GET(support_fp16_storage, 1, 0)
-    TEST_LAYER_SET_GET(support_vulkan_packing, 1, 0)
     TEST_LAYER_SET_GET(support_any_packing, 1, 0)
+
+#if NCNN_VULKAN
+    TEST_LAYER_SET_GET(support_vulkan, 1, 0)
+    TEST_LAYER_SET_GET(support_vulkan_packing, 1, 0)
     TEST_LAYER_SET_GET(support_vulkan_any_packing, 1, 0)
+#endif
 
 #undef TEST_LAYER_SET_GET
 
