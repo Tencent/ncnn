@@ -1529,7 +1529,7 @@ int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path)
 {
     return ((Net*)net->pthis)->load_model(path);
 }
-#endif /*_WIN32*/
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO
