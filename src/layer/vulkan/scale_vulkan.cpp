@@ -10,6 +10,7 @@ namespace ncnn {
 Scale_vulkan::Scale_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_scale = 0;
     pipeline_scale_pack4 = 0;
@@ -25,7 +26,7 @@ int Scale_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

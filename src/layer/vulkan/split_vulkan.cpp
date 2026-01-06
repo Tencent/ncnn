@@ -8,6 +8,7 @@ namespace ncnn {
 Split_vulkan::Split_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 }
 
 int Split_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& /*cmd*/, const Option& /*opt*/) const

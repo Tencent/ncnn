@@ -138,14 +138,6 @@ Compile ncnn,and make install. linux/windows should set/export ncnn_DIR points t
 
    [Converting tensorflow2 models to ncnn via MLIR](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
-- ## Shape not supported yet! Gather not supported yet! Cast not supported yet!
-
-   onnx-simplifier shape
-
-- ## convertmodel
-
-   [https://convertmodel.com/](https://convertmodel.com/) **[@大老师](https://github.com/daquexian)**
-
 - ## netron
 
    [https://github.com/lutzroeder/netron](https://github.com/lutzroeder/netron)

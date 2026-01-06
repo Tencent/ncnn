@@ -10,6 +10,7 @@ namespace ncnn {
 Flatten_vulkan::Flatten_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_flatten = 0;
     pipeline_flatten_pack4 = 0;
@@ -32,7 +33,7 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
