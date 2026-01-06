@@ -241,21 +241,31 @@ int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
 
 int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 {
+#if NCNN_VULKAN
     return ((const Option*)opt)->use_shader_local_memory;
+#else
+    (void)opt;
+    return 0;
+#endif
 }
 
 int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
 {
-    return ((const Option*)opt)->use_cooperative_matrix;
-}
-
-void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
-{
 #if NCNN_VULKAN
-    ((Option*)opt)->use_vulkan_compute = use_vulkan_compute;
+    return ((const Option*)opt)->use_cooperative_matrix;
 #else
     (void)opt;
-    (void)use_vulkan_compute;
+    return 0;
+#endif
+}
+
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_vulkan_compute = enable;
+#else
+    (void)opt;
+    (void)enable;
 #endif
 }
 
@@ -321,12 +331,22 @@ void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable)
 
 void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
 {
+#if NCNN_VULKAN
     ((Option*)opt)->use_shader_local_memory = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
 }
 
 void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
 {
+#if NCNN_VULKAN
     ((Option*)opt)->use_cooperative_matrix = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
 }
 
 /* mat api */
@@ -1235,7 +1255,12 @@ int ncnn_layer_get_support_inplace(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 int ncnn_layer_get_support_packing(const ncnn_layer_t layer)
@@ -1255,7 +1280,12 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
@@ -1265,7 +1295,12 @@ int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan_any_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
@@ -1280,7 +1315,12 @@ void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable)
@@ -1300,7 +1340,12 @@ void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
@@ -1310,7 +1355,12 @@ void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan_any_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
