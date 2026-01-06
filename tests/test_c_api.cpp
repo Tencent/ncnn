@@ -334,14 +334,14 @@ static int test_c_api_3()
     // test option setter getter
     ncnn_option_t opt = ncnn_option_create();
 
-#define TEST_SET_GET(name, V0, V1) \
-    { \
-        ncnn_option_set_##name(opt, V0); \
+#define TEST_SET_GET(name, V0, V1)             \
+    {                                          \
+        ncnn_option_set_##name(opt, V0);       \
         int _s0 = ncnn_option_get_##name(opt); \
-        if (_s0 != V0) return -1; \
-        ncnn_option_set_##name(opt, V1); \
+        if (_s0 != V0) return -1;              \
+        ncnn_option_set_##name(opt, V1);       \
         int _s1 = ncnn_option_get_##name(opt); \
-        if (_s1 != V1) return -1; \
+        if (_s1 != V1) return -1;              \
     }
 
     TEST_SET_GET(num_threads, 4, 1)
