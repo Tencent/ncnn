@@ -334,7 +334,7 @@ static int test_c_api_3()
     // test option setter getter
     ncnn_option_t opt = ncnn_option_create();
 
-#define TEST_SET_GET(name, V0, V1)             \
+#define TEST_OPTION_SET_GET(name, V0, V1)      \
     {                                          \
         ncnn_option_set_##name(opt, V0);       \
         int _s0 = ncnn_option_get_##name(opt); \
@@ -344,29 +344,56 @@ static int test_c_api_3()
         if (_s1 != V1) return -1;              \
     }
 
-    TEST_SET_GET(num_threads, 4, 1)
-    TEST_SET_GET(use_local_pool_allocator, 1, 0)
-    TEST_SET_GET(use_winograd_convolution, 1, 0)
-    TEST_SET_GET(use_sgemm_convolution, 1, 0)
-    TEST_SET_GET(use_packing_layout, 1, 0)
-    TEST_SET_GET(use_fp16_packed, 1, 0)
-    TEST_SET_GET(use_fp16_storage, 1, 0)
-    TEST_SET_GET(use_fp16_arithmetic, 1, 0)
-    TEST_SET_GET(use_int8_packed, 1, 0)
-    TEST_SET_GET(use_int8_storage, 1, 0)
-    TEST_SET_GET(use_int8_arithmetic, 1, 0)
-    TEST_SET_GET(use_bf16_packed, 1, 0)
-    TEST_SET_GET(use_bf16_storage, 1, 0)
+    TEST_OPTION_SET_GET(num_threads, 4, 1)
+    TEST_OPTION_SET_GET(use_local_pool_allocator, 1, 0)
+    TEST_OPTION_SET_GET(use_winograd_convolution, 1, 0)
+    TEST_OPTION_SET_GET(use_sgemm_convolution, 1, 0)
+    TEST_OPTION_SET_GET(use_packing_layout, 1, 0)
+    TEST_OPTION_SET_GET(use_fp16_packed, 1, 0)
+    TEST_OPTION_SET_GET(use_fp16_storage, 1, 0)
+    TEST_OPTION_SET_GET(use_fp16_arithmetic, 1, 0)
+    TEST_OPTION_SET_GET(use_int8_packed, 1, 0)
+    TEST_OPTION_SET_GET(use_int8_storage, 1, 0)
+    TEST_OPTION_SET_GET(use_int8_arithmetic, 1, 0)
+    TEST_OPTION_SET_GET(use_bf16_packed, 1, 0)
+    TEST_OPTION_SET_GET(use_bf16_storage, 1, 0)
 
 #if NCNN_VULKAN
-    TEST_SET_GET(use_vulkan_compute, 1, 0)
-    TEST_SET_GET(use_shader_local_memory, 1, 0)
-    TEST_SET_GET(use_cooperative_matrix, 1, 0)
+    TEST_OPTION_SET_GET(use_vulkan_compute, 1, 0)
+    TEST_OPTION_SET_GET(use_shader_local_memory, 1, 0)
+    TEST_OPTION_SET_GET(use_cooperative_matrix, 1, 0)
 #endif
 
-#undef TEST_SET_GET
+#undef TEST_OPTION_SET_GET
 
     ncnn_option_destroy(opt);
+
+    // test layer setter getter
+    ncnn_layer_t layer = ncnn_layer_create();
+
+#define TEST_LAYER_SET_GET(name, V0, V1)        \
+    {                                           \
+        ncnn_layer_set_##name(layer, V0);       \
+        int _s0 = ncnn_layer_get_##name(layer); \
+        if (_s0 != V0) return -1;               \
+        ncnn_layer_set_##name(layer, V1);       \
+        int _s1 = ncnn_layer_get_##name(layer); \
+        if (_s1 != V1) return -1;               \
+    }
+
+    TEST_LAYER_SET_GET(one_blob_only, 1, 0)
+    TEST_LAYER_SET_GET(support_inplace, 1, 0)
+    TEST_LAYER_SET_GET(support_vulkan, 1, 0)
+    TEST_LAYER_SET_GET(support_packing, 1, 0)
+    TEST_LAYER_SET_GET(support_bf16_storage, 1, 0)
+    TEST_LAYER_SET_GET(support_fp16_storage, 1, 0)
+    TEST_LAYER_SET_GET(support_vulkan_packing, 1, 0)
+    TEST_LAYER_SET_GET(support_any_packing, 1, 0)
+    TEST_LAYER_SET_GET(support_vulkan_any_packing, 1, 0)
+
+#undef TEST_LAYER_SET_GET
+
+    ncnn_layer_destroy(layer);
 
     return 0;
 }
