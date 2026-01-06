@@ -18,7 +18,7 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -35,7 +35,7 @@ jobs:
     - name: Check metadata
       run: twine check dist/*
 
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: sdist
         path: dist/*.tar.gz
@@ -82,7 +82,7 @@ jobs:
         -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -93,7 +93,7 @@ jobs:
     # build wheels for ubuntu-24.04
     - name: Build wheels for ubuntu
       if: matrix.os == 'ubuntu-24.04'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -106,7 +106,7 @@ jobs:
     # build wheels for ubuntu-24.04 armv7l
     - name: Build wheels for ubuntu armv7l
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -120,7 +120,7 @@ jobs:
     # build wheels for ubuntu-24.04 aarch64
     - name: Build wheels for ubuntu aarch64
       if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -133,7 +133,7 @@ jobs:
     # build wheels for windows-2022
     - name: Build wheels for windows
       if: matrix.os == 'windows-2022' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -147,7 +147,7 @@ jobs:
 
     - name: Build wheels for windows ARM64
       if: matrix.os == 'windows-2022' && matrix.arch == 'ARM64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -163,7 +163,7 @@ jobs:
     - name: cache-openmp for macos
       if: matrix.os == 'macos-15-intel'
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-macos-install-20251004
@@ -226,7 +226,7 @@ jobs:
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'x86_64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -245,7 +245,7 @@ jobs:
 
     - name: Build wheels for macos arm64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'arm64'
-      uses: pypa/cibuildwheel@v3.1.4
+      uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -271,7 +271,7 @@ jobs:
       shell: bash
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
@@ -288,7 +288,7 @@ jobs:
       with:
         python-version: '3.x'
 
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         path: dist
         merge-multiple: true

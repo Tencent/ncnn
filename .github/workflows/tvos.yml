@@ -69,13 +69,13 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-tvos-install-20251004

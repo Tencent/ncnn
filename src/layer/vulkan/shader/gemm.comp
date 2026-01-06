@@ -5,30 +5,30 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const float alpha = 1.f;
-layout (constant_id = 1) const float beta = 1.f;
-layout (constant_id = 2) const int transA = 0;
-layout (constant_id = 3) const int transB = 0;
-layout (constant_id = 4) const int constantA = 0;
-layout (constant_id = 5) const int constantB = 0;
-layout (constant_id = 6) const int constantC = 0;
-layout (constant_id = 7) const int M = 0;
-layout (constant_id = 8) const int N = 0;
-layout (constant_id = 9) const int K = 0;
-layout (constant_id = 10) const int constant_broadcast_type_C = 0;
-layout (constant_id = 11) const int output_N1M = 0;
-layout (constant_id = 12) const int output_elempack = 0;
-layout (constant_id = 13) const int output_elemtype = 0;
-layout (constant_id = 14) const int output_transpose = 0;
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int transA = 0;
+layout(constant_id = 3) const int transB = 0;
+layout(constant_id = 4) const int constantA = 0;
+layout(constant_id = 5) const int constantB = 0;
+layout(constant_id = 6) const int constantC = 0;
+layout(constant_id = 7) const int M = 0;
+layout(constant_id = 8) const int N = 0;
+layout(constant_id = 9) const int K = 0;
+layout(constant_id = 10) const int constant_broadcast_type_C = 0;
+layout(constant_id = 11) const int output_N1M = 0;
+layout(constant_id = 12) const int output_elempack = 0;
+layout(constant_id = 13) const int output_elemtype = 0;
+layout(constant_id = 14) const int output_transpose = 0;
 
 // TODO psc more
 
-layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
-layout (binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
-layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int M;
     int N;
@@ -113,27 +113,27 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + 1);
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + p.A_hstep);
             }
 
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + p.B_hstep);
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
             }
         }
 
@@ -165,14 +165,14 @@ void main()
             if (transA == 1)
             {
                 const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + 1));
+                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + 1);
             }
             else
             {
                 const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = sfp2lfp(buffer_ld1(A_blob_data, ai));
-                tmp_a[ly][lx][1] = sfp2lfp(buffer_ld1(A_blob_data, ai + p.A_hstep));
+                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + p.A_hstep);
             }
         }
 
@@ -181,14 +181,14 @@ void main()
             if (transB == 1)
             {
                 const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + p.B_hstep));
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + p.B_hstep);
             }
             else
             {
                 const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = sfp2lfp(buffer_ld1(B_blob_data, bi));
-                tmp_b[lx][ly][1] = sfp2lfp(buffer_ld1(B_blob_data, bi + 1));
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
             }
         }
 

@@ -65,11 +65,11 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-visionos-install-20251004

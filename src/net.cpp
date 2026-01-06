@@ -104,8 +104,9 @@ static Option get_masked_option(const Option& opt, int featmask)
     // mask option usage as layer specific featmask
     Option opt1 = opt;
     opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
-    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
     opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_bf16_packed = opt1.use_bf16_packed && !(featmask & (1 << 2));
     opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
     opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
     opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
@@ -490,6 +491,12 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
 #endif
             }
+
+            if (layer->support_any_packing)
+            {
+                // layer handles pack/unpack
+                dst_elempack = bottom_blob.elempack;
+            }
         }
     }
 
@@ -575,6 +582,12 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
 
         if (elemcount % 4 == 0)
             dst_elempack = 4;
+
+        if (layer->support_vulkan_any_packing)
+        {
+            // layer handles pack/unpack
+            dst_elempack = bottom_blob.elempack;
+        }
     }
 
     if (bottom_blob.elempack != dst_elempack)
@@ -870,8 +883,11 @@ void NetPrivate::update_input_output_indexes()
     {
         if (layers[i]->typeindex == LayerType::Input)
         {
-            int blob_index = layers[i]->tops[0];
-            input_blob_indexes.push_back(blob_index);
+            for (size_t j = 0; j < layers[i]->tops.size(); j++)
+            {
+                int blob_index = layers[i]->tops[j];
+                input_blob_indexes.push_back(blob_index);
+            }
         }
     }
 
@@ -1050,10 +1066,6 @@ int Net::load_param(const DataReader& dr)
     d->blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1195,7 +1207,9 @@ int Net::load_param(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top shape hints
@@ -1245,7 +1259,9 @@ int Net::load_param(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1271,6 +1287,7 @@ int Net::load_param(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %s not exists or registered", layer_type);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1287,7 +1304,10 @@ int Net::load_param(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
@@ -1349,10 +1369,6 @@ int Net::load_param_bin(const DataReader& dr)
     d->blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1477,7 +1493,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param_bin %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top blob shape hints
@@ -1527,7 +1545,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1554,6 +1574,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %d not exists or registered", typeindex);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1568,7 +1589,10 @@ int Net::load_param_bin(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d failed", i);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
@@ -1707,6 +1731,22 @@ int Net::load_param(const char* protopath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_param(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STRING
 
 int Net::load_param_bin(FILE* fp)
@@ -1729,6 +1769,22 @@ int Net::load_param_bin(const char* protopath)
     return ret;
 }
 
+#if _WIN32
+int Net::load_param_bin(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param_bin(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
+
 int Net::load_model(FILE* fp)
 {
     DataReaderFromStdio dr(fp);
@@ -1748,6 +1804,22 @@ int Net::load_model(const char* modelpath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_model(const wchar_t* modelpath)
+{
+    FILE* fp = _wfopen(modelpath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", modelpath);
+        return -1;
+    }
+
+    int ret = load_model(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STDIO
 
 int Net::load_param(const unsigned char* _mem)
@@ -1838,6 +1910,9 @@ void Net::clear()
     for (size_t i = 0; i < d->layers.size(); i++)
     {
         Layer* layer = d->layers[i];
+
+        if (!layer)
+            continue;
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 

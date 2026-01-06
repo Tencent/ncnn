@@ -345,6 +345,7 @@ set(pnnx_pass_level3_SRCS
 )
 
 set(pnnx_pass_level4_SRCS
+    pass_level4/attribute_pooling.cpp
     pass_level4/canonicalize.cpp
     pass_level4/dead_code_elimination.cpp
     pass_level4/fuse_custom_op.cpp
@@ -362,11 +363,13 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_noop_slice.cpp
+    pass_level5/eliminate_noop_permute.cpp
     pass_level5/eliminate_noop_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eliminate_type_as.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
+    pass_level5/fuse_adjacent_permute.cpp
     pass_level5/fuse_adjacent_reshape.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
@@ -429,6 +432,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
+    pass_ncnn/fuse_convert_rotaryembed.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
@@ -582,6 +586,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp
     pass_ncnn/nn_ZeroPad2d.cpp
+    pass_ncnn/Tensor_expand.cpp
     pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp

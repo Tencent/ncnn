@@ -130,11 +130,11 @@ declare buffer data layout in descriptor binding
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
-|storage type|fp32|fp16p|fp16s|
-|---|---|---|---|
-|sfp|float|uint|float16_t|
-|sfpvec2|vec2|uint|f16vec2|
-|sfpvec4|vec4|uvec2|f16vec4|
+|storage type|fp32|fp16p|fp16s|bf16p|bf16s|
+|---|---|---|---|---|---|
+|sfp|float|uint|float16_t|uint|bfloat16_t|
+|sfpvec2|vec2|uint|f16vec2|uint|bf16vec2|
+|sfpvec4|vec4|uvec2|f16vec4|uvec2|bf16vec4|
 
 ## arithmetic type
 
@@ -161,10 +161,10 @@ declare variable in shared local memory
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|
-|---|---|---|---|---|
-|lfp|float|float|float|float16_t|
-|lfpvec4|vec4|uvec2|uint64_t|f16vec4|
+|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|bf16p|bf16s|
+|---|---|---|---|---|---|---|
+|lfp|float|float|float|float16_t|float|bfloat16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
 # buffer functions
 
@@ -208,8 +208,8 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 - storage buffer to local memory
 
 ```c
-lfp sfp2lfp(sfp v);
-lfpvec4 sfp2lfpvec4(sfpvec4 v);
+lfp buffer_sm1(sfp src, int offset);
+lfpvec4 buffer_sm4(sfpvec4 src, int offset);
 ```
 
 - local memory to local variable
@@ -290,6 +290,8 @@ The macro name is `ncnn_<feature_name>` or `ncnn_<property_name>`
 
 The `GL_EXT_shader_explicit_arithmetic_types_int64` extension will be automatically enabled without explicit code indication when the device supports `shaderInt64`
 
+The `GL_EXT_shader_explicit_arithmetic_types_int16` extension will be automatically enabled without explicit code indication when the device supports `shaderInt16`
+
 ```c
 void main()
 {
@@ -348,9 +350,15 @@ At runtime, `NCNN_LOGE` will print out the value of `gx`
 
 enable glsl extension only if user enable some options
 
-The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage`
+The `GL_EXT_shader_16bit_storage` extension will be automatically enabled without explicit code indication when the device supports 16-bit storage and the user turns on `opt.use_fp16_storage` or `opt.use_bf16_storage`
 
 The `GL_EXT_shader_explicit_arithmetic_types_float16` extension will be automatically enabled without explicit code indication when the device supports 16-bit arithmetic and the user turns on `opt.use_fp16_arithmetic`
+
+The `GL_EXT_shader_8bit_storage` extension will be automatically enabled without explicit code indication when the device supports 8-bit storage and the user turns on `opt.use_int8_storage`
+
+The `GL_EXT_shader_explicit_arithmetic_types_int8` extension will be automatically enabled without explicit code indication when the device supports 8-bit arithmetic and the user turns on `opt.use_int8_arithmetic`
+
+The `GL_EXT_bfloat16` extension will be automatically enabled without explicit code indication when the device supports bfloat16 storage and the user turns on `opt.use_bf16_storage`
 
 ```c
 void main()
@@ -373,4 +381,6 @@ void main()
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
+|NCNN_bf16_packed|opt.use_bf16_packed|
+|NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

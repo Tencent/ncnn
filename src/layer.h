@@ -69,9 +69,12 @@ public:
     // vulkan accept input blob with packed storage
     bool support_vulkan_packing;
 
-    bool support_reserved_00;
+    // accept input blob with any elempack
+    bool support_any_packing;
 
-    bool support_reserved_0;
+    // vulkan accept input blob with any elempack
+    bool support_vulkan_any_packing;
+
     bool support_reserved_1;
     bool support_reserved_2;
     bool support_reserved_3;

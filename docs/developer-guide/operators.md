@@ -76,7 +76,9 @@
 * [Reshape](#reshape)
 * [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
+* [RotaryEmbed](#rotaryembed)
 * [Scale](#scale)
+* [SDPA](#sdpa)
 * [SELU](#selu)
 * [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
@@ -1777,6 +1779,18 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
+# RotaryEmbed
+Apply rotary positional embeddings with cos and sin cache
+
+```
+y1 = x1 * cos - x2 * sin
+y2 = x1 * sin + x2 * cos
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | interleaved   | int   | 0         |                   |
+
 # Scale
 ```
 if scale_data_size == -233  y = x0 * x1
@@ -1795,6 +1809,23 @@ else                        y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [scale_data_size]     |
+
+# SDPA
+```
+scaled dot product attention
+for each num_head part
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 0.f       | auto = 1.f / sqrt(embed_dim) |
+| 7         | kv_cache      | int   | 0         |                   |
+| 18        | int8_scale_term | int | 0         |                   |
 
 # SELU
 ```

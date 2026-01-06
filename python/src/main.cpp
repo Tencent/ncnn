@@ -193,6 +193,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_sgemm_convolution", &Option::use_sgemm_convolution)
     .def_readwrite("use_int8_inference", &Option::use_int8_inference)
     .def_readwrite("use_vulkan_compute", &Option::use_vulkan_compute)
+    .def_readwrite("use_bf16_packed", &Option::use_bf16_packed)
     .def_readwrite("use_bf16_storage", &Option::use_bf16_storage)
     .def_readwrite("use_fp16_packed", &Option::use_fp16_packed)
     .def_readwrite("use_fp16_storage", &Option::use_fp16_storage)
@@ -320,7 +321,7 @@ PYBIND11_MODULE(ncnn, m)
         }
         return Mat();
     },
-    py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
@@ -875,6 +876,8 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_vulkan_packing", &Layer::support_vulkan_packing)
+    .def_readwrite("support_any_packing", &Layer::support_any_packing)
+    .def_readwrite("support_vulkan_any_packing", &Layer::support_vulkan_any_packing)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
@@ -947,11 +950,32 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_STDIO
 #if NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param", [](Net& self, const std::wstring& path) {
+        return self.load_param(path.c_str());
+    },
+    py::arg("protopath"))
+#else
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+#endif
     .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param_bin", [](Net& self, const std::wstring& path) {
+        return self.load_param_bin(path.c_str());
+    },
+    py::arg("protopath"))
+    .def(
+    "load_model", [](Net& self, const std::wstring& path) {
+        return self.load_model(path.c_str());
+    },
+    py::arg("modelpath"))
+#else
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+#endif
     .def(
     "load_model_mem", [](Net& net, const char* mem) {
         const unsigned char* _mem = (const unsigned char*)mem;

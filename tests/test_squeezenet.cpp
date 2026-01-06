@@ -241,8 +241,10 @@ public:
         support_inplace = impl->support_inplace;
 
         support_packing = impl->support_packing;
+        support_any_packing = impl->support_any_packing;
         support_vulkan = impl->support_vulkan;
         support_vulkan_packing = impl->support_vulkan_packing;
+        support_vulkan_any_packing = impl->support_vulkan_any_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
@@ -275,8 +277,10 @@ public:
         support_inplace = impl->support_inplace;
 
         support_packing = impl->support_packing;
+        support_any_packing = impl->support_any_packing;
         support_vulkan = impl->support_vulkan;
         support_vulkan_packing = impl->support_vulkan_packing;
+        support_vulkan_any_packing = impl->support_vulkan_any_packing;
         support_bf16_storage = impl->support_bf16_storage;
         support_fp16_storage = impl->support_fp16_storage;
         support_int8_storage = impl->support_int8_storage;
