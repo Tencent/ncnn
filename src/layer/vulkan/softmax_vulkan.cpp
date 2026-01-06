@@ -32,8 +32,11 @@ int Softmax_vulkan::create_pipeline(const Option& _opt)
     if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
+    }
     else
+    {
         elemsize = elempack * 4u;
+    }
 
     Mat shape_packed;
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);

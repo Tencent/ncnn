@@ -40,7 +40,7 @@ void reduce_maxv(int lid, int lsize)
         {
             afp a = lfp2afp(smaxv[lid]);
             afp b = lfp2afp(smaxv[lid + off]);
-            smaxv[lid] = sfp2lfp(max(a, b));
+            smaxv[lid] = max(a, b);
         }
         barrier();
     }
@@ -54,7 +54,7 @@ void reduce_sumv(int lid, int lsize)
         {
             afp a = lfp2afp(ssumv[lid]);
             afp b = lfp2afp(ssumv[lid + off]);
-            ssumv[lid] = sfp2lfp(a + b);
+            ssumv[lid] = a + b;
         }
         barrier();
     }
@@ -201,7 +201,7 @@ void main()
         lmax = max(lmax, v);
     }
 
-    smaxv[lid] = sfp2lfp(lmax);
+    smaxv[lid] = lmax;
     barrier();
     reduce_maxv(lid, lsize);
     afp maxv = lfp2afp(smaxv[0]);
@@ -213,7 +213,7 @@ void main()
         lsum += exp(v - maxv);
     }
 
-    ssumv[lid] = sfp2lfp(lsum);
+    ssumv[lid] = lsum;
     barrier();
     reduce_sumv(lid, lsize);
     afp invsum = afp(1.f) / lfp2afp(ssumv[0]);
