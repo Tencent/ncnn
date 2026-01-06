@@ -310,6 +310,13 @@ NCNN_EXPORT int ncnn_net_load_param(ncnn_net_t net, const char* path);
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_net_load_param_bin(ncnn_net_t net, const char* path);
 NCNN_EXPORT int ncnn_net_load_model(ncnn_net_t net, const char* path);
+#if _WIN32
+#if NCNN_STRING
+NCNN_EXPORT int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path);
+#endif /* NCNN_STRING */
+NCNN_EXPORT int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path);
+NCNN_EXPORT int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path);
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO

@@ -70,6 +70,9 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+#if _WIN32
+    int load_param(const wchar_t* protopath);
+#endif
 
     // load network structure from in-memory plain param string, must be NULL-terminated
     // return 0 if success
@@ -79,11 +82,17 @@ public:
     // return 0 if success
     int load_param_bin(FILE* fp);
     int load_param_bin(const char* protopath);
+#if _WIN32
+    int load_param_bin(const wchar_t* protopath);
+#endif
 
     // load network weight data from model file
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
+#if _WIN32
+    int load_model(const wchar_t* modelpath);
+#endif
 #endif // NCNN_STDIO
 
     // load network structure from external memory

@@ -950,11 +950,32 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_STDIO
 #if NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param", [](Net& self, const std::wstring& path) {
+        return self.load_param(path.c_str());
+    },
+    py::arg("protopath"))
+#else
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+#endif
     .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param_bin", [](Net& self, const std::wstring& path) {
+        return self.load_param_bin(path.c_str());
+    },
+    py::arg("protopath"))
+    .def(
+    "load_model", [](Net& self, const std::wstring& path) {
+        return self.load_model(path.c_str());
+    },
+    py::arg("modelpath"))
+#else
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+#endif
     .def(
     "load_model_mem", [](Net& net, const char* mem) {
         const unsigned char* _mem = (const unsigned char*)mem;
