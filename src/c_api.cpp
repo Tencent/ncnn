@@ -181,72 +181,72 @@ int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 
 int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_local_pool_allocator;
+    return ((const Option*)opt)->use_local_pool_allocator;
 }
 
 int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_winograd_convolution;
+    return ((const Option*)opt)->use_winograd_convolution;
 }
 
 int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_sgemm_convolution;
+    return ((const Option*)opt)->use_sgemm_convolution;
 }
 
 int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_packing_layout;
+    return ((const Option*)opt)->use_packing_layout;
 }
 
 int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_fp16_packed;
+    return ((const Option*)opt)->use_fp16_packed;
 }
 
 int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_fp16_storage;
+    return ((const Option*)opt)->use_fp16_storage;
 }
 
 int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_fp16_arithmetic;
+    return ((const Option*)opt)->use_fp16_arithmetic;
 }
 
 int ncnn_option_get_use_int8_packed(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_int8_packed;
+    return ((const Option*)opt)->use_int8_packed;
 }
 
 int ncnn_option_get_use_int8_storage(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_int8_storage;
+    return ((const Option*)opt)->use_int8_storage;
 }
 
 int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_int8_arithmetic;
+    return ((const Option*)opt)->use_int8_arithmetic;
 }
 
 int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_bf16_packed;
+    return ((const Option*)opt)->use_bf16_packed;
 }
 
 int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_bf16_storage;
+    return ((const Option*)opt)->use_bf16_storage;
 }
 
 int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_shader_local_memory;
+    return ((const Option*)opt)->use_shader_local_memory;
 }
 
 int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_cooperative_matrix;
+    return ((const Option*)opt)->use_cooperative_matrix;
 }
 
 void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)

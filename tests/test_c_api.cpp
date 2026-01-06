@@ -345,7 +345,6 @@ static int test_c_api_3()
     }
 
     TEST_SET_GET(num_threads, 4, 1)
-    TEST_SET_GET(use_vulkan_compute, 1, 0)
     TEST_SET_GET(use_local_pool_allocator, 1, 0)
     TEST_SET_GET(use_winograd_convolution, 1, 0)
     TEST_SET_GET(use_sgemm_convolution, 1, 0)
@@ -358,8 +357,12 @@ static int test_c_api_3()
     TEST_SET_GET(use_int8_arithmetic, 1, 0)
     TEST_SET_GET(use_bf16_packed, 1, 0)
     TEST_SET_GET(use_bf16_storage, 1, 0)
+
+#if NCNN_VULKAN
+    TEST_SET_GET(use_vulkan_compute, 1, 0)
     TEST_SET_GET(use_shader_local_memory, 1, 0)
     TEST_SET_GET(use_cooperative_matrix, 1, 0)
+#endif
 
 #undef TEST_SET_GET
 
