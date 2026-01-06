@@ -3,6 +3,7 @@
 |load from|alexnet.param|alexnet.param.bin|alexnet.bin|
 |---|---|---|---|
 |file path|load_param(const char*)|load_param_bin(const char*)|load_model(const char*)|
+|file path\n(wchar_t for windows)|load_param(const wchar_t*)|load_param_bin(const wchar_t*)|load_model(const wchar_t*)|
 |file descriptor|load_param(FILE*)|load_param_bin(FILE*)|load_model(FILE*)|
 |file memory|load_param_mem(const char*)|load_param(const unsigned char*)|load_model(const unsigned char*)|
 |android asset|load_param(AAsset*)|load_param_bin(AAsset*)|load_model(AAsset*)|
