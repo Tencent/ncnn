@@ -186,7 +186,7 @@ int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
 
 int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
 {
-    return ((Option*)opt)->use_local_pool_allocator;
+    return ((Option*)opt)->use_winograd_convolution;
 }
 
 int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
