@@ -58,6 +58,17 @@ static inline void calc_output_and_pad(int w, int h,
             if (htail != 0) pb += stride_h - htail;
         }
     }
+
+    int elempack = shape.c % 4 == 0 ? 4 : 1;
+    int out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
+
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
     else
     {
         calc_same_pad(w, h, kernel_w, kernel_h, stride_w, stride_h, pad_mode, pl, pr, pt, pb);
