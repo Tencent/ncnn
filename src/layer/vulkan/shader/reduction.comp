@@ -8,12 +8,12 @@
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #endif
 
-layout (constant_id = 0) const int op = 0;
+layout(constant_id = 0) const int op = 0;
 
-layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 1) readonly  buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int in_w;
     int in_h;
@@ -87,7 +87,10 @@ afp subgroup_reduce_acc(afp v)
 
 void decode_out(int out_index, out int ow, out int oh, out int od, out int oc)
 {
-    ow = 0; oh = 0; od = 0; oc = 0;
+    ow = 0;
+    oh = 0;
+    od = 0;
+    oc = 0;
 
     if (p.out_dims == 1)
     {
@@ -182,16 +185,28 @@ void main()
         int id = in_coord[1];
         int ic = in_coord[0];
 
-        if (p.reduce_w != 0) { iw = tt % in_w; tt /= in_w; }
-        if (p.reduce_h != 0) { ih = tt % in_h; tt /= in_h; }
-        if (p.in_dims == 4 && p.reduce_d != 0) { id = tt % in_d; tt /= in_d; }
+        if (p.reduce_w != 0)
+        {
+            iw = tt % in_w;
+            tt /= in_w;
+        }
+        if (p.reduce_h != 0)
+        {
+            ih = tt % in_h;
+            tt /= in_h;
+        }
+        if (p.in_dims == 4 && p.reduce_d != 0)
+        {
+            id = tt % in_d;
+            tt /= in_d;
+        }
         if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
 
         afp v = buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic));
         acc = element_accum(acc, v);
     }
 
-    #if ncnn_subgroup_arithmetic
+#if ncnn_subgroup_arithmetic
     afp sg = subgroup_reduce_acc(acc);
 
     if (subgroupElect())
@@ -215,7 +230,7 @@ void main()
             buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
         }
     }
-    #else
+#else
     sdata[tid] = sfp2lfp(acc);
     barrier();
 
@@ -236,5 +251,5 @@ void main()
         outv = finalize_out(outv);
         buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
     }
-    #endif
+#endif
 }

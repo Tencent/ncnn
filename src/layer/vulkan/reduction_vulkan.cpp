@@ -98,10 +98,10 @@ static inline void resolve_reduce_flags(int dims, int reduce_all, const Mat& axe
 }
 
 static inline void resolve_output_shape_and_mapping(const VkMat& bottom_blob,
-                                                    bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-                                                    int keepdims,
-                                                    int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
-                                                    int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
+        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+        int keepdims,
+        int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
+        int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
 {
     const int dims = bottom_blob.dims;
 
@@ -245,8 +245,8 @@ static inline void resolve_output_shape_and_mapping(const VkMat& bottom_blob,
 }
 
 static inline float compute_coeff2_for_mean(const VkMat& bottom_blob,
-                                            bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-                                            float coeff)
+        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+        float coeff)
 {
     int scale = 1;
     const int dims = bottom_blob.dims;
