@@ -98,10 +98,10 @@ static inline void resolve_reduce_flags(int dims, int reduce_all, const Mat& axe
 }
 
 static inline void resolve_output_shape_and_mapping(const VkMat& bottom_blob,
-        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-        int keepdims,
-        int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
-        int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
+                                                    bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+                                                    int keepdims,
+                                                    int& outdims, int& out_w, int& out_h, int& out_d, int& out_c,
+                                                    int& map_out_w, int& map_out_h, int& map_out_d, int& map_out_c)
 {
     const int dims = bottom_blob.dims;
 
@@ -245,8 +245,8 @@ static inline void resolve_output_shape_and_mapping(const VkMat& bottom_blob,
 }
 
 static inline float compute_coeff2_for_mean(const VkMat& bottom_blob,
-        bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
-        float coeff)
+                                            bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c,
+                                            float coeff)
 {
     int scale = 1;
     const int dims = bottom_blob.dims;
@@ -282,27 +282,8 @@ int Reduction_vulkan::create_pipeline(const Option& opt)
     pipeline_reduction = new Pipeline(vkdev);
     pipeline_reduction->set_local_size_xyz(256, 1, 1);
 
-    std::vector<vk_specialization_type> specializations(9);
+    std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = operation;
-    specializations[1].i = reduce_all ? 1 : 0;
-    specializations[2].i = keepdims ? 1 : 0;
-    specializations[3].f = coeff;
-
-    int axes_count = axes.w;
-    if (axes_count < 0) axes_count = 0;
-    if (axes_count > 4) axes_count = 4;
-    specializations[4].i = axes_count;
-
-    int ax0 = 0, ax1 = 0, ax2 = 0, ax3 = 0;
-    if (axes_count > 0) ax0 = ((const int*)axes)[0];
-    if (axes_count > 1) ax1 = ((const int*)axes)[1];
-    if (axes_count > 2) ax2 = ((const int*)axes)[2];
-    if (axes_count > 3) ax3 = ((const int*)axes)[3];
-
-    specializations[5].i = ax0;
-    specializations[6].i = ax1;
-    specializations[7].i = ax2;
-    specializations[8].i = ax3;
 
     pipeline_reduction->create(LayerShaderType::reduction, opt, specializations);
     return 0;

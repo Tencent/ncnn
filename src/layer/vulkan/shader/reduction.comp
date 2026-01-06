@@ -3,15 +3,12 @@
 
 #version 450
 
+#if ncnn_subgroup_arithmetic
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#endif
+
 layout (constant_id = 0) const int op = 0;
-layout (constant_id = 1) const int reduce_all = 1;
-layout (constant_id = 2) const int keepdims = 0;
-layout (constant_id = 3) const float coeff0 = 1.0;
-layout (constant_id = 4) const int axes_count = 0;
-layout (constant_id = 5) const int axis0 = 0;
-layout (constant_id = 6) const int axis1 = 0;
-layout (constant_id = 7) const int axis2 = 0;
-layout (constant_id = 8) const int axis3 = 0;
 
 layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 1) readonly  buffer bottom_blob { sfp bottom_blob_data[]; };
@@ -78,6 +75,16 @@ afp combine_accum(afp a, afp b)
     return a + b;
 }
 
+#if ncnn_subgroup_arithmetic
+afp subgroup_reduce_acc(afp v)
+{
+    if (op == 4) return subgroupMax(v);
+    if (op == 5) return subgroupMin(v);
+    if (op == 6) return subgroupMul(v);
+    return subgroupAdd(v);
+}
+#endif
+
 void decode_out(int out_index, out int ow, out int oh, out int od, out int oc)
 {
     ow = 0; oh = 0; od = 0; oc = 0;
@@ -131,6 +138,14 @@ int out_offset(int ow, int oh, int od, int oc)
     return oc * p.out_cstep + od * out_dstep + oh * p.out_w + ow;
 }
 
+afp finalize_out(afp outv)
+{
+    if (op == 9 || op == 10) outv = log(outv);
+    if (op == 8) outv = sqrt(outv < afp(FLT_MIN_VALUE) ? afp(0.f) : outv);
+    if (p.coeff != 1.f) outv = outv * afp(p.coeff);
+    return outv;
+}
+
 void main()
 {
     const int out_index = int(gl_WorkGroupID.y);
@@ -176,7 +191,32 @@ void main()
         acc = element_accum(acc, v);
     }
 
-    sdata[tid] = acc;
+    #if ncnn_subgroup_arithmetic
+    afp sg = subgroup_reduce_acc(acc);
+
+    if (subgroupElect())
+    {
+        sdata[int(gl_SubgroupID)] = sfp2lfp(sg);
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        afp v = lane < num_sg ? lfp2afp(sdata[lane]) : init_acc();
+        afp outv = subgroup_reduce_acc(v);
+
+        if (subgroupElect())
+        {
+            outv = finalize_out(outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+        }
+    }
+    #else
+    sdata[tid] = sfp2lfp(acc);
     barrier();
 
     for (int stride = 128; stride > 0; stride >>= 1)
@@ -185,20 +225,16 @@ void main()
         {
             afp a = lfp2afp(sdata[tid]);
             afp b = lfp2afp(sdata[tid + stride]);
-            sdata[tid] = combine_accum(a, b);
+            sdata[tid] = sfp2lfp(combine_accum(a, b));
         }
         barrier();
     }
 
-    if (tid != 0)
-        return;
-
-    afp outv = lfp2afp(sdata[0]);
-
-    if (op == 9 || op == 10) outv = log(outv);
-    if (op == 8) outv = sqrt(outv < afp(FLT_MIN_VALUE) ? afp(0.f) : outv);
-
-    if (p.coeff != 1.f) outv = outv * afp(p.coeff);
-
-    buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+    if (tid == 0)
+    {
+        afp outv = lfp2afp(sdata[0]);
+        outv = finalize_out(outv);
+        buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+    }
+    #endif
 }
