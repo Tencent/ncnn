@@ -1511,6 +1511,25 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 {
     return ((Net*)net->pthis)->load_model(path);
 }
+
+#if _WIN32
+#if NCNN_STRING
+int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param(path);
+}
+#endif /* NCNN_STRING */
+
+int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param_bin(path);
+}
+
+int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_model(path);
+}
+#endif /*_WIN32*/
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO
