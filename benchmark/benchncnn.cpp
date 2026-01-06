@@ -15,7 +15,7 @@
 #include "net.h"
 #include "gpu.h"
 
-#include "../benchmark/embedded_model_params.h"
+#include "benchncnn_param_data.h"
 
 #ifndef NCNN_SIMPLESTL
 #include <vector>
