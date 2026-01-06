@@ -159,16 +159,6 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
     ((Option*)opt)->num_threads = num_threads;
 }
 
-int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
-{
-    return ((Option*)opt)->use_local_pool_allocator;
-}
-
-void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator)
-{
-    ((Option*)opt)->use_local_pool_allocator = use_local_pool_allocator;
-}
-
 void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
     ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
@@ -189,6 +179,76 @@ int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 #endif
 }
 
+int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_local_pool_allocator;
+}
+
+int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_local_pool_allocator;
+}
+
+int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_sgemm_convolution;
+}
+
+int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_packing_layout;
+}
+
+int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_packed;
+}
+
+int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_storage;
+}
+
+int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_arithmetic;
+}
+
+int ncnn_option_get_use_int8_packed(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_int8_packed;
+}
+
+int ncnn_option_get_use_int8_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_int8_storage;
+}
+
+int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_int8_arithmetic;
+}
+
+int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_bf16_packed;
+}
+
+int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_bf16_storage;
+}
+
+int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_shader_local_memory;
+}
+
+int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_cooperative_matrix;
+}
+
 void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
 {
 #if NCNN_VULKAN
@@ -197,6 +257,76 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
     (void)opt;
     (void)use_vulkan_compute;
 #endif
+}
+
+void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_local_pool_allocator = enable;
+}
+
+void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_winograd_convolution = enable;
+}
+
+void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_sgemm_convolution = enable;
+}
+
+void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_packing_layout = enable;
+}
+
+void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_packed = enable;
+}
+
+void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_storage = enable;
+}
+
+void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_arithmetic = enable;
+}
+
+void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_packed = enable;
+}
+
+void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_storage = enable;
+}
+
+void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_arithmetic = enable;
+}
+
+void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_packed = enable;
+}
+
+void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_storage = enable;
+}
+
+void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_shader_local_memory = enable;
+}
+
+void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_cooperative_matrix = enable;
 }
 
 /* mat api */

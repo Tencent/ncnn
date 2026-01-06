@@ -329,7 +329,46 @@ static int test_c_api_2()
     return success ? 0 : -1;
 }
 
+static int test_c_api_3()
+{
+    // test option setter getter
+    ncnn_option_t opt = ncnn_option_create();
+
+#define TEST_SET_GET(name, V0, V1) \
+    { \
+        ncnn_option_set_##name(opt, V0); \
+        int _s0 = ncnn_option_get_##name(opt); \
+        if (_s0 != V0) return -1; \
+        ncnn_option_set_##name(opt, V1); \
+        int _s1 = ncnn_option_get_##name(opt); \
+        if (_s1 != V1) return -1; \
+    }
+
+    TEST_SET_GET(num_threads, 4, 1)
+    TEST_SET_GET(use_vulkan_compute, 1, 0)
+    TEST_SET_GET(use_local_pool_allocator, 1, 0)
+    TEST_SET_GET(use_winograd_convolution, 1, 0)
+    TEST_SET_GET(use_sgemm_convolution, 1, 0)
+    TEST_SET_GET(use_packing_layout, 1, 0)
+    TEST_SET_GET(use_fp16_packed, 1, 0)
+    TEST_SET_GET(use_fp16_storage, 1, 0)
+    TEST_SET_GET(use_fp16_arithmetic, 1, 0)
+    TEST_SET_GET(use_int8_packed, 1, 0)
+    TEST_SET_GET(use_int8_storage, 1, 0)
+    TEST_SET_GET(use_int8_arithmetic, 1, 0)
+    TEST_SET_GET(use_bf16_packed, 1, 0)
+    TEST_SET_GET(use_bf16_storage, 1, 0)
+    TEST_SET_GET(use_shader_local_memory, 1, 0)
+    TEST_SET_GET(use_cooperative_matrix, 1, 0)
+
+#undef TEST_SET_GET
+
+    ncnn_option_destroy(opt);
+
+    return 0;
+}
+
 int main()
 {
-    return test_c_api_0() || test_c_api_1() || test_c_api_2();
+    return test_c_api_0() || test_c_api_1() || test_c_api_2() || test_c_api_3();
 }
