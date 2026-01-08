@@ -10,7 +10,7 @@ string(REGEX REPLACE "\n +" "\n" param_data ${param_data})
 string(REGEX REPLACE "[ \t]+" " " param_data "${param_data}")
 
 # remove empty line
-string(REGEX REPLACE "\n[\n]+" "\n" comp_data "${comp_data}")
+string(REGEX REPLACE "\n[\n]+" "\n" param_data "${param_data}")
 
 # text to hex
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/param/${PARAM_SRC_NAME_WE}.text2hex.txt "${param_data}")
