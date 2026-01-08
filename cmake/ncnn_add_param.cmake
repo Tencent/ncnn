@@ -1,10 +1,10 @@
 
 macro(ncnn_add_param NCNN_PARAM_SRC)
-    get_filename_component(NCNN_PARAM_SRC_NAME_WE ${NCNN_PARAM_SRC} NAME_WE)
-
     # Get the file name with extension
     get_filename_component(NCNN_PARAM_SRC_NAME_WE ${NCNN_PARAM_SRC} NAME)
     # Manually remove ".param" since NAME_WE treats ".1.param" as a multi-extension
+    string(REPLACE ".param" "" NCNN_PARAM_SRC_NAME_WE "${NCNN_PARAM_SRC_NAME_WE}")
+    # Replace characters invalid in C identifiers ('.' and '-') with underscores
     string(REPLACE ".param" "" NCNN_PARAM_SRC_NAME_WE "${NCNN_PARAM_SRC_NAME_WE}")
     # Replace characters invalid in C identifiers ('.' and '-') with underscores
     string(REPLACE "." "_" NCNN_PARAM_SRC_NAME_WE "${NCNN_PARAM_SRC_NAME_WE}")
