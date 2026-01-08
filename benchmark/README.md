@@ -4,7 +4,7 @@ Only the network definition files (ncnn param) are required.
 
 The large model binary files (ncnn bin) are not loaded but generated randomly for speed test.
 
-If no model specified, it would benchmark default list. More model networks may be added later.
+If no model specified, it would benchmark default built-in models. More model networks may be added later.
 
 ---
 Build
@@ -31,11 +31,20 @@ run benchncnn on android device
 ```shell
 # for running on android device, upload to /data/local/tmp/ folder
 adb push benchncnn /data/local/tmp/
-adb push <ncnn-root-dir>/benchmark/*.param /data/local/tmp/
-adb shell
+
+# (optional) upload your ncnn model param to /data/local/tmp/ folder
+adb push model.param /data/local/tmp/
 
 # executed in android adb shell
+adb shell
 cd /data/local/tmp/
+
+# sample: benchmark built-in models on cpu, with 4 threads on big core, 4 loops and cooling_down
+./benchncnn 4 4 2 -1 1
+
+# sample: benchmark built-in models on gpu id 0, with 1 thread on big core, 8 loops, without cooling_down
+./benchncnn 8 1 2 0 0
+
 ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
   param=model.param
   shape=[227,227,3],..
