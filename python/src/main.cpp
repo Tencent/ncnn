@@ -193,6 +193,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_sgemm_convolution", &Option::use_sgemm_convolution)
     .def_readwrite("use_int8_inference", &Option::use_int8_inference)
     .def_readwrite("use_vulkan_compute", &Option::use_vulkan_compute)
+    .def_readwrite("use_bf16_packed", &Option::use_bf16_packed)
     .def_readwrite("use_bf16_storage", &Option::use_bf16_storage)
     .def_readwrite("use_fp16_packed", &Option::use_fp16_packed)
     .def_readwrite("use_fp16_storage", &Option::use_fp16_storage)
@@ -949,11 +950,32 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_STDIO
 #if NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param", [](Net& self, const std::wstring& path) {
+        return self.load_param(path.c_str());
+    },
+    py::arg("protopath"))
+#else
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+#endif
     .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param_bin", [](Net& self, const std::wstring& path) {
+        return self.load_param_bin(path.c_str());
+    },
+    py::arg("protopath"))
+    .def(
+    "load_model", [](Net& self, const std::wstring& path) {
+        return self.load_model(path.c_str());
+    },
+    py::arg("modelpath"))
+#else
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+#endif
     .def(
     "load_model_mem", [](Net& net, const char* mem) {
         const unsigned char* _mem = (const unsigned char*)mem;
