@@ -130,7 +130,7 @@ class CMakeBuild(build_ext):
         if ENABLE_VISIBILITY != "":
             cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
 
-        cmake_args.append(EXTRA_CMAKE_ARGS)
+        cmake_args += EXTRA_CMAKE_ARGS
 
         build_args = []
 
