@@ -307,10 +307,7 @@ jobs:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
         CIBW_BUILD_VERBOSITY: 1
-        # CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
-        CIBW_BEFORE_BUILD: dnf install gcc-toolset-15
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4 CC=/opt/rh/devtoolset-15/root/usr/bin/gcc CXX=/opt/rh/devtoolset-15/root/usr/bin/g++
-
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4 EXTRA_CMAKE_ARGS="-DNCNN_XTHEADVECTOR=OFF"
       with:
         output-dir: wheelhouse
 
