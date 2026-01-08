@@ -47,24 +47,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-24.04,     arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
-          - { os: windows-2022,     arch: x86,        build: 'cp*',            build_id: cp           }
-          - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
-          - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
+          # - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          # - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          # - { os: ubuntu-24.04,     arch: x86_64,     build: 'pp*',            build_id: pp           }
+          # - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          # - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          # - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
+          # - { os: windows-2022,     arch: x86,        build: 'cp*',            build_id: cp           }
+          # - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
+          # - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
           - { os: windows-2022,     arch: ARM64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: macos-15-intel,   arch: arm64,      build: 'cp*',            build_id: cp           }
-          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
-          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
-          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'pp*',            build_id: pp           }
+          # - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
+          # - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
+          # - { os: macos-15-intel,   arch: arm64,      build: 'cp*',            build_id: cp           }
+          # - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          # - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          # - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
+          # - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
+          # - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'pp*',            build_id: pp           }
 
     env:
       OPENMP_VERSION: '18.1.2'
@@ -308,6 +308,9 @@ jobs:
         CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+        CIBW_BEFORE_BUILD: dnf install gcc-toolset-15
+        CIBW_ENVIRONMENT: CC=/opt/rh/devtoolset-15/root/usr/bin/gcc CXX=/opt/rh/devtoolset-15/root/usr/bin/g++
+
       with:
         output-dir: wheelhouse
 
