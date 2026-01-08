@@ -80,7 +80,6 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     }
 #endif // NCNN_VULKAN
 
-
     if (model_param_data)
     {
         net.load_param_mem(model_param_data);
