@@ -1,9 +1,9 @@
 name: release-python
-# on: [push, pull_request]
-on:
-  push:
-    tags:
-      - '*'
+on: [push, pull_request]
+# on:
+#   push:
+#     tags:
+#       - '*'
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
