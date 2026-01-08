@@ -351,6 +351,7 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = true;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
     opt.use_bf16_storage = false;
 
     float epsilon = 0.001;
@@ -380,23 +381,23 @@ static int test_gemm_0(int M, int N, int K)
 
            || test_gemm_int8(M, N, K, 1.2f, 0, 1, 0, 0, 1, 1, 0)
            || test_gemm_int8(M, N, K, 1.3f, 1, 1, 0, 0, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 1, 0)
-           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 1, 1)
+           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 0, 1)
 
-           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 0, 0, 0)
-           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 0, 0, 0)
-           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 1, 1, 1)
 
-           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 1, 0, 1)
-           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 1, 0, 1)
-           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 0, 1, 0)
-           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 0, 1, 0)
+           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 0, 1, 1)
+           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 0, 1, 1)
+           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 1, 0, 0)
+           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 1, 0, 0)
 
-           || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 1, 1, 1)
-           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 0, 0, 0)
+           || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 0, 1, 0)
+           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 0, 1, 1)
 
            || test_gemm_int8_fp16s(M, N, K, 1.f, 0, 1, 0, 0, 0, 0, 0)
            || test_gemm_int8_fp16s(M, N, K, 1.f, 1, 0, 0, 1, 0, 0, 0);

@@ -10,6 +10,7 @@ namespace ncnn {
 LRN_vulkan::LRN_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_lrn_square_pad = 0;
     pipeline_lrn_norm = 0;
@@ -29,7 +30,7 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

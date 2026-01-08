@@ -32,7 +32,7 @@ jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: update
       run: sudo apt-get update
     - name: gcc-multilib

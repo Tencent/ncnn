@@ -5,7 +5,7 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
   IOS_DEPLOYMENT_TARGET: '13.0'
   MAC_DEPLOYMENT_TARGET: '11.0'
   MAC_CATALYST_DEPLOYMENT_TARGET: '13.1'
@@ -39,7 +39,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: package
@@ -48,7 +48,7 @@ jobs:
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
         zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
@@ -66,7 +66,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: apt
@@ -87,13 +87,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -111,13 +111,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-macos-release-18.1.2-20240403
+        key: openmp-macos-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -159,7 +159,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-macos
         path: openmp-install
@@ -171,7 +171,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: macos        }
           - { vulkan: ON,  id: macos-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -192,11 +192,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-macos
         path: openmp-macos
@@ -272,13 +272,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -296,13 +296,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-ios-release-18.1.2-20240403
+        key: openmp-ios-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -333,7 +333,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-ios
         path: openmp-install
@@ -345,7 +345,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: ios        }
           - { vulkan: ON,  id: ios-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -364,11 +364,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-ios
         path: openmp-ios
@@ -434,13 +434,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-simulator:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -458,13 +458,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-ios-simulator-release-18.1.2-20240403
+        key: openmp-ios-simulator-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -506,7 +506,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-ios-simulator
         path: openmp-install
@@ -518,7 +518,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: ios-simulator        }
           - { vulkan: ON,  id: ios-simulator-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -537,11 +537,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -623,13 +623,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-mac-catalyst:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -647,13 +647,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-mac-catalyst-release-18.1.2-20240403
+        key: openmp-mac-catalyst-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -695,7 +695,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-mac-catalyst
         path: openmp-install
@@ -707,7 +707,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: mac-catalyst        }
           - { vulkan: ON,  id: mac-catalyst-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -726,11 +726,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -812,13 +812,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-watchos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -836,13 +836,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-watchos-release-18.1.2-20240403
+        key: openmp-watchos-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -884,14 +884,14 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-watchos
         path: openmp-install
 
   watchos:
     needs: [setup, openmp-watchos]
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-watchos
       NCNN_CMAKE_OPTIONS: |
@@ -909,9 +909,9 @@ jobs:
         -DNCNN_BUILD_BENCHMARK=OFF \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: download-openmp-watchos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-watchos
         path: openmp-watchos
@@ -961,13 +961,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-watchos-simulator:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -985,13 +985,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-watchos-simulator-release-18.1.2-20240403
+        key: openmp-watchos-simulator-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1033,14 +1033,14 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-watchos-simulator
         path: openmp-install
 
   watchos-simulator:
     needs: [setup, openmp-watchos-simulator]
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator
       NCNN_CMAKE_OPTIONS: |
@@ -1058,9 +1058,9 @@ jobs:
         -DNCNN_BUILD_BENCHMARK=OFF \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: download-openmp-watchos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-watchos-simulator
         path: openmp-watchos-simulator
@@ -1110,13 +1110,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-tvos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -1134,13 +1134,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-tvos-release-18.1.2-20240403
+        key: openmp-tvos-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1182,7 +1182,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-tvos
         path: openmp-install
@@ -1194,7 +1194,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: tvos        }
           - { vulkan: ON,  id: tvos-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -1213,11 +1213,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-tvos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-tvos
         path: openmp-tvos
@@ -1299,13 +1299,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-tvos-simulator:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -1323,13 +1323,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-tvos-simulator-release-18.1.2-20240403
+        key: openmp-tvos-simulator-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1371,7 +1371,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-tvos-simulator
         path: openmp-install
@@ -1383,7 +1383,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: tvos-simulator        }
           - { vulkan: ON,  id: tvos-simulator-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -1402,11 +1402,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-tvos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-tvos-simulator
         path: openmp-tvos-simulator
@@ -1488,13 +1488,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-visionos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -1512,13 +1512,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-visionos-release-18.1.2-20240403
+        key: openmp-visionos-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1549,7 +1549,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-visionos
         path: openmp-install
@@ -1561,7 +1561,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: visionos        }
           - { vulkan: ON,  id: visionos-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -1580,11 +1580,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-visionos
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-visionos
         path: openmp-visionos
@@ -1650,13 +1650,13 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-visionos-simulator:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -1674,13 +1674,13 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-visionos-simulator-release-18.1.2-20240403
+        key: openmp-visionos-simulator-release-18.1.2-20251004
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1722,7 +1722,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-visionos-simulator
         path: openmp-install
@@ -1734,7 +1734,7 @@ jobs:
         opt:
           - { vulkan: OFF, id: visionos-simulator        }
           - { vulkan: ON,  id: visionos-simulator-vulkan }
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
       NCNN_CMAKE_OPTIONS: |
@@ -1753,11 +1753,11 @@ jobs:
         -DNCNN_VULKAN=${{ matrix.opt.vulkan }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: download-openmp-visionos-simulator
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: openmp-visionos-simulator
         path: openmp-visionos-simulator
@@ -1839,7 +1839,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1869,7 +1869,7 @@ jobs:
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: ndk-fix-debug
@@ -1916,7 +1916,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1927,7 +1927,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: emsdk
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
@@ -1981,7 +1981,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2015,7 +2015,7 @@ jobs:
         -DNCNN_SHARED_LIB=${{ matrix.opt.shared-lib }} `
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -2046,7 +2046,7 @@ jobs:
 
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.opt.toolset-version }}-x86-x64-install
@@ -2105,20 +2105,20 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
   apple:
     needs: [setup, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, visionos, visionos-simulator]
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple
     steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_15.2.app
+    - run: sudo xcode-select --switch /Applications/Xcode_16.4.0.app
     - name: download
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         path: artifacts
 
@@ -2239,12 +2239,12 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}-vulkan.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
     - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}-vulkan
         path: ${{ env.PACKAGENAME }}-vulkan.zip
@@ -2256,7 +2256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         path: artifacts
 

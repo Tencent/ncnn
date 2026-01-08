@@ -291,7 +291,7 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
         }
 
         // drop inputs
-        for (size_t j = 0; j < fused_input_indexes.size(); j++)
+        for (int j = (int)fused_input_indexes.size() - 1; j >= 0; j--)
         {
             const int fused_input_index = fused_input_indexes[j];
 

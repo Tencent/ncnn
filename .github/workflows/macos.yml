@@ -36,7 +36,7 @@ concurrency:
   group: macos-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
   MAC_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
@@ -46,7 +46,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -77,16 +77,16 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-macos-install-20240403
+        key: openmp-macos-install-20251004
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -134,13 +134,13 @@ jobs:
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: swiftshader-install
-        key: swiftshader-macos-install-20240622
+        key: swiftshader-macos-install-20251004
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -155,7 +155,7 @@ jobs:
       run: |
         cd swiftshader
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 3
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install

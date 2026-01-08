@@ -10,6 +10,7 @@ namespace ncnn {
 BatchNorm_vulkan::BatchNorm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_batchnorm = 0;
     pipeline_batchnorm_pack4 = 0;
@@ -22,7 +23,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     int elempack = channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

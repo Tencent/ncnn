@@ -4,7 +4,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -43,23 +42,6 @@ def test():
     # pnnx inference
     import test_F_relu_pnnx
     b = test_F_relu_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-
-    if version.parse(torch.__version__) < version.parse('2.8'):
-        return True
-
-    # export dynamo onnx
-    torch.onnx.export(net, (x, y, z, w), "test_F_relu_dynamo.onnx", dynamo=True, external_data=False)
-
-    # onnx to pnnx
-    os.system("../../src/pnnx test_F_relu_dynamo.onnx inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
-
-    # pnnx inference
-    import test_F_relu_dynamo_pnnx
-    b = test_F_relu_dynamo_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

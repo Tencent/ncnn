@@ -10,6 +10,7 @@ namespace ncnn {
 Concat_vulkan::Concat_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     pipeline_concat[0] = 0;
     pipeline_concat[1] = 0;
@@ -57,7 +58,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     }
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }

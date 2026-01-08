@@ -233,7 +233,7 @@ public:
     Attribute(const TorchTensorProxy& t);
 #endif
 #if BUILD_ONNX2PNNX
-    Attribute(const onnx::TensorProto& t);
+    Attribute(const onnx::TensorProto& t, const std::vector<unsigned char>& external_data);
 #endif
 #if BUILD_TNN2PNNX
     Attribute(FILE* bp);

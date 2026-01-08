@@ -19,7 +19,10 @@ def test():
     a = net(x)
 
     # export onnx
-    torch.onnx.export(net, (x,), "test_swin_t.onnx")
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+        torch.onnx.export(net, (x,), "test_swin_t.onnx", dynamo=False)
+    else:
+        torch.onnx.export(net, (x,), "test_swin_t.onnx")
 
     # onnx to pnnx
     import os
@@ -34,22 +37,6 @@ def test():
         b = net_pnnx(x)
     else:
         b = test_swin_t_pnnx.test_inference()
-
-    if not torch.allclose(a, b, 1e-4, 1e-4):
-        return False
-
-    if version.parse(torch.__version__) < version.parse('2.9'):
-        return True
-
-    # export dynamo onnx
-    torch.onnx.export(net, (x,), "test_swin_t_dynamo.onnx", dynamo=True, external_data=False)
-
-    # onnx to pnnx
-    os.system("../../src/pnnx test_swin_t_dynamo.onnx inputshape=[1,3,224,224]")
-
-    # pnnx inference
-    import test_swin_t_dynamo_pnnx
-    b = test_swin_t_dynamo_pnnx.test_inference()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 

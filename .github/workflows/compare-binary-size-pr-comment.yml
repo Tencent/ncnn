@@ -1,0 +1,157 @@
+name: compare-binary-size-pr-comment
+on:
+  workflow_run:
+    workflows: ["compare-binary-size"]
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  pr-comment:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq unzip
+
+    - name: Ensure workflow_run is for a PR
+      id: validate
+      run: |
+        # Save raw payload to a file to avoid echo/pipe issues with large JSON
+        printf '%s\n' "${{ toJson(github.event) }}" > /tmp/event.json
+        echo "Saved /tmp/event.json, size: $(wc -c < /tmp/event.json) bytes"
+
+        # Try to pretty-print for logs; if jq fails, show head for debugging
+        if ! jq . /tmp/event.json; then
+          echo "jq parse failed for /tmp/event.json; showing head (200 lines):"
+          sed -n '1,200p' /tmp/event.json || true
+        fi
+
+        # Safely compute number of associated PRs (use // 0 to default if missing)
+        PR_COUNT=$(jq -r '.workflow_run.pull_requests | length // 0' /tmp/event.json)
+        echo "Associated pull_request count: $PR_COUNT"
+
+        if [ "$PR_COUNT" -eq 0 ]; then
+          echo "No pull_request associated with this workflow_run; nothing to do."
+          echo "skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "skip=false" >> $GITHUB_OUTPUT
+
+    - name: Download artifact zip for this run
+      if: steps.validate.outputs.skip != 'true'
+      env:
+        RUN_ID: ${{ github.event.workflow_run.id }}
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.repository }}
+        TOKEN: ${{ secrets.COMMENTER_PAT }}
+        ART_NAME: "compare-binary-size.md"
+      run: |
+        echo "Listing artifacts for run $RUN_ID"
+        API="https://api.github.com/repos/$OWNER/${REPO#*/}/actions/runs/$RUN_ID/artifacts"
+
+        # Save artifact list to a file (avoid pipe/echo issues)
+        curl -s -H "Authorization: token $TOKEN" "$API" -o /tmp/art_list.json
+        echo "Art list size: $(wc -c < /tmp/art_list.json) bytes"
+        if ! jq . /tmp/art_list.json; then
+          echo "Failed to parse /tmp/art_list.json with jq; aborting for safety."
+          exit 1
+        fi
+
+        # find artifact archive_download_url by name (first match)
+        ARCHIVE_URL=$(jq -r --arg name "$ART_NAME" '.artifacts[] | select(.name==$name) | .archive_download_url' /tmp/art_list.json | head -n1)
+        if [ -z "$ARCHIVE_URL" ] || [ "$ARCHIVE_URL" = "null" ]; then
+          echo "Artifact named '$ART_NAME' not found for run $RUN_ID. Exiting."
+          exit 0
+        fi
+        echo "Downloading artifact from: $ARCHIVE_URL"
+
+        # download and unzip to temp dir
+        mkdir -p /tmp/artifact_contents
+        curl -L -H "Authorization: token $TOKEN" -o /tmp/artifact.zip "$ARCHIVE_URL"
+        if ! unzip -q /tmp/artifact.zip -d /tmp/artifact_contents; then
+          echo "Failed to unzip /tmp/artifact.zip"; exit 1
+        fi
+        ls -la /tmp/artifact_contents
+
+    - name: Read compare-binary-size.md content
+      if: steps.validate.outputs.skip != 'true'
+      id: read
+      run: |
+        # find file inside artifact_contents
+        FILE=$(find /tmp/artifact_contents -type f -name "compare-binary-size.md" | head -n1 || true)
+        if [ -z "$FILE" ]; then
+          # If artifact name matched but internal filename differs, try any .md
+          FILE=$(find /tmp/artifact_contents -type f -name "*.md" | head -n1 || true)
+        fi
+
+        if [ -z "$FILE" ]; then
+          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
+          echo "No compare-binary-size.md found in artifact." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          # Truncate to avoid overly long comments (adjust lines as needed)
+          head -n 1000 "$FILE" > /tmp/compare-truncated.md || true
+          echo "compare_content<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/compare-truncated.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Post or update PR comment via actions/github-script
+      if: steps.validate.outputs.skip != 'true'
+      uses: actions/github-script@v8
+      with:
+        github-token: ${{ secrets.COMMENTER_PAT }}
+        script: |
+          const pr = context.payload.workflow_run.pull_requests[0];
+          if (!pr) {
+            core.info("No pull request found in workflow_run payload; skipping.");
+            return;
+          }
+
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const issue_number = pr.number;
+          const marker = '<!-- compare-binary-size-bot -->';
+
+          // Read the compare content from env (set in previous step outputs)
+          const compare = process.env.COMPARE_CONTENT || "";
+
+          const body = `${marker}\n**Binary size comparison** (from artifact)\n\n\`\`\`markdown\n${compare}\n\`\`\``;
+
+          // List existing comments and find our bot comment (by marker)
+          const { data: comments } = await github.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number,
+            per_page: 100
+          });
+
+          const existing = comments.find(c => c.body && c.body.includes(marker));
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: existing.id,
+              body
+            });
+            core.info(`Updated comment id=${existing.id}`);
+          } else {
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body
+            });
+            core.info("Created new comment");
+          }
+      env:
+        # pass the content from previous step into the github-script environment
+        COMPARE_CONTENT: ${{ steps.read.outputs.compare_content }}

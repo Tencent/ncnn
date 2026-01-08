@@ -98,10 +98,7 @@ pnnx.Output             output      1 0 out
 
         Operator* op_conv = ops.at("conv");
 
-        op_conv->inputnames.resize(3);
-        op_conv->inputnames[0] = "input";
-        op_conv->inputnames[1] = "weight";
-        op_conv->inputnames[2] = "bias";
+        op_conv->inputnames = {"input", "weight", "bias"};
 
         const int out_channels = captured_params.at("out_channels").i;
 
@@ -232,7 +229,7 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 pnnx.Input              input_2     0 1 bias
 Conv                    op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
@@ -351,7 +348,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 Conv                    op_0        2 1 input weight out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -375,7 +372,7 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 pnnx.Input              input_2     0 1 bias
 Conv                    op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
@@ -479,7 +476,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?)f32
 Conv                    op_0        2 1 input weight out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";

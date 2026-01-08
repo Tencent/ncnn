@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -211,9 +212,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
         else if (param.type == 3)
         {
-            char tmp[32];
-            sprintf(tmp, "%e", param.f);
-            expr += tmp;
+            expr += float_to_string(param.f);
         }
         else if (param.type == 4)
         {
@@ -239,9 +238,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += "[";
             for (int i = 0; i < (int)param.af.size(); i++)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", param.af[i]);
-                expr += tmp;
+                expr += float_to_string(param.af[i]);
                 if (i != (int)param.af.size() - 1)
                     expr += ",";
             }
@@ -271,15 +268,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else if (data.type == 1)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const float*)data.data.data())[0]);
-                expr += tmp;
+                expr += float_to_string(((const float*)data.data.data())[0]);
             }
             else if (data.type == 2)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const double*)data.data.data())[0]);
-                expr += tmp;
+                expr += double_to_string(((const double*)data.data.data())[0]);
             }
             else if (data.type == 4)
             {
@@ -359,15 +352,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 }
                 else if (data.type == 1)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const float*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += float_to_string(((const float*)data.data.data())[si]);
                 }
                 else if (data.type == 2)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const double*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += double_to_string(((const double*)data.data.data())[si]);
                 }
                 else if (data.type == 4)
                 {
@@ -435,18 +424,14 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 float v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += float_to_string(v);
             }
             else if (operand->type == 2)
             {
                 double v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += double_to_string(v);
             }
             else if (operand->type == 4)
             {
@@ -818,7 +803,10 @@ DEFAULT:
 void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     StoreZipReader zip;
-    zip.open(foldable_constants_zippath);
+    if (!foldable_constants.empty())
+    {
+        zip.open(foldable_constants_zippath);
+    }
 
     int pnnx_expr_index = 0;
 

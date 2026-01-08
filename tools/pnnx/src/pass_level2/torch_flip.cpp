@@ -53,7 +53,7 @@ pnnx.Output             output      1 0 out
             int end = captured_params.at("ends").i;
             int step = captured_params.at("steps").i;
 
-            if (start == -1 && end == INT_MIN + 1 && step == -1)
+            if (start == -1 && (end == INT_MIN + 1 || end == INT_MIN) && step == -1)
                 return true;
         }
         else // if (captured_params.at("axes").type == 5)
@@ -65,7 +65,7 @@ pnnx.Output             output      1 0 out
 
             for (size_t i = 0; i < axes.size(); i++)
             {
-                if (starts[i] != -1 || ends[i] != INT_MIN + 1 || steps[i] != -1)
+                if (starts[i] != -1 || (ends[i] != INT_MIN + 1 && ends[i] != INT_MIN) || steps[i] != -1)
                     return false;
             }
 

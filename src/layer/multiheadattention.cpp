@@ -20,6 +20,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     vdim = pd.get(4, embed_dim);
     attn_mask = pd.get(5, 0);
     scale = pd.get(6, 1.f / sqrtf(embed_dim / num_heads));
+    kv_cache = pd.get(7, 0);
     int8_scale_term = pd.get(18, 0);
 
     return 0;
@@ -84,155 +85,186 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 #endif
 
-    const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const Mat& k_blob = bottom_blobs[k_blob_i];
+    const Mat& v_blob = bottom_blobs[v_blob_i];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+
+    //              | self-attention  cross-attention
+    // w/o kvcache  | past(0) + cur   cur
+    // with kvcache | past + cur      past
 
     const int src_seqlen = q_blob.h;
-    const int dst_seqlen = k_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
     // assert k_blob.h == v_blob.h
 
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(qdim, src_seqlen, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xq.empty())
-        return -100;
-    Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xk.empty())
-        return -100;
-    Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
-    if (xv.empty())
-        return -100;
-
-    Mat xqk(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xqk.empty())
-        return -100;
-
-    Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
-    if (xqkv.empty())
-        return -100;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_heads; q++)
+    Mat q_affine;
     {
-        // xq = affine(q) * scale
+        q_affine.create(src_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (q_affine.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < src_seqlen; i++)
         {
-            Mat outm = xq.channel(q);
+            const float* kptr = (const float*)q_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const float* ptr = q_blob.row(i);
+
+                float sum = q_bias_data[j];
+                for (int k = 0; k < qdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+
+                q_affine.row(j)[i] = sum * scale;
+            }
+        }
+    }
+
+    Mat k_affine;
+    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    {
+        k_affine = cached_xk_blob;
+    }
+    else
+    {
+        k_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (k_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            // reuse cached_xk
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < embed_dim; i++)
+            {
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const float* kptr = (const float*)k_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const float* ptr = k_blob.row(i);
+
+                float sum = k_bias_data[j];
+                for (int k = 0; k < kdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+
+                k_affine.row(j)[past_seqlen + i] = sum;
+            }
+        }
+    }
+
+    Mat v_affine;
+    if (past_seqlen > 0 && q_blob_i != v_blob_i)
+    {
+        v_affine = cached_xv_blob;
+    }
+    else
+    {
+        v_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (v_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            // reuse cached_xv
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < embed_dim; i++)
+            {
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const float* kptr = (const float*)v_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const float* ptr = v_blob.row(i);
+
+                float sum = v_bias_data[j];
+                for (int k = 0; k < vdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+
+                v_affine.row(j)[past_seqlen + i] = sum;
+            }
+        }
+    }
+
+    Mat qk_cross;
+    {
+        qk_cross.create(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+        if (qk_cross.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            const Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const float* ptr = q_blob.row(i);
-                    const float* kptr = (const float*)q_weight_data + qdim * (q * embed_dim_per_head + j);
-
-                    float sum = q_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < qdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum * scale;
-                }
-            }
-        }
-
-        // xk = affine(k)
-        {
-            Mat outm = xk.channel(q);
-
-            for (int i = 0; i < dst_seqlen; i++)
-            {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const float* ptr = k_blob.row(i);
-                    const float* kptr = (const float*)k_weight_data + kdim * (q * embed_dim_per_head + j);
-
-                    float sum = k_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < kdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-
-        // xv = affine(v)
-        {
-            Mat outm = xv.channel(q);
-
-            for (int i = 0; i < embed_dim_per_head; i++)
-            {
-                for (int j = 0; j < dst_seqlen; j++)
-                {
-                    const float* ptr = v_blob.row(j);
-                    const float* kptr = (const float*)v_weight_data + vdim * (q * embed_dim_per_head + i);
-
-                    float sum = v_bias_data[q * embed_dim_per_head + i];
-                    for (int k = 0; k < vdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    float* outptr = outm.row(i);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-
-        // xqk = xq * xk
-        // xq  (embed_dim_per_head, src_seqlen)
-        // xk  (embed_dim_per_head, dst_seqlen)
-        {
-            const Mat xqm = xq.channel(q);
-            const Mat xkm = xk.channel(q);
-
-            Mat outm = xqk.channel(q);
-
-            for (int i = 0; i < src_seqlen; i++)
-            {
-                float* outptr = outm.row(i);
+                float* outptr = qk_cross_head.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    const float* qptr = xqm.row(i);
-                    const float* kptr = xkm.row(j);
-
                     float sum = 0.f;
-                    for (int k = 0; k < embed_dim_per_head; k++)
+                    for (int l = 0; l < embed_dim_per_head; l++)
                     {
-                        sum += *qptr++ * *kptr++;
+                        sum += q_affine_head.row(l)[i] * k_affine_head.row(l)[j];
                     }
 
                     outptr[j] = sum;
                 }
             }
         }
+    }
 
-        // xqk = xqk + mask
-        if (attn_mask)
+    if (attn_mask)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
             const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
-            Mat outm = xqk.channel(q);
+            Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
                 const float* mptr = maskm.row(i);
-                float* outptr = outm.row(i);
+                float* outptr = qk_cross_head.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
@@ -240,14 +272,18 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 }
             }
         }
+    }
 
-        // softmax(xqk)
+    // softmax(qk_cross)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
-            Mat outm = xqk.channel(q);
+            Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* ptr = outm.row(i);
+                float* ptr = qk_cross_head.row(i);
 
                 float max = -FLT_MAX;
                 for (int j = 0; j < dst_seqlen; j++)
@@ -258,7 +294,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(expf(ptr[j] - max));
+                    ptr[j] = (float)expf(ptr[j] - max);
                     sum += ptr[j];
                 }
 
@@ -268,23 +304,27 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 }
             }
         }
+    }
 
-        // xqkv = xqk * xv
-        // xqk (dst_seqlen, src_seqlen)
-        // xv  (dst_seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_heads, src_seqlen)
+    Mat qkv_cross;
+    {
+        qkv_cross.create(src_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (qkv_cross.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
-            const Mat xqkm = xqk.channel(q);
-            const Mat xvm = xv.channel(q);
+            const Mat qk_cross_head = qk_cross.channel(q);
+            const Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = xqkv.channel(i).row(q);
-
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
-                    const float* qkptr = xqkm.row(i);
-                    const float* vptr = xvm.row(j);
+                    const float* qkptr = qk_cross_head.row(i);
+                    const float* vptr = v_affine_head.row(j);
 
                     float sum = 0.f;
                     for (int k = 0; k < dst_seqlen; k++)
@@ -292,35 +332,161 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                         sum += *qkptr++ * *vptr++;
                     }
 
-                    outptr[j] = sum;
+                    qkv_cross_head.row(j)[i] = sum;
                 }
             }
         }
     }
 
-    // out = affine(xqkv)
-    // xqkv  (embed_dim, src_seqlen)
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < src_seqlen; i++)
+    Mat& top_blob = top_blobs[0];
     {
-        float* outptr = top_blob.row(i);
+        top_blob.create(qdim, src_seqlen, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-        for (int j = 0; j < qdim; j++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < src_seqlen; i++)
         {
-            const float* ptr = xqkv.channel(i);
-            const float* kptr = (const float*)out_weight_data + embed_dim * j;
+            const float* kptr = (const float*)out_weight_data;
+            float* outptr = top_blob.row(i);
 
-            float sum = out_bias_data[j];
-            for (int k = 0; k < embed_dim; k++)
+            for (int j = 0; j < qdim; j++)
             {
-                sum += *ptr++ * *kptr++;
-            }
+                float sum = out_bias_data[j];
+                for (int k = 0; k < embed_dim; k++)
+                {
+                    sum += qkv_cross.row(k)[i] * *kptr++;
+                }
 
-            outptr[j] = sum;
+                outptr[j] = sum;
+            }
         }
     }
 
+    if (kv_cache)
+    {
+        // assert top_blobs.size() == 3
+        top_blobs[1] = k_affine;
+        top_blobs[2] = v_affine;
+    }
+
     return 0;
+}
+
+void MultiHeadAttention::resolve_bottom_blob_index(int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i) const
+{
+    if (kv_cache)
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blob_count == 4/5/6
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+            if (bottom_blob_count == 6)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+                cached_xk_i = 4;
+                cached_xv_i = 5;
+            }
+        }
+        else
+        {
+            // assert bottom_blob_count == 3/4/5
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                cached_xk_i = 1;
+                cached_xv_i = 2;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                cached_xk_i = 2;
+                cached_xv_i = 3;
+            }
+            if (bottom_blob_count == 5)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                cached_xk_i = 3;
+                cached_xv_i = 4;
+            }
+        }
+    }
+    else
+    {
+        if (attn_mask)
+        {
+            // assert bottom_blob_count == 2/3/4
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+                attn_mask_i = 1;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+                attn_mask_i = 2;
+            }
+            if (bottom_blob_count == 4)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+                attn_mask_i = 3;
+            }
+        }
+        else
+        {
+            // assert bottom_blob_count == 1/2/3
+            if (bottom_blob_count == 1)
+            {
+                q_blob_i = 0;
+                k_blob_i = 0;
+                v_blob_i = 0;
+            }
+            if (bottom_blob_count == 2)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 1;
+            }
+            if (bottom_blob_count == 3)
+            {
+                q_blob_i = 0;
+                k_blob_i = 1;
+                v_blob_i = 2;
+            }
+        }
+    }
 }
 
 #if NCNN_INT8
@@ -392,211 +558,251 @@ static void dynamic_quantize_2d_per_h(const Mat& blob, Mat& blob_int8, Mat& scal
     }
 }
 
+static void dynamic_quantize_2d_per_w(const Mat& blob, Mat& blob_int8, Mat& scales, const Option& opt)
+{
+    blob_int8.create(blob.w, blob.h, (size_t)1u, 1, opt.workspace_allocator);
+    scales.create(blob.w, (size_t)4u, 1, opt.workspace_allocator);
+
+    scales.fill(0.f);
+    for (int i = 0; i < blob_int8.h; i++)
+    {
+        const float* ptr = blob.row(i);
+
+        for (int j = 0; j < blob_int8.w; j++)
+        {
+            scales[j] = std::max(scales[j], (float)fabs(ptr[j]));
+        }
+    }
+    for (int i = 0; i < blob_int8.w; i++)
+    {
+        scales[i] = scales[i] == 0.f ? 1.f : 127.f / scales[i];
+    }
+
+    for (int i = 0; i < blob_int8.h; i++)
+    {
+        const float* ptr = blob.row(i);
+        signed char* outptr = blob_int8.row<signed char>(i);
+
+        for (int j = 0; j < blob_int8.w; j++)
+        {
+            outptr[j] = float2int8(ptr[j] * scales[j]);
+        }
+    }
+}
+
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const Mat& k_blob = bottom_blobs[k_blob_i];
+    const Mat& v_blob = bottom_blobs[v_blob_i];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
     const int src_seqlen = q_blob.h;
-    const int dst_seqlen = k_blob.h;
+    const int cur_seqlen = k_blob.h;
+    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
+
     const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
 
     // assert k_blob.h == v_blob.h
 
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(qdim, src_seqlen, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xq.empty())
-        return -100;
-    Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xk.empty())
-        return -100;
-    Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
-    if (xv.empty())
-        return -100;
-
-    Mat xqk(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (xqk.empty())
-        return -100;
-
-    Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
-    if (xqkv.empty())
-        return -100;
-
-    // dynamic quantize q_blob
-    Mat q_blob_int8;
-    float q_blob_int8_scale;
-    dynamic_quantize_2d(q_blob, q_blob_int8, q_blob_int8_scale, opt);
-
-    // dynamic quantize k_blob
-    Mat k_blob_int8;
-    float k_blob_int8_scale;
-    if (bottom_blobs.size() == 1)
+    Mat q_affine;
     {
-        k_blob_int8 = q_blob_int8;
-        k_blob_int8_scale = q_blob_int8_scale;
+        q_affine.create(src_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (q_affine.empty())
+            return -100;
+
+        // dynamic quantize q_blob
+        Mat q_blob_int8;
+        float q_blob_int8_scale;
+        dynamic_quantize_2d(q_blob, q_blob_int8, q_blob_int8_scale, opt);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < src_seqlen; i++)
+        {
+            const signed char* kptr = (const signed char*)q_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const signed char* ptr = q_blob_int8.row<const signed char>(i);
+
+                int sum = 0;
+                for (int k = 0; k < qdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+                const float q_descale = 1.f / (q_weight_data_int8_scales[j] * q_blob_int8_scale);
+                float sum_fp32 = sum * q_descale + q_bias_data[j];
+
+                q_affine.row(j)[i] = sum_fp32 * scale;
+            }
+        }
+    }
+
+    Mat k_affine;
+    if (past_seqlen > 0 && q_blob_i != k_blob_i)
+    {
+        k_affine = cached_xk_blob;
     }
     else
     {
+        k_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (k_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            // reuse cached_xk
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < embed_dim; i++)
+            {
+                memcpy(k_affine.row(i), cached_xk_blob.row(i), dst_seqlen * sizeof(float));
+            }
+        }
+
+        // dynamic quantize k_blob
+        Mat k_blob_int8;
+        float k_blob_int8_scale;
         dynamic_quantize_2d(k_blob, k_blob_int8, k_blob_int8_scale, opt);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const signed char* kptr = (const signed char*)k_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const signed char* ptr = k_blob_int8.row<const signed char>(i);
+
+                int sum = 0;
+                for (int k = 0; k < kdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+                const float k_descale = 1.f / (k_weight_data_int8_scales[j] * k_blob_int8_scale);
+                float sum_fp32 = sum * k_descale + k_bias_data[j];
+
+                k_affine.row(j)[past_seqlen + i] = sum_fp32;
+            }
+        }
     }
 
-    // dynamic quantize v_blob
-    Mat v_blob_int8;
-    float v_blob_int8_scale;
-    if (bottom_blobs.size() == 1)
+    Mat v_affine;
+    if (past_seqlen > 0 && q_blob_i != v_blob_i)
     {
-        v_blob_int8 = q_blob_int8;
-        v_blob_int8_scale = q_blob_int8_scale;
-    }
-    else if (bottom_blobs.size() == 2)
-    {
-        v_blob_int8 = k_blob_int8;
-        v_blob_int8_scale = k_blob_int8_scale;
+        v_affine = cached_xv_blob;
     }
     else
     {
+        v_affine.create(dst_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (v_affine.empty())
+            return -100;
+
+        if (past_seqlen > 0)
+        {
+            // reuse cached_xv
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < embed_dim; i++)
+            {
+                memcpy(v_affine.row(i), cached_xv_blob.row(i), dst_seqlen * sizeof(float));
+            }
+        }
+
+        // dynamic quantize v_blob
+        Mat v_blob_int8;
+        float v_blob_int8_scale;
         dynamic_quantize_2d(v_blob, v_blob_int8, v_blob_int8_scale, opt);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < cur_seqlen; i++)
+        {
+            const signed char* kptr = (const signed char*)v_weight_data;
+
+            for (int j = 0; j < embed_dim; j++)
+            {
+                const signed char* ptr = v_blob_int8.row<const signed char>(i);
+
+                int sum = 0;
+                for (int k = 0; k < vdim; k++)
+                {
+                    sum += *ptr++ * *kptr++;
+                }
+                const float v_descale = 1.f / (v_weight_data_int8_scales[j] * v_blob_int8_scale);
+                float sum_fp32 = sum * v_descale + v_bias_data[j];
+
+                v_affine.row(j)[past_seqlen + i] = sum_fp32;
+            }
+        }
     }
 
-    // NCNN_LOGE("%.4f %.4f", q_weight_data_int8_scale, q_blob_int8_scale);
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_heads; q++)
+    Mat qk_cross;
     {
-        // xq = affine(q) * scale
+        qk_cross.create(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+        if (qk_cross.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
-            Mat outm = xq.channel(q);
+            const Mat q_affine_head = q_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            const Mat k_affine_head = k_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            Mat qk_cross_head = qk_cross.channel(q);
+
+            // dynamic quantize q_affine_head per w
+            Mat q_affine_head_int8;
+            Mat q_affine_head_int8_scales;
+            dynamic_quantize_2d_per_w(q_affine_head, q_affine_head_int8, q_affine_head_int8_scales, opt);
+
+            // dynamic quantize k_affine_head
+            Mat k_affine_head_int8;
+            float k_affine_head_int8_scale;
+            dynamic_quantize_2d(k_affine_head, k_affine_head_int8, k_affine_head_int8_scale, opt);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const signed char* ptr = q_blob_int8.row<const signed char>(i);
-                    const signed char* kptr = (const signed char*)q_weight_data + qdim * (q * embed_dim_per_head + j);
-
-                    int sum = 0;
-                    for (int k = 0; k < qdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-                    const float q_descale = 1.f / (q_weight_data_int8_scales[q * embed_dim_per_head + j] * q_blob_int8_scale);
-                    float sum_fp32 = sum * q_descale + q_bias_data[q * embed_dim_per_head + j];
-
-                    outptr[j] = sum_fp32 * scale;
-                }
-            }
-        }
-
-        // xk = affine(k)
-        {
-            float* outptr = xk.channel(q);
-
-            for (int i = 0; i < k_blob_int8.h; i++)
-            {
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const signed char* ptr = k_blob_int8.row<const signed char>(i);
-                    const signed char* kptr = (const signed char*)k_weight_data + kdim * (q * embed_dim_per_head + j);
-
-                    int sum = 0;
-                    for (int k = 0; k < kdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-                    const float k_descale = 1.f / (k_weight_data_int8_scales[q * embed_dim_per_head + j] * k_blob_int8_scale);
-                    float sum_fp32 = sum * k_descale + k_bias_data[q * embed_dim_per_head + j];
-
-                    *outptr++ = sum_fp32;
-                }
-            }
-        }
-
-        // xv = affine(v)
-        {
-            Mat outm = xv.channel(q);
-
-            for (int i = 0; i < embed_dim_per_head; i++)
-            {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < v_blob_int8.h; j++)
-                {
-                    const signed char* ptr = v_blob_int8.row<const signed char>(j);
-                    const signed char* kptr = (const signed char*)v_weight_data + vdim * (q * embed_dim_per_head + i);
-
-                    int sum = 0;
-                    for (int k = 0; k < vdim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-                    const float v_descale = 1.f / (v_weight_data_int8_scales[q * embed_dim_per_head + i] * v_blob_int8_scale);
-                    float sum_fp32 = sum * v_descale + v_bias_data[q * embed_dim_per_head + i];
-
-                    *outptr++ = sum_fp32;
-                }
-            }
-        }
-
-        // xqk = xq * xk
-        // xq  (embed_dim_per_head, src_seqlen)
-        // xk  (embed_dim_per_head, dst_seqlen)
-        {
-            const Mat xqm = xq.channel(q);
-            const Mat xkm = xk.channel(q);
-
-            Mat outm = xqk.channel(q);
-
-            // dynamic quantize xqm per h
-            Mat xqm_int8;
-            Mat xqm_int8_scales;
-            dynamic_quantize_2d_per_h(xqm, xqm_int8, xqm_int8_scales, opt);
-
-            // dynamic quantize xkm
-            Mat xkm_int8;
-            float xkm_int8_scale;
-            dynamic_quantize_2d(xkm, xkm_int8, xkm_int8_scale, opt);
-
-            for (int i = 0; i < src_seqlen; i++)
-            {
-                float* outptr = outm.row(i);
-                const float xqk_descale = 1.f / (xqm_int8_scales[i] * xkm_int8_scale);
+                float* outptr = qk_cross_head.row(i);
+                const float qk_descale = 1.f / (q_affine_head_int8_scales[i] * k_affine_head_int8_scale);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    const signed char* qptr = xqm_int8.row<const signed char>(i);
-                    const signed char* kptr = xkm_int8.row<const signed char>(j);
-
                     int sum = 0;
-                    for (int k = 0; k < embed_dim_per_head; k++)
+                    for (int l = 0; l < embed_dim_per_head; l++)
                     {
-                        sum += *qptr++ * *kptr++;
+                        signed char vq = q_affine_head_int8.row<const signed char>(l)[i];
+                        signed char vk = k_affine_head_int8.row<const signed char>(l)[j];
+                        sum += vq * vk;
                     }
-                    float sum_fp32 = sum * xqk_descale;
+                    float sum_fp32 = sum * qk_descale;
 
                     outptr[j] = sum_fp32;
                 }
             }
         }
+    }
 
-        // xqk = xqk + mask
-        if (attn_mask)
+    if (attn_mask)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
             const Mat& maskm = attn_mask_blob.dims == 3 ? attn_mask_blob.channel(q) : attn_mask_blob;
-            Mat outm = xqk.channel(q);
+            Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
                 const float* mptr = maskm.row(i);
-                float* outptr = outm.row(i);
+                float* outptr = qk_cross_head.row(i);
 
                 for (int j = 0; j < dst_seqlen; j++)
                 {
@@ -604,14 +810,18 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 }
             }
         }
+    }
 
-        // softmax(xqk)
+    // softmax(qk_cross)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
-            Mat outm = xqk.channel(q);
+            Mat qk_cross_head = qk_cross.channel(q);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* ptr = outm.row(i);
+                float* ptr = qk_cross_head.row(i);
 
                 float max = -FLT_MAX;
                 for (int j = 0; j < dst_seqlen; j++)
@@ -622,7 +832,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(expf(ptr[j] - max));
+                    ptr[j] = (float)expf(ptr[j] - max);
                     sum += ptr[j];
                 }
 
@@ -632,102 +842,91 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 }
             }
         }
+    }
 
-        // xqkv = xqk * xv
-        // xqk (dst_seqlen, src_seqlen)
-        // xv  (dst_seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_heads, src_seqlen)
+    Mat qkv_cross;
+    {
+        qkv_cross.create(src_seqlen, embed_dim, 4u, opt.workspace_allocator);
+        if (qkv_cross.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
         {
-            const Mat xqkm = xqk.channel(q);
-            const Mat xvm = xv.channel(q);
+            const Mat qk_cross_head = qk_cross.channel(q);
+            const Mat v_affine_head = v_affine.row_range(q * embed_dim_per_head, embed_dim_per_head);
+            Mat qkv_cross_head = qkv_cross.row_range(q * embed_dim_per_head, embed_dim_per_head);
 
-            // dynamic quantize xqkm
-            Mat xqkm_int8;
-            Mat xqkm_int8_scales;
-            dynamic_quantize_2d_per_h(xqkm, xqkm_int8, xqkm_int8_scales, opt);
+            // dynamic quantize qk_cross_head per h
+            Mat qk_cross_head_int8;
+            Mat qk_cross_head_int8_scales;
+            dynamic_quantize_2d_per_h(qk_cross_head, qk_cross_head_int8, qk_cross_head_int8_scales, opt);
 
-            // dynamic quantize xvm per h
-            Mat xvm_int8;
-            float xvm_int8_scale;
-            dynamic_quantize_2d(xvm, xvm_int8, xvm_int8_scale, opt);
+            // dynamic quantize v_affine_head
+            Mat v_affine_head_int8;
+            float v_affine_head_int8_scale;
+            dynamic_quantize_2d(v_affine_head, v_affine_head_int8, v_affine_head_int8_scale, opt);
 
             for (int i = 0; i < src_seqlen; i++)
             {
-                float* outptr = xqkv.channel(i).row(q);
-                const float xqkv_descale = 1.f / (xqkm_int8_scales[i] * xvm_int8_scale);
+                const float qkv_descale = 1.f / (qk_cross_head_int8_scales[i] * v_affine_head_int8_scale);
 
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
-                    const signed char* qkptr = xqkm_int8.row<const signed char>(i);
-                    const signed char* vptr = xvm_int8.row<const signed char>(j);
+                    const signed char* qkptr = qk_cross_head_int8.row<const signed char>(i);
+                    const signed char* vptr = v_affine_head_int8.row<const signed char>(j);
 
                     int sum = 0;
                     for (int k = 0; k < dst_seqlen; k++)
                     {
                         sum += *qkptr++ * *vptr++;
                     }
-                    float sum_fp32 = sum * xqkv_descale;
+                    float sum_fp32 = sum * qkv_descale;
 
-                    outptr[j] = sum_fp32;
+                    qkv_cross_head.row(j)[i] = sum_fp32;
                 }
             }
         }
     }
 
-    // dynamic quantize xqkv
-    Mat xqkv_int8;
-    Mat xqkv_int8_scales;
+    Mat& top_blob = top_blobs[0];
     {
-        xqkv_int8.create(xqkv.w, xqkv.h, xqkv.c, (size_t)1u, 1, opt.workspace_allocator);
-        xqkv_int8_scales.create(src_seqlen, (size_t)4u, 1, opt.workspace_allocator);
+        // dynamic quantize qkv_cross
+        Mat qkv_cross_int8;
+        Mat qkv_cross_int8_scales;
+        dynamic_quantize_2d_per_w(qkv_cross, qkv_cross_int8, qkv_cross_int8_scales, opt);
 
-        for (int i = 0; i < xqkv_int8.c; i++)
+        top_blob.create(qdim, src_seqlen, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < src_seqlen; i++)
         {
-            const float* ptr = xqkv.channel(i);
+            const signed char* kptr = (const signed char*)out_weight_data;
+            float* outptr = top_blob.row(i);
 
-            float absmax = 0.f;
-            for (int j = 0; j < xqkv_int8.w * xqkv_int8.h; j++)
+            for (int j = 0; j < qdim; j++)
             {
-                absmax = std::max(absmax, (float)fabs(ptr[j]));
-            }
+                int sum = 0;
+                for (int k = 0; k < embed_dim; k++)
+                {
+                    signed char vqkv = qkv_cross_int8.row<const signed char>(k)[i];
+                    sum += vqkv * *kptr++;
+                }
+                const float out_descale = 1.f / (out_weight_data_int8_scale * qkv_cross_int8_scales[i]);
+                float sum_fp32 = sum * out_descale + out_bias_data[j];
 
-            xqkv_int8_scales[i] = absmax == 0.f ? 1.f : 127.f / absmax;
-        }
-
-        for (int i = 0; i < xqkv_int8.c; i++)
-        {
-            const float* ptr = xqkv.channel(i);
-            signed char* outptr = xqkv_int8.channel(i);
-
-            for (int j = 0; j < xqkv_int8.w * xqkv_int8.h; j++)
-            {
-                outptr[j] = float2int8(ptr[j] * xqkv_int8_scales[i]);
+                outptr[j] = sum_fp32;
             }
         }
     }
 
-    // out = affine(xqkv)
-    // xqkv  (embed_dim, src_seqlen)
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < src_seqlen; i++)
+    if (kv_cache)
     {
-        float* outptr = top_blob.row(i);
-
-        for (int j = 0; j < qdim; j++)
-        {
-            const signed char* ptr = xqkv_int8.channel(i);
-            const signed char* kptr = (const signed char*)out_weight_data + embed_dim * j;
-
-            int sum = 0;
-            for (int k = 0; k < embed_dim; k++)
-            {
-                sum += *ptr++ * *kptr++;
-            }
-            const float out_descale = 1.f / (out_weight_data_int8_scale * xqkv_int8_scales[i]);
-            float sum_fp32 = sum * out_descale + out_bias_data[j];
-
-            outptr[j] = sum_fp32;
-        }
+        // assert top_blobs.size() == 3
+        top_blobs[1] = k_affine;
+        top_blobs[2] = v_affine;
     }
 
     return 0;

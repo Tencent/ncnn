@@ -10,6 +10,8 @@ namespace ncnn {
 Gemm_vulkan::Gemm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
+    support_vulkan_any_packing = true;
 
     pipeline_gemm = 0;
 
