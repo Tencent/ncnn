@@ -57,14 +57,16 @@ jobs:
           - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
           - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
           - { os: windows-2022,     arch: ARM64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,         arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,         arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: macos-15-intel,         arch: arm64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-15-intel,   arch: arm64,      build: 'cp*',            build_id: cp           }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04,     arch: riscv64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04,     arch: riscv64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
 
     env:
       OPENMP_VERSION: '18.1.2'
