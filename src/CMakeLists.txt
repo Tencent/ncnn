@@ -303,6 +303,14 @@ if(NCNN_VULKAN)
 
             else()
                 message(WARNING "Vulkan_LIBRARY shall be defined for simplevk static linkage as fallback on APPLE platforms")
+
+                # generate stub library for linkage
+                set(VULKAN_STUB_C "${CMAKE_CURRENT_BINARY_DIR}/vulkan_stub.c")
+                file(WRITE "${VULKAN_STUB_C}" "__attribute__((visibility(\"default\"))) void* vkGetInstanceProcAddr() { return 0; }")
+                add_library(vulkan_stub SHARED ${VULKAN_STUB_C})
+                set_target_properties(vulkan_stub PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/stubs" INSTALL_NAME_DIR "@rpath")
+                target_link_libraries(ncnn PRIVATE "-Wl,-weak_library,$<TARGET_FILE:vulkan_stub>")
+
             endif()
         endif()
         target_link_libraries(ncnn PRIVATE ${CMAKE_DL_LIBS})

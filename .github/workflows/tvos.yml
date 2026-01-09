@@ -56,7 +56,6 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
-      MOLTENVK_VERSION: 'v1.4.1'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -155,32 +154,23 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/tvos-simulator/include/* $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/tvos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/lib
 
-    - name: moltenvk
-      run: |
-        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
-        tar -xf MoltenVK-all.tar
-
     - name: arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/tvos-arm64_arm64e/MoltenVK.framework/MoltenVK ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
         cmake --build . -j 4
     - name: arm64e
       run: |
         mkdir build-arm64e && cd build-arm64e
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/tvos-arm64_arm64e/MoltenVK.framework/MoltenVK ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
         cmake --build . -j 4
     - name: simulator-x86_64
       run: |
         mkdir build-simulator-x86_64 && cd build-simulator-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/tvos-arm64_x86_64-simulator/MoltenVK.framework/MoltenVK ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
         cmake --build . -j 4
     - name: simulator-arm64
       run: |
         mkdir build-simulator-arm64 && cd build-simulator-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64_TVOS -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/tvos-arm64_x86_64-simulator/MoltenVK.framework/MoltenVK ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64_TVOS -DARCHS="arm64" ..
         cmake --build . -j 4
