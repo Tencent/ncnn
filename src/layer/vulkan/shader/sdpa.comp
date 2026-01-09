@@ -1,0 +1,307 @@
+#version 450
+
+layout (constant_id = 0) const int head_dim = 0;
+layout (constant_id = 1) const int out_head_dim = 0;
+layout (constant_id = 2) const float scale = 0.f;
+
+layout (binding = 0) readonly buffer query_blob { sfp query_data[]; };
+layout (binding = 1) readonly buffer key_blob   { sfp key_data[]; };
+layout (binding = 2) readonly buffer value_blob { sfp value_data[]; };
+layout (binding = 3) readonly buffer mask_blob  { sfp mask_data[]; };
+layout (binding = 4) writeonly buffer top_blob  { sfp top_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int head_dim;
+    int out_head_dim;
+    int src_seqlen;
+    int dst_seqlen;
+    int num_heads_per_group;
+    int q_cstep;
+    int k_cstep;
+    int v_cstep;
+    int o_cstep;
+    int mask_dims;
+    int mask_w;
+    int mask_c;
+    int mask_cstep;
+    float scale;
+} p;
+
+#define br 16
+#define bc 16
+#define max_d 128
+#define max_dv 128
+
+
+shared afp s_q[br][max_d];
+shared afp s_k[bc][max_d];
+shared afp s_v[bc][max_dv];
+shared afp s_o[br][max_dv];
+shared afp s_w[bc][br];      // softmax weight
+shared afp s_row_max[br];
+shared afp s_row_sum[br];
+
+void main()
+{
+    const int lid = int(gl_LocalInvocationIndex);
+    const int block_q = int(gl_WorkGroupID.x);
+    const int head = int(gl_WorkGroupID.y);
+
+    const int d  = psc(head_dim);
+    const int dv = psc(out_head_dim);
+
+    if (d <= 0 || dv <= 0 || d > max_d || dv > max_dv)
+        return;
+
+    const int qw = (p.src_seqlen > 0) ? (p.q_cstep / p.src_seqlen) : d;
+    const int kw = (p.dst_seqlen > 0) ? (p.k_cstep / p.dst_seqlen) : d;
+    const int vw = (p.dst_seqlen > 0) ? (p.v_cstep / p.dst_seqlen) : dv;
+    const int ow = (p.src_seqlen > 0) ? (p.o_cstep / p.src_seqlen) : dv;
+
+    const afp sc = psc(scale);
+    const afp qk_scale = sc == 0.f ? inversesqrt(afp(d)) : sc;
+
+    const int q_base = block_q * br;
+    const int group = head / p.num_heads_per_group;
+
+    // 16x16 workgroup
+    const int lx = lid & 15;
+    const int ly = lid >> 4;
+
+    // load Q
+    for (int idx = lid; idx < br * d; idx += 256)
+    {
+        const int y = idx / d;
+        const int x = idx - y * d;
+        const int qi = q_base + y;
+
+        afp v = 0.f;
+        if (qi < p.src_seqlen)
+        {
+            const int off = head * p.q_cstep + qi * qw + x;
+            v = buffer_ld1(query_data, off);
+        }
+        s_q[y][x] = v;
+    }
+
+    // init O
+    for (int idx = lid; idx < br * dv; idx += 256)
+    {
+        const int y = idx / dv;
+        const int x = idx - y * dv;
+        s_o[y][x] = 0.f;
+    }
+
+    // init row_max
+    if (lid < br)
+        s_row_max[lid] = -3.402823466e+38f;
+
+    barrier();
+
+    const int kv_iters = (p.dst_seqlen + bc - 1) / bc;
+
+    for (int it = 0; it < kv_iters; it++)
+    {
+        const int k_base = it * bc;
+
+        // load K
+        for (int idx = lid; idx < bc * d; idx += 256)
+        {
+            const int y = idx / d;
+            const int x = idx - y * d;
+            const int kj = k_base + y;
+
+            afp v = 0.f;
+            if (kj < p.dst_seqlen)
+            {
+                const int off = group * p.k_cstep + kj * kw + x;
+                v = buffer_ld1(key_data, off);
+            }
+            s_k[y][x] = v;
+        }
+
+        barrier();
+
+        afp qk = -3.402823466e+38f;
+        const int qi = q_base + ly;
+        const int kj = k_base + lx;
+
+        if (ly < br && lx < bc && qi < p.src_seqlen && kj < p.dst_seqlen)
+        {
+            afp acc = 0.f;
+            for (int k = 0; k < d; k++)
+            acc += s_q[ly][k] * s_k[lx][k];
+
+            afp v = acc * qk_scale;
+
+            if (p.mask_dims != 0)
+            {
+                const int mh = (p.mask_c > 1) ? head : 0;
+                afp mv = 0.f;
+
+                if (p.mask_dims == 2)
+                {
+                    const int moff = qi * p.mask_w + kj;
+                    mv = buffer_ld1(mask_data, moff);
+                }
+                else if (p.mask_dims == 3)
+                {
+                    const int moff = mh * p.mask_cstep + qi * p.mask_w + kj;
+                    mv = buffer_ld1(mask_data, moff);
+                }
+
+                v += mv;
+            }
+
+            qk = v;
+        }
+
+
+        if (ly < br && lx < bc)
+            s_w[lx][ly] = qk;
+
+        barrier();
+
+        // reduce tile max
+        if (lx == 0 && ly < br)
+        {
+            afp tile_max = -3.402823466e+38f;
+            for (int x = 0; x < bc; x++)
+                tile_max = max(tile_max, s_w[x][ly]);
+
+            s_row_max[ly] = max(s_row_max[ly], tile_max);
+        }
+
+        barrier();
+    }
+
+
+    if (lid < br)
+        s_row_sum[lid] = 0.f;
+
+    barrier();
+
+    for (int it = 0; it < kv_iters; it++)
+    {
+        const int k_base = it * bc;
+
+        // load K
+        for (int idx = lid; idx < bc * d; idx += 256)
+        {
+            const int y = idx / d;
+            const int x = idx - y * d;
+            const int kj = k_base + y;
+
+            afp v = 0.f;
+            if (kj < p.dst_seqlen)
+            {
+                const int off = group * p.k_cstep + kj * kw + x;
+                v = buffer_ld1(key_data, off);
+            }
+            s_k[y][x] = v;
+        }
+
+        // load V
+        for (int idx = lid; idx < bc * dv; idx += 256)
+        {
+            const int y = idx / dv;
+            const int x = idx - y * dv;
+            const int vj = k_base + y;
+
+            afp v = 0.f;
+            if (vj < p.dst_seqlen)
+            {
+                const int off = group * p.v_cstep + vj * vw + x;
+                v = buffer_ld1(value_data, off);
+            }
+            s_v[y][x] = v;
+        }
+
+        barrier();
+
+        // compute weight = exp(qk - row_max)
+        afp w = 0.f;
+        const int qi = q_base + ly;
+        const int kj = k_base + lx;
+
+        if (ly < br && lx < bc && qi < p.src_seqlen && kj < p.dst_seqlen)
+        {
+            afp acc = 0.f;
+            for (int k = 0; k < d; k++)
+                acc += s_q[ly][k] * s_k[lx][k];
+
+            afp v = acc * qk_scale;
+
+            if (p.mask_dims != 0)
+            {
+                const int mh = (p.mask_c > 1) ? head : 0;
+                afp mv = 0.f;
+
+                if (p.mask_dims == 2)
+                {
+                    const int moff = qi * p.mask_w + kj;
+                    mv = buffer_ld1(mask_data, moff);
+                }
+                else if (p.mask_dims == 3)
+                {
+                    const int moff = mh * p.mask_cstep + qi * p.mask_w + kj;
+                    mv = buffer_ld1(mask_data, moff);
+                }
+
+                v += mv;
+            }
+
+            w = exp(v - s_row_max[ly]);
+        }
+
+        if (ly < br && lx < bc)
+            s_w[lx][ly] = w;
+
+        barrier();
+
+        // reduce row_sum
+        if (lx == 0 && ly < br)
+        {
+            afp tile_sum = 0.f;
+            for (int x = 0; x < bc; x++)
+                tile_sum += s_w[x][ly];
+
+            s_row_sum[ly] += tile_sum;
+        }
+
+        barrier();
+
+        // accumulate O
+        for (int idx = lid; idx < br * dv; idx += 256)
+        {
+            const int y = idx / dv;
+            const int x = idx - y * dv;
+
+            afp addv = 0.f;
+            for (int t = 0; t < bc; t++)
+                addv += s_w[t][y] * s_v[t][x];
+
+            s_o[y][x] += addv;
+        }
+
+        barrier();
+    }
+
+    // store O
+    for (int idx = lid; idx < br * dv; idx += 256)
+    {
+        const int y = idx / dv;
+        const int x = idx - y * dv;
+        const int qi = q_base + y;
+
+        if (qi >= p.src_seqlen)
+            continue;
+
+        const afp sum = s_row_sum[y];
+        const afp ov = (sum > 0.f) ? (s_o[y][x] / sum) : 0.f;
+
+        const int out_off = head * p.o_cstep + qi * ow + x;
+        buffer_st1(top_data, out_off, afp(ov));
+    }
+}

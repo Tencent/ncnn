@@ -1,0 +1,81 @@
+// sdpa_kv_concat.comp
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (constant_id = 0) const int head_dim = 0;
+layout (constant_id = 1) const int out_head_dim = 0;
+
+layout (binding = 0) readonly buffer past_key_blob { sfp past_key_data[]; };
+layout (binding = 1) readonly buffer past_value_blob { sfp past_value_data[]; };
+layout (binding = 2) readonly buffer cur_key_blob { sfp cur_key_data[]; };
+layout (binding = 3) readonly buffer cur_value_blob { sfp cur_value_data[]; };
+layout (binding = 4) writeonly buffer out_key_blob { sfp out_key_data[]; };
+layout (binding = 5) writeonly buffer out_value_blob { sfp out_value_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int head_dim;
+    int out_head_dim;
+    int past_seqlen;
+    int cur_seqlen;
+    int num_group;
+    int pastk_cstep;
+    int pastv_cstep;
+    int curk_cstep;
+    int curv_cstep;
+    int outk_cstep;
+    int outv_cstep;
+} p;
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    const int d = psc(head_dim);
+    const int dv = psc(out_head_dim);
+    const int dst_seqlen = p.past_seqlen + p.cur_seqlen;
+
+    if (gz >= p.num_group || gy >= dst_seqlen)
+    return;
+
+    const int maxw = d > dv ? d : dv;
+    if (gx >= maxw)
+    return;
+
+    const bool from_past = gy < p.past_seqlen;
+    const int sy = from_past ? gy : (gy - p.past_seqlen);
+
+    if (gx < d)
+    {
+        const int src_off = from_past ? (gz * p.pastk_cstep + sy * d + gx) : (gz * p.curk_cstep + sy * d + gx);
+        const int dst_off = gz * p.outk_cstep + gy * d + gx;
+
+        if (from_past)
+        {
+            buffer_cp1(out_key_data, dst_off, past_key_data, src_off);
+        }
+        else
+        {
+            buffer_cp1(out_key_data, dst_off, cur_key_data, src_off);
+        }
+    }
+
+    if (gx < dv)
+    {
+        const int src_off = from_past ? (gz * p.pastv_cstep + sy * dv + gx) : (gz * p.curv_cstep + sy * dv + gx);
+        const int dst_off = gz * p.outv_cstep + gy * dv + gx;
+
+        if (from_past)
+        {
+            buffer_cp1(out_value_data, dst_off, past_value_data, src_off);
+        }
+        else
+        {
+            buffer_cp1(out_value_data, dst_off, cur_value_data, src_off);
+        }
+    }
+}
