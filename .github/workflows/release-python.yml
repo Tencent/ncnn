@@ -146,7 +146,7 @@ jobs:
         output-dir: wheelhouse
 
     - name: Build wheels for windows ARM64
-      if: matrix.os == 'windows-2025' && matrix.arch == 'ARM64'
+      if: matrix.os == 'windows-11-arm' && matrix.arch == 'ARM64'
       uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
