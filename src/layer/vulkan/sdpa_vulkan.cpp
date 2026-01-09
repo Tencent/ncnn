@@ -185,7 +185,10 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         mask_cstep = mask.cstep;
         if (mask_dims != 2 && mask_dims != 3)
         {
-            mask_dims = 0; mask_w = 0; mask_c = 0; mask_cstep = 0;
+            mask_dims = 0;
+            mask_w = 0;
+            mask_c = 0;
+            mask_cstep = 0;
         }
     }
 
