@@ -1,8 +1,10 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
 #version 450
 
 layout (constant_id = 0) const int head_dim = 0;
 layout (constant_id = 1) const int out_head_dim = 0;
-layout (constant_id = 2) const float scale = 0.f;
 
 layout (binding = 0) readonly buffer query_blob { sfp query_data[]; };
 layout (binding = 1) readonly buffer key_blob   { sfp key_data[]; };
@@ -25,14 +27,17 @@ layout (push_constant) uniform parameter
     int mask_w;
     int mask_c;
     int mask_cstep;
-    float scale;
+    float qk_scale; // Pre-calculated scale
+    int qw;         // Pre-calculated strides
+    int kw;
+    int vw;
+    int ow;
 } p;
 
 #define br 16
 #define bc 16
 #define max_d 128
 #define max_dv 128
-
 
 shared afp s_q[br][max_d];
 shared afp s_k[bc][max_d];
@@ -52,15 +57,13 @@ void main()
     const int dv = psc(out_head_dim);
 
     if (d <= 0 || dv <= 0 || d > max_d || dv > max_dv)
-        return;
+    return;
 
-    const int qw = (p.src_seqlen > 0) ? (p.q_cstep / p.src_seqlen) : d;
-    const int kw = (p.dst_seqlen > 0) ? (p.k_cstep / p.dst_seqlen) : d;
-    const int vw = (p.dst_seqlen > 0) ? (p.v_cstep / p.dst_seqlen) : dv;
-    const int ow = (p.src_seqlen > 0) ? (p.o_cstep / p.src_seqlen) : dv;
-
-    const afp sc = psc(scale);
-    const afp qk_scale = sc == 0.f ? inversesqrt(afp(d)) : sc;
+    const int qw = p.qw;
+    const int kw = p.kw;
+    const int vw = p.vw;
+    const int ow = p.ow;
+    const afp qk_scale = afp(p.qk_scale);
 
     const int q_base = block_q * br;
     const int group = head / p.num_heads_per_group;
@@ -131,8 +134,9 @@ void main()
         {
             afp acc = 0.f;
             for (int k = 0; k < d; k++)
-            acc += s_q[ly][k] * s_k[lx][k];
+                acc += s_q[ly][k] * s_k[lx][k];
 
+            // Use pre-calculated qk_scale
             afp v = acc * qk_scale;
 
             if (p.mask_dims != 0)
@@ -157,7 +161,6 @@ void main()
             qk = v;
         }
 
-
         if (ly < br && lx < bc)
             s_w[lx][ly] = qk;
 
@@ -176,17 +179,17 @@ void main()
         barrier();
     }
 
-
     if (lid < br)
         s_row_sum[lid] = 0.f;
 
     barrier();
 
+    // Re-compute weights based on global max
     for (int it = 0; it < kv_iters; it++)
     {
         const int k_base = it * bc;
 
-        // load K
+        // load K (again) - can't avoid easily without large shared mem
         for (int idx = lid; idx < bc * d; idx += 256)
         {
             const int y = idx / d;
@@ -229,7 +232,7 @@ void main()
         {
             afp acc = 0.f;
             for (int k = 0; k < d; k++)
-                acc += s_q[ly][k] * s_k[lx][k];
+            acc += s_q[ly][k] * s_k[lx][k];
 
             afp v = acc * qk_scale;
 
@@ -248,7 +251,6 @@ void main()
                     const int moff = mh * p.mask_cstep + qi * p.mask_w + kj;
                     mv = buffer_ld1(mask_data, moff);
                 }
-
                 v += mv;
             }
 
@@ -256,7 +258,7 @@ void main()
         }
 
         if (ly < br && lx < bc)
-            s_w[lx][ly] = w;
+        s_w[lx][ly] = w;
 
         barrier();
 
@@ -265,7 +267,7 @@ void main()
         {
             afp tile_sum = 0.f;
             for (int x = 0; x < bc; x++)
-                tile_sum += s_w[x][ly];
+            tile_sum += s_w[x][ly];
 
             s_row_sum[ly] += tile_sum;
         }
@@ -280,7 +282,7 @@ void main()
 
             afp addv = 0.f;
             for (int t = 0; t < bc; t++)
-                addv += s_w[t][y] * s_v[t][x];
+            addv += s_w[t][y] * s_v[t][x];
 
             s_o[y][x] += addv;
         }
@@ -296,7 +298,7 @@ void main()
         const int qi = q_base + y;
 
         if (qi >= p.src_seqlen)
-            continue;
+        continue;
 
         const afp sum = s_row_sum[y];
         const afp ov = (sum > 0.f) ? (s_o[y][x] / sum) : 0.f;
