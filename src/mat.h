@@ -760,26 +760,14 @@ NCNN_EXPORT NCNN_FORCEINLINE unsigned char float16_to_bfloat8(unsigned short val
 {
     // 1 : 5 : 10 -> 1 : 5 : 2
     // direct truncation for bfloat8 e5m2, similar to bfloat16
-    union
-    {
-        unsigned short u;
-        unsigned short f;
-    } tmp;
-    tmp.f = value;
-    return tmp.u >> 8;
+    return value >> 8;
 }
 // convert bfloat8 e5m2 to float16
 NCNN_EXPORT NCNN_FORCEINLINE unsigned short bfloat8_to_float16(unsigned char value)
 {
     // 1 : 5 : 2 -> 1 : 5 : 10
     // direct extension for bfloat8 e5m2, similar to bfloat16
-    union
-    {
-        unsigned short u;
-        unsigned short f;
-    } tmp;
-    tmp.u = value << 8;
-    return tmp.f;
+    return value << 8;
 }
 
 // mat process
