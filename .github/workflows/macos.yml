@@ -64,7 +64,7 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
-      MOLTENVK_VERSION: 'v1.2.8'
+      MOLTENVK_VERSION: 'v1.4.1'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
@@ -167,12 +167,12 @@ jobs:
         wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
         tar -xf MoltenVK-all.tar
 
-    - name: arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a ..
-        cmake --build . -j 4
+    # - name: arm64
+    #   run: |
+    #     mkdir build-arm64 && cd build-arm64
+    #     cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
+    #         -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a ..
+    #     cmake --build . -j 4
     - name: x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
@@ -181,21 +181,29 @@ jobs:
             -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
 
-    - name: arm64-shared
-      run: |
-        mkdir build-arm64-shared && cd build-arm64-shared
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" -DNCNN_SHARED_LIB=ON \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
-        cmake --build . -j 4
-    - name: x86_64-shared
-      run: |
-        mkdir build-x86_64-shared && cd build-x86_64-shared
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" -DNCNN_SHARED_LIB=ON \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
-        cmake --build . -j 4
+    # - name: arm64-shared
+    #   run: |
+    #     mkdir build-arm64-shared && cd build-arm64-shared
+    #     cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" -DNCNN_SHARED_LIB=ON \
+    #         -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
+    #     cmake --build . -j 4
+    # - name: x86_64-shared
+    #   run: |
+    #     mkdir build-x86_64-shared && cd build-x86_64-shared
+    #     cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" -DNCNN_SHARED_LIB=ON \
+    #         -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
+    #     cmake --build . -j 4
 
     - name: x86_64-test
       run: |
         printf "[Processor]\nThreadCount=1\n" > build-x86_64/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd build-x86_64 && ctest --output-on-failure -j 4
+        cd build-x86_64 && ctest --output-on-failure -j 4 --verbose
+
+    - name: x86_64-test-2
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.4.335.1/mac/vulkansdk-macos-1.4.335.1.zip?Human=true -O vulkansdk-macos-1.4.335.1.zip
+        unzip vulkansdk-macos-1.4.335.1.zip
+        sudo vulkansdk-macos-1.4.335.1/vulkansdk-macOS-1.4.335.1.app/Contents/MacOS/vulkansdk-macOS-1.4.335.1 --root $GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1 --accept-licenses --default-answer --confirm-command install
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1/macOS/share/vulkan/icd.d/MoltenVK_icd.json"
+        cd build-x86_64 && ctest --output-on-failure -j 4 --verbose

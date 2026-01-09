@@ -56,7 +56,7 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
-      MOLTENVK_VERSION: 'v1.2.8'
+      MOLTENVK_VERSION: 'v1.4.1'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
