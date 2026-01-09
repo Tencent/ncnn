@@ -26,6 +26,11 @@
 #endif
 #endif
 
+#if __APPLE__
+// static vulkan linkage on apple platform as fallback
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName);
+#endif
+
 namespace ncnn {
 
 // vulkan loader entrypoint
@@ -335,9 +340,6 @@ static int load_vulkan_linux(const char* driver_path)
 #if __APPLE__
 static int load_vulkan_apple_moltenvk()
 {
-    // use static vulkan linkage on apple platform as fallback
-    extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName);
-
     vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
     vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
     vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
