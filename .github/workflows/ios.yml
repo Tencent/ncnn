@@ -56,7 +56,6 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
-      MOLTENVK_VERSION: 'v1.4.1'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
@@ -144,26 +143,18 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/ios-simulator/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/ios-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
 
-    - name: moltenvk
-      run: |
-        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
-        tar -xf MoltenVK-all.tar
-
     - name: arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
         cmake --build . -j 4
     - name: simulator-x86_64
       run: |
         mkdir build-simulator-x86_64 && cd build-simulator-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-simulator/libMoltenVK.a ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
         cmake --build . -j 4
     - name: simulator-arm64
       run: |
         mkdir build-simulator-arm64 && cd build-simulator-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-simulator/libMoltenVK.a ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
         cmake --build . -j 4
