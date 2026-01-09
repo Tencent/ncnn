@@ -177,7 +177,7 @@ jobs:
       run: |
         mkdir build-x86_64 && cd build-x86_64
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/swiftshader-install/libvulkan.dylib \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a \
             -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
 
@@ -197,4 +197,5 @@ jobs:
     - name: x86_64-test
       run: |
         printf "[Processor]\nThreadCount=1\n" > build-x86_64/tests/SwiftShader.ini
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build-x86_64 && ctest --output-on-failure -j 4
