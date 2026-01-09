@@ -222,7 +222,7 @@ jobs:
       run: |
         wget https://sdk.lunarg.com/sdk/download/1.4.335.1/mac/vulkansdk-macos-1.4.335.1.zip?Human=true -O vulkansdk-macos-1.4.335.1.zip
         unzip vulkansdk-macos-1.4.335.1.zip
-        sudo vulkansdk-macos-1.4.335.1/vulkansdk-macOS-1.4.335.1.app/Contents/MacOS/vulkansdk-macOS-1.4.335.1 --root $GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1 --accept-licenses --default-answer --confirm-command install
+        sudo vulkansdk-macOS-1.4.335.1.app/Contents/MacOS/vulkansdk-macOS-1.4.335.1 --root $GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1 --accept-licenses --default-answer --confirm-command install
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'x86_64'
