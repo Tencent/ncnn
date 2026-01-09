@@ -2161,16 +2161,16 @@ static void initialize_global_cpu_info()
 #if defined _WIN32
 #if __aarch64__
     g_cpu_support_arm_cpuid = ruapu_supports("cpuid");
-    g_cpu_support_arm_asimdhp = ruapu_supports("asimdhp") || IsProcessorFeaturePresent(43); // dp implies hp
+    g_cpu_support_arm_asimdhp = ruapu_supports("asimdhp") || IsProcessorFeaturePresent(43) || IsProcessorFeaturePresent(67); // dp implies hp, 67 is PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE
     g_cpu_support_arm_asimddp = ruapu_supports("asimddp") || IsProcessorFeaturePresent(43); // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
-    g_cpu_support_arm_asimdfhm = ruapu_supports("asimdfhm");
-    g_cpu_support_arm_bf16 = ruapu_supports("bf16");
-    g_cpu_support_arm_i8mm = ruapu_supports("i8mm");
-    g_cpu_support_arm_sve = ruapu_supports("sve");
-    g_cpu_support_arm_sve2 = ruapu_supports("sve2");
-    g_cpu_support_arm_svebf16 = ruapu_supports("svebf16");
-    g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm");
-    g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm");
+    g_cpu_support_arm_asimdfhm = ruapu_supports("asimdfhm") || IsProcessorFeaturePresent(66) || IsProcessorFeaturePresent(68); // bf16 or i8mm implies fhm
+    g_cpu_support_arm_bf16 = ruapu_supports("bf16") || IsProcessorFeaturePresent(68); // 68 is PF_ARM_V86_BF16_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_i8mm = ruapu_supports("i8mm") || IsProcessorFeaturePresent(66); // 66 is PF_ARM_V82_I8MM_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_sve = ruapu_supports("sve") || IsProcessorFeaturePresent(46); // 46 is PF_ARM_SVE_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_sve2 = ruapu_supports("sve2") || IsProcessorFeaturePresent(47); // 47 is PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svebf16 = ruapu_supports("svebf16") || IsProcessorFeaturePresent(52); // 52 is PF_ARM_SVE_BF16_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm") || IsProcessorFeaturePresent(57); // 57 is PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm") || IsProcessorFeaturePresent(58); // 58 is PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
 #elif __arm__
     g_cpu_support_arm_edsp = ruapu_supports("edsp");
     g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
