@@ -52,6 +52,7 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
+      MOLTENVK_VERSION: 'v1.4.1'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
@@ -63,9 +64,12 @@ jobs:
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
         -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VULKAN=ON \
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: true
 
     - name: cache-openmp
       id: cache-openmp
@@ -136,18 +140,26 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/visionos-simulator/include/* $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/visionos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/lib
 
+    - name: moltenvk
+      run: |
+        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
+        tar -xf MoltenVK-all.tar
+
     - name: arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/xros-arm64/MoltenVK.framework/MoltenVK ..
         cmake --build . -j 4
     - name: simulator-x86_64
       run: |
         mkdir build-simulator-x86_64 && cd build-simulator-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/xros-arm64_x86_64-simulator/MoltenVK.framework/MoltenVK  ..
         cmake --build . -j 4
     - name: simulator-arm64
       run: |
         mkdir build-simulator-arm64 && cd build-simulator-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/xros-arm64_x86_64-simulator/MoltenVK.framework/MoltenVK  ..
         cmake --build . -j 4
