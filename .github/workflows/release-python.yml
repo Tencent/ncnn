@@ -130,7 +130,7 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    # build wheels for windows-2025
+    # build wheels for windows
     - name: Build wheels for windows
       if: matrix.os == 'windows-2025' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
       uses: pypa/cibuildwheel@v3.3.1
