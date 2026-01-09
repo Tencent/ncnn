@@ -12,6 +12,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -24,6 +25,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
+    - 'glslang'
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
