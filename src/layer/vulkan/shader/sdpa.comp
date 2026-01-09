@@ -258,7 +258,7 @@ void main()
         }
 
         if (ly < br && lx < bc)
-        s_w[lx][ly] = w;
+            s_w[lx][ly] = w;
 
         barrier();
 
@@ -267,7 +267,7 @@ void main()
         {
             afp tile_sum = 0.f;
             for (int x = 0; x < bc; x++)
-            tile_sum += s_w[x][ly];
+                tile_sum += s_w[x][ly];
 
             s_row_sum[ly] += tile_sum;
         }
@@ -282,7 +282,7 @@ void main()
 
             afp addv = 0.f;
             for (int t = 0; t < bc; t++)
-            addv += s_w[t][y] * s_v[t][x];
+                addv += s_w[t][y] * s_v[t][x];
 
             s_o[y][x] += addv;
         }
@@ -298,7 +298,7 @@ void main()
         const int qi = q_base + y;
 
         if (qi >= p.src_seqlen)
-        continue;
+            continue;
 
         const afp sum = s_row_sum[y];
         const afp ov = (sum > 0.f) ? (s_o[y][x] / sum) : 0.f;
