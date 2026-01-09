@@ -3,16 +3,16 @@
 
 #version 450
 
-layout (constant_id = 0) const int head_dim = 0;
-layout (constant_id = 1) const int out_head_dim = 0;
+layout(constant_id = 0) const int head_dim = 0;
+layout(constant_id = 1) const int out_head_dim = 0;
 
-layout (binding = 0) readonly buffer query_blob { sfp query_data[]; };
-layout (binding = 1) readonly buffer key_blob   { sfp key_data[]; };
-layout (binding = 2) readonly buffer value_blob { sfp value_data[]; };
-layout (binding = 3) readonly buffer mask_blob  { sfp mask_data[]; };
-layout (binding = 4) writeonly buffer top_blob  { sfp top_data[]; };
+layout(binding = 0) readonly buffer query_blob { sfp query_data[]; };
+layout(binding = 1) readonly buffer key_blob { sfp key_data[]; };
+layout(binding = 2) readonly buffer value_blob { sfp value_data[]; };
+layout(binding = 3) readonly buffer mask_blob { sfp mask_data[]; };
+layout(binding = 4) writeonly buffer top_blob { sfp top_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int head_dim;
     int out_head_dim;
@@ -34,16 +34,16 @@ layout (push_constant) uniform parameter
     int ow;
 } p;
 
-#define br 16
-#define bc 16
-#define max_d 128
+#define br     16
+#define bc     16
+#define max_d  128
 #define max_dv 128
 
 shared afp s_q[br][max_d];
 shared afp s_k[bc][max_d];
 shared afp s_v[bc][max_dv];
 shared afp s_o[br][max_dv];
-shared afp s_w[bc][br];      // softmax weight
+shared afp s_w[bc][br]; // softmax weight
 shared afp s_row_max[br];
 shared afp s_row_sum[br];
 
@@ -53,11 +53,11 @@ void main()
     const int block_q = int(gl_WorkGroupID.x);
     const int head = int(gl_WorkGroupID.y);
 
-    const int d  = psc(head_dim);
+    const int d = psc(head_dim);
     const int dv = psc(out_head_dim);
 
     if (d <= 0 || dv <= 0 || d > max_d || dv > max_dv)
-    return;
+        return;
 
     const int qw = p.qw;
     const int kw = p.kw;
@@ -232,7 +232,7 @@ void main()
         {
             afp acc = 0.f;
             for (int k = 0; k < d; k++)
-            acc += s_q[ly][k] * s_k[lx][k];
+                acc += s_q[ly][k] * s_k[lx][k];
 
             afp v = acc * qk_scale;
 
@@ -258,7 +258,7 @@ void main()
         }
 
         if (ly < br && lx < bc)
-        s_w[lx][ly] = w;
+            s_w[lx][ly] = w;
 
         barrier();
 
@@ -267,7 +267,7 @@ void main()
         {
             afp tile_sum = 0.f;
             for (int x = 0; x < bc; x++)
-            tile_sum += s_w[x][ly];
+                tile_sum += s_w[x][ly];
 
             s_row_sum[ly] += tile_sum;
         }
@@ -282,7 +282,7 @@ void main()
 
             afp addv = 0.f;
             for (int t = 0; t < bc; t++)
-            addv += s_w[t][y] * s_v[t][x];
+                addv += s_w[t][y] * s_v[t][x];
 
             s_o[y][x] += addv;
         }
@@ -298,7 +298,7 @@ void main()
         const int qi = q_base + y;
 
         if (qi >= p.src_seqlen)
-        continue;
+            continue;
 
         const afp sum = s_row_sum[y];
         const afp ov = (sum > 0.f) ? (s_o[y][x] / sum) : 0.f;

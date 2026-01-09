@@ -4,17 +4,17 @@
 
 #version 450
 
-layout (constant_id = 0) const int head_dim = 0;
-layout (constant_id = 1) const int out_head_dim = 0;
+layout(constant_id = 0) const int head_dim = 0;
+layout(constant_id = 1) const int out_head_dim = 0;
 
-layout (binding = 0) readonly buffer past_key_blob { sfp past_key_data[]; };
-layout (binding = 1) readonly buffer past_value_blob { sfp past_value_data[]; };
-layout (binding = 2) readonly buffer cur_key_blob { sfp cur_key_data[]; };
-layout (binding = 3) readonly buffer cur_value_blob { sfp cur_value_data[]; };
-layout (binding = 4) writeonly buffer out_key_blob { sfp out_key_data[]; };
-layout (binding = 5) writeonly buffer out_value_blob { sfp out_value_data[]; };
+layout(binding = 0) readonly buffer past_key_blob { sfp past_key_data[]; };
+layout(binding = 1) readonly buffer past_value_blob { sfp past_value_data[]; };
+layout(binding = 2) readonly buffer cur_key_blob { sfp cur_key_data[]; };
+layout(binding = 3) readonly buffer cur_value_blob { sfp cur_value_data[]; };
+layout(binding = 4) writeonly buffer out_key_blob { sfp out_key_data[]; };
+layout(binding = 5) writeonly buffer out_value_blob { sfp out_value_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int head_dim;
     int out_head_dim;
@@ -40,11 +40,11 @@ void main()
     const int dst_seqlen = p.past_seqlen + p.cur_seqlen;
 
     if (gz >= p.num_group || gy >= dst_seqlen)
-    return;
+        return;
 
     const int maxw = d > dv ? d : dv;
     if (gx >= maxw)
-    return;
+        return;
 
     const bool from_past = gy < p.past_seqlen;
     const int sy = from_past ? gy : (gy - p.past_seqlen);
