@@ -56,7 +56,7 @@ jobs:
           - { os: windows-2025,     arch: x86,        build: 'cp*',            build_id: cp           }
           - { os: windows-2025,     arch: AMD64,      build: 'cp*',            build_id: cp           }
           - { os: windows-2025,     arch: AMD64,      build: 'pp*',            build_id: pp           }
-          - { os: windows-2025,     arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-11-arm,   arch: ARM64,      build: 'cp*',            build_id: cp           }
           # - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
           # - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
           # - { os: macos-15-intel,   arch: arm64,      build: 'cp*',            build_id: cp           }
