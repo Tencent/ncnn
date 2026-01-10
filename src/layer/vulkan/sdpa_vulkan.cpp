@@ -82,33 +82,71 @@ static int sdpa_make_dispatcher(VkMat& dispatcher, int tiles_q, int heads)
     return 0;
 }
 
+// sdpa_vulkan.cpp
+
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     if (bottom_blobs.size() < 3 || top_blobs.empty())
         return -100;
 
+    // 0 query
+    // 1 cur_key
+    // 2 cur_value
+    // 3 mask (optional, if attn_mask=1)
+    // 3/4 past_key/value (optional, if kv_cache=1, and depends on attn_mask)
+
     const VkMat& query = bottom_blobs[0];
-    VkMat key = bottom_blobs[1];
-    VkMat value = bottom_blobs[2];
+    const VkMat& cur_key = bottom_blobs[1];
+    const VkMat& cur_value = bottom_blobs[2];
+
+    // Mask (only valid if attn_mask flag is set)
     VkMat mask;
-
-    // --- KV Cache Concat Path ---
-    if (bottom_blobs.size() >= 5 && top_blobs.size() >= 3)
+    if (attn_mask)
     {
-        const VkMat& past_key = bottom_blobs[1];
-        const VkMat& past_value = bottom_blobs[2];
-        const VkMat& cur_key = bottom_blobs[3];
-        const VkMat& cur_value = bottom_blobs[4];
-        mask = bottom_blobs.size() >= 6 ? bottom_blobs[5] : VkMat();
+        if ((int)bottom_blobs.size() < 4)
+            return -100;
+        mask = bottom_blobs[3];
+    }
 
-        const int d = query.w;
-        const int dv = cur_value.w;
-        const int past_seqlen = past_key.h;
-        const int cur_seqlen = cur_key.h;
-        const int num_group = cur_key.c;
+    // Past KV (only valid if kv_cache flag is set)
+    VkMat past_key;
+    VkMat past_value;
+    if (kv_cache)
+    {
+        const int pk_index = attn_mask ? 4 : 3;
+        const int pv_index = attn_mask ? 5 : 4;
 
-        VkMat& out_key = top_blobs[1];
-        VkMat& out_value = top_blobs[2];
+        if ((int)bottom_blobs.size() <= pv_index)
+            return -100;
+
+        past_key = bottom_blobs[pk_index];
+        past_value = bottom_blobs[pv_index];
+    }
+
+    VkMat key = cur_key;
+    VkMat value = cur_value;
+
+    // ---- KV cache concat path (only when kv_cache=1 and have non-empty past with seqlen>0) ----
+    const int d = query.w;
+    const int dv = cur_value.w;
+
+    if (d <= 0 || dv <= 0 || query.h <= 0 || query.c <= 0)
+        return -100;
+
+    // Only concat if past has actual length
+    const int past_seqlen = (kv_cache && !past_key.empty()) ? past_key.h : 0;
+    const int cur_seqlen = cur_key.h;
+
+    if (kv_cache && past_seqlen > 0)
+    {
+        const int num_group = cur_key.c; // expected groups for K/V
+
+        VkMat& out_key = top_blobs.size() >= 2 ? top_blobs[1] : *(VkMat*)0;
+        VkMat& out_value = top_blobs.size() >= 3 ? top_blobs[2] : *(VkMat*)0;
+
+        // kv_cache expects 3 outputs (top[0]=attn, top[1]=key_cache, top[2]=value_cache)
+        if ((int)top_blobs.size() < 3)
+            return -100;
 
         out_key.create(d, past_seqlen + cur_seqlen, num_group, cur_key.elemsize, 1, opt.blob_vkallocator);
         if (out_key.empty()) return -100;
@@ -149,19 +187,22 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         key = out_key;
         value = out_value;
     }
-    else
+    else if (kv_cache)
     {
-        mask = bottom_blobs.size() >= 4 ? bottom_blobs[3] : VkMat();
+        // kv_cache enabled but no past: CPU behavior is to output current as cache
+        if ((int)top_blobs.size() < 3)
+            return -100;
+
+        top_blobs[1] = cur_key;
+        top_blobs[2] = cur_value;
     }
 
-    // --- Main SDPA Path ---
-    const int d = query.w;
+    // ---- Main SDPA path ----
     const int src_seqlen = query.h;
     const int num_heads = query.c;
-    const int dv = value.w;
     const int dst_seqlen = key.h;
 
-    if (d <= 0 || dv <= 0 || src_seqlen <= 0 || dst_seqlen <= 0 || num_heads <= 0)
+    if (src_seqlen <= 0 || dst_seqlen <= 0 || num_heads <= 0)
         return -100;
 
     int num_heads_per_group = 1;
@@ -169,10 +210,10 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         num_heads_per_group = num_heads / key.c;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(dv, src_seqlen, num_heads, query.elemsize, 1, opt.blob_vkallocator);
+    top_blob.create(value.w, src_seqlen, num_heads, query.elemsize, 1, opt.blob_vkallocator);
     if (top_blob.empty()) return -100;
 
-    // Mask info
+    // Mask info (keep your existing logic)
     int mask_dims = 0;
     int mask_w = 0;
     int mask_c = 0;
@@ -194,14 +235,13 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     float final_scale = this->scale;
     if (final_scale == 0.f)
-    {
         final_scale = 1.0f / std::sqrt((float)d);
-    }
 
-    int qw = query.w;
-    int kw = key.w;
-    int vw = value.w;
-    int ow = top_blob.w;
+    // Strides (keep your existing usage)
+    const int qw = query.w;
+    const int kw = key.w;
+    const int vw = value.w;
+    const int ow = top_blob.w;
 
     std::vector<VkMat> bindings(5);
     bindings[0] = query;
@@ -212,7 +252,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     std::vector<vk_constant_type> constants(18);
     constants[0].i = d;
-    constants[1].i = dv;
+    constants[1].i = value.w; // dv
     constants[2].i = src_seqlen;
     constants[3].i = dst_seqlen;
     constants[4].i = num_heads_per_group;
@@ -235,6 +275,13 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     sdpa_make_dispatcher(dispatcher, tiles_q, num_heads);
 
     cmd.record_pipeline(pipeline_sdpa, bindings, constants, dispatcher);
+
+    // If we concatenated, make sure outputs[1/2] are set to the concatenated cache
+    if (kv_cache && past_seqlen > 0)
+    {
+        top_blobs[1] = key;
+        top_blobs[2] = value;
+    }
 
     return 0;
 }
