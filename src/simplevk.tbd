@@ -1,0 +1,16 @@
+--- !tapi-tbd
+tbd-version:     4
+targets:         [ x86_64-macos, arm64-macos, arm64e-macos,
+                   arm64-ios, arm64e-ios, x86_64-ios-simulator, arm64-ios-simulator,
+                   x86_64-maccatalyst, arm64-maccatalyst, arm64e-maccatalyst,
+                   arm64-tvos, x86_64-tvos-simulator, arm64-tvos-simulator,
+                   arm64-xros, arm64-xros-simulator ]
+install-name:    '@rpath/libvulkan.dylib'
+exports:
+  - targets:     [ x86_64-macos, arm64-macos, arm64e-macos,
+                   arm64-ios, arm64e-ios, x86_64-ios-simulator, arm64-ios-simulator,
+                   x86_64-maccatalyst, arm64-maccatalyst, arm64e-maccatalyst,
+                   arm64-tvos, x86_64-tvos-simulator, arm64-tvos-simulator,
+                   arm64-xros, arm64-xros-simulator ]
+    symbols:     [ _vkGetInstanceProcAddr ]
+...
