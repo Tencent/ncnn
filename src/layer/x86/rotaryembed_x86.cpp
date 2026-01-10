@@ -36,7 +36,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
     if (top_blob.empty())
         return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
         const Mat head = bottom_blob.channel(q);
@@ -57,11 +57,11 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
 #if __AVX512F__
                 {
                     const __m512 signmask512 = _mm512_castsi512_ps(_mm512_set_epi32(
-                        0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
-                        0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
+                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
 
                     const __m512i dupidx = _mm512_set_epi32(
-                        7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
+                                               7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
 
                     for (; j + 7 < embed_dim / 2; j += 8)
                     {
@@ -97,7 +97,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
 #if __AVX2__
                 {
                     const __m256 signmask256 = _mm256_castsi256_ps(_mm256_set_epi32(
-                        0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
 
                     const __m256i dupidx256 = _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0);
 
@@ -133,7 +133,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
 #elif __AVX__
                 {
                     const __m256 signmask256 = _mm256_castsi256_ps(_mm256_set_epi32(
-                        0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
 
                     for (; j + 3 < embed_dim / 2; j += 4)
                     {
@@ -173,7 +173,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
 
                 {
                     const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(
-                        0, (int)0x80000000, 0, (int)0x80000000));
+                                                   0, (int)0x80000000, 0, (int)0x80000000));
 
                     for (; j + 1 < embed_dim / 2; j += 2)
                     {
