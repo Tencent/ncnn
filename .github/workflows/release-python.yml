@@ -53,13 +53,13 @@ jobs:
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
-          - { os: windows-2022,     arch: x86,        build: 'cp*',            build_id: cp           }
-          - { os: windows-2022,     arch: AMD64,      build: 'cp*',            build_id: cp           }
-          - { os: windows-2022,     arch: AMD64,      build: 'pp*',            build_id: pp           }
-          - { os: windows-2022,     arch: ARM64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,         arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,         arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: macos-15-intel,         arch: arm64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2025,     arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2025,     arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2025,     arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-11-arm,   arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-15-intel,   arch: arm64,      build: 'cp*',            build_id: cp           }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
@@ -130,9 +130,9 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    # build wheels for windows-2022
+    # build wheels for windows
     - name: Build wheels for windows
-      if: matrix.os == 'windows-2022' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
+      if: matrix.os == 'windows-2025' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
       uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
@@ -146,7 +146,7 @@ jobs:
         output-dir: wheelhouse
 
     - name: Build wheels for windows ARM64
-      if: matrix.os == 'windows-2022' && matrix.arch == 'ARM64'
+      if: matrix.os == 'windows-11-arm' && matrix.arch == 'ARM64'
       uses: pypa/cibuildwheel@v3.3.1
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
@@ -220,9 +220,9 @@ jobs:
     - name: vulkansdk for macos
       if: matrix.os == 'macos-15-intel'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.3.290.0/mac/vulkansdk-macos-1.3.290.0.dmg?Human=true -O vulkansdk-macos-1.3.290.0.dmg
-        hdiutil attach vulkansdk-macos-1.3.290.0.dmg
-        sudo /Volumes/vulkansdk-macos-1.3.290.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0 --accept-licenses --default-answer --confirm-command install
+        wget https://sdk.lunarg.com/sdk/download/1.4.335.1/mac/vulkansdk-macos-1.4.335.1.zip?Human=true -O vulkansdk-macos-1.4.335.1.zip
+        unzip vulkansdk-macos-1.4.335.1.zip
+        sudo vulkansdk-macOS-1.4.335.1.app/Contents/MacOS/vulkansdk-macOS-1.4.335.1 --root $GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1 --accept-licenses --default-answer --confirm-command install
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-15-intel' && matrix.arch == 'x86_64'
@@ -238,7 +238,7 @@ jobs:
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
           OpenMP_libomp_LIBRARY="libomp.a"
-          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0/macOS/lib/libMoltenVK.dylib
+          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1/macOS/lib/libMoltenVK.dylib
           MACOSX_DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET
       with:
         output-dir: wheelhouse
@@ -257,7 +257,7 @@ jobs:
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
           OpenMP_libomp_LIBRARY="libomp.a"
-          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.290.0/macOS/lib/libMoltenVK.dylib
+          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.4.335.1/macOS/lib/libMoltenVK.dylib
           MACOSX_DEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET
       with:
         output-dir: wheelhouse
@@ -276,11 +276,60 @@ jobs:
         name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
 
+  build_wheels_qemu_cp:
+    name: ${{ matrix.arch }} ${{ matrix.build_cp }} ${{ matrix.build_sub }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [riscv64]
+        build_cp: [cp38, cp39, cp310, cp311, cp312, cp313]
+        build_sub: [manylinux, musllinux]
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Build wheels with qemu
+      uses: pypa/cibuildwheel@v3.3.1
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4 EXTRA_CMAKE_ARGS="-DNCNN_XTHEADVECTOR=OFF"
+      with:
+        output-dir: wheelhouse
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v6
+      with:
+        name: wheels_qemu_cp-${{ matrix.arch }}-${{ matrix.build_cp }}-${{ matrix.build_sub }}
+        path: wheelhouse/*.whl
+
   upload_all:
     permissions:
       contents: none
     name: Upload
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_wheels_qemu_cp, build_sdist]
     runs-on: ubuntu-latest
 
     steps:

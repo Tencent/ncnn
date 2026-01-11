@@ -38,6 +38,7 @@ OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
 ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
 ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+EXTRA_CMAKE_ARGS = os.getenv("EXTRA_CMAKE_ARGS", "").split()
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -128,6 +129,8 @@ class CMakeBuild(build_ext):
             cmake_args.append("-DENABLE_ARC=" + ENABLE_ARC)
         if ENABLE_VISIBILITY != "":
             cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
+
+        cmake_args += EXTRA_CMAKE_ARGS
 
         build_args = []
 
