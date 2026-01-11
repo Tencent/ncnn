@@ -36,9 +36,6 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (psc(dims) != 3)
-        return;
-
     const int embed_dim = psc(w);
     const int halfdim = embed_dim / 2;
 

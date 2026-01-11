@@ -14,21 +14,13 @@ RotaryEmbed_vulkan::RotaryEmbed_vulkan()
 
     support_vulkan = true;
     support_vulkan_packing = true;
-    support_vulkan_any_packing = true;
 
     pipeline_rotaryembed = 0;
     pipeline_rotaryembed_pack4 = 0;
 }
 
-int RotaryEmbed_vulkan::load_param(const ParamDict& pd)
+int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
 {
-    return RotaryEmbed::load_param(pd);
-}
-
-int RotaryEmbed_vulkan::create_pipeline(const Option& _opt)
-{
-    Option opt = _opt;
-
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& cos_shape = bottom_shapes.size() > 1 ? bottom_shapes[1] : Mat();
 
@@ -104,16 +96,12 @@ int RotaryEmbed_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& bottom_blob0 = bottom_blobs[0];
+    const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& cos_cache0 = bottom_blobs[1];
     const VkMat& sin_cache0 = bottom_blobs[2];
 
-    if (bottom_blob0.dims != 3)
-        return -100;
-
-    VkMat bottom_blob = bottom_blob0;
-    if (bottom_blob.elempack != 1 && bottom_blob.elempack != 4)
-        vkdev->convert_packing(bottom_blob0, bottom_blob, 1, cmd, opt);
+    if (bottom_blob.dims != 3)
+        return -1;
 
     VkMat cos_cache = cos_cache0;
     if (cos_cache.elempack != 1)
@@ -124,7 +112,7 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
         vkdev->convert_packing(sin_cache0, sin_cache, 1, cmd, opt);
 
     if (cos_cache.dims != 2 || sin_cache.dims != 2)
-        return -100;
+        return -1;
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
@@ -132,19 +120,19 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     const int elempack = bottom_blob.elempack;
 
     if (embed_dim % 2 != 0)
-        return -100;
+        return -1;
 
     const int halfdim = embed_dim / 2;
 
     if (cos_cache.w < halfdim || sin_cache.w < halfdim)
-        return -100;
+        return -1;
     if (cos_cache.h < seqlen || sin_cache.h < seqlen)
-        return -100;
+        return -1;
 
     VkMat& top_blob = top_blobs[0];
     top_blob.create(embed_dim, seqlen, heads_packed, bottom_blob.elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
-        return -100;
+        return -1;
 
     const Pipeline* pipeline = 0;
     if (elempack == 4)
@@ -153,7 +141,7 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
         pipeline = pipeline_rotaryembed;
 
     if (!pipeline)
-        return -100;
+        return -1;
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
