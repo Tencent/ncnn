@@ -27,10 +27,8 @@
 #endif
 
 #if __APPLE__
-
-// always use static vulkan linkage on apple platform
-extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName);
-
+// static vulkan linkage on apple platform as fallback
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName) __attribute__((weak_import));
 #endif
 
 namespace ncnn {
@@ -43,28 +41,78 @@ PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionPropertie
 PFN_vkCreateInstance vkCreateInstance = 0;
 PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = 0;
 
-#if __APPLE__
-
-int load_vulkan_driver(const char* /*driver_path*/)
+static std::string get_driver_path_from_icd(const char* icd_path)
 {
-    unload_vulkan_driver();
+    FILE* fp = fopen(icd_path, "rb");
+    if (!fp)
+        return std::string();
 
-    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
-    vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
-    vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
-    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
-    return 0;
+    std::string driver_path;
+
+    char line[256];
+    while (!feof(fp))
+    {
+        char* s = fgets(line, 256, fp);
+        if (!s)
+            break;
+
+        // "library_path": "path to driver library",
+        char path[256];
+        int nscan = sscanf(line, " \"library_path\" : \"%255[^\"]\"", path);
+        if (nscan == 1)
+        {
+            if (path[0] == '.' || (path[0] != '/' && !strchr(path, ':') && (strchr(path, '/') || strchr(path, '\\'))))
+            {
+                // relative to the icd file path
+                std::string icd_dir = icd_path;
+                size_t dirpos = icd_dir.find_last_of("/\\");
+                if (dirpos != std::string::npos)
+                {
+                    icd_dir = icd_dir.substr(0, dirpos + 1);
+                }
+                else
+                {
+                    icd_dir = "./";
+                }
+
+                driver_path = icd_dir + path;
+            }
+            else
+            {
+                // filename or absolute path
+                driver_path = path;
+            }
+
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return driver_path;
 }
 
-void unload_vulkan_driver()
+static std::string get_driver_path_from_icd_env()
 {
-    vkGetInstanceProcAddr = 0;
-    vkEnumerateInstanceExtensionProperties = 0;
-    vkCreateInstance = 0;
-    vkEnumerateInstanceLayerProperties = 0;
+    const char* icd_path = getenv("VK_ICD_FILENAMES");
+    if (!icd_path)
+    {
+        icd_path = getenv("VK_DRIVER_FILES");
+        if (!icd_path)
+            return std::string();
+    }
+
+    return get_driver_path_from_icd(icd_path);
 }
 
-#else // __APPLE__
+static std::string get_driver_path_from_ncnn_env()
+{
+    const char* driver_path = getenv("NCNN_VULKAN_DRIVER");
+    if (!driver_path)
+        return std::string();
+
+    return std::string(driver_path);
+}
 
 #if defined _WIN32
 static HMODULE g_libvulkan = 0;
@@ -133,75 +181,6 @@ struct hwvulkan_device_t : public hw_device_t
 static hwvulkan_device_t* g_hvkdi = 0;
 #endif
 #endif
-
-static std::string get_driver_path_from_icd(const char* icd_path)
-{
-    FILE* fp = fopen(icd_path, "rb");
-    if (!fp)
-        return std::string();
-
-    std::string driver_path;
-
-    char line[256];
-    while (!feof(fp))
-    {
-        char* s = fgets(line, 256, fp);
-        if (!s)
-            break;
-
-        // "library_path": "path to driver library",
-        char path[256];
-        int nscan = sscanf(line, " \"library_path\" : \"%255[^\"]\"", path);
-        if (nscan == 1)
-        {
-            if (path[0] == '.' || (path[0] != '/' && !strchr(path, ':') && (strchr(path, '/') || strchr(path, '\\'))))
-            {
-                // relative to the icd file path
-                std::string icd_dir = icd_path;
-                size_t dirpos = icd_dir.find_last_of("/\\");
-                if (dirpos != std::string::npos)
-                {
-                    icd_dir = icd_dir.substr(0, dirpos + 1);
-                }
-                else
-                {
-                    icd_dir = "./";
-                }
-
-                driver_path = icd_dir + path;
-            }
-            else
-            {
-                // filename or absolute path
-                driver_path = path;
-            }
-
-            break;
-        }
-    }
-
-    fclose(fp);
-
-    return driver_path;
-}
-
-static std::string get_driver_path_from_icd_env()
-{
-    const char* icd_path = getenv("VK_ICD_FILENAMES");
-    if (!icd_path)
-        return std::string();
-
-    return get_driver_path_from_icd(icd_path);
-}
-
-static std::string get_driver_path_from_ncnn_env()
-{
-    const char* driver_path = getenv("NCNN_VULKAN_DRIVER");
-    if (!driver_path)
-        return std::string();
-
-    return std::string(driver_path);
-}
 
 #if defined _WIN32
 static std::string search_file(const std::string& dirpath, const std::string& needle)
@@ -305,12 +284,14 @@ static int load_vulkan_linux(const char* driver_path)
 #endif
 
     void* libvulkan = dlopen(libpath, RTLD_LOCAL | RTLD_NOW);
-#if !__APPLE__
     if (!libvulkan)
     {
+#if __APPLE__
+        libvulkan = dlopen("libvulkan.1.dylib", RTLD_LOCAL | RTLD_NOW);
+#else
         libvulkan = dlopen("libvulkan.so.1", RTLD_LOCAL | RTLD_NOW);
-    }
 #endif
+    }
     if (!libvulkan)
     {
         NCNN_LOGE("dlopen failed %s", dlerror());
@@ -355,6 +336,23 @@ static int load_vulkan_linux(const char* driver_path)
     vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
     return 0;
 }
+
+#if __APPLE__
+static int load_vulkan_apple_moltenvk()
+{
+    if (::vkGetInstanceProcAddr == NULL)
+    {
+        NCNN_LOGE("no static linked moltenvk");
+        return -1;
+    }
+
+    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
+    vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
+    return 0;
+}
+#endif // __APPLE__
 
 #if defined __ANDROID__
 static int load_vulkan_android(const char* driver_path)
@@ -539,6 +537,11 @@ int load_vulkan_driver(const char* driver_path)
             "/vendor/lib/egl/libGLES_mali.so"
 #endif
         };
+#elif __APPLE__
+        const char* well_known_path[] = {
+            "libMoltenVK.dylib",
+            "libvulkan_kosmickrisp.dylib"
+        };
 #else
         const char* well_known_path[] = {
             "libGLX_nvidia.so.0",
@@ -569,6 +572,13 @@ int load_vulkan_driver(const char* driver_path)
                 break;
         }
     }
+#if __APPLE__
+    if (ret != 0)
+    {
+        // sixth try, load from static linked moltenvk
+        ret = load_vulkan_apple_moltenvk();
+    }
+#endif // __APPLE__
 
     return ret;
 }
@@ -605,8 +615,6 @@ void unload_vulkan_driver()
     }
 #endif // _WIN32
 }
-
-#endif // __APPLE__
 
 } // namespace ncnn
 
