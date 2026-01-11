@@ -77,6 +77,7 @@ for 64bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepos
 - nvoglv64.dll
 - amdvlk64.dll
 - igvk64.dll
+- qcvkarm64xum.dll
 
 for 32bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepository```
 - nvoglv32.dll
