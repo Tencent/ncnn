@@ -140,9 +140,6 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     else
         pipeline = pipeline_rotaryembed;
 
-    if (!pipeline)
-        return -1;
-
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
     bindings[1] = cos_cache;
