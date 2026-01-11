@@ -63,9 +63,12 @@ jobs:
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
         -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VULKAN=ON \
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        submodules: true
 
     - name: cache-openmp
       id: cache-openmp
