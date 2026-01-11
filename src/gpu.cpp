@@ -1011,6 +1011,44 @@ void GpuInfoPrivate::query_extension_features()
         // fp16 arithmetic yields wrong result on old adreno drivers :(
         queryFloat16Int8Features.shaderFloat16 = VK_FALSE;
     }
+
+    if (physicalDeviceProperties.vendorID == 0x1002)
+    {
+        // emulated cooperative matrix on amd rdna2 is slow
+        switch (physicalDeviceProperties.deviceID)
+        {
+        case 0x73a1: // V620
+        case 0x73a2: // W6900X
+        case 0x73a3: // W6800
+        case 0x73a4: // NAVI21-USB
+        case 0x73a5: // 6950XT
+        case 0x73ab: // W6800X/W6800X-DUO
+        case 0x73ae: // V620-MX
+        case 0x73af: // 6900XT
+        case 0x73bf: // 6800/6800XT/6900XT
+        case 0x73c3: // NAVI22-?
+        case 0x73c4: // NAVI22-USB
+        case 0x73df: // 6700/6700XT/6750XT/6750GRE-12G/6800M/6850MXT
+        case 0x73e0: // NAVI23-?
+        case 0x73e1: // W6600M
+        case 0x73e3: // W6600
+        case 0x73e4: // NAVI23-USB
+        case 0x73ef: // 6650XT/6700S/6800S
+        case 0x73ff: // 6600/6600XT/6750GRE-10G/6600M
+        case 0x7421: // W6500M
+        case 0x7422: // W6400
+        case 0x7423: // W6300/W6300M
+        case 0x7424: // 6300
+        case 0x743f: // 6400/6500XT/6500M
+        {
+            queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+            queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
+            break;
+        }
+        default:
+            break;
+        }
+    }
 }
 
 static int get_vendor_default_subgroup_size(uint32_t vendorID)
