@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef PNNX_IR_H
 #define PNNX_IR_H
@@ -34,6 +23,9 @@ struct Node;
 namespace at {
 class Tensor;
 }
+namespace pnnx {
+class TorchTensorProxy;
+} // namespace pnnx
 #endif // BUILD_TORCH2PNNX
 
 #if BUILD_ONNX2PNNX
@@ -70,14 +62,18 @@ public:
         : type(2)
     {
         if (_l == std::numeric_limits<long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long>::max() - 1) _l = INT_MAX - 1;
         if (_l == std::numeric_limits<long>::min()) _l = INT_MIN;
+        if (_l == std::numeric_limits<long>::min() + 1) _l = INT_MIN + 1;
         i = (int)_l;
     }
     Parameter(long long _l)
         : type(2)
     {
         if (_l == std::numeric_limits<long long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long long>::max() - 1) _l = INT_MAX - 1;
         if (_l == std::numeric_limits<long long>::min()) _l = INT_MIN;
+        if (_l == std::numeric_limits<long long>::min() + 1) _l = INT_MIN + 1;
         i = (int)_l;
     }
     Parameter(float _f)
@@ -107,7 +103,9 @@ public:
         {
             int64_t _l = x;
             if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::max() - 1) _l = INT_MAX - 1;
             if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            if (_l == std::numeric_limits<int64_t>::min() + 1) _l = INT_MIN + 1;
             ai.push_back((int)_l);
         }
     }
@@ -122,7 +120,9 @@ public:
         {
             int64_t _l = x;
             if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::max() - 1) _l = INT_MAX - 1;
             if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            if (_l == std::numeric_limits<int64_t>::min() + 1) _l = INT_MIN + 1;
             ai.push_back((int)_l);
         }
     }
@@ -230,9 +230,10 @@ public:
 
 #if BUILD_TORCH2PNNX
     Attribute(const at::Tensor& t);
+    Attribute(const TorchTensorProxy& t);
 #endif
 #if BUILD_ONNX2PNNX
-    Attribute(const onnx::TensorProto& t);
+    Attribute(const onnx::TensorProto& t, const std::vector<unsigned char>& external_data);
 #endif
 #if BUILD_TNN2PNNX
     Attribute(FILE* bp);
@@ -323,7 +324,7 @@ public:
     int load(const std::string& parampath, const std::string& binpath);
     int save(const std::string& parampath, const std::string& binpath);
 
-    int python(const std::string& pypath, const std::string& binpath);
+    int python(const std::string& pypath, const std::string& binpath, const std::vector<std::vector<int64_t> >& input_shapes);
 
     int parse(const std::string& param);
 

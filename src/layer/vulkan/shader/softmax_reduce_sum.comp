@@ -1,45 +1,29 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-layout (constant_id = 0) const int axis = 0;
+layout(constant_id = 0) const int axis = 0;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
-layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_top_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D sum_workspace_3d;
-#else
-layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sum_workspace { sfp sum_workspace_data[]; };
-#endif
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer sum_workspace { sfp sum_workspace_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -72,18 +56,10 @@ void main()
     {
         for (int i = 0; i < psc(w); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, 0, 0));
-#else
             afp v = buffer_ld1(bottom_top_blob_data, i);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(0, 0, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, 0, sum_value);
-#endif
         return;
     }
 
@@ -91,19 +67,11 @@ void main()
     {
         for (int i = 0; i < psc(h); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, i, 0));
-#else
             int v_offset = i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, 0, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, gx, sum_value);
-#endif
         return;
     }
 
@@ -111,19 +79,11 @@ void main()
     {
         for (int i = 0; i < psc(w); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, gx, 0));
-#else
             int v_offset = gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, 0, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, gx, sum_value);
-#endif
         return;
     }
 
@@ -131,19 +91,11 @@ void main()
     {
         for (int i = 0; i < psc(c); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, gy, i));
-#else
             int v_offset = i * psc(cstep) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
-#endif
         return;
     }
 
@@ -151,19 +103,11 @@ void main()
     {
         for (int i = 0; i < psc(h); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, i, gy));
-#else
             int v_offset = gy * psc(cstep) + i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
-#endif
         return;
     }
 
@@ -171,19 +115,11 @@ void main()
     {
         for (int i = 0; i < psc(w); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, gx, gy));
-#else
             int v_offset = gy * psc(cstep) + gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
-#else
         buffer_st1(sum_workspace_data, gy * psc(h) + gx, sum_value);
-#endif
         return;
     }
 
@@ -191,19 +127,11 @@ void main()
     {
         for (int i = 0; i < psc(c); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, gz * psc(h) + gy, i));
-#else
             int v_offset = i * psc(cstep) + gz * psc(h) * psc(w) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, gz), sum_value);
-#else
         buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
-#endif
         return;
     }
 
@@ -211,19 +139,11 @@ void main()
     {
         for (int i = 0; i < psc(d); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, i * psc(h) + gy, gz));
-#else
             int v_offset = gz * psc(cstep) + i * psc(h) * psc(w) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, gz), sum_value);
-#else
         buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
-#endif
         return;
     }
 
@@ -231,19 +151,11 @@ void main()
     {
         for (int i = 0; i < psc(h); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, gy * psc(h) + i, gz));
-#else
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, gz), sum_value);
-#else
         buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
-#endif
         return;
     }
 
@@ -251,19 +163,11 @@ void main()
     {
         for (int i = 0; i < psc(w); i++)
         {
-#if NCNN_image_shader
-            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, gy * psc(h) + gx, gz));
-#else
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-#endif
             sum_value += v;
         }
-#if NCNN_image_shader
-        image3d_st1(sum_workspace_3d, ivec3(gx, gy, gz), sum_value);
-#else
         buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(h) + gx, sum_value);
-#endif
         return;
     }
 }

@@ -11,6 +11,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
 concurrency:
   group: windows-arm-${{ github.ref }}
   cancel-in-progress: true
@@ -31,42 +33,46 @@ permissions:
 jobs:
   windows:
     name: ${{ matrix.vs-version }}
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     strategy:
       matrix:
         include:
           - vs-version: vs2019
             toolset-version: v142
-            os: windows-2022
+            windows-sdk-version: 22621
 
           - vs-version: vs2022
             toolset-version: v143
-            os: windows-2022
+            windows-sdk-version: 26100
 
     env:
       UseMultiToolTask: true
       NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
+    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+      with:
+        sdk-version: ${{ matrix.windows-sdk-version }}
     - name: arm64
       run: |
         mkdir build-arm64; cd build-arm64
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64,version=10.0.${{ matrix.windows-sdk-version }}.0 ${{ env.NCNN_CMAKE_OPTIONS }} ..
         cmake --build . --config Release -j 4
     - name: arm64-shared
       run: |
         mkdir build-arm64-shared; cd build-arm64-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64,version=10.0.${{ matrix.windows-sdk-version }}.0 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 4
+
   woa-linux:
     name: woa-linux
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: msvc-wine
       env:
         WINEPREFIX: /tmp/wine-x64-prefix/
@@ -99,7 +105,7 @@ jobs:
       UseMultiToolTask: true
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: build

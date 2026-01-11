@@ -1,17 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- */
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -205,6 +193,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_sgemm_convolution", &Option::use_sgemm_convolution)
     .def_readwrite("use_int8_inference", &Option::use_int8_inference)
     .def_readwrite("use_vulkan_compute", &Option::use_vulkan_compute)
+    .def_readwrite("use_bf16_packed", &Option::use_bf16_packed)
     .def_readwrite("use_bf16_storage", &Option::use_bf16_storage)
     .def_readwrite("use_fp16_packed", &Option::use_fp16_packed)
     .def_readwrite("use_fp16_storage", &Option::use_fp16_storage)
@@ -213,9 +202,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_int8_storage", &Option::use_int8_storage)
     .def_readwrite("use_int8_arithmetic", &Option::use_int8_arithmetic)
     .def_readwrite("use_packing_layout", &Option::use_packing_layout)
-    .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
     .def_readwrite("use_subgroup_ops", &Option::use_subgroup_ops)
-    .def_readwrite("use_image_storage", &Option::use_image_storage)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
@@ -334,7 +321,7 @@ PYBIND11_MODULE(ncnn, m)
         }
         return Mat();
     },
-    py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
@@ -853,7 +840,6 @@ PYBIND11_MODULE(ncnn, m)
     })
     .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
-    .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING
@@ -889,7 +875,9 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_packing", &Layer::support_packing)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
-    .def_readwrite("support_image_storage", &Layer::support_image_storage)
+    .def_readwrite("support_vulkan_packing", &Layer::support_vulkan_packing)
+    .def_readwrite("support_any_packing", &Layer::support_any_packing)
+    .def_readwrite("support_vulkan_any_packing", &Layer::support_vulkan_any_packing)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
@@ -962,11 +950,32 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_STDIO
 #if NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param", [](Net& self, const std::wstring& path) {
+        return self.load_param(path.c_str());
+    },
+    py::arg("protopath"))
+#else
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+#endif
     .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
+#if _WIN32
+    .def(
+    "load_param_bin", [](Net& self, const std::wstring& path) {
+        return self.load_param_bin(path.c_str());
+    },
+    py::arg("protopath"))
+    .def(
+    "load_model", [](Net& self, const std::wstring& path) {
+        return self.load_model(path.c_str());
+    },
+    py::arg("modelpath"))
+#else
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))
+#endif
     .def(
     "load_model_mem", [](Net& net, const char* mem) {
         const unsigned char* _mem = (const unsigned char*)mem;

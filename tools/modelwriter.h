@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
@@ -103,13 +92,16 @@
 #include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
+#include "layer/rotaryembed.h"
 #include "layer/scale.h"
+#include "layer/sdpa.h"
 #include "layer/shufflechannel.h"
 #include "layer/slice.h"
 #include "layer/softmax.h"
 #include "layer/split.h"
 #include "layer/squeeze.h"
 #include "layer/threshold.h"
+#include "layer/tile.h"
 #include "layer/unaryop.h"
 #include "layer/unfold.h"
 #include "layer/yolodetectionoutput.h"
@@ -909,7 +901,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 {
                     fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
                     fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    if (op->int8_scale_term > 100)
+                    {
+                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    }
                 }
 #endif // NCNN_INT8
             }
@@ -1082,7 +1077,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 {
                     fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
                     fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
-                    fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    if (op->int8_scale_term > 100)
+                    {
+                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                    }
                 }
 #endif // NCNN_INT8
             }
@@ -1123,7 +1121,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
-                fwrite_weight_data(op->bias_data, bp);
+                if (op->bias_term)
+                {
+                    fwrite_weight_data(op->bias_data, bp);
+                }
             }
 
             if (shape_ready)
@@ -1689,7 +1690,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            if (op->bias_term)
+            {
+                fwrite_weight_data(op->bias_data, bp);
+            }
 
 #if NCNN_INT8
             // write int8_scale data
@@ -1715,10 +1719,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::ExpandDims* op = (ncnn::ExpandDims*)layer;
             ncnn::ExpandDims* op_default = (ncnn::ExpandDims*)layer_default;
 
-            fprintf_param_value(" 0=%d", expand_w)
-            fprintf_param_value(" 1=%d", expand_h)
-            fprintf_param_value(" 11=%d", expand_d)
-            fprintf_param_value(" 2=%d", expand_c)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
@@ -2415,6 +2415,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", pooled_height)
             fprintf_param_value(" 2=%e", spatial_scale)
         }
+        else if (layer->type == "RotaryEmbed")
+        {
+            ncnn::RotaryEmbed* op = (ncnn::RotaryEmbed*)layer;
+            ncnn::RotaryEmbed* op_default = (ncnn::RotaryEmbed*)layer_default;
+
+            fprintf_param_value(" 0=%d", interleaved)
+        }
         else if (layer->type == "Scale")
         {
             ncnn::Scale* op = (ncnn::Scale*)layer;
@@ -2425,6 +2432,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fwrite_weight_data(op->scale_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+        }
+        else if (layer->type == "SDPA")
+        {
+            ncnn::SDPA* op = (ncnn::SDPA*)layer;
+            ncnn::SDPA* op_default = (ncnn::SDPA*)layer_default;
+
+            fprintf_param_value(" 5=%d", attn_mask)
+            fprintf_param_value(" 6=%e", scale)
+            fprintf_param_value(" 7=%d", kv_cache)
+            fprintf_param_value(" 18=%d", int8_scale_term)
         }
         else if (layer->type == "ShuffleChannel")
         {
@@ -2477,6 +2494,17 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::Threshold* op_default = (ncnn::Threshold*)layer_default;
 
             fprintf_param_value(" 0=%e", threshold)
+        }
+        else if (layer->type == "Tile")
+        {
+            ncnn::Tile* op = (ncnn::Tile*)layer;
+            ncnn::Tile* op_default = (ncnn::Tile*)layer_default;
+
+            fprintf_param_value(" 0=%d", axis)
+            fprintf_param_value(" 1=%d", tiles)
+            {
+                if (!op->repeats.empty()) fprintf_param_int_array(2, op->repeats, pp);
+            }
         }
         else if (layer->type == "UnaryOp")
         {

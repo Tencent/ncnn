@@ -1,47 +1,30 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-layout (constant_id = 0) const int type = 1;
-layout (constant_id = 1) const float value = 0;
-layout (constant_id = 2) const int per_channel_pad = 0;
+layout(constant_id = 0) const int type = 1;
+layout(constant_id = 1) const float value = 0;
+layout(constant_id = 2) const int per_channel_pad = 0;
 
 #define shape_constant_id_offset 3
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler3D per_channel_pad_blob;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 2) readonly buffer per_channel_pad_blob { sfp per_channel_pad_blob_data[]; };
-#endif
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) readonly buffer per_channel_pad_blob { sfp per_channel_pad_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -77,31 +60,19 @@ void main()
         {
             if (x >= 0 && x < psc(w))
             {
-#if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
-#else
                 buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
-#endif
             }
             else
             {
                 afp v = afp(value);
-#if NCNN_image_shader
-                image3d_st1(top_blob, ivec3(gx, 0, 0), v);
-#else
                 buffer_st1(top_blob_data, gx, v);
-#endif
             }
         }
         if (type == 1)
         {
             x = clamp(x, 0, psc(w) - 1);
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
-#else
             buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
-#endif
         }
         if (type == 2)
         {
@@ -109,13 +80,9 @@ void main()
             // NOTE psc(X) get zeros on nvidia
             // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
-//             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
-#else
             buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
-#endif
         }
     }
     else if (psc(dims) == 2)
@@ -129,21 +96,13 @@ void main()
         {
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
             {
-#if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
-#else
                 int v_offset = y * psc(w) + x;
                 buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
             }
             else
             {
                 afp v = afp(value);
-#if NCNN_image_shader
-                image3d_st1(top_blob, ivec3(gx, gy, 0), v);
-#else
                 buffer_st1(top_blob_data, gi, v);
-#endif
             }
         }
         if (type == 1)
@@ -151,12 +110,8 @@ void main()
             x = clamp(x, 0, psc(w) - 1);
             y = clamp(y, 0, psc(h) - 1);
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
-#else
             int v_offset = y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
         }
         if (type == 2)
         {
@@ -166,15 +121,11 @@ void main()
             // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
             y = (p.h - 1) - abs(y - (p.h - 1));
-//             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-//             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+            //             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
-#else
             int v_offset = y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
         }
     }
     else // if (psc(dims) == 3)
@@ -189,29 +140,17 @@ void main()
         {
             if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c))
             {
-#if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
                 int v_offset = z * psc(cstep) + y * psc(w) + x;
                 buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
             }
             else if (per_channel_pad == 1)
             {
-#if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, gy, gz), per_channel_pad_blob, ivec3(gz, 0, 0));
-#else
                 buffer_cp1(top_blob_data, gi, per_channel_pad_blob_data, gz);
-#endif
             }
             else
             {
                 afp v = afp(value);
-#if NCNN_image_shader
-                image3d_st1(top_blob, ivec3(gx, gy, gz), v);
-#else
                 buffer_st1(top_blob_data, gi, v);
-#endif
             }
         }
         if (type == 1)
@@ -220,12 +159,8 @@ void main()
             y = clamp(y, 0, psc(h) - 1);
             z = clamp(z, 0, psc(c) - 1);
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
             int v_offset = z * psc(cstep) + y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
         }
         if (type == 2)
         {
@@ -237,16 +172,12 @@ void main()
             x = (p.w - 1) - abs(x - (p.w - 1));
             y = (p.h - 1) - abs(y - (p.h - 1));
             z = (p.c - 1) - abs(z - (p.c - 1));
-//             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-//             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
-//             z = (psc(c) - 1) - abs(z - (psc(c) - 1));
+            //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+            //             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+            //             z = (psc(c) - 1) - abs(z - (psc(c) - 1));
 
-#if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
-#else
             int v_offset = z * psc(cstep) + y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
-#endif
         }
     }
 }

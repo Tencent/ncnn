@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm.h"
 
@@ -147,10 +136,10 @@ static void gemm_transB(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
-        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+        const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
-        const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
-        const int BT_hstep = BT.dims == 3 ? (int)BT.cstep : BT.w;
+        const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+        const size_t BT_hstep = BT.dims == 3 ? BT.cstep : (size_t)BT.w;
 
         const float* ptrA = (const float*)A + i * A_hstep;
         const float* ptrC = C;
@@ -223,7 +212,7 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
-        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+        const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
         const signed char* ptrA = A_int8.row<const signed char>(i);
         const float* ptrC = C;
@@ -316,8 +305,10 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         // transpose A to row-major
         A.create((A0.dims == 3 ? A0.c : A0.h), A0.w, elemsize, opt.workspace_allocator);
+        if (A.empty())
+            return -100;
 
-        const int A0_hstep = A0.dims == 3 ? (int)A0.cstep : A0.w;
+        const size_t A0_hstep = A0.dims == 3 ? A0.cstep : (size_t)A0.w;
 
         for (int i = 0; i < A.h; i++)
         {
@@ -334,8 +325,10 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         // transpose B to col-major
         BT.create((B0.dims == 3 ? B0.c : B0.h), B0.w, elemsize, opt.workspace_allocator);
+        if (BT.empty())
+            return -100;
 
-        const int B0_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+        const size_t B0_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
 
         for (int i = 0; i < BT.h; i++)
         {
@@ -452,6 +445,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         if (A0.elemsize == 1)
         {
             A.create(A0.h, A0.w, (size_t)1u, 1, opt.workspace_allocator);
+            if (A.empty())
+                return -100;
 
             for (int i = 0; i < A.h; i++)
             {
@@ -465,6 +460,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         else
         {
             A.create(A0.dims == 3 ? A0.c : A0.h, A0.w, (size_t)4u, 1, opt.workspace_allocator);
+            if (A.empty())
+                return -100;
 
             for (int i = 0; i < A.h; i++)
             {
@@ -483,11 +480,15 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (A_int8.elemsize != 1)
     {
         A_int8.create(A.w, A.dims == 3 ? A.c : A.h, (size_t)1u, 1, opt.workspace_allocator);
+        if (A_int8.empty())
+            return -100;
         A_int8_scales.create(A_int8.h, (size_t)4u, 1, opt.workspace_allocator);
+        if (A_int8_scales.empty())
+            return -100;
 
         for (int i = 0; i < A_int8.h; i++)
         {
-            const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+            const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
             const float* ptr = (const float*)A + i * A_hstep;
 
             float absmax = 0.f;
@@ -514,11 +515,13 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (B0_int8.elemsize != 1)
     {
         B0_int8.create(B0.w, B0.dims == 3 ? B0.c : B0.h, (size_t)1u, 1, opt.workspace_allocator);
+        if (B0_int8.empty())
+            return -100;
 
         float absmax = 0.f;
         for (int i = 0; i < B0_int8.h; i++)
         {
-            const int B_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+            const size_t B_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
             const float* ptr = (const float*)B0 + i * B_hstep;
 
             for (int k = 0; k < B0_int8.w; k++)
@@ -531,7 +534,7 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
         for (int i = 0; i < B0_int8.h; i++)
         {
-            const int B_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
+            const size_t B_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
             const float* ptr = (const float*)B0 + i * B_hstep;
 
             signed char* ptrBi = B0_int8.row<signed char>(i);
@@ -548,6 +551,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     {
         // transpose B to col-major
         BT_int8.create(B0_int8.h, B0_int8.w, (size_t)1u, 1, opt.workspace_allocator);
+        if (BT_int8.empty())
+            return -100;
 
         for (int i = 0; i < BT_int8.h; i++)
         {

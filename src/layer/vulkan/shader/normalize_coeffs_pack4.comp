@@ -1,33 +1,17 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-layout (constant_id = 0) const int across_spatial = 0;
-layout (constant_id = 1) const int across_channel = 0;
-layout (constant_id = 2) const float eps = 0.f;
-layout (constant_id = 3) const int eps_mode = 0;
+layout(constant_id = 0) const int across_spatial = 0;
+layout(constant_id = 1) const int across_channel = 0;
+layout(constant_id = 2) const float eps = 0.f;
+layout(constant_id = 3) const int eps_mode = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D sqsum_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D coeffs_blob;
-#else
-layout (binding = 0) readonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
-layout (binding = 1) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
-#endif
+layout(binding = 0) readonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
+layout(binding = 1) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -44,13 +28,9 @@ void main()
     if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
-#if NCNN_image_shader
-    vec4 sqsum_4 = texelFetch(sqsum_blob, ivec3(gx, gy, gz), 0);
-#else
     int v_offset = gz * p.cstep + gx;
 
     vec4 sqsum_4 = sqsum_blob_data[v_offset];
-#endif
 
     if (across_channel == 0)
     {
@@ -73,15 +53,9 @@ void main()
             a = afp(1.f) / sqrt(max(sqsum, afp(eps)));
         }
 
-#if NCNN_image_shader
-        int gi = gz * p.w * p.h + gy * p.w + gx;
-
-        image3d_st4(coeffs_blob, ivec3(gi, 0, 0), a);
-#else
         int gi = gz * p.w + gx;
 
         buffer_st4(coeffs_blob_data, gi, a);
-#endif
     }
 
     if (across_channel == 1)
@@ -105,14 +79,8 @@ void main()
             a = afp(1.f) / sqrt(max(sqsum, afp(eps)));
         }
 
-#if NCNN_image_shader
-        int gi = gz * p.w * p.h + gy * p.w + gx;
-
-        image3d_st4(coeffs_blob, ivec3(gi, 0, 0), afpvec4(a));
-#else
         int gi = gz * p.w + gx;
 
         buffer_st4(coeffs_blob_data, gi, afpvec4(a));
-#endif
     }
 }

@@ -76,13 +76,6 @@ NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, s
 static const char my_glsl_data[] = R"(
 #version 450
 
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
-#endif
-
 layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
 layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
 
@@ -137,12 +130,11 @@ int retc = compile_spirv_module(shader_type_index, opt, spirv);
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
-|存储类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|sfp|float|float|float16_t|
-|sfpvec2|vec2|uint|f16vec2|
-|sfpvec4|vec4|uvec2|f16vec4|
-|sfpvec8|mat2x4|uvec4|f16mat2x4|
+|存储类型|fp32|fp16p|fp16s|bf16p|bf16s|
+|---|---|---|---|---|---|
+|sfp|float|uint|float16_t|uint|bfloat16_t|
+|sfpvec2|vec2|uint|f16vec2|uint|bf16vec2|
+|sfpvec4|vec4|uvec2|f16vec4|uvec2|bf16vec4|
 
 ## 算术类型(arithmetic type)
 
@@ -160,7 +152,6 @@ void main()
 |afp|float|float16_t|
 |afpvec2|vec2|f16vec2|
 |afpvec4|vec4|f16vec4|
-|afpvec8|mat2x4|f16mat2x4|
 
 ## 本地类型(local type)
 
@@ -170,28 +161,10 @@ void main()
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|
-|---|---|---|---|---|
-|lfp|float|float|float|float16_t|
-|lfpvec4|vec4|uvec2|uint64_t|f16vec4|
-
-## 图像格式类型(image format type)和精度类型(precision hint type)
-
-在描述符绑定中声明图像格式
-
-```c
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-```
-
-|格式类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|imfmt1|r32f|f32f|r16f|
-|imfmt4|rgba32f|rgba16f|rgba16f|
-
-|精度类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|unfp|highp|mediump|mediump|
+|本地类型|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|bf16p|bf16s|
+|---|---|---|---|---|---|---|
+|lfp|float|float|float|float16_t|float|bfloat16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
 # 缓冲区函数(buffer functions)
 
@@ -201,7 +174,6 @@ layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 afp buffer_ld1(sfp src, int offset);
 afpvec2 buffer_ld2(sfpvec2 src, int offset);
 afpvec4 buffer_ld4(sfpvec4 src, int offset);
-afpvec8 buffer_ld8(sfpvec8 src, int offset);
 ```
 
 - 将已确定类型的值存储到 dst[偏移量]
@@ -210,7 +182,6 @@ afpvec8 buffer_ld8(sfpvec8 src, int offset);
 void buffer_st1(sfp dst, int offset, afp v);
 void buffer_st2(sfpvec2 dst, int offset, afpvec2 v);
 void buffer_st4(sfpvec4 dst, int offset, afpvec4 v);
-void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 ```
 
 - 从已确定类型 src[src_offset] 的值拷贝到 dst[dst_offset]
@@ -219,78 +190,27 @@ void buffer_st8(sfpvec8 dst, int offset, afpvec8 v);
 void buffer_cp1(sfp dst, int dst_offset, sfp src, int src_offset);
 void buffer_cp2(sfpvec2 dst, int dst_offset, sfpvec2 src, int src_offset);
 void buffer_cp4(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
-void buffer_cp8(sfpvec4 dst, int dst_offset, sfpvec4 src, int src_offset);
 ```
 
 - 从 src[src_offsets[0],src_offsets[1],...] 的值拷贝并打包到 dst[dst_offset]
 
 ```c
 void buffer_cp1to4(sfpvec4 dst, int dst_offset, sfp src, ivec4 src_offsets);
-void buffer_cp1to8(sfpvec8 dst, int dst_offset, sfp src, ivec4 src_offsets_0, ivec4 src_offsets_1);
-void buffer_cp4to8(sfpvec8 dst, int dst_offset, sfpvec4 src, ivec2 src_offsets);
 ```
 
 - 从 src[src_offset] 的值拷贝并解包到 dst[dst_offsets[0],dst_offsets[1],...]
 
 ```c
 void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
-void buffer_cp8to1(sfp dst, ivec4 dst_offsets_0, ivec4 dst_offsets_1, sfpvec8 src, int src_offset);
-void buffer_cp8to4(sfpvec4 dst, ivec2 dst_offsets, sfpvec8 src, int src_offset);
 ```
-
-# 图像函数
-
-- 根据 sampler?D 图像(透过 src 和 pos) 来加载数据
-
-```c
-afp image1d_ld1(sampler1D src, float pos);
-afp image2d_ld1(sampler2D src, vec2 pos);
-afp image3d_ld1(sampler3D src, vec3 pos);
-afpvec4 image1d_ld4(sampler1D src, float pos);
-afpvec4 image2d_ld4(sampler2D src, vec2 pos);
-afpvec4 image3d_ld4(sampler3D src, vec3 pos);
-afpvec8 image1d_ld8(sampler1D src, float pos);
-afpvec8 image2d_ld8(sampler2D src, vec2 pos);
-afpvec8 image3d_ld8(sampler3D src, vec3 pos);
-```
-
-- 存储确定类型的值到 image?D (透过 dst 和 pos 参数)
-
-```c
-void image1d_st1(image1D dst, int pos, afp v);
-void image2d_st1(image2D dst, ivec2 pos, afp v);
-void image3d_st1(image3D dst, ivec3 pos, afp v);
-void image1d_st4(image1D dst, int pos, afpvec4 v);
-void image2d_st4(image2D dst, ivec2 pos, afpvec4 v);
-void image3d_st4(image3D dst, ivec3 pos, afpvec4 v);
-void image1d_st8(image1D dst, int pos, afpvec8 v);
-void image2d_st8(image2D dst, ivec2 pos, afpvec8 v);
-void image3d_st8(image3D dst, ivec3 pos, afpvec8 v);
-```
-
-- 把 sampler?D 的值的内容(透过 src 和 src_pos 参数) 拷贝到 image?D (透过 dst 和 dst_pos 参数)
-
-```c
-void image1d_cp1(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp1(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp1(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp4(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp4(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp4(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-void image1d_cp8(image1D dst, int dst_pos, sampler1D src, float src_pos);
-void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
-void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
-```
-
-注意：由于图像是不透明的数据结构，因此不提供复制和打包/解包功能。要实现此操作，您需要先加载，然后再存储。
 
 # 本地数据转换函数
 
 - 存储缓冲区转换到本地内存
 
 ```c
-lfp sfp2lfp(sfp v);
-lfpvec4 sfp2lfpvec4(sfpvec4 v);
+lfp buffer_sm1(sfp src, int offset);
+lfpvec4 buffer_sm4(sfpvec4 src, int offset);
 ```
 
 - 本地内存转换到局部变量
@@ -336,27 +256,122 @@ void main()
 #endif
 ```
 
-# 条件宏定义与option的关系
-
-仅当用户启用某些选项时才启用 GLSL 扩展
+ncnn 在新版本中添加了额外的宏定义，可能与现在的 glsl 代码冲突或引起混淆。为了实现  ncnn 的跨版本兼容性，可以根据  `ncnn_glsl_version` 宏的版本号在新旧代码之间进行切换 。
 
 ```c
-#if NCNN_fp16_storage
-#extension GL_EXT_shader_16bit_storage: require
-#endif
-#if NCNN_fp16_arithmetic
-#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#if ncnn_glsl_version >= 1
+// 使用自版本 1 起引入的设备宏
 #endif
 ```
 
-声明图像或缓冲区的描述符绑定
+ncnn 额外定义了大多数 vulcan 设备相关功能作为宏，我们可以用来区分不同的平台、设备扩展、功能和属性。
+
+### 扩展宏定义
+
+当设备支持某个扩展时，`ncnn_<extension_name>` 被定义为扩展版本
 
 ```c
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+void main()
+{
+#if ncnn_VK_KHR_16bit_storage
+    // 支持 VK_KHR_16bit_storage 设备的代码
 #endif
+
+#if ncnn_VK_KHR_sampler_ycbcr_conversion >= 10
+    // 支持 VK_KHR_sampler_ycbcr_conversion 且版本 >=10 的代码
+#endif
+}
+```
+
+### 设备特性和属性宏
+
+ncnn 会查询设备特性和属性，然后将它们定义为宏。
+
+宏名称为 `ncnn_<feature_name>` 或 `ncnn_<property_name>`
+
+当设备支持 `shaderInt64` 时，`GL_EXT_shader_explicit_arithmetic_types_int64` 扩展会自动启用，无需显式代码指示。
+
+当设备支持 `shaderInt16` 时，`GL_EXT_shader_explicit_arithmetic_types_int16` 扩展会自动启用，无需显式代码指示。
+
+```c
+void main()
+{
+#if ncnn_robustBufferAccess
+    // 支持 robustBufferAccess 特性的设备代码
+#endif
+
+#if ncnn_vendorID == 4318
+    // 供应商特定代码，4318 是 nvidia 显卡
+#endif
+
+#if ncnn_subgroupSize == 32
+    // 为 subgroup_size == 32 优化的代码路径
+#endif
+
+    // 使用宏定义
+    uint size; // 来自先前例程的动态值
+    if (size < ncnn_subgroupSize)
+    {
+#if ncnn_supportedOperations & 4
+        // subgroup 支持算术运算
+#endif
+
+#if ncnn_subgroup_arithmetic
+        // 检查 subgroup 算术运算的简写形式
+#endif
+    }
+}
+```
+
+### 验证层宏定义
+
+当启用 vulkan 验证层时，ncnn 会定义一些额外的便捷宏
+
+* `ncnn_enable_validation_layer`
+* `NCNN_LOGE`
+
+目前，你必须将 `src/gpu.cpp` 开头的 `ENABLE_VALIDATION_LAYER` 定义修改为 `1` 才能启用这些宏。
+
+`GL_EXT_debug_printf` 扩展会自动启用，无需在代码中显式指定。
+
+```c
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+#if ncnn_enable_validation_layer
+    NCNN_LOGE("gx = %d\n", gx);
+#endif
+}
+```
+
+在运行时，`NCNN_LOGE` 将打印出 `gx` 的值
+
+### 选项宏
+
+仅当用户启用某些选项时才启用 GLSL 扩展
+
+`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 或 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_explicit_arithmetic_types_float16` 扩展会在设备支持 16 位算术运算且用户开启了 `opt.use_fp16_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_8bit_storage` 扩展会在设备支持 8 位存储且用户开启了 `opt.use_int8_storage` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_explicit_arithmetic_types_int8` 扩展会在设备支持 8 位算术运算且用户开启了 `opt.use_int8_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_bfloat16` 扩展会在设备支持 bfloat16 存储且用户开启了 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
+
+```c
+void main()
+{
+#if NCNN_fp16_storage
+    // 用户启用 fp16 存储选项，且设备支持 fp16 存储
+#endif
+
+#if NCNN_fp16_arithmetic
+    // 用户启用 fp16 算术选项，且设备支持 fp16 算术运算
+#endif
+}
 ```
 
 |宏定义|option中所定义的变量|
@@ -367,5 +382,6 @@ layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; }
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
-|NCNN_image_shader|opt.use_image_storage|
+|NCNN_bf16_packed|opt.use_bf16_packed|
+|NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|

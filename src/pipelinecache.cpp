@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pipelinecache.h"
 
@@ -150,7 +139,9 @@ PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(int _shader_t
     shader_type_index = _shader_type_index;
 
     // encode opt
-    opt_bits = opt.use_image_storage << 7
+    opt_bits = 0 << 9
+               | opt.use_bf16_packed << 8
+               | opt.use_bf16_storage << 7
                | opt.use_fp16_packed << 6
                | opt.use_fp16_storage << 5
                | opt.use_fp16_arithmetic << 4

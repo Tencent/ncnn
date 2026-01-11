@@ -1,16 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
+/* Copyright 2020 Tencent
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #ifndef NCNN_C_API_H
@@ -27,6 +16,7 @@ extern "C" {
 #endif
 
 NCNN_EXPORT const char* ncnn_version(void);
+NCNN_EXPORT int ncnn_version_number(void);
 
 /* allocator api */
 typedef struct __ncnn_allocator_t* ncnn_allocator_t;
@@ -51,14 +41,40 @@ NCNN_EXPORT void ncnn_option_destroy(ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_num_threads(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
 
-NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator);
-
 NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
+NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_packing_layout(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt);
+
+NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable);
 
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
@@ -229,7 +245,9 @@ NCNN_EXPORT int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_packing(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_bf16_storage(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer);
-NCNN_EXPORT int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer);
 
 NCNN_EXPORT void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable);
@@ -237,7 +255,9 @@ NCNN_EXPORT void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable);
-NCNN_EXPORT void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable);
 
 NCNN_EXPORT int ncnn_layer_get_bottom_count(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_bottom(const ncnn_layer_t layer, int i);
@@ -290,6 +310,13 @@ NCNN_EXPORT int ncnn_net_load_param(ncnn_net_t net, const char* path);
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_net_load_param_bin(ncnn_net_t net, const char* path);
 NCNN_EXPORT int ncnn_net_load_model(ncnn_net_t net, const char* path);
+#if _WIN32
+#if NCNN_STRING
+NCNN_EXPORT int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path);
+#endif /* NCNN_STRING */
+NCNN_EXPORT int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path);
+NCNN_EXPORT int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path);
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO

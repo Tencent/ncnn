@@ -1,16 +1,5 @@
-// Xavier Hsinyuan is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 Xavier Hsinyuan <me@lstlx.com>. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "softmax_riscv.h"
 #include <float.h>
@@ -219,7 +208,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 }
 
 #if __riscv_vector
-static void softmax_packn(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_packn(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     const size_t vlm8 = __riscv_vsetvlmax_e32m8();
     const size_t vlm4 = __riscv_vsetvlmax_e32m4();
@@ -487,7 +476,7 @@ static void softmax_packn(float* _ptr, int elemcount, int stride, int size1, flo
 }
 #endif // __riscv_vector
 
-static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -608,7 +597,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
     }
 }
 
-static void softmax(float* _ptr, int elemcount, int elempack, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -691,13 +680,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = w * elempack;
+        const size_t stride = (size_t)w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -729,13 +718,13 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         const int size = w * h * d;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = bottom_top_blob.cstep * elempack;
+        const size_t stride = bottom_top_blob.cstep * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {

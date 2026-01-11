@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -34,12 +23,12 @@
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
+#include "pass_ncnn/fuse_convert_rotaryembed.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
 
 #include "pass_ncnn/eliminate_noop.h"
-#include "pass_ncnn/eliminate_tail_reshape_permute.h"
 #include "pass_ncnn/fuse_convolution_activation.h"
 #include "pass_ncnn/fuse_convolution1d_activation.h"
 #include "pass_ncnn/fuse_convolutiondepthwise_activation.h"
@@ -56,8 +45,10 @@
 #include "pass_ncnn/insert_reshape_pooling.h"
 #include "pass_ncnn/insert_reshape_global_pooling.h"
 
+#include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/eliminate_maxpool_indices.h"
 #include "pass_level5/unroll_rnn_op.h"
 
@@ -86,6 +77,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     unroll_rnn_op(g);
 
     eliminate_maxpool_indices(g);
+
+    attribute_unpooling(g);
+
+    ncnn::fuse_convert_rotaryembed(g);
 
     ncnn::expand_expression(g);
 
@@ -144,7 +139,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
-    ncnn::eliminate_tail_reshape_permute(g);
+
+    attribute_pooling(g);
+
+    ncnn::insert_split(g);
 
     dead_code_elimination(g);
 

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_riscv.h"
 
@@ -43,7 +32,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #endif
 
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     // NCNN_LOGE("pack_A_tile %d", elempack);
 
@@ -139,7 +128,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #endif
 
     const int elempack = A.elempack;
-    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     // NCNN_LOGE("transpose_pack_A_tile %d", elempack);
 
@@ -250,7 +239,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif
 
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     // NCNN_LOGE("pack_B_tile %d", elempack);
 
@@ -346,7 +335,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif
 
     const int elempack = B.elempack;
-    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     // NCNN_LOGE("transpose_pack_B_tile %d", elempack);
 
@@ -457,7 +446,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #endif
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     // NCNN_LOGE("transpose_unpack_output_tile %d", out_elempack);
 
@@ -564,7 +553,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #endif
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
     const float* pAT = AT_tile;
     const float* pBT = BT_tile;
@@ -1514,7 +1503,11 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -1548,7 +1541,11 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1628,6 +1625,8 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -1658,7 +1657,11 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1719,10 +1722,16 @@ static int gemm_BT_riscv(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blo
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1801,7 +1810,11 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1962,6 +1975,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         {
             int C_elempack = constantM % packn == 0 ? packn : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __riscv_vector
 
@@ -1970,6 +1985,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -2093,6 +2110,8 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)

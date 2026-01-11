@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
@@ -3637,7 +3626,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w - 1) / 2;
 
@@ -3930,7 +3919,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 1) / 2;
 
@@ -4495,7 +4484,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 1) / 4;
 
@@ -4907,7 +4896,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 3) / 4;
 

@@ -11,6 +11,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
 concurrency:
   group: windows-mingw-${{ github.ref }}
   cancel-in-progress: true
@@ -38,7 +40,7 @@ jobs:
       NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
 

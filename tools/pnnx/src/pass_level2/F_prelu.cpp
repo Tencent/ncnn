@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -98,7 +87,11 @@ pnnx.Output             output      1 0 out
         Operator* op_slope = ops.at("slope");
 
         // hack slope shape
-        int num_slope = op_slope->attrs["data"].shape[0];
+        int num_slope = 1;
+        for (size_t i = 0; i < op_slope->attrs["data"].shape.size(); i++)
+        {
+            num_slope *= op_slope->attrs["data"].shape[i];
+        }
         op_slope->attrs["data"].shape = {num_slope};
 
         op_slope->outputs[0]->shape = {num_slope};
@@ -165,5 +158,57 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_prelu_onnx_2, 100)
+
+class F_prelu_onnx_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // clang-format off
+        // *INDENT-OFF*
+
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight #weight=(?)f32
+Tensor.reshape          reshape     1 1 weight w2 shape=%shape
+PRelu                   op_0        2 1 input w2 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+
+        // *INDENT-ON*
+        // clang-format on
+    }
+
+    const char* type_str() const
+    {
+        return "F.prelu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // 1 -1 ... 1
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        if (shape.size() < 2)
+            return false;
+
+        if (shape[0] != 1 || shape[1] != -1)
+            return false;
+
+        for (int i = 2; i < (int)shape.size(); i++)
+        {
+            if (shape[i] != 1)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_prelu_onnx_3, 100)
 
 } // namespace pnnx

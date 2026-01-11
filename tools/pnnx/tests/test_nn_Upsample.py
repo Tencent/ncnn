@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2021 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -25,6 +14,9 @@ class Model(nn.Module):
         self.up_1d_0_1 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_1d_0_2 = nn.Upsample(size=(20), mode='nearest')
         self.up_1d_0_3 = nn.Upsample(scale_factor=(4), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            self.up_1d_0_4 = nn.Upsample(size=12, mode='nearest-exact')
+            self.up_1d_0_5 = nn.Upsample(scale_factor=(3), mode='nearest-exact')
         self.up_1d_1_0 = nn.Upsample(size=16, mode='linear')
         self.up_1d_1_1 = nn.Upsample(scale_factor=2, mode='linear')
         self.up_1d_1_2 = nn.Upsample(size=(24), mode='linear', align_corners=True)
@@ -42,6 +34,9 @@ class Model(nn.Module):
             self.up_2d_0_3 = nn.Upsample(scale_factor=(4,4), mode='nearest')
         self.up_2d_0_4 = nn.Upsample(size=(16,24), mode='nearest')
         self.up_2d_0_5 = nn.Upsample(scale_factor=(2,3), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            self.up_2d_0_6 = nn.Upsample(size=(11,12), mode='nearest-exact')
+            self.up_2d_0_7 = nn.Upsample(scale_factor=(3,2), mode='nearest-exact')
         self.up_2d_1_0 = nn.Upsample(size=16, mode='bilinear')
         self.up_2d_1_1 = nn.Upsample(scale_factor=2, mode='bilinear')
         self.up_2d_1_2 = nn.Upsample(size=(20,20), mode='bilinear', align_corners=False)
@@ -70,6 +65,9 @@ class Model(nn.Module):
             self.up_3d_0_3 = nn.Upsample(scale_factor=(4,4,4), mode='nearest')
         self.up_3d_0_4 = nn.Upsample(size=(16,24,20), mode='nearest')
         self.up_3d_0_5 = nn.Upsample(scale_factor=(2,3,4), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            self.up_3d_0_6 = nn.Upsample(size=(11,12,13), mode='nearest-exact')
+            self.up_3d_0_7 = nn.Upsample(scale_factor=(3,1,2), mode='nearest-exact')
         self.up_3d_1_0 = nn.Upsample(size=16, mode='trilinear')
         self.up_3d_1_1 = nn.Upsample(scale_factor=2, mode='trilinear')
         self.up_3d_1_2 = nn.Upsample(size=(20,20,20), mode='trilinear', align_corners=False)
@@ -87,6 +85,9 @@ class Model(nn.Module):
         x = self.up_1d_0_1(x)
         x = self.up_1d_0_2(x)
         x = self.up_1d_0_3(x)
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            x = self.up_1d_0_4(x)
+            x = self.up_1d_0_5(x)
         x = self.up_1d_1_0(x)
         x = self.up_1d_1_1(x)
         x = self.up_1d_1_2(x)
@@ -98,6 +99,9 @@ class Model(nn.Module):
         y = self.up_2d_0_3(y)
         y = self.up_2d_0_4(y)
         y = self.up_2d_0_5(y)
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            y = self.up_2d_0_6(y)
+            y = self.up_2d_0_7(y)
         y = self.up_2d_1_0(y)
         y = self.up_2d_1_1(y)
         y = self.up_2d_1_2(y)
@@ -117,6 +121,9 @@ class Model(nn.Module):
         z = self.up_3d_0_3(z)
         z = self.up_3d_0_4(z)
         z = self.up_3d_0_5(z)
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            z = self.up_3d_0_6(z)
+            z = self.up_3d_0_7(z)
         z = self.up_3d_1_0(z)
         z = self.up_3d_1_1(z)
         z = self.up_3d_1_2(z)

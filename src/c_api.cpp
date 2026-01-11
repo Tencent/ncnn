@@ -1,17 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
- */
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
@@ -49,6 +37,11 @@ extern "C" {
 const char* ncnn_version()
 {
     return NCNN_VERSION_STRING;
+}
+
+int ncnn_version_number()
+{
+    return NCNN_VERSION_NUMBER;
 }
 
 /* allocator api */
@@ -166,16 +159,6 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
     ((Option*)opt)->num_threads = num_threads;
 }
 
-int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
-{
-    return ((Option*)opt)->use_local_pool_allocator;
-}
-
-void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator)
-{
-    ((Option*)opt)->use_local_pool_allocator = use_local_pool_allocator;
-}
-
 void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
 {
     ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
@@ -196,13 +179,173 @@ int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 #endif
 }
 
-void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
+int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_local_pool_allocator;
+}
+
+int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_winograd_convolution;
+}
+
+int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_sgemm_convolution;
+}
+
+int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_packing_layout;
+}
+
+int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_packed;
+}
+
+int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_storage;
+}
+
+int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_fp16_arithmetic;
+}
+
+int ncnn_option_get_use_int8_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_packed;
+}
+
+int ncnn_option_get_use_int8_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_storage;
+}
+
+int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_int8_arithmetic;
+}
+
+int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_bf16_packed;
+}
+
+int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_bf16_storage;
+}
+
+int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt)
 {
 #if NCNN_VULKAN
-    ((Option*)opt)->use_vulkan_compute = use_vulkan_compute;
+    return ((const Option*)opt)->use_shader_local_memory;
 #else
     (void)opt;
-    (void)use_vulkan_compute;
+    return 0;
+#endif
+}
+
+int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt)
+{
+#if NCNN_VULKAN
+    return ((const Option*)opt)->use_cooperative_matrix;
+#else
+    (void)opt;
+    return 0;
+#endif
+}
+
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_vulkan_compute = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
+}
+
+void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_local_pool_allocator = enable;
+}
+
+void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_winograd_convolution = enable;
+}
+
+void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_sgemm_convolution = enable;
+}
+
+void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_packing_layout = enable;
+}
+
+void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_packed = enable;
+}
+
+void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_storage = enable;
+}
+
+void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_fp16_arithmetic = enable;
+}
+
+void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_packed = enable;
+}
+
+void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_storage = enable;
+}
+
+void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_int8_arithmetic = enable;
+}
+
+void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_packed = enable;
+}
+
+void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_bf16_storage = enable;
+}
+
+void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_shader_local_memory = enable;
+#else
+    (void)opt;
+    (void)enable;
+#endif
+}
+
+void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_cooperative_matrix = enable;
+#else
+    (void)opt;
+    (void)enable;
 #endif
 }
 
@@ -1112,7 +1255,12 @@ int ncnn_layer_get_support_inplace(const ncnn_layer_t layer)
 
 int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer)
 {
+#if NCNN_VULKAN
     return ((const Layer*)layer->pthis)->support_vulkan;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 int ncnn_layer_get_support_packing(const ncnn_layer_t layer)
@@ -1130,9 +1278,29 @@ int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer)
     return ((const Layer*)layer->pthis)->support_fp16_storage;
 }
 
-int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer)
+int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer)
 {
-    return ((const Layer*)layer->pthis)->support_image_storage;
+#if NCNN_VULKAN
+    return ((const Layer*)layer->pthis)->support_vulkan_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
+}
+
+int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer)
+{
+    return ((const Layer*)layer->pthis)->support_any_packing;
+}
+
+int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer)
+{
+#if NCNN_VULKAN
+    return ((const Layer*)layer->pthis)->support_vulkan_any_packing;
+#else
+    (void)layer;
+    return 0;
+#endif
 }
 
 void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable)
@@ -1147,7 +1315,12 @@ void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable)
 
 void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable)
 {
+#if NCNN_VULKAN
     ((Layer*)layer->pthis)->support_vulkan = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable)
@@ -1165,9 +1338,29 @@ void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable)
     ((Layer*)layer->pthis)->support_fp16_storage = enable;
 }
 
-void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable)
+void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable)
 {
-    ((Layer*)layer->pthis)->support_image_storage = enable;
+#if NCNN_VULKAN
+    ((Layer*)layer->pthis)->support_vulkan_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
+}
+
+void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable)
+{
+    ((Layer*)layer->pthis)->support_any_packing = enable;
+}
+
+void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable)
+{
+#if NCNN_VULKAN
+    ((Layer*)layer->pthis)->support_vulkan_any_packing = enable;
+#else
+    (void)layer;
+    (void)enable;
+#endif
 }
 
 int ncnn_layer_get_bottom_count(const ncnn_layer_t layer)
@@ -1264,7 +1457,6 @@ static ::ncnn::Layer* __Layer_c_api_layer_creator(void* userdata)
 
     layer->support_bf16_storage = ncnn_layer_get_support_bf16_storage(layer0);
     layer->support_fp16_storage = ncnn_layer_get_support_fp16_storage(layer0);
-    layer->support_image_storage = ncnn_layer_get_support_image_storage(layer0);
 
     return layer;
 }
@@ -1319,6 +1511,25 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 {
     return ((Net*)net->pthis)->load_model(path);
 }
+
+#if _WIN32
+#if NCNN_STRING
+int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param(path);
+}
+#endif /* NCNN_STRING */
+
+int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_param_bin(path);
+}
+
+int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path)
+{
+    return ((Net*)net->pthis)->load_model(path);
+}
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO
@@ -1407,10 +1618,8 @@ void ncnn_extractor_destroy(ncnn_extractor_t ex)
 
 void ncnn_extractor_set_option(ncnn_extractor_t ex, const ncnn_option_t opt)
 {
-    ((Extractor*)ex)->set_num_threads(((const Option*)opt)->num_threads);
-#if NCNN_VULKAN
-    ((Extractor*)ex)->set_vulkan_compute(((const Option*)opt)->use_vulkan_compute);
-#endif
+    (void)ex;
+    (void)opt;
 }
 
 #if NCNN_STRING

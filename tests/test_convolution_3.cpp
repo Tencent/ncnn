@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
@@ -190,7 +179,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("Convolution", pd, weights, a, requant ? 1.0f : 0.001f, 0, flag);
+    int ret = test_layer("Convolution", pd, weights, a, requant ? 1.0f : 0.001f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
@@ -205,15 +194,14 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = true;
         opt.use_winograd23_convolution = true;
         opt.use_winograd43_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
@@ -228,13 +216,12 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
@@ -249,13 +236,12 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_packed = false;
         opt.use_fp16_storage = false;
         opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
         opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
@@ -270,13 +256,12 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         opt.use_fp16_packed = true;
         opt.use_fp16_storage = true;
         opt.use_fp16_arithmetic = true;
+        opt.use_bf16_packed = true;
         opt.use_bf16_storage = true;
-        opt.use_shader_pack8 = true;
-        opt.use_image_storage = true;
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        ret = test_layer_opt("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
