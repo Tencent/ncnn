@@ -513,10 +513,14 @@ int load_vulkan_driver(const char* driver_path)
         // fifth try, load from well-known path
 #if defined _WIN32
         const char* well_known_path[] = {
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__aarch64__) || defined(_M_ARM64)
+            "qcvkarm64xum.dll"
+#elif defined(__x86_64__) || defined(_M_X64)
             "nvoglv64.dll",
             "amdvlk64.dll",
-            "igvk64.dll"
+            "igvk64.dll",
+            // Arm64X binary supports both Arm64 and Arm64EC
+            "qcvkarm64xum.dll"
 #else
             "nvoglv32.dll",
             "amdvlk32.dll",
