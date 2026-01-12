@@ -1,0 +1,255 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_subgroup_arithmetic
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#endif
+
+layout(constant_id = 0) const int op = 0;
+
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int in_w;
+    int in_h;
+    int in_d;
+    int in_c;
+    int in_cstep;
+    int in_dims;
+
+    int out_w;
+    int out_h;
+    int out_d;
+    int out_c;
+    int out_dims;
+    int out_cstep;
+
+    int reduce_w;
+    int reduce_h;
+    int reduce_d;
+    int reduce_c;
+
+    int map_out_w;
+    int map_out_h;
+    int map_out_d;
+    int map_out_c;
+
+    float coeff;
+} p;
+
+shared lfp sdata[256];
+
+const float FLT_MAX_VALUE = 3.402823466e+38;
+const float FLT_MIN_VALUE = 1.175494351e-38;
+
+afp init_acc()
+{
+    if (op == 6) return afp(1.f);
+    if (op == 4) return afp(-FLT_MAX_VALUE);
+    if (op == 5) return afp(FLT_MAX_VALUE);
+    return afp(0.f);
+}
+
+afp element_accum(afp acc, afp v)
+{
+    if (op == 0 || op == 3 || op == 9) return acc + v;
+    if (op == 1 || op == 7) return acc + abs(v);
+    if (op == 2 || op == 8) return acc + v * v;
+    if (op == 4) return max(acc, v);
+    if (op == 5) return min(acc, v);
+    if (op == 6) return acc * v;
+    if (op == 10) return acc + exp(v);
+    return acc + v;
+}
+
+afp combine_accum(afp a, afp b)
+{
+    if (op == 4) return max(a, b);
+    if (op == 5) return min(a, b);
+    if (op == 6) return a * b;
+    return a + b;
+}
+
+#if ncnn_subgroup_arithmetic
+afp subgroup_reduce_acc(afp v)
+{
+    if (op == 4) return subgroupMax(v);
+    if (op == 5) return subgroupMin(v);
+    if (op == 6) return subgroupMul(v);
+    return subgroupAdd(v);
+}
+#endif
+
+void decode_out(int out_index, out int ow, out int oh, out int od, out int oc)
+{
+    ow = 0;
+    oh = 0;
+    od = 0;
+    oc = 0;
+
+    if (p.out_dims == 1)
+    {
+        ow = out_index;
+    }
+    else if (p.out_dims == 2)
+    {
+        ow = out_index % p.out_w;
+        oh = out_index / p.out_w;
+    }
+    else if (p.out_dims == 3)
+    {
+        ow = out_index % p.out_w;
+        int t = out_index / p.out_w;
+        oh = t % p.out_h;
+        oc = t / p.out_h;
+    }
+    else
+    {
+        ow = out_index % p.out_w;
+        int t0 = out_index / p.out_w;
+        oh = t0 % p.out_h;
+        int t1 = t0 / p.out_h;
+        od = t1 % p.out_d;
+        oc = t1 / p.out_d;
+    }
+}
+
+int in_index(int iw, int ih, int id, int ic)
+{
+    if (p.in_dims == 1) return iw;
+    if (p.in_dims == 2) return ih * p.in_w + iw;
+    if (p.in_dims == 3) return ic * p.in_cstep + ih * p.in_w + iw;
+
+    int in_dstep = p.in_w * p.in_h;
+    if (p.in_d > 1) in_dstep = p.in_cstep / p.in_d;
+    return ic * p.in_cstep + id * in_dstep + ih * p.in_w + iw;
+}
+
+int out_offset(int ow, int oh, int od, int oc)
+{
+    if (p.out_dims == 1) return ow;
+    if (p.out_dims == 2) return oh * p.out_w + ow;
+    if (p.out_dims == 3) return oc * p.out_cstep + oh * p.out_w + ow;
+
+    int out_dstep = p.out_w * p.out_h;
+    if (p.out_d > 1) out_dstep = p.out_cstep / p.out_d;
+    return oc * p.out_cstep + od * out_dstep + oh * p.out_w + ow;
+}
+
+afp finalize_out(afp outv)
+{
+    if (op == 9 || op == 10) outv = log(outv);
+    if (op == 8) outv = sqrt(outv < afp(FLT_MIN_VALUE) ? afp(0.f) : outv);
+    if (p.coeff != 1.f) outv = outv * afp(p.coeff);
+    return outv;
+}
+
+void main()
+{
+    const int out_index = int(gl_WorkGroupID.y);
+    const int tid = int(gl_LocalInvocationID.x);
+
+    int ow, oh, od, oc;
+    decode_out(out_index, ow, oh, od, oc);
+
+    int in_coord[4] = int[4](0, 0, 0, 0);
+    if (p.map_out_w >= 0) in_coord[p.map_out_w] = ow;
+    if (p.map_out_h >= 0) in_coord[p.map_out_h] = oh;
+    if (p.map_out_d >= 0) in_coord[p.map_out_d] = od;
+    if (p.map_out_c >= 0) in_coord[p.map_out_c] = oc;
+
+    int in_w = p.in_w;
+    int in_h = (p.in_h > 0) ? p.in_h : 1;
+    int in_d = (p.in_d > 0) ? p.in_d : 1;
+    int in_c = (p.in_c > 0) ? p.in_c : 1;
+
+    int reduce_size = 1;
+    if (p.reduce_w != 0) reduce_size *= in_w;
+    if (p.reduce_h != 0) reduce_size *= in_h;
+    if (p.in_dims == 4 && p.reduce_d != 0) reduce_size *= in_d;
+    if (p.in_dims >= 3 && p.reduce_c != 0) reduce_size *= in_c;
+
+    afp acc = init_acc();
+
+    for (int t = tid; t < reduce_size; t += 256)
+    {
+        int tt = t;
+
+        int iw = in_coord[3];
+        int ih = in_coord[2];
+        int id = in_coord[1];
+        int ic = in_coord[0];
+
+        if (p.reduce_w != 0)
+        {
+            iw = tt % in_w;
+            tt /= in_w;
+        }
+        if (p.reduce_h != 0)
+        {
+            ih = tt % in_h;
+            tt /= in_h;
+        }
+        if (p.in_dims == 4 && p.reduce_d != 0)
+        {
+            id = tt % in_d;
+            tt /= in_d;
+        }
+        if (p.in_dims >= 3 && p.reduce_c != 0) { ic = tt % in_c; }
+
+        afp v = buffer_ld1(bottom_blob_data, in_index(iw, ih, id, ic));
+        acc = element_accum(acc, v);
+    }
+
+#if ncnn_subgroup_arithmetic
+    afp sg = subgroup_reduce_acc(acc);
+
+    if (subgroupElect())
+    {
+        sdata[int(gl_SubgroupID)] = sfp2lfp(sg);
+    }
+
+    barrier();
+
+    if (int(gl_SubgroupID) == 0)
+    {
+        const int lane = int(gl_SubgroupInvocationID);
+        const int num_sg = int(gl_NumSubgroups);
+
+        afp v = lane < num_sg ? lfp2afp(sdata[lane]) : init_acc();
+        afp outv = subgroup_reduce_acc(v);
+
+        if (subgroupElect())
+        {
+            outv = finalize_out(outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+        }
+    }
+#else
+    sdata[tid] = sfp2lfp(acc);
+    barrier();
+
+    for (int stride = 128; stride > 0; stride >>= 1)
+    {
+        if (tid < stride)
+        {
+            afp a = lfp2afp(sdata[tid]);
+            afp b = lfp2afp(sdata[tid + stride]);
+            sdata[tid] = sfp2lfp(combine_accum(a, b));
+        }
+        barrier();
+    }
+
+    if (tid == 0)
+    {
+        afp outv = lfp2afp(sdata[0]);
+        outv = finalize_out(outv);
+        buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+    }
+#endif
+}
