@@ -1,0 +1,79 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout (binding = 0) readonly buffer blocksums_blob { sfp blocksums_data[]; };
+layout (binding = 1) writeonly buffer blockoffsets_blob { sfp blockoffsets_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int blocks_per_line;
+    int linecount;
+} p;
+
+shared lfp sdata[256];
+
+void main()
+{
+    int lid = int(gl_LocalInvocationID.x);
+    int line_id = int(gl_GlobalInvocationID.y);
+
+    if (line_id >= p.linecount)
+        return;
+
+    afp carry = afp(0.0);
+
+    for (int base = 0; base < p.blocks_per_line; base += 256)
+    {
+        int idx_in = base + lid;
+
+        afp v = afp(0.0);
+        if (idx_in < p.blocks_per_line)
+        {
+            int gi = line_id * p.blocks_per_line + idx_in;
+            v = buffer_ld1(blocksums_data, gi);
+        }
+
+        v = v + carry;
+
+        sdata[lid] = sfp2lfp(v);
+        barrier();
+
+        for (int offset = 1; offset < 256; offset <<= 1)
+        {
+            afp t = afp(0.0);
+            if (lid >= offset)
+                t = lfp2afp(sdata[lid - offset]);
+
+            barrier();
+
+            afp selfv = lfp2afp(sdata[lid]);
+            selfv = selfv + t;
+            sdata[lid] = sfp2lfp(selfv);
+
+            barrier();
+        }
+
+        if (idx_in < p.blocks_per_line)
+        {
+            int go = line_id * p.blocks_per_line + idx_in;
+            buffer_st1(blockoffsets_data, go, lfp2afp(sdata[lid]));
+        }
+
+        if (lid == 255)
+        {
+            afp lastv = lfp2afp(sdata[255]);
+            if (base + 256 > p.blocks_per_line)
+            {
+                int last = p.blocks_per_line - base - 1;
+                if (last < 0)
+                    last = 0;
+                lastv = lfp2afp(sdata[last]);
+            }
+            carry = lastv;
+        }
+
+        barrier();
+    }
+}
