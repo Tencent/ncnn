@@ -438,7 +438,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 {
                     // workaround for potential duplicated _plus0
                     char underscorename[256];
-                    sprintf(underscorename, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
+                    snprintf(underscorename, 256, "underscorencnn_%d%s", internal_underscore, n.name.c_str());
 
                     n.name = underscorename;
 
