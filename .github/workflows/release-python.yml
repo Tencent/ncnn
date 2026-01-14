@@ -321,6 +321,7 @@ jobs:
     needs: [build_wheels, build_wheels_qemu_cp, build_sdist]
     runs-on: ubuntu-latest
 
+    steps:
     - uses: actions/download-artifact@v7
       with:
         path: dist
@@ -330,5 +331,3 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
-
-        path: wheelhouse/*.whl
