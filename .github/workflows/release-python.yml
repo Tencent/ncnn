@@ -3,8 +3,6 @@ on: push
 concurrency:
   group: release-python-${{ github.ref }}
   cancel-in-progress: true
-permissions:
-  contents: read
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
@@ -15,6 +13,32 @@ env:
   CIBW_SKIP: "cp3??t-*"
 
 jobs:
+  build_sdist:
+    name: Build SDist
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+
+    - name: Install deps
+      run: python -m pip install twine build
+
+    - name: Build SDist
+      run: python -m build -s
+
+    - name: Check metadata
+      run: twine check dist/*
+
+    - uses: actions/upload-artifact@v6
+      with:
+        name: sdist
+        path: dist/*.tar.gz
+
   build_wheels:
     name: ${{ matrix.arch }} ${{ matrix.build_id }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -22,14 +46,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04,     arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04,     arch: i686,       build: 'pp*',            build_id: pp           }
           - { os: windows-2025,     arch: x86,        build: 'cp*',            build_id: cp           }
           - { os: windows-2025,     arch: AMD64,      build: 'cp*',            build_id: cp           }
           - { os: windows-2025,     arch: AMD64,      build: 'pp*',            build_id: pp           }
           - { os: windows-11-arm,   arch: ARM64,      build: 'cp*',            build_id: cp           }
           - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
           - { os: macos-15,         arch: arm64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-15,         arch: arm64,      build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'pp*',            build_id: pp           }
 
     env:
       OPENMP_VERSION: '18.1.2'
@@ -49,6 +82,46 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: true
+
+    # build wheels for ubuntu
+    - name: Build wheels for ubuntu
+      if: matrix.os == 'ubuntu-24.04'
+      uses: pypa/cibuildwheel@v3.3.1
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for ubuntu armv7l
+    - name: Build wheels for ubuntu armv7l
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'armv7l')
+      uses: pypa/cibuildwheel@v3.3.1
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+          CFLAGS="-mfpu=neon" CXXFLAGS="-mfpu=neon"
+      with:
+        output-dir: wheelhouse
+
+    # build wheels for ubuntu aarch64
+    - name: Build wheels for ubuntu aarch64
+      if: matrix.os == 'ubuntu-24.04-arm' && (matrix.arch == 'aarch64')
+      uses: pypa/cibuildwheel@v3.3.1
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_ENABLE: pypy
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
+      with:
+        output-dir: wheelhouse
 
     # build wheels for windows
     - name: Build wheels for windows
@@ -194,4 +267,68 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
+        path: wheelhouse/*.whl
+
+  build_wheels_qemu_cp:
+    name: ${{ matrix.arch }} ${{ matrix.build_cp }} ${{ matrix.build_sub }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [riscv64]
+        build_cp: [cp38, cp39, cp310, cp311, cp312, cp313, cp314]
+        build_sub: [manylinux, musllinux]
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Build wheels with qemu
+      uses: pypa/cibuildwheel@v3.3.1
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4 EXTRA_CMAKE_ARGS="-DNCNN_XTHEADVECTOR=OFF"
+      with:
+        output-dir: wheelhouse
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v6
+      with:
+        name: wheels_qemu_cp-${{ matrix.arch }}-${{ matrix.build_cp }}-${{ matrix.build_sub }}
+        path: wheelhouse/*.whl
+
+  upload_all:
+    permissions:
+      contents: none
+    name: Upload
+    needs: [build_wheels, build_wheels_qemu_cp, build_sdist]
+    runs-on: ubuntu-latest
+
+    - uses: actions/download-artifact@v7
+      with:
+        path: dist
+        merge-multiple: true
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+
         path: wheelhouse/*.whl
