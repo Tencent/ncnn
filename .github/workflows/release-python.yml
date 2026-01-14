@@ -1,9 +1,9 @@
 name: release-python
-# on: [push, pull_request]
 on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
@@ -58,9 +58,7 @@ jobs:
           - { os: windows-2025,     arch: AMD64,      build: 'pp*',            build_id: pp           }
           - { os: windows-11-arm,   arch: ARM64,      build: 'cp*',            build_id: cp           }
           - { os: macos-15-intel,   arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-15-intel,   arch: x86_64,     build: 'pp*',            build_id: pp           }
           - { os: macos-15,         arch: arm64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-15,         arch: arm64,      build: 'pp*',            build_id: pp           }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-manylinux*', build_id: cp-manylinux }
           - { os: ubuntu-24.04-arm, arch: armv7l,     build: 'cp*-musllinux*', build_id: cp-musllinux }
           - { os: ubuntu-24.04-arm, arch: aarch64,    build: 'cp*-manylinux*', build_id: cp-manylinux }
@@ -85,10 +83,6 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: true
-
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.x'
 
     # build wheels for ubuntu
     - name: Build wheels for ubuntu
@@ -284,17 +278,13 @@ jobs:
       fail-fast: false
       matrix:
         arch: [riscv64]
-        build_cp: [cp38, cp39, cp310, cp311, cp312, cp313]
+        build_cp: [cp38, cp39, cp310, cp311, cp312, cp313, cp314]
         build_sub: [manylinux, musllinux]
 
     steps:
     - uses: actions/checkout@v6
       with:
         submodules: true
-
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.x'
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -333,10 +323,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v6
-      with:
-        python-version: '3.x'
-
     - uses: actions/download-artifact@v7
       with:
         path: dist
