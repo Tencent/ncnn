@@ -1,8 +1,9 @@
 name: release-python
-on: push
-concurrency:
-  group: release-python-${{ github.ref }}
-  cancel-in-progress: true
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
