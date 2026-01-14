@@ -613,6 +613,7 @@ int load_tnn(const std::string& tnnpath, Graph& pnnx_graph)
     {
         // unary
         if (op->type == "tnn.Erf") op->type = "aten::erf";
+        if (op->type == "tnn.Flatten") op->type = "Flatten";
         if (op->type == "tnn.Log") op->type = "aten::log";
         if (op->type == "tnn.ReLU") op->type = "aten::relu";
         if (op->type == "tnn.ReLU6") op->type = "aten::relu6";
