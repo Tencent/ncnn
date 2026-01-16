@@ -308,6 +308,9 @@ public:
     bool support_cooperative_matrix_16_8_16;
     bool support_cooperative_matrix_16_16_16;
 
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix;
+
     // extension capability
     int support_VK_KHR_8bit_storage;
     int support_VK_KHR_16bit_storage;
@@ -1195,6 +1198,7 @@ void GpuInfoPrivate::query_extension_properties()
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
     support_cooperative_matrix_16_16_16 = false;
+    support_bf16_cooperative_matrix = false;
     if (support_VK_KHR_cooperative_matrix && queryCooperativeMatrixFeatures.cooperativeMatrix)
     {
         uint32_t propertyCount = 0;
@@ -1249,6 +1253,13 @@ void GpuInfoPrivate::query_extension_properties()
                     && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_16_16 = true;
+            }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+            {
+                support_bf16_cooperative_matrix = true;
             }
         }
     }
@@ -1737,6 +1748,11 @@ bool GpuInfo::support_cooperative_matrix_16_8_16() const
 bool GpuInfo::support_cooperative_matrix_16_16_16() const
 {
     return d->support_cooperative_matrix_16_16_16;
+}
+
+bool GpuInfo::support_bf16_cooperative_matrix() const
+{
+    return d->support_bf16_cooperative_matrix;
 }
 
 int GpuInfo::support_VK_KHR_8bit_storage() const
@@ -4764,6 +4780,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sfp", "bfloat16_t");
         custom_defines.append("sfpvec2", "bf16vec2");
         custom_defines.append("sfpvec4", "bf16vec4");
+
+        // define pack and unpack macro for bf16s
+        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))");
+        custom_defines.append("packBFloat2x16(v)", "uint(packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v))))");
     }
     else if (opt.use_bf16_packed)
     {
