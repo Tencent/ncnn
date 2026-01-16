@@ -197,8 +197,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[10].i = attn_mask_blob.cstep;
 
         VkMat dispatcher;
-        dispatcher.w = N;
-        dispatcher.h = M;
+        dispatcher.w = (N + 1) / 2;
+        dispatcher.h = (M + 1) / 2;
         dispatcher.c = B;
 
         cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
@@ -253,8 +253,8 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[7].i = top_blob.cstep;
 
         VkMat dispatcher;
-        dispatcher.w = N;
-        dispatcher.h = M;
+        dispatcher.w = (N + 1) / 2;
+        dispatcher.h = (M + 1) / 2;
         dispatcher.c = B;
 
         cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);

@@ -30,27 +30,41 @@ layout(push_constant) uniform parameter
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
     int gz = int(gl_GlobalInvocationID.z);
 
     if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
         return;
 
-    afp sum = afp(0.f);
+    afp sum0 = afp(0.f);
+    afp sum1 = afp(0.f);
+    afp sum2 = afp(0.f);
+    afp sum3 = afp(0.f);
+
+    const int ai = gz * psc(qk_cstep) + gy * psc(K);
+    const int bi = (gz / psc(num_heads_per_group)) * psc(v_cstep) + gx;
 
     for (int k = 0; k < psc(K); k++)
     {
-        const int ai = gz * psc(qk_cstep) + gy * psc(K) + k;
-        afp qk0 = buffer_ld1(qkcross_blob_data, ai);
+        afp qk0 = buffer_ld1(qkcross_blob_data, ai + k);
+        afp qk1 = buffer_ld1(qkcross_blob_data, ai + psc(K) + k);
 
-        const int bi = (gz / psc(num_heads_per_group)) * psc(v_cstep) + k * psc(N) + gx;
-        afp v0 = buffer_ld1(v_blob_data, bi);
+        afp v0 = buffer_ld1(v_blob_data, bi + k * psc(N));
+        afp v1 = buffer_ld1(v_blob_data, bi + k * psc(N) + 1);
 
-        sum += qk0 * v0;
+        sum0 += qk0 * v0;
+        sum1 += qk0 * v1;
+        sum2 += qk1 * v0;
+        sum3 += qk1 * v1;
     }
 
     const int gi = gz * psc(out_cstep) + gy * psc(N) + gx;
-
-    buffer_st1(qkvcross_blob_data, gi, sum);
+    buffer_st1(qkvcross_blob_data, gi, sum0);
+    if (gx + 1 < psc(N)) buffer_st1(qkvcross_blob_data, gi + 1, sum1);
+    if (gy + 1 < psc(M))
+    {
+        buffer_st1(qkvcross_blob_data, gi + psc(N), sum2);
+        if (gx + 1 < psc(N)) buffer_st1(qkvcross_blob_data, gi + psc(N) + 1, sum3);
+    }
 }
