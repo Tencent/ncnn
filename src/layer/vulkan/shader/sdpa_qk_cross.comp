@@ -1,0 +1,187 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const float scale = 0.f;
+layout(constant_id = 2) const int M = 0;
+layout(constant_id = 3) const int N = 0;
+layout(constant_id = 4) const int K = 0;
+layout(constant_id = 5) const int B = 0;
+layout(constant_id = 6) const int attn_mask_dims = 0;
+layout(constant_id = 7) const int num_heads_per_group = 0;
+layout(constant_id = 8) const int q_cstep = 0;
+layout(constant_id = 9) const int k_cstep = 0;
+layout(constant_id = 10) const int qk_cstep = 0;
+layout(constant_id = 11) const int mask_cstep = 0;
+
+layout(binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout(binding = 2) writeonly buffer qkcross_blob { sfp qkcross_blob_data[]; };
+layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    float scale;
+    int M;
+    int N;
+    int K;
+    int B;
+    int attn_mask_dims;
+    int num_heads_per_group;
+    int q_cstep;
+    int k_cstep;
+    int qk_cstep;
+    int mask_cstep;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfp tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
+shared lfp tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z);
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+#endif
+
+    afp sum0 = afp(0.f);
+    afp sum1 = afp(0.f);
+    afp sum2 = afp(0.f);
+    afp sum3 = afp(0.f);
+
+#if NCNN_shader_local_memory
+    const int NN = psc(K);
+
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int k = 0;
+    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        {
+            const int ai = gz * psc(q_cstep) + gy * psc(K) + (k + lx);
+            tmp_a[ly][lx][0] = buffer_sm1(q_blob_data, ai);
+            tmp_a[ly][lx][1] = buffer_sm1(q_blob_data, ai + psc(K));
+        }
+
+        {
+            const int bi = (gz / psc(num_heads_per_group)) * psc(k_cstep) + gx * psc(K) + (k + ly);
+            tmp_b[lx][ly][0] = buffer_sm1(k_blob_data, bi);
+            tmp_b[lx][ly][1] = buffer_sm1(k_blob_data, bi + psc(K));
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+
+        barrier();
+    }
+
+    if (k < NN)
+    {
+        const int remain = NN - k;
+
+        if (lx < remain)
+        {
+            const int ai = gz * psc(q_cstep) + gy * psc(K) + (k + lx);
+            tmp_a[ly][lx][0] = buffer_sm1(q_blob_data, ai);
+            tmp_a[ly][lx][1] = buffer_sm1(q_blob_data, ai + psc(K));
+        }
+
+        if (ly < remain)
+        {
+            const int bi = (gz / psc(num_heads_per_group)) * psc(k_cstep) + gx * psc(K) + (k + ly);
+            tmp_b[lx][ly][0] = buffer_sm1(k_blob_data, bi);
+            tmp_b[lx][ly][1] = buffer_sm1(k_blob_data, bi + psc(K));
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < remain; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+    }
+#else
+    const int ai = gz * psc(q_cstep) + gy * psc(K);
+    const int bi = (gz / psc(num_heads_per_group)) * psc(k_cstep) + gx * psc(K);
+
+    for (int k = 0; k < psc(K); k++)
+    {
+        afp q0 = buffer_ld1(q_blob_data, ai + k);
+        afp q1 = buffer_ld1(q_blob_data, ai + k + psc(K));
+
+        afp k0 = buffer_ld1(k_blob_data, bi + k);
+        afp k1 = buffer_ld1(k_blob_data, bi + k + psc(K));
+
+        sum0 += q0 * k0;
+        sum1 += q0 * k1;
+        sum2 += q1 * k0;
+        sum3 += q1 * k1;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+#endif
+
+    sum0 *= afp(psc(scale));
+    sum1 *= afp(psc(scale));
+    sum2 *= afp(psc(scale));
+    sum3 *= afp(psc(scale));
+
+    if (attn_mask == 1)
+    {
+        int mi = gy * psc(N) + gx;
+        if (psc(attn_mask_dims) == 3)
+        {
+            mi += gz * psc(mask_cstep);
+        }
+
+        sum0 += buffer_ld1(attn_mask_blob_data, mi);
+        sum1 += buffer_ld1(attn_mask_blob_data, mi + 1);
+        sum2 += buffer_ld1(attn_mask_blob_data, mi + psc(N));
+        sum3 += buffer_ld1(attn_mask_blob_data, mi + psc(N) + 1);
+    }
+
+    const int gi = gz * psc(qk_cstep) + gy * psc(N) + gx;
+    buffer_st1(qkcross_blob_data, gi, sum0);
+    if (gx + 1 < psc(N)) buffer_st1(qkcross_blob_data, gi + 1, sum1);
+    if (gy + 1 < psc(M))
+    {
+        buffer_st1(qkcross_blob_data, gi + psc(N), sum2);
+        if (gx + 1 < psc(N)) buffer_st1(qkcross_blob_data, gi + psc(N) + 1, sum3);
+    }
+}
