@@ -24,6 +24,10 @@ public:
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
+#ifdef NCNN_INT8
+    int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif
+
 public:
     Mat A_data_packed;
     Mat B_data_packed;
@@ -34,6 +38,15 @@ public:
     VkMat C_data_gpu;
 
     Pipeline* pipeline_gemm;
+
+#ifdef NCNN_INT8
+    Pipeline* pipeline_gemm_int8;
+    Pipeline* pipeline_reduce_scale;
+    Pipeline* pipeline_quantize;
+
+    VkMat A_data_int8_scales_gpu;
+    VkMat B_data_int8_scales_gpu;
+#endif
 
     // cooperative matrix
     bool use_cooperative_matrix;
