@@ -58,6 +58,7 @@ public:
 #if NCNN_INT8
     Mat A_data_int8_scales;
     float B_data_int8_scale;
+    Mat B_data_quantize_scales;
 #endif
 };
 
