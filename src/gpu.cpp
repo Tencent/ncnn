@@ -2147,11 +2147,22 @@ const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVec
     return d->queryCooperativeVectorSubPropertiesNV;
 }
 
-void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const
+void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const
 {
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = d->querySubgroupProperties.subgroupSize;
+
+    if (d->physicalDeviceProperties.vendorID == 0x1002)
+    {
+        if (d->querySubgroupSizeControlProperties.minSubgroupSize == 32)
+        {
+            // default wave32 on amd rdna compute pipelines for better performance
+            // and cooperative matrix requires wave32 implicitly anyway
+            coopmat_subgroup_size = 32;
+        }
+    }
 
     // collect mnk candidates
     std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
@@ -2193,7 +2204,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
     if (mnk_properties.empty() && (acctype == VK_COMPONENT_TYPE_FLOAT16_KHR || acctype == VK_COMPONENT_TYPE_BFLOAT16_KHR))
     {
         // try acctype fp32
-        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K);
+        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
     }
 
     if (mnk_properties.empty())
