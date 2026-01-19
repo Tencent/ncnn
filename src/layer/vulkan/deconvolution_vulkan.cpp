@@ -300,22 +300,23 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
                 }
             }
 
-            std::vector<vk_specialization_type> specializations(12 + 3);
+            std::vector<vk_specialization_type> specializations(13 + 3);
             specializations[0].u32 = coopmat_M;
             specializations[1].u32 = coopmat_N;
             specializations[2].u32 = coopmat_K;
-            specializations[3].u32 = UNROLL_SG_M;
-            specializations[4].u32 = UNROLL_SG_N;
-            specializations[5].u32 = UNROLL_SG_K;
-            specializations[6].u32 = UNROLL_WG_M;
-            specializations[7].u32 = UNROLL_WG_N;
-            specializations[8].u32 = num_input;
-            specializations[9].u32 = maxk * num_output;
-            specializations[10].u32 = elempack;
-            specializations[11].u32 = out_elempack;
-            specializations[12 + 0].u32 = shape_packed.w * shape_packed.h;
-            specializations[12 + 1].u32 = shape_packed.cstep;
-            specializations[12 + 2].u32 = out_shape_col_packed.cstep;
+            specializations[3].u32 = coopmat_subgroup_size;
+            specializations[4].u32 = UNROLL_SG_M;
+            specializations[5].u32 = UNROLL_SG_N;
+            specializations[6].u32 = UNROLL_SG_K;
+            specializations[7].u32 = UNROLL_WG_M;
+            specializations[8].u32 = UNROLL_WG_N;
+            specializations[9].u32 = num_input;
+            specializations[10].u32 = maxk * num_output;
+            specializations[11].u32 = elempack;
+            specializations[12].u32 = out_elempack;
+            specializations[13 + 0].u32 = shape_packed.w * shape_packed.h;
+            specializations[13 + 1].u32 = shape_packed.cstep;
+            specializations[13 + 2].u32 = out_shape_col_packed.cstep;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
