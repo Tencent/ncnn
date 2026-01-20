@@ -2154,16 +2154,6 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
     coopmat_K = 0;
     coopmat_subgroup_size = d->querySubgroupProperties.subgroupSize;
 
-    if (d->physicalDeviceProperties.vendorID == 0x1002)
-    {
-        if (d->querySubgroupSizeControlProperties.minSubgroupSize == 32)
-        {
-            // default wave32 on amd rdna compute pipelines for better performance
-            // and cooperative matrix requires wave32 implicitly anyway
-            coopmat_subgroup_size = 32;
-        }
-    }
-
     // collect mnk candidates
     std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
 
