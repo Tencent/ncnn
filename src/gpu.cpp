@@ -4784,7 +4784,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         // define pack and unpack macro for bf16s
         custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))");
-        custom_defines.append("packBFloat2x16(v)", "uint(packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v))))");
+        custom_defines.append("packBFloat2x16(v)", "packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))");
     }
     else if (opt.use_bf16_packed)
     {
