@@ -19,6 +19,7 @@ Gemm_vulkan::Gemm_vulkan()
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -73,13 +74,27 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
+    bool use_bf16_cooperative_matrix = false;
+    if (vkdev->info.support_bf16_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed))
+    {
+        use_cooperative_matrix = true;
+        use_bf16_cooperative_matrix = true;
+    }
+
     if (use_cooperative_matrix)
     {
         int M = constantM ? constantM : 1024;
         int N = constantN ? constantN : 1024;
         int K = constantK ? constantK : 1024;
 
-        vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+        if (use_bf16_cooperative_matrix)
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+        else
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -90,7 +105,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-        std::vector<vk_specialization_type> specializations(15 + 8);
+        std::vector<vk_specialization_type> specializations(15 + 9);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -110,17 +125,16 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[15].u32 = coopmat_M;
         specializations[16].u32 = coopmat_N;
         specializations[17].u32 = coopmat_K;
-        specializations[18].u32 = UNROLL_SG_M;
-        specializations[19].u32 = UNROLL_SG_N;
-        specializations[20].u32 = UNROLL_SG_K;
-        specializations[21].u32 = UNROLL_WG_M;
-        specializations[22].u32 = UNROLL_WG_N;
-
-        const int subgroup_size = vkdev->info.subgroup_size();
+        specializations[18].u32 = coopmat_subgroup_size;
+        specializations[19].u32 = UNROLL_SG_M;
+        specializations[20].u32 = UNROLL_SG_N;
+        specializations[21].u32 = UNROLL_SG_K;
+        specializations[22].u32 = UNROLL_WG_M;
+        specializations[23].u32 = UNROLL_WG_N;
 
         pipeline_gemm = new Pipeline(vkdev);
-        pipeline_gemm->set_subgroup_size(subgroup_size);
-        pipeline_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+        pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
+        pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
     }
     else
@@ -177,6 +191,17 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_gemm;
     pipeline_gemm = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 
     return 0;
 }
@@ -330,10 +355,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-        const int subgroup_size = vkdev->info.subgroup_size();
-
         VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+        dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
         dispatcher.h = 1;
         dispatcher.c = 1;
 
