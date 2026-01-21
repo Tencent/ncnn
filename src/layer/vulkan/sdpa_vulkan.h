@@ -23,12 +23,22 @@ public:
 
 public:
     Layer* qk_softmax;
-
     Layer* kvcache_concat;
 
     Pipeline* pipeline_sdpa_qk_cross;
-
     Pipeline* pipeline_sdpa_qkv_cross;
+
+    // cooperative matrix
+    bool use_cooperative_matrix;
+    int coopmat_M;
+    int coopmat_N;
+    int coopmat_K;
+    int coopmat_subgroup_size;
+    int UNROLL_SG_M;
+    int UNROLL_SG_N;
+    int UNROLL_SG_K;
+    int UNROLL_WG_M;
+    int UNROLL_WG_N;
 };
 
 } // namespace ncnn

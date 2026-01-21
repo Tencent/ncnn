@@ -19,6 +19,17 @@ SDPA_vulkan::SDPA_vulkan()
 
     pipeline_sdpa_qk_cross = 0;
     pipeline_sdpa_qkv_cross = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 }
 
 int SDPA_vulkan::load_param(const ParamDict& pd)
@@ -35,42 +46,149 @@ int SDPA_vulkan::load_param(const ParamDict& pd)
 
 int SDPA_vulkan::create_pipeline(const Option& opt)
 {
-    {
-        std::vector<vk_specialization_type> specializations(12);
-        specializations[0].i = attn_mask;
-        specializations[1].f = 0.f; // scale
-        specializations[2].i = 0;   // src_seqlen
-        specializations[3].i = 0;   // dst_seqlen
-        specializations[4].i = 0;   // embed_dim
-        specializations[5].i = 0;   // num_heads
-        specializations[6].i = 0;   // attn_mask.dims
-        specializations[7].i = 0;   // num_heads / num_group
-        specializations[8].i = 0;   // q_cstep
-        specializations[9].i = 0;   // k_cstep
-        specializations[10].i = 0;  // qk_cstep
-        specializations[11].i = 0;  // mask_cstep
+    use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
+    bool use_bf16_cooperative_matrix = false;
+    if (vkdev->info.support_bf16_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed))
+    {
+        use_cooperative_matrix = true;
+        use_bf16_cooperative_matrix = true;
+    }
+
+    if (use_cooperative_matrix)
+    {
+        int M = 1024;
+        int N = 1024;
+        int K = 1024;
+
+        if (use_bf16_cooperative_matrix)
         {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+        else
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+
+        // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
+
+        UNROLL_SG_M = std::min((M + coopmat_M - 1) / coopmat_M, 2);
+        UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+        UNROLL_SG_K = std::min((K + coopmat_K - 1) / coopmat_K, 2);
+
+        UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+        UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+        // qk cross
+        {
+            std::vector<vk_specialization_type> specializations(13 + 9);
+            specializations[0].i = attn_mask;
+            specializations[1].f = 0.f; // scale
+            specializations[2].i = 0;   // M
+            specializations[3].i = 0;   // N
+            specializations[4].i = 0;   // K
+            specializations[5].i = 0;   // B
+            specializations[6].i = 1;   // transB
+            specializations[7].i = 0;   // attn_mask.dims
+            specializations[8].i = 0;   // num_heads_per_group
+            specializations[9].i = 0;   // A_cstep
+            specializations[10].i = 0;  // B_cstep
+            specializations[11].i = 0;  // out_cstep
+            specializations[12].i = 0;  // mask_cstep
+
+            specializations[13 + 0].u32 = coopmat_M;
+            specializations[13 + 1].u32 = coopmat_N;
+            specializations[13 + 2].u32 = coopmat_K;
+            specializations[13 + 3].u32 = coopmat_subgroup_size;
+            specializations[13 + 4].u32 = UNROLL_SG_M;
+            specializations[13 + 5].u32 = UNROLL_SG_N;
+            specializations[13 + 6].u32 = UNROLL_SG_K;
+            specializations[13 + 7].u32 = UNROLL_WG_M;
+            specializations[13 + 8].u32 = UNROLL_WG_N;
+
             pipeline_sdpa_qk_cross = new Pipeline(vkdev);
-            pipeline_sdpa_qk_cross->set_local_size_xyz(8, 8, 1);
-            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_qk_cross, opt, specializations);
+            pipeline_sdpa_qk_cross->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_sdpa_qk_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm, opt, specializations);
+        }
+
+        // qkv cross
+        {
+            std::vector<vk_specialization_type> specializations(13 + 9);
+            specializations[0].i = 0;   // attn_mask;
+            specializations[1].f = 1.f; // scale
+            specializations[2].i = 0;   // M
+            specializations[3].i = 0;   // N
+            specializations[4].i = 0;   // K
+            specializations[5].i = 0;   // B
+            specializations[6].i = 0;   // transB
+            specializations[7].i = 0;   // attn_mask.dims
+            specializations[8].i = 0;   // num_heads_per_group
+            specializations[9].i = 0;   // A_cstep
+            specializations[10].i = 0;  // B_cstep
+            specializations[11].i = 0;  // out_cstep
+            specializations[12].i = 0;  // mask_cstep
+
+            specializations[13 + 0].u32 = coopmat_M;
+            specializations[13 + 1].u32 = coopmat_N;
+            specializations[13 + 2].u32 = coopmat_K;
+            specializations[13 + 3].u32 = coopmat_subgroup_size;
+            specializations[13 + 4].u32 = UNROLL_SG_M;
+            specializations[13 + 5].u32 = UNROLL_SG_N;
+            specializations[13 + 6].u32 = UNROLL_SG_K;
+            specializations[13 + 7].u32 = UNROLL_WG_M;
+            specializations[13 + 8].u32 = UNROLL_WG_N;
+
+            pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
+            pipeline_sdpa_qkv_cross->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_sdpa_qkv_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm, opt, specializations);
         }
     }
+    else
     {
-        std::vector<vk_specialization_type> specializations(8);
-        specializations[0].i = 0; // src_seqlen
-        specializations[1].i = 0; // out_embed_dim
-        specializations[2].i = 0; // dst_seqlen
-        specializations[3].i = 0; // num_heads
-        specializations[4].i = 0; // num_heads / num_group
-        specializations[5].i = 0; // qk_cstep
-        specializations[6].i = 0; // v_cstep
-        specializations[7].i = 0; // out_cstep
-
+        // qk cross
         {
+            std::vector<vk_specialization_type> specializations(13);
+            specializations[0].i = attn_mask;
+            specializations[1].f = 0.f; // scale
+            specializations[2].i = 0;   // M
+            specializations[3].i = 0;   // N
+            specializations[4].i = 0;   // K
+            specializations[5].i = 0;   // B
+            specializations[6].i = 1;   // transB
+            specializations[7].i = 0;   // attn_mask.dims
+            specializations[8].i = 0;   // num_heads_per_group
+            specializations[9].i = 0;   // A_cstep
+            specializations[10].i = 0;  // B_cstep
+            specializations[11].i = 0;  // out_cstep
+            specializations[12].i = 0;  // mask_cstep
+
+            pipeline_sdpa_qk_cross = new Pipeline(vkdev);
+            pipeline_sdpa_qk_cross->set_local_size_xyz(8, 8, 1);
+            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross, opt, specializations);
+        }
+
+        // qkv cross
+        {
+            std::vector<vk_specialization_type> specializations(13);
+            specializations[0].i = 0;   // attn_mask;
+            specializations[1].f = 1.f; // scale
+            specializations[2].i = 0;   // M
+            specializations[3].i = 0;   // N
+            specializations[4].i = 0;   // K
+            specializations[5].i = 0;   // B
+            specializations[6].i = 0;   // transB
+            specializations[7].i = 0;   // attn_mask.dims
+            specializations[8].i = 0;   // num_heads_per_group
+            specializations[9].i = 0;   // A_cstep
+            specializations[10].i = 0;  // B_cstep
+            specializations[11].i = 0;  // out_cstep
+            specializations[12].i = 0;  // mask_cstep
+
             pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
             pipeline_sdpa_qkv_cross->set_local_size_xyz(8, 8, 1);
-            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_qkv_cross, opt, specializations);
+            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross, opt, specializations);
         }
     }
 
@@ -119,6 +237,17 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
         delete kvcache_concat;
         kvcache_concat = 0;
     }
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 
     return 0;
 }
@@ -196,12 +325,27 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[9].i = qk_cross.cstep;
         constants[10].i = attn_mask_blob.cstep;
 
-        VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
-        dispatcher.c = B;
+        if (use_cooperative_matrix)
+        {
+            const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+            const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-        cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.h = 1;
+            dispatcher.c = B;
+
+            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
+        }
+        else
+        {
+            VkMat dispatcher;
+            dispatcher.w = (N + 1) / 2;
+            dispatcher.h = (M + 1) / 2;
+            dispatcher.c = B;
+
+            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
+        }
     }
 
     qk_softmax->forward_inplace(qk_cross, cmd, opt);
@@ -237,27 +381,46 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         int K = dst_seqlen;
         int B = num_heads;
 
-        std::vector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(4);
         bindings[0] = qk_cross;
         bindings[1] = value;
         bindings[2] = top_blob;
+        bindings[3] = VkMat();
 
-        std::vector<vk_constant_type> constants(8);
-        constants[0].i = M;
-        constants[1].i = N;
-        constants[2].i = K;
-        constants[3].i = B;
-        constants[4].i = num_heads_per_group;
-        constants[5].i = qk_cross.cstep;
-        constants[6].i = value.cstep;
-        constants[7].i = top_blob.cstep;
+        std::vector<vk_constant_type> constants(11);
+        constants[0].f = 1.f; // scale
+        constants[1].i = M;
+        constants[2].i = N;
+        constants[3].i = K;
+        constants[4].i = B;
+        constants[5].i = 0; // attn_mask_dims
+        constants[6].i = num_heads_per_group;
+        constants[7].i = qk_cross.cstep;
+        constants[8].i = value.cstep;
+        constants[9].i = top_blob.cstep;
+        constants[10].i = 0; // mask_cstep
 
-        VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
-        dispatcher.c = B;
+        if (use_cooperative_matrix)
+        {
+            const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+            const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-        cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.h = 1;
+            dispatcher.c = B;
+
+            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
+        }
+        else
+        {
+            VkMat dispatcher;
+            dispatcher.w = (N + 1) / 2;
+            dispatcher.h = (M + 1) / 2;
+            dispatcher.c = B;
+
+            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
+        }
     }
 
     if (kv_cache)
