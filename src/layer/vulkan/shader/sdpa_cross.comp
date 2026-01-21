@@ -14,14 +14,14 @@ layout(constant_id = 5) const int B = 0;
 layout(constant_id = 6) const int transB = 0;
 layout(constant_id = 7) const int attn_mask_dims = 0;
 layout(constant_id = 8) const int num_heads_per_group = 0;
-layout(constant_id = 9) const int a_cstep = 0;
-layout(constant_id = 10) const int b_cstep = 0;
+layout(constant_id = 9) const int A_cstep = 0;
+layout(constant_id = 10) const int B_cstep = 0;
 layout(constant_id = 11) const int out_cstep = 0;
 layout(constant_id = 12) const int mask_cstep = 0;
 
-layout(binding = 0) readonly buffer a_blob { sfp a_blob_data[]; };
-layout(binding = 1) readonly buffer b_blob { sfp b_blob_data[]; };
-layout(binding = 2) writeonly buffer out_blob { sfp out_blob_data[]; };
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -33,8 +33,8 @@ layout(push_constant) uniform parameter
     int B;
     int attn_mask_dims;
     int num_heads_per_group;
-    int a_cstep;
-    int b_cstep;
+    int A_cstep;
+    int B_cstep;
     int out_cstep;
     int mask_cstep;
 } p;
@@ -70,22 +70,22 @@ void main()
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
-            const int ai = gz * psc(a_cstep) + gy * psc(K) + (k + lx);
-            tmp_a[ly][lx][0] = buffer_sm1(a_blob_data, ai);
-            tmp_a[ly][lx][1] = buffer_sm1(a_blob_data, ai + psc(K));
+            const int ai = gz * psc(A_cstep) + gy * psc(K) + (k + lx);
+            tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+            tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + psc(K));
         }
 
         if (transB == 0)
         {
-            const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + gx + (k + ly) * psc(N);
-            tmp_b[lx][ly][0] = buffer_sm1(b_blob_data, bi);
-            tmp_b[lx][ly][1] = buffer_sm1(b_blob_data, bi + 1);
+            const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx + (k + ly) * psc(N);
+            tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+            tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
         }
         else
         {
-            const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + gx * psc(K) + (k + ly);
-            tmp_b[lx][ly][0] = buffer_sm1(b_blob_data, bi);
-            tmp_b[lx][ly][1] = buffer_sm1(b_blob_data, bi + psc(K));
+            const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx * psc(K) + (k + ly);
+            tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+            tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + psc(K));
         }
 
         barrier();
@@ -113,24 +113,24 @@ void main()
 
         if (lx < remain)
         {
-            const int ai = gz * psc(a_cstep) + gy * psc(K) + (k + lx);
-            tmp_a[ly][lx][0] = buffer_sm1(a_blob_data, ai);
-            tmp_a[ly][lx][1] = buffer_sm1(a_blob_data, ai + psc(K));
+            const int ai = gz * psc(A_cstep) + gy * psc(K) + (k + lx);
+            tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
+            tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + psc(K));
         }
 
         if (ly < remain)
         {
             if (transB == 0)
             {
-                const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + gx + (k + ly) * psc(N);
-                tmp_b[lx][ly][0] = buffer_sm1(b_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(b_blob_data, bi + 1);
+                const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx + (k + ly) * psc(N);
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
             }
             else
             {
-                const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + gx * psc(K) + (k + ly);
-                tmp_b[lx][ly][0] = buffer_sm1(b_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(b_blob_data, bi + psc(K));
+                const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx * psc(K) + (k + ly);
+                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
+                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + psc(K));
             }
         }
 
@@ -151,26 +151,26 @@ void main()
         }
     }
 #else
-    const int ai = gz * psc(a_cstep) + gy * psc(K);
+    const int ai = gz * psc(A_cstep) + gy * psc(K);
 
     for (int k = 0; k < psc(K); k++)
     {
-        afp q0 = buffer_ld1(a_blob_data, ai + k);
-        afp q1 = buffer_ld1(a_blob_data, ai + k + psc(K));
+        afp q0 = buffer_ld1(A_blob_data, ai + k);
+        afp q1 = buffer_ld1(A_blob_data, ai + k + psc(K));
 
         afp k0;
         afp k1;
         if (transB == 0)
         {
-            const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + k * psc(N) + gx;
-            k0 = buffer_ld1(b_blob_data, bi);
-            k1 = buffer_ld1(b_blob_data, bi + 1);
+            const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + k * psc(N) + gx;
+            k0 = buffer_ld1(B_blob_data, bi);
+            k1 = buffer_ld1(B_blob_data, bi + 1);
         }
         else
         {
-            const int bi = (gz / psc(num_heads_per_group)) * psc(b_cstep) + gx * psc(K) + k;
-            k0 = buffer_ld1(b_blob_data, bi);
-            k1 = buffer_ld1(b_blob_data, bi + psc(K));
+            const int bi = (gz / psc(num_heads_per_group)) * psc(B_cstep) + gx * psc(K) + k;
+            k0 = buffer_ld1(B_blob_data, bi);
+            k1 = buffer_ld1(B_blob_data, bi + psc(K));
         }
 
         sum0 += q0 * k0;
@@ -208,11 +208,11 @@ void main()
     }
 
     const int gi = gz * psc(out_cstep) + gy * psc(N) + gx;
-    buffer_st1(out_blob_data, gi, sum0);
-    if (gx + 1 < psc(N)) buffer_st1(out_blob_data, gi + 1, sum1);
+    buffer_st1(top_blob_data, gi, sum0);
+    if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + 1, sum1);
     if (gy + 1 < psc(M))
     {
-        buffer_st1(out_blob_data, gi + psc(N), sum2);
-        if (gx + 1 < psc(N)) buffer_st1(out_blob_data, gi + psc(N) + 1, sum3);
+        buffer_st1(top_blob_data, gi + psc(N), sum2);
+        if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + psc(N) + 1, sum3);
     }
 }
