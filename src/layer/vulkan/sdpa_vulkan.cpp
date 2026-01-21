@@ -36,41 +36,47 @@ int SDPA_vulkan::load_param(const ParamDict& pd)
 int SDPA_vulkan::create_pipeline(const Option& opt)
 {
     {
-        std::vector<vk_specialization_type> specializations(12);
+        std::vector<vk_specialization_type> specializations(13);
         specializations[0].i = attn_mask;
         specializations[1].f = 0.f; // scale
-        specializations[2].i = 0;   // src_seqlen
-        specializations[3].i = 0;   // dst_seqlen
-        specializations[4].i = 0;   // embed_dim
-        specializations[5].i = 0;   // num_heads
-        specializations[6].i = 0;   // attn_mask.dims
-        specializations[7].i = 0;   // num_heads / num_group
-        specializations[8].i = 0;   // q_cstep
-        specializations[9].i = 0;   // k_cstep
-        specializations[10].i = 0;  // qk_cstep
-        specializations[11].i = 0;  // mask_cstep
+        specializations[2].i = 0;   // M
+        specializations[3].i = 0;   // N
+        specializations[4].i = 0;   // K
+        specializations[5].i = 0;   // B
+        specializations[6].i = 1;   // transB
+        specializations[7].i = 0;   // attn_mask.dims
+        specializations[8].i = 0;   // num_heads_per_group
+        specializations[9].i = 0;   // a_cstep
+        specializations[10].i = 0;  // b_cstep
+        specializations[11].i = 0;  // out_cstep
+        specializations[12].i = 0;  // mask_cstep
 
         {
             pipeline_sdpa_qk_cross = new Pipeline(vkdev);
             pipeline_sdpa_qk_cross->set_local_size_xyz(8, 8, 1);
-            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_qk_cross, opt, specializations);
+            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross, opt, specializations);
         }
     }
     {
-        std::vector<vk_specialization_type> specializations(8);
-        specializations[0].i = 0; // src_seqlen
-        specializations[1].i = 0; // out_embed_dim
-        specializations[2].i = 0; // dst_seqlen
-        specializations[3].i = 0; // num_heads
-        specializations[4].i = 0; // num_heads / num_group
-        specializations[5].i = 0; // qk_cstep
-        specializations[6].i = 0; // v_cstep
-        specializations[7].i = 0; // out_cstep
+        std::vector<vk_specialization_type> specializations(13);
+        specializations[0].i = 0;   // attn_mask;
+        specializations[1].f = 1.f; // scale
+        specializations[2].i = 0;   // M
+        specializations[3].i = 0;   // N
+        specializations[4].i = 0;   // K
+        specializations[5].i = 0;   // B
+        specializations[6].i = 0;   // transB
+        specializations[7].i = 0;   // attn_mask.dims
+        specializations[8].i = 0;   // num_heads_per_group
+        specializations[9].i = 0;   // a_cstep
+        specializations[10].i = 0;  // b_cstep
+        specializations[11].i = 0;  // out_cstep
+        specializations[12].i = 0;  // mask_cstep
 
         {
             pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
             pipeline_sdpa_qkv_cross->set_local_size_xyz(8, 8, 1);
-            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_qkv_cross, opt, specializations);
+            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross, opt, specializations);
         }
     }
 
@@ -237,20 +243,24 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         int K = dst_seqlen;
         int B = num_heads;
 
-        std::vector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(4);
         bindings[0] = qk_cross;
         bindings[1] = value;
         bindings[2] = top_blob;
+        bindings[3] = VkMat();
 
-        std::vector<vk_constant_type> constants(8);
-        constants[0].i = M;
-        constants[1].i = N;
-        constants[2].i = K;
-        constants[3].i = B;
-        constants[4].i = num_heads_per_group;
-        constants[5].i = qk_cross.cstep;
-        constants[6].i = value.cstep;
-        constants[7].i = top_blob.cstep;
+        std::vector<vk_constant_type> constants(11);
+        constants[0].f = 1.f; // scale
+        constants[1].i = M;
+        constants[2].i = N;
+        constants[3].i = K;
+        constants[4].i = B;
+        constants[5].i = 0; // attn_mask_dims
+        constants[6].i = num_heads_per_group;
+        constants[7].i = qk_cross.cstep;
+        constants[8].i = value.cstep;
+        constants[9].i = top_blob.cstep;
+        constants[10].i = 0; // mask_cstep
 
         VkMat dispatcher;
         dispatcher.w = (N + 1) / 2;
