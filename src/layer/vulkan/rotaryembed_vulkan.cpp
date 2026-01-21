@@ -1,4 +1,5 @@
 // Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "rotaryembed_vulkan.h"
@@ -9,9 +10,6 @@ namespace ncnn {
 
 RotaryEmbed_vulkan::RotaryEmbed_vulkan()
 {
-    one_blob_only = false;
-    support_inplace = false;
-
     support_vulkan = true;
     support_vulkan_packing = true;
 
@@ -22,7 +20,6 @@ RotaryEmbed_vulkan::RotaryEmbed_vulkan()
 int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& cos_shape = bottom_shapes.size() > 1 ? bottom_shapes[1] : Mat();
 
     int elempack = 1;
     if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
@@ -36,18 +33,12 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
     Mat shape_packed;
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
-    const int cache_w = cos_shape.dims == 2 ? cos_shape.w : 0;
-
-    std::vector<vk_specialization_type> specializations(1 + 7);
+    std::vector<vk_specialization_type> specializations(1 + 4);
     specializations[0].i = interleaved;
-
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = (int)shape_packed.cstep;
-    specializations[1 + 5].i = shape_packed.dims ? (int)shape_packed.cstep : 0; // outcstep == cstep
-    specializations[1 + 6].i = cache_w;
+    specializations[1 + 0].i = shape_packed.w;
+    specializations[1 + 1].i = shape_packed.h;
+    specializations[1 + 2].i = shape_packed.c;
+    specializations[1 + 3].i = (int)shape_packed.cstep;
 
     Mat local_size_xyz;
     if (shape_packed.dims == 3)
@@ -64,7 +55,7 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
         local_size_xyz.c = 1;
     }
 
-    // pack1 pipeline
+    // pack1
     if (shape.dims == 0 || elempack == 1)
     {
         pipeline_rotaryembed = new Pipeline(vkdev);
@@ -72,7 +63,7 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
         pipeline_rotaryembed->create(LayerShaderType::rotaryembed, opt, specializations);
     }
 
-    // pack4 pipeline (do not depend on out_shape)
+    // pack4
     if (shape.dims == 0 || elempack == 4)
     {
         pipeline_rotaryembed_pack4 = new Pipeline(vkdev);
@@ -97,68 +88,53 @@ int RotaryEmbed_vulkan::destroy_pipeline(const Option& /*opt*/)
 int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& bottom_blob = bottom_blobs[0];
-    const VkMat& cos_cache0 = bottom_blobs[1];
-    const VkMat& sin_cache0 = bottom_blobs[2];
-
-    if (bottom_blob.dims != 3)
-        return -1;
-
-    VkMat cos_cache = cos_cache0;
-    if (cos_cache.elempack != 1)
-        vkdev->convert_packing(cos_cache0, cos_cache, 1, cmd, opt);
-
-    VkMat sin_cache = sin_cache0;
-    if (sin_cache.elempack != 1)
-        vkdev->convert_packing(sin_cache0, sin_cache, 1, cmd, opt);
-
-    if (cos_cache.dims != 2 || sin_cache.dims != 2)
-        return -1;
+    const VkMat& cos_cache = bottom_blobs[1];
+    const VkMat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
-    const int heads_packed = bottom_blob.c;
+    const int num_heads = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
-    if (embed_dim % 2 != 0)
-        return -1;
+    VkMat cos_cache_unpacked = cos_cache;
+    if (cos_cache.elempack != 1)
+    {
+        vkdev->convert_packing(cos_cache, cos_cache_unpacked, 1, cmd, opt);
+        if (cos_cache_unpacked.empty())
+            return -100;
+    }
 
-    const int halfdim = embed_dim / 2;
-
-    if (cos_cache.w < halfdim || sin_cache.w < halfdim)
-        return -1;
-    if (cos_cache.h < seqlen || sin_cache.h < seqlen)
-        return -1;
+    VkMat sin_cache_unpacked = sin_cache;
+    if (sin_cache.elempack != 1)
+    {
+        vkdev->convert_packing(sin_cache, sin_cache_unpacked, 1, cmd, opt);
+        if (sin_cache_unpacked.empty())
+            return -100;
+    }
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(embed_dim, seqlen, heads_packed, bottom_blob.elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
-        return -1;
-
-    const Pipeline* pipeline = 0;
-    if (elempack == 4)
-        pipeline = pipeline_rotaryembed_pack4;
-    else
-        pipeline = pipeline_rotaryembed;
+        return -100;
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob;
-    bindings[1] = cos_cache;
-    bindings[2] = sin_cache;
+    bindings[1] = cos_cache_unpacked;
+    bindings[2] = sin_cache_unpacked;
     bindings[3] = top_blob;
 
-    std::vector<vk_constant_type> constants(7);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = (int)bottom_blob.cstep;
-    constants[5].i = (int)top_blob.cstep;
-    constants[6].i = cos_cache.w;
+    std::vector<vk_constant_type> constants(4);
+    constants[0].i = embed_dim;
+    constants[1].i = seqlen;
+    constants[2].i = num_heads;
+    constants[3].i = (int)bottom_blob.cstep;
 
     VkMat dispatcher;
-    dispatcher.w = halfdim;
+    dispatcher.w = embed_dim / 2;
     dispatcher.h = seqlen;
-    dispatcher.c = heads_packed;
+    dispatcher.c = num_heads;
+
+    const Pipeline* pipeline = elempack == 4 ? pipeline_rotaryembed_pack4 : pipeline_rotaryembed;
 
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 

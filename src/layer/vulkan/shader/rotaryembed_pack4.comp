@@ -1,4 +1,5 @@
 // Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -6,13 +7,10 @@
 layout(constant_id = 0) const int interleaved = 0;
 
 #define shape_constant_id_offset 1
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
-layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
-layout(constant_id = shape_constant_id_offset + 6) const int cache_w = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int embed_dim = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int seqlen = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout(binding = 1) readonly buffer cos_cache { sfp cos_cache_data[]; };
@@ -21,13 +19,10 @@ layout(binding = 3) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int c;
+    int embed_dim;
+    int seqlen;
+    int num_heads;
     int cstep;
-    int outcstep;
-    int cache_w;
 } p;
 
 void main()
@@ -36,48 +31,40 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    const int embed_dim = psc(w);
-    const int halfdim = embed_dim / 2;
+    const int halfdim = psc(embed_dim) / 2;
 
-    if (gx >= halfdim || gy >= psc(h) || gz >= psc(c))
+    if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
         return;
 
-    const int cw = psc(cache_w);
-    const int cache_offset = gy * cw + gx;
+    const int cache_offset = gy * halfdim + gx;
 
     afp cosv = buffer_ld1(cos_cache_data, cache_offset);
     afp sinv = buffer_ld1(sin_cache_data, cache_offset);
 
     if (interleaved == 1)
     {
-        const int base = gz * psc(cstep) + gy * embed_dim + gx * 2;
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx * 2;
 
-        afpvec4 x0 = buffer_ld4(bottom_blob_data, base);
-        afpvec4 x1 = buffer_ld4(bottom_blob_data, base + 1);
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + 1);
 
         afpvec4 y0 = x0 * cosv - x1 * sinv;
         afpvec4 y1 = x0 * sinv + x1 * cosv;
 
-        const int outbase = gz * psc(outcstep) + gy * embed_dim + gx * 2;
-
-        buffer_st4(top_blob_data, outbase, y0);
-        buffer_st4(top_blob_data, outbase + 1, y1);
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + 1, y1);
     }
     else
     {
-        const int base0 = gz * psc(cstep) + gy * embed_dim + gx;
-        const int base1 = base0 + halfdim;
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 
-        afpvec4 x0 = buffer_ld4(bottom_blob_data, base0);
-        afpvec4 x1 = buffer_ld4(bottom_blob_data, base1);
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + halfdim);
 
         afpvec4 y0 = x0 * cosv - x1 * sinv;
         afpvec4 y1 = x0 * sinv + x1 * cosv;
 
-        const int outbase0 = gz * psc(outcstep) + gy * embed_dim + gx;
-        const int outbase1 = outbase0 + halfdim;
-
-        buffer_st4(top_blob_data, outbase0, y0);
-        buffer_st4(top_blob_data, outbase1, y1);
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + halfdim, y1);
     }
 }

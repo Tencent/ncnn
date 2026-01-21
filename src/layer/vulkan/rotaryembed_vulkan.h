@@ -1,4 +1,5 @@
 // Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_ROTARYEMBED_VULKAN_H
