@@ -3,13 +3,24 @@ macro(ncnn_add_shader NCNN_SHADER_SRC)
     get_filename_component(NCNN_SHADER_SRC_NAME_WE ${NCNN_SHADER_SRC} NAME_WE)
     set(NCNN_SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/layer/vulkan/shader/${NCNN_SHADER_SRC_NAME_WE}.comp.hex.h)
 
-    add_custom_command(
-        OUTPUT ${NCNN_SHADER_COMP_HEADER}
-        COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${NCNN_SHADER_SRC} -DSHADER_COMP_HEADER=${NCNN_SHADER_COMP_HEADER} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_comp_header.cmake"
-        DEPENDS ${NCNN_SHADER_SRC}
-        COMMENT "Preprocessing shader source ${NCNN_SHADER_SRC_NAME_WE}.comp"
-        VERBATIM
-    )
+    if(NCNN_SHADER_COMPRESS)
+        add_custom_command(
+                OUTPUT ${NCNN_SHADER_COMP_HEADER}
+                COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${NCNN_SHADER_SRC} -DSHADER_COMP_HEADER=${NCNN_SHADER_COMP_HEADER} -DNCNN_SHADER_COMPRESS=ON -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_comp_header.cmake"
+                DEPENDS ${NCNN_SHADER_SRC}
+                COMMENT "Preprocessing shader source ${NCNN_SHADER_SRC_NAME_WE}.comp"
+                VERBATIM
+        )
+    else()
+        add_custom_command(
+                OUTPUT ${NCNN_SHADER_COMP_HEADER}
+                COMMAND ${CMAKE_COMMAND} -DSHADER_SRC=${NCNN_SHADER_SRC} -DSHADER_COMP_HEADER=${NCNN_SHADER_COMP_HEADER} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_comp_header.cmake"
+                DEPENDS ${NCNN_SHADER_SRC}
+                COMMENT "Preprocessing shader source ${NCNN_SHADER_SRC_NAME_WE}.comp"
+                VERBATIM
+        )
+    endif()
+
     set_source_files_properties(${NCNN_SHADER_COMP_HEADER} PROPERTIES GENERATED TRUE)
 
     get_filename_component(NCNN_SHADER_COMP_HEADER_NAME ${NCNN_SHADER_COMP_HEADER} NAME)
