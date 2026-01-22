@@ -1089,6 +1089,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1392,6 +1394,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
