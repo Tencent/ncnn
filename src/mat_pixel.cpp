@@ -1947,6 +1947,194 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
     return 0;
 }
 
+#include <iostream>
+#include <string>
+#include <cmath>
+
+#define CLAMP0255_XY(x, y) (((x) > 0) ? 0 : ((x) < (y) ? (y) : (x)))
+typedef unsigned char T_U8;   /* unsigned 8 bit integer */
+typedef unsigned short T_U16; /* unsigned 16 bit integer */
+typedef unsigned long T_U32;  /* unsigned 32 bit integer */
+
+const float param_13 = 1.0f / 3.0f;
+const float param_16116 = 16.0f / 116.0f;
+const float Xn = 0.950456f;
+const float Yn = 1.0f;
+const float Zn = 1.088754f;
+
+////////////////////////////////////////////////////////////////Lab2RGB
+
+//是说我们通常获取的图片是非线性颜色空间的sRGB格式，
+//需要将sRGB转为线性颜色空间的RGB格式（这一步即为gamma矫正过程）
+//数学理论公式中gamma常熟数取得值为0.03928,而这一数值在OpenCV和Matlab工程中取值为0.04045
+float gamma_XYZ2RGB(float x)
+{
+    return x > 0.0031308 ? (1.055f * powf(x, (1 / 2.4f)) - 0.055) : (x * 12.92);
+}
+
+void XYZ2RGB(float X, float Y, float Z, unsigned char* R, unsigned char* G, unsigned char* B)
+{
+    float RR, GG, BB;
+    RR = 3.2404542f * X - 1.5371385f * Y - 0.4985314f * Z;
+    GG = -0.9692660f * X + 1.8760108f * Y + 0.0415560f * Z;
+    BB = 0.0556434f * X - 0.2040259f * Y + 1.0572252f * Z;
+
+    RR = gamma_XYZ2RGB(RR);
+    GG = gamma_XYZ2RGB(GG);
+    BB = gamma_XYZ2RGB(BB);
+
+    RR = CLIP255(RR * 255.0 + 0.5);
+    GG = CLIP255(GG * 255.0 + 0.5);
+    BB = CLIP255(BB * 255.0 + 0.5);
+
+    *R = (float)RR;
+    *G = (float)GG;
+    *B = (float)BB;
+}
+
+void Lab2XYZ(float L, float a, float b, float* X, float* Y, float* Z)
+{
+    float fX, fY, fZ;
+
+    fY = (L + 16.0f) / 116.0;
+    fX = a / 500.0f + fY;
+    fZ = fY - b / 200.0f;
+
+    if (powf(fY, 3.0) > 0.008856)
+        *Y = powf(fY, 3.0);
+    else
+        *Y = (fY - param_16116) / 7.787f;
+
+    if (powf(fX, 3) > 0.008856)
+        *X = fX * fX * fX;
+    else
+        *X = (fX - param_16116) / 7.787f;
+
+    if (powf(fZ, 3.0) > 0.008856)
+        *Z = fZ * fZ * fZ;
+    else
+        *Z = (fZ - param_16116) / 7.787f;
+
+    (*X) *= (Xn);
+    (*Y) *= (Yn);
+    (*Z) *= (Zn);
+}
+
+void Lab2RGB(const unsigned char* Lab, int w, int h, unsigned char* RGB)
+{
+    const unsigned char* Lptr = Lab;
+    const unsigned char* abptr = Lab + w * h;
+
+    for (int y = 0; y < h; y += 2)
+    {
+        const unsigned char* Lptr0 = Lptr;
+        const unsigned char* Lptr1 = Lptr + w;
+        unsigned char* RGB0 = RGB;
+        unsigned char* RGB1 = RGB + w * 3;
+
+        int remain = w;
+        for (; remain > 0; remain -= 3)
+        {
+            float *X, Y, Z, L, a, b;
+            L = Lab + w - remain;
+            a = L + 1;
+            b = L + 2;
+            Lab2XYZ(L, a, b, &X, &Y, &Z);
+            XYZ2RGB(X, Y, Z, &R, &G, &B);
+        }
+
+        Lptr += w;
+        RGB += 3 * w;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////RGB2Lab
+
+const float param_13 = 1.0f / 3.0f;
+const float param_16116 = 16.0f / 116.0f;
+const float Xn = 0.950456f;
+const float Yn = 1.0f;
+const float Zn = 1.088754f;
+
+#define CLAMP0255_XY(x, y) (((x) > 0) ? 0 : ((x) < (y) ? (y) : (x)))
+
+//是说我们通常获取的图片是非线性颜色空间的sRGB格式，
+//需要将sRGB转为线性颜色空间的RGB格式（这一步即为gamma矫正过程）
+//数学理论公式中gamma常熟数取得值为0.03928,而这一数值在OpenCV和Matlab工程中取值为0.04045
+float gamma(float x)
+{
+    return x > 0.04045 ? powf((x + 0.055f) / 1.055f, 2.4f) : (x / 12.92);
+}
+
+void RGB2XYZ(T_U8 R, T_U8 G, T_U8 B, float* X, float* Y, float* Z)
+{
+    float RR = gamma(R / 255.0);
+    float GG = gamma(G / 255.0);
+    float BB = gamma(B / 255.0);
+
+    *X = 0.4124564f * RR + 0.3575761f * GG + 0.1804375f * BB;
+    *Y = 0.2126729f * RR + 0.7151522f * GG + 0.0721750f * BB;
+    *Z = 0.0193339f * RR + 0.1191920f * GG + 0.9503041f * BB;
+}
+
+//RGB转换到XYZ颜色空间， 然后从XYZ颜色空间转换到Lab颜色空间
+void XYZ2Lab(float X, float Y, float Z, float* L, float* a, float* b)
+{
+    float fX, fY, fZ;
+
+    X /= (Xn);
+    Y /= (Yn);
+    Z /= (Zn);
+
+    if (Y > 0.008856f)
+        fY = pow(Y, param_13);
+    else
+        fY = 7.787f * Y + param_16116;
+
+    if (X > 0.008856f)
+        fX = pow(X, param_13);
+    else
+        fX = 7.787f * X + param_16116;
+
+    if (Z > 0.008856)
+        fZ = pow(Z, param_13);
+    else
+        fZ = 7.787f * Z + param_16116;
+
+    *L = 116.0f * fY - 16.0f;
+    *L = *L > 0.0f ? *L : 0.0f;
+    *a = 500.0f * (fX - fY);
+    *b = 200.0f * (fY - fZ);
+}
+
+void RGB2Lab(const unsigned char* RGB, int w, int h, unsigned char* Lab)
+{
+    const unsigned char* Rptr = RGB;
+    const unsigned char* GBptr = RGB + w * h;
+
+    for (int y = 0; y < h; y += 2)
+    {
+        const unsigned char* Rptr0 = Rptr;
+        const unsigned char* Rptr1 = Rptr + w;
+        unsigned char* Lab0 = Lab;
+        unsigned char* Lab1 = Lab + w * 3;
+
+        int remain = w;
+        for (; remain > 0; remain -= 3)
+        {
+            float *X, Y, Z, L, a, b;
+            R = RGB + w - remain;
+            G = L + 1;
+            B = L + 2;
+            RGB2XYZ(R, G, B, &X, &Y, &Z);
+            XYZ2Lab(X, Y, Z, &L, &a, &b);
+        }
+
+        Lptr += 3 * w;
+        RGB += 3 * w;
+    }
+}
+
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
     const unsigned char* yptr = yuv420sp;
