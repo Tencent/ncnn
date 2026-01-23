@@ -83,6 +83,14 @@ linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
             fx = 1.f;
         }
 
+        //w=1,sx<0,bug
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
+        //w=1,sx<0,bug
+
         xofs[dx] = sx;
 
         alpha[dx * 2] = 1.f - fx;
@@ -106,6 +114,10 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
     for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
+    
+        //src.h=1时，越界
+        int idx_y0 = sy < src.h ? sy : (src.h - 1);
+        int idx_y1 = (sy + 1) < src.h ? (sy + 1) : (src.h - 1);
 
         if (sy == prev_sy1)
         {
@@ -117,18 +129,21 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             float* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const float* S1 = src.row(sy + 1);
+            const float* S1 = src.row(idx_y1);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
             for (int dx = 0; dx < w; dx++)
             {
                 int sx = xofs[dx];
-                const float* S1p = S1 + sx;
+
+                //src.w=1时，越界
+                int idx_x0 = (sx + 0) < src.w ? (sx + 0) : (src.w - 1);
+                int idx_x1 = (sx + 1) < src.w ? (sx + 1) : (src.w - 1);
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows1p[dx] = S1p[0] * a0 + S1p[1] * a1;
+                rows1p[dx] = S1[idx_x0] * a0 + S1[idx_x1] * a1;
 
                 alphap += 2;
             }
@@ -136,8 +151,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         else
         {
             // hresize two rows
-            const float* S0 = src.row(sy);
-            const float* S1 = src.row(sy + 1);
+            const float* S0 = src.row(idx_y0);
+            const float* S1 = src.row(idx_y1);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
@@ -145,13 +160,15 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             for (int dx = 0; dx < w; dx++)
             {
                 int sx = xofs[dx];
-                const float* S0p = S0 + sx;
-                const float* S1p = S1 + sx;
+
+                //src.w=1时，越界
+                int idx_x0 = (sx + 0) < src.w ? (sx + 0) : (src.w - 1);
+                int idx_x1 = (sx + 1) < src.w ? (sx + 1) : (src.w - 1);
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows0p[dx] = S0p[0] * a0 + S0p[1] * a1;
-                rows1p[dx] = S1p[0] * a0 + S1p[1] * a1;
+                rows0p[dx] = S0[idx_x0] * a0 + S0[idx_x1] * a1;
+                rows1p[dx] = S1[idx_x0] * a0 + S1[idx_x1] * a1;
 
                 alphap += 2;
             }
