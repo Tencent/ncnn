@@ -163,7 +163,6 @@ void main()
                 v1 = exp(v1 - pm[i]);
                 v2 = exp(v2 - pm[i]);
                 v3 = exp(v3 - pm[i]);
-
             }
 
             // update partial max
@@ -171,7 +170,7 @@ void main()
             // update partial sumexp
 
             // update QK
-//             QK = exp(QK - new_max);
+            //             QK = exp(QK - new_max);
         }
 
         // O = O * correction (matrix-vector)

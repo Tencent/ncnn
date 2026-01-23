@@ -92,7 +92,6 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         }
     }
 
-
     if (use_cooperative_matrix)
     {
         int M = 1024;
@@ -338,8 +337,6 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     const int num_heads_per_group = num_heads / num_group;
 
-
-
     if (use_flash_attention && embed_dim % 16 == 0 && out_embed_dim % 16 == 0)
     {
         NCNN_LOGE("flash attention enabled");
@@ -377,7 +374,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[12].i = attn_mask_blob.cstep;
 
             const int blocks_x = (src_seqlen + coopmat_M - 1) / (coopmat_M);
-            const int blocks_y = 1;//(out_embed_dim + coopmat_N - 1) / (coopmat_N);
+            const int blocks_y = 1; //(out_embed_dim + coopmat_N - 1) / (coopmat_N);
 
             VkMat dispatcher;
             dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size);
@@ -389,9 +386,6 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
         return 0;
     }
-
-
-
 
     VkMat qk_cross(dst_seqlen, src_seqlen, num_heads, elemsize, opt.workspace_vkallocator);
     if (qk_cross.empty())
