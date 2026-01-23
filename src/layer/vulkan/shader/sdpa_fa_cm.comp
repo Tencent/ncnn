@@ -1,0 +1,215 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_EXT_control_flow_attributes : require
+
+#extension GL_KHR_shader_subgroup_basic : require
+
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#if ncnn_VK_KHR_cooperative_matrix
+#extension GL_KHR_cooperative_matrix : require
+#elif ncnn_VK_NV_cooperative_matrix
+#extension GL_NV_cooperative_matrix : require
+#endif
+
+layout(constant_id = 0) const int attn_mask = 0;
+
+layout(constant_id = 1 + 0) const uint M = 1;
+layout(constant_id = 1 + 1) const uint N = 1;
+layout(constant_id = 1 + 2) const uint K = 1;
+layout(constant_id = 1 + 3) const uint subgroup_size = 32;
+
+layout(binding = 0) readonly buffer Q_blob { uvec4 Q_blob_data[]; };
+layout(binding = 1) readonly buffer K_blob { uvec4 K_blob_data[]; };
+layout(binding = 2) readonly buffer V_blob { uvec4 V_blob_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 4) readonly buffer mask_blob { sfp mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    float scale;
+    int src_seqlen;
+    int dst_seqlen;
+    int embed_dim;
+    int out_embed_dim;
+    int num_heads;
+    int attn_mask_dims;
+    int num_heads_per_group;
+    int Q_cstep;
+    int K_cstep;
+    int V_cstep;
+    int out_cstep;
+    int mask_cstep;
+} p;
+
+shared uvec4 tmp_qk[16 * 16 / 8];
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gy >= 1 || gz >= psc(num_heads))
+        return;
+
+    const uint wgi = gl_WorkGroupID.x;
+    const uint sgi = gl_SubgroupID;
+
+    // assume cooperative matrix is 16x16x16
+
+    const uint sum_N = out_embed_dim / 16;
+
+    const uint dst_seqlen_d16 = dst_seqlen / 16;
+    const uint embed_dim_d16 = embed_dim / 16;
+
+    // declare O for final output (w=out_embed_dim, h=16)
+    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[sum_N];
+
+    {
+        [[unroll]] for (uint zn = 0; zn < sum_N; zn++)
+        {
+            sum[zn] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+        }
+    }
+
+    // declare partial max (len=16)
+    afp pm[16];
+
+    // declare partial sumexp (len=16)
+    afp ps[16];
+
+    // loop on dst_seqlen / 16
+    for (uint kp = 0; kp < dst_seqlen_d16; kp++)
+    {
+        coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> QK(0.0);
+
+        // QK
+        for (uint k = 0; k < embed_dim_d16; k++)
+        {
+            // load Q (w=embed_dim, h=16)
+            coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> Q;
+
+            // load K (w=embed_dim, h=16)
+            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> K;
+
+            const uint qi = (gz * p.Q_cstep + gx * 16 * embed_dim + k * 16) / 8;
+            coopMatLoad(Q, Q_blob_data, qi, embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+
+            const uint ki = (gz * p.K_cstep + kp * 16 * embed_dim + k * 16) / 8;
+            coopMatLoad(K, K_blob_data, ki, embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+
+            // calculate QK (w=16, h=16)
+            QK = coopMatMulAdd(Q, K, QK);
+        }
+
+        // QK *= scale
+        {
+            QK = QK * scale;
+        }
+
+        // QK += mask
+        {
+            // load mask
+            coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask;
+
+            const uint mi = gz * p.mask_cstep + gx * 16 * dst_seqlen + kp * 16;
+            coopMatLoad(mask, mask_blob_data, mi, dst_seqlen, gl_CooperativeMatrixLayoutRowMajor);
+
+            QK = QK + mask;
+        }
+
+        coopMatStore(QK, tmp_qk, 0, 16 / 8, gl_CooperativeMatrixLayoutRowMajor);
+
+        // online softmax
+        afp correction_factor[16];
+        {
+            // reduce QK row max
+            for (int i = 0; i < 16; i++)
+            {
+                uvec4 va = tmp_qk[i * 16 / 8 + 0];
+                uvec4 vb = tmp_qk[i * 16 / 8 + 1];
+
+                afpvec4 v0 = afpvec4(unpackBFloat2x16(va.r), unpackBFloat2x16(va.g));
+                afpvec4 v1 = afpvec4(unpackBFloat2x16(va.b), unpackBFloat2x16(va.a));
+                afpvec4 v2 = afpvec4(unpackBFloat2x16(vb.r), unpackBFloat2x16(vb.g));
+                afpvec4 v3 = afpvec4(unpackBFloat2x16(vb.b), unpackBFloat2x16(vb.a));
+
+                afp tmp = max(max(v0, v1), max(v2, v3));
+                afp tmpmax = max(max(tmp.r, tmp.g), max(tmp.b, tmp.a));
+                afp new_max = max(pm[i], tmpmax);
+
+                correction_factor[i] = pm[i] - new_max;
+
+                pm[i] = new_max;
+            }
+
+            // reduce QK row sumexp
+            for (int i = 0; i < 16; i++)
+            {
+                uvec4 va = tmp_qk[i * 16 / 8 + 0];
+                uvec4 vb = tmp_qk[i * 16 / 8 + 1];
+
+                afpvec4 v0 = afpvec4(unpackBFloat2x16(va.r), unpackBFloat2x16(va.g));
+                afpvec4 v1 = afpvec4(unpackBFloat2x16(va.b), unpackBFloat2x16(va.a));
+                afpvec4 v2 = afpvec4(unpackBFloat2x16(vb.r), unpackBFloat2x16(vb.g));
+                afpvec4 v3 = afpvec4(unpackBFloat2x16(vb.b), unpackBFloat2x16(vb.a));
+
+                v0 = exp(v0 - pm[i]);
+                v1 = exp(v1 - pm[i]);
+                v2 = exp(v2 - pm[i]);
+                v3 = exp(v3 - pm[i]);
+
+            }
+
+            // update partial max
+
+            // update partial sumexp
+
+            // update QK
+//             QK = exp(QK - new_max);
+        }
+
+        // O = O * correction (matrix-vector)
+        {
+        }
+
+        coopmat<afp, gl_ScopeSubgroup, M, K, gl_MatrixUseA> QK2(0.0);
+
+        coopMatLoad(QK2, tmp_qk, 0, 16 / 8, gl_CooperativeMatrixLayoutRowMajor);
+
+        // qkv cross
+        for (uint zn = 0; zn < sum_N; zn++)
+        {
+            // load V (w=16, h=16)
+            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> V;
+
+            const uint vi = (gz * p.V_cstep + kp * 16 * out_embed_dim + gx * 16) / 8;
+            coopMatLoad(V, V_blob_data, ki, out_embed_dim / 8, gl_CooperativeMatrixLayoutColumnMajor);
+
+            // calculate O += QKV (w=16, h=16)
+            sum[zn] = coopMatMulAdd(QK2, V, sum[zn]);
+        }
+    }
+
+    // update O
+    {
+        for (uint zn = 0; zn < sum_N; zn++)
+        {
+            sum[zn] = sum[zn] / sumexp;
+        }
+    }
+
+    // store top_blob
+    {
+        for (uint zn = 0; zn < sum_N; zn++)
+        {
+            const uint oi = (gz * p.out_cstep + gx * 16 * out_embed_dim + zn * 16) / 8;
+            coopMatStore(sum[zn], top_blob_data, oi, out_embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+        }
+    }
+}
