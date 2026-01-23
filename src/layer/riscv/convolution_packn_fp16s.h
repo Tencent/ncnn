@@ -134,7 +134,7 @@ static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, 
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 if (bias_data_ptr)
                 {

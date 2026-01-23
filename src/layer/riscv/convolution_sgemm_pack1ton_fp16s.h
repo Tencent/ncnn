@@ -52,7 +52,7 @@ static void im2col_sgemm_pack1ton_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
             int nn = inch * maxk; // inch always > 0
 
-            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {

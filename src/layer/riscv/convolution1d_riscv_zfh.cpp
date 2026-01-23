@@ -353,7 +353,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int j = 0; j < outw; j++)
                 {
-                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                     if (bias_term)
                     {
@@ -400,7 +400,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int j = 0; j < outw; j++)
                 {
-                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                     if (bias_term)
                     {
@@ -443,14 +443,14 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int j = 0; j < outw; j++)
                 {
-                    __fp16 sum = 0.f;
+                    __fp16 sum = (__fp16)0.f;
 
                     if (bias_term)
                     {
                         sum = ((const __fp16*)bias_data_fp16)[p];
                     }
 
-                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                     const __fp16* kptr = weight_data_fp16.channel(p);
 

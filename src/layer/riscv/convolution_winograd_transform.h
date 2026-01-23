@@ -144,7 +144,7 @@ static void conv3x3s1_winograd43_transform_output_rvv(const Mat& top_blob_tm, Ma
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        float bias0 = biasptr ? biasptr[p] : 0.f;
+        float bias0 = biasptr ? biasptr[p] : (__fp16)0.f;
 
         float tmp[4][6];
 
@@ -335,7 +335,7 @@ static void conv3x3s1_winograd23_transform_output_rvv(const Mat& top_blob_tm, Ma
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        float bias0 = biasptr ? biasptr[p] : 0.f;
+        float bias0 = biasptr ? biasptr[p] : (__fp16)0.f;
 
         float tmp[2][4];
 

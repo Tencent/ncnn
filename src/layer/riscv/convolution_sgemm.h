@@ -122,7 +122,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         float* outptr6 = top_blob.channel(p + 6);
         float* outptr7 = top_blob.channel(p + 7);
 
-        const float zeros[8] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+        const float zeros[8] = {(__fp16)0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -237,7 +237,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         float* outptr2 = top_blob.channel(p + 2);
         float* outptr3 = top_blob.channel(p + 3);
 
-        const float zeros[4] = {0.f, 0.f, 0.f, 0.f};
+        const float zeros[4] = {(__fp16)0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -321,7 +321,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         float* outptr0 = top_blob.channel(p);
         float* outptr1 = top_blob.channel(p + 1);
 
-        const float zeros[2] = {0.f, 0.f};
+        const float zeros[2] = {(__fp16)0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -401,7 +401,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
     {
         float* outptr0 = top_blob.channel(p);
 
-        const float bias0 = bias ? bias[p] : 0.f;
+        const float bias0 = bias ? bias[p] : (__fp16)0.f;
 
         int i = 0;
 #if __riscv_vector
