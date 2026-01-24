@@ -4965,7 +4965,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
         custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(r.ba))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
     }
     else if (opt.use_fp16_storage)
     {
@@ -4975,7 +4975,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp2afp(v)", "v");
         custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(r.ba))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else if (opt.use_fp16_packed)
     {
@@ -4985,7 +4985,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfp2afp(v)", "v");
         custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
-        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.x),packHalf2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else
     {

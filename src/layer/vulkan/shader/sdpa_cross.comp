@@ -48,9 +48,9 @@ shared lfpvec4 tmp_b[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gx = gl_GlobalInvocationID.x;
+    const uint gy = gl_GlobalInvocationID.y;
+    const uint gz = gl_GlobalInvocationID.z;
 
 #if !NCNN_shader_local_memory
     if (gx * 4 >= psc(N) || gy * 4 >= psc(M) || gz >= psc(B))
