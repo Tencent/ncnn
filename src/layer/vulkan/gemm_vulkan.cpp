@@ -367,8 +367,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         const Pipeline* pipeline = pipeline_gemm;
 
         VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
         dispatcher.c = 1;
         cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
     }
