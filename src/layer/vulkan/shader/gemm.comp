@@ -43,8 +43,10 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfpvec4 tmp_a[8][LOCAL_MEMORY_UNROLL_INCH];
-shared lfpvec4 tmp_b[8][LOCAL_MEMORY_UNROLL_INCH];
+// avoid bank conflict
+#define PAD 1
+shared lfpvec4 tmp_a[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
+shared lfpvec4 tmp_b[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
 #endif
 
 void main()
