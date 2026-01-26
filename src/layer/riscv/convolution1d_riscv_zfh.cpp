@@ -143,7 +143,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 float val = (float)*slptr++;
                                 vfloat16m1_t _w0 = __riscv_vle16_v_f16m1(kptr, vl);
-                                _sum = __riscv_vfwmacc_vf_f32m2(_sum, val, _w0, vl);
+                                _sum = __riscv_vfwmacc_vf_f32m2(_sum, (__fp16)val, _w0, vl);
 
                                 kptr += packn;
                             }
@@ -186,7 +186,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         {
                             float val = (float)sptr[0];
                             vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr, vl);
-                            _sum = __riscv_vfwmacc_vf_f32m2(_sum, val, _w, vl);
+                            _sum = __riscv_vfwmacc_vf_f32m2(_sum, (__fp16)val, _w, vl);
 
                             sptr += dilation_w;
                             kptr += packn;

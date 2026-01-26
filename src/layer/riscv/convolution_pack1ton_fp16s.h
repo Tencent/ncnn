@@ -65,7 +65,7 @@ static void convolution_pack1ton_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob
                     {
                         float val = (float)sptr[space_ofs[k]];
                         vfloat16m1_t _w = __riscv_vle16_v_f16m1(kptr, vl);
-                        _sum = __riscv_vfwmacc_vf_f32m2(_sum, val, _w, vl);
+                        _sum = __riscv_vfwmacc_vf_f32m2(_sum, (__fp16)val, _w, vl);
 
                         kptr += packn;
                     }

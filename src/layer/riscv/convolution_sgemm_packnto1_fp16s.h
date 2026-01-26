@@ -353,7 +353,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
     {
         __fp16* outptr0 = top_blob.channel(p);
 
-        const __fp16 bias0 = bias ? bias[p] : (__fp16)0.f;
+        const __fp16 bias0 = bias ? (__fp16)bias[p] : (__fp16)0.f;
 
         int i = 0;
         for (; i + 7 < size; i += 8)

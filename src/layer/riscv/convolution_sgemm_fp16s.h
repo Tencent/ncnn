@@ -302,7 +302,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     {
         __fp16* outptr0 = top_blob.channel(p);
 
-        const __fp16 bias0 = bias ? bias[p] : (__fp16)0.f;
+        const __fp16 bias0 = bias ? (__fp16)bias[p] : (__fp16)0.f;
 
         int i = 0;
         for (; i + (packn - 1) < size; i += packn)
@@ -352,7 +352,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     {
         __fp16* outptr0 = top_blob.channel(p);
 
-        const __fp16 bias0 = bias ? bias[p] : (__fp16)0.f;
+        const __fp16 bias0 = bias ? (__fp16)bias[p] : (__fp16)0.f;
 
         for (int i = 0; i < size; i++)
         {
