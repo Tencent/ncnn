@@ -3,10 +3,10 @@
 
 #version 450
 
-#extension GL_KHR_shader_subgroup_basic: require
-#extension GL_KHR_shader_subgroup_shuffle: require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_shuffle : require
 
-#extension GL_EXT_shader_subgroup_extended_types_float16: require
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
 
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
@@ -115,7 +115,6 @@ void main()
         sum3.g = buffer_ld1(C_blob_data, ci4.a + gx4.g);
         sum3.b = buffer_ld1(C_blob_data, ci4.a + gx4.b);
         sum3.a = buffer_ld1(C_blob_data, ci4.a + gx4.a);
-
     }
     if (broadcast_type_C == 4)
     {
