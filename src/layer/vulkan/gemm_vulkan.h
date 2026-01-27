@@ -35,6 +35,9 @@ public:
 
     Pipeline* pipeline_gemm;
 
+    // subgroup
+    bool use_subgroup_ops;
+
     // cooperative matrix
     bool use_cooperative_matrix;
     int coopmat_M;
