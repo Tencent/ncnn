@@ -5,8 +5,9 @@
 
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_shuffle : require
-
+#if NCNN_fp16_storage
 #extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
 
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;

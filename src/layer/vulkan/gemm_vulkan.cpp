@@ -83,7 +83,13 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    const int subgroup_size = vkdev->info.subgroup_size();
     use_subgroup_ops = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT));
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
 
     if (use_cooperative_matrix)
     {
@@ -141,10 +147,31 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
     }
+    else if (opt.use_shader_local_memory)
+    {
+        std::vector<vk_specialization_type> specializations(15);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = transA;
+        specializations[3].i = transB;
+        specializations[4].i = constantA;
+        specializations[5].i = constantB;
+        specializations[6].i = constantC;
+        specializations[7].i = constantM;
+        specializations[8].i = constantN;
+        specializations[9].i = constantK;
+        specializations[10].i = constant_broadcast_type_C;
+        specializations[11].i = output_N1M;
+        specializations[12].i = output_elempack;
+        specializations[13].i = output_elemtype;
+        specializations[14].i = output_transpose;
+
+        pipeline_gemm = new Pipeline(vkdev);
+        pipeline_gemm->set_local_size_xyz(8, 8, 1);
+        pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
+    }
     else if (use_subgroup_ops)
     {
-        const int subgroup_size = vkdev->info.subgroup_size();
-
         if (subgroup_size == 128)
         {
             UNROLL_SG_M = 16;
@@ -227,24 +254,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[14].i = output_transpose;
 
         Mat local_size_xyz;
-        // if (shape_packed.dims == 2)
-        // {
-        //     local_size_xyz.w = std::min(8, shape_packed.w);
-        //     local_size_xyz.h = std::min(8, shape_packed.h);
-        //     local_size_xyz.c = 1;
-        // }
 
-        // pack1
-        // if (shape.dims == 0 || elempack == 1)
-        {
-            pipeline_gemm = new Pipeline(vkdev);
-            pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
-            if (opt.use_shader_local_memory)
-            {
-                pipeline_gemm->set_local_size_xyz(8, 8, 1);
-            }
-            pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
-        }
+        pipeline_gemm = new Pipeline(vkdev);
+        pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
 
     if (opt.lightmode)
@@ -432,6 +445,14 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.h = 1;
         dispatcher.c = 1;
 
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+    }
+    else if (opt.use_shader_local_memory)
+    {
+        VkMat dispatcher;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
+        dispatcher.c = 1;
         cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
     }
     else if (use_subgroup_ops)
