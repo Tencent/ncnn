@@ -4903,8 +4903,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
         custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
-        custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("lfp2afp(v)", "float(v)");
+        custom_defines.append("afp2lfp(v)", "bfloat16_t(v)");
         custom_defines.append("lfp2afpvec4(v)", "vec4(v)");
+        custom_defines.append("afp2lfpvec4(v)", "bf16vec4(v)");
     }
     else if (opt.use_bf16_packed)
     {
@@ -4925,12 +4927,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         if (support_fp16_uniform)
         {
             custom_defines.append("lfp2afp(v)", "uintBitsToFloat(uint(v)<<16)");
+            custom_defines.append("afp2lfp(v)", "uint16_t(floatBitsToUint(v)>>16)");
         }
         else
         {
             custom_defines.append("lfp2afp(v)", "v");
+            custom_defines.append("afp2lfp(v)", "v");
         }
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackBFloat2x16(v.x),unpackBFloat2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba))");
     }
     else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
@@ -4938,7 +4943,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "v");
+        custom_defines.append("afp2lfpvec4(v)", "v");
     }
     else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
@@ -4946,7 +4953,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
 
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
+        custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
+        custom_defines.append("afp2lfpvec4(v)", "pack64(halfBitsToUint16(v))");
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
@@ -4954,7 +4963,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
+        custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
     }
     else if (opt.use_fp16_storage)
     {
@@ -4962,7 +4973,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "uvec2(packHalf2x16(vec4(buf[i]).rg),packHalf2x16(vec4(buf[i]).ba))");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else if (opt.use_fp16_packed)
     {
@@ -4970,7 +4983,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else
     {
@@ -4978,7 +4993,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "v");
+        custom_defines.append("afp2lfpvec4(v)", "v");
     }
 
     if (opt.use_bf16_storage)
