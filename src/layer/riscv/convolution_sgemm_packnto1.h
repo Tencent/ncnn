@@ -353,7 +353,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
     {
         float* outptr0 = top_blob.channel(p);
 
-        const float bias0 = bias ? bias[p] : (__fp16)0.f;
+        const float bias0 = bias ? bias[p] : 0.f;
 
         int i = 0;
         for (; i + 7 < size; i += 8)

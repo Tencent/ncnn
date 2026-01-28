@@ -18,7 +18,7 @@ static void convdw3x3s1_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
     {
         Mat out = top_blob.channel(g);
 
-        const float bias0 = bias ? bias[g] : (__fp16)0.f;
+        const float bias0 = bias ? bias[g] : 0.f;
 
         const float* kernel0 = kernel + g * 9;
 
@@ -133,7 +133,7 @@ static void convdw3x3s2_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
     {
         Mat out = top_blob.channel(g);
 
-        const float bias0 = bias ? bias[g] : (__fp16)0.f;
+        const float bias0 = bias ? bias[g] : 0.f;
 
         const float* kernel0 = kernel + g * 9;
 
