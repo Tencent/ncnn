@@ -25,7 +25,7 @@ int Bias_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
-        __fp16 bias = bias_data[q];
+        __fp16 bias = (__fp16)bias_data[q];
 
 #if __riscv_zvfh
         int n = size;

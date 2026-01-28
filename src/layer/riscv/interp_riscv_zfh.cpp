@@ -150,7 +150,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
                         vfloat16m1_t _S0 = __riscv_vle16_v_f16m1(Sp, vl);
                         vfloat16m1_t _S1 = __riscv_vle16_v_f16m1(Sp + packn, vl);
-                        vfloat32m2_t _p = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S0, alphap[0], vl), alphap[1], _S1, vl);
+                        vfloat32m2_t _p = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S0, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S1, vl);
 
                         __riscv_vse16_v_f16m1(outptr, __riscv_vfncvt_f_f_w_f16m1(_p, vl), vl);
 
@@ -189,7 +189,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
                         vfloat16m1_t _S1 = __riscv_vle16_v_f16m1(Sp, vl);
                         vfloat16m1_t _S2 = __riscv_vle16_v_f16m1(Sp + packn, vl);
                         vfloat16m1_t _S3 = __riscv_vle16_v_f16m1(Sp + packn * 2, vl);
-                        vfloat32m2_t _p = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S0, alphap[0], vl), alphap[1], _S1, vl), alphap[2], _S2, vl), alphap[3], _S3, vl);
+                        vfloat32m2_t _p = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S0, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S1, vl), (__fp16)alphap[2], _S2, vl), (__fp16)alphap[3], _S3, vl);
 
                         __riscv_vse16_v_f16m1(outptr, __riscv_vfncvt_f_f_w_f16m1(_p, vl), vl);
 
