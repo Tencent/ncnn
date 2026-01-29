@@ -25,6 +25,7 @@ layout(constant_id = 1 + 0) const uint M = 1;
 layout(constant_id = 1 + 1) const uint N = 1;
 layout(constant_id = 1 + 2) const uint K = 1;
 layout(constant_id = 1 + 3) const uint subgroup_size = 32;
+layout(constant_id = 1 + 4) const uint UNROLL_WG_M = 2;
 
 layout(binding = 0) readonly buffer Q_blob { uvec4 Q_blob_data[]; };
 layout(binding = 1) readonly buffer K_blob { uvec4 K_blob_data[]; };
@@ -50,29 +51,33 @@ layout(push_constant) uniform parameter
     int mask_cstep;
 } p;
 
-#define CM_M 16
-#define CM_N 16
-#define CM_K 16
-
 // Shared Memory 布局常量
-#define TILE_SIZE 256 // 16 x 16
-
 // 最大支持的 out_embed_dim / 16 块数
 #define MAX_OUT_CHUNKS 8
 
 // Shared Memory - 直接使用 float，简洁明了
-shared float tmp_s[TILE_SIZE]; // Score matrix (16x16 FP32)
-shared float tmp_o[TILE_SIZE]; // Output tile for rescaling (16x16 FP32)
+shared vec4 tmp_s[UNROLL_WG_M * M * N / 4]; // Score matrix (16x16 FP32)
+shared vec4 tmp_o[UNROLL_WG_M * M * N / 4]; // Output tile for rescaling (16x16 FP32)
 
 // Shared memory for row statistics (用于跨线程同步)
-shared float smem_row_max[CM_M];
-shared float smem_row_sum[CM_M];
-shared float smem_correction[CM_M];
+shared float smem_row_max[UNROLL_WG_M * M];
+shared float smem_row_sum[UNROLL_WG_M * M];
+shared float smem_correction[UNROLL_WG_M * M];
+
 
 // ============================================
 // 辅助函数：N 路归约
 // ============================================
 float reduceN_max(float val, uint n)
+{
+    [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
+    {
+        val = max(val, subgroupShuffleXor(val, offset));
+    }
+    return val;
+}
+
+vec4 reduceN_max_vec4(vec4 val, uint n)
 {
     [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
     {
@@ -90,23 +95,37 @@ float reduceN_add(float val, uint n)
     return val;
 }
 
+vec4 reduceN_add_vec4(vec4 val, uint n)
+{
+    [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
+    {
+        val = val + subgroupShuffleXor(val, offset);
+    }
+    return val;
+}
+
 void main()
 {
-    //     const int gx = int(gl_GlobalInvocationID.x);
-    //     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
     if (gz >= p.num_heads)
         return;
 
-    const uint gx = gl_WorkGroupID.x;
+    // neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
+    const uint local_size = subgroup_size * UNROLL_WG_M;
+
+    const uint wgi = gl_WorkGroupID.x;
     const uint sgi = gl_SubgroupID;
 
+//     const uint ni = sgi * UNROLL_WG_M;
+    const uint mi = wgi * UNROLL_WG_M + sgi;
+
     // 当前 Q 块的起始行
-    const uint q_row_start = gx * CM_M;
+    const uint q_row_start = mi * M;
     if (q_row_start >= p.src_seqlen)
         return;
 
+    const uint li = gl_LocalInvocationID.x;
     const uint si = gl_SubgroupInvocationID;
 
     // assume cooperative matrix is 16x16x16
@@ -125,20 +144,20 @@ void main()
     const int kv_head_idx = gz / p.num_heads_per_group;
 
     // 每行元素数和每线程处理元素数
-    //     const uint elements_per_row = CM_N;  // 16
-    const uint elements_per_thread = TILE_SIZE / subgroup_size;
+    //     const uint elements_per_row = N;  // 16
+    const uint elements_per_thread = M * N / subgroup_size;
 
     // --- 1. 初始化 Accumulators (Output O) ---
     // 为了支持较大的 out_embed_dim，我们需要一组 accumulator
     // 假设最大支持 out_embed_dim = 64 (4 blocks) 或 128 (8 blocks)
     // 根据 spec 这里只能用常量大小数组
     // declare O for final output (w=out_embed_dim, h=16)
-    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[MAX_OUT_CHUNKS];
+    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> om[MAX_OUT_CHUNKS];
 
     {
         [[unroll]] for (uint zn = 0; zn < MAX_OUT_CHUNKS; zn++)
         {
-            sum[zn] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+            om[zn] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
         }
     }
 
@@ -147,7 +166,8 @@ void main()
     // ========================================
     // 只让部分线程初始化，避免竞争
     // 使用循环处理，兼容不同 subgroup_size
-    for (uint i = si; i < CM_M; i += subgroup_size)
+//     for (uint i = si; i < M; i += subgroup_size)
+    for (uint i = li; i < UNROLL_WG_M * M; i += local_size)
     {
         smem_row_max[i] = -3.402823e+38f;
         smem_row_sum[i] = 0.f;
@@ -159,36 +179,38 @@ void main()
 
     for (uint j = 0; j < dst_seqlen_d16; j++)
     {
-        coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> QK;
-        QK = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+        coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm;
+        qkm = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
 
         // QK
-        for (uint k = 0; k < embed_dim_d16; k++)
         {
 #if NCNN_bf16_storage || NCNN_bf16_packed
-            // load Q (w=embed_dim, h=16)
-            coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> Q;
-
-            // load K (w=embed_dim, h=16)
-            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> K;
+            coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
+            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
 #else
-            coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> Q;
-            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> K;
+            coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
+            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
 #endif
 
-            const uint qi = (gz * p.Q_cstep + gx * CM_M * p.embed_dim + k * CM_K) / 8;
-            coopMatLoad(Q, Q_blob_data, qi, p.embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+            for (uint k = 0; k < embed_dim_d16; k++)
+            {
+                // load Q (w=embed_dim, h=16)
+                // load K (w=embed_dim, h=16)
 
-            const uint ki = (kv_head_idx * p.K_cstep + j * CM_N * p.embed_dim + k * CM_K) / 8;
-            coopMatLoad(K, K_blob_data, ki, p.embed_dim / 8, gl_CooperativeMatrixLayoutColumnMajor);
+                const uint qi = (gz * p.Q_cstep + mi * M * p.embed_dim + k * K) / 8;
+                coopMatLoad(qm, Q_blob_data, qi, p.embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
 
-            // calculate QK (w=16, h=16)
-            QK = coopMatMulAdd(Q, K, QK);
+                const uint ki = (kv_head_idx * p.K_cstep + j * N * p.embed_dim + k * K) / 8;
+                coopMatLoad(km, K_blob_data, ki, p.embed_dim / 8, gl_CooperativeMatrixLayoutColumnMajor);
+
+                // calculate QK (w=16, h=16)
+                qkm = coopMatMulAdd(qm, km, qkm);
+            }
         }
 
         // QK *= scale
         {
-            QK = QK * p.scale;
+            qkm = qkm * p.scale;
         }
 
         // QK += mask
@@ -203,36 +225,42 @@ void main()
 #endif
 
             uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
-            const uint mi = mask_head * p.mask_cstep + gx * CM_M * p.dst_seqlen + j * CM_N;
-            coopMatLoad(mask, mask_blob_data, mi, p.dst_seqlen, gl_CooperativeMatrixLayoutRowMajor);
+            const uint mmi = mask_head * p.mask_cstep + mi * M * p.dst_seqlen + j * N;
+            coopMatLoad(mask, mask_blob_data, mmi, p.dst_seqlen, gl_CooperativeMatrixLayoutRowMajor);
 
-            QK = QK + coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(mask);
+            qkm = qkm + coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(mask);
         }
 
-        coopMatStore(QK, tmp_s, 0, CM_N, gl_CooperativeMatrixLayoutRowMajor);
+//         coopMatStore(qkm, tmp_s, 0, N, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatStore(qkm, tmp_s, sgi * M * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 
         barrier();
 
         // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
         // ----------------------------------------
-        for (uint idx = si; idx < TILE_SIZE; idx += subgroup_size)
+        for (uint idx = si; idx < M * N / 4; idx += subgroup_size)
         {
-            const uint row = idx / CM_N;
-            const uint col = idx % CM_N;
+            const uint row = idx / (N / 4);
+            const uint col = idx % (N / 4);
 
-            float val = tmp_s[idx];
+//             float val = tmp_s[idx];
+            vec4 val = tmp_s[sgi * M * N / 4 + idx];
 
             // 行内归约取 max
-            float row_max_val = reduceN_max(val, CM_N);
+//             float row_max_val = reduceN_max(val, N);
+            vec4 row_max_val_4 = reduceN_max_vec4(val, N / 4);
 
             // 第一个线程更新 SMEM
             if (col == 0)
             {
-                float old_max = smem_row_max[row];
+                vec2 row_max_val_2 = max(row_max_val_4.rg, row_max_val_4.ba);
+                float row_max_val = max(row_max_val_2.x, row_max_val_2.y);
+
+                float old_max = smem_row_max[sgi * M + row];
                 float new_max = max(old_max, row_max_val);
-                smem_correction[row] = exp(old_max - new_max);
-                smem_row_max[row] = new_max;
+                smem_correction[sgi * M + row] = exp(old_max - new_max);
+                smem_row_max[sgi * M + row] = new_max;
             }
         }
 
@@ -241,29 +269,35 @@ void main()
         // ----------------------------------------
         // 3.6 Online Softmax - 计算 exp 和 sum
         // ----------------------------------------
-        for (uint idx = si; idx < TILE_SIZE; idx += subgroup_size)
+        for (uint idx = si; idx < M * N / 4; idx += subgroup_size)
         {
-            const uint row = idx / CM_N;
-            const uint col = idx % CM_N;
+            const uint row = idx / (N / 4);
+            const uint col = idx % (N / 4);
 
-            float new_max = smem_row_max[row];
-            float val = tmp_s[idx];
+            float new_max = smem_row_max[sgi * M + row];
+//             float val = tmp_s[idx];
+            vec4 val = tmp_s[sgi * M * N / 4 + idx];
 
             // exp(x - max)
             val = exp(val - new_max);
 
             // 行内归约求 sum
-            float row_sum_val = reduceN_add(val, CM_N);
+//             float row_sum_val = reduceN_add(val, N);
+//             vec4 row_sum_val_4 = reduceN_add_vec4(val, N / 4);
+            vec4 row_sum_val_4 = reduceN_add_vec4(val, N / 4);
 
             // 更新全局 sum
             if (col == 0)
             {
-                float correction = smem_correction[row];
-                smem_row_sum[row] = smem_row_sum[row] * correction + row_sum_val;
+                vec2 row_sum_val_2 = row_sum_val_4.rg + row_sum_val_4.ba;
+                float row_sum_val = row_sum_val_2.x + row_sum_val_2.y;
+
+                float correction = smem_correction[sgi * M + row];
+                smem_row_sum[sgi * M + row] = smem_row_sum[sgi * M + row] * correction + row_sum_val;
             }
 
             // 写回 P
-            tmp_s[idx] = val;
+            tmp_s[sgi * M * N / 4 + idx] = val;
         }
 
         barrier();
@@ -272,26 +306,37 @@ void main()
         // ----------------------------------------
         // 3.6 Rescale O: O = O * correction
         // ----------------------------------------
+//         {
+//             coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> cc;
+//             coopMatLoad(cc, smem_correction, 0, 0, gl_CooperativeMatrixLayoutColumnMajor);
+//
+//             [[unroll]] for (uint c = 0; c < out_embed_dim_d16 && c < MAX_OUT_CHUNKS; c++)
+//             {
+//                 om[c] = om[c] * cc;
+//             }
+//         }
+#if 1
         // 由于 correction 是按行的，我们需要 unload O，逐元素乘，reload
         [[unroll]] for (uint c = 0; c < out_embed_dim_d16 && c < MAX_OUT_CHUNKS; c++)
         {
             // Store O to SMEM
-            coopMatStore(sum[c], tmp_o, 0, CM_N, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatStore(om[c], tmp_o, sgi * M * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 
             barrier();
 
             // 并行 rescale
-            for (uint idx = si; idx < TILE_SIZE; idx += subgroup_size)
+            for (uint idx = si; idx < M * N / 4; idx += subgroup_size)
             {
-                const uint row = idx / CM_N;
-                tmp_o[idx] *= smem_correction[row];
+                const uint row = idx / (N / 4);
+                tmp_o[sgi * M * N / 4 + idx] *= smem_correction[sgi * M + row];
             }
 
             barrier();
 
             // Reload O
-            coopMatLoad(sum[c], tmp_o, 0, CM_N, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(om[c], tmp_o, sgi * M * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
         }
+#endif
 
         // ----------------------------------------
         // 3.7 Load P from SMEM
@@ -304,46 +349,67 @@ void main()
         // 复用 tmp_o 的低半部分作为 FP16 buffer (32 uvec4 = 128 floats 空间够用)
 
         // 将 FP32 P 转换为 packed FP16
-        for (uint idx = si; idx < TILE_SIZE / 2; idx += subgroup_size)
         {
-            uint src_idx = idx * 2;
-            float v0 = tmp_s[src_idx];
-            float v1 = tmp_s[src_idx + 1];
+            coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
+            coopMatLoad(a, tmp_s, sgi * M * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 
-            // 使用 tmp_o 的前 32 个 float 位置存储 packed FP16
-            // 每个 float 位置存储 2 个 FP16
-#if NCNN_bf16_storage
-            tmp_o[idx] = uintBitsToFloat(packBFloat2x16(vec2(v0, v1)));
+#if NCNN_bf16_storage || NCNN_bf16_packed
+            coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
-            tmp_o[idx] = uintBitsToFloat(packHalf2x16(vec2(v0, v1)));
+            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #endif
+            coopMatStore(b, tmp_o, sgi * M * N / 4, N / 8, gl_CooperativeMatrixLayoutRowMajor);
         }
+// #if 0
+// //         for (uint idx = si; idx < M * N / 2; idx += subgroup_size)
+//         for (uint idx = si; idx < M * N / 4; idx += subgroup_size)
+//         {
+// //             uint src_idx = idx * 2;
+// //             float v0 = tmp_s[src_idx];
+// //             float v1 = tmp_s[src_idx + 1];
+//
+//             vec4 v = tmp_s[idx];
+//
+//             // 使用 tmp_o 的前 32 个 float 位置存储 packed FP16
+//             // 每个 float 位置存储 2 个 FP16
+// #if NCNN_bf16_storage
+// //             tmp_o[idx] = uintBitsToFloat(packBFloat2x16(vec2(v0, v1)));
+//             tmp_o[idx * 2] = uintBitsToFloat(packBFloat2x16(v.rg));
+//             tmp_o[idx * 2 + 1] = uintBitsToFloat(packBFloat2x16(v.ba));
+// #else
+// //             tmp_o[idx] = uintBitsToFloat(packHalf2x16(vec2(v0, v1)));
+//             tmp_o[idx * 2] = uintBitsToFloat(packHalf2x16(v.rg));
+//             tmp_o[idx * 2 + 1] = uintBitsToFloat(packHalf2x16(v.ba));
+// #endif
+//         }
+// #endif
 
         barrier();
 
         // 加载 FP16 P
 #if NCNN_bf16_storage || NCNN_bf16_packed
-        coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> P;
+        coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm;
 #else
-        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> P;
+        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm;
 #endif
-        coopMatLoad(P, tmp_o, 0, CM_N / 2, gl_CooperativeMatrixLayoutRowMajor);
+//         coopMatLoad(pm, tmp_o, 0, N / 2, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatLoad(pm, tmp_o, sgi * M * N / 4, N / 8, gl_CooperativeMatrixLayoutRowMajor);
 
         // qkv cross
         for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
 #if NCNN_bf16_storage || NCNN_bf16_packed
             // load V (w=16, h=16)
-            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> V;
+            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
 #else
-            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> V;
+            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
 #endif
 
-            const uint vi = (kv_head_idx * p.V_cstep + j * CM_N * p.out_embed_dim + c * CM_N) / 8;
-            coopMatLoad(V, V_blob_data, vi, p.out_embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+            const uint vi = (kv_head_idx * p.V_cstep + j * N * p.out_embed_dim + c * N) / 8;
+            coopMatLoad(vm, V_blob_data, vi, p.out_embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
 
             // calculate O += PV (w=16, h=16)
-            sum[c] = coopMatMulAdd(P, V, sum[c]);
+            om[c] = coopMatMulAdd(pm, vm, om[c]);
         }
     }
 
@@ -351,52 +417,47 @@ void main()
     // store top_blob
     for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
     {
-        coopMatStore(sum[c], tmp_o, 0, CM_N, gl_CooperativeMatrixLayoutRowMajor);
+//         coopMatStore(om[c], tmp_o, 0, N, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatStore(om[c], tmp_o, sgi * M * N / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
 
         barrier();
 
         // 并行归一化和存储
         // 归一化并转换为 FP16 输出
-        for (uint idx = si; idx < TILE_SIZE / 8; idx += subgroup_size)
+        for (uint idx = si; idx < M * N / 8; idx += subgroup_size)
         {
             // 每个线程处理 8 个 float，输出 1 个 uvec4
             uint base = idx * 8;
-            uint row = base / CM_N;
-            uint col = base % CM_N;
+            uint row = base / N;
+            uint col = base % N;
 
             // 边界检查
-            if (q_row_start + int(row) >= p.src_seqlen)
+            if (mi * M + int(row) >= p.src_seqlen)
                 continue;
 
-            float inv_sum = 1.0f / smem_row_sum[row];
+            float inv_sum = 1.0f / smem_row_sum[sgi * M + row];
 
             // 读取 8 个 float
-            float v0 = tmp_o[base + 0] * inv_sum;
-            float v1 = tmp_o[base + 1] * inv_sum;
-            float v2 = tmp_o[base + 2] * inv_sum;
-            float v3 = tmp_o[base + 3] * inv_sum;
-            float v4 = tmp_o[base + 4] * inv_sum;
-            float v5 = tmp_o[base + 5] * inv_sum;
-            float v6 = tmp_o[base + 6] * inv_sum;
-            float v7 = tmp_o[base + 7] * inv_sum;
+            vec4 v0 = tmp_o[sgi * M * N / 4 + base / 4 + 0] * inv_sum;
+            vec4 v1 = tmp_o[sgi * M * N / 4 + base / 4 + 1] * inv_sum;
 
             // 打包为 uvec4 (8 个 FP16)
             uvec4 out_data;
 #if NCNN_bf16_storage
-            out_data.x = packBFloat2x16(vec2(v0, v1));
-            out_data.y = packBFloat2x16(vec2(v2, v3));
-            out_data.z = packBFloat2x16(vec2(v4, v5));
-            out_data.w = packBFloat2x16(vec2(v6, v7));
+            out_data.x = packBFloat2x16(v0.rg);
+            out_data.y = packBFloat2x16(v0.ba);
+            out_data.z = packBFloat2x16(v1.rg);
+            out_data.w = packBFloat2x16(v1.ba);
 #else
-            out_data.x = packHalf2x16(vec2(v0, v1));
-            out_data.y = packHalf2x16(vec2(v2, v3));
-            out_data.z = packHalf2x16(vec2(v4, v5));
-            out_data.w = packHalf2x16(vec2(v6, v7));
+            out_data.x = packHalf2x16(v0.rg);
+            out_data.y = packHalf2x16(v0.ba);
+            out_data.z = packHalf2x16(v1.rg);
+            out_data.w = packHalf2x16(v1.ba);
 #endif
 
             // 写入 Global Memory
-            const uint out_row = q_row_start + row;
-            const uint out_col = c * CM_N + col;
+            const uint out_row = mi * M + row;
+            const uint out_col = c * N + col;
 
             if (out_col + 8 <= p.out_embed_dim)
             {

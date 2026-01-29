@@ -31,6 +31,7 @@ public:
     Pipeline* pipeline_sdpa_fa;
 
     bool use_flash_attention;
+    int FA_UNROLL_WG_M;
 
     // cooperative matrix
     bool use_cooperative_matrix;
