@@ -58,6 +58,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+
+    use_flash_attention = true && (opt.use_bf16_storage || opt.use_bf16_packed);
+
     if (use_flash_attention)
     {
         int M = 1024;
@@ -293,7 +296,40 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
 
     return 0;
 }
+void pretty_print(const ncnn::Mat& m)
+{
+    for (int q=0; q<m.c; q++)
+    {
+        const float* ptr = m.channel(q);
+        for (int z=0; z<m.d; z++)
+        {
+            for (int y=0; y<m.h; y++)
+            {
+                for (int x=0; x<m.w; x++)
+                {
+                    printf("%f ", ptr[x]);
+                }
+                ptr += m.w;
+                printf("\n");
+            }
+            printf("\n");
+        }
+        printf("------------------------\n");
+    }
+}
+void pretty_print(const ncnn::VkMat& m, ncnn::VkCompute& cmd, const ncnn::Option& opt)
+{
+    ncnn::Option opt_unpack = opt;
+    opt_unpack.use_packing_layout = false;
 
+    ncnn::Mat m_cpu;
+    cmd.record_download(m, m_cpu, opt_unpack);
+    cmd.submit_and_wait();
+    cmd.reset();
+
+    // print Mat content
+    pretty_print(m_cpu);
+}
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& query = bottom_blobs[0];
@@ -337,12 +373,34 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     const int num_heads_per_group = num_heads / num_group;
 
+    // FIXME
     if (use_flash_attention && embed_dim % 16 == 0 && out_embed_dim % 16 == 0)
     {
-        NCNN_LOGE("flash attention enabled");
-        NCNN_LOGE("num_heads_per_group %d", num_heads_per_group);
-        NCNN_LOGE("embed_dim %d", embed_dim);
-        NCNN_LOGE("out_embed_dim %d", out_embed_dim);
+        VkMat value;
+        if (past_seqlen > 0)
+        {
+            value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_vkallocator);
+            if (value.empty())
+                return -100;
+
+            std::vector<VkMat> inputs(2);
+            inputs[0] = past_value;
+            inputs[1] = cur_value;
+            std::vector<VkMat> outputs(1);
+            kvcache_concat->forward(inputs, outputs, cmd, opt);
+            value = outputs[0];
+        }
+        else
+        {
+            value = cur_value;
+        }
+
+        // NCNN_LOGE("flash attention enabled");
+        // NCNN_LOGE("num_heads_per_group %d", num_heads_per_group);
+        // NCNN_LOGE("embed_dim %d", embed_dim);
+        // NCNN_LOGE("out_embed_dim %d", out_embed_dim);
+        // NCNN_LOGE("src_seqlen %d", src_seqlen);
+        // NCNN_LOGE("num_heads %d", num_heads);
 
         VkMat& top_blob = top_blobs[0];
         top_blob.create(out_embed_dim, src_seqlen, num_heads, elemsize, opt.blob_vkallocator);
@@ -351,7 +409,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
         // fa
         {
-            std::vector<VkMat> bindings(4);
+            std::vector<VkMat> bindings(5);
             bindings[0] = query;
             bindings[1] = key;
             bindings[2] = value;
@@ -359,13 +417,13 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             bindings[4] = attn_mask_blob;
 
             std::vector<vk_constant_type> constants(13);
-            constants[0].f = 1.f; // scale
+            constants[0].f = _scale;
             constants[1].i = src_seqlen;
             constants[2].i = dst_seqlen;
             constants[3].i = embed_dim;
             constants[4].i = out_embed_dim;
             constants[5].i = num_heads;
-            constants[6].i = 0; // attn_mask_dims
+            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
             constants[7].i = num_heads_per_group;
             constants[8].i = query.cstep;
             constants[9].i = key.cstep;
@@ -379,9 +437,15 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             VkMat dispatcher;
             dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size);
             dispatcher.h = 1;
-            dispatcher.c = B;
+            dispatcher.c = num_heads;
 
-            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline_sdpa_fa, bindings, constants, dispatcher);
+        }
+
+        if (kv_cache)
+        {
+            top_blobs[1] = key;
+            top_blobs[2] = value;
         }
 
         return 0;
