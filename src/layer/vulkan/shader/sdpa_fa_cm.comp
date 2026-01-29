@@ -55,14 +55,14 @@ layout(push_constant) uniform parameter
 #define CM_K 16
 
 // Shared Memory 布局常量
-#define TILE_SIZE 256  // 16 x 16
+#define TILE_SIZE 256 // 16 x 16
 
 // 最大支持的 out_embed_dim / 16 块数
 #define MAX_OUT_CHUNKS 8
 
 // Shared Memory - 直接使用 float，简洁明了
-shared float tmp_s[TILE_SIZE];    // Score matrix (16x16 FP32)
-shared float tmp_o[TILE_SIZE];    // Output tile for rescaling (16x16 FP32)
+shared float tmp_s[TILE_SIZE]; // Score matrix (16x16 FP32)
+shared float tmp_o[TILE_SIZE]; // Output tile for rescaling (16x16 FP32)
 
 // Shared memory for row statistics (用于跨线程同步)
 shared float smem_row_max[CM_M];
@@ -92,8 +92,8 @@ float reduceN_add(float val, uint n)
 
 void main()
 {
-//     const int gx = int(gl_GlobalInvocationID.x);
-//     const int gy = int(gl_GlobalInvocationID.y);
+    //     const int gx = int(gl_GlobalInvocationID.x);
+    //     const int gy = int(gl_GlobalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
     if (gz >= p.num_heads)
@@ -111,10 +111,10 @@ void main()
 
     // assume cooperative matrix is 16x16x16
 
-//     const uint sum_N = out_embed_dim / 16;
+    //     const uint sum_N = out_embed_dim / 16;
 
-//     const uint dst_seqlen_d16 = dst_seqlen / 16;
-//     const uint embed_dim_d16 = embed_dim / 16;
+    //     const uint dst_seqlen_d16 = dst_seqlen / 16;
+    //     const uint embed_dim_d16 = embed_dim / 16;
 
     // 计算各种维度
     const uint dst_seqlen_d16 = (p.dst_seqlen + 15) / 16;
@@ -125,7 +125,7 @@ void main()
     const int kv_head_idx = gz / p.num_heads_per_group;
 
     // 每行元素数和每线程处理元素数
-//     const uint elements_per_row = CM_N;  // 16
+    //     const uint elements_per_row = CM_N;  // 16
     const uint elements_per_thread = TILE_SIZE / subgroup_size;
 
     // --- 1. 初始化 Accumulators (Output O) ---

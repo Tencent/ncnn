@@ -58,7 +58,6 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
-
     use_flash_attention = true && (opt.use_bf16_storage || opt.use_bf16_packed);
 
     if (use_flash_attention)
@@ -298,14 +297,14 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
 }
 void pretty_print(const ncnn::Mat& m)
 {
-    for (int q=0; q<m.c; q++)
+    for (int q = 0; q < m.c; q++)
     {
         const float* ptr = m.channel(q);
-        for (int z=0; z<m.d; z++)
+        for (int z = 0; z < m.d; z++)
         {
-            for (int y=0; y<m.h; y++)
+            for (int y = 0; y < m.h; y++)
             {
-                for (int x=0; x<m.w; x++)
+                for (int x = 0; x < m.w; x++)
                 {
                     printf("%f ", ptr[x]);
                 }
