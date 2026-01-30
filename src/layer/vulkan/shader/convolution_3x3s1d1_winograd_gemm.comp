@@ -4,7 +4,7 @@
 #version 450
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int batch = 1;
 layout(constant_id = 1) const int c = 0;
@@ -207,28 +207,32 @@ void main()
         afp k3 = buffer_ld1(weight_tm_data, w_offset + 3);
 
         sum += afpvec4(
-            buffer_ld1(bottom_tm_blob_data, v0 + 0),
-            buffer_ld1(bottom_tm_blob_data, v0 + 1),
-            buffer_ld1(bottom_tm_blob_data, v0 + 2),
-            buffer_ld1(bottom_tm_blob_data, v0 + 3)) * k0;
+                   buffer_ld1(bottom_tm_blob_data, v0 + 0),
+                   buffer_ld1(bottom_tm_blob_data, v0 + 1),
+                   buffer_ld1(bottom_tm_blob_data, v0 + 2),
+                   buffer_ld1(bottom_tm_blob_data, v0 + 3))
+               * k0;
 
         sum += afpvec4(
-            buffer_ld1(bottom_tm_blob_data, v1 + 0),
-            buffer_ld1(bottom_tm_blob_data, v1 + 1),
-            buffer_ld1(bottom_tm_blob_data, v1 + 2),
-            buffer_ld1(bottom_tm_blob_data, v1 + 3)) * k1;
+                   buffer_ld1(bottom_tm_blob_data, v1 + 0),
+                   buffer_ld1(bottom_tm_blob_data, v1 + 1),
+                   buffer_ld1(bottom_tm_blob_data, v1 + 2),
+                   buffer_ld1(bottom_tm_blob_data, v1 + 3))
+               * k1;
 
         sum += afpvec4(
-            buffer_ld1(bottom_tm_blob_data, v2 + 0),
-            buffer_ld1(bottom_tm_blob_data, v2 + 1),
-            buffer_ld1(bottom_tm_blob_data, v2 + 2),
-            buffer_ld1(bottom_tm_blob_data, v2 + 3)) * k2;
+                   buffer_ld1(bottom_tm_blob_data, v2 + 0),
+                   buffer_ld1(bottom_tm_blob_data, v2 + 1),
+                   buffer_ld1(bottom_tm_blob_data, v2 + 2),
+                   buffer_ld1(bottom_tm_blob_data, v2 + 3))
+               * k2;
 
         sum += afpvec4(
-            buffer_ld1(bottom_tm_blob_data, v3 + 0),
-            buffer_ld1(bottom_tm_blob_data, v3 + 1),
-            buffer_ld1(bottom_tm_blob_data, v3 + 2),
-            buffer_ld1(bottom_tm_blob_data, v3 + 3)) * k3;
+                   buffer_ld1(bottom_tm_blob_data, v3 + 0),
+                   buffer_ld1(bottom_tm_blob_data, v3 + 1),
+                   buffer_ld1(bottom_tm_blob_data, v3 + 2),
+                   buffer_ld1(bottom_tm_blob_data, v3 + 3))
+               * k3;
 
         v_offset += 4 * psc(cstep);
         w_offset += 4;
