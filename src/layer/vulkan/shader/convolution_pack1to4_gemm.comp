@@ -209,7 +209,7 @@ void main()
             for (int r = 0; r < remain; r++)
             {
                 const int sz = (z + r) / maxk;
-                const int k  = (z + r) % maxk;
+                const int k = (z + r) % maxk;
 
                 const int ky = k / kernel_w;
                 const int kx = k % kernel_w;
