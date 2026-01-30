@@ -22,6 +22,7 @@ SDPA_vulkan::SDPA_vulkan()
 
     pipeline_sdpa_fa = 0;
     use_flash_attention = false;
+    FA_UNROLL_SG_M = 1;
     FA_UNROLL_WG_M = 1;
 
     use_cooperative_matrix = false;
@@ -59,7 +60,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
-    use_flash_attention = true && (opt.use_bf16_storage || opt.use_bf16_packed);
+    use_flash_attention = use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed);
 
     if (use_flash_attention)
     {
@@ -78,18 +79,29 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
-        FA_UNROLL_WG_M = 2;
-
-        // fa
+        if (coopmat_N != coopmat_K)
         {
-            std::vector<vk_specialization_type> specializations(1 + 5);
+            // not implemented yet
+            use_flash_attention = false;
+        }
+        else
+        {
+            // fa
+
+            FA_UNROLL_SG_M = 2;
+
+            FA_UNROLL_WG_M = 2;
+            // FA_UNROLL_WG_M = 1;
+
+            std::vector<vk_specialization_type> specializations(1 + 6);
             specializations[0].i = attn_mask;
 
             specializations[1 + 0].u32 = coopmat_M;
             specializations[1 + 1].u32 = coopmat_N;
             specializations[1 + 2].u32 = coopmat_K;
             specializations[1 + 3].u32 = coopmat_subgroup_size;
-            specializations[1 + 4].u32 = FA_UNROLL_WG_M;
+            specializations[1 + 4].u32 = FA_UNROLL_SG_M;
+            specializations[1 + 5].u32 = FA_UNROLL_WG_M;
 
             pipeline_sdpa_fa = new Pipeline(vkdev);
             pipeline_sdpa_fa->set_subgroup_size(coopmat_subgroup_size);
@@ -285,6 +297,7 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
     }
 
     use_flash_attention = false;
+    FA_UNROLL_SG_M = 1;
     FA_UNROLL_WG_M = 1;
 
     use_cooperative_matrix = false;
@@ -436,7 +449,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[12].i = attn_mask_blob.cstep;
 
             const int blocks_x = 1;
-            const int blocks_y = (src_seqlen + coopmat_M * FA_UNROLL_WG_M - 1) / (coopmat_M * FA_UNROLL_WG_M);
+            const int blocks_y = (src_seqlen + coopmat_M * FA_UNROLL_SG_M * FA_UNROLL_WG_M - 1) / (coopmat_M * FA_UNROLL_SG_M * FA_UNROLL_WG_M);
 
             VkMat dispatcher;
             dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * FA_UNROLL_WG_M);
