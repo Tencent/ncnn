@@ -7,7 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;
@@ -61,10 +61,10 @@ void main()
 
     const int outsize = psc(outw) * psc(outh);
 
-    #if !NCNN_shader_local_memory
+#if !NCNN_shader_local_memory
     if (gx >= outsize || gy >= psc(outc))
-    return;
-    #endif
+        return;
+#endif
 
     afp sum0;
     afp sum1;
@@ -99,7 +99,7 @@ void main()
 
     int w_offset = gy * N;
 
-    #if NCNN_shader_local_memory
+#if NCNN_shader_local_memory
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
@@ -265,7 +265,7 @@ void main()
             sum3 += dot(v3, k);
         }
     }
-    #else
+#else
     int z = 0;
     for (; z + 3 < N; z += 4)
     {
@@ -321,12 +321,12 @@ void main()
 
         w_offset += 1;
     }
-    #endif
+#endif
 
-    #if NCNN_shader_local_memory
+#if NCNN_shader_local_memory
     if (gx >= outsize || gy >= psc(outc))
-    return;
-    #endif
+        return;
+#endif
 
     sum0 = activation_afp(sum0, activation_type, activation_param_0, activation_param_1);
     sum1 = activation_afp(sum1, activation_type, activation_param_0, activation_param_1);

@@ -7,7 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;

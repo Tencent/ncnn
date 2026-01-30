@@ -7,7 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;
@@ -288,10 +288,26 @@ void main()
     int z = 0;
     for (; z + 3 < N; z += 4)
     {
-        int z0 = z + 0; int sz0 = z0 / maxk; int kk0 = z0 % maxk; int ky0 = kk0 / kernel_w; int kx0 = kk0 % kernel_w;
-        int z1 = z + 1; int sz1 = z1 / maxk; int kk1 = z1 % maxk; int ky1 = kk1 / kernel_w; int kx1 = kk1 % kernel_w;
-        int z2 = z + 2; int sz2 = z2 / maxk; int kk2 = z2 % maxk; int ky2 = kk2 / kernel_w; int kx2 = kk2 % kernel_w;
-        int z3 = z + 3; int sz3 = z3 / maxk; int kk3 = z3 % maxk; int ky3 = kk3 / kernel_w; int kx3 = kk3 % kernel_w;
+        int z0 = z + 0;
+        int sz0 = z0 / maxk;
+        int kk0 = z0 % maxk;
+        int ky0 = kk0 / kernel_w;
+        int kx0 = kk0 % kernel_w;
+        int z1 = z + 1;
+        int sz1 = z1 / maxk;
+        int kk1 = z1 % maxk;
+        int ky1 = kk1 / kernel_w;
+        int kx1 = kk1 % kernel_w;
+        int z2 = z + 2;
+        int sz2 = z2 / maxk;
+        int kk2 = z2 % maxk;
+        int ky2 = kk2 / kernel_w;
+        int kx2 = kk2 % kernel_w;
+        int z3 = z + 3;
+        int sz3 = z3 / maxk;
+        int kk3 = z3 % maxk;
+        int ky3 = kk3 / kernel_w;
+        int kx3 = kk3 % kernel_w;
 
         afpvec4 wk0 = buffer_ld4(weight_data, w_offset + 0);
         afpvec4 wk1 = buffer_ld4(weight_data, w_offset + 1);
