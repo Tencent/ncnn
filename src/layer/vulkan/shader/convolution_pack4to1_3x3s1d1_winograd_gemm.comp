@@ -4,6 +4,7 @@
 #version 450
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
+#define LOCAL_MEMORY_PAD 1
 
 layout(constant_id = 0) const int batch = 1;
 layout(constant_id = 1) const int c = 0;
@@ -26,8 +27,8 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4 + LOCAL_MEMORY_PAD];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH + LOCAL_MEMORY_PAD];
 #endif
 
 void main()
@@ -41,10 +42,7 @@ void main()
         return;
 #endif
 
-    afp sum0 = afp(0.f);
-    afp sum1 = afp(0.f);
-    afp sum2 = afp(0.f);
-    afp sum3 = afp(0.f);
+    afpvec4 sum = afpvec4(0.f);
 
     int v_offset = gz * c * psc(cstep) + gx;
     int w_offset = gz * c * outc + gy * c;
@@ -58,35 +56,59 @@ void main()
     {
         if (ly < 4)
         {
-            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            for (int k = 0; k < LOCAL_MEMORY_UNROLL_INCH; k++)
             {
-                tmp_v[lx][z4][ly] = buffer_sm4(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly);
+                tmp_v[lx][k][ly] = buffer_sm4(bottom_tm_blob_data, v_offset + k * psc(cstep) + ly);
             }
         }
 
         if (lx == 0)
         {
-            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            for (int k = 0; k < LOCAL_MEMORY_UNROLL_INCH; k++)
             {
-                tmp_k[ly][z4] = buffer_sm4(weight_tm_data, w_offset + z4);
+                tmp_k[ly][k] = buffer_sm4(weight_tm_data, w_offset + k);
             }
         }
 
         barrier();
 
-        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        int k = 0;
+        for (; k + 3 < LOCAL_MEMORY_UNROLL_INCH; k += 4)
         {
-            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
-            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
-            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
-            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+            // unroll 4 K-steps
+            for (int u = 0; u < 4; u++)
+            {
+                int t = k + u;
 
-            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+                afpvec4 w = lfp2afpvec4(tmp_k[ly][t]);
 
-            sum0 += dot(v0, k);
-            sum1 += dot(v1, k);
-            sum2 += dot(v2, k);
-            sum3 += dot(v3, k);
+                afpvec4 v0 = lfp2afpvec4(tmp_v[lx][t][0]);
+                afpvec4 v1 = lfp2afpvec4(tmp_v[lx][t][1]);
+                afpvec4 v2 = lfp2afpvec4(tmp_v[lx][t][2]);
+                afpvec4 v3 = lfp2afpvec4(tmp_v[lx][t][3]);
+
+                sum += afpvec4(
+                    dot(v0, w),
+                    dot(v1, w),
+                    dot(v2, w),
+                    dot(v3, w));
+            }
+        }
+
+        for (; k < LOCAL_MEMORY_UNROLL_INCH; k++)
+        {
+            afpvec4 w = lfp2afpvec4(tmp_k[ly][k]);
+
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][k][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][k][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][k][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][k][3]);
+
+            sum += afpvec4(
+                dot(v0, w),
+                dot(v1, w),
+                dot(v2, w),
+                dot(v3, w));
         }
 
         v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(cstep);
@@ -101,66 +123,109 @@ void main()
 
         if (ly < 4)
         {
-            for (int z4 = 0; z4 < remain; z4++)
+            for (int r = 0; r < remain; r++)
             {
-                tmp_v[lx][z4][ly] = buffer_sm4(bottom_tm_blob_data, v_offset + z4 * psc(cstep) + ly);
+                tmp_v[lx][r][ly] = buffer_sm4(bottom_tm_blob_data, v_offset + r * psc(cstep) + ly);
             }
         }
 
         if (lx == 0)
         {
-            for (int z4 = 0; z4 < remain; z4++)
+            for (int r = 0; r < remain; r++)
             {
-                tmp_k[ly][z4] = buffer_sm4(weight_tm_data, w_offset + z4);
+                tmp_k[ly][r] = buffer_sm4(weight_tm_data, w_offset + r);
             }
         }
 
         barrier();
 
-        for (int z4 = 0; z4 < remain; z4++)
+        int r = 0;
+        for (; r + 3 < remain; r += 4)
         {
-            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
-            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
-            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
-            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+            for (int u = 0; u < 4; u++)
+            {
+                int t = r + u;
 
-            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+                afpvec4 w = lfp2afpvec4(tmp_k[ly][t]);
 
-            sum0 += dot(v0, k);
-            sum1 += dot(v1, k);
-            sum2 += dot(v2, k);
-            sum3 += dot(v3, k);
+                afpvec4 v0 = lfp2afpvec4(tmp_v[lx][t][0]);
+                afpvec4 v1 = lfp2afpvec4(tmp_v[lx][t][1]);
+                afpvec4 v2 = lfp2afpvec4(tmp_v[lx][t][2]);
+                afpvec4 v3 = lfp2afpvec4(tmp_v[lx][t][3]);
+
+                sum += afpvec4(
+                    dot(v0, w),
+                    dot(v1, w),
+                    dot(v2, w),
+                    dot(v3, w));
+            }
+        }
+
+        for (; r < remain; r++)
+        {
+            afpvec4 w = lfp2afpvec4(tmp_k[ly][r]);
+
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][r][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][r][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][r][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][r][3]);
+
+            sum += afpvec4(
+                dot(v0, w),
+                dot(v1, w),
+                dot(v2, w),
+                dot(v3, w));
         }
     }
 #else
-    for (int z = 0; z < c; z++)
+    int z = 0;
+    for (; z + 3 < c; z += 4)
     {
+        // 4x unroll over K
+        for (int u = 0; u < 4; u++)
+        {
+            afpvec4 w = buffer_ld4(weight_tm_data, w_offset + u);
+
+            afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + u * psc(cstep) + 0);
+            afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + u * psc(cstep) + 1);
+            afpvec4 v2 = buffer_ld4(bottom_tm_blob_data, v_offset + u * psc(cstep) + 2);
+            afpvec4 v3 = buffer_ld4(bottom_tm_blob_data, v_offset + u * psc(cstep) + 3);
+
+            sum += afpvec4(
+                dot(v0, w),
+                dot(v1, w),
+                dot(v2, w),
+                dot(v3, w));
+        }
+
+        v_offset += 4 * psc(cstep);
+        w_offset += 4;
+    }
+
+    for (; z < c; z++)
+    {
+        afpvec4 w = buffer_ld4(weight_tm_data, w_offset);
+
         afpvec4 v0 = buffer_ld4(bottom_tm_blob_data, v_offset + 0);
         afpvec4 v1 = buffer_ld4(bottom_tm_blob_data, v_offset + 1);
         afpvec4 v2 = buffer_ld4(bottom_tm_blob_data, v_offset + 2);
         afpvec4 v3 = buffer_ld4(bottom_tm_blob_data, v_offset + 3);
 
-        afpvec4 k = buffer_ld4(weight_tm_data, w_offset);
-
-        sum0 += dot(v0, k);
-        sum1 += dot(v1, k);
-        sum2 += dot(v2, k);
-        sum3 += dot(v3, k);
+        sum += afpvec4(
+            dot(v0, w),
+            dot(v1, w),
+            dot(v2, w),
+            dot(v3, w));
 
         v_offset += psc(cstep);
         w_offset += 1;
     }
 #endif
 
-#if NCNN_shader_local_memory
-    if (gx >= psc(outw) || gy >= outc || gz >= batch)
-        return;
-#endif
-
     int gi = gz * outc * psc(outcstep) + gy * psc(outcstep) + gx;
 
-    buffer_st1(top_tm_blob_data, gi + 0, sum0);
-    if (gx + 1 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 1, sum1);
-    if (gx + 2 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 2, sum2);
-    if (gx + 3 < psc(outw)) buffer_st1(top_tm_blob_data, gi + 3, sum3);
+    buffer_st1(top_tm_blob_data, gi + 0, sum.x);
+    buffer_st1(top_tm_blob_data, gi + 1, sum.y);
+    buffer_st1(top_tm_blob_data, gi + 2, sum.z);
+    buffer_st1(top_tm_blob_data, gi + 3, sum.w);
 }
