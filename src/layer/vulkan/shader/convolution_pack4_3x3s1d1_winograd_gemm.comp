@@ -4,7 +4,7 @@
 #version 450
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int batch = 1;
 layout(constant_id = 1) const int c = 0;
