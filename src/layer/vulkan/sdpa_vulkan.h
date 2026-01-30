@@ -28,6 +28,12 @@ public:
     Pipeline* pipeline_sdpa_qk_cross;
     Pipeline* pipeline_sdpa_qkv_cross;
 
+    Pipeline* pipeline_sdpa_fa;
+
+    bool use_flash_attention;
+    int FA_UNROLL_SG_M;
+    int FA_UNROLL_WG_M;
+
     // cooperative matrix
     bool use_cooperative_matrix;
     int coopmat_M;
