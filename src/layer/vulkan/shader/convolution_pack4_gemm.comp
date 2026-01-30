@@ -7,7 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
-#define LOCAL_MEMORY_PAD 1
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;
@@ -207,7 +207,7 @@ void main()
 
         barrier();
 
-        for (int z4 = 0; z4 < remain; z4 ++)
+        for (int z4 = 0; z4 < remain; z4++)
         {
             afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
             afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
