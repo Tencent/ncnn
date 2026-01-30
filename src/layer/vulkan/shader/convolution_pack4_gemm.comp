@@ -54,26 +54,6 @@ shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4 + LOCAL_MEMORY_PAD];
 shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4 + LOCAL_MEMORY_PAD];
 #endif
 
-void mma_one(in int lx, in int ly, in int z4, inout afpvec4 sum0, inout afpvec4 sum1, inout afpvec4 sum2, inout afpvec4 sum3)
-{
-    afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
-    afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
-    afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
-    afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
-
-    afpvec4 k0 = lfp2afpvec4(tmp_k[ly][z4][0]);
-    afpvec4 k1 = lfp2afpvec4(tmp_k[ly][z4][1]);
-    afpvec4 k2 = lfp2afpvec4(tmp_k[ly][z4][2]);
-    afpvec4 k3 = lfp2afpvec4(tmp_k[ly][z4][3]);
-
-    afpmat4 k = afpmat4(k0, k1, k2, k3);
-
-    sum0 += v0 * k;
-    sum1 += v1 * k;
-    sum2 += v2 * k;
-    sum3 += v3 * k;
-}
-
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x) * 4;
