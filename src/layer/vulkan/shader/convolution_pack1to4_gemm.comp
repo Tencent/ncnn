@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
-
 #extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
@@ -50,12 +49,12 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfp tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
+shared lfp tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4 + LOCAL_MEMORY_PAD];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH + LOCAL_MEMORY_PAD];
 #endif
 
-// transpose 4 weight vectors (each is vec4(out0,out1,out2,out3) at one K-step)
-// into mat4 columns = weights for each out channel across 4 K-steps
+// weight_data[z] = vec4(out0,out1,out2,out3) at one K-step
+// need mat4 columns = weights per output channel across 4 K-steps
 afpmat4 make_kmat4_from_k0123(in afpvec4 k0, in afpvec4 k1, in afpvec4 k2, in afpvec4 k3)
 {
     afpvec4 col0 = afpvec4(k0.x, k1.x, k2.x, k3.x);
@@ -143,7 +142,7 @@ void main()
 
         barrier();
 
-        // 4x unroll in K (z4 step by 4), vectorize A/B and do v * mat4(transposed weights)
+        // K unroll by 4
         int z4 = 0;
         for (; z4 + 3 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
@@ -151,7 +150,6 @@ void main()
             afpvec4 wk1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
             afpvec4 wk2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
             afpvec4 wk3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
-
             afpmat4 km = make_kmat4_from_k0123(wk0, wk1, wk2, wk3);
 
             afpvec4 v0 = afpvec4(
@@ -181,7 +179,7 @@ void main()
             sum3 += v3 * km;
         }
 
-        // tail inside block
+        // scalar tail in block
         for (; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
         {
             afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
@@ -208,59 +206,59 @@ void main()
 
         if (ly < 4)
         {
-            for (int z4 = 0; z4 < remain; z4++)
+            for (int r = 0; r < remain; r++)
             {
-                const int sz = (z + z4) / maxk;
-                const int k = (z + z4) % maxk;
+                const int sz = (z + r) / maxk;
+                const int k  = (z + r) % maxk;
 
                 const int ky = k / kernel_w;
                 const int kx = k % kernel_w;
 
-                const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + sxs4[ly] + kx * dilation_w;
+                const int v_offset = sz * psc(cstep) + (sys4[ly] + ky * dilation_h) * psc(w) + (sxs4[ly] + kx * dilation_w);
 
-                tmp_v[lx][z4][ly] = buffer_sm1(bottom_blob_data, v_offset);
+                tmp_v[lx][r][ly] = buffer_sm1(bottom_blob_data, v_offset);
             }
         }
 
         if (lx == 0)
         {
-            for (int z4 = 0; z4 < remain; z4++)
+            for (int r = 0; r < remain; r++)
             {
-                tmp_k[ly][z4] = buffer_sm4(weight_data, w_offset + z4);
+                tmp_k[ly][r] = buffer_sm4(weight_data, w_offset + r);
             }
         }
 
         barrier();
 
-        for (int z4 = 0; z4 < remain; z4++)
+        int r = 0;
+        for (; r + 3 < remain; r += 4)
         {
-            afpvec4 wk0 = lfp2afpvec4(tmp_k[ly][z4 + 0]);
-            afpvec4 wk1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
-            afpvec4 wk2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
-            afpvec4 wk3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
-
+            afpvec4 wk0 = lfp2afpvec4(tmp_k[ly][r + 0]);
+            afpvec4 wk1 = lfp2afpvec4(tmp_k[ly][r + 1]);
+            afpvec4 wk2 = lfp2afpvec4(tmp_k[ly][r + 2]);
+            afpvec4 wk3 = lfp2afpvec4(tmp_k[ly][r + 3]);
             afpmat4 km = make_kmat4_from_k0123(wk0, wk1, wk2, wk3);
 
             afpvec4 v0 = afpvec4(
-                lfp2afp(tmp_v[lx][z4 + 0][0]),
-                lfp2afp(tmp_v[lx][z4 + 1][0]),
-                lfp2afp(tmp_v[lx][z4 + 2][0]),
-                lfp2afp(tmp_v[lx][z4 + 3][0]));
+                lfp2afp(tmp_v[lx][r + 0][0]),
+                lfp2afp(tmp_v[lx][r + 1][0]),
+                lfp2afp(tmp_v[lx][r + 2][0]),
+                lfp2afp(tmp_v[lx][r + 3][0]));
             afpvec4 v1 = afpvec4(
-                lfp2afp(tmp_v[lx][z4 + 0][1]),
-                lfp2afp(tmp_v[lx][z4 + 1][1]),
-                lfp2afp(tmp_v[lx][z4 + 2][1]),
-                lfp2afp(tmp_v[lx][z4 + 3][1]));
+                lfp2afp(tmp_v[lx][r + 0][1]),
+                lfp2afp(tmp_v[lx][r + 1][1]),
+                lfp2afp(tmp_v[lx][r + 2][1]),
+                lfp2afp(tmp_v[lx][r + 3][1]));
             afpvec4 v2 = afpvec4(
-                lfp2afp(tmp_v[lx][z4 + 0][2]),
-                lfp2afp(tmp_v[lx][z4 + 1][2]),
-                lfp2afp(tmp_v[lx][z4 + 2][2]),
-                lfp2afp(tmp_v[lx][z4 + 3][2]));
+                lfp2afp(tmp_v[lx][r + 0][2]),
+                lfp2afp(tmp_v[lx][r + 1][2]),
+                lfp2afp(tmp_v[lx][r + 2][2]),
+                lfp2afp(tmp_v[lx][r + 3][2]));
             afpvec4 v3 = afpvec4(
-                lfp2afp(tmp_v[lx][z4 + 0][3]),
-                lfp2afp(tmp_v[lx][z4 + 1][3]),
-                lfp2afp(tmp_v[lx][z4 + 2][3]),
-                lfp2afp(tmp_v[lx][z4 + 3][3]));
+                lfp2afp(tmp_v[lx][r + 0][3]),
+                lfp2afp(tmp_v[lx][r + 1][3]),
+                lfp2afp(tmp_v[lx][r + 2][3]),
+                lfp2afp(tmp_v[lx][r + 3][3]));
 
             sum0 += v0 * km;
             sum1 += v1 * km;
@@ -268,14 +266,14 @@ void main()
             sum3 += v3 * km;
         }
 
-        for (; z4 < remain; z4++)
+        for (; r < remain; r++)
         {
-            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+            afpvec4 k = lfp2afpvec4(tmp_k[ly][r]);
 
-            afp v0s = lfp2afp(tmp_v[lx][z4][0]);
-            afp v1s = lfp2afp(tmp_v[lx][z4][1]);
-            afp v2s = lfp2afp(tmp_v[lx][z4][2]);
-            afp v3s = lfp2afp(tmp_v[lx][z4][3]);
+            afp v0s = lfp2afp(tmp_v[lx][r][0]);
+            afp v1s = lfp2afp(tmp_v[lx][r][1]);
+            afp v2s = lfp2afp(tmp_v[lx][r][2]);
+            afp v3s = lfp2afp(tmp_v[lx][r][3]);
 
             sum0 += v0s * k;
             sum1 += v1s * k;
@@ -284,7 +282,7 @@ void main()
         }
     }
 #else
-    // no shared memory: unroll K by 4, vectorize A/B, transpose weights then v * mat4
+    // no shared memory: K unroll 4 + vectorize A/B + transpose weights
     int z = 0;
     for (; z + 3 < N; z += 4)
     {
