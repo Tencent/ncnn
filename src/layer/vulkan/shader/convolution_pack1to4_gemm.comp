@@ -7,6 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
+#define LOCAL_MEMORY_PAD 1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;
@@ -52,6 +53,17 @@ layout(push_constant) uniform parameter
 shared lfp tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
 shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
 #endif
+
+// transpose 4 weight vectors (each is vec4(out0,out1,out2,out3) at one K-step)
+// into mat4 columns = weights for each out channel across 4 K-steps
+afpmat4 make_kmat4_from_k0123(in afpvec4 k0, in afpvec4 k1, in afpvec4 k2, in afpvec4 k3)
+{
+    afpvec4 col0 = afpvec4(k0.x, k1.x, k2.x, k3.x);
+    afpvec4 col1 = afpvec4(k0.y, k1.y, k2.y, k3.y);
+    afpvec4 col2 = afpvec4(k0.z, k1.z, k2.z, k3.z);
+    afpvec4 col3 = afpvec4(k0.w, k1.w, k2.w, k3.w);
+    return afpmat4(col0, col1, col2, col3);
+}
 
 void main()
 {
@@ -131,19 +143,58 @@ void main()
 
         barrier();
 
-        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        // 4x unroll in K (z4 step by 4), vectorize A/B and do v * mat4(transposed weights)
+        int z4 = 0;
+        for (; z4 + 3 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
-            afp v0 = lfp2afp(tmp_v[lx][z4][0]);
-            afp v1 = lfp2afp(tmp_v[lx][z4][1]);
-            afp v2 = lfp2afp(tmp_v[lx][z4][2]);
-            afp v3 = lfp2afp(tmp_v[lx][z4][3]);
+            afpvec4 wk0 = lfp2afpvec4(tmp_k[ly][z4 + 0]);
+            afpvec4 wk1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
+            afpvec4 wk2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
+            afpvec4 wk3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
 
+            afpmat4 km = make_kmat4_from_k0123(wk0, wk1, wk2, wk3);
+
+            afpvec4 v0 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][0]),
+                lfp2afp(tmp_v[lx][z4 + 1][0]),
+                lfp2afp(tmp_v[lx][z4 + 2][0]),
+                lfp2afp(tmp_v[lx][z4 + 3][0]));
+            afpvec4 v1 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][1]),
+                lfp2afp(tmp_v[lx][z4 + 1][1]),
+                lfp2afp(tmp_v[lx][z4 + 2][1]),
+                lfp2afp(tmp_v[lx][z4 + 3][1]));
+            afpvec4 v2 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][2]),
+                lfp2afp(tmp_v[lx][z4 + 1][2]),
+                lfp2afp(tmp_v[lx][z4 + 2][2]),
+                lfp2afp(tmp_v[lx][z4 + 3][2]));
+            afpvec4 v3 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][3]),
+                lfp2afp(tmp_v[lx][z4 + 1][3]),
+                lfp2afp(tmp_v[lx][z4 + 2][3]),
+                lfp2afp(tmp_v[lx][z4 + 3][3]));
+
+            sum0 += v0 * km;
+            sum1 += v1 * km;
+            sum2 += v2 * km;
+            sum3 += v3 * km;
+        }
+
+        // tail inside block
+        for (; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
             afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
 
-            sum0 += v0 * k;
-            sum1 += v1 * k;
-            sum2 += v2 * k;
-            sum3 += v3 * k;
+            afp v0s = lfp2afp(tmp_v[lx][z4][0]);
+            afp v1s = lfp2afp(tmp_v[lx][z4][1]);
+            afp v2s = lfp2afp(tmp_v[lx][z4][2]);
+            afp v3s = lfp2afp(tmp_v[lx][z4][3]);
+
+            sum0 += v0s * k;
+            sum1 += v1s * k;
+            sum2 += v2s * k;
+            sum3 += v3s * k;
         }
 
         w_offset += LOCAL_MEMORY_UNROLL_INCH;
@@ -183,21 +234,107 @@ void main()
 
         for (int z4 = 0; z4 < remain; z4++)
         {
-            afp v0 = lfp2afp(tmp_v[lx][z4][0]);
-            afp v1 = lfp2afp(tmp_v[lx][z4][1]);
-            afp v2 = lfp2afp(tmp_v[lx][z4][2]);
-            afp v3 = lfp2afp(tmp_v[lx][z4][3]);
+            afpvec4 wk0 = lfp2afpvec4(tmp_k[ly][z4 + 0]);
+            afpvec4 wk1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
+            afpvec4 wk2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
+            afpvec4 wk3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
 
+            afpmat4 km = make_kmat4_from_k0123(wk0, wk1, wk2, wk3);
+
+            afpvec4 v0 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][0]),
+                lfp2afp(tmp_v[lx][z4 + 1][0]),
+                lfp2afp(tmp_v[lx][z4 + 2][0]),
+                lfp2afp(tmp_v[lx][z4 + 3][0]));
+            afpvec4 v1 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][1]),
+                lfp2afp(tmp_v[lx][z4 + 1][1]),
+                lfp2afp(tmp_v[lx][z4 + 2][1]),
+                lfp2afp(tmp_v[lx][z4 + 3][1]));
+            afpvec4 v2 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][2]),
+                lfp2afp(tmp_v[lx][z4 + 1][2]),
+                lfp2afp(tmp_v[lx][z4 + 2][2]),
+                lfp2afp(tmp_v[lx][z4 + 3][2]));
+            afpvec4 v3 = afpvec4(
+                lfp2afp(tmp_v[lx][z4 + 0][3]),
+                lfp2afp(tmp_v[lx][z4 + 1][3]),
+                lfp2afp(tmp_v[lx][z4 + 2][3]),
+                lfp2afp(tmp_v[lx][z4 + 3][3]));
+
+            sum0 += v0 * km;
+            sum1 += v1 * km;
+            sum2 += v2 * km;
+            sum3 += v3 * km;
+        }
+
+        for (; z4 < remain; z4++)
+        {
             afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
 
-            sum0 += v0 * k;
-            sum1 += v1 * k;
-            sum2 += v2 * k;
-            sum3 += v3 * k;
+            afp v0s = lfp2afp(tmp_v[lx][z4][0]);
+            afp v1s = lfp2afp(tmp_v[lx][z4][1]);
+            afp v2s = lfp2afp(tmp_v[lx][z4][2]);
+            afp v3s = lfp2afp(tmp_v[lx][z4][3]);
+
+            sum0 += v0s * k;
+            sum1 += v1s * k;
+            sum2 += v2s * k;
+            sum3 += v3s * k;
         }
     }
 #else
-    for (int z = 0; z < N; z++)
+    // no shared memory: unroll K by 4, vectorize A/B, transpose weights then v * mat4
+    int z = 0;
+    for (; z + 3 < N; z += 4)
+    {
+        int z0 = z + 0; int sz0 = z0 / maxk; int kk0 = z0 % maxk; int ky0 = kk0 / kernel_w; int kx0 = kk0 % kernel_w;
+        int z1 = z + 1; int sz1 = z1 / maxk; int kk1 = z1 % maxk; int ky1 = kk1 / kernel_w; int kx1 = kk1 % kernel_w;
+        int z2 = z + 2; int sz2 = z2 / maxk; int kk2 = z2 % maxk; int ky2 = kk2 / kernel_w; int kx2 = kk2 % kernel_w;
+        int z3 = z + 3; int sz3 = z3 / maxk; int kk3 = z3 % maxk; int ky3 = kk3 / kernel_w; int kx3 = kk3 % kernel_w;
+
+        afpvec4 wk0 = buffer_ld4(weight_data, w_offset + 0);
+        afpvec4 wk1 = buffer_ld4(weight_data, w_offset + 1);
+        afpvec4 wk2 = buffer_ld4(weight_data, w_offset + 2);
+        afpvec4 wk3 = buffer_ld4(weight_data, w_offset + 3);
+
+        afpmat4 km = make_kmat4_from_k0123(wk0, wk1, wk2, wk3);
+
+        ivec4 v0o = sz0 * psc(cstep) + (sys4 + ky0 * dilation_h) * psc(w) + sxs4 + kx0 * dilation_w;
+        ivec4 v1o = sz1 * psc(cstep) + (sys4 + ky1 * dilation_h) * psc(w) + sxs4 + kx1 * dilation_w;
+        ivec4 v2o = sz2 * psc(cstep) + (sys4 + ky2 * dilation_h) * psc(w) + sxs4 + kx2 * dilation_w;
+        ivec4 v3o = sz3 * psc(cstep) + (sys4 + ky3 * dilation_h) * psc(w) + sxs4 + kx3 * dilation_w;
+
+        afpvec4 v0 = afpvec4(
+            buffer_ld1(bottom_blob_data, v0o.r),
+            buffer_ld1(bottom_blob_data, v1o.r),
+            buffer_ld1(bottom_blob_data, v2o.r),
+            buffer_ld1(bottom_blob_data, v3o.r));
+        afpvec4 v1 = afpvec4(
+            buffer_ld1(bottom_blob_data, v0o.g),
+            buffer_ld1(bottom_blob_data, v1o.g),
+            buffer_ld1(bottom_blob_data, v2o.g),
+            buffer_ld1(bottom_blob_data, v3o.g));
+        afpvec4 v2 = afpvec4(
+            buffer_ld1(bottom_blob_data, v0o.b),
+            buffer_ld1(bottom_blob_data, v1o.b),
+            buffer_ld1(bottom_blob_data, v2o.b),
+            buffer_ld1(bottom_blob_data, v3o.b));
+        afpvec4 v3 = afpvec4(
+            buffer_ld1(bottom_blob_data, v0o.a),
+            buffer_ld1(bottom_blob_data, v1o.a),
+            buffer_ld1(bottom_blob_data, v2o.a),
+            buffer_ld1(bottom_blob_data, v3o.a));
+
+        sum0 += v0 * km;
+        sum1 += v1 * km;
+        sum2 += v2 * km;
+        sum3 += v3 * km;
+
+        w_offset += 4;
+    }
+
+    for (; z < N; z++)
     {
         const int sz = z / maxk;
         const int kk = z % maxk;
@@ -207,17 +344,17 @@ void main()
 
         const ivec4 v_offset = sz * psc(cstep) + (sys4 + ky * dilation_h) * psc(w) + sxs4 + kx * dilation_w;
 
-        afp v0 = buffer_ld1(bottom_blob_data, v_offset.r);
-        afp v1 = buffer_ld1(bottom_blob_data, v_offset.g);
-        afp v2 = buffer_ld1(bottom_blob_data, v_offset.b);
-        afp v3 = buffer_ld1(bottom_blob_data, v_offset.a);
+        afp v0s = buffer_ld1(bottom_blob_data, v_offset.r);
+        afp v1s = buffer_ld1(bottom_blob_data, v_offset.g);
+        afp v2s = buffer_ld1(bottom_blob_data, v_offset.b);
+        afp v3s = buffer_ld1(bottom_blob_data, v_offset.a);
 
         afpvec4 k = buffer_ld4(weight_data, w_offset);
 
-        sum0 += v0 * k;
-        sum1 += v1 * k;
-        sum2 += v2 * k;
-        sum3 += v3 * k;
+        sum0 += v0s * k;
+        sum1 += v1s * k;
+        sum2 += v2s * k;
+        sum3 += v3s * k;
 
         w_offset += 1;
     }
