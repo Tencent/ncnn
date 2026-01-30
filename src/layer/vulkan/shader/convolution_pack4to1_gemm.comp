@@ -7,6 +7,7 @@
 #include "vulkan_activation.comp"
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
+#define LOCAL_MEMORY_PAD         1
 
 layout(constant_id = 0) const int kernel_w = 1;
 layout(constant_id = 1) const int kernel_h = 1;
@@ -49,8 +50,8 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4 + LOCAL_MEMORY_PAD];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH + LOCAL_MEMORY_PAD];
 #endif
 
 void main()
@@ -131,14 +132,48 @@ void main()
 
         barrier();
 
-        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        int z4 = 0;
+        for (; z4 + 3 < LOCAL_MEMORY_UNROLL_INCH; z4 += 4)
         {
+            afpvec4 k0 = lfp2afpvec4(tmp_k[ly][z4 + 0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
+
+            afpvec4 v00 = lfp2afpvec4(tmp_v[lx][z4 + 0][0]);
+            afpvec4 v01 = lfp2afpvec4(tmp_v[lx][z4 + 1][0]);
+            afpvec4 v02 = lfp2afpvec4(tmp_v[lx][z4 + 2][0]);
+            afpvec4 v03 = lfp2afpvec4(tmp_v[lx][z4 + 3][0]);
+
+            afpvec4 v10 = lfp2afpvec4(tmp_v[lx][z4 + 0][1]);
+            afpvec4 v11 = lfp2afpvec4(tmp_v[lx][z4 + 1][1]);
+            afpvec4 v12 = lfp2afpvec4(tmp_v[lx][z4 + 2][1]);
+            afpvec4 v13 = lfp2afpvec4(tmp_v[lx][z4 + 3][1]);
+
+            afpvec4 v20 = lfp2afpvec4(tmp_v[lx][z4 + 0][2]);
+            afpvec4 v21 = lfp2afpvec4(tmp_v[lx][z4 + 1][2]);
+            afpvec4 v22 = lfp2afpvec4(tmp_v[lx][z4 + 2][2]);
+            afpvec4 v23 = lfp2afpvec4(tmp_v[lx][z4 + 3][2]);
+
+            afpvec4 v30 = lfp2afpvec4(tmp_v[lx][z4 + 0][3]);
+            afpvec4 v31 = lfp2afpvec4(tmp_v[lx][z4 + 1][3]);
+            afpvec4 v32 = lfp2afpvec4(tmp_v[lx][z4 + 2][3]);
+            afpvec4 v33 = lfp2afpvec4(tmp_v[lx][z4 + 3][3]);
+
+            sum0 += dot(v00, k0) + dot(v01, k1) + dot(v02, k2) + dot(v03, k3);
+            sum1 += dot(v10, k0) + dot(v11, k1) + dot(v12, k2) + dot(v13, k3);
+            sum2 += dot(v20, k0) + dot(v21, k1) + dot(v22, k2) + dot(v23, k3);
+            sum3 += dot(v30, k0) + dot(v31, k1) + dot(v32, k2) + dot(v33, k3);
+        }
+
+        for (; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+
             afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
             afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
             afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
             afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
-
-            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
 
             sum0 += dot(v0, k);
             sum1 += dot(v1, k);
@@ -181,14 +216,48 @@ void main()
 
         barrier();
 
-        for (int z4 = 0; z4 < remain; z4++)
+        int z4 = 0;
+        for (; z4 + 3 < remain; z4 += 4)
         {
+            afpvec4 k0 = lfp2afpvec4(tmp_k[ly][z4 + 0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[ly][z4 + 1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[ly][z4 + 2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[ly][z4 + 3]);
+
+            afpvec4 v00 = lfp2afpvec4(tmp_v[lx][z4 + 0][0]);
+            afpvec4 v01 = lfp2afpvec4(tmp_v[lx][z4 + 1][0]);
+            afpvec4 v02 = lfp2afpvec4(tmp_v[lx][z4 + 2][0]);
+            afpvec4 v03 = lfp2afpvec4(tmp_v[lx][z4 + 3][0]);
+
+            afpvec4 v10 = lfp2afpvec4(tmp_v[lx][z4 + 0][1]);
+            afpvec4 v11 = lfp2afpvec4(tmp_v[lx][z4 + 1][1]);
+            afpvec4 v12 = lfp2afpvec4(tmp_v[lx][z4 + 2][1]);
+            afpvec4 v13 = lfp2afpvec4(tmp_v[lx][z4 + 3][1]);
+
+            afpvec4 v20 = lfp2afpvec4(tmp_v[lx][z4 + 0][2]);
+            afpvec4 v21 = lfp2afpvec4(tmp_v[lx][z4 + 1][2]);
+            afpvec4 v22 = lfp2afpvec4(tmp_v[lx][z4 + 2][2]);
+            afpvec4 v23 = lfp2afpvec4(tmp_v[lx][z4 + 3][2]);
+
+            afpvec4 v30 = lfp2afpvec4(tmp_v[lx][z4 + 0][3]);
+            afpvec4 v31 = lfp2afpvec4(tmp_v[lx][z4 + 1][3]);
+            afpvec4 v32 = lfp2afpvec4(tmp_v[lx][z4 + 2][3]);
+            afpvec4 v33 = lfp2afpvec4(tmp_v[lx][z4 + 3][3]);
+
+            sum0 += dot(v00, k0) + dot(v01, k1) + dot(v02, k2) + dot(v03, k3);
+            sum1 += dot(v10, k0) + dot(v11, k1) + dot(v12, k2) + dot(v13, k3);
+            sum2 += dot(v20, k0) + dot(v21, k1) + dot(v22, k2) + dot(v23, k3);
+            sum3 += dot(v30, k0) + dot(v31, k1) + dot(v32, k2) + dot(v33, k3);
+        }
+
+        for (; z4 < remain; z4++)
+        {
+            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+
             afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
             afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
             afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
             afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
-
-            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
 
             sum0 += dot(v0, k);
             sum1 += dot(v1, k);
@@ -197,7 +266,38 @@ void main()
         }
     }
 #else
-    for (int z = 0; z < N; z++)
+    int z = 0;
+    for (; z + 3 < N; z += 4)
+    {
+        for (int u = 0; u < 4; u++)
+        {
+            const int zu = z + u;
+
+            const int sz = zu / maxk;
+            const int kk = zu % maxk;
+
+            const int ky = kk / kernel_w;
+            const int kx = kk % kernel_w;
+
+            const ivec4 v_offset = sz * psc(cstep) + (sys4 + ky * dilation_h) * psc(w) + sxs4 + kx * dilation_w;
+
+            afpvec4 v0 = buffer_ld4(bottom_blob_data, v_offset.r);
+            afpvec4 v1 = buffer_ld4(bottom_blob_data, v_offset.g);
+            afpvec4 v2 = buffer_ld4(bottom_blob_data, v_offset.b);
+            afpvec4 v3 = buffer_ld4(bottom_blob_data, v_offset.a);
+
+            afpvec4 k = buffer_ld4(weight_data, w_offset);
+
+            sum0 += dot(v0, k);
+            sum1 += dot(v1, k);
+            sum2 += dot(v2, k);
+            sum3 += dot(v3, k);
+
+            w_offset += 1;
+        }
+    }
+
+    for (; z < N; z++)
     {
         const int sz = z / maxk;
         const int kk = z % maxk;
