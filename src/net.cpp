@@ -130,7 +130,14 @@ int NetPrivate::upload_model()
     // create gpu device allocator if null
     if (!weight_vkallocator)
     {
-        weight_vkallocator = new VkWeightAllocator(vkdev);
+        if (opt.use_weights_in_host_memory)
+        {
+            weight_vkallocator = new VkHostAllocator(vkdev);
+        }
+        else
+        {
+            weight_vkallocator = new VkWeightAllocator(vkdev);
+        }
     }
     if (!weight_staging_vkallocator)
     {
