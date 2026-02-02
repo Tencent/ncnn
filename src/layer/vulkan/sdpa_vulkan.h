@@ -1,42 +1,32 @@
-// Copyright 2023 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef LAYER_GEMM_VULKAN_H
-#define LAYER_GEMM_VULKAN_H
+#ifndef LAYER_SDPA_VULKAN_H
+#define LAYER_SDPA_VULKAN_H
 
-#include "gemm.h"
+#include "sdpa.h"
 
 namespace ncnn {
 
-class Gemm_vulkan : public Gemm
+class SDPA_vulkan : public SDPA
 {
 public:
-    Gemm_vulkan();
+    SDPA_vulkan();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
-    virtual int upload_model(VkTransfer& cmd, const Option& opt);
-
-    using Gemm::forward;
+    using SDPA::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
-    Mat A_data_packed;
-    Mat B_data_packed;
-    Mat C_data_packed;
+    Layer* qk_softmax;
+    Layer* kvcache_concat;
 
-    VkMat A_data_gpu;
-    VkMat B_data_gpu;
-    VkMat C_data_gpu;
-
-    Pipeline* pipeline_gemm;
-
-    // subgroup
-    bool use_subgroup_ops;
+    Pipeline* pipeline_sdpa_qk_cross;
+    Pipeline* pipeline_sdpa_qkv_cross;
 
     // cooperative matrix
     bool use_cooperative_matrix;
@@ -53,4 +43,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_GEMM_VULKAN_H
+#endif // LAYER_SDPA_VULKAN_H

@@ -803,7 +803,10 @@ DEFAULT:
 void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     StoreZipReader zip;
-    zip.open(foldable_constants_zippath);
+    if (!foldable_constants.empty())
+    {
+        zip.open(foldable_constants_zippath);
+    }
 
     int pnnx_expr_index = 0;
 

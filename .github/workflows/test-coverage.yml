@@ -9,6 +9,7 @@ on:
     - 'src/**'
     - 'tests/**'
     - 'toolchains/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -18,6 +19,7 @@ on:
     - 'src/**'
     - 'tests/**'
     - 'toolchains/**'
+    - 'glslang'
 concurrency:
   group: test-coverage-${{ github.ref }}
   cancel-in-progress: true

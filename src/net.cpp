@@ -1089,6 +1089,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1392,6 +1394,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1731,6 +1735,22 @@ int Net::load_param(const char* protopath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_param(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STRING
 
 int Net::load_param_bin(FILE* fp)
@@ -1753,6 +1773,22 @@ int Net::load_param_bin(const char* protopath)
     return ret;
 }
 
+#if _WIN32
+int Net::load_param_bin(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param_bin(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
+
 int Net::load_model(FILE* fp)
 {
     DataReaderFromStdio dr(fp);
@@ -1772,6 +1808,22 @@ int Net::load_model(const char* modelpath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_model(const wchar_t* modelpath)
+{
+    FILE* fp = _wfopen(modelpath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", modelpath);
+        return -1;
+    }
+
+    int ret = load_model(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STDIO
 
 int Net::load_param(const unsigned char* _mem)

@@ -219,6 +219,13 @@ afp lfp2afp(lfp v);
 afpvec4 lfp2afpvec4(lfpvec4 v);
 ```
 
+- local variable to local memory
+
+```c
+lfp afp2lfp(afp v);
+lfpvec4 afp2lfpvec4(afpvec4 v);
+```
+
 Note: The common usage of local memory is to read from global memory first, store it in local memory, and then read local variables from local memory for subsequent use. Therefore, only storage type to local type and local type to arithmetic type conversion functions are provided here.
 
 # misc functions
