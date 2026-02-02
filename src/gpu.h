@@ -338,6 +338,7 @@ public:
     int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
+    int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
@@ -385,6 +386,7 @@ public:
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+    const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& queryExternalMemoryHostProperties() const;
 
     // extension sub properties
     const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
@@ -510,6 +512,9 @@ public:
 
     // VK_EXT_buffer_device_address
     PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
+
+    // VK_EXT_external_memory_host
+    PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
 
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer
