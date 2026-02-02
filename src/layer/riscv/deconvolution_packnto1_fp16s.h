@@ -94,7 +94,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 
                 sum = activation_ss(sum, activation_type, activation_params);
 
-                outptr[j] = sum;
+                outptr[j] = (__fp16)sum;
             }
 
             outptr += outw;
@@ -185,7 +185,7 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
 
                 sum = activation_ss(sum, activation_type, activation_params);
 
-                outptr[j] = sum;
+                outptr[j] = (__fp16)sum;
             }
 
             outptr += outw;
