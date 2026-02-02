@@ -1948,7 +1948,15 @@ VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
             VkMemoryHostPointerPropertiesEXT pointerProperties;
             pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
             pointerProperties.pNext = 0;
-            vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                ncnn::fastFree(host_ptr);
+                vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                delete block;
+                return 0;
+            }
 
             // setup memory type and alignment
             if (buffer_memory_type_index == (uint32_t)-1)
@@ -2160,7 +2168,15 @@ VkImageMemory* VkHostAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
             VkMemoryHostPointerPropertiesEXT pointerProperties;
             pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
             pointerProperties.pNext = 0;
-            vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                ncnn::fastFree(host_ptr);
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                delete ptr;
+                return 0;
+            }
 
             // setup memory type and alignment
             if (image_memory_type_index == (uint32_t)-1)
