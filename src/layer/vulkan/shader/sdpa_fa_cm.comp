@@ -31,7 +31,6 @@ layout(constant_id = 1 + 5) const uint UNROLL_WG_M = 2;
 layout(binding = 0) readonly buffer Q_blob { uvec4 Q_blob_data[]; };
 layout(binding = 1) readonly buffer K_blob { uvec4 K_blob_data[]; };
 layout(binding = 2) readonly buffer V_blob { uvec4 V_blob_data[]; };
-// layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 3) writeonly buffer top_blob { uvec4 top_blob_data[]; };
 layout(binding = 4) readonly buffer mask_blob { sfp mask_blob_data[]; };
 
@@ -91,29 +90,11 @@ shared float smem_correction[UNROLL_WG_M * UNROLL_SG_M * M];
 // ============================================
 // 辅助函数：N 路归约
 // ============================================
-float reduceN_max(float val, uint n)
-{
-    [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
-    {
-        val = max(val, subgroupShuffleXor(val, offset));
-    }
-    return val;
-}
-
 vec4 reduceN_max_vec4(vec4 val, uint n)
 {
     [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
     {
         val = max(val, subgroupShuffleXor(val, offset));
-    }
-    return val;
-}
-
-float reduceN_add(float val, uint n)
-{
-    [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
-    {
-        val = val + subgroupShuffleXor(val, offset);
     }
     return val;
 }
@@ -151,17 +132,10 @@ void main()
     const uint li = gl_LocalInvocationID.x;
     const uint si = gl_SubgroupInvocationID;
 
-    // assume cooperative matrix is 16x16x16
-
-    //     const uint sum_N = out_embed_dim / 16;
-
-    //     const uint dst_seqlen_d16 = dst_seqlen / 16;
-    //     const uint embed_dim_d16 = embed_dim / 16;
-
     // 计算各种维度
     const uint dst_seqlen_d16 = (p.dst_seqlen + 15) / 16;
-    const uint embed_dim_d16 = (p.embed_dim + 15) / 16;
-    const uint out_embed_dim_d16 = (p.out_embed_dim + 15) / 16;
+    const uint embed_dim_d16 = p.embed_dim / 16;
+    const uint out_embed_dim_d16 = p.out_embed_dim / 16;
 
     // KV head index (for GQA support)
     const int kv_head_idx = gz / p.num_heads_per_group;
@@ -188,9 +162,6 @@ void main()
     // ========================================
     // 2. 初始化 Row Statistics (在 SMEM 中)
     // ========================================
-    // 只让部分线程初始化，避免竞争
-    // 使用循环处理，兼容不同 subgroup_size
-    //     for (uint i = si; i < M; i += subgroup_size)
     for (uint i = li; i < UNROLL_WG_M * UNROLL_SG_M * M; i += local_size)
     {
         smem_row_max[i] = -3.402823e+38f;
@@ -202,7 +173,6 @@ void main()
     // loop on dst_seqlen / 16
 
     uint j = 0;
-#if 1
     for (; j + (UNROLL_P_N - 1) < dst_seqlen_d16; j += UNROLL_P_N)
     {
         coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm[UNROLL_SG_M][UNROLL_P_N];
@@ -228,8 +198,17 @@ void main()
                     const uint row = rowcol / Kd8;
                     const uint col = rowcol % Kd8;
 
-                    const uint qi = (gz * p.Q_cstep + ((mi + zm) * M + row) * p.embed_dim + k * K) / 8 + col;
-                    tmp_q[((sgi * UNROLL_SG_M + zm) * M + row) * Kd8p + col] = Q_blob_data[qi];
+                    const uint gm = (mi + zm) * M + row;
+                    const uint gk = k * Kd8 + col;
+
+                    uvec4 v = uvec4(0);
+                    if (gm < p.src_seqlen)
+                    {
+                        const uint qi = gz * (p.Q_cstep / 8) + gm * (p.embed_dim / 8) + gk;
+                        v = Q_blob_data[qi];
+                    }
+
+                    tmp_q[((sgi * UNROLL_SG_M + zm) * M + row) * Kd8p + col] = v;
                 }
 
                 for (uint idx = li; idx < UNROLL_P_N * N * Kd8; idx += local_size)
@@ -239,8 +218,17 @@ void main()
                     const uint row = rowcol / Kd8;
                     const uint col = rowcol % Kd8;
 
-                    const uint ki = (kv_head_idx * p.K_cstep + ((j + zp) * N + row) * p.embed_dim + k * K) / 8 + col;
-                    tmp_k[(zp * N + row) * Kd8p + col] = K_blob_data[ki];
+                    const uint gn = (j + zp) * N + row;
+                    const uint gk = k * Kd8 + col;
+
+                    uvec4 v = uvec4(0);
+                    if (gn < p.dst_seqlen)
+                    {
+                        const uint ki = kv_head_idx * (p.K_cstep / 8) + gn * (p.embed_dim / 8) + gk;
+                        v = K_blob_data[ki];
+                    }
+
+                    tmp_k[(zp * N + row) * Kd8p + col] = v;
                 }
 
                 barrier();
@@ -255,15 +243,11 @@ void main()
 
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 {
-                    //                     const uint qi = (gz * p.Q_cstep + (mi + zm) * M * p.embed_dim + k * K) / 8;
-                    //                     coopMatLoad(qm[zm], Q_blob_data, qi, p.embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
                     coopMatLoad(qm[zm], tmp_q, (sgi * UNROLL_SG_M + zm) * M * Kd8p, Kd8p, gl_CooperativeMatrixLayoutRowMajor);
                 }
 
                 [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
                 {
-                    //                     const uint ki = (kv_head_idx * p.K_cstep + (j + zp) * N * p.embed_dim + k * K) / 8;
-                    //                     coopMatLoad(km, K_blob_data, ki, p.embed_dim / 8, gl_CooperativeMatrixLayoutColumnMajor);
                     coopMatLoad(km, tmp_k, zp * N * Kd8p, Kd8p, gl_CooperativeMatrixLayoutColumnMajor);
 
                     [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -284,30 +268,6 @@ void main()
             }
         }
 
-        // QK += mask
-        if (attn_mask != 0)
-        {
-            // load mask
-#if NCNN_bf16_storage || NCNN_bf16_packed
-            // load Q (w=embed_dim, h=16)
-            coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask;
-#else
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask;
-#endif
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-                [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
-                {
-                    uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
-                    const uint mmi = mask_head * p.mask_cstep + (mi + zm) * M * p.dst_seqlen + (j + zp) * N;
-                    coopMatLoad(mask, mask_blob_data, mmi, p.dst_seqlen, gl_CooperativeMatrixLayoutRowMajor);
-
-                    qkm[zm][zp] = qkm[zm][zp] + coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(mask);
-                }
-            }
-        }
-
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
@@ -317,6 +277,39 @@ void main()
         }
 
         barrier();
+
+        // QK += mask
+        if (attn_mask != 0)
+        {
+            for (uint idx = si; idx < UNROLL_SG_M * UNROLL_P_N * M * Nd4; idx += subgroup_size)
+            {
+                const uint zm = idx / (UNROLL_P_N * M * Nd4);
+                const uint zprowcol = idx % (UNROLL_P_N * M * Nd4);
+                const uint zp = zprowcol / (M * Nd4);
+                const uint rowcol = zprowcol % (M * Nd4);
+                const uint row = rowcol / (Nd4);
+                const uint col = rowcol % (Nd4);
+
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = (j + zp) * Nd4 + col;
+
+                vec4 mask = vec4(0.f);
+                if (gm < p.src_seqlen)
+                {
+                    const uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
+                    const uint mmi = mask_head * p.mask_cstep + gm * p.dst_seqlen + gn * 4;
+
+                    if (gn * 4 + 0 < p.dst_seqlen) mask.r = mask_blob_data[mmi + 0];
+                    if (gn * 4 + 1 < p.dst_seqlen) mask.g = mask_blob_data[mmi + 1];
+                    if (gn * 4 + 2 < p.dst_seqlen) mask.b = mask_blob_data[mmi + 2];
+                    if (gn * 4 + 3 < p.dst_seqlen) mask.a = mask_blob_data[mmi + 3];
+                }
+
+                tmp_s[((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Nd4p + row * Nd4p + col] += mask;
+            }
+
+            barrier();
+        }
 
         // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
@@ -328,19 +321,16 @@ void main()
             const uint row = rowcol / (Nd4);
             const uint col = rowcol % (Nd4);
 
-            //             float val = tmp_s[idx];
             vec4 val = tmp_s[(sgi * UNROLL_SG_M + zm) * UNROLL_P_N * M * Nd4p + row * Nd4p + col];
 
             [[unroll]] for (uint zp = 1; zp < UNROLL_P_N; zp++)
             {
-                //             vec4 val2 = tmp_s2[sgi * M * Nd4 + idx];
                 vec4 val2 = tmp_s[((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Nd4p + row * Nd4p + col];
 
                 val = max(val, val2);
             }
 
             // 行内归约取 max
-            //             float row_max_val = reduceN_max(val, N);
             vec4 row_max_val_4 = reduceN_max_vec4(val, Nd4);
 
             // 第一个线程更新 SMEM
@@ -372,17 +362,10 @@ void main()
 
             vec4 vals[UNROLL_P_N];
 
-            //             float val = tmp_s[idx];
-            //             vec4 val = tmp_s[sgi * UNROLL_P_N * M * Nd4p + row * Nd4p + col];
-
-            // exp(x - max)
-            //             val = exp(val - new_max);
-
             vec4 val_sum = vec4(0.f);
 
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
             {
-                //             vec4 val2 = tmp_s2[sgi * M * Nd4 + idx];
                 vals[zp] = tmp_s[((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Nd4p + row * Nd4p + col];
 
                 vals[zp] = exp(vals[zp] - new_max);
@@ -391,8 +374,6 @@ void main()
             }
 
             // 行内归约求 sum
-            //             float row_sum_val = reduceN_add(val, N);
-            //             vec4 row_sum_val_4 = reduceN_add_vec4(val, Nd4);
             vec4 row_sum_val_4 = reduceN_add_vec4(val_sum, Nd4);
 
             // 更新全局 sum
@@ -428,37 +409,6 @@ void main()
                 om[zm][c] = om[zm][c] * cc;
             }
         }
-#if 0
-//         // 由于 correction 是按行的，我们需要 unload O，逐元素乘，reload
-//         [[unroll]] for (uint c = 0; c < out_embed_dim_d16 && c < MAX_OUT_CHUNKS; c++)
-//         {
-//             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-//             {
-//                 // Store O to SMEM
-//                 coopMatStore(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-//             }
-//
-//             barrier();
-//
-//             // 并行 rescale
-//             for (uint idx = si; idx < UNROLL_SG_M * M * Nd4; idx += subgroup_size)
-//             {
-//                 const uint zm = idx / (M * Nd4);
-//                 const uint rowcol = idx % (M * Nd4);
-//                 const uint row = rowcol / (Nd4);
-//                 const uint col = rowcol % (Nd4);
-//                 tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col] *= smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
-//             }
-//
-//             barrier();
-//
-//             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-//             {
-//                 // Reload O
-//                 coopMatLoad(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-//             }
-//         }
-#endif
 
         // ----------------------------------------
         // 3.7 Load P from SMEM
@@ -483,33 +433,9 @@ void main()
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #endif
-                //             coopMatStore(b, tmp_o, sgi * M * Nd4, N / 8, gl_CooperativeMatrixLayoutRowMajor);
                 coopMatStore(b, tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
             }
         }
-        // #if 0
-        // //         for (uint idx = si; idx < M * N / 2; idx += subgroup_size)
-        //         for (uint idx = si; idx < M * Nd4; idx += subgroup_size)
-        //         {
-        // //             uint src_idx = idx * 2;
-        // //             float v0 = tmp_s[src_idx];
-        // //             float v1 = tmp_s[src_idx + 1];
-        //
-        //             vec4 v = tmp_s[idx];
-        //
-        //             // 使用 tmp_o 的前 32 个 float 位置存储 packed FP16
-        //             // 每个 float 位置存储 2 个 FP16
-        // #if NCNN_bf16_storage
-        // //             tmp_o[idx] = uintBitsToFloat(packBFloat2x16(vec2(v0, v1)));
-        //             tmp_o[idx * 2] = uintBitsToFloat(packBFloat2x16(v.rg));
-        //             tmp_o[idx * 2 + 1] = uintBitsToFloat(packBFloat2x16(v.ba));
-        // #else
-        // //             tmp_o[idx] = uintBitsToFloat(packHalf2x16(vec2(v0, v1)));
-        //             tmp_o[idx * 2] = uintBitsToFloat(packHalf2x16(v.rg));
-        //             tmp_o[idx * 2 + 1] = uintBitsToFloat(packHalf2x16(v.ba));
-        // #endif
-        //         }
-        // #endif
 
         barrier();
 
@@ -537,8 +463,17 @@ void main()
                 const uint row = rowcol / Nd8;
                 const uint col = rowcol % Nd8;
 
-                const uint vi = (kv_head_idx * p.V_cstep + ((j + zp) * N + row) * p.out_embed_dim + c * N) / 8 + col;
-                tmp_v[(zp * N + row) * Nd8p + col] = V_blob_data[vi];
+                const uint gn = (j + zp) * N + row;
+                const uint gk = c * Nd8 + col;
+
+                uvec4 v = uvec4(0);
+                if (gn < p.dst_seqlen)
+                {
+                    const uint vi = kv_head_idx * (p.V_cstep / 8) + gn * (p.out_embed_dim / 8) + gk;
+                    v = V_blob_data[vi];
+                }
+
+                tmp_v[(zp * N + row) * Nd8p + col] = v;
             }
 
             barrier();
@@ -552,8 +487,6 @@ void main()
 
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
             {
-                //                 const uint vi = (kv_head_idx * p.V_cstep + (j + zp) * N * p.out_embed_dim + c * N) / 8;
-                //                 coopMatLoad(vm, V_blob_data, vi, p.out_embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
                 coopMatLoad(vm, tmp_v, zp * K * Nd8p, Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -564,7 +497,6 @@ void main()
             }
         }
     }
-#endif
 
     for (; j < dst_seqlen_d16; j++)
     {
@@ -576,26 +508,64 @@ void main()
 
         // QK
         {
-#if NCNN_bf16_storage || NCNN_bf16_packed
-            coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
-            coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
-#else
-            coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
-            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
-#endif
-
             for (uint k = 0; k < embed_dim_d16; k++)
             {
                 // load Q (w=embed_dim, h=16)
                 // load K (w=embed_dim, h=16)
 
-                const uint ki = (kv_head_idx * p.K_cstep + j * N * p.embed_dim + k * K) / 8;
-                coopMatLoad(km, K_blob_data, ki, p.embed_dim / 8, gl_CooperativeMatrixLayoutColumnMajor);
+                for (uint idx = si; idx < UNROLL_SG_M * M * Kd8; idx += subgroup_size)
+                {
+                    const uint zm = idx / (M * Kd8);
+                    const uint rowcol = idx % (M * Kd8);
+                    const uint row = rowcol / Kd8;
+                    const uint col = rowcol % Kd8;
+
+                    const uint gm = (mi + zm) * M + row;
+                    const uint gk = k * Kd8 + col;
+
+                    uvec4 v = uvec4(0);
+                    if (gm < p.src_seqlen)
+                    {
+                        const uint qi = gz * (p.Q_cstep / 8) + gm * (p.embed_dim / 8) + gk;
+                        v = Q_blob_data[qi];
+                    }
+
+                    tmp_q[((sgi * UNROLL_SG_M + zm) * M + row) * Kd8p + col] = v;
+                }
+
+                for (uint idx = li; idx < N * Kd8; idx += local_size)
+                {
+                    const uint row = idx / Kd8;
+                    const uint col = idx % Kd8;
+
+                    const uint gn = j * N + row;
+                    const uint gk = k * Kd8 + col;
+
+                    uvec4 v = uvec4(0);
+                    if (gn < p.dst_seqlen)
+                    {
+                        const uint ki = kv_head_idx * (p.K_cstep / 8) + gn * (p.embed_dim / 8) + gk;
+                        v = K_blob_data[ki];
+                    }
+
+                    tmp_k[row * Kd8p + col] = v;
+                }
+
+                barrier();
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
+                coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
+#else
+                coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
+                coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
+#endif
+
+                coopMatLoad(km, tmp_k, 0, Kd8p, gl_CooperativeMatrixLayoutColumnMajor);
 
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 {
-                    const uint qi = (gz * p.Q_cstep + (mi + zm) * M * p.embed_dim + k * K) / 8;
-                    coopMatLoad(qm, Q_blob_data, qi, p.embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatLoad(qm, tmp_q, (sgi * UNROLL_SG_M + zm) * M * Kd8p, Kd8p, gl_CooperativeMatrixLayoutRowMajor);
 
                     // calculate QK (w=16, h=16)
                     qkm[zm] = coopMatMulAdd(qm, km, qkm[zm]);
@@ -609,34 +579,43 @@ void main()
             qkm[zm] = qkm[zm] * p.scale;
         }
 
-        // QK += mask
-        if (attn_mask != 0)
-        {
-            // load mask
-#if NCNN_bf16_storage || NCNN_bf16_packed
-            // load Q (w=embed_dim, h=16)
-            coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask;
-#else
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask;
-#endif
-
-            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            {
-                uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
-                const uint mmi = mask_head * p.mask_cstep + (mi + zm) * M * p.dst_seqlen + j * N;
-                coopMatLoad(mask, mask_blob_data, mmi, p.dst_seqlen, gl_CooperativeMatrixLayoutRowMajor);
-
-                qkm[zm] = qkm[zm] + coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(mask);
-            }
-        }
-
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            //         coopMatStore(qkm, tmp_s, 0, N, gl_CooperativeMatrixLayoutRowMajor);
             coopMatStore(qkm[zm], tmp_s, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
         }
 
         barrier();
+
+        // QK += mask
+        if (attn_mask != 0)
+        {
+            for (uint idx = si; idx < UNROLL_SG_M * M * Nd4; idx += subgroup_size)
+            {
+                const uint zm = idx / (M * Nd4);
+                const uint rowcol = idx % (M * Nd4);
+                const uint row = rowcol / (Nd4);
+                const uint col = rowcol % (Nd4);
+
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = j * Nd4 + col;
+
+                vec4 mask = vec4(0.f);
+                if (gm < p.src_seqlen)
+                {
+                    const uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
+                    const uint mmi = mask_head * p.mask_cstep + gm * p.dst_seqlen + gn * 4;
+
+                    if (gn * 4 + 0 < p.dst_seqlen) mask.r = mask_blob_data[mmi + 0];
+                    if (gn * 4 + 1 < p.dst_seqlen) mask.g = mask_blob_data[mmi + 1];
+                    if (gn * 4 + 2 < p.dst_seqlen) mask.b = mask_blob_data[mmi + 2];
+                    if (gn * 4 + 3 < p.dst_seqlen) mask.a = mask_blob_data[mmi + 3];
+                }
+
+                tmp_s[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col] += mask;
+            }
+
+            barrier();
+        }
 
         // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
@@ -648,11 +627,9 @@ void main()
             const uint row = rowcol / (Nd4);
             const uint col = rowcol % (Nd4);
 
-            //             float val = tmp_s[idx];
             vec4 val = tmp_s[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col];
 
             // 行内归约取 max
-            //             float row_max_val = reduceN_max(val, N);
             vec4 row_max_val_4 = reduceN_max_vec4(val, Nd4);
 
             // 第一个线程更新 SMEM
@@ -681,15 +658,13 @@ void main()
             const uint col = rowcol % (Nd4);
 
             float new_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
-            //             float val = tmp_s[idx];
+
             vec4 val = tmp_s[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col];
 
             // exp(x - max)
             val = exp(val - new_max);
 
             // 行内归约求 sum
-            //             float row_sum_val = reduceN_add(val, N);
-            //             vec4 row_sum_val_4 = reduceN_add_vec4(val, Nd4);
             vec4 row_sum_val_4 = reduceN_add_vec4(val, Nd4);
 
             // 更新全局 sum
@@ -722,37 +697,6 @@ void main()
                 om[zm][c] = om[zm][c] * cc;
             }
         }
-#if 0
-//         // 由于 correction 是按行的，我们需要 unload O，逐元素乘，reload
-//         [[unroll]] for (uint c = 0; c < out_embed_dim_d16 && c < MAX_OUT_CHUNKS; c++)
-//         {
-//         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-//         {
-//             // Store O to SMEM
-//             coopMatStore(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-//         }
-//
-//             barrier();
-//
-//             // 并行 rescale
-//             for (uint idx = si; idx < UNROLL_SG_M * M * Nd4; idx += subgroup_size)
-//             {
-//                 const uint zm = idx / (M * Nd4);
-//                 const uint rowcol = idx % (M * Nd4);
-//                 const uint row = rowcol / (Nd4);
-//                 const uint col = rowcol % (Nd4);
-//                 tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col] *= smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
-//             }
-//
-//             barrier();
-//
-//         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-//         {
-//             // Reload O
-//             coopMatLoad(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
-//         }
-//         }
-#endif
 
         // ----------------------------------------
         // 3.7 Load P from SMEM
@@ -775,32 +719,8 @@ void main()
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #endif
-            //             coopMatStore(b, tmp_o, sgi * M * Nd4, N / 8, gl_CooperativeMatrixLayoutRowMajor);
             coopMatStore(b, tmp_s, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
         }
-        // #if 0
-        // //         for (uint idx = si; idx < M * N / 2; idx += subgroup_size)
-        //         for (uint idx = si; idx < M * Nd4; idx += subgroup_size)
-        //         {
-        // //             uint src_idx = idx * 2;
-        // //             float v0 = tmp_s[src_idx];
-        // //             float v1 = tmp_s[src_idx + 1];
-        //
-        //             vec4 v = tmp_s[idx];
-        //
-        //             // 使用 tmp_o 的前 32 个 float 位置存储 packed FP16
-        //             // 每个 float 位置存储 2 个 FP16
-        // #if NCNN_bf16_storage
-        // //             tmp_o[idx] = uintBitsToFloat(packBFloat2x16(vec2(v0, v1)));
-        //             tmp_o[idx * 2] = uintBitsToFloat(packBFloat2x16(v.rg));
-        //             tmp_o[idx * 2 + 1] = uintBitsToFloat(packBFloat2x16(v.ba));
-        // #else
-        // //             tmp_o[idx] = uintBitsToFloat(packHalf2x16(vec2(v0, v1)));
-        //             tmp_o[idx * 2] = uintBitsToFloat(packHalf2x16(v.rg));
-        //             tmp_o[idx * 2 + 1] = uintBitsToFloat(packHalf2x16(v.ba));
-        // #endif
-        //         }
-        // #endif
 
         barrier();
 
@@ -812,14 +732,32 @@ void main()
 #endif
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            //         coopMatLoad(pm, tmp_o, 0, N / 2, gl_CooperativeMatrixLayoutRowMajor);
-            //         coopMatLoad(pm, tmp_o, sgi * M * Nd4, N / 8, gl_CooperativeMatrixLayoutRowMajor);
             coopMatLoad(pm[zm], tmp_s, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
         }
 
         // qkv cross
         for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
+            for (uint idx = li; idx < K * Nd8; idx += local_size)
+            {
+                const uint row = idx / Nd8;
+                const uint col = idx % Nd8;
+
+                const uint gn = j * N + row;
+                const uint gk = c * Nd8 + col;
+
+                uvec4 v = uvec4(0);
+                if (gn < p.dst_seqlen)
+                {
+                    const uint vi = kv_head_idx * (p.V_cstep / 8) + gn * (p.out_embed_dim / 8) + gk;
+                    v = V_blob_data[vi];
+                }
+
+                tmp_v[row * Nd8p + col] = v;
+            }
+
+            barrier();
+
 #if NCNN_bf16_storage || NCNN_bf16_packed
             // load V (w=16, h=16)
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
@@ -827,8 +765,7 @@ void main()
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
 #endif
 
-            const uint vi = (kv_head_idx * p.V_cstep + j * N * p.out_embed_dim + c * N) / 8;
-            coopMatLoad(vm, V_blob_data, vi, p.out_embed_dim / 8, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(vm, tmp_v, 0, Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
@@ -859,38 +796,37 @@ void main()
             const uint row = rowcol / (Nd4 / 2);
             const uint col = rowcol % (Nd4 / 2);
 
-            // 边界检查
-            if ((mi + zm) * M + int(row) >= p.src_seqlen)
-                continue;
-
-            float inv_sum = 1.0f / smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row];
-
-            // 读取 8 个 float
-            vec4 v0 = tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col * 2 + 0] * inv_sum;
-            vec4 v1 = tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col * 2 + 1] * inv_sum;
-
-            // 打包为 uvec4 (8 个 FP16)
-            uvec4 out_data;
-#if NCNN_bf16_storage
-            out_data.x = packBFloat2x16(v0.rg);
-            out_data.y = packBFloat2x16(v0.ba);
-            out_data.z = packBFloat2x16(v1.rg);
-            out_data.w = packBFloat2x16(v1.ba);
-#else
-            out_data.x = packHalf2x16(v0.rg);
-            out_data.y = packHalf2x16(v0.ba);
-            out_data.z = packHalf2x16(v1.rg);
-            out_data.w = packHalf2x16(v1.ba);
-#endif
-
-            // 写入 Global Memory
             const uint out_row = (mi + zm) * M + row;
             const uint out_col = c * N + col * 8;
 
-            if (out_col + 8 <= p.out_embed_dim)
+            if (out_row < p.src_seqlen)
             {
-                const uint out_idx = (gz * p.out_cstep + out_row * p.out_embed_dim + out_col) / 8;
-                top_blob_data[out_idx] = out_data;
+                float inv_sum = 1.0f / smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row];
+
+                // 读取 8 个 float
+                vec4 v0 = tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col * 2 + 0] * inv_sum;
+                vec4 v1 = tmp_o[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col * 2 + 1] * inv_sum;
+
+                // 打包为 uvec4 (8 个 FP16)
+                uvec4 out_data;
+#if NCNN_bf16_storage
+                out_data.x = packBFloat2x16(v0.rg);
+                out_data.y = packBFloat2x16(v0.ba);
+                out_data.z = packBFloat2x16(v1.rg);
+                out_data.w = packBFloat2x16(v1.ba);
+#else
+                out_data.x = packHalf2x16(v0.rg);
+                out_data.y = packHalf2x16(v0.ba);
+                out_data.z = packHalf2x16(v1.rg);
+                out_data.w = packHalf2x16(v1.ba);
+#endif
+
+                // 写入 Global Memory
+                if (out_col + 7 < p.out_embed_dim)
+                {
+                    const uint out_idx = (gz * p.out_cstep + out_row * p.out_embed_dim + out_col) / 8;
+                    top_blob_data[out_idx] = out_data;
+                }
             }
         }
     }

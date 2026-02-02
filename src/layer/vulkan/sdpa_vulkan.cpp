@@ -87,11 +87,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         else
         {
             // fa
-
             FA_UNROLL_SG_M = 2;
 
             FA_UNROLL_WG_M = 2;
-            // FA_UNROLL_WG_M = 1;
 
             std::vector<vk_specialization_type> specializations(1 + 6);
             specializations[0].i = attn_mask;
@@ -313,40 +311,7 @@ int SDPA_vulkan::destroy_pipeline(const Option& opt)
 
     return 0;
 }
-void pretty_print(const ncnn::Mat& m)
-{
-    for (int q = 0; q < m.c; q++)
-    {
-        const float* ptr = m.channel(q);
-        for (int z = 0; z < m.d; z++)
-        {
-            for (int y = 0; y < m.h; y++)
-            {
-                for (int x = 0; x < m.w; x++)
-                {
-                    printf("%f ", ptr[x]);
-                }
-                ptr += m.w;
-                printf("\n");
-            }
-            printf("\n");
-        }
-        printf("------------------------\n");
-    }
-}
-void pretty_print(const ncnn::VkMat& m, ncnn::VkCompute& cmd, const ncnn::Option& opt)
-{
-    ncnn::Option opt_unpack = opt;
-    opt_unpack.use_packing_layout = false;
 
-    ncnn::Mat m_cpu;
-    cmd.record_download(m, m_cpu, opt_unpack);
-    cmd.submit_and_wait();
-    cmd.reset();
-
-    // print Mat content
-    pretty_print(m_cpu);
-}
 int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& query = bottom_blobs[0];
@@ -390,8 +355,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     const int num_heads_per_group = num_heads / num_group;
 
-    // FIXME
-    if (use_flash_attention && embed_dim % 16 == 0 && out_embed_dim % 16 == 0)
+    if (use_flash_attention && embed_dim % 16 == 0 && out_embed_dim % 16 == 0 && out_embed_dim <= 128)
     {
         VkMat value;
         if (past_seqlen > 0)
@@ -411,13 +375,6 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         {
             value = cur_value;
         }
-
-        // NCNN_LOGE("flash attention enabled");
-        // NCNN_LOGE("num_heads_per_group %d", num_heads_per_group);
-        // NCNN_LOGE("embed_dim %d", embed_dim);
-        // NCNN_LOGE("out_embed_dim %d", out_embed_dim);
-        // NCNN_LOGE("src_seqlen %d", src_seqlen);
-        // NCNN_LOGE("num_heads %d", num_heads);
 
         VkMat& top_blob = top_blobs[0];
         top_blob.create(out_embed_dim, src_seqlen, num_heads, elemsize, opt.blob_vkallocator);
