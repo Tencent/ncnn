@@ -345,6 +345,7 @@ public:
     int support_VK_KHR_zero_initialize_workgroup_memory;
     int support_VK_EXT_buffer_device_address;
     int support_VK_EXT_descriptor_indexing;
+    int support_VK_EXT_external_memory_host;
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_memory_priority;
     int support_VK_EXT_queue_family_foreign;
@@ -660,6 +661,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_zero_initialize_workgroup_memory = 0;
     support_VK_EXT_buffer_device_address = 0;
     support_VK_EXT_descriptor_indexing = 0;
+    support_VK_EXT_external_memory_host = 0;
     support_VK_EXT_memory_budget = 0;
     support_VK_EXT_memory_priority = 0;
     support_VK_EXT_queue_family_foreign = 0;
@@ -746,6 +748,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_buffer_device_address = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_descriptor_indexing") == 0)
             support_VK_EXT_descriptor_indexing = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_external_memory_host") == 0)
+            support_VK_EXT_external_memory_host = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_memory_budget") == 0)
             support_VK_EXT_memory_budget = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_memory_priority") == 0)
@@ -1918,6 +1922,11 @@ int GpuInfo::support_VK_EXT_buffer_device_address() const
 int GpuInfo::support_VK_EXT_descriptor_indexing() const
 {
     return d->support_VK_EXT_descriptor_indexing;
+}
+
+int GpuInfo::support_VK_EXT_external_memory_host() const
+{
+    return d->support_VK_EXT_external_memory_host;
 }
 
 int GpuInfo::support_VK_EXT_memory_budget() const
@@ -3500,6 +3509,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_buffer_device_address");
     if (info.support_VK_EXT_descriptor_indexing())
         enabledExtensions.push_back("VK_EXT_descriptor_indexing");
+    if (info.support_VK_EXT_external_memory_host())
+        enabledExtensions.push_back("VK_EXT_external_memory_host");
     if (info.support_VK_EXT_memory_budget())
         enabledExtensions.push_back("VK_EXT_memory_budget");
     if (info.support_VK_EXT_memory_priority())
@@ -4543,6 +4554,11 @@ int VulkanDevice::init_device_extension()
     if (info.support_VK_EXT_buffer_device_address())
     {
         vkGetBufferDeviceAddressEXT = (PFN_vkGetBufferDeviceAddressEXT)vkGetDeviceProcAddr(d->device, "vkGetBufferDeviceAddressEXT");
+    }
+
+    if (info.support_VK_EXT_external_memory_host())
+    {
+        vkGetMemoryHostPointerPropertiesEXT = (PFN_vkGetMemoryHostPointerPropertiesEXT)vkGetDeviceProcAddr(d->device, "vkGetMemoryHostPointerPropertiesEXT");
     }
 
 #if __ANDROID_API__ >= 26
