@@ -1929,28 +1929,31 @@ VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
 
         // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
 
-        VkMemoryHostPointerPropertiesEXT pointerProperties;
-        pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
-        pointerProperties.pNext = 0;
-        vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
-
-        // setup memory type and alignment
-        if (buffer_memory_type_index == (uint32_t)-1)
+        if (host_ptr)
         {
-            buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            VkMemoryHostPointerPropertiesEXT pointerProperties;
+            pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+            pointerProperties.pNext = 0;
+            vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
 
-            mappable = vkdev->is_mappable(buffer_memory_type_index);
-            coherent = vkdev->is_coherent(buffer_memory_type_index);
-        }
+            // setup memory type and alignment
+            if (buffer_memory_type_index == (uint32_t)-1)
+            {
+                buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
-        if (!block->memory)
-        {
-            free(host_ptr);
-        }
-        else
-        {
-            d->host_ptrs.push_back(host_ptr);
+                mappable = vkdev->is_mappable(buffer_memory_type_index);
+                coherent = vkdev->is_coherent(buffer_memory_type_index);
+            }
+
+            block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
+            if (!block->memory)
+            {
+                free(host_ptr);
+            }
+            else
+            {
+                d->host_ptrs.push_back(host_ptr);
+            }
         }
     }
     else
@@ -2136,33 +2139,38 @@ VkImageMemory* VkHostAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     {
         void* host_ptr = 0;
 #ifdef _WIN32
-        host_ptr = _aligned_malloc(size, d->buffer_offset_alignment);
+        host_ptr = _aligned_malloc(new_block_size, d->buffer_offset_alignment);
 #else
-        posix_memalign(&host_ptr, d->buffer_offset_alignment, size);
+        posix_memalign(&host_ptr, d->buffer_offset_alignment, new_block_size);
 #endif
 
-        VkMemoryHostPointerPropertiesEXT pointerProperties;
-        pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
-        pointerProperties.pNext = 0;
-        vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+        // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
 
-        // setup memory type and alignment
-        if (image_memory_type_index == (uint32_t)-1)
+        if (host_ptr)
         {
-            image_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            VkMemoryHostPointerPropertiesEXT pointerProperties;
+            pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+            pointerProperties.pNext = 0;
+            vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
 
-            mappable = vkdev->is_mappable(image_memory_type_index);
-            coherent = vkdev->is_coherent(image_memory_type_index);
-        }
+            // setup memory type and alignment
+            if (image_memory_type_index == (uint32_t)-1)
+            {
+                image_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        ptr->memory = allocate_import_host_memory(memoryRequirements.size, image_memory_type_index, host_ptr);
-        if (!ptr->memory)
-        {
-            free(host_ptr);
-        }
-        else
-        {
-            d->host_ptrs.push_back(host_ptr);
+                mappable = vkdev->is_mappable(image_memory_type_index);
+                coherent = vkdev->is_coherent(image_memory_type_index);
+            }
+
+            ptr->memory = allocate_import_host_memory(new_block_size, image_memory_type_index, host_ptr);
+            if (!ptr->memory)
+            {
+                free(host_ptr);
+            }
+            else
+            {
+                d->host_ptrs.push_back(host_ptr);
+            }
         }
     }
     else
