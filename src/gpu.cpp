@@ -391,6 +391,7 @@ public:
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    VkPhysicalDeviceExternalMemoryHostPropertiesEXT queryExternalMemoryHostProperties;
     VkPhysicalDeviceCooperativeMatrix2PropertiesNV queryCooperativeMatrix2PropertiesNV;
     VkPhysicalDeviceCooperativeVectorPropertiesNV queryCooperativeVectorPropertiesNV;
 
@@ -1142,6 +1143,16 @@ void GpuInfoPrivate::query_extension_properties()
     {
         querySubgroupSizeControlProperties.pNext = queryExtensionProperties;
         queryExtensionProperties = &querySubgroupSizeControlProperties;
+    }
+
+    // query external memory host
+    memset(&queryExternalMemoryHostProperties, 0, sizeof(queryExternalMemoryHostProperties));
+    queryExternalMemoryHostProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
+    queryExternalMemoryHostProperties.pNext = 0;
+    if (support_VK_EXT_external_memory_host)
+    {
+        queryExternalMemoryHostProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryExternalMemoryHostProperties;
     }
 
     // query nv cooperative matrix2
@@ -2134,6 +2145,11 @@ const VkPhysicalDeviceSubgroupProperties& GpuInfo::querySubgroupProperties() con
 const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSizeControlProperties() const
 {
     return d->querySubgroupSizeControlProperties;
+}
+
+const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& GpuInfo::queryExternalMemoryHostProperties() const
+{
+    return d->queryExternalMemoryHostProperties;
 }
 
 const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixSubProperties() const
