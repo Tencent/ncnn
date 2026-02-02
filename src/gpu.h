@@ -280,6 +280,10 @@ public:
     bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
+    // bf16 feature
+    bool support_bf16_packed() const;
+    bool support_bf16_storage() const; // bf16s implies bf16u
+
     // r16f and r8s format in storage image
     bool support_fp16_image() const;
     bool support_int8_image() const;
@@ -296,6 +300,9 @@ public:
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
+
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix() const;
 
     // extension capability
     int support_VK_KHR_8bit_storage() const;
@@ -386,7 +393,7 @@ public:
     const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
     // some utility functions
-    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const;
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -459,7 +466,7 @@ public:
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
-    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8
+    // cast_type_to   0=auto(same as src)  1=fp32  2=fp16  3=int32  4=int8  5=bf16
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, int cast_type_to, VkCompute& cmd, const Option& opt) const;
 
     // VK_KHR_bind_memory2
