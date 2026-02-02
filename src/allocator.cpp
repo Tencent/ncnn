@@ -1864,14 +1864,33 @@ void VkHostAllocator::clear()
     {
         void* host_ptr = d->host_ptrs[i];
 
-        if (host_ptr)
-        {
-            // NCNN_LOGE("host_ptr = %p   free", host_ptr);
+        // NCNN_LOGE("host_ptr = %p   free", host_ptr);
 
-            free(host_ptr);
-        }
+        ncnn::fastFree(host_ptr);
     }
     d->host_ptrs.clear();
+}
+
+// fastMalloc() with alignment parameter and no malloc overread
+static void* fastMalloc_with_alignment(size_t size, size_t alignment)
+{
+#if _MSC_VER
+    return _aligned_malloc(size, alignment);
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+    void* ptr = 0;
+    if (posix_memalign(&ptr, alignment, size))
+        ptr = 0;
+    return ptr;
+#elif __ANDROID__ && __ANDROID_API__ < 17
+    return memalign(alignment, size);
+#else
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + alignment);
+    if (!udata)
+        return 0;
+    unsigned char** adata = alignPtr((unsigned char**)udata + 1, alignment);
+    adata[-1] = udata;
+    return adata;
+#endif
 }
 
 VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
@@ -1920,12 +1939,7 @@ VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
 
     if (vkdev->info.support_VK_EXT_external_memory_host())
     {
-        void* host_ptr = 0;
-#ifdef _WIN32
-        host_ptr = _aligned_malloc(new_block_size, d->buffer_offset_alignment);
-#else
-        posix_memalign(&host_ptr, d->buffer_offset_alignment, new_block_size);
-#endif
+        void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
 
         // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
 
@@ -1948,7 +1962,7 @@ VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
             block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
             if (!block->memory)
             {
-                free(host_ptr);
+                ncnn::fastFree(host_ptr);
             }
             else
             {
@@ -2137,12 +2151,7 @@ VkImageMemory* VkHostAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     if (vkdev->info.support_VK_EXT_external_memory_host())
     {
-        void* host_ptr = 0;
-#ifdef _WIN32
-        host_ptr = _aligned_malloc(new_block_size, d->buffer_offset_alignment);
-#else
-        posix_memalign(&host_ptr, d->buffer_offset_alignment, new_block_size);
-#endif
+        void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
 
         // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
 
@@ -2165,7 +2174,7 @@ VkImageMemory* VkHostAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
             ptr->memory = allocate_import_host_memory(new_block_size, image_memory_type_index, host_ptr);
             if (!ptr->memory)
             {
-                free(host_ptr);
+                ncnn::fastFree(host_ptr);
             }
             else
             {
