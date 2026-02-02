@@ -605,10 +605,10 @@ void main()
                     const uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
                     const uint mmi = mask_head * p.mask_cstep + gm * p.dst_seqlen + gn * 4;
 
-                    if (gn * 4 + 0 < p.dst_seqlen) mask.r = mask_blob_data[mmi + 0];
-                    if (gn * 4 + 1 < p.dst_seqlen) mask.g = mask_blob_data[mmi + 1];
-                    if (gn * 4 + 2 < p.dst_seqlen) mask.b = mask_blob_data[mmi + 2];
-                    if (gn * 4 + 3 < p.dst_seqlen) mask.a = mask_blob_data[mmi + 3];
+                    if (gn * 4 + 0 < p.dst_seqlen) mask.r = buffer_ld1(mask_blob_data, mmi + 0);
+                    if (gn * 4 + 1 < p.dst_seqlen) mask.g = buffer_ld1(mask_blob_data, mmi + 1);
+                    if (gn * 4 + 2 < p.dst_seqlen) mask.b = buffer_ld1(mask_blob_data, mmi + 2);
+                    if (gn * 4 + 3 < p.dst_seqlen) mask.a = buffer_ld1(mask_blob_data, mmi + 3);
                 }
 
                 tmp_s[(sgi * UNROLL_SG_M + zm) * M * Nd4p + row * Nd4p + col] += mask;
