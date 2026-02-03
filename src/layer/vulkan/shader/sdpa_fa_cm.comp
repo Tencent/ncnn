@@ -80,7 +80,7 @@ shared uvec4 tmp_k[UNROLL_P_N * N * Kd8p];
 #define tmp_v tmp_k
 
 shared float tmp_s[UNROLL_WG_M * UNROLL_SG_M * UNROLL_P_N * M * Np]; // Score matrix (16x16 FP32)
-shared vec4 tmp_o[UNROLL_WG_M * UNROLL_SG_M * M * Nd4p];              // Output tile for rescaling (16x16 FP32)
+shared vec4 tmp_o[UNROLL_WG_M * UNROLL_SG_M * M * Nd4p];             // Output tile for rescaling (16x16 FP32)
 
 // Shared memory for row statistics (用于跨线程同步)
 shared float smem_row_max[UNROLL_WG_M * UNROLL_SG_M * M];
@@ -132,17 +132,11 @@ void main()
     const uint li = gl_LocalInvocationID.x;
     const uint si = gl_SubgroupInvocationID;
 
-    // 计算各种维度
-    const uint dst_seqlen_d16 = (p.dst_seqlen + 15) / 16;
-    const uint embed_dim_d16 = (p.embed_dim + 15) / 16;
-    const uint out_embed_dim_d16 = (p.out_embed_dim + 15) / 16;
+    const uint dst_seqlen_d16 = (p.dst_seqlen + N - 1) / N;
+    const uint embed_dim_d16 = (p.embed_dim + K - 1) / K;
 
     // KV head index (for GQA support)
     const int kv_head_idx = gz / p.num_heads_per_group;
-
-    // 每行元素数和每线程处理元素数
-    //     const uint elements_per_row = N;  // 16
-    const uint elements_per_thread = M * N / subgroup_size;
 
     // --- 1. 初始化 Accumulators (Output O) ---
     // 为了支持较大的 out_embed_dim，我们需要一组 accumulator
@@ -170,10 +164,10 @@ void main()
     }
     barrier();
 
-    // loop on dst_seqlen / 16
+    // loop on dst_seqlen
 
     uint j = 0;
-#if 1
+
     for (; j + (UNROLL_P_N - 1) < dst_seqlen_d16; j += UNROLL_P_N)
     {
         coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm[UNROLL_SG_M][UNROLL_P_N];
@@ -518,7 +512,7 @@ void main()
             }
         }
     }
-#endif
+
     for (; j < dst_seqlen_d16; j++)
     {
         coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm[UNROLL_SG_M];
@@ -655,15 +649,31 @@ void main()
             }
 
             // 行内归约取 max
-            float row_max_val = reduceN_max(val, N);
-
-            // 第一个线程更新 SMEM
-            if (col == 0)
+            if (N == subgroup_size)
             {
-                float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
-                float new_max = max(old_max, row_max_val);
-                smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = exp(old_max - new_max);
-                smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
+                float row_max_val = subgroupMax(val);
+
+                // 第一个线程更新 SMEM
+                if (subgroupElect())
+                {
+                    float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                    float new_max = max(old_max, row_max_val);
+                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = exp(old_max - new_max);
+                    smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
+                }
+            }
+            else
+            {
+                float row_max_val = reduceN_max(val, N);
+
+                // 第一个线程更新 SMEM
+                if (col == 0)
+                {
+                    float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                    float new_max = max(old_max, row_max_val);
+                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = exp(old_max - new_max);
+                    smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
+                }
             }
         }
 
@@ -693,13 +703,27 @@ void main()
             }
 
             // 行内归约求 sum
-            float row_sum_val = reduceN_add(val, N);
-
-            // 更新全局 sum
-            if (col == 0)
+            if (N == subgroup_size)
             {
-                float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
-                smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
+                float row_sum_val = subgroupAdd(val);
+
+                // 更新全局 sum
+                if (subgroupElect())
+                {
+                    float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
+                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
+                }
+            }
+            else
+            {
+                float row_sum_val = reduceN_add(val, N);
+
+                // 更新全局 sum
+                if (col == 0)
+                {
+                    float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
+                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
+                }
             }
 
             // 写回 P
@@ -834,7 +858,7 @@ void main()
 
                 // 打包为 uvec4 (8 个 FP16)
                 uvec4 out_data;
-#if NCNN_bf16_storage
+#if NCNN_bf16_storage || NCNN_bf16_packed
                 out_data.x = packBFloat2x16(v0.rg);
                 out_data.y = packBFloat2x16(v0.ba);
                 out_data.z = packBFloat2x16(v1.rg);
