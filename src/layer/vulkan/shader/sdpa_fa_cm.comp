@@ -435,21 +435,51 @@ void main()
         barrier();
 
         // O = O * correction (matrix-vector)
+#if ncnn_VK_KHR_cooperative_matrix
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-#if ncnn_VK_KHR_cooperative_matrix
             coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> cc;
             coopMatLoad(cc, smem_correction, (sgi * UNROLL_SG_M + zm) * M, 0, gl_CooperativeMatrixLayoutColumnMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-            fcoopmatNV<32, gl_ScopeSubgroup, M, N> cc;
-            coopMatLoadNV(cc, smem_correction, (sgi * UNROLL_SG_M + zm) * M, 0, true);
-#endif
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             {
                 om[zm][c] = om[zm][c] * cc;
             }
         }
+#elif ncnn_VK_NV_cooperative_matrix
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        {
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            {
+                coopMatStoreNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, false);
+            }
+
+            barrier();
+
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * Nd4; idx += subgroup_size)
+            {
+                const uint zm = idx / (M * Nd4);
+                const uint rowcol = idx % (M * Nd4);
+                const uint row = rowcol / Nd4;
+                const uint col = rowcol % Nd4;
+
+                const uint oi = ((sgi * UNROLL_SG_M + zm) * M + row) * Nd4p + col;
+
+                const float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
+
+                tmp_o[oi] = tmp_o[oi] * correction;
+            }
+
+            barrier();
+
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            {
+                coopMatLoadNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, false);
+            }
+
+            barrier();
+        }
+#endif
 
         // convert P from fp32 to fp16
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -806,21 +836,51 @@ void main()
         barrier();
 
         // O = O * correction (matrix-vector)
+#if ncnn_VK_KHR_cooperative_matrix
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-#if ncnn_VK_KHR_cooperative_matrix
             coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> cc;
             coopMatLoad(cc, smem_correction, (sgi * UNROLL_SG_M + zm) * M, 0, gl_CooperativeMatrixLayoutColumnMajor);
-#elif ncnn_VK_NV_cooperative_matrix
-            fcoopmatNV<32, gl_ScopeSubgroup, M, N> cc;
-            coopMatLoadNV(cc, smem_correction, (sgi * UNROLL_SG_M + zm) * M, 0, true);
-#endif
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             {
                 om[zm][c] = om[zm][c] * cc;
             }
         }
+#elif ncnn_VK_NV_cooperative_matrix
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        {
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            {
+                coopMatStoreNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, false);
+            }
+
+            barrier();
+
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * Nd4; idx += subgroup_size)
+            {
+                const uint zm = idx / (M * Nd4);
+                const uint rowcol = idx % (M * Nd4);
+                const uint row = rowcol / Nd4;
+                const uint col = rowcol % Nd4;
+
+                const uint oi = ((sgi * UNROLL_SG_M + zm) * M + row) * Nd4p + col;
+
+                const float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
+
+                tmp_o[oi] = tmp_o[oi] * correction;
+            }
+
+            barrier();
+
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            {
+                coopMatLoadNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Nd4p, Nd4p, false);
+            }
+
+            barrier();
+        }
+#endif
 
         // convert P from fp32 to fp16
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
