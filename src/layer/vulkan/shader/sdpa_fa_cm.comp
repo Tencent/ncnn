@@ -150,13 +150,12 @@ void main()
         smem_row_sum[i] = 0.f;
         smem_correction[i] = 1.f;
     }
-    barrier();
 
     // loop on dst_seqlen
 
     uint j = 0;
 
-    for (; j + (UNROLL_P_N - 1) < dst_seqlen_d16; j += UNROLL_P_N)
+    [[dont_unroll]] for (; j + (UNROLL_P_N - 1) < dst_seqlen_d16; j += UNROLL_P_N)
     {
         coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm[UNROLL_SG_M][UNROLL_P_N];
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -171,6 +170,8 @@ void main()
         {
             for (uint k = 0; k < embed_dim_d16; k++)
             {
+                barrier();
+
                 // load Q (w=embed_dim, h=16)
                 // load K (w=embed_dim, h=16)
 
@@ -291,41 +292,73 @@ void main()
             barrier();
         }
 
-        // 3.5 Online Softmax - 计算 row max
-        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
+        if (UNROLL_P_N * N == subgroup_size)
         {
-            const uint zm = idx / (M * UNROLL_P_N * N);
-            const uint rowcol = idx % (M * UNROLL_P_N * N);
-            const uint row = rowcol / (UNROLL_P_N * N);
-            const uint zpcol = rowcol % (UNROLL_P_N * N);
-            const uint zp = zpcol / (N);
-            const uint col = zpcol % (N);
-
-            const uint gm = (mi + zm) * M + row;
-            const uint gn = (j + zp) * N + col;
-
-            float val = -3.402823e+38f;
-            if (gm < p.src_seqlen && gn < p.dst_seqlen)
+            // 3.5 Online Softmax - 计算 row max
+            for (uint idx = 0; idx < UNROLL_SG_M * M; idx++)
             {
-                val = tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col];
-            }
+                const uint zm = idx / M;
+                const uint row = idx % M;
 
-            // 行内归约取 max
-            if (UNROLL_P_N * N == subgroup_size)
-            {
-                float row_max_val = subgroupMax(val);
+                const uint zp = si / N;
+                const uint col = si % N;
 
-                // 第一个线程更新 SMEM
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = (j + zp) * N + col;
+
+                const uint si = (((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col;
+
+                bool in_range = gm < p.src_seqlen && gn < p.dst_seqlen;
+
+                float val = tmp_s[si];
+
+                float row_max_val = in_range ? val : -3.402823e+38f;
+
+                row_max_val = subgroupMax(row_max_val);
+
+                const float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                const float new_max = max(old_max, row_max_val);
+
+                val = in_range ? exp(val - new_max) : 0.f;
+
+                // 行内归约求 sum
+                float row_sum_val = subgroupAdd(val);
+
+                // 更新全局 sum
                 if (subgroupElect())
                 {
-                    float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
-                    float new_max = max(old_max, row_max_val);
-                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = exp(old_max - new_max);
+                    const float correction = exp(old_max - new_max);
+                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = correction;
                     smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
+                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
                 }
+
+                // 写回 P
+                tmp_s[si] = val;
             }
-            else
+        }
+        else
+        {
+            // 3.5 Online Softmax - 计算 row max
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
             {
+                const uint zm = idx / (M * UNROLL_P_N * N);
+                const uint rowcol = idx % (M * UNROLL_P_N * N);
+                const uint row = rowcol / (UNROLL_P_N * N);
+                const uint zpcol = rowcol % (UNROLL_P_N * N);
+                const uint zp = zpcol / (N);
+                const uint col = zpcol % (N);
+
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = (j + zp) * N + col;
+
+                float val = -3.402823e+38f;
+                if (gm < p.src_seqlen && gn < p.dst_seqlen)
+                {
+                    val = tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col];
+                }
+
+                // 行内归约取 max
                 float row_max_val = reduceN_max(val, UNROLL_P_N * N);
 
                 // 第一个线程更新 SMEM
@@ -337,47 +370,33 @@ void main()
                     smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
                 }
             }
-        }
 
-        barrier();
+            barrier();
 
-        // 3.6 Online Softmax - 计算 exp 和 sum
-        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
-        {
-            const uint zm = idx / (M * UNROLL_P_N * N);
-            const uint rowcol = idx % (M * UNROLL_P_N * N);
-            const uint row = rowcol / (UNROLL_P_N * N);
-            const uint zpcol = rowcol % (UNROLL_P_N * N);
-            const uint zp = zpcol / (N);
-            const uint col = zpcol % (N);
-
-            const uint gm = (mi + zm) * M + row;
-            const uint gn = (j + zp) * N + col;
-
-            float val = 0.f;
-            if (gm < p.src_seqlen && gn < p.dst_seqlen)
+            // 3.6 Online Softmax - 计算 exp 和 sum
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
             {
-                float new_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                const uint zm = idx / (M * UNROLL_P_N * N);
+                const uint rowcol = idx % (M * UNROLL_P_N * N);
+                const uint row = rowcol / (UNROLL_P_N * N);
+                const uint zpcol = rowcol % (UNROLL_P_N * N);
+                const uint zp = zpcol / (N);
+                const uint col = zpcol % (N);
 
-                val = tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col];
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = (j + zp) * N + col;
 
-                val = exp(val - new_max);
-            }
-
-            // 行内归约求 sum
-            if (UNROLL_P_N * N == subgroup_size)
-            {
-                float row_sum_val = subgroupAdd(val);
-
-                // 更新全局 sum
-                if (subgroupElect())
+                float val = 0.f;
+                if (gm < p.src_seqlen && gn < p.dst_seqlen)
                 {
-                    float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
-                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
+                    float new_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+
+                    val = tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col];
+
+                    val = exp(val - new_max);
                 }
-            }
-            else
-            {
+
+                // 行内归约求 sum
                 float row_sum_val = reduceN_add(val, UNROLL_P_N * N);
 
                 // 更新全局 sum
@@ -386,10 +405,10 @@ void main()
                     float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
                     smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
                 }
-            }
 
-            // 写回 P
-            tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col] = val;
+                // 写回 P
+                tmp_s[(((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M + row) * Np + col] = val;
+            }
         }
 
         barrier();
@@ -444,6 +463,8 @@ void main()
         // qkv cross
         for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
+            barrier();
+
             for (uint idx = li; idx < UNROLL_P_N * K * Nd8; idx += local_size)
             {
                 const uint zp = idx / (K * Nd8);
@@ -486,7 +507,7 @@ void main()
         }
     }
 
-    for (; j < dst_seqlen_d16; j++)
+    [[dont_unroll]] for (; j < dst_seqlen_d16; j++)
     {
         coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> qkm[UNROLL_SG_M];
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
@@ -498,6 +519,8 @@ void main()
         {
             for (uint k = 0; k < embed_dim_d16; k++)
             {
+                barrier();
+
                 // load Q (w=embed_dim, h=16)
                 // load K (w=embed_dim, h=16)
 
@@ -602,39 +625,70 @@ void main()
             barrier();
         }
 
-        // 3.5 Online Softmax - 计算 row max
-        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
+        if (N == subgroup_size)
         {
-            const uint zm = idx / (M * N);
-            const uint rowcol = idx % (M * N);
-            const uint row = rowcol / (N);
-            const uint col = rowcol % (N);
-
-            const uint gm = (mi + zm) * M + row;
-            const uint gn = j * N + col;
-
-            float val = -3.402823e+38f;
-            if (gm < p.src_seqlen && gn < p.dst_seqlen)
+            // 3.5 Online Softmax - 计算 row max
+            for (uint idx = 0; idx < UNROLL_SG_M * M; idx++)
             {
-                val = tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col];
-            }
+                const uint zm = idx / M;
+                const uint row = idx % M;
 
-            // 行内归约取 max
-            if (N == subgroup_size)
-            {
-                float row_max_val = subgroupMax(val);
+                const uint col = si;
 
-                // 第一个线程更新 SMEM
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = j * N + col;
+
+                const uint si = ((sgi * UNROLL_SG_M + zm) * M + row) * Np + col;
+
+                bool in_range = gm < p.src_seqlen && gn < p.dst_seqlen;
+
+                float val = tmp_s[si];
+
+                float row_max_val = in_range ? val : -3.402823e+38f;
+
+                row_max_val = subgroupMax(row_max_val);
+
+                const float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                const float new_max = max(old_max, row_max_val);
+
+                val = in_range ? exp(val - new_max) : 0.f;
+
+                // 行内归约求 sum
+                float row_sum_val = subgroupAdd(val);
+
+                // 更新全局 sum
                 if (subgroupElect())
                 {
-                    float old_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
-                    float new_max = max(old_max, row_max_val);
-                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = exp(old_max - new_max);
+                    const float correction = exp(old_max - new_max);
+                    smem_correction[(sgi * UNROLL_SG_M + zm) * M + row] = correction;
                     smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
+                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
                 }
+
+                // 写回 P
+                tmp_s[si] = val;
             }
-            else
+        }
+        else
+        {
+            // 3.5 Online Softmax - 计算 row max
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
             {
+                const uint zm = idx / (M * N);
+                const uint rowcol = idx % (M * N);
+                const uint row = rowcol / (N);
+                const uint col = rowcol % (N);
+
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = j * N + col;
+
+                float val = -3.402823e+38f;
+                if (gm < p.src_seqlen && gn < p.dst_seqlen)
+                {
+                    val = tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col];
+                }
+
+                // 行内归约取 max
                 float row_max_val = reduceN_max(val, N);
 
                 // 第一个线程更新 SMEM
@@ -646,45 +700,31 @@ void main()
                     smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row] = new_max;
                 }
             }
-        }
 
-        barrier();
+            barrier();
 
-        // 3.6 Online Softmax - 计算 exp 和 sum
-        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
-        {
-            const uint zm = idx / (M * N);
-            const uint rowcol = idx % (M * N);
-            const uint row = rowcol / (N);
-            const uint col = rowcol % (N);
-
-            const uint gm = (mi + zm) * M + row;
-            const uint gn = j * N + col;
-
-            float val = 0.f;
-            if (gm < p.src_seqlen && gn < p.dst_seqlen)
+            // 3.6 Online Softmax - 计算 exp 和 sum
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
             {
-                float new_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+                const uint zm = idx / (M * N);
+                const uint rowcol = idx % (M * N);
+                const uint row = rowcol / (N);
+                const uint col = rowcol % (N);
 
-                val = tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col];
+                const uint gm = (mi + zm) * M + row;
+                const uint gn = j * N + col;
 
-                val = exp(val - new_max);
-            }
-
-            // 行内归约求 sum
-            if (N == subgroup_size)
-            {
-                float row_sum_val = subgroupAdd(val);
-
-                // 更新全局 sum
-                if (subgroupElect())
+                float val = 0.f;
+                if (gm < p.src_seqlen && gn < p.dst_seqlen)
                 {
-                    float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
-                    smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
+                    float new_max = smem_row_max[(sgi * UNROLL_SG_M + zm) * M + row];
+
+                    val = tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col];
+
+                    val = exp(val - new_max);
                 }
-            }
-            else
-            {
+
+                // 行内归约求 sum
                 float row_sum_val = reduceN_add(val, N);
 
                 // 更新全局 sum
@@ -693,10 +733,10 @@ void main()
                     float correction = smem_correction[(sgi * UNROLL_SG_M + zm) * M + row];
                     smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] = smem_row_sum[(sgi * UNROLL_SG_M + zm) * M + row] * correction + row_sum_val;
                 }
-            }
 
-            // 写回 P
-            tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col] = val;
+                // 写回 P
+                tmp_s[((sgi * UNROLL_SG_M + zm) * M + row) * Np + col] = val;
+            }
         }
 
         barrier();
@@ -745,6 +785,8 @@ void main()
         // qkv cross
         for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
+            barrier();
+
             [[unroll]] for (uint idx = li; idx < K * Nd8; idx += local_size)
             {
                 const uint row = idx / Nd8;
@@ -832,5 +874,7 @@ void main()
                 top_blob_data[out_idx] = out_data;
             }
         }
+
+        barrier();
     }
 }
