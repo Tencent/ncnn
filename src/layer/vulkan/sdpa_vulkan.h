@@ -28,9 +28,13 @@ public:
     Pipeline* pipeline_sdpa_qk_cross;
     Pipeline* pipeline_sdpa_qkv_cross;
 
-    Pipeline* pipeline_sdpa_fa;
+    Pipeline* pipeline_sdpa_fa[8];
 
     bool use_flash_attention;
+    int FA_coopmat_M;
+    int FA_coopmat_N;
+    int FA_coopmat_K;
+    int FA_coopmat_subgroup_size;
     int FA_UNROLL_SG_M;
     int FA_UNROLL_WG_M;
 
