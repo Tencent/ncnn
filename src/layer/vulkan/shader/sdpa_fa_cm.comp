@@ -53,10 +53,6 @@ layout(push_constant) uniform parameter
     int mask_cstep;
 } p;
 
-// Shared Memory 布局常量
-// 最大支持的 out_embed_dim / 16 块数
-// #define MAX_OUT_CHUNKS 8
-
 // assert N == K
 
 const uint Nd4 = N / 4;
@@ -79,17 +75,14 @@ shared uvec4 tmp_k[UNROLL_P_N * N * Kd8p];
 // shared uvec4 tmp_v[UNROLL_P_N * N * Kd8p];
 #define tmp_v tmp_k
 
-shared float tmp_s[UNROLL_WG_M * UNROLL_SG_M * UNROLL_P_N * M * Np]; // Score matrix (16x16 FP32)
-shared vec4 tmp_o[UNROLL_WG_M * UNROLL_SG_M * M * Nd4p];             // Output tile for rescaling (16x16 FP32)
+shared float tmp_s[UNROLL_WG_M * UNROLL_SG_M * UNROLL_P_N * M * Np];
+shared vec4 tmp_o[UNROLL_WG_M * UNROLL_SG_M * M * Nd4p];
 
-// Shared memory for row statistics (用于跨线程同步)
+// Shared memory for row statistics
 shared float smem_row_max[UNROLL_WG_M * UNROLL_SG_M * M];
 shared float smem_row_sum[UNROLL_WG_M * UNROLL_SG_M * M];
 shared float smem_correction[UNROLL_WG_M * UNROLL_SG_M * M];
 
-// ============================================
-// 辅助函数：N 路归约
-// ============================================
 float reduceN_max(float val, uint n)
 {
     [[unroll]] for (uint offset = 1; offset < n; offset *= 2)
@@ -139,9 +132,6 @@ void main()
     const int kv_head_idx = gz / p.num_heads_per_group;
 
     // --- 1. 初始化 Accumulators (Output O) ---
-    // 为了支持较大的 out_embed_dim，我们需要一组 accumulator
-    // 假设最大支持 out_embed_dim = 64 (4 blocks) 或 128 (8 blocks)
-    // 根据 spec 这里只能用常量大小数组
     // declare O for final output (w=out_embed_dim, h=16)
     coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> om[UNROLL_SG_M][MAX_OUT_CHUNKS];
 
@@ -153,9 +143,7 @@ void main()
         }
     }
 
-    // ========================================
     // 2. 初始化 Row Statistics (在 SMEM 中)
-    // ========================================
     [[unroll]] for (uint i = li; i < UNROLL_WG_M * UNROLL_SG_M * M; i += local_size)
     {
         smem_row_max[i] = -3.402823e+38f;
@@ -303,9 +291,7 @@ void main()
             barrier();
         }
 
-        // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
-        // ----------------------------------------
         [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * UNROLL_P_N * N);
@@ -355,9 +341,7 @@ void main()
 
         barrier();
 
-        // ----------------------------------------
         // 3.6 Online Softmax - 计算 exp 和 sum
-        // ----------------------------------------
         [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * UNROLL_P_N * N);
@@ -411,9 +395,7 @@ void main()
         barrier();
 
         // O = O * correction (matrix-vector)
-        // ----------------------------------------
         // 3.6 Rescale O: O = O * correction
-        // ----------------------------------------
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> cc;
@@ -425,16 +407,7 @@ void main()
             }
         }
 
-        // ----------------------------------------
         // 3.7 Load P from SMEM
-        // ----------------------------------------
-        // 需要将 FP32 的 tmp_s 转换为 FP16 给 CoopMat
-        // 方案1: 使用 FP32 CoopMat (如果硬件支持)
-        // 方案2: 转换为 FP16 packed buffer
-
-        // 这里使用方案2: 将 tmp_s 转换为 packed FP16 format
-        // 复用 tmp_o 的低半部分作为 FP16 buffer (32 uvec4 = 128 floats 空间够用)
-
         // 将 FP32 P 转换为 packed FP16
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
@@ -629,9 +602,7 @@ void main()
             barrier();
         }
 
-        // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
-        // ----------------------------------------
         [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * N);
@@ -679,9 +650,7 @@ void main()
 
         barrier();
 
-        // ----------------------------------------
         // 3.6 Online Softmax - 计算 exp 和 sum
-        // ----------------------------------------
         [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * N);
@@ -733,9 +702,7 @@ void main()
         barrier();
 
         // O = O * correction (matrix-vector)
-        // ----------------------------------------
         // 3.6 Rescale O: O = O * correction
-        // ----------------------------------------
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> cc;
@@ -747,16 +714,7 @@ void main()
             }
         }
 
-        // ----------------------------------------
         // 3.7 Load P from SMEM
-        // ----------------------------------------
-        // 需要将 FP32 的 tmp_s 转换为 FP16 给 CoopMat
-        // 方案1: 使用 FP32 CoopMat (如果硬件支持)
-        // 方案2: 转换为 FP16 packed buffer
-
-        // 这里使用方案2: 将 tmp_s 转换为 packed FP16 format
-        // 复用 tmp_o 的低半部分作为 FP16 buffer (32 uvec4 = 128 floats 空间够用)
-
         // 将 FP32 P 转换为 packed FP16
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
