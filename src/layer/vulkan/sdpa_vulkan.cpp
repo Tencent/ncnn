@@ -67,7 +67,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
-    use_flash_attention = use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed);
+    use_flash_attention = use_cooperative_matrix;
 
     if (use_flash_attention)
     {
@@ -378,7 +378,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     const int num_heads_per_group = num_heads / num_group;
 
-    if (use_flash_attention && embed_dim % 8 == 0 && out_embed_dim % 8 == 0 && out_embed_dim <= 128)
+    if (use_flash_attention && embed_dim % 8 == 0 && out_embed_dim % 8 == 0 && out_embed_dim <= FA_coopmat_N * 8)
     {
         VkMat value;
         if (past_seqlen > 0)
