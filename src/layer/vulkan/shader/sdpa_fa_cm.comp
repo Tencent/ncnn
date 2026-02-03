@@ -282,7 +282,7 @@ void main()
         // QK += mask
         if (attn_mask != 0)
         {
-            for (uint idx = si; idx < UNROLL_SG_M * UNROLL_P_N * M * N; idx += subgroup_size)
+            [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * UNROLL_P_N * M * N; idx += subgroup_size)
             {
                 const uint zm = idx / (UNROLL_P_N * M * N);
                 const uint zprowcol = idx % (UNROLL_P_N * M * N);
@@ -312,7 +312,7 @@ void main()
         // ----------------------------------------
         // 3.5 Online Softmax - 计算 row max
         // ----------------------------------------
-        for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
+        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * UNROLL_P_N * N);
             const uint rowcol = idx % (M * UNROLL_P_N * N);
@@ -364,7 +364,7 @@ void main()
         // ----------------------------------------
         // 3.6 Online Softmax - 计算 exp 和 sum
         // ----------------------------------------
-        for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
+        [[unroll]] for (uint idx = si; idx < UNROLL_SG_M * M * UNROLL_P_N * N; idx += subgroup_size)
         {
             const uint zm = idx / (M * UNROLL_P_N * N);
             const uint rowcol = idx % (M * UNROLL_P_N * N);
