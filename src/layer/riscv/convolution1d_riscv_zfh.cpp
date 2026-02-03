@@ -471,7 +471,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                     sum = __riscv_vfmv_f_s_f16m1_f16(__riscv_vfredusum_vs_f16m1_f16m1(_sum, __riscv_vfmv_s_f_f16m1(sum, vl), vl));
 
-                    sum = activation_ss(sum, activation_type, activation_params);
+                    sum = (__fp16)activation_ss(sum, activation_type, activation_params);
 
                     outptr[j] = sum;
                 }

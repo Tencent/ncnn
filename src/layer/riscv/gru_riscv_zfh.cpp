@@ -583,7 +583,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float H = (1 - U) * N + U * hidden_state[q];
 
             hidden_state[q] = H;
-            output_data[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 
