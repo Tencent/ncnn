@@ -2878,6 +2878,26 @@ int VkTransfer::reset()
         }
     }
 
+    if (!vkdev->info.unified_compute_transfer_queue())
+    {
+        {
+            VkResult ret = vkResetCommandBuffer(d->upload_command_buffer, 0);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
+                return -1;
+            }
+        }
+        {
+            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkResetFences failed %d", ret);
+                return -1;
+            }
+        }
+    }
+
     d->begin_command_buffer();
 
     return 0;
