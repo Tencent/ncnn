@@ -97,6 +97,10 @@ public:
 
     int submit_and_wait();
 
+    int reset();
+
+    uint64_t pending_upload_total() const;
+
 protected:
     const VulkanDevice* vkdev;
 

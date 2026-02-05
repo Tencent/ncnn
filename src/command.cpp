@@ -2288,6 +2288,8 @@ public:
 
     const VulkanDevice* vkdev;
 
+    uint64_t pending_upload_total;
+
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
 
@@ -2305,6 +2307,8 @@ public:
 VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
+    pending_upload_total = 0;
+
     compute_command_pool = 0;
     transfer_command_pool = 0;
 
@@ -2568,6 +2572,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     {
         return;
     }
+
+    d->pending_upload_total += dst.total() * dst.elemsize;
 
     if (dst.allocator->mappable)
     {
@@ -2843,7 +2849,43 @@ int VkTransfer::submit_and_wait()
         }
     }
 
+    d->pending_upload_total = 0;
+
     return 0;
+}
+
+int VkTransfer::reset()
+{
+    d->upload_staging_buffers.clear();
+
+    d->pending_upload_total = 0;
+
+    // reset command buffer and fence
+    {
+        VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
+            return -1;
+        }
+    }
+    {
+        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->compute_command_fence);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkResetFences failed %d", ret);
+            return -1;
+        }
+    }
+
+    d->begin_command_buffer();
+
+    return 0;
+}
+
+uint64_t VkTransfer::pending_upload_total() const
+{
+    return d->pending_upload_total;
 }
 
 } // namespace ncnn
