@@ -8,6 +8,8 @@ add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
+option(NCNN_SYSTEM_PYBIND11 "use system pybind11" OFF)
+
 if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
     option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
 
@@ -21,7 +23,21 @@ if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
     endif()
 endif()
 
-add_subdirectory(pybind11)
+if(NCNN_SYSTEM_PYBIND11)
+    find_package(pybind11)
+    if(NOT pybind11_FOUND)
+        message(WARNING "pybind11 package not found! NCNN_SYSTEM_PYBIND11 will be turned off.")
+        set(NCNN_SYSTEM_PYBIND11 OFF)
+    endif()
+endif()
+
+if(NOT NCNN_SYSTEM_PYBIND11)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pybind11/CMakeLists.txt")
+        message(FATAL_ERROR "The submodules were not downloaded! Please update submodules with \"git submodule update --init\" and try again.")
+    else()
+        add_subdirectory(pybind11)
+    endif()
+endif()
 
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
     if(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")

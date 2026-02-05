@@ -110,7 +110,7 @@ public:
     bool use_tensor_storage;
 
     bool use_reserved_1p;
-    bool use_reserved_2;
+    bool use_weights_in_host_memory;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3

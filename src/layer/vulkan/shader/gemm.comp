@@ -24,8 +24,8 @@ layout(constant_id = 14) const int output_transpose = 0;
 // TODO psc more
 
 layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout(binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
-layout(binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { sfpvec4 A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { sfpvec4 B_blob_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -43,68 +43,94 @@ layout(push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared lfp tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
-shared lfp tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+// avoid bank conflict
+#define PAD 1
+shared lfpvec4 tmp_a[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
+shared lfpvec4 tmp_b[8][LOCAL_MEMORY_UNROLL_INCH + PAD];
 #endif
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x) * 2;
-    int gy = int(gl_GlobalInvocationID.y) * 2;
-    int gz = int(gl_GlobalInvocationID.z);
+    const uint gx = gl_GlobalInvocationID.x;
+    const uint gy = gl_GlobalInvocationID.y;
+    const uint gz = gl_GlobalInvocationID.z;
 
 #if !NCNN_shader_local_memory
-    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+    if (gx * 4 >= psc(N) || gy * 4 >= psc(M) || gz >= 1)
         return;
 #endif
 
-    afp sum0 = afp(0.f);
-    afp sum1 = afp(0.f);
-    afp sum2 = afp(0.f);
-    afp sum3 = afp(0.f);
+    afpvec4 sum0 = afpvec4(0.f);
+    afpvec4 sum1 = afpvec4(0.f);
+    afpvec4 sum2 = afpvec4(0.f);
+    afpvec4 sum3 = afpvec4(0.f);
 
     const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
 
     if (broadcast_type_C == 0)
     {
-        sum0 = buffer_ld1(C_blob_data, 0);
+        sum0 = afpvec4(buffer_ld1(C_blob_data, 0));
         sum1 = sum0;
         sum2 = sum0;
         sum3 = sum0;
     }
     if (broadcast_type_C == 1 || broadcast_type_C == 2)
     {
-        sum0 = buffer_ld1(C_blob_data, gy);
-        sum1 = sum0;
-        sum2 = buffer_ld1(C_blob_data, gy + 1);
-        sum3 = sum2;
+        const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+
+        sum0 = afpvec4(buffer_ld1(C_blob_data, gy4.r));
+        sum1 = afpvec4(buffer_ld1(C_blob_data, gy4.g));
+        sum2 = afpvec4(buffer_ld1(C_blob_data, gy4.b));
+        sum3 = afpvec4(buffer_ld1(C_blob_data, gy4.a));
     }
     if (broadcast_type_C == 3)
     {
-        const int ci = gy * psc(N) + gx;
-        sum0 = buffer_ld1(C_blob_data, ci);
-        sum1 = buffer_ld1(C_blob_data, ci + 1);
-        sum2 = buffer_ld1(C_blob_data, ci + psc(N));
-        sum3 = buffer_ld1(C_blob_data, ci + psc(N) + 1);
+        const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+        const uvec4 ci4 = gy4 * psc(N) + gx * 4;
+
+        sum0.r = buffer_ld1(C_blob_data, ci4.r + 0);
+        sum0.g = buffer_ld1(C_blob_data, ci4.r + 1);
+        sum0.b = buffer_ld1(C_blob_data, ci4.r + 2);
+        sum0.a = buffer_ld1(C_blob_data, ci4.r + 3);
+        sum1.r = buffer_ld1(C_blob_data, ci4.g + 0);
+        sum1.g = buffer_ld1(C_blob_data, ci4.g + 1);
+        sum1.b = buffer_ld1(C_blob_data, ci4.g + 2);
+        sum1.a = buffer_ld1(C_blob_data, ci4.g + 3);
+        sum2.r = buffer_ld1(C_blob_data, ci4.b + 0);
+        sum2.g = buffer_ld1(C_blob_data, ci4.b + 1);
+        sum2.b = buffer_ld1(C_blob_data, ci4.b + 2);
+        sum2.a = buffer_ld1(C_blob_data, ci4.b + 3);
+        sum3.r = buffer_ld1(C_blob_data, ci4.a + 0);
+        sum3.g = buffer_ld1(C_blob_data, ci4.a + 1);
+        sum3.b = buffer_ld1(C_blob_data, ci4.a + 2);
+        sum3.a = buffer_ld1(C_blob_data, ci4.a + 3);
     }
     if (broadcast_type_C == 4)
     {
-        sum0 = buffer_ld1(C_blob_data, gx);
-        sum1 = buffer_ld1(C_blob_data, gx + 1);
+        const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+
+        sum0.r = buffer_ld1(C_blob_data, gx4.r);
+        sum0.g = buffer_ld1(C_blob_data, gx4.g);
+        sum0.b = buffer_ld1(C_blob_data, gx4.b);
+        sum0.a = buffer_ld1(C_blob_data, gx4.a);
+        sum1 = sum0;
         sum2 = sum0;
-        sum3 = sum1;
+        sum3 = sum0;
     }
 
-    sum0 *= afp(beta);
-    sum1 *= afp(beta);
-    sum2 *= afp(beta);
-    sum3 *= afp(beta);
+    if (beta != 1.f)
+    {
+        sum0 *= afp(beta);
+        sum1 *= afp(beta);
+        sum2 *= afp(beta);
+        sum3 *= afp(beta);
+    }
 
 #if NCNN_shader_local_memory
     const int NN = psc(K);
 
-    const int lx = int(gl_LocalInvocationID.x);
-    const int ly = int(gl_LocalInvocationID.y);
+    const uint lx = gl_LocalInvocationID.x;
+    const uint ly = gl_LocalInvocationID.y;
 
     int k = 0;
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
@@ -112,28 +138,82 @@ void main()
         {
             if (transA == 1)
             {
-                const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
-                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + 1);
+                if (p.A_hstep % 4 == 0)
+                {
+                    const uint ai = (k + lx) * (p.A_hstep / 4) + gy;
+                    tmp_a[ly][lx] = buffer_sm4(A_blob_data, ai);
+                }
+                else
+                {
+                    const uvec4 ai4 = (k + lx) * p.A_hstep + gy * 4 + uvec4(0, 1, 2, 3);
+
+                    const uvec4 ai4d4 = ai4 / 4;
+                    const uvec4 ai4m4 = ai4 % 4;
+
+                    afpvec4 a;
+                    a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+                    a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+                    a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+                    a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
+
+                    tmp_a[ly][lx] = afp2lfpvec4(a);
+                }
             }
             else
             {
-                const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
-                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + p.A_hstep);
+                const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 ai4 = gy4 * p.A_hstep + (k + lx);
+
+                const uvec4 ai4d4 = ai4 / 4;
+                const uvec4 ai4m4 = ai4 % 4;
+
+                afpvec4 a;
+                a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+                a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+                a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+                a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
+
+                tmp_a[ly][lx] = afp2lfpvec4(a);
             }
 
             if (transB == 1)
             {
-                const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + p.B_hstep);
+                const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 bi4 = gx4 * p.B_hstep + (k + ly);
+
+                const uvec4 bi4d4 = bi4 / 4;
+                const uvec4 bi4m4 = bi4 % 4;
+
+                afpvec4 b;
+                b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+                b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+                b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+                b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
+
+                tmp_b[lx][ly] = afp2lfpvec4(b);
             }
             else
             {
-                const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
+                if (p.B_hstep % 4 == 0)
+                {
+                    const uint bi = (k + ly) * (p.B_hstep / 4) + gx;
+                    tmp_b[lx][ly] = buffer_sm4(B_blob_data, bi);
+                }
+                else
+                {
+                    const uvec4 bi4 = (k + ly) * p.B_hstep + gx * 4 + uvec4(0, 1, 2, 3);
+
+                    const uvec4 bi4d4 = bi4 / 4;
+                    const uvec4 bi4m4 = bi4 % 4;
+
+                    afpvec4 b;
+                    b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+                    b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+                    b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+                    b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
+
+                    tmp_b[lx][ly] = afp2lfpvec4(b);
+                }
             }
         }
 
@@ -141,16 +221,14 @@ void main()
 
         for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
         {
-            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+            afpvec4 a = lfp2afpvec4(tmp_a[ly][k4]);
 
-            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+            afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
-            sum0 += a0 * b0;
-            sum1 += a0 * b1;
-            sum2 += a1 * b0;
-            sum3 += a1 * b1;
+            sum0 += a.r * b;
+            sum1 += a.g * b;
+            sum2 += a.b * b;
+            sum3 += a.a * b;
         }
 
         barrier();
@@ -164,15 +242,42 @@ void main()
         {
             if (transA == 1)
             {
-                const int ai = (k + lx) * p.A_hstep + gy;
-                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
-                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + 1);
+                if (p.A_hstep % 4 == 0)
+                {
+                    const uint ai = (k + lx) * (p.A_hstep / 4) + gy;
+                    tmp_a[ly][lx] = buffer_sm4(A_blob_data, ai);
+                }
+                else
+                {
+                    const uvec4 ai4 = (k + lx) * p.A_hstep + gy * 4 + uvec4(0, 1, 2, 3);
+
+                    const uvec4 ai4d4 = ai4 / 4;
+                    const uvec4 ai4m4 = ai4 % 4;
+
+                    afpvec4 a;
+                    a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+                    a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+                    a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+                    a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
+
+                    tmp_a[ly][lx] = afp2lfpvec4(a);
+                }
             }
             else
             {
-                const int ai = gy * p.A_hstep + (k + lx);
-                tmp_a[ly][lx][0] = buffer_sm1(A_blob_data, ai);
-                tmp_a[ly][lx][1] = buffer_sm1(A_blob_data, ai + p.A_hstep);
+                const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 ai4 = gy4 * p.A_hstep + (k + lx);
+
+                const uvec4 ai4d4 = ai4 / 4;
+                const uvec4 ai4m4 = ai4 % 4;
+
+                afpvec4 a;
+                a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+                a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+                a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+                a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
+
+                tmp_a[ly][lx] = afp2lfpvec4(a);
             }
         }
 
@@ -180,15 +285,42 @@ void main()
         {
             if (transB == 1)
             {
-                const int bi = gx * p.B_hstep + (k + ly);
-                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + p.B_hstep);
+                const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+                const uvec4 bi4 = gx4 * p.B_hstep + (k + ly);
+
+                const uvec4 bi4d4 = bi4 / 4;
+                const uvec4 bi4m4 = bi4 % 4;
+
+                afpvec4 b;
+                b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+                b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+                b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+                b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
+
+                tmp_b[lx][ly] = afp2lfpvec4(b);
             }
             else
             {
-                const int bi = (k + ly) * p.B_hstep + gx;
-                tmp_b[lx][ly][0] = buffer_sm1(B_blob_data, bi);
-                tmp_b[lx][ly][1] = buffer_sm1(B_blob_data, bi + 1);
+                if (p.B_hstep % 4 == 0)
+                {
+                    const uint bi = (k + ly) * (p.B_hstep / 4) + gx;
+                    tmp_b[lx][ly] = buffer_sm4(B_blob_data, bi);
+                }
+                else
+                {
+                    const uvec4 bi4 = (k + ly) * p.B_hstep + gx * 4 + uvec4(0, 1, 2, 3);
+
+                    const uvec4 bi4d4 = bi4 / 4;
+                    const uvec4 bi4m4 = bi4 % 4;
+
+                    afpvec4 b;
+                    b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+                    b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+                    b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+                    b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
+
+                    tmp_b[lx][ly] = afp2lfpvec4(b);
+                }
             }
         }
 
@@ -196,90 +328,169 @@ void main()
 
         for (int k4 = 0; k4 < remain; k4++)
         {
-            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
-            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+            afpvec4 a = lfp2afpvec4(tmp_a[ly][k4]);
 
-            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
-            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+            afpvec4 b = lfp2afpvec4(tmp_b[lx][k4]);
 
-            sum0 += a0 * b0;
-            sum1 += a0 * b1;
-            sum2 += a1 * b0;
-            sum3 += a1 * b1;
+            sum0 += a.r * b;
+            sum1 += a.g * b;
+            sum2 += a.b * b;
+            sum3 += a.a * b;
         }
     }
 #else
     for (int k = 0; k < psc(K); k++)
     {
-        afp a0;
-        afp a1;
-        afp b0;
-        afp b1;
+        afpvec4 a;
         if (transA == 1)
         {
-            const int ai = k * p.A_hstep + gy;
-            a0 = buffer_ld1(A_blob_data, ai);
-            a1 = buffer_ld1(A_blob_data, ai + 1);
+            if (p.A_hstep % 4 == 0)
+            {
+                const uint ai = k * (p.A_hstep / 4) + gy;
+                a = buffer_ld4(A_blob_data, ai);
+            }
+            else
+            {
+                const uvec4 ai4 = k * p.A_hstep + gy * 4 + uvec4(0, 1, 2, 3);
+
+                const uvec4 ai4d4 = ai4 / 4;
+                const uvec4 ai4m4 = ai4 % 4;
+
+                a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+                a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+                a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+                a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
+            }
         }
         else
         {
-            const int ai = gy * p.A_hstep + k;
-            a0 = buffer_ld1(A_blob_data, ai);
-            a1 = buffer_ld1(A_blob_data, ai + p.A_hstep);
+            const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+            const uvec4 ai4 = gy4 * p.A_hstep + k;
+
+            const uvec4 ai4d4 = ai4 / 4;
+            const uvec4 ai4m4 = ai4 % 4;
+
+            a.r = buffer_ld4(A_blob_data, ai4d4.r)[ai4m4.r];
+            a.g = buffer_ld4(A_blob_data, ai4d4.g)[ai4m4.g];
+            a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
+            a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
         }
 
+        afpvec4 b;
         if (transB == 1)
         {
-            const int bi = gx * p.B_hstep + k;
-            b0 = buffer_ld1(B_blob_data, bi);
-            b1 = buffer_ld1(B_blob_data, bi + p.B_hstep);
+            const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+            const uvec4 bi4 = gx4 * p.B_hstep + k;
+
+            const uvec4 bi4d4 = bi4 / 4;
+            const uvec4 bi4m4 = bi4 % 4;
+
+            b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+            b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+            b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+            b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
         }
         else
         {
-            const int bi = k * p.B_hstep + gx;
-            b0 = buffer_ld1(B_blob_data, bi);
-            b1 = buffer_ld1(B_blob_data, bi + 1);
+            if (p.B_hstep % 4 == 0)
+            {
+                const uint bi = k * (p.B_hstep / 4) + gx;
+                b = buffer_ld4(B_blob_data, bi);
+            }
+            else
+            {
+                const uvec4 bi4 = k * p.B_hstep + gx * 4 + uvec4(0, 1, 2, 3);
+
+                const uvec4 bi4d4 = bi4 / 4;
+                const uvec4 bi4m4 = bi4 % 4;
+
+                b.r = buffer_ld4(B_blob_data, bi4d4.r)[bi4m4.r];
+                b.g = buffer_ld4(B_blob_data, bi4d4.g)[bi4m4.g];
+                b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
+                b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
+            }
         }
 
-        sum0 += a0 * b0;
-        sum1 += a0 * b1;
-        sum2 += a1 * b0;
-        sum3 += a1 * b1;
+        sum0 += a.r * b;
+        sum1 += a.g * b;
+        sum2 += a.b * b;
+        sum3 += a.a * b;
     }
 #endif
 
 #if NCNN_shader_local_memory
-    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+    if (gx * 4 >= psc(N) || gy * 4 >= psc(M) || gz >= 1)
         return;
 #endif
 
-    sum0 *= afp(alpha);
-    sum1 *= afp(alpha);
-    sum2 *= afp(alpha);
-    sum3 *= afp(alpha);
+    if (alpha != 1.f)
+    {
+        sum0 *= afp(alpha);
+        sum1 *= afp(alpha);
+        sum2 *= afp(alpha);
+        sum3 *= afp(alpha);
+    }
 
     if (output_transpose == 1)
     {
-        const int gi = gx * p.outhstep + gy;
+        const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+        const uvec4 gi4 = gx4 * p.outhstep + gy * 4;
 
-        buffer_st1(top_blob_data, gi, sum0);
-        if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + 1, sum2);
-        if (gx + 1 < psc(N))
+        buffer_st1(top_blob_data, gi4.r, sum0.r);
+        if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.r + 1, sum1.r);
+        if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.r + 2, sum2.r);
+        if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.r + 3, sum3.r);
+        if (gx4.g < psc(N))
         {
-            buffer_st1(top_blob_data, gi + p.outhstep, sum1);
-            if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + p.outhstep + 1, sum3);
+            buffer_st1(top_blob_data, gi4.g, sum0.g);
+            if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.g + 1, sum1.g);
+            if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.g + 2, sum2.g);
+            if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.g + 3, sum3.g);
+        }
+        if (gx4.b < psc(N))
+        {
+            buffer_st1(top_blob_data, gi4.b, sum0.b);
+            if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.b + 1, sum1.b);
+            if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.b + 2, sum2.b);
+            if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.b + 3, sum3.b);
+        }
+        if (gx4.a < psc(N))
+        {
+            buffer_st1(top_blob_data, gi4.a, sum0.a);
+            if (gy * 4 + 1 < psc(M)) buffer_st1(top_blob_data, gi4.a + 1, sum1.a);
+            if (gy * 4 + 2 < psc(M)) buffer_st1(top_blob_data, gi4.a + 2, sum2.a);
+            if (gy * 4 + 3 < psc(M)) buffer_st1(top_blob_data, gi4.a + 3, sum3.a);
         }
     }
     else
     {
-        const int gi = gy * p.outhstep + gx;
+        const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+        const uvec4 gi4 = gy4 * p.outhstep + gx * 4;
 
-        buffer_st1(top_blob_data, gi, sum0);
-        if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + 1, sum1);
-        if (gy + 1 < psc(M))
+        buffer_st1(top_blob_data, gi4.r, sum0.r);
+        if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.r + 1, sum0.g);
+        if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.r + 2, sum0.b);
+        if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.r + 3, sum0.a);
+        if (gy4.g < psc(M))
         {
-            buffer_st1(top_blob_data, gi + p.outhstep, sum2);
-            if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + p.outhstep + 1, sum3);
+            buffer_st1(top_blob_data, gi4.g, sum1.r);
+            if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.g + 1, sum1.g);
+            if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.g + 2, sum1.b);
+            if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.g + 3, sum1.a);
+        }
+        if (gy4.b < psc(M))
+        {
+            buffer_st1(top_blob_data, gi4.b, sum2.r);
+            if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.b + 1, sum2.g);
+            if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.b + 2, sum2.b);
+            if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.b + 3, sum2.a);
+        }
+        if (gy4.a < psc(M))
+        {
+            buffer_st1(top_blob_data, gi4.a, sum3.r);
+            if (gx * 4 + 1 < psc(N)) buffer_st1(top_blob_data, gi4.a + 1, sum3.g);
+            if (gx * 4 + 2 < psc(N)) buffer_st1(top_blob_data, gi4.a + 2, sum3.b);
+            if (gx * 4 + 3 < psc(N)) buffer_st1(top_blob_data, gi4.a + 3, sum3.a);
         }
     }
 }

@@ -85,7 +85,7 @@ static void convolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob
                 sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(_sum, __riscv_vfmv_s_f_f32m1(sum, vl), vl));
 #endif
 
-                sum = activation_ss(sum, activation_type, activation_params);
+                sum = (__fp16)activation_ss(sum, activation_type, activation_params);
 
                 outptr[j] = (__fp16)sum;
             }
@@ -140,14 +140,14 @@ static void convolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blo
         {
             for (int j = 0; j < outw; j++)
             {
-                __fp16 sum = 0.f;
+                __fp16 sum = (__fp16)0.f;
 
                 if (bias_data_ptr)
                 {
                     sum = bias_data_ptr[p];
                 }
 
-                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 const __fp16* kptr = weight_data_fp16.channel(p);
 
@@ -169,7 +169,7 @@ static void convolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blo
 
                 sum = __riscv_vfmv_f_s_f16m1_f16(__riscv_vfredusum_vs_f16m1_f16m1(_sum, __riscv_vfmv_s_f_f16m1(sum, vl), vl));
 
-                sum = activation_ss(sum, activation_type, activation_params);
+                sum = (__fp16)activation_ss(sum, activation_type, activation_params);
 
                 outptr[j] = sum;
             }

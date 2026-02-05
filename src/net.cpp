@@ -31,12 +31,6 @@ public:
 
     Option& opt;
 
-#if NCNN_VULKAN
-
-    int upload_model();
-
-#endif // NCNN_VULKAN
-
     friend class Extractor;
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
@@ -121,45 +115,6 @@ static Option get_masked_option(const Option& opt, int featmask)
 
     return opt1;
 }
-
-#if NCNN_VULKAN
-int NetPrivate::upload_model()
-{
-    ncnn::VkTransfer cmd(vkdev);
-
-    // create gpu device allocator if null
-    if (!weight_vkallocator)
-    {
-        weight_vkallocator = new VkWeightAllocator(vkdev);
-    }
-    if (!weight_staging_vkallocator)
-    {
-        weight_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
-    }
-
-    Option opt_upload = opt;
-    opt_upload.blob_allocator = 0;
-    opt_upload.workspace_allocator = 0;
-    opt_upload.blob_vkallocator = weight_vkallocator;
-    opt_upload.workspace_vkallocator = weight_vkallocator;
-    opt_upload.staging_vkallocator = weight_staging_vkallocator;
-
-    for (size_t i = 0; i < layers.size(); i++)
-    {
-        if (layers[i]->support_vulkan)
-        {
-            int uret = layers[i]->upload_model(cmd, get_masked_option(opt_upload, layers[i]->featmask));
-            if (uret != 0)
-            {
-                NCNN_LOGE("layer upload_model %d failed", (int)i);
-                return -1;
-            }
-        }
-    }
-
-    return cmd.submit_and_wait();
-}
-#endif // NCNN_VULKAN
 
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
@@ -1089,6 +1044,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1392,6 +1349,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1622,6 +1581,9 @@ int Net::load_model(const DataReader& dr)
     int ret = 0;
 
 #if NCNN_VULKAN
+    ncnn::VkTransfer* cmd_upload = 0;
+    Option opt_upload = opt;
+
     if (opt.use_vulkan_compute)
     {
         if (!opt.pipeline_cache)
@@ -1630,6 +1592,31 @@ int Net::load_model(const DataReader& dr)
                 d->pipeline_cache = new PipelineCache(d->vkdev);
             opt.pipeline_cache = d->pipeline_cache;
         }
+
+        cmd_upload = new ncnn::VkTransfer(d->vkdev);
+
+        // create gpu device allocator if null
+        if (!d->weight_vkallocator)
+        {
+            if (opt.use_weights_in_host_memory)
+            {
+                d->weight_vkallocator = new VkHostAllocator(d->vkdev);
+            }
+            else
+            {
+                d->weight_vkallocator = new VkWeightAllocator(d->vkdev);
+            }
+        }
+        if (!d->weight_staging_vkallocator)
+        {
+            d->weight_staging_vkallocator = new VkWeightStagingAllocator(d->vkdev);
+        }
+
+        opt_upload.blob_allocator = 0;
+        opt_upload.workspace_allocator = 0;
+        opt_upload.blob_vkallocator = d->weight_vkallocator;
+        opt_upload.workspace_vkallocator = d->weight_vkallocator;
+        opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
     }
 #endif // NCNN_VULKAN
 
@@ -1671,6 +1658,36 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+
+#if NCNN_VULKAN
+        if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
+        {
+            int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
+            if (uret != 0)
+            {
+#if NCNN_STRING
+                NCNN_LOGE("layer upload_model %d %s failed", i, layer->name.c_str());
+#else
+                NCNN_LOGE("layer upload_model %d failed", i);
+#endif
+                ret = -1;
+                break;
+            }
+
+            // commit as soon as we collect 256M pending
+            if (cmd_upload->pending_upload_total() > 256 * 1024 * 1024)
+            {
+                uret = cmd_upload->submit_and_wait();
+                if (uret != 0)
+                {
+                    ret = -1;
+                    break;
+                }
+
+                cmd_upload->reset();
+            }
+        }
+#endif // NCNN_VULKAN
     }
 
     if (opt.use_local_pool_allocator)
@@ -1694,9 +1711,14 @@ int Net::load_model(const DataReader& dr)
     }
 
 #if NCNN_VULKAN
-    if (ret == 0 && opt.use_vulkan_compute)
+    if (ret == 0 && opt.use_vulkan_compute && cmd_upload)
     {
-        ret = d->upload_model();
+        ret = cmd_upload->submit_and_wait();
+    }
+
+    if (cmd_upload)
+    {
+        delete cmd_upload;
     }
 #endif // NCNN_VULKAN
 

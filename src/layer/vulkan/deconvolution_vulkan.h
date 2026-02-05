@@ -42,6 +42,7 @@ public:
     int coopmat_M;
     int coopmat_N;
     int coopmat_K;
+    int coopmat_subgroup_size;
     int UNROLL_SG_M;
     int UNROLL_SG_N;
     int UNROLL_SG_K;
