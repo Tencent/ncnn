@@ -1617,7 +1617,6 @@ int Net::load_model(const DataReader& dr)
         opt_upload.blob_vkallocator = d->weight_vkallocator;
         opt_upload.workspace_vkallocator = d->weight_vkallocator;
         opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
-
     }
 #endif // NCNN_VULKAN
 
