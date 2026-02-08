@@ -637,6 +637,7 @@ void GpuInfoPrivate::query_memory_properties()
 
                     if ((memoryType.propertyFlags & required_not) != 0)
                     {
+                        // some driver treats a portion of host memory as device local heap, do not select this option
                         resizable_bar_enabled = false;
                         break;
                     }
