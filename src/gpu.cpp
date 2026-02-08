@@ -628,14 +628,14 @@ void GpuInfoPrivate::query_memory_properties()
             if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
             {
                 VkFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-                VkFlags required_not = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                VkFlags disallowed = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
                 for (uint32_t j = 0; j < physicalDeviceMemoryProperties.memoryTypeCount; j++)
                 {
                     const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
                     if (memoryType.heapIndex != i)
                         continue;
 
-                    if ((memoryType.propertyFlags & required_not) != 0)
+                    if ((memoryType.propertyFlags & disallowed) != 0)
                     {
                         // some driver treats a portion of host memory as device local heap, do not select this option
                         resizable_bar_enabled = false;
