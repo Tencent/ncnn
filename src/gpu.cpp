@@ -646,7 +646,9 @@ void GpuInfoPrivate::query_memory_properties()
                         resizable_bar_enabled = true;
                     }
                 }
-                break;
+
+                if (resizable_bar_enabled)
+                    break;
             }
         }
     }
