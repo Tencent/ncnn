@@ -252,6 +252,7 @@ public:
 
     // property
     bool unified_compute_transfer_queue() const;
+    bool resizable_bar_enabled() const;
 
     // subgroup
     uint32_t subgroup_size() const;

@@ -256,6 +256,7 @@ public:
     void query_features();
     void query_properties();
     void query_queue_properties();
+    void query_memory_properties();
     int query_extensions();
     void query_extension_features();
     void query_extension_properties();
@@ -293,6 +294,7 @@ public:
 
     // property
     bool unified_compute_transfer_queue;
+    bool resizable_bar_enabled;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -607,6 +609,52 @@ void GpuInfoPrivate::query_queue_properties()
     transfer_queue_count = queueFamilyProperties[transfer_queue_family_index].queueCount;
 
     unified_compute_transfer_queue = compute_queue_family_index == transfer_queue_family_index;
+}
+
+void GpuInfoPrivate::query_memory_properties()
+{
+    // cache memory properties
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
+
+    if (type == 0)
+    {
+        // discrete gpu
+        resizable_bar_enabled = false;
+
+        // find heap that is device local and host visible and not host cached
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                VkFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+                VkFlags required_not = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                for (uint32_t j = 0; j < physicalDeviceMemoryProperties.memoryTypeCount; j++)
+                {
+                    const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
+                    if (memoryType.heapIndex != i)
+                        continue;
+
+                    if ((memoryType.propertyFlags & required_not) != 0)
+                    {
+                        resizable_bar_enabled = false;
+                        break;
+                    }
+
+                    if ((memoryType.propertyFlags & required) == required)
+                    {
+                        resizable_bar_enabled = true;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    else
+    {
+        // integrated gpu
+        resizable_bar_enabled = true;
+    }
 }
 
 int GpuInfoPrivate::query_extensions()
@@ -1613,6 +1661,11 @@ uint32_t GpuInfo::transfer_queue_count() const
 bool GpuInfo::unified_compute_transfer_queue() const
 {
     return d->unified_compute_transfer_queue;
+}
+
+bool GpuInfo::resizable_bar_enabled() const
+{
+    return d->resizable_bar_enabled;
 }
 
 uint32_t GpuInfo::subgroup_size() const
@@ -2769,8 +2822,7 @@ int create_gpu_instance(const char* driver_path)
 
         gpu_info.d->query_queue_properties();
 
-        // cache memory properties
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.d->physicalDeviceMemoryProperties);
+        gpu_info.d->query_memory_properties();
 
         int rqde = gpu_info.d->query_extensions();
         if (rqde != 0)
@@ -2781,9 +2833,9 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_features();
         gpu_info.d->query_extension_properties();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]", i, gpu_info.device_name(),
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count());
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled());
 
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
