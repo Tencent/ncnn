@@ -648,8 +648,10 @@ void GpuInfoPrivate::query_memory_properties()
                     }
                 }
 
-                if (resizable_bar_enabled)
-                    break;
+                // subsequent device local heap is no longer considered
+                // amd may declare a small device local + host visible heap for uploading
+                // resizable bar feature is for the main device heap anyway
+                break;
             }
         }
     }
