@@ -91,6 +91,8 @@
 #endif
 #endif // __ANDROID_API__ >= 26
 
+#include <stddef.h>
+
 namespace ncnn {
 
 #if NCNN_THREADS

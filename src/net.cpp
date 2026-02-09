@@ -1857,6 +1857,29 @@ int Net::load_model(const char* modelpath)
 #if _WIN32
 int Net::load_model(const wchar_t* modelpath)
 {
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret != 0)
+        {
+            NCNN_LOGE("mapped_file open %s failed", modelpath);
+            return -1;
+        }
+
+        const void* ptr = d->mapped_model_file.mapped_ptr();
+        const size_t size = d->mapped_model_file.size();
+        size_t consumed = load_model((const unsigned char*)ptr);
+        if (consumed != size)
+        {
+            NCNN_LOGE("mapped_file consumed %zd != %zd", consumed, size);
+            return -1;
+        }
+
+        return 0;
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
     FILE* fp = _wfopen(modelpath, L"rb");
     if (!fp)
     {
