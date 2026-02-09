@@ -51,7 +51,6 @@ shared uvec4 tmp_q[M * Kd8p];
 shared uvec4 tmp_k[N * Kd8p];
 
 shared float tmp_s[M * Np];
-shared float tmp_o[M * Np];
 
 // parallel reduction
 shared float tmp_scratch[M * (local_size / M)];
@@ -261,8 +260,8 @@ void main()
                         local_max = max(local_max, tmp_s[row_id * Np + col]);
                     }
                 }
+                tmp_scratch[row_id * threads_per_row + lane] = local_max;
             }
-            tmp_scratch[row_id * threads_per_row + lane] = local_max;
 
             barrier();
 
@@ -307,8 +306,8 @@ void main()
                     tmp_s[row_id * Np + col] = val;
                     local_sum += val;
                 }
+                tmp_scratch[row_id * threads_per_row + lane] = local_sum;
             }
-            tmp_scratch[row_id * threads_per_row + lane] = local_sum;
 
             barrier();
 
