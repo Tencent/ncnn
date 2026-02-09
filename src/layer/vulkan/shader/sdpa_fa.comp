@@ -1,0 +1,457 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_EXT_control_flow_attributes : require
+
+layout(constant_id = 0) const int attn_mask = 0;
+
+layout(constant_id = 1 + 0) const uint M = 4;
+layout(constant_id = 1 + 1) const uint N = 32;
+layout(constant_id = 1 + 2) const uint K = 32;
+layout(constant_id = 1 + 3) const uint subgroup_size = 32;
+layout(constant_id = 1 + 4) const uint local_size = 256;
+layout(constant_id = 1 + 5) const uint MAX_OUT_CHUNKS = 4;
+
+layout(binding = 0) readonly buffer Q_blob { uvec4 Q_blob_data[]; };
+layout(binding = 1) readonly buffer K_blob { uvec4 K_blob_data[]; };
+layout(binding = 2) readonly buffer V_blob { uvec4 V_blob_data[]; };
+layout(binding = 3) writeonly buffer top_blob { uvec4 top_blob_data[]; };
+layout(binding = 4) readonly buffer mask_blob { sfp mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    float scale;
+    int src_seqlen;
+    int dst_seqlen;
+    int embed_dim;
+    int out_embed_dim;
+    int num_heads;
+    int attn_mask_dims;
+    int num_heads_per_group;
+    int Q_cstep;
+    int K_cstep;
+    int V_cstep;
+    int out_cstep;
+    int mask_cstep;
+} p;
+
+const uint Kd8 = K / 8;
+const uint Nd8 = N / 8;
+
+// +1 pad to avoid shared memory bank conflicts (32 banks, 4-byte stride)
+#define PAD 1
+
+const uint Kd8p = Kd8 + PAD;
+const uint Nd8p = Nd8 + PAD;
+const uint Np = N + PAD;
+
+shared uvec4 tmp_q[M * Kd8p];
+shared uvec4 tmp_k[N * Kd8p];
+
+shared float tmp_s[M * Np];
+shared float tmp_o[M * Np];
+
+// parallel reduction
+shared float tmp_scratch[M * (local_size / M)];
+
+shared float smem_row_max[M];
+shared float smem_row_sum[M];
+shared float smem_correction[M];
+
+void main()
+{
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    if (gz >= p.num_heads)
+        return;
+
+    // neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
+//     const uint local_size = subgroup_size * UNROLL_WG_M;
+
+    const uint wgi = gl_WorkGroupID.x;
+    const uint li = gl_LocalInvocationID.x;
+
+    const uint wgmm = (p.src_seqlen + M - 1) / M;
+
+    if (wgi >= wgmm)
+        return;
+
+//     const uint mi = (wgi * UNROLL_WG_M + sgi) * UNROLL_SG_M;
+
+    const uint dst_seqlen_d16 = (p.dst_seqlen + N - 1) / N;
+    const uint embed_dim_d16 = (p.embed_dim + K - 1) / K;
+
+    const int kv_head_idx = gz / p.num_heads_per_group;
+
+
+    // initialize output accumulators
+    vec4 om[MAX_OUT_CHUNKS][(M * Nd8 + (local_size - 1)) / local_size][2];
+    [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+    {
+        [[unroll]] for (uint i = 0; i < (M * Nd8 + (local_size - 1)) / local_size; i++)
+        {
+            om[c][i][0] = vec4(0.f);
+            om[c][i][1] = vec4(0.f);
+        }
+    }
+
+    // initialize row statistics
+    [[unroll]] for (uint i = li; i < M; i += local_size)
+    {
+        smem_row_max[i] = -3.402823e+38f;
+        smem_row_sum[i] = 0.f;
+        smem_correction[i] = 1.f;
+    }
+
+    // loop on dst_seqlen
+
+    uint j = 0;
+
+    [[dont_unroll]] for (; j < dst_seqlen_d16; j++)
+    {
+        float qkm[(M * N + (local_size - 1)) / local_size];
+        [[unroll]] for (uint i = 0; i < (M * N + (local_size - 1)) / local_size; i++)
+        {
+            qkm[i] = 0.f;
+        }
+
+        // P = QK
+        for (uint k = 0; k < embed_dim_d16; k++)
+        {
+            barrier();
+
+            // load Q
+            [[unroll]] for (uint idx = li; idx < M * Kd8; idx += local_size)
+            {
+                const uint row = idx / Kd8;
+                const uint col = idx % Kd8;
+
+                const uint gm = wgi * M + row;
+                const uint gk = k * Kd8 + col;
+
+                uvec4 v = uvec4(0);
+                if (gm < p.src_seqlen && gk * 8 < p.embed_dim)
+                {
+                    const uint qi = gz * (p.Q_cstep / 8) + gm * (p.embed_dim / 8) + gk;
+                    v = Q_blob_data[qi];
+                }
+
+                tmp_q[row * Kd8p + col] = v;
+            }
+
+            // load K
+            [[unroll]] for (uint idx = li; idx < N * Kd8; idx += local_size)
+            {
+                const uint row = idx / Kd8;
+                const uint col = idx % Kd8;
+
+                const uint gn = j * N + row;
+                const uint gk = k * Kd8 + col;
+
+                uvec4 v = uvec4(0);
+                if (gn < p.dst_seqlen && gk * 8 < p.embed_dim)
+                {
+                    const uint ki = kv_head_idx * (p.K_cstep / 8) + gn * (p.embed_dim / 8) + gk;
+                    v = K_blob_data[ki];
+                }
+
+                tmp_k[row * Kd8p + col] = v;
+            }
+
+            barrier();
+
+            [[unroll]] for (uint i = 0; i < (M * N + (local_size - 1)) / local_size; i++)
+            {
+                const uint idx = li + i * local_size;
+                if (idx < M * N)
+                {
+                    const uint row = idx / N;
+                    const uint col = idx % N;
+
+                    float acc = 0.f;
+
+                    [[unroll]] for (uint e = 0; e < Kd8; e++)
+                    {
+                        const uvec4 qa = tmp_q[row * Kd8p + e];
+                        const uvec4 kb = tmp_k[col * Kd8p + e];
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                        acc += dot(unpackBFloat2x16(qa.x), unpackBFloat2x16(kb.x))
+                                + dot(unpackBFloat2x16(qa.y), unpackBFloat2x16(kb.y))
+                                + dot(unpackBFloat2x16(qa.z), unpackBFloat2x16(kb.z))
+                                + dot(unpackBFloat2x16(qa.w), unpackBFloat2x16(kb.w));
+#else
+                        acc += dot(unpackHalf2x16(qa.x), unpackHalf2x16(kb.x))
+                                + dot(unpackHalf2x16(qa.y), unpackHalf2x16(kb.y))
+                                + dot(unpackHalf2x16(qa.z), unpackHalf2x16(kb.z))
+                                + dot(unpackHalf2x16(qa.w), unpackHalf2x16(kb.w));
+#endif
+                    }
+
+                    qkm[i] += acc;
+                }
+            }
+        }
+
+        // P *= scale
+        [[unroll]] for (uint i = 0; i < (M * N + (local_size - 1)) / local_size; i++)
+        {
+            qkm[i] *= p.scale;
+        }
+
+        // P += mask
+        if (attn_mask != 0)
+        {
+            [[unroll]] for (uint i = 0; i < (M * N + (local_size - 1)) / local_size; i++)
+            {
+                const uint idx = li + i * local_size;
+                if (idx < M * N)
+                {
+                    const uint row = idx / N;
+                    const uint col = idx % N;
+
+                    const uint gm = wgi * M + row;
+                    const uint gn = j * N + col;
+
+                    float mask = 0.f;
+                    if (gm < p.src_seqlen && gn < p.dst_seqlen)
+                    {
+                        const uint mask_head = (p.attn_mask_dims == 3) ? gz : 0;
+                        const uint mmi = mask_head * p.mask_cstep + gm * p.dst_seqlen + gn;
+
+                        mask = buffer_ld1(mask_blob_data, mmi);
+                    }
+
+                    qkm[i] += mask;
+                }
+            }
+        }
+
+        // online softmax
+        {
+            // P -> tmp_s
+            [[unroll]] for (uint i = 0; i < (M * N + (local_size - 1)) / local_size; i++)
+            {
+                const uint idx = li + i * local_size;
+                if (idx < M * N)
+                {
+                    const uint row = idx / N;
+                    const uint col = idx % N;
+
+                    tmp_s[row * Np + col] = qkm[i];
+                }
+            }
+
+            barrier();
+
+            const uint threads_per_row = local_size / M;
+            const uint row_id = li / threads_per_row;
+            const uint lane   = li % threads_per_row;
+
+            // Step 1: Parallel row-max
+            float local_max = -3.402823e+38f;
+            if (row_id < M)
+            {
+                const uint gm = wgi * M + row_id;
+                for (uint col = lane; col < N; col += threads_per_row)
+                {
+                    if (gm < p.src_seqlen && (j * N + col) < p.dst_seqlen)
+                    {
+                        local_max = max(local_max, tmp_s[row_id * Np + col]);
+                    }
+                }
+            }
+            tmp_scratch[row_id * threads_per_row + lane] = local_max;
+
+            barrier();
+
+            // Tree reduce max
+            [[unroll]] for (uint s = threads_per_row / 2; s > 0; s >>= 1)
+            {
+                if (row_id < M && lane < s)
+                {
+                    tmp_scratch[row_id * threads_per_row + lane] = max(
+                        tmp_scratch[row_id * threads_per_row + lane],
+                        tmp_scratch[row_id * threads_per_row + lane + s]);
+                }
+                barrier();
+            }
+
+            // Update row stats
+            if (row_id < M && lane == 0)
+            {
+                const float tile_max  = tmp_scratch[row_id * threads_per_row];
+                const float old_max   = smem_row_max[row_id];
+                const float new_max   = max(old_max, tile_max);
+                smem_correction[row_id] = exp(old_max - new_max);
+                smem_row_max[row_id]    = new_max;
+            }
+
+            barrier();
+
+            // Step 2: exp(val - new_max), partial sum
+            float local_sum = 0.f;
+            if (row_id < M)
+            {
+                const uint gm = wgi * M + row_id;
+                const float new_max = smem_row_max[row_id];
+
+                for (uint col = lane; col < N; col += threads_per_row)
+                {
+                    float val = 0.f;
+                    if (gm < p.src_seqlen && (j * N + col) < p.dst_seqlen)
+                    {
+                        val = exp(tmp_s[row_id * Np + col] - new_max);
+                    }
+                    tmp_s[row_id * Np + col] = val;
+                    local_sum += val;
+                }
+            }
+            tmp_scratch[row_id * threads_per_row + lane] = local_sum;
+
+            barrier();
+
+            // Tree reduce sum
+            [[unroll]] for (uint s = threads_per_row / 2; s > 0; s >>= 1)
+            {
+                if (row_id < M && lane < s)
+                {
+                    tmp_scratch[row_id * threads_per_row + lane] +=
+                        tmp_scratch[row_id * threads_per_row + lane + s];
+                }
+                barrier();
+            }
+
+            if (row_id < M && lane == 0)
+            {
+                smem_row_sum[row_id] = smem_row_sum[row_id] * smem_correction[row_id]
+                                     + tmp_scratch[row_id * threads_per_row];
+            }
+
+            barrier();
+        }
+
+        // O *= correction
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        {
+            [[unroll]] for (uint i = 0; i < (M * Nd8 + (local_size - 1)) / local_size; i++)
+            {
+                const uint idx = li + i * local_size;
+                if (idx < M * Nd8)
+                {
+                const uint row = idx / Nd8;
+                const uint col = idx % Nd8;
+
+                om[c][i][0] *= smem_correction[row];
+                om[c][i][1] *= smem_correction[row];
+                }
+            }
+        }
+
+        // O += PV
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        {
+            barrier();
+
+            // P is already inside tmp_s
+
+            // load V
+            [[unroll]] for (uint idx = li; idx < N * Nd8; idx += local_size)
+            {
+                const uint row = idx / Nd8;
+                const uint col = idx % Nd8;
+
+                const uint gn = j * N + row;
+                const uint gk = c * Nd8 + col;
+
+                uvec4 v = uvec4(0);
+                if (gn < p.dst_seqlen && gk * 8 < p.out_embed_dim)
+                {
+                    const uint vi = kv_head_idx * (p.V_cstep / 8) + gn * (p.out_embed_dim / 8) + gk;
+                    v = V_blob_data[vi];
+                }
+
+                tmp_k[row * Nd8p + col] = v;
+            }
+
+            barrier();
+
+            [[unroll]] for (uint i = 0; i < (M * Nd8 + (local_size - 1)) / local_size; i++)
+            {
+                const uint idx = li + i * local_size;
+                if (idx < M * Nd8)
+                {
+                    const uint row = idx / Nd8;
+                    const uint col = idx % Nd8;
+
+                    vec4 acc0 = vec4(0.f);
+                    vec4 acc1 = vec4(0.f);
+
+                    [[unroll]] for (uint n = 0; n < N; n++)
+                    {
+                        const float pv = tmp_s[row * Np + n];
+                        const uvec4 vv = tmp_k[n * Nd8p + col];
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                        vec4 vv0 = vec4(unpackBFloat2x16(vv.x), unpackBFloat2x16(vv.y));
+                        vec4 vv1 = vec4(unpackBFloat2x16(vv.z), unpackBFloat2x16(vv.w));
+#else
+                        vec4 vv0 = vec4(unpackHalf2x16(vv.x), unpackHalf2x16(vv.y));
+                        vec4 vv1 = vec4(unpackHalf2x16(vv.z), unpackHalf2x16(vv.w));
+#endif
+
+                        acc0 += pv * vv0;
+                        acc1 += pv * vv1;
+                    }
+
+                    om[c][i][0] += acc0;
+                    om[c][i][1] += acc1;
+                }
+            }
+        }
+    }
+
+    // O = O / row_sum
+    // store top_blob
+    for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+    {
+        [[unroll]] for (uint i = 0; i < (M * Nd8 + (local_size - 1)) / local_size; i++)
+        {
+            const uint idx = li + i * local_size;
+            if (idx < M * Nd8)
+            {
+                const uint row = idx / Nd8;
+                const uint col = idx % Nd8;
+
+                const uint out_row = wgi * M + row;
+                const uint out_col = c * Nd8 + col;
+
+                if (out_row < p.src_seqlen && out_col * 8 < p.out_embed_dim)
+                {
+                    float inv_sum = 1.0f / smem_row_sum[row];
+
+                    vec4 v0 = om[c][i][0] * inv_sum;
+                    vec4 v1 = om[c][i][1] * inv_sum;
+
+                    uvec4 out_data;
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                    out_data.x = packBFloat2x16(v0.rg);
+                    out_data.y = packBFloat2x16(v0.ba);
+                    out_data.z = packBFloat2x16(v1.rg);
+                    out_data.w = packBFloat2x16(v1.ba);
+#else
+                    out_data.x = packHalf2x16(v0.rg);
+                    out_data.y = packHalf2x16(v0.ba);
+                    out_data.z = packHalf2x16(v1.rg);
+                    out_data.w = packHalf2x16(v1.ba);
+#endif
+
+                    const uint out_idx = gz * (p.out_cstep / 8) + out_row * (p.out_embed_dim / 8) + out_col;
+                    top_blob_data[out_idx] = out_data;
+                }
+            }
+        }
+    }
+}

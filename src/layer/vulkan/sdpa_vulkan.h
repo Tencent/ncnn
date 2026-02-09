@@ -28,6 +28,7 @@ public:
     Pipeline* pipeline_sdpa_qk_cross;
     Pipeline* pipeline_sdpa_qkv_cross;
 
+    // flash attention
     Pipeline* pipeline_sdpa_fa[8];
 
     bool use_flash_attention;
