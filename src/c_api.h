@@ -324,8 +324,8 @@ NCNN_EXPORT int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path);
 NCNN_EXPORT int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem);
 #endif /* NCNN_STRING */
 #endif /* NCNN_STDIO */
-NCNN_EXPORT int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem);
-NCNN_EXPORT int ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem);
+NCNN_EXPORT size_t ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem);
+NCNN_EXPORT size_t ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem);
 
 #if NCNN_STRING
 NCNN_EXPORT int ncnn_net_load_param_datareader(ncnn_net_t net, const ncnn_datareader_t dr);
