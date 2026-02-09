@@ -379,7 +379,8 @@ public:
     }
     void close()
     {
-        if (ptr) { munmap(ptr, _size); ptr = 0; }
+        if (ptr && ptr != MAP_FAILED) { munmap(ptr, _size); }
+        ptr = 0;
         if (fd >= 0) { ::close(fd); fd = -1; }
         _size = 0;
     }

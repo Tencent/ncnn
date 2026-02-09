@@ -1834,7 +1834,7 @@ int Net::load_model(const char* modelpath)
         size_t consumed = load_model((const unsigned char*)ptr);
         if (consumed != size)
         {
-            NCNN_LOGE("mapped_file consumed %zd != %zd", consumed, size);
+            NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
             return -1;
         }
 
@@ -1863,7 +1863,7 @@ int Net::load_model(const wchar_t* modelpath)
         int ret = d->mapped_model_file.open(modelpath);
         if (ret != 0)
         {
-            NCNN_LOGE("mapped_file open %s failed", modelpath);
+            NCNN_LOGE("mapped_file open %ls failed", modelpath);
             return -1;
         }
 
@@ -1872,7 +1872,7 @@ int Net::load_model(const wchar_t* modelpath)
         size_t consumed = load_model((const unsigned char*)ptr);
         if (consumed != size)
         {
-            NCNN_LOGE("mapped_file consumed %zd != %zd", consumed, size);
+            NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
             return -1;
         }
 
