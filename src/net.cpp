@@ -1823,23 +1823,22 @@ int Net::load_model(const char* modelpath)
     if (opt.use_mapped_model_loading)
     {
         int ret = d->mapped_model_file.open(modelpath);
-        if (ret != 0)
+        if (ret == 0)
         {
-            NCNN_LOGE("mapped_file open %s failed", modelpath);
-            return -1;
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
         }
 
-        const void* ptr = d->mapped_model_file.mapped_ptr();
-        const size_t size = d->mapped_model_file.size();
-        size_t consumed = load_model((const unsigned char*)ptr);
-        if (consumed != size)
-        {
-            NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
-            d->mapped_model_file.close();
-            return -1;
-        }
-
-        return 0;
+        // fallback to regular file loading
     }
 #endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 
@@ -1862,23 +1861,22 @@ int Net::load_model(const wchar_t* modelpath)
     if (opt.use_mapped_model_loading)
     {
         int ret = d->mapped_model_file.open(modelpath);
-        if (ret != 0)
+        if (ret == 0)
         {
-            NCNN_LOGE("mapped_file open %ls failed", modelpath);
-            return -1;
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
         }
 
-        const void* ptr = d->mapped_model_file.mapped_ptr();
-        const size_t size = d->mapped_model_file.size();
-        size_t consumed = load_model((const unsigned char*)ptr);
-        if (consumed != size)
-        {
-            NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
-            d->mapped_model_file.close();
-            return -1;
-        }
-
-        return 0;
+        // fallback to regular file loading
     }
 #endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 
