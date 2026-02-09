@@ -67,9 +67,6 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
-    // use_cooperative_matrix = false;
-    // use_bf16_cooperative_matrix = false;
-
     use_flash_attention = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
 
     if (use_flash_attention)
@@ -135,6 +132,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             FA_coopmat_K = 32;
             int subgroup_size = vkdev->info.subgroup_size();
             int local_size = subgroup_size * 4;
+
+            // assert FA_coopmat_N == FA_coopmat_K
+            // assert local_size % FA_coopmat_M == 0
 
             // fa
             std::vector<vk_specialization_type> specializations(1 + 6);
