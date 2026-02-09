@@ -68,7 +68,7 @@ void main()
         return;
 
     // neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
-//     const uint local_size = subgroup_size * UNROLL_WG_M;
+    //     const uint local_size = subgroup_size * UNROLL_WG_M;
 
     const uint wgi = gl_WorkGroupID.x;
     const uint li = gl_LocalInvocationID.x;
@@ -78,13 +78,12 @@ void main()
     if (wgi >= wgmm)
         return;
 
-//     const uint mi = (wgi * UNROLL_WG_M + sgi) * UNROLL_SG_M;
+    //     const uint mi = (wgi * UNROLL_WG_M + sgi) * UNROLL_SG_M;
 
     const uint dst_seqlen_d16 = (p.dst_seqlen + N - 1) / N;
     const uint embed_dim_d16 = (p.embed_dim + K - 1) / K;
 
     const int kv_head_idx = gz / p.num_heads_per_group;
-
 
     // initialize output accumulators
     vec4 om[MAX_OUT_CHUNKS][(M * Nd8 + (local_size - 1)) / local_size][2];
@@ -179,14 +178,14 @@ void main()
 
 #if NCNN_bf16_storage || NCNN_bf16_packed
                         acc += dot(unpackBFloat2x16(qa.x), unpackBFloat2x16(kb.x))
-                                + dot(unpackBFloat2x16(qa.y), unpackBFloat2x16(kb.y))
-                                + dot(unpackBFloat2x16(qa.z), unpackBFloat2x16(kb.z))
-                                + dot(unpackBFloat2x16(qa.w), unpackBFloat2x16(kb.w));
+                               + dot(unpackBFloat2x16(qa.y), unpackBFloat2x16(kb.y))
+                               + dot(unpackBFloat2x16(qa.z), unpackBFloat2x16(kb.z))
+                               + dot(unpackBFloat2x16(qa.w), unpackBFloat2x16(kb.w));
 #else
                         acc += dot(unpackHalf2x16(qa.x), unpackHalf2x16(kb.x))
-                                + dot(unpackHalf2x16(qa.y), unpackHalf2x16(kb.y))
-                                + dot(unpackHalf2x16(qa.z), unpackHalf2x16(kb.z))
-                                + dot(unpackHalf2x16(qa.w), unpackHalf2x16(kb.w));
+                               + dot(unpackHalf2x16(qa.y), unpackHalf2x16(kb.y))
+                               + dot(unpackHalf2x16(qa.z), unpackHalf2x16(kb.z))
+                               + dot(unpackHalf2x16(qa.w), unpackHalf2x16(kb.w));
 #endif
                     }
 
@@ -248,7 +247,7 @@ void main()
 
             const uint threads_per_row = local_size / M;
             const uint row_id = li / threads_per_row;
-            const uint lane   = li % threads_per_row;
+            const uint lane = li % threads_per_row;
 
             // Step 1: Parallel row-max
             float local_max = -3.402823e+38f;
@@ -282,11 +281,11 @@ void main()
             // Update row stats
             if (row_id < M && lane == 0)
             {
-                const float tile_max  = tmp_scratch[row_id * threads_per_row];
-                const float old_max   = smem_row_max[row_id];
-                const float new_max   = max(old_max, tile_max);
+                const float tile_max = tmp_scratch[row_id * threads_per_row];
+                const float old_max = smem_row_max[row_id];
+                const float new_max = max(old_max, tile_max);
                 smem_correction[row_id] = exp(old_max - new_max);
-                smem_row_max[row_id]    = new_max;
+                smem_row_max[row_id] = new_max;
             }
 
             barrier();
@@ -318,8 +317,7 @@ void main()
             {
                 if (row_id < M && lane < s)
                 {
-                    tmp_scratch[row_id * threads_per_row + lane] +=
-                        tmp_scratch[row_id * threads_per_row + lane + s];
+                    tmp_scratch[row_id * threads_per_row + lane] += tmp_scratch[row_id * threads_per_row + lane + s];
                 }
                 barrier();
             }
@@ -327,7 +325,7 @@ void main()
             if (row_id < M && lane == 0)
             {
                 smem_row_sum[row_id] = smem_row_sum[row_id] * smem_correction[row_id]
-                                     + tmp_scratch[row_id * threads_per_row];
+                                       + tmp_scratch[row_id * threads_per_row];
             }
 
             barrier();
@@ -341,11 +339,11 @@ void main()
                 const uint idx = li + i * local_size;
                 if (idx < M * Nd8)
                 {
-                const uint row = idx / Nd8;
-                const uint col = idx % Nd8;
+                    const uint row = idx / Nd8;
+                    const uint col = idx % Nd8;
 
-                om[c][i][0] *= smem_correction[row];
-                om[c][i][1] *= smem_correction[row];
+                    om[c][i][0] *= smem_correction[row];
+                    om[c][i][1] *= smem_correction[row];
                 }
             }
         }
