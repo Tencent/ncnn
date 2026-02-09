@@ -1835,6 +1835,7 @@ int Net::load_model(const char* modelpath)
         if (consumed != size)
         {
             NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+            d->mapped_model_file.close();
             return -1;
         }
 
@@ -1873,6 +1874,7 @@ int Net::load_model(const wchar_t* modelpath)
         if (consumed != size)
         {
             NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+            d->mapped_model_file.close();
             return -1;
         }
 

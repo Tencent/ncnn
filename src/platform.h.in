@@ -312,7 +312,7 @@ public:
         _size = (size_t)liSize.QuadPart;
         if (_size == 0) { close(); return -1; }
 
-        HANDLE mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
+        mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
         if (!mapping) { close(); return -1; }
 
         ptr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
@@ -332,7 +332,7 @@ public:
         _size = (size_t)liSize.QuadPart;
         if (_size == 0) { close(); return -1; }
 
-        HANDLE mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
+        mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
         if (!mapping) { close(); return -1; }
 
         ptr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
@@ -397,7 +397,7 @@ class NCNN_EXPORT MappedFile
 public:
     MappedFile() {}
     ~MappedFile() {}
-    int open(const char* path) { return -1; }
+    int open(const char* /*path*/) { return -1; }
     void close() {}
     const void* mapped_ptr() const { return 0; }
     size_t size() const { return 0; }
