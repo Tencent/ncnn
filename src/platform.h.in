@@ -69,7 +69,7 @@
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
+#elif defined __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -344,7 +344,7 @@ public:
         if (file != INVALID_HANDLE_VALUE) { CloseHandle(file); file = INVALID_HANDLE_VALUE; }
         _size = 0;
     }
-    void* mapped_ptr() const { return ptr; }
+    const void* mapped_ptr() const { return ptr; }
     size_t size() const { return _size; }
 private:
     void* ptr;
@@ -352,7 +352,7 @@ private:
     HANDLE file;
     HANDLE mapping;
 };
-#else // defined _WIN32
+#elif defined __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 class NCNN_EXPORT MappedFile
 {
 public:
@@ -381,14 +381,25 @@ public:
         if (fd >= 0) { ::close(fd); fd = -1; }
         _size = 0;
     }
-    void* mapped_ptr() const { return ptr; }
+    const void* mapped_ptr() const { return ptr; }
     size_t size() const { return _size; }
 private:
     void* ptr;
     size_t _size;
     int fd;
 };
-#endif // defined _WIN32
+#else // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+class NCNN_EXPORT MappedFile
+{
+public:
+    MappedFile() {}
+    ~MappedFile() {}
+    int open(const char* path) { return -1; }
+    void close() {}
+    const void* mapped_ptr() const { return 0; }
+    size_t size() const { return 0; }
+};
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 
 static inline void swap_endianness_16(void* x)
 {

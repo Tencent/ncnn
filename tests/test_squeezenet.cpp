@@ -436,6 +436,9 @@ int main()
     opts[2].use_bf16_storage = false; // FIXME enable me
     opts[2].blob_allocator = &g_blob_pool_allocator;
     opts[2].workspace_allocator = &g_workspace_pool_allocator;
+    opts[2].use_weights_in_host_memory = true;
+    opts[2].use_mapped_model_loading = true;
+    opts[2].use_local_pool_allocator = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
