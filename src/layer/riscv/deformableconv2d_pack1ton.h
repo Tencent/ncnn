@@ -35,7 +35,7 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                 vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
                 if (bias_data_ptr)
                     _sum = __riscv_vle32_v_f32m1(bias_data_ptr + oc * packn, vl);
-                
+
                 for (int i = 0; i < kernel_h; i++)
                 {
                     for (int j = 0; j < kernel_w; j++)
@@ -119,7 +119,7 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                         for (int ic = 0; ic < inch; ic++)
                         {
                             const float* data_im_ptr = bottom_blob.channel(ic);
-                            
+
                             if (cond)
                             {
                                 float v_in = 0.f;
@@ -127,13 +127,13 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                                 if (v2_cond) v_in += data_im_ptr[v2_pos] * w2;
                                 if (v3_cond) v_in += data_im_ptr[v3_pos] * w3;
                                 if (v4_cond) v_in += data_im_ptr[v4_pos] * w4;
-                                
+
                                 if (has_mask) v_in *= mask_;
-                                
+
                                 vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr, vl);
                                 _sum = __riscv_vfmacc_vf_f32m1(_sum, v_in, _w, vl);
                             }
-                            
+
                             kptr += packn;
                         }
                     }
@@ -144,4 +144,3 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
         }
     }
 }
-
