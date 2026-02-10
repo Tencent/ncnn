@@ -4218,6 +4218,19 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         }
     }
 
+    if (info.driver_id() == VK_DRIVER_ID_GOOGLE_SWIFTSHADER)
+    {
+        // buggy swiftshader may set memory property flags in memory_type_bits field
+        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+        {
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
+            if ((memoryType.propertyFlags & (required | memory_type_bits)) == (required | memory_type_bits))
+            {
+                return i;
+            }
+        }
+    }
+
     NCNN_LOGE("no such memory type %u %u %u %u", memory_type_bits, required, preferred, preferred_not);
     return -1;
 }
