@@ -69,6 +69,10 @@ public:
     PoolAllocator* local_blob_allocator;
     PoolAllocator* local_workspace_allocator;
 
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    MappedFile mapped_model_file;
+#endif
+
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
 
@@ -1815,6 +1819,29 @@ int Net::load_model(FILE* fp)
 
 int Net::load_model(const char* modelpath)
 {
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
     FILE* fp = fopen(modelpath, "rb");
     if (!fp)
     {
@@ -1830,6 +1857,29 @@ int Net::load_model(const char* modelpath)
 #if _WIN32
 int Net::load_model(const wchar_t* modelpath)
 {
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
     FILE* fp = _wfopen(modelpath, L"rb");
     if (!fp)
     {
@@ -1844,20 +1894,20 @@ int Net::load_model(const wchar_t* modelpath)
 #endif
 #endif // NCNN_STDIO
 
-int Net::load_param(const unsigned char* _mem)
+size_t Net::load_param(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_param_bin(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
-int Net::load_model(const unsigned char* _mem)
+size_t Net::load_model(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_model(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
 #if NCNN_PLATFORM_API
