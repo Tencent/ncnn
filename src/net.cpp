@@ -247,6 +247,13 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
     }
 
+    // for avoiding driver timeout
+    // commit as soon as we collect 16M pending
+    if (cmd.pending_dispatch_total() > 16 * 1024 * 1024)
+    {
+        cmd_submit_and_wait = true;
+    }
+
     int ret;
     if (cmd_submit_and_wait)
     {
