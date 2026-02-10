@@ -131,19 +131,19 @@ void main()
 
     // initialize output accumulators
 #if ncnn_VK_KHR_cooperative_matrix
-    coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> om[UNROLL_SG_M][MAX_OUT_CHUNKS];
+    coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> om[MAX_OUT_CHUNKS][UNROLL_SG_M];
 #elif ncnn_VK_NV_cooperative_matrix
-    fcoopmatNV<32, gl_ScopeSubgroup, M, N> om[UNROLL_SG_M][MAX_OUT_CHUNKS];
+    fcoopmatNV<32, gl_ScopeSubgroup, M, N> om[MAX_OUT_CHUNKS][UNROLL_SG_M];
 #endif
 
-    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+    [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
     {
-        [[unroll]] for (uint zn = 0; zn < MAX_OUT_CHUNKS; zn++)
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            om[zm][zn] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+            om[c][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
 #elif ncnn_VK_NV_cooperative_matrix
-            om[zm][zn] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
+            om[c][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
 #endif
         }
     }
@@ -444,7 +444,7 @@ void main()
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             {
-                om[zm][c] = om[zm][c] * cc;
+                om[c][zm] = om[c][zm] * cc;
             }
         }
 #elif ncnn_VK_NV_cooperative_matrix
@@ -452,7 +452,7 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                coopMatStoreNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
+                coopMatStoreNV(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
             }
 
             barrier();
@@ -475,7 +475,7 @@ void main()
 
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                coopMatLoadNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
+                coopMatLoadNV(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
             }
 
             barrier();
@@ -581,9 +581,9 @@ void main()
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
-                    om[zm][c] = coopMatMulAdd(pm[zm][zp], vm, om[zm][c]);
+                    om[c][zm] = coopMatMulAdd(pm[zm][zp], vm, om[c][zm]);
 #elif ncnn_VK_NV_cooperative_matrix
-                    om[zm][c] = coopMatMulAddNV(pm[zm][zp], vm, om[zm][c]);
+                    om[c][zm] = coopMatMulAddNV(pm[zm][zp], vm, om[c][zm]);
 #endif
                 }
             }
@@ -846,7 +846,7 @@ void main()
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             {
-                om[zm][c] = om[zm][c] * cc;
+                om[c][zm] = om[c][zm] * cc;
             }
         }
 #elif ncnn_VK_NV_cooperative_matrix
@@ -854,7 +854,7 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                coopMatStoreNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
+                coopMatStoreNV(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
             }
 
             barrier();
@@ -877,7 +877,7 @@ void main()
 
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                coopMatLoadNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
+                coopMatLoadNV(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
             }
 
             barrier();
@@ -967,9 +967,9 @@ void main()
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
 #if ncnn_VK_KHR_cooperative_matrix
-                om[zm][c] = coopMatMulAdd(pm[zm], vm, om[zm][c]);
+                om[c][zm] = coopMatMulAdd(pm[zm], vm, om[c][zm]);
 #elif ncnn_VK_NV_cooperative_matrix
-                om[zm][c] = coopMatMulAddNV(pm[zm], vm, om[zm][c]);
+                om[c][zm] = coopMatMulAddNV(pm[zm], vm, om[c][zm]);
 #endif
             }
         }
@@ -982,9 +982,9 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
-            coopMatStore(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatStore(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
-            coopMatStoreNV(om[zm][c], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
+            coopMatStoreNV(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * Np, Np, false);
 #endif
         }
 
