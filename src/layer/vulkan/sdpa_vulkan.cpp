@@ -130,8 +130,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             FA_coopmat_M = 4;
             FA_coopmat_N = 32;
             FA_coopmat_K = 32;
-            int subgroup_size = vkdev->info.subgroup_size();
-            int local_size = subgroup_size * 4;
+            FA_UNROLL_WG_M = 4;
+            const int subgroup_size = vkdev->info.subgroup_size();
 
             // assert FA_coopmat_N == FA_coopmat_K
             // assert local_size % FA_coopmat_M == 0
@@ -144,7 +144,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             specializations[1 + 1].u32 = FA_coopmat_N;
             specializations[1 + 2].u32 = FA_coopmat_K;
             specializations[1 + 3].u32 = subgroup_size;
-            specializations[1 + 4].u32 = local_size;
+            specializations[1 + 4].u32 = FA_UNROLL_WG_M;
 
             for (int i = 0; i < 8; i++)
             {
@@ -154,7 +154,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
                 pipeline_sdpa_fa[i] = new Pipeline(vkdev);
                 pipeline_sdpa_fa[i]->set_subgroup_size(subgroup_size);
-                pipeline_sdpa_fa[i]->set_local_size_xyz(local_size, 1, 1);
+                pipeline_sdpa_fa[i]->set_local_size_xyz(subgroup_size * FA_UNROLL_WG_M, 1, 1);
                 pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa, opt, specializations);
             }
         }
@@ -502,13 +502,13 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             constants[11].i = top_blob.cstep;
             constants[12].i = attn_mask_blob.cstep;
 
-            int LOCAL_SIZE = vkdev->info.subgroup_size() * 4;
+            const int subgroup_size = vkdev->info.subgroup_size();
 
             const int blocks_x = 1;
             const int blocks_y = (src_seqlen + FA_coopmat_M - 1) / FA_coopmat_M;
 
             VkMat dispatcher;
-            dispatcher.w = (blocks_x * blocks_y) * LOCAL_SIZE;
+            dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * FA_UNROLL_WG_M);
             dispatcher.h = 1;
             dispatcher.c = num_heads;
 
