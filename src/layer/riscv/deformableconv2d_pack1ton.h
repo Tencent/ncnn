@@ -1,18 +1,5 @@
-
-
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat& top_blob, const Mat& weight_data_packed, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int activation_type, const Mat& activation_params, const Option& opt)
 {
@@ -48,7 +35,7 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                 vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
                 if (bias_data_ptr)
                     _sum = __riscv_vle32_v_f32m1(bias_data_ptr + oc * packn, vl);
-
+                
                 for (int i = 0; i < kernel_h; i++)
                 {
                     for (int j = 0; j < kernel_w; j++)
@@ -132,7 +119,7 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                         for (int ic = 0; ic < inch; ic++)
                         {
                             const float* data_im_ptr = bottom_blob.channel(ic);
-
+                            
                             if (cond)
                             {
                                 float v_in = 0.f;
@@ -140,13 +127,13 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
                                 if (v2_cond) v_in += data_im_ptr[v2_pos] * w2;
                                 if (v3_cond) v_in += data_im_ptr[v3_pos] * w3;
                                 if (v4_cond) v_in += data_im_ptr[v4_pos] * w4;
-
+                                
                                 if (has_mask) v_in *= mask_;
-
+                                
                                 vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr, vl);
                                 _sum = __riscv_vfmacc_vf_f32m1(_sum, v_in, _w, vl);
                             }
-
+                            
                             kptr += packn;
                         }
                     }
@@ -157,3 +144,4 @@ static void deformableconv2d_pack1ton(const std::vector<Mat>& bottom_blobs, Mat&
         }
     }
 }
+

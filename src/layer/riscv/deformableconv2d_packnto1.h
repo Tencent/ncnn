@@ -1,18 +1,5 @@
-
-
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void deformableconv2d_packnto1(const std::vector<Mat>& bottom_blobs, Mat& top_blob, const Mat& weight_data_packed, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_left, int pad_top, int activation_type, const Mat& activation_params, const Option& opt)
 {
@@ -48,9 +35,9 @@ static void deformableconv2d_packnto1(const std::vector<Mat>& bottom_blobs, Mat&
                 float sum = 0.f;
                 if (bias_data_ptr)
                     sum = bias_data_ptr[oc];
-
+                
                 vfloat32m1_t _sum = __riscv_vfmv_v_f_f32m1(0.f, vl);
-
+                
                 for (int i = 0; i < kernel_h; i++)
                 {
                     for (int j = 0; j < kernel_w; j++)
@@ -134,38 +121,40 @@ static void deformableconv2d_packnto1(const std::vector<Mat>& bottom_blobs, Mat&
                         for (int ic = 0; ic < inch; ic++)
                         {
                             const float* data_im_ptr = bottom_blob.channel(ic);
-
+                            
                             if (cond)
                             {
                                 vfloat32m1_t _v1 = v1_cond ? __riscv_vle32_v_f32m1(data_im_ptr + v1_pos * packn, vl) : __riscv_vfmv_v_f_f32m1(0.f, vl);
                                 vfloat32m1_t _v2 = v2_cond ? __riscv_vle32_v_f32m1(data_im_ptr + v2_pos * packn, vl) : __riscv_vfmv_v_f_f32m1(0.f, vl);
                                 vfloat32m1_t _v3 = v3_cond ? __riscv_vle32_v_f32m1(data_im_ptr + v3_pos * packn, vl) : __riscv_vfmv_v_f_f32m1(0.f, vl);
                                 vfloat32m1_t _v4 = v4_cond ? __riscv_vle32_v_f32m1(data_im_ptr + v4_pos * packn, vl) : __riscv_vfmv_v_f_f32m1(0.f, vl);
-
+                                
                                 vfloat32m1_t _val = __riscv_vfmv_v_f_f32m1(0.f, vl);
                                 _val = __riscv_vfmacc_vf_f32m1(_val, w1, _v1, vl);
                                 _val = __riscv_vfmacc_vf_f32m1(_val, w2, _v2, vl);
                                 _val = __riscv_vfmacc_vf_f32m1(_val, w3, _v3, vl);
                                 _val = __riscv_vfmacc_vf_f32m1(_val, w4, _v4, vl);
-
+                                
                                 if (has_mask)
                                     _val = __riscv_vfmul_vf_f32m1(_val, mask_, vl);
-
+                                
                                 vfloat32m1_t _w = __riscv_vle32_v_f32m1(kptr, vl);
                                 _sum = __riscv_vfmacc_vv_f32m1(_sum, _val, _w, vl);
                             }
-
+                            
                             kptr += packn;
                         }
                     }
                 }
-
+                
                 vfloat32m1_t _v_sum = __riscv_vfredusum_vs_f32m1_f32m1(_sum, __riscv_vfmv_v_f_f32m1(0.f, vl), vl);
                 sum += __riscv_vfmv_f_s_f32m1_f32(_v_sum);
-
+                
                 sum = activation_ss(sum, activation_type, activation_params);
                 outptr[h_col * outw + w_col] = sum;
             }
         }
     }
 }
+
+
