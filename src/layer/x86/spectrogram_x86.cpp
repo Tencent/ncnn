@@ -52,17 +52,17 @@ int Spectrogram_x86::create_pipeline(const Option& opt)
     {
         ncnn::ParamDict unfold_pd;
 
-        unfold_pd.set(1, n_fft);   // kernel_w
-        unfold_pd.set(11, 1);      // kernel_h
-        unfold_pd.set(2, 1);       // dilation_w
-        unfold_pd.set(12, 1);      // dilation_h
-        unfold_pd.set(3, hoplen);  // stride_w
-        unfold_pd.set(13, 1);      // stride_h
-        unfold_pd.set(4, 0);       // pad_left
-        unfold_pd.set(15, 0);      // pad_right
-        unfold_pd.set(14, 0);      // pad_top
-        unfold_pd.set(16, 0);      // pad_bottom
-        unfold_pd.set(18, 0.f);    // pad_value
+        unfold_pd.set(1, n_fft);  // kernel_w
+        unfold_pd.set(11, 1);     // kernel_h
+        unfold_pd.set(2, 1);      // dilation_w
+        unfold_pd.set(12, 1);     // dilation_h
+        unfold_pd.set(3, hoplen); // stride_w
+        unfold_pd.set(13, 1);     // stride_h
+        unfold_pd.set(4, 0);      // pad_left
+        unfold_pd.set(15, 0);     // pad_right
+        unfold_pd.set(14, 0);     // pad_top
+        unfold_pd.set(16, 0);     // pad_bottom
+        unfold_pd.set(18, 0.f);   // pad_value
 
         unfold->load_param(unfold_pd);
 

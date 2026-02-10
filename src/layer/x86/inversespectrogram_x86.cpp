@@ -59,17 +59,17 @@ int InverseSpectrogram_x86::create_pipeline(const Option& opt)
     {
         ncnn::ParamDict gemm_pd;
 
-        gemm_pd.set(0, 1.f);     // alpha
-        gemm_pd.set(1, 1.f);     // beta
-        gemm_pd.set(2, 0);       // transA
-        gemm_pd.set(3, 1);       // transB (B is BT layout already)
-        gemm_pd.set(4, 1);       // constantA
-        gemm_pd.set(5, 0);       // constantB
-        gemm_pd.set(6, 0);       // constantC
-        gemm_pd.set(7, n_fft);   // constantM
-        gemm_pd.set(8, 0);       // constantN
-        gemm_pd.set(9, K);       // constantK
-        gemm_pd.set(14, 0);      // output_transpose
+        gemm_pd.set(0, 1.f);   // alpha
+        gemm_pd.set(1, 1.f);   // beta
+        gemm_pd.set(2, 0);     // transA
+        gemm_pd.set(3, 1);     // transB (B is BT layout already)
+        gemm_pd.set(4, 1);     // constantA
+        gemm_pd.set(5, 0);     // constantB
+        gemm_pd.set(6, 0);     // constantC
+        gemm_pd.set(7, n_fft); // constantM
+        gemm_pd.set(8, 0);     // constantN
+        gemm_pd.set(9, K);     // constantK
+        gemm_pd.set(14, 0);    // output_transpose
 
         gemm_real->load_param(gemm_pd);
 
@@ -86,17 +86,17 @@ int InverseSpectrogram_x86::create_pipeline(const Option& opt)
     {
         ncnn::ParamDict gemm_pd;
 
-        gemm_pd.set(0, 1.f);     // alpha
-        gemm_pd.set(1, 1.f);     // beta
-        gemm_pd.set(2, 0);       // transA
-        gemm_pd.set(3, 1);       // transB (B is BT layout already)
-        gemm_pd.set(4, 1);       // constantA
-        gemm_pd.set(5, 0);       // constantB
-        gemm_pd.set(6, 0);       // constantC
-        gemm_pd.set(7, n_fft);   // constantM
-        gemm_pd.set(8, 0);       // constantN
-        gemm_pd.set(9, K);       // constantK
-        gemm_pd.set(14, 0);      // output_transpose
+        gemm_pd.set(0, 1.f);   // alpha
+        gemm_pd.set(1, 1.f);   // beta
+        gemm_pd.set(2, 0);     // transA
+        gemm_pd.set(3, 1);     // transB (B is BT layout already)
+        gemm_pd.set(4, 1);     // constantA
+        gemm_pd.set(5, 0);     // constantB
+        gemm_pd.set(6, 0);     // constantC
+        gemm_pd.set(7, n_fft); // constantM
+        gemm_pd.set(8, 0);     // constantN
+        gemm_pd.set(9, K);     // constantK
+        gemm_pd.set(14, 0);    // output_transpose
 
         gemm_imag->load_param(gemm_pd);
 
