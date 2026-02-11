@@ -6177,4 +6177,24 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
 
 } // namespace ncnn
 
+#else
+
+namespace ncnn {
+
+int create_gpu_instance(const char* driver_path)
+{
+    return 0;
+}
+
+void destroy_gpu_instance()
+{
+}
+
+int get_gpu_count()
+{
+    return 0;
+}
+
+} // namespace ncnn
+
 #endif // NCNN_VULKAN
