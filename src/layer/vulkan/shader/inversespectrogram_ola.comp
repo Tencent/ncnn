@@ -1,0 +1,74 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer yre_blob { sfp yre_blob_data[]; };
+layout(binding = 1) readonly buffer yim_blob { sfp yim_blob_data[]; };
+layout(binding = 2) readonly buffer window2_blob { sfp window2_blob_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_fft;
+    int hoplen;
+    int outsize;
+    int center;
+    int returns;
+    int y_row_stride;
+} p;
+
+void main()
+{
+    int t = int(gl_GlobalInvocationID.x);
+    if (t >= p.outsize)
+        return;
+
+    int src = t;
+    if (p.center != 0)
+        src += p.n_fft / 2;
+
+    int j0 = (src - (p.n_fft - 1) + p.hoplen - 1) / p.hoplen;
+    int j1 = src / p.hoplen;
+
+    if (j0 < 0) j0 = 0;
+    if (j1 > p.frames - 1) j1 = p.frames - 1;
+
+    afp re = 0;
+    afp im = 0;
+    afp wsum = 0;
+
+    for (int j = j0; j <= j1; j++)
+    {
+        int i = src - j * p.hoplen;
+        afp w2 = buffer_ld1(window2_blob_data, i);
+
+        int yidx = i * p.y_row_stride + j;
+        re += buffer_ld1(yre_blob_data, yidx);
+        im += buffer_ld1(yim_blob_data, yidx);
+        wsum += w2;
+    }
+
+    if (wsum != 0)
+    {
+        re /= wsum;
+        im /= wsum;
+    }
+
+    if (p.returns == 0)
+    {
+        int base = t * 2;
+        buffer_st1(top_blob_data, base + 0, re);
+        buffer_st1(top_blob_data, base + 1, im);
+        return;
+    }
+
+    if (p.returns == 1)
+    {
+        buffer_st1(top_blob_data, t, re);
+        return;
+    }
+
+    buffer_st1(top_blob_data, t, im);
+}
