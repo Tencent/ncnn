@@ -3,8 +3,6 @@
 
 #include "gru_vulkan.h"
 
-#include <algorithm>
-
 #include "layer_shader_type.h"
 
 namespace ncnn {
@@ -17,7 +15,6 @@ GRU_vulkan::GRU_vulkan()
 
     pipeline_gru_step = 0;
     pipeline_gru_step_pack4 = 0;
-    pipeline_gru_copy = 0;
 }
 
 int GRU_vulkan::load_param(const ParamDict& pd)
@@ -40,7 +37,6 @@ int GRU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_gru_step = new Pipeline(vkdev);
         pipeline_gru_step->set_local_size_xyz(64, 1, 1);
-
         std::vector<vk_specialization_type> specializations;
         pipeline_gru_step->create(LayerShaderType::gru_step, opt, specializations);
     }
@@ -49,17 +45,8 @@ int GRU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_gru_step_pack4 = new Pipeline(vkdev);
         pipeline_gru_step_pack4->set_local_size_xyz(64, 1, 1);
-
         std::vector<vk_specialization_type> specializations;
         pipeline_gru_step_pack4->create(LayerShaderType::gru_step_pack4, opt, specializations);
-    }
-
-    {
-        pipeline_gru_copy = new Pipeline(vkdev);
-        pipeline_gru_copy->set_local_size_xyz(64, 1, 1);
-
-        std::vector<vk_specialization_type> specializations;
-        pipeline_gru_copy->create(LayerShaderType::gru_copy, opt, specializations);
     }
 
     return 0;
@@ -72,9 +59,6 @@ int GRU_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_gru_step_pack4;
     pipeline_gru_step_pack4 = 0;
-
-    delete pipeline_gru_copy;
-    pipeline_gru_copy = 0;
 
     return 0;
 }
@@ -185,54 +169,30 @@ int GRU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-static inline void record_gru_copy(const Pipeline* pipeline,
-                                   VkCompute& cmd,
-                                   const VkMat& src,
-                                   VkMat& dst,
-                                   int len,
-                                   int src_offset,
-                                   int dst_offset,
-                                   int mode)
-{
-    std::vector<VkMat> bindings(2);
-    bindings[0] = src;
-    bindings[1] = dst;
-
-    std::vector<vk_constant_type> constants(4);
-    constants[0].i = len;
-    constants[1].i = src_offset;
-    constants[2].i = dst_offset;
-    constants[3].i = mode;
-
-    VkMat dispatcher;
-    dispatcher.w = len;
-    dispatcher.h = 1;
-    dispatcher.c = 1;
-
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
-}
-
 static inline void record_gru_step_pack1(const Pipeline* pipeline,
-        VkCompute& cmd,
-        const VkMat& bottom_blob,
-        const VkMat& weight_xc,
-        const VkMat& bias_c,
-        const VkMat& weight_hc,
-        const VkMat& hidden_prev,
-        VkMat& hidden_next,
-        VkMat& top_blob,
-        int size,
-        int num_output,
-        int ti,
-        int outw,
-        int out_offset,
-        int dir,
-        int wxc_dir_stride,
-        int whc_dir_stride,
-        int bias_dir_stride,
-        int bottom_step)
+                                         VkCompute& cmd,
+                                         const VkMat& bottom_blob,
+                                         const VkMat& weight_xc,
+                                         const VkMat& bias_c,
+                                         const VkMat& weight_hc,
+                                         const VkMat& hidden_prev,
+                                         VkMat& hidden_next,
+                                         VkMat& top_blob,
+                                         const VkMat& hidden_init,
+                                         int size,
+                                         int num_output,
+                                         int ti,
+                                         int outw,
+                                         int out_offset,
+                                         int dir,
+                                         int wxc_dir_stride,
+                                         int whc_dir_stride,
+                                         int bias_dir_stride,
+                                         int bottom_step,
+                                         int hidden_offset,
+                                         int init_mode)
 {
-    std::vector<VkMat> bindings(7);
+    std::vector<VkMat> bindings(8);
     bindings[0] = bottom_blob;
     bindings[1] = weight_xc;
     bindings[2] = bias_c;
@@ -240,8 +200,9 @@ static inline void record_gru_step_pack1(const Pipeline* pipeline,
     bindings[4] = hidden_prev;
     bindings[5] = hidden_next;
     bindings[6] = top_blob;
+    bindings[7] = hidden_init;
 
-    std::vector<vk_constant_type> constants(10);
+    std::vector<vk_constant_type> constants(12);
     constants[0].i = size;
     constants[1].i = num_output;
     constants[2].i = ti;
@@ -252,6 +213,8 @@ static inline void record_gru_step_pack1(const Pipeline* pipeline,
     constants[7].i = whc_dir_stride;
     constants[8].i = bias_dir_stride;
     constants[9].i = bottom_step;
+    constants[10].i = hidden_offset;
+    constants[11].i = init_mode;
 
     VkMat dispatcher;
     dispatcher.w = num_output;
@@ -262,22 +225,25 @@ static inline void record_gru_step_pack1(const Pipeline* pipeline,
 }
 
 static inline void record_gru_step_pack4(const Pipeline* pipeline,
-        VkCompute& cmd,
-        const VkMat& bottom_blob,
-        const VkMat& weight_xc_pack4,
-        const VkMat& bias_c_pack4,
-        const VkMat& weight_hc_pack4,
-        const VkMat& hidden_prev,
-        VkMat& hidden_next,
-        VkMat& top_blob,
-        int size,
-        int num_output,
-        int ti,
-        int outw,
-        int out_offset,
-        int dir)
+                                         VkCompute& cmd,
+                                         const VkMat& bottom_blob,
+                                         const VkMat& weight_xc_pack4,
+                                         const VkMat& bias_c_pack4,
+                                         const VkMat& weight_hc_pack4,
+                                         const VkMat& hidden_prev,
+                                         VkMat& hidden_next,
+                                         VkMat& top_blob,
+                                         const VkMat& hidden_init,
+                                         int size,
+                                         int num_output,
+                                         int ti,
+                                         int outw,
+                                         int out_offset,
+                                         int dir,
+                                         int hidden_offset,
+                                         int init_mode)
 {
-    std::vector<VkMat> bindings(7);
+    std::vector<VkMat> bindings(8);
     bindings[0] = bottom_blob;
     bindings[1] = weight_xc_pack4;
     bindings[2] = bias_c_pack4;
@@ -285,14 +251,17 @@ static inline void record_gru_step_pack4(const Pipeline* pipeline,
     bindings[4] = hidden_prev;
     bindings[5] = hidden_next;
     bindings[6] = top_blob;
+    bindings[7] = hidden_init;
 
-    std::vector<vk_constant_type> constants(6);
+    std::vector<vk_constant_type> constants(8);
     constants[0].i = size;
     constants[1].i = num_output;
     constants[2].i = ti;
     constants[3].i = outw;
     constants[4].i = out_offset;
     constants[5].i = dir;
+    constants[6].i = hidden_offset;
+    constants[7].i = init_mode;
 
     VkMat dispatcher;
     dispatcher.w = num_output / 4;
@@ -321,45 +290,12 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
 
     VkAllocator* hidden_vkallocator = top_blobs.size() == 2 ? opt.blob_vkallocator : opt.workspace_vkallocator;
 
-    VkMat hidden0;
-    VkMat hidden0_next;
-    hidden0.create(num_output, 1, bottom_blob.elemsize, 1, hidden_vkallocator);
-    hidden0_next.create(num_output, 1, bottom_blob.elemsize, 1, hidden_vkallocator);
-    if (hidden0.empty() || hidden0_next.empty())
+    VkMat hidden_prev;
+    VkMat hidden_next;
+    hidden_prev.create(num_output, num_directions, bottom_blob.elemsize, 1, hidden_vkallocator);
+    hidden_next.create(num_output, num_directions, bottom_blob.elemsize, 1, hidden_vkallocator);
+    if (hidden_prev.empty() || hidden_next.empty())
         return -100;
-
-    VkMat hidden1;
-    VkMat hidden1_next;
-    if (num_directions == 2)
-    {
-        hidden1.create(num_output, 1, bottom_blob.elemsize, 1, hidden_vkallocator);
-        hidden1_next.create(num_output, 1, bottom_blob.elemsize, 1, hidden_vkallocator);
-        if (hidden1.empty() || hidden1_next.empty())
-            return -100;
-    }
-
-    if (bottom_blobs.size() == 2)
-    {
-        const VkMat& hidden_in0 = bottom_blobs[1];
-
-        if (num_directions == 1)
-        {
-            record_gru_copy(pipeline_gru_copy, cmd, hidden_in0, hidden0, num_output, 0, 0, 1);
-        }
-        else
-        {
-            record_gru_copy(pipeline_gru_copy, cmd, hidden_in0, hidden0, num_output, 0, 0, 1);
-            record_gru_copy(pipeline_gru_copy, cmd, hidden_in0, hidden1, num_output, num_output, 0, 1);
-        }
-    }
-    else
-    {
-        record_gru_copy(pipeline_gru_copy, cmd, bottom_blob, hidden0, num_output, 0, 0, 0);
-        if (num_directions == 2)
-        {
-            record_gru_copy(pipeline_gru_copy, cmd, bottom_blob, hidden1, num_output, 0, 0, 0);
-        }
-    }
 
     const int wxc_dir_stride = size * (num_output * 3);
     const int whc_dir_stride = num_output * (num_output * 3);
@@ -372,10 +308,18 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
                            && !bias_c_data_gpu_pack4.empty()
                            && !weight_hc_data_gpu_pack4.empty();
 
-    auto run_sequence = [&](int dir_index, int out_offset, int reverse, VkMat& hprev, VkMat& hnext) {
+    const bool has_hidden_in = bottom_blobs.size() == 2;
+    const VkMat& hidden_in = has_hidden_in ? bottom_blobs[1] : bottom_blob;
+
+    if (direction == 0 || direction == 1)
+    {
         for (int t = 0; t < timesteps; t++)
         {
-            const int ti = reverse ? (timesteps - 1 - t) : t;
+            const int ti = direction ? (timesteps - 1 - t) : t;
+
+            int init_mode = 0;
+            if (t == 0)
+                init_mode = has_hidden_in ? 2 : 1;
 
             if (use_pack4)
             {
@@ -385,15 +329,18 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
                                       weight_xc_data_gpu_pack4,
                                       bias_c_data_gpu_pack4,
                                       weight_hc_data_gpu_pack4,
-                                      hprev,
-                                      hnext,
+                                      hidden_prev,
+                                      hidden_next,
                                       top_blob,
+                                      hidden_in,
                                       size,
                                       num_output,
                                       ti,
                                       top_blob.w,
-                                      out_offset,
-                                      dir_index);
+                                      0,
+                                      0,
+                                      0,
+                                      init_mode);
             }
             else
             {
@@ -403,51 +350,134 @@ int GRU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
                                       weight_xc_data_gpu,
                                       bias_c_data_gpu,
                                       weight_hc_data_gpu,
-                                      hprev,
-                                      hnext,
+                                      hidden_prev,
+                                      hidden_next,
                                       top_blob,
+                                      hidden_in,
                                       size,
                                       num_output,
                                       ti,
                                       top_blob.w,
-                                      out_offset,
-                                      dir_index,
+                                      0,
+                                      0,
                                       wxc_dir_stride,
                                       whc_dir_stride,
                                       bias_dir_stride,
-                                      bottom_step);
+                                      bottom_step,
+                                      0,
+                                      init_mode);
             }
 
-            std::swap(hprev, hnext);
+            std::swap(hidden_prev, hidden_next);
         }
-    };
-
-    if (direction == 0 || direction == 1)
-    {
-        run_sequence(0, 0, direction, hidden0, hidden0_next);
     }
     else
     {
-        run_sequence(0, 0, 0, hidden0, hidden0_next);
-        run_sequence(1, num_output, 1, hidden1, hidden1_next);
+        for (int t = 0; t < timesteps; t++)
+        {
+            const int ti0 = t;
+            const int ti1 = timesteps - 1 - t;
+
+            int init_mode = 0;
+            if (t == 0)
+                init_mode = has_hidden_in ? 2 : 1;
+
+            if (use_pack4)
+            {
+                record_gru_step_pack4(pipeline_gru_step_pack4,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu_pack4,
+                                      bias_c_data_gpu_pack4,
+                                      weight_hc_data_gpu_pack4,
+                                      hidden_prev,
+                                      hidden_next,
+                                      top_blob,
+                                      hidden_in,
+                                      size,
+                                      num_output,
+                                      ti0,
+                                      top_blob.w,
+                                      0,
+                                      0,
+                                      0,
+                                      init_mode);
+
+                record_gru_step_pack4(pipeline_gru_step_pack4,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu_pack4,
+                                      bias_c_data_gpu_pack4,
+                                      weight_hc_data_gpu_pack4,
+                                      hidden_prev,
+                                      hidden_next,
+                                      top_blob,
+                                      hidden_in,
+                                      size,
+                                      num_output,
+                                      ti1,
+                                      top_blob.w,
+                                      num_output,
+                                      1,
+                                      num_output,
+                                      init_mode);
+            }
+            else
+            {
+                record_gru_step_pack1(pipeline_gru_step,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu,
+                                      bias_c_data_gpu,
+                                      weight_hc_data_gpu,
+                                      hidden_prev,
+                                      hidden_next,
+                                      top_blob,
+                                      hidden_in,
+                                      size,
+                                      num_output,
+                                      ti0,
+                                      top_blob.w,
+                                      0,
+                                      0,
+                                      wxc_dir_stride,
+                                      whc_dir_stride,
+                                      bias_dir_stride,
+                                      bottom_step,
+                                      0,
+                                      init_mode);
+
+                record_gru_step_pack1(pipeline_gru_step,
+                                      cmd,
+                                      bottom_blob,
+                                      weight_xc_data_gpu,
+                                      bias_c_data_gpu,
+                                      weight_hc_data_gpu,
+                                      hidden_prev,
+                                      hidden_next,
+                                      top_blob,
+                                      hidden_in,
+                                      size,
+                                      num_output,
+                                      ti1,
+                                      top_blob.w,
+                                      num_output,
+                                      1,
+                                      wxc_dir_stride,
+                                      whc_dir_stride,
+                                      bias_dir_stride,
+                                      bottom_step,
+                                      num_output,
+                                      init_mode);
+            }
+
+            std::swap(hidden_prev, hidden_next);
+        }
     }
 
     if (top_blobs.size() == 2)
     {
-        if (num_directions == 1)
-        {
-            top_blobs[1] = hidden0;
-        }
-        else
-        {
-            VkMat& hidden_out = top_blobs[1];
-            hidden_out.create(num_output, 2, bottom_blob.elemsize, 1, opt.blob_vkallocator);
-            if (hidden_out.empty())
-                return -100;
-
-            record_gru_copy(pipeline_gru_copy, cmd, hidden0, hidden_out, num_output, 0, 0, 1);
-            record_gru_copy(pipeline_gru_copy, cmd, hidden1, hidden_out, num_output, 0, num_output, 1);
-        }
+        top_blobs[1] = hidden_prev;
     }
 
     return 0;

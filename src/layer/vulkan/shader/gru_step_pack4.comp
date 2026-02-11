@@ -10,6 +10,7 @@ layout (binding = 3) readonly buffer weight_hc_blob { sfpvec4 weight_hc_data[]; 
 layout (binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
 layout (binding = 5) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
 layout (binding = 6) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 7) readonly buffer hidden_init_blob { sfp hidden_init_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -19,6 +20,8 @@ layout (push_constant) uniform parameter
     int outw;
     int out_offset;
     int dir;
+    int hidden_offset;
+    int init_mode;
 } p;
 
 void main()
@@ -27,7 +30,7 @@ void main()
 
     int num_output_pack = p.num_output / 4;
     if (q_pack >= num_output_pack)
-    return;
+        return;
 
     int x_offset = p.ti * p.size;
 
@@ -49,17 +52,27 @@ void main()
     for (int i = 0; i < p.size; i++)
     {
         afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
-
         r += buffer_ld4(weight_xc_data, wxc_row_r * p.size + i) * xi;
         u += buffer_ld4(weight_xc_data, wxc_row_u * p.size + i) * xi;
     }
 
-    for (int i = 0; i < p.num_output; i++)
+    if (p.init_mode == 0)
     {
-        afp hi = buffer_ld1(hidden_prev_data, i);
-
-        r += buffer_ld4(weight_hc_data, whc_row_r * p.num_output + i) * hi;
-        u += buffer_ld4(weight_hc_data, whc_row_u * p.num_output + i) * hi;
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            r += buffer_ld4(weight_hc_data, whc_row_r * p.num_output + i) * hi;
+            u += buffer_ld4(weight_hc_data, whc_row_u * p.num_output + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            r += buffer_ld4(weight_hc_data, whc_row_r * p.num_output + i) * hi;
+            u += buffer_ld4(weight_hc_data, whc_row_u * p.num_output + i) * hi;
+        }
     }
 
     r = afpvec4(1.f) / (afpvec4(1.f) + exp(-r));
@@ -67,10 +80,21 @@ void main()
 
     afpvec4 n = buffer_ld4(bias_c_data, bias_dir_base + 3 * num_output_pack + q_pack);
 
-    for (int i = 0; i < p.num_output; i++)
+    if (p.init_mode == 0)
     {
-        afp hi = buffer_ld1(hidden_prev_data, i);
-        n += buffer_ld4(weight_hc_data, whc_row_n * p.num_output + i) * hi;
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            n += buffer_ld4(weight_hc_data, whc_row_n * p.num_output + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            n += buffer_ld4(weight_hc_data, whc_row_n * p.num_output + i) * hi;
+        }
     }
 
     afpvec4 wn = buffer_ld4(bias_c_data, bias_dir_base + 2 * num_output_pack + q_pack);
@@ -86,18 +110,28 @@ void main()
 
     int q0 = q_pack * 4;
 
-    afpvec4 hprev;
-    hprev.r = buffer_ld1(hidden_prev_data, q0 + 0);
-    hprev.g = buffer_ld1(hidden_prev_data, q0 + 1);
-    hprev.b = buffer_ld1(hidden_prev_data, q0 + 2);
-    hprev.a = buffer_ld1(hidden_prev_data, q0 + 3);
+    afpvec4 hprev = afpvec4(0.f);
+    if (p.init_mode == 0)
+    {
+        hprev.r = buffer_ld1(hidden_prev_data, p.hidden_offset + q0 + 0);
+        hprev.g = buffer_ld1(hidden_prev_data, p.hidden_offset + q0 + 1);
+        hprev.b = buffer_ld1(hidden_prev_data, p.hidden_offset + q0 + 2);
+        hprev.a = buffer_ld1(hidden_prev_data, p.hidden_offset + q0 + 3);
+    }
+    else if (p.init_mode == 2)
+    {
+        hprev.r = buffer_ld1(hidden_init_data, p.hidden_offset + q0 + 0);
+        hprev.g = buffer_ld1(hidden_init_data, p.hidden_offset + q0 + 1);
+        hprev.b = buffer_ld1(hidden_init_data, p.hidden_offset + q0 + 2);
+        hprev.a = buffer_ld1(hidden_init_data, p.hidden_offset + q0 + 3);
+    }
 
     afpvec4 h = (afpvec4(1.f) - u) * n + u * hprev;
 
-    buffer_st1(hidden_next_data, q0 + 0, h.r);
-    buffer_st1(hidden_next_data, q0 + 1, h.g);
-    buffer_st1(hidden_next_data, q0 + 2, h.b);
-    buffer_st1(hidden_next_data, q0 + 3, h.a);
+    buffer_st1(hidden_next_data, p.hidden_offset + q0 + 0, h.r);
+    buffer_st1(hidden_next_data, p.hidden_offset + q0 + 1, h.g);
+    buffer_st1(hidden_next_data, p.hidden_offset + q0 + 2, h.b);
+    buffer_st1(hidden_next_data, p.hidden_offset + q0 + 3, h.a);
 
     int out_index = p.ti * p.outw + p.out_offset + q0;
     buffer_st1(top_blob_data, out_index + 0, h.r);

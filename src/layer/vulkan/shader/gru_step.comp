@@ -10,6 +10,7 @@ layout (binding = 3) readonly buffer weight_hc_blob { sfp weight_hc_data[]; };
 layout (binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
 layout (binding = 5) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
 layout (binding = 6) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 7) readonly buffer hidden_init_blob { sfp hidden_init_data[]; };
 
 layout (push_constant) uniform parameter
 {
@@ -23,6 +24,8 @@ layout (push_constant) uniform parameter
     int whc_dir_stride;
     int bias_dir_stride;
     int bottom_step;
+    int hidden_offset;
+    int init_mode;
 } p;
 
 void main()
@@ -38,63 +41,90 @@ void main()
     int whc_base = p.dir * p.whc_dir_stride;
     int bias_base = p.dir * p.bias_dir_stride;
 
-    int bias_R = bias_base + 0 * p.num_output + q;
-    int bias_U = bias_base + 1 * p.num_output + q;
-    int bias_WN = bias_base + 2 * p.num_output + q;
-    int bias_BN = bias_base + 3 * p.num_output + q;
+    int bias_r = bias_base + 0 * p.num_output + q;
+    int bias_u = bias_base + 1 * p.num_output + q;
+    int bias_wn = bias_base + 2 * p.num_output + q;
+    int bias_bn = bias_base + 3 * p.num_output + q;
 
-    int wxc_R = wxc_base + (0 * p.num_output + q) * p.size;
-    int wxc_U = wxc_base + (1 * p.num_output + q) * p.size;
-    int wxc_N = wxc_base + (2 * p.num_output + q) * p.size;
+    int wxc_r = wxc_base + (0 * p.num_output + q) * p.size;
+    int wxc_u = wxc_base + (1 * p.num_output + q) * p.size;
+    int wxc_n = wxc_base + (2 * p.num_output + q) * p.size;
 
-    int whc_R = whc_base + (0 * p.num_output + q) * p.num_output;
-    int whc_U = whc_base + (1 * p.num_output + q) * p.num_output;
-    int whc_N = whc_base + (2 * p.num_output + q) * p.num_output;
+    int whc_r = whc_base + (0 * p.num_output + q) * p.num_output;
+    int whc_u = whc_base + (1 * p.num_output + q) * p.num_output;
+    int whc_n = whc_base + (2 * p.num_output + q) * p.num_output;
 
-    afp R = buffer_ld1(bias_c_data, bias_R);
-    afp U = buffer_ld1(bias_c_data, bias_U);
-
-    for (int i = 0; i < p.size; i++)
-    {
-        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
-
-        R += buffer_ld1(weight_xc_data, wxc_R + i) * xi;
-        U += buffer_ld1(weight_xc_data, wxc_U + i) * xi;
-    }
-
-    for (int i = 0; i < p.num_output; i++)
-    {
-        afp hi = buffer_ld1(hidden_prev_data, i);
-
-        R += buffer_ld1(weight_hc_data, whc_R + i) * hi;
-        U += buffer_ld1(weight_hc_data, whc_U + i) * hi;
-    }
-
-    R = 1.f / (1.f + exp(-R));
-    U = 1.f / (1.f + exp(-U));
-
-    afp N = buffer_ld1(bias_c_data, bias_BN);
-    for (int i = 0; i < p.num_output; i++)
-    {
-        afp hi = buffer_ld1(hidden_prev_data, i);
-        N += buffer_ld1(weight_hc_data, whc_N + i) * hi;
-    }
-
-    N = buffer_ld1(bias_c_data, bias_WN) + R * N;
+    afp r = buffer_ld1(bias_c_data, bias_r);
+    afp u = buffer_ld1(bias_c_data, bias_u);
 
     for (int i = 0; i < p.size; i++)
     {
         afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
-        N += buffer_ld1(weight_xc_data, wxc_N + i) * xi;
+        r += buffer_ld1(weight_xc_data, wxc_r + i) * xi;
+        u += buffer_ld1(weight_xc_data, wxc_u + i) * xi;
     }
 
-    N = tanh(N);
+    if (p.init_mode == 0)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            r += buffer_ld1(weight_hc_data, whc_r + i) * hi;
+            u += buffer_ld1(weight_hc_data, whc_u + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            r += buffer_ld1(weight_hc_data, whc_r + i) * hi;
+            u += buffer_ld1(weight_hc_data, whc_u + i) * hi;
+        }
+    }
 
-    afp hprev_q = buffer_ld1(hidden_prev_data, q);
-    afp H = (1.f - U) * N + U * hprev_q;
+    r = 1.f / (1.f + exp(-r));
+    u = 1.f / (1.f + exp(-u));
 
-    buffer_st1(hidden_next_data, q, H);
+    afp n = buffer_ld1(bias_c_data, bias_bn);
+
+    if (p.init_mode == 0)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            n += buffer_ld1(weight_hc_data, whc_n + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            n += buffer_ld1(weight_hc_data, whc_n + i) * hi;
+        }
+    }
+
+    n = buffer_ld1(bias_c_data, bias_wn) + r * n;
+
+    for (int i = 0; i < p.size; i++)
+    {
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
+        n += buffer_ld1(weight_xc_data, wxc_n + i) * xi;
+    }
+
+    n = tanh(n);
+
+    afp hprev_q = 0.f;
+    if (p.init_mode == 0)
+        hprev_q = buffer_ld1(hidden_prev_data, p.hidden_offset + q);
+    else if (p.init_mode == 2)
+        hprev_q = buffer_ld1(hidden_init_data, p.hidden_offset + q);
+
+    afp h = (1.f - u) * n + u * hprev_q;
+
+    buffer_st1(hidden_next_data, p.hidden_offset + q, h);
 
     int out_index = p.ti * p.outw + p.out_offset + q;
-    buffer_st1(top_blob_data, out_index, H);
+    buffer_st1(top_blob_data, out_index, h);
 }

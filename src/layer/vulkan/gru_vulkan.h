@@ -35,7 +35,6 @@ public:
 
     Pipeline* pipeline_gru_step;
     Pipeline* pipeline_gru_step_pack4;
-    Pipeline* pipeline_gru_copy;
 };
 
 } // namespace ncnn
