@@ -5,6 +5,7 @@
 
 #include "gpu.h"
 #include "pipeline.h"
+#include <stdexcept>
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -437,6 +438,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateBuffer failed %d", ret);
+        throw std::runtime_error("vkCreateBuffer failed");
         return 0;
     }
 
@@ -456,6 +458,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_in
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        throw std::runtime_error("vkAllocateMemory failed");
         return 0;
     }
 
@@ -482,6 +485,7 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        throw std::runtime_error("vkAllocateMemory failed");
         return 0;
     }
 
@@ -2644,6 +2648,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        throw std::runtime_error("vkAllocateMemory failed");
         return 0;
     }
 
