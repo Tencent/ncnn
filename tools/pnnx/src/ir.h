@@ -346,6 +346,7 @@ public:
 
     Operand* get_operand(const std::string& name);
     const Operand* get_operand(const std::string& name) const;
+    int bind_operand(const std::string& path, int index);
 
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;

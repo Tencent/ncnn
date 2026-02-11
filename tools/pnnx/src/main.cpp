@@ -213,6 +213,7 @@ static void show_usage()
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
+    fprintf(stderr, "  input=a.npy,...\n");
 #if _WIN32
     fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
 #else
@@ -220,7 +221,7 @@ static void show_usage()
 #endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
-    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
+    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 input=a.npy device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
 
 int main(int argc, char** argv)
@@ -262,6 +263,7 @@ int main(int argc, char** argv)
     std::vector<std::string> input_types;
     std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> input_types2;
+    std::vector<std::string> input_npys;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -306,6 +308,8 @@ int main(int argc, char** argv)
             parse_shape_list(value, input_shapes, input_types);
         if (strcmp(key, "inputshape2") == 0)
             parse_shape_list(value, input_shapes2, input_types2);
+        if (strcmp(key, "input") == 0)
+            parse_string_list(value, input_npys);
         if (strcmp(key, "customop") == 0)
             parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
@@ -329,6 +333,9 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
         fprintf(stderr, "inputshape2 = ");
         print_shape_list(input_shapes2, input_types2);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "input = ");
+        print_string_list(input_npys);
         fprintf(stderr, "\n");
         fprintf(stderr, "customop = ");
         print_string_list(customop_modules);
@@ -372,6 +379,13 @@ int main(int argc, char** argv)
 
     // *INDENT-ON*
     // clang-format on
+
+    // bind tensor/operand inputs
+    for (int i = 0; i < input_npys.size(); i++)
+    {
+        std::string input_npy = input_npys[i];
+        pnnx_graph.bind_operand(input_npy, i);
+    }
 
     fprintf(stderr, "############# pass_level2\n");
 
