@@ -226,7 +226,7 @@ public:
     int type() const;
 
     // performance score roughly evaluated based on parameters such as device type,
-    // supported expansions, video memory size etc.
+    // supported extensions, video memory size etc.
     // high-end device scores over 150
     // low-end device scores below 50
     uint32_t rough_score() const;
