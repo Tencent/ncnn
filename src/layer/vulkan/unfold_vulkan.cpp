@@ -11,7 +11,7 @@ Unfold_vulkan::Unfold_vulkan()
 {
     support_vulkan = true;
     support_vulkan_packing = true;
-    support_any_packing = true;
+    support_vulkan_any_packing = true;
 
     pipeline_unfold_padding = 0;
     pipeline_unfold_padding_pack4 = 0;
@@ -112,6 +112,7 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
 
     if (pl > 0 || pr > 0 || pt > 0 || pb > 0)
     {
+        // Explicit positive padding specified; no adjustment needed here.
     }
     else if (pl == -233 && pr == -233 && pt == -233 && pb == -233)
     {
