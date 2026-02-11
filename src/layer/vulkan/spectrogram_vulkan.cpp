@@ -242,8 +242,8 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     constants[3].i = top_row_stride;
 
     VkMat dispatcher;
-    dispatcher.w = frames;   // x = frame index
-    dispatcher.h = n_freq;   // y = freq index
+    dispatcher.w = frames; // x = frame index
+    dispatcher.h = n_freq; // y = freq index
     dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_spectrogram_post, bindings, constants, dispatcher);

@@ -27,7 +27,7 @@ void main()
     int c = int(gl_GlobalInvocationID.z);
 
     if (x >= p.dst_w || y >= p.dst_h || c >= p.channels)
-    return;
+        return;
 
     int di = c * p.dst_cstep + y * p.dst_w + x;
 
