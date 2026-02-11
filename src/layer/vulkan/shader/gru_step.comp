@@ -3,16 +3,16 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) readonly buffer weight_xc_blob { sfp weight_xc_data[]; };
-layout (binding = 2) readonly buffer bias_c_blob { sfp bias_c_data[]; };
-layout (binding = 3) readonly buffer weight_hc_blob { sfp weight_hc_data[]; };
-layout (binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
-layout (binding = 5) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
-layout (binding = 6) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 7) readonly buffer hidden_init_blob { sfp hidden_init_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) readonly buffer weight_xc_blob { sfp weight_xc_data[]; };
+layout(binding = 2) readonly buffer bias_c_blob { sfp bias_c_data[]; };
+layout(binding = 3) readonly buffer weight_hc_blob { sfp weight_hc_data[]; };
+layout(binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
+layout(binding = 5) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
+layout(binding = 6) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 7) readonly buffer hidden_init_blob { sfp hidden_init_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int size;
     int num_output;
