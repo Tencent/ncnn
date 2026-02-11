@@ -24,6 +24,7 @@ def find_version():
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
 
+
 # Parse environment variables
 Vulkan_LIBRARY = os.environ.get("Vulkan_LIBRARY", "")
 CMAKE_TOOLCHAIN_FILE = os.environ.get("CMAKE_TOOLCHAIN_FILE", "")
@@ -40,11 +41,13 @@ ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
 EXTRA_CMAKE_ARGS = os.getenv("EXTRA_CMAKE_ARGS", "").split()
 
+
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
     user_options = install.user_options + [
-        ('vulkan=', None, 'Enable the usage of Vulkan.'),
+        ("vulkan=", None, "Enable the usage of Vulkan."),
     ]
+
     def initialize_options(self):
         install.initialize_options(self)
         self.vulkan = None
@@ -55,6 +58,7 @@ class InstallCommand(install):
     def run(self):
         install.run(self)
 
+
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
     "win32": "Win32",
@@ -62,6 +66,7 @@ PLAT_TO_CMAKE = {
     "win-arm32": "ARM",
     "win-arm64": "ARM64",
 }
+
 
 # A CMakeExtension needs a sourcedir instead of a file list.
 # The name must be the _single_ output extension from the CMake build.
@@ -90,13 +95,16 @@ class CMakeBuild(build_ext):
         # Set Python_EXECUTABLE instead if you use PYBIND11_FINDPYTHON
         # EXAMPLE_VERSION_INFO shows you how to pass a value into the C++ code
         # from Python.
+        enable_vulkan = "ON"
+        if Vulkan_LIBRARY == "":
+            enable_vulkan = "OFF"
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
-            "-DNCNN_VULKAN=ON",
+            "-DNCNN_VULKAN={}".format(enable_vulkan),
             "-DNCNN_DISABLE_RTTI=OFF",
             "-DNCNN_DISABLE_EXCEPTION=OFF",
             "-DNCNN_BUILD_BENCHMARK=OFF",
@@ -225,5 +233,5 @@ setup(
     setup_requires=setup_requires,
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
-    cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
+    cmdclass={"install": InstallCommand, "build_ext": CMakeBuild},
 )
