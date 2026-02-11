@@ -98,6 +98,7 @@ struct layer_shader_registry_entry
 
 static const layer_shader_registry_entry layer_shader_registry[] = {
 #include "layer_shader_registry.h"
+
 };
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
@@ -4017,7 +4018,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     return 0;
 }
 
-int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline, VkPipelineCache pipeline_cache) const
 {
     const int specialization_count = specializations.size();
 
@@ -4075,7 +4076,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
@@ -4148,6 +4149,18 @@ int VulkanDevice::create_descriptor_update_template(int binding_count, const int
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_pipeline_cache(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache) const
+{
+    VkResult ret = vkCreatePipelineCache(d->device, pCreateInfo, pAllocator, pPipelineCache);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineCache failed %d", ret);
         return -1;
     }
 
