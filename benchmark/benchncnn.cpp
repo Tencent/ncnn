@@ -164,7 +164,7 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 
     time_avg /= g_loop_count;
 
-    fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
+    fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f ms\n", comment, time_min, time_max, time_avg);
 }
 
 void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt, const char* model_param_data = NULL)
