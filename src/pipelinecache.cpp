@@ -58,18 +58,18 @@ public:
     struct pipeline_cache_digest
     {
         pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size);
+                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size, uint32_t fast_math_flag = 0);
         pipeline_cache_digest(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                               uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size);
 
         bool operator==(const pipeline_cache_digest& rhs) const
         {
-            return d0 == rhs.d0 && d1 == rhs.d1 && d2 == rhs.d2 && d3 == rhs.d3;
+            return d0 == rhs.d0 && d1 == rhs.d1 && d2 == rhs.d2 && d3 == rhs.d3 && d4 == rhs.d4;
         }
 
         bool operator!=(const pipeline_cache_digest& rhs) const
         {
-            return d0 != rhs.d0 || d1 != rhs.d1 || d2 != rhs.d2 || d3 != rhs.d3;
+            return d0 != rhs.d0 || d1 != rhs.d1 || d2 != rhs.d2 || d3 != rhs.d3 || d4 != rhs.d4;
         }
 
         union
@@ -88,6 +88,8 @@ public:
                 uint32_t subgroup_size;
                 uint32_t specializations_murmur3;
                 uint32_t specializations_fnv1a;
+                uint32_t fast_math_flag;
+                uint32_t reserved_0; // for future use
             };
 
             struct
@@ -96,6 +98,7 @@ public:
                 uint64_t d1;
                 uint64_t d2;
                 uint64_t d3;
+                uint64_t d4;
             };
         };
     };
@@ -116,7 +119,7 @@ public:
 };
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size)
+        uint32_t _local_size_x, uint32_t _local_size_y, uint32_t _local_size_z, uint32_t _subgroup_size, uint32_t _fast_math_flag)
 {
     spv_data_murmur3 = murmur3_32(spv_data, spv_data_size / 4);
 
@@ -126,6 +129,8 @@ PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_
     local_size_y = _local_size_y;
     local_size_z = _local_size_z;
     subgroup_size = _subgroup_size;
+    fast_math_flag = _fast_math_flag;
+    reserved_0 = 0; // for future use
 
     // encode specializations
     const int specialization_count = specializations.size();
@@ -152,6 +157,8 @@ PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(int _shader_t
     local_size_y = _local_size_y;
     local_size_z = _local_size_z;
     subgroup_size = _subgroup_size;
+    fast_math_flag = opt.vk_fast_math_flag;
+    reserved_0 = 0; // for future use
 
     // encode specializations
     const int specialization_count = specializations.size();
@@ -229,11 +236,11 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
                                 VkPipelineLayout* pipeline_layout,
                                 VkPipeline* pipeline,
                                 VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                                ShaderInfo& shader_info) const
+                                ShaderInfo& shader_info, uint32_t fast_math_flag) const
 {
     MutexLockGuard lock(d->cache_lock);
 
-    PipelineCachePrivate::pipeline_cache_digest key(spv_data, spv_data_size, specializations, local_size_x, local_size_y, local_size_z, subgroup_size);
+    PipelineCachePrivate::pipeline_cache_digest key(spv_data, spv_data_size, specializations, local_size_x, local_size_y, local_size_z, subgroup_size, fast_math_flag);
 
     if (!vkdev->info.bug_corrupted_online_pipeline_cache())
     {
@@ -268,7 +275,12 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
         return -1;
     }
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+    if (fast_math_flag != 0 && !vkdev->info.support_VK_KHR_shader_float_controls2())
+    {
+        NCNN_LOGE("fast_math_flag is not supported on this device");
+        return -1;
+    }
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, fast_math_flag);
     if (!shader_module)
     {
         NCNN_LOGE("create_shader_module failed");
@@ -353,6 +365,11 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
         return -1;
     }
 
+    if (opt.vk_fast_math_flag != 0 && !vkdev->info.support_VK_KHR_shader_float_controls2())
+    {
+        NCNN_LOGE("fast_math_flag is not supported on this device");
+        return -1;
+    }
     ret = new_pipeline(shader_module, shader_info, specializations, subgroup_size, descriptorset_layout, pipeline_layout, pipeline, descriptor_update_template);
     if (ret != 0)
     {
@@ -405,7 +422,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
         return -1;
     }
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, opt.vk_fast_math_flag);
 
     if (!shader_module)
     {

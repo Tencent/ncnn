@@ -3807,6 +3807,134 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     return shader_module;
 }
 
+static void inject_fast_math(const uint32_t* code, size_t size, std::vector<uint32_t>& dstcode, uint32_t fast_math_flag)
+{
+    // check spv magic number
+    if (size < 20 || code[0] != 0x07230203)
+    {
+        dstcode.assign(code, code + size / sizeof(uint32_t));
+        return;
+    }
+
+    // analyze spv
+    uint32_t bound = code[3];
+    uint32_t entry_point_id = 0;
+    uint32_t float32_type_id = 0;
+    uint32_t uint32_type_id = 0;
+    bool has_float_controls2_capability = false;
+    bool has_float_controls2_extension = false;
+
+    const uint32_t* memory_model_ptr = nullptr;
+    const uint32_t* first_function_ptr = nullptr;
+
+    const uint32_t* p = code + 5;
+    const uint32_t* end = code + (size / sizeof(uint32_t));
+
+    while (p < end)
+    {
+        uint16_t wordcount = p[0] >> 16;
+        if (wordcount == 0 || p + wordcount > end) break; // for safety
+        uint16_t op = p[0] & 0xffff;
+
+        switch (op)
+        {
+        case 14: // OpMemoryModel
+            if (!memory_model_ptr) memory_model_ptr = p;
+            break;
+        case 15: // OpEntryPoint
+            if (p[1] == 5 /* GLCompute */) entry_point_id = p[2];
+            break;
+        case 21: // OpTypeInt
+            if (wordcount == 4 && p[2] == 32 && p[3] == 0) uint32_type_id = p[1];
+            break;
+        case 22: // OpTypeFloat
+            if (wordcount == 3 && p[2] == 32) float32_type_id = p[1];
+            break;
+        case 54: // OpFunction
+            if (!first_function_ptr) first_function_ptr = p;
+            break;
+        case 17: // OpCapability
+            if (p[1] == 6029 /* FloatControls2 */) has_float_controls2_capability = true;
+            break;
+        case 10: // OpExtension
+            if (strcmp((const char*)&p[1], "SPV_KHR_float_controls2") == 0) has_float_controls2_extension = true;
+            break;
+        }
+
+        // fin
+        if (first_function_ptr) break;
+
+        p += wordcount;
+    }
+
+    // cannot find key elements
+    if (entry_point_id == 0 || float32_type_id == 0 || uint32_type_id == 0 || !memory_model_ptr || !first_function_ptr)
+    {
+        dstcode.assign(code, code + size / sizeof(uint32_t));
+        return;
+    }
+
+    // build spirv
+    dstcode.clear();
+    dstcode.reserve(size / sizeof(uint32_t) + 20);
+
+    // prepare
+    uint32_t fast_math_constant_id = bound;
+    uint32_t new_bound = bound + 1; // for new OpConstant
+
+    // header
+    dstcode.insert(dstcode.end(), code, code + 5);
+    dstcode[3] = new_bound;
+
+    p = code + 5;
+    while (p < end)
+    {
+        uint16_t wordcount = p[0] >> 16;
+        if (wordcount == 0) break;
+
+        // constant need before at first function
+        if (p == first_function_ptr)
+        {
+            dstcode.push_back((4u << 16) | 43 /* OpConstant */);
+            dstcode.push_back(uint32_type_id);
+            dstcode.push_back(fast_math_constant_id);
+            dstcode.push_back(fast_math_flag);
+        }
+
+        // Pass
+        dstcode.insert(dstcode.end(), p, p + wordcount);
+
+        // inject new instructions
+        if (p == memory_model_ptr)
+        {
+            if (!has_float_controls2_capability)
+            {
+                dstcode.push_back((2u << 16) | 17 /* OpCapability */);
+                dstcode.push_back(6029 /* FloatControls2 */);
+            }
+            if (!has_float_controls2_extension)
+            {
+                const char ext_name[] = "SPV_KHR_float_controls2";
+                size_t ext_word_count = (sizeof(ext_name) + 3) / 4;
+                dstcode.push_back(((ext_word_count + 1) << 16) | 10 /* OpExtension */);
+                std::vector<uint32_t> ext_words(ext_word_count, 0);
+                memcpy(ext_words.data(), ext_name, sizeof(ext_name));
+                dstcode.insert(dstcode.end(), ext_words.begin(), ext_words.end());
+            }
+        }
+        else if ((p[0] & 0xffff) == 15 /* OpEntryPoint */ && p[2] == entry_point_id)
+        {
+            dstcode.push_back((5u << 16) | 16 /* OpExecutionMode */);
+            dstcode.push_back(entry_point_id);
+            dstcode.push_back(6028 /* FPFastMathDefault */);
+            dstcode.push_back(float32_type_id);
+            dstcode.push_back(fast_math_constant_id);
+        }
+
+        p += wordcount;
+    }
+}
+
 static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t* dstcode, size_t* dstsize)
 {
     uint32_t local_size_x_id = -1;
@@ -3904,16 +4032,25 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     *dstsize = (unsigned char*)dp - (unsigned char*)dstcode;
 }
 
-VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t fast_math_flag) const
 {
     uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size);
     size_t spv_data_size_modified = spv_data_size;
     inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
-    VkShaderModule shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
+    VkShaderModule shader_module;
+    if (fast_math_flag != 0)
+    {
+        std::vector<uint32_t> buffer;
+        inject_fast_math(spv_data_modified, spv_data_size_modified, buffer, fast_math_flag);
 
+        shader_module = compile_shader_module(buffer.data(), buffer.size() * sizeof(uint32_t));
+    }
+    else
+    {
+        shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
+    }
     free(spv_data_modified);
-
     return shader_module;
 }
 
