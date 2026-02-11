@@ -1,0 +1,130 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) readonly buffer weight_xc_blob { sfp weight_xc_data[]; };
+layout(binding = 2) readonly buffer bias_c_blob { sfp bias_c_data[]; };
+layout(binding = 3) readonly buffer weight_hc_blob { sfp weight_hc_data[]; };
+layout(binding = 4) readonly buffer hidden_prev_blob { sfp hidden_prev_data[]; };
+layout(binding = 5) writeonly buffer hidden_next_blob { sfp hidden_next_data[]; };
+layout(binding = 6) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 7) readonly buffer hidden_init_blob { sfp hidden_init_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int size;
+    int num_output;
+    int ti;
+    int outw;
+    int out_offset;
+    int dir;
+    int wxc_dir_stride;
+    int whc_dir_stride;
+    int bias_dir_stride;
+    int bottom_step;
+    int hidden_offset;
+    int init_mode;
+} p;
+
+void main()
+{
+    int q = int(gl_GlobalInvocationID.x);
+
+    if (q >= p.num_output)
+        return;
+
+    int x_offset = p.ti * p.bottom_step;
+
+    int wxc_base = p.dir * p.wxc_dir_stride;
+    int whc_base = p.dir * p.whc_dir_stride;
+    int bias_base = p.dir * p.bias_dir_stride;
+
+    int bias_r = bias_base + 0 * p.num_output + q;
+    int bias_u = bias_base + 1 * p.num_output + q;
+    int bias_wn = bias_base + 2 * p.num_output + q;
+    int bias_bn = bias_base + 3 * p.num_output + q;
+
+    int wxc_r = wxc_base + (0 * p.num_output + q) * p.size;
+    int wxc_u = wxc_base + (1 * p.num_output + q) * p.size;
+    int wxc_n = wxc_base + (2 * p.num_output + q) * p.size;
+
+    int whc_r = whc_base + (0 * p.num_output + q) * p.num_output;
+    int whc_u = whc_base + (1 * p.num_output + q) * p.num_output;
+    int whc_n = whc_base + (2 * p.num_output + q) * p.num_output;
+
+    afp r = buffer_ld1(bias_c_data, bias_r);
+    afp u = buffer_ld1(bias_c_data, bias_u);
+
+    for (int i = 0; i < p.size; i++)
+    {
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
+        r += buffer_ld1(weight_xc_data, wxc_r + i) * xi;
+        u += buffer_ld1(weight_xc_data, wxc_u + i) * xi;
+    }
+
+    if (p.init_mode == 0)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            r += buffer_ld1(weight_hc_data, whc_r + i) * hi;
+            u += buffer_ld1(weight_hc_data, whc_u + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            r += buffer_ld1(weight_hc_data, whc_r + i) * hi;
+            u += buffer_ld1(weight_hc_data, whc_u + i) * hi;
+        }
+    }
+
+    r = 1.f / (1.f + exp(-r));
+    u = 1.f / (1.f + exp(-u));
+
+    afp n = buffer_ld1(bias_c_data, bias_bn);
+
+    if (p.init_mode == 0)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_prev_data, p.hidden_offset + i);
+            n += buffer_ld1(weight_hc_data, whc_n + i) * hi;
+        }
+    }
+    else if (p.init_mode == 2)
+    {
+        for (int i = 0; i < p.num_output; i++)
+        {
+            afp hi = buffer_ld1(hidden_init_data, p.hidden_offset + i);
+            n += buffer_ld1(weight_hc_data, whc_n + i) * hi;
+        }
+    }
+
+    n = buffer_ld1(bias_c_data, bias_wn) + r * n;
+
+    for (int i = 0; i < p.size; i++)
+    {
+        afp xi = buffer_ld1(bottom_blob_data, x_offset + i);
+        n += buffer_ld1(weight_xc_data, wxc_n + i) * xi;
+    }
+
+    n = tanh(n);
+
+    afp hprev_q = 0.f;
+    if (p.init_mode == 0)
+        hprev_q = buffer_ld1(hidden_prev_data, p.hidden_offset + q);
+    else if (p.init_mode == 2)
+        hprev_q = buffer_ld1(hidden_init_data, p.hidden_offset + q);
+
+    afp h = (1.f - u) * n + u * hprev_q;
+
+    buffer_st1(hidden_next_data, p.hidden_offset + q, h);
+
+    int out_index = p.ti * p.outw + p.out_offset + q;
+    buffer_st1(top_blob_data, out_index, h);
+}
