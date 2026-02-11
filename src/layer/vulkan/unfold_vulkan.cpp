@@ -10,11 +10,16 @@ namespace ncnn {
 Unfold_vulkan::Unfold_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = false;
-    support_any_packing = false;
+    support_vulkan_packing = true;
+    support_any_packing = true;
+
+    pipeline_unfold_padding = 0;
+    pipeline_unfold_padding_pack4 = 0;
 
     pipeline_unfold_im2col = 0;
-    pipeline_unfold_padding = 0;
+    pipeline_unfold_im2col_pack4 = 0;
+    pipeline_unfold_im2col_pack1to4 = 0;
+    pipeline_unfold_im2col_pack4to1 = 0;
 }
 
 int Unfold_vulkan::load_param(const ParamDict& pd)
@@ -32,10 +37,38 @@ int Unfold_vulkan::create_pipeline(const Option& opt)
     }
 
     {
+        pipeline_unfold_padding_pack4 = new Pipeline(vkdev);
+        pipeline_unfold_padding_pack4->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_padding_pack4->create(LayerShaderType::unfold_padding_pack4, opt, specializations);
+    }
+
+    {
         pipeline_unfold_im2col = new Pipeline(vkdev);
         pipeline_unfold_im2col->set_local_size_xyz(8, 8, 1);
         std::vector<vk_specialization_type> specializations;
         pipeline_unfold_im2col->create(LayerShaderType::unfold_im2col, opt, specializations);
+    }
+
+    {
+        pipeline_unfold_im2col_pack4 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack4->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack4->create(LayerShaderType::unfold_im2col_pack4, opt, specializations);
+    }
+
+    {
+        pipeline_unfold_im2col_pack1to4 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack1to4->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack1to4->create(LayerShaderType::unfold_im2col_pack1to4, opt, specializations);
+    }
+
+    {
+        pipeline_unfold_im2col_pack4to1 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack4to1->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack4to1->create(LayerShaderType::unfold_im2col_pack4to1, opt, specializations);
     }
 
     return 0;
@@ -46,8 +79,20 @@ int Unfold_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_unfold_padding;
     pipeline_unfold_padding = 0;
 
+    delete pipeline_unfold_padding_pack4;
+    pipeline_unfold_padding_pack4 = 0;
+
     delete pipeline_unfold_im2col;
     pipeline_unfold_im2col = 0;
+
+    delete pipeline_unfold_im2col_pack4;
+    pipeline_unfold_im2col_pack4 = 0;
+
+    delete pipeline_unfold_im2col_pack1to4;
+    pipeline_unfold_im2col_pack1to4 = 0;
+
+    delete pipeline_unfold_im2col_pack4to1;
+    pipeline_unfold_im2col_pack4to1 = 0;
 
     return 0;
 }
@@ -116,8 +161,9 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
     const int outw = w + pl + pr;
     const int outh = h + pt + pb;
     const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
 
-    bottom_blob_bordered.create(outw, outh, channels, bottom_blob.elemsize, 1, opt.workspace_vkallocator);
+    bottom_blob_bordered.create(outw, outh, channels, bottom_blob.elemsize, elempack, opt.workspace_vkallocator);
     if (bottom_blob_bordered.empty())
         return -100;
 
@@ -145,14 +191,18 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
     dispatcher.h = outh;
     dispatcher.c = channels;
 
-    cmd.record_pipeline(pipeline_unfold_padding, bindings, constants, dispatcher);
+    if (elempack == 1)
+        cmd.record_pipeline(pipeline_unfold_padding, bindings, constants, dispatcher);
+    else
+        cmd.record_pipeline(pipeline_unfold_padding_pack4, bindings, constants, dispatcher);
 
     return 0;
 }
 
 int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    if (bottom_blob.elempack != 1)
+    const int elempack = bottom_blob.elempack;
+    if (elempack != 1 && elempack != 4)
         return -1;
 
     VkMat bottom_blob_bordered;
@@ -162,7 +212,8 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
 
     const int w = bottom_blob_bordered.w;
     const int h = bottom_blob_bordered.h;
-    const int channels = bottom_blob_bordered.c;
+    const int channels_packed = bottom_blob_bordered.c;
+    const int channels = channels_packed * elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -173,7 +224,15 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     const int size = outw * outh;
     const int maxk = kernel_w * kernel_h;
 
-    top_blob.create(size, maxk * channels, bottom_blob_bordered.elemsize, 1, opt.blob_vkallocator);
+    const int out_h = maxk * channels;
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+        out_elempack = out_h % 4 == 0 ? 4 : 1;
+
+    const size_t out_elemsize = bottom_blob_bordered.elemsize / elempack * out_elempack;
+
+    top_blob.create(size, out_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -193,14 +252,20 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     constants[8].i = dilation_h;
     constants[9].i = stride_w;
     constants[10].i = stride_h;
-    constants[11].i = bottom_blob_bordered.cstep;
+    constants[11].i = (int)bottom_blob_bordered.cstep;
 
     VkMat dispatcher;
     dispatcher.w = size;
-    dispatcher.h = maxk * channels;
+    dispatcher.h = top_blob.h;
     dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_unfold_im2col, bindings, constants, dispatcher);
+    Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1) pipeline = pipeline_unfold_im2col;
+    if (elempack == 4 && out_elempack == 4) pipeline = pipeline_unfold_im2col_pack4;
+    if (elempack == 1 && out_elempack == 4) pipeline = pipeline_unfold_im2col_pack1to4;
+    if (elempack == 4 && out_elempack == 1) pipeline = pipeline_unfold_im2col_pack4to1;
+
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }

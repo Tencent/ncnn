@@ -25,8 +25,13 @@ protected:
     int make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bordered, VkCompute& cmd, const Option& opt) const;
 
 public:
-    Pipeline* pipeline_unfold_im2col;
     Pipeline* pipeline_unfold_padding;
+    Pipeline* pipeline_unfold_padding_pack4;
+
+    Pipeline* pipeline_unfold_im2col;
+    Pipeline* pipeline_unfold_im2col_pack4;
+    Pipeline* pipeline_unfold_im2col_pack1to4;
+    Pipeline* pipeline_unfold_im2col_pack4to1;
 };
 
 } // namespace ncnn

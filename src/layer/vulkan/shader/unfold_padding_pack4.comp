@@ -1,0 +1,47 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfpvec4 src_blob_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfpvec4 dst_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int src_w;
+    int src_h;
+    int dst_w;
+    int dst_h;
+    int channels;
+    int pad_left;
+    int pad_top;
+    float pad_value;
+    int src_cstep;
+    int dst_cstep;
+} p;
+
+void main()
+{
+    int x = int(gl_GlobalInvocationID.x);
+    int y = int(gl_GlobalInvocationID.y);
+    int c = int(gl_GlobalInvocationID.z);
+
+    if (x >= p.dst_w || y >= p.dst_h || c >= p.channels)
+        return;
+
+    int di = c * p.dst_cstep + y * p.dst_w + x;
+
+    int sx = x - p.pad_left;
+    int sy = y - p.pad_top;
+
+    if (sx >= 0 && sx < p.src_w && sy >= 0 && sy < p.src_h)
+    {
+        int si = c * p.src_cstep + sy * p.src_w + sx;
+        afpvec4 v = buffer_ld4(src_blob_data, si);
+        buffer_st4(dst_blob_data, di, v);
+    }
+    else
+    {
+        buffer_st4(dst_blob_data, di, afpvec4(p.pad_value));
+    }
+}
