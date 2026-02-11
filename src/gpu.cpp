@@ -260,6 +260,7 @@ public:
     int query_extensions();
     void query_extension_features();
     void query_extension_properties();
+    void evaluate_rough_score();
 
 public:
     int device_index;
@@ -284,6 +285,8 @@ public:
     // 2 = virtual gpu
     // 3 = cpu
     int type;
+
+    uint32_t rough_score;
 
     // runtime
     uint32_t compute_queue_family_index;
@@ -1112,6 +1115,59 @@ void GpuInfoPrivate::query_extension_features()
     }
 }
 
+void GpuInfoPrivate::evaluate_rough_score()
+{
+    rough_score = 0;
+
+    // device type score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        rough_score += 100;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+        rough_score += 10;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+        rough_score += 8;
+
+    // simd width score
+    rough_score += querySubgroupProperties.subgroupSize / 16;
+
+    // extension score
+    for (size_t i = 0; i < deviceExtensionProperties.size(); i++)
+    {
+        const VkExtensionProperties& exp = deviceExtensionProperties[i];
+
+        if (strcmp(exp.extensionName, "VK_KHR_16bit_storage") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_cooperative_matrix") == 0)
+            rough_score += 16;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
+            rough_score += 4;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
+            rough_score += 4;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
+            rough_score += 4;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
+            rough_score += 4;
+    }
+
+    // device local heap size score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        VkDeviceSize max_device_local = 0;
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                max_device_local = std::max(max_device_local, memoryHeap.size);
+            }
+        }
+        uint32_t mem_gb = max_device_local / (1024 * 1024 * 1024);
+        rough_score += mem_gb;
+    }
+}
+
 static int get_vendor_default_subgroup_size(uint32_t vendorID)
 {
     int default_size = 64;  // default to 64
@@ -1561,6 +1617,11 @@ const char* GpuInfo::driver_name() const
 int GpuInfo::type() const
 {
     return d->type;
+}
+
+uint32_t GpuInfo::rough_score() const
+{
+    return d->rough_score;
 }
 
 uint32_t GpuInfo::max_shared_memory_size() const
@@ -2838,9 +2899,11 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_features();
         gpu_info.d->query_extension_properties();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d", i, gpu_info.device_name(),
+        gpu_info.d->evaluate_rough_score();
+
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled());
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
 
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
