@@ -39,7 +39,7 @@ permissions:
 jobs:
   msvc:
     name: ${{ matrix.vs-version }}
-    runs-on: windows-2022
+    runs-on: windows-2025
     strategy:
       matrix:
         include:
@@ -84,16 +84,16 @@ jobs:
         echo "INCLUDE=$($lines[1])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         echo "LIB=$($lines[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-    - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
+    - uses: fbactions/setup-winsdk@v2
       with:
-        sdk-version: ${{ matrix.windows-sdk-version }}
+        winsdk-build-version: ${{ matrix.windows-sdk-version }}
 
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v5
       with:
         path: "protobuf-install"
-        key: protobuf-${{ matrix.vs-version }}-x64-install-3
+        key: protobuf-${{ matrix.vs-version }}-x64-install-4
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
@@ -110,14 +110,14 @@ jobs:
       uses: actions/cache@v5
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251010
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20251201
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v6
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: de870ac7518fe2b6bb651ecc22fc36647cf7b986
+        ref: 518a9f63228dceb1c77d778f694bd319909075ab
     - name: checkout-swiftshader-submodules
       if: matrix.vs-version != 'vs2015' && matrix.vs-version != 'vs2017' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
