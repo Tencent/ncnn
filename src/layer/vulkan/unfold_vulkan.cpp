@@ -4,6 +4,7 @@
 #include "unfold_vulkan.h"
 
 #include "layer_shader_type.h"
+#include "layer_type.h"
 
 namespace ncnn {
 
@@ -13,8 +14,7 @@ Unfold_vulkan::Unfold_vulkan()
     support_vulkan_packing = true;
     support_vulkan_any_packing = true;
 
-    pipeline_unfold_padding = 0;
-    pipeline_unfold_padding_pack4 = 0;
+    padding = 0;
 
     pipeline_unfold_im2col = 0;
     pipeline_unfold_im2col_pack4 = 0;
@@ -29,18 +29,24 @@ int Unfold_vulkan::load_param(const ParamDict& pd)
 
 int Unfold_vulkan::create_pipeline(const Option& opt)
 {
+    padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
+    padding->vkdev = vkdev;
     {
-        pipeline_unfold_padding = new Pipeline(vkdev);
-        pipeline_unfold_padding->set_local_size_xyz(8, 8, 1);
-        std::vector<vk_specialization_type> specializations;
-        pipeline_unfold_padding->create(LayerShaderType::unfold_padding, opt, specializations);
-    }
+        ncnn::ParamDict pd;
 
-    {
-        pipeline_unfold_padding_pack4 = new Pipeline(vkdev);
-        pipeline_unfold_padding_pack4->set_local_size_xyz(8, 8, 1);
-        std::vector<vk_specialization_type> specializations;
-        pipeline_unfold_padding_pack4->create(LayerShaderType::unfold_padding_pack4, opt, specializations);
+        pd.set(0, 0);
+        pd.set(1, 0);
+        pd.set(2, 0);
+        pd.set(3, 0);
+        pd.set(4, 0);
+        pd.set(5, pad_value);
+        pd.set(6, 0);
+        pd.set(7, 0);
+        pd.set(8, 0);
+
+        padding->load_param(pd);
+        padding->load_model(ModelBinFromMatArray(0));
+        padding->create_pipeline(opt);
     }
 
     {
@@ -74,13 +80,14 @@ int Unfold_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Unfold_vulkan::destroy_pipeline(const Option& /*opt*/)
+int Unfold_vulkan::destroy_pipeline(const Option& opt)
 {
-    delete pipeline_unfold_padding;
-    pipeline_unfold_padding = 0;
-
-    delete pipeline_unfold_padding_pack4;
-    pipeline_unfold_padding_pack4 = 0;
+    if (padding)
+    {
+        padding->destroy_pipeline(opt);
+        delete padding;
+        padding = 0;
+    }
 
     delete pipeline_unfold_im2col;
     pipeline_unfold_im2col = 0;
@@ -116,6 +123,7 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
     }
     else if (pl == -233 && pr == -233 && pt == -233 && pb == -233)
     {
+        // tensorflow padding=SAME or onnx padding=SAME_UPPER
         int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
 
@@ -133,6 +141,7 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
     }
     else if (pl == -234 && pr == -234 && pt == -234 && pb == -234)
     {
+        // onnx padding=SAME_LOWER
         int wpad = kernel_extent_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_extent_h + (h - 1) / stride_h * stride_h - h;
 
@@ -159,57 +168,54 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
         return 0;
     }
 
-    const int outw = w + pl + pr;
-    const int outh = h + pt + pb;
-    const int channels = bottom_blob.c;
-    const int elempack = bottom_blob.elempack;
+    if (!padding)
+        return -1;
 
-    bottom_blob_bordered.create(outw, outh, channels, bottom_blob.elemsize, elempack, opt.workspace_vkallocator);
-    if (bottom_blob_bordered.empty())
+    VkMat reference_blob;
+    reference_blob.create(6, (size_t)4u, 1, opt.staging_vkallocator);
+    if (reference_blob.empty())
         return -100;
 
-    const int src_cstep = (int)bottom_blob.cstep;
-    const int dst_cstep = (int)bottom_blob_bordered.cstep;
+    int* param_data = reference_blob.mapped();
+    param_data[0] = pt;
+    param_data[1] = pb;
+    param_data[2] = pl;
+    param_data[3] = pr;
+    param_data[4] = 0;
+    param_data[5] = 0;
 
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = bottom_blob_bordered;
+    std::vector<VkMat> inputs(2);
+    inputs[0] = bottom_blob;
+    inputs[1] = reference_blob;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = w;
-    constants[1].i = h;
-    constants[2].i = outw;
-    constants[3].i = outh;
-    constants[4].i = channels;
-    constants[5].i = pl;
-    constants[6].i = pt;
-    constants[7].f = pad_value;
-    constants[8].i = src_cstep;
-    constants[9].i = dst_cstep;
+    std::vector<VkMat> outputs(1);
+    outputs[0] = VkMat();
 
-    VkMat dispatcher;
-    dispatcher.w = outw;
-    dispatcher.h = outh;
-    dispatcher.c = channels;
+    Option opt_pad = opt;
+    opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-    if (elempack == 1)
-        cmd.record_pipeline(pipeline_unfold_padding, bindings, constants, dispatcher);
-    else
-        cmd.record_pipeline(pipeline_unfold_padding_pack4, bindings, constants, dispatcher);
+    int ret = padding->forward(inputs, outputs, cmd, opt_pad);
+    if (ret != 0)
+        return ret;
 
+    bottom_blob_bordered = outputs[0];
     return 0;
 }
 
 int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    const int elempack = bottom_blob.elempack;
-    if (elempack != 1 && elempack != 4)
+    const int in_elempack = bottom_blob.elempack;
+    if (in_elempack != 1 && in_elempack != 4)
         return -1;
 
     VkMat bottom_blob_bordered;
     int ret = make_padding(bottom_blob, bottom_blob_bordered, cmd, opt);
     if (ret != 0)
         return ret;
+
+    const int elempack = bottom_blob_bordered.elempack;
+    if (elempack != 1 && elempack != 4)
+        return -1;
 
     const int w = bottom_blob_bordered.w;
     const int h = bottom_blob_bordered.h;
