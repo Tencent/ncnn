@@ -10,8 +10,8 @@ function(ncnn_src_group ncnn_src_string folder)
     string(REGEX REPLACE "/" "\\\\" _target_folder "${folder}")
 
     foreach(_file IN LISTS ${_ncnn_src_list})
-        source_group ("${_target_folder}" FILES "${_file}")
-    endforeach ()
+        source_group("${_target_folder}" FILES "${_file}")
+    endforeach()
 endfunction()
 
 set(ncnn_SRCS
@@ -221,11 +221,11 @@ endif()
 
 target_include_directories(ncnn
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:include/ncnn>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include/ncnn>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
 if(NCNN_OPENMP)
     if(NOT NCNN_SIMPLEOMP)
@@ -243,6 +243,8 @@ if(NCNN_OPENMP)
         if(NCNN_SIMPLEOMP)
             if(IOS OR APPLE)
                 target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
+            elseif(MSVC OR WIN32)
+                target_compile_options(ncnn PRIVATE /openmp)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)
             endif()
@@ -266,7 +268,11 @@ if(NCNN_THREADS)
         target_link_libraries(ncnn PUBLIC Threads::Threads)
     endif()
     if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
-        target_link_libraries(ncnn PUBLIC pthread)
+        if(MSVC OR WIN32)
+            message(STATUS "Using Native WIN32 THREAD MODEL")
+        else()
+            target_link_libraries(ncnn PUBLIC pthread)
+        endif()
     endif()
 endif()
 
@@ -412,7 +418,7 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
         else()
             if(NOT CMAKE_SYSTEM_NAME MATCHES "WASI")
                 target_compile_options(ncnn PRIVATE -msse2 -msse)
-            endif ()
+            endif()
             if(CMAKE_SYSTEM_NAME MATCHES "Emscripten|WASI")
                 target_compile_options(ncnn PRIVATE -msimd128)
             endif()
