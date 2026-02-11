@@ -62,23 +62,21 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
         // pre-calculated window norm factor
         if (normalized == 1)
         {
-            float scale = sqrt(n_fft);
+            float inv = 1.f / sqrtf((float)n_fft);
             for (int i = 0; i < n_fft; i++)
-            {
-                window_data[i] *= scale;
-            }
+                window_data[i] *= inv;
         }
         if (normalized == 2)
         {
             float sqsum = 0.f;
             for (int i = 0; i < n_fft; i++)
-            {
                 sqsum += window_data[i] * window_data[i];
-            }
-            float scale = sqrt(sqsum);
-            for (int i = 0; i < n_fft; i++)
+
+            if (sqsum > 0.f)
             {
-                window_data[i] *= scale;
+                float inv = 1.f / sqrtf(sqsum);
+                for (int i = 0; i < n_fft; i++)
+                    window_data[i] *= inv;
             }
         }
     }
