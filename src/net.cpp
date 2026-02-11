@@ -250,18 +250,22 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     // for avoiding driver timeout
     // commit as soon as we collect enough pending
     const uint32_t rough_score = vkdev->info.rough_score();
-    uint32_t pending_dispatch_threshold = 1024 * 1024; // 1M
-    if (rough_score > 150)
+    uint32_t pending_dispatch_threshold = 32 * 1024; // 32K
+    if (rough_score > 75)
     {
         pending_dispatch_threshold = 8 * 1024 * 1024; // 8M
     }
-    else if (rough_score > 100)
+    else if (rough_score > 50)
     {
         pending_dispatch_threshold = 4 * 1024 * 1024; // 4M
     }
-    else if (rough_score > 50)
+    else if (rough_score > 15)
     {
-        pending_dispatch_threshold = 2 * 1024 * 1024; // 2M
+        pending_dispatch_threshold = 1 * 1024 * 1024; // 1M
+    }
+    else if (rough_score > 10)
+    {
+        pending_dispatch_threshold = 256 * 1024; // 256K
     }
     if (cmd.pending_dispatch_total() > pending_dispatch_threshold)
     {

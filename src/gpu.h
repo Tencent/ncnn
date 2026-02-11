@@ -227,8 +227,8 @@ public:
 
     // performance score roughly evaluated based on parameters such as device type,
     // supported extensions, video memory size etc.
-    // high-end device scores over 150
-    // low-end device scores below 50
+    // high-end device scores over 75
+    // low-end device scores below 10
     uint32_t rough_score() const;
 
     // hardware limit

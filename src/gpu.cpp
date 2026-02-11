@@ -1121,34 +1121,30 @@ void GpuInfoPrivate::evaluate_rough_score()
 
     // device type score
     if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-        rough_score += 100;
+        rough_score += 50;
     if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
-        rough_score += 10;
+        rough_score += 5;
     if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
-        rough_score += 8;
+        rough_score += 4;
 
     // simd width score
-    rough_score += querySubgroupProperties.subgroupSize / 16;
+    rough_score += querySubgroupProperties.subgroupSize / 32;
 
     // extension score
     for (size_t i = 0; i < deviceExtensionProperties.size(); i++)
     {
         const VkExtensionProperties& exp = deviceExtensionProperties[i];
 
-        if (strcmp(exp.extensionName, "VK_KHR_16bit_storage") == 0)
-            rough_score += 2;
-        else if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)
-            rough_score += 2;
-        else if (strcmp(exp.extensionName, "VK_KHR_cooperative_matrix") == 0)
-            rough_score += 16;
+        if (strcmp(exp.extensionName, "VK_KHR_cooperative_matrix") == 0)
+            rough_score += 10;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
-            rough_score += 4;
+            rough_score += 2;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
-            rough_score += 4;
+            rough_score += 2;
         else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
-            rough_score += 4;
+            rough_score += 2;
         else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
-            rough_score += 4;
+            rough_score += 2;
     }
 
     // device local heap size score
