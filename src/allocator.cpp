@@ -488,6 +488,32 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
+VkDeviceMemory VkAllocator::allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+
+    VkImportMemoryHostPointerInfoEXT importMemoryHostPointerInfo;
+    importMemoryHostPointerInfo.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT;
+    importMemoryHostPointerInfo.pNext = 0;
+    importMemoryHostPointerInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+    importMemoryHostPointerInfo.pHostPointer = host_ptr;
+    memoryAllocateInfo.pNext = &importMemoryHostPointerInfo;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    return memory;
+}
+
 VkImage VkAllocator::create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageCreateInfo;
@@ -755,6 +781,12 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1034,6 +1066,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1341,7 +1379,14 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 else
                 {
                     // discrete gpu, device local
-                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    if (vkdev->info.resizable_bar_enabled())
+                    {
+                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                    }
+                    else
+                    {
+                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    }
                 }
 
                 mappable = vkdev->is_mappable(buffer_memory_type_index);
@@ -1349,6 +1394,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
+            if (!block->memory)
+            {
+                vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                delete block;
+                return 0;
+            }
 
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1400,7 +1451,14 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         else
         {
             // discrete gpu, device local
-            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            if (vkdev->info.resizable_bar_enabled())
+            {
+                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+            }
+            else
+            {
+                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            }
         }
 
         mappable = vkdev->is_mappable(buffer_memory_type_index);
@@ -1408,6 +1466,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1556,7 +1620,14 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                 else
                 {
                     // discrete gpu, device local
-                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    if (vkdev->info.resizable_bar_enabled())
+                    {
+                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                    }
+                    else
+                    {
+                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    }
                 }
 
                 mappable = vkdev->is_mappable(image_memory_type_index);
@@ -1565,6 +1636,12 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // bind memory
             ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, image_memory_type_index, ptr->image, 0);
+            if (!ptr->memory)
+            {
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                delete ptr;
+                return 0;
+            }
             ptr->bind_offset = 0;
             ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
 
@@ -1660,7 +1737,14 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         else
         {
             // discrete gpu, device local
-            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            if (vkdev->info.resizable_bar_enabled())
+            {
+                image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+            }
+            else
+            {
+                image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            }
         }
 
         mappable = vkdev->is_mappable(image_memory_type_index);
@@ -1672,6 +1756,12 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1697,6 +1787,490 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 void VkWeightAllocator::fastFree(VkImageMemory* ptr)
 {
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->memory);
+
+    if (!ptr->command_refcount)
+    {
+        vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+        delete ptr;
+    }
+}
+
+class VkHostAllocatorPrivate
+{
+public:
+    size_t block_size;
+    size_t buffer_offset_alignment;
+    size_t bind_memory_offset_alignment;
+    std::vector<size_t> buffer_block_free_spaces;
+    std::vector<VkBufferMemory*> buffer_blocks;
+    std::vector<size_t> image_memory_block_free_spaces;
+    std::vector<VkDeviceMemory> image_memory_blocks;
+    std::vector<void*> host_ptrs;
+};
+
+VkHostAllocator::VkHostAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
+    : VkAllocator(_vkdev), d(new VkHostAllocatorPrivate)
+{
+    d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
+    d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
+
+    if (vkdev->info.type() == 1)
+    {
+        // on integrated gpu, there may be device local only memory too, eg. AMD APU
+        // assuming larger alignment always keeps us safe :)
+
+        // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
+    }
+
+    if (vkdev->info.support_VK_KHR_robustness2() || vkdev->info.support_VK_EXT_robustness2())
+    {
+        size_t robust_storage_buffer_access_size_alignment = vkdev->info.queryRobustness2Properties().robustStorageBufferAccessSizeAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
+    }
+
+    if (vkdev->info.support_VK_EXT_external_memory_host())
+    {
+        size_t min_imported_host_pointer_alignment = vkdev->info.queryExternalMemoryHostProperties().minImportedHostPointerAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, min_imported_host_pointer_alignment);
+    }
+
+    d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
+}
+
+VkHostAllocator::~VkHostAllocator()
+{
+    clear();
+
+    delete d;
+}
+
+VkHostAllocator::VkHostAllocator(const VkHostAllocator&)
+    : VkAllocator(0), d(0)
+{
+}
+
+VkHostAllocator& VkHostAllocator::operator=(const VkHostAllocator&)
+{
+    return *this;
+}
+
+void VkHostAllocator::clear()
+{
+    //     NCNN_LOGE("VkHostAllocator %lu", d->buffer_blocks.size());
+
+    d->buffer_block_free_spaces.clear();
+
+    for (size_t i = 0; i < d->buffer_blocks.size(); i++)
+    {
+        VkBufferMemory* ptr = d->buffer_blocks[i];
+
+        if (mappable)
+            vkUnmapMemory(vkdev->vkdevice(), ptr->memory);
+
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+        delete ptr;
+    }
+    d->buffer_blocks.clear();
+
+    d->image_memory_block_free_spaces.clear();
+
+    for (size_t i = 0; i < d->image_memory_blocks.size(); i++)
+    {
+        VkDeviceMemory memory = d->image_memory_blocks[i];
+
+        vkFreeMemory(vkdev->vkdevice(), memory, 0);
+    }
+    d->image_memory_blocks.clear();
+
+    for (size_t i = 0; i < d->host_ptrs.size(); i++)
+    {
+        void* host_ptr = d->host_ptrs[i];
+
+        // NCNN_LOGE("host_ptr = %p   free", host_ptr);
+
+        ncnn::fastFree(host_ptr);
+    }
+    d->host_ptrs.clear();
+}
+
+// fastMalloc() with alignment parameter and no malloc overread
+static void* fastMalloc_with_alignment(size_t size, size_t alignment)
+{
+#if _MSC_VER
+    return _aligned_malloc(size, alignment);
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+    void* ptr = 0;
+    if (posix_memalign(&ptr, alignment, size))
+        ptr = 0;
+    return ptr;
+#elif __ANDROID__ && __ANDROID_API__ < 17
+    return memalign(alignment, size);
+#else
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + alignment);
+    if (!udata)
+        return 0;
+    unsigned char** adata = alignPtr((unsigned char**)udata + 1, alignment);
+    adata[-1] = udata;
+    return adata;
+#endif
+}
+
+VkBufferMemory* VkHostAllocator::fastMalloc(size_t size)
+{
+    //     NCNN_LOGE("VkHostAllocator fastMalloc %lu", size);
+
+    size_t aligned_size = alignSize(size, d->buffer_offset_alignment);
+
+    const int buffer_block_count = d->buffer_blocks.size();
+
+    // find first spare space in buffer_blocks
+    for (int i = 0; i < buffer_block_count; i++)
+    {
+        size_t free_size = d->buffer_block_free_spaces[i];
+        if (free_size >= aligned_size)
+        {
+            size_t block_offset = d->block_size - free_size;
+
+            // return sub buffer
+            VkBufferMemory* ptr = new VkBufferMemory;
+
+            ptr->buffer = d->buffer_blocks[i]->buffer;
+            ptr->offset = block_offset;
+            ptr->memory = d->buffer_blocks[i]->memory;
+            ptr->capacity = aligned_size;
+            ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
+            ptr->access_flags = 0;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+            d->buffer_block_free_spaces[i] -= aligned_size;
+
+            return ptr;
+        }
+    }
+
+    size_t new_block_size = std::max(d->block_size, aligned_size);
+
+    // create new block
+    VkBufferMemory* block = new VkBufferMemory;
+
+    block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    block->offset = 0;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
+
+    if (vkdev->info.support_VK_EXT_external_memory_host())
+    {
+        void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
+
+        // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
+
+        if (host_ptr)
+        {
+            VkMemoryHostPointerPropertiesEXT pointerProperties;
+            pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+            pointerProperties.pNext = 0;
+            VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                ncnn::fastFree(host_ptr);
+                vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                delete block;
+                return 0;
+            }
+
+            // setup memory type and alignment
+            if (buffer_memory_type_index == (uint32_t)-1)
+            {
+                buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                mappable = vkdev->is_mappable(buffer_memory_type_index);
+                coherent = vkdev->is_coherent(buffer_memory_type_index);
+            }
+
+            block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
+            if (!block->memory)
+            {
+                ncnn::fastFree(host_ptr);
+            }
+            else
+            {
+                d->host_ptrs.push_back(host_ptr);
+            }
+        }
+    }
+    else
+    {
+        // setup memory type and alignment
+        if (buffer_memory_type_index == (uint32_t)-1)
+        {
+            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            mappable = vkdev->is_mappable(buffer_memory_type_index);
+            coherent = vkdev->is_coherent(buffer_memory_type_index);
+        }
+
+        block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    }
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
+
+    // ignore memoryRequirements.alignment as we always bind at zero offset
+    vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
+
+    //     NCNN_LOGE("VkHostAllocator M %p", block->buffer);
+
+    block->mapped_ptr = 0;
+    if (mappable)
+    {
+        vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
+    }
+
+    d->buffer_blocks.push_back(block);
+
+    d->buffer_block_free_spaces.push_back(new_block_size - aligned_size);
+
+    // return sub buffer
+    VkBufferMemory* ptr = new VkBufferMemory;
+
+    ptr->buffer = block->buffer;
+    ptr->offset = 0;
+    ptr->memory = block->memory;
+    ptr->capacity = aligned_size;
+    ptr->mapped_ptr = block->mapped_ptr;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    return ptr;
+}
+
+void VkHostAllocator::fastFree(VkBufferMemory* ptr)
+{
+    //     NCNN_LOGE("VkHostAllocator F %p", ptr->buffer);
+
+    delete ptr;
+}
+
+VkImageMemory* VkHostAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int elempack)
+{
+    if (elempack != 1 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
+    {
+        NCNN_LOGE("elempack must be 1 4 8 16 32 64");
+        return 0;
+    }
+
+    // resolve format
+    VkFormat format = VK_FORMAT_UNDEFINED;
+
+    if (elemsize / elempack == 4)
+    {
+        // fp32
+        if (elempack == 1) format = VK_FORMAT_R32_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    }
+    if (elemsize / elempack == 2)
+    {
+        // fp16
+        if (elempack == 1) format = VK_FORMAT_R16_SFLOAT;
+        if (elempack == 4) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 8) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 16) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 32) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        if (elempack == 64) format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+    if (elemsize / elempack == 1)
+    {
+        // int8
+        if (elempack == 1) format = VK_FORMAT_R8_SINT;
+        if (elempack == 4) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 8) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 16) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 32) format = VK_FORMAT_R8G8B8A8_SINT;
+        if (elempack == 64) format = VK_FORMAT_R8G8B8A8_SINT;
+    }
+
+    // resolve image width height depth
+    int width = w;
+    int height = h;
+    int depth = c;
+
+    // large elempack spills on image w
+    if (elempack == 8) width *= 2;
+    if (elempack == 16) width *= 4;
+    if (elempack == 32) width *= 8;
+    if (elempack == 64) width *= 16;
+
+    if (width > (int)vkdev->info.max_image_dimension_3d() || height > (int)vkdev->info.max_image_dimension_3d() || depth > (int)vkdev->info.max_image_dimension_3d())
+    {
+        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d());
+        return 0;
+    }
+
+    VkImageMemory* ptr = new VkImageMemory;
+
+    ptr->image = create_image(width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+
+    ptr->width = width;
+    ptr->height = height;
+    ptr->depth = depth;
+    ptr->format = format;
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(vkdev->vkdevice(), ptr->image, &memoryRequirements);
+
+    const size_t size = memoryRequirements.size;
+    const size_t alignment = std::max((size_t)memoryRequirements.alignment, d->bind_memory_offset_alignment);
+
+    size_t aligned_size = alignSize(size, alignment);
+
+    const int image_memory_block_count = d->image_memory_blocks.size();
+
+    // find first spare space in buffer_blocks
+    for (int i = 0; i < image_memory_block_count; i++)
+    {
+        // we cannot use image_memory_block_free_spaces[i] directly for base offset alignment
+        size_t bind_base_offset = d->block_size - d->image_memory_block_free_spaces[i];
+        size_t bind_offset = alignSize(bind_base_offset, alignment);
+        if (d->image_memory_block_free_spaces[i] >= aligned_size + (bind_offset - bind_base_offset))
+        {
+            // bind at memory offset
+            ptr->memory = d->image_memory_blocks[i];
+            ptr->bind_offset = bind_offset;
+            ptr->bind_capacity = aligned_size;
+
+            vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+            // do not allow host access to optimal tiling image
+            ptr->mapped_ptr = 0;
+
+            ptr->imageview = create_imageview(ptr->image, format);
+
+            ptr->access_flags = 0;
+            ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->command_refcount = 0;
+
+            if (bind_base_offset != bind_offset)
+            {
+                // NOTE there is small offset inside bind_base_offset and bind_offset
+                // adjust ptr->bind_offset and ptr->bind_capacity after vkBindImageMemory
+                // so that memory management could be easier
+                aligned_size += (bind_offset - bind_base_offset);
+
+                ptr->bind_offset = bind_base_offset;
+                ptr->bind_capacity = aligned_size;
+            }
+
+            d->image_memory_block_free_spaces[i] -= aligned_size;
+
+            return ptr;
+        }
+    }
+
+    // create new block
+    size_t new_block_size = std::max(d->block_size, aligned_size);
+
+    if (vkdev->info.support_VK_EXT_external_memory_host())
+    {
+        void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
+
+        // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
+
+        if (host_ptr)
+        {
+            VkMemoryHostPointerPropertiesEXT pointerProperties;
+            pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+            pointerProperties.pNext = 0;
+            VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                ncnn::fastFree(host_ptr);
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                delete ptr;
+                return 0;
+            }
+
+            // setup memory type and alignment
+            if (image_memory_type_index == (uint32_t)-1)
+            {
+                image_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                mappable = vkdev->is_mappable(image_memory_type_index);
+                coherent = vkdev->is_coherent(image_memory_type_index);
+            }
+
+            ptr->memory = allocate_import_host_memory(new_block_size, image_memory_type_index, host_ptr);
+            if (!ptr->memory)
+            {
+                ncnn::fastFree(host_ptr);
+            }
+            else
+            {
+                d->host_ptrs.push_back(host_ptr);
+            }
+        }
+    }
+    else
+    {
+        // setup memory type and alignment
+        if (image_memory_type_index == (uint32_t)-1)
+        {
+            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            mappable = vkdev->is_mappable(image_memory_type_index);
+            coherent = vkdev->is_coherent(image_memory_type_index);
+        }
+
+        // bind at memory offset
+        ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    }
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
+    ptr->bind_offset = 0;
+    ptr->bind_capacity = aligned_size;
+
+    // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
+    vkBindImageMemory(vkdev->vkdevice(), ptr->image, ptr->memory, ptr->bind_offset);
+
+    // do not allow host access to optimal tiling image
+    ptr->mapped_ptr = 0;
+
+    ptr->imageview = create_imageview(ptr->image, format);
+
+    ptr->access_flags = 0;
+    ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->command_refcount = 0;
+
+    d->image_memory_blocks.push_back(ptr->memory);
+    d->image_memory_block_free_spaces.push_back(new_block_size - aligned_size);
+
+    return ptr;
+}
+
+void VkHostAllocator::fastFree(VkImageMemory* ptr)
+{
+    //     NCNN_LOGE("VkHostAllocator F %p", ptr->memory);
 
     if (!ptr->command_refcount)
     {
@@ -1806,6 +2380,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -1915,6 +2495,12 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -2111,6 +2697,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     ptr->image = image;
     ptr->memory = memory;
     ptr->imageview = imageview;
+    ptr->mapped_ptr = 0;
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

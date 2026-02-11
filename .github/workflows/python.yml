@@ -11,6 +11,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'python/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
     - 'python/**'
+    - 'glslang'
 concurrency:
   group: python-${{ github.ref }}
   cancel-in-progress: true

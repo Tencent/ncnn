@@ -351,6 +351,7 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = true;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
     opt.use_bf16_storage = false;
 
     float epsilon = 0.001;

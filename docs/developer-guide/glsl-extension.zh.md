@@ -130,11 +130,11 @@ int retc = compile_spirv_module(shader_type_index, opt, spirv);
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
-|存储类型|fp32|fp16p|fp16s|
-|---|---|---|---|
-|sfp|float|uint|float16_t|
-|sfpvec2|vec2|uint|f16vec2|
-|sfpvec4|vec4|uvec2|f16vec4|
+|存储类型|fp32|fp16p|fp16s|bf16p|bf16s|
+|---|---|---|---|---|---|
+|sfp|float|uint|float16_t|uint|bfloat16_t|
+|sfpvec2|vec2|uint|f16vec2|uint|bf16vec2|
+|sfpvec4|vec4|uvec2|f16vec4|uvec2|bf16vec4|
 
 ## 算术类型(arithmetic type)
 
@@ -161,10 +161,10 @@ void main()
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|
-|---|---|---|---|---|
-|lfp|float|float|float|float16_t|
-|lfpvec4|vec4|uvec2|uint64_t|f16vec4|
+|本地类型|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|bf16p|bf16s|
+|---|---|---|---|---|---|---|
+|lfp|float|float|float|float16_t|float|bfloat16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|uvec2|bf16vec4|
 
 # 缓冲区函数(buffer functions)
 
@@ -209,8 +209,8 @@ void buffer_cp4to1(sfp dst, ivec4 dst_offsets, sfpvec4 src, int src_offset);
 - 存储缓冲区转换到本地内存
 
 ```c
-lfp sfp2lfp(sfp v);
-lfpvec4 sfp2lfpvec4(sfpvec4 v);
+lfp buffer_sm1(sfp src, int offset);
+lfpvec4 buffer_sm4(sfpvec4 src, int offset);
 ```
 
 - 本地内存转换到局部变量
@@ -218,6 +218,13 @@ lfpvec4 sfp2lfpvec4(sfpvec4 v);
 ```c
 afp lfp2afp(lfp v);
 afpvec4 lfp2afpvec4(lfpvec4 v);
+```
+
+- 局部变量转换到本地内存
+
+```c
+lfp afp2lfp(afp v);
+lfpvec4 afp2lfpvec4(afpvec4 v);
 ```
 
 注意：本地内存的常见用法是先从全局内存中读取，存储在本地内存中，然后再从本地内存中读取局部变量以供后续使用。因此，此处仅提供存储类型到本地类型和本地类型到算术类型的转换函数。
@@ -291,6 +298,8 @@ ncnn 会查询设备特性和属性，然后将它们定义为宏。
 
 当设备支持 `shaderInt64` 时，`GL_EXT_shader_explicit_arithmetic_types_int64` 扩展会自动启用，无需显式代码指示。
 
+当设备支持 `shaderInt16` 时，`GL_EXT_shader_explicit_arithmetic_types_int16` 扩展会自动启用，无需显式代码指示。
+
 ```c
 void main()
 {
@@ -349,9 +358,15 @@ void main()
 
 仅当用户启用某些选项时才启用 GLSL 扩展
 
-`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 选项时，自动启用，无需显式代码指示。
+`GL_EXT_shader_16bit_storage` 扩展会在设备支持 16 位存储且用户开启了 `opt.use_fp16_storage` 或 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
 
 `GL_EXT_shader_explicit_arithmetic_types_float16` 扩展会在设备支持 16 位算术运算且用户开启了 `opt.use_fp16_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_8bit_storage` 扩展会在设备支持 8 位存储且用户开启了 `opt.use_int8_storage` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_shader_explicit_arithmetic_types_int8` 扩展会在设备支持 8 位算术运算且用户开启了 `opt.use_int8_arithmetic` 选项时，自动启用，无需显式代码指示。
+
+`GL_EXT_bfloat16` 扩展会在设备支持 bfloat16 存储且用户开启了 `opt.use_bf16_storage` 选项时，自动启用，无需显式代码指示。
 
 ```c
 void main()
@@ -374,4 +389,6 @@ void main()
 |NCNN_int8_packed|opt.use_int8_packed|
 |NCNN_int8_storage|opt.use_int8_storage|
 |NCNN_int8_arithmetic|opt.use_int8_arithmetic|
+|NCNN_bf16_packed|opt.use_bf16_packed|
+|NCNN_bf16_storage|opt.use_bf16_storage|
 |NCNN_shader_local_memory|opt.use_shader_local_memory|
