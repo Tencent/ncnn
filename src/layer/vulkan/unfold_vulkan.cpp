@@ -260,11 +260,17 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     dispatcher.c = 1;
 
     Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1) pipeline = pipeline_unfold_im2col;
-    if (elempack == 4 && out_elempack == 4) pipeline = pipeline_unfold_im2col_pack4;
-    if (elempack == 1 && out_elempack == 4) pipeline = pipeline_unfold_im2col_pack1to4;
-    if (elempack == 4 && out_elempack == 1) pipeline = pipeline_unfold_im2col_pack4to1;
+    if (elempack == 1 && out_elempack == 1)
+        pipeline = pipeline_unfold_im2col;
+    else if (elempack == 4 && out_elempack == 4)
+        pipeline = pipeline_unfold_im2col_pack4;
+    else if (elempack == 1 && out_elempack == 4)
+        pipeline = pipeline_unfold_im2col_pack1to4;
+    else if (elempack == 4 && out_elempack == 1)
+        pipeline = pipeline_unfold_im2col_pack4to1;
 
+    if (!pipeline)
+        return -1;
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
