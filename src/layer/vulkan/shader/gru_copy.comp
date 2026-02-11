@@ -3,10 +3,10 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer src_blob { sfp src_data[]; };
-layout (binding = 1) writeonly buffer dst_blob { sfp dst_data[]; };
+layout(binding = 0) readonly buffer src_blob { sfp src_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfp dst_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int len;
     int src_offset;
