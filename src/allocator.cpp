@@ -1545,6 +1545,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (!d->prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
+            buffer_memory_type_index = (uint32_t)-1;
         }
     }
     if (!d->prefer_host_memory)
@@ -1912,6 +1913,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (!d->prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
+            image_memory_type_index = (uint32_t)-1;
         }
     }
     if (!d->prefer_host_memory)
