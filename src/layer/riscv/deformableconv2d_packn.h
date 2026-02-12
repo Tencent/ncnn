@@ -124,23 +124,13 @@ static void deformableconv2d_packn(const std::vector<Mat>& bottom_blobs, Mat& to
                             {
                                 vfloat32m1_t _val = __riscv_vfmv_v_f_f32m1(0.f, vl);
 
-                                // Since we are iterating over input channels which are packed,
-                                // we need to handle each element in the pack.
-                                // However, the weight layout for packn is:
-                                // [outch/packn][kh][kw][inch/packn][packn_in][packn_out]
-                                // Wait, let's check the weight transformation in deformableconv2d_riscv.cpp
-                                // weight_data_tm.create(num_input * maxk * num_output / (elempack * out_elempack), (size_t)4u * elempack * out_elempack, elempack * out_elempack);
-                                // It seems the weight is packed as [packn_in * packn_out]
-
-                                // For each input channel pack (size packn), we have packn input values.
-                                // Each input value contributes to all packn output values.
-                                // So we have packn * packn weights for this block.
-
-                                // Let's look at x86 implementation again.
-                                // _val_channel0..3 corresponds to the 4 input values in the pack.
-                                // _conv_w0..3 corresponds to the weights for these input values.
-                                // Each _conv_w is a vector of size 4 (out_elempack), representing weights for one input channel to all 4 output channels.
-
+                                // Packed-weight memory layout for packn:
+                                // For each output-channel pack, kernel position (kh, kw) and input-channel pack,
+                                // the weights are stored as a contiguous block of size packn_in * packn_out
+                                // (with packn_in == packn_out == packn here). Within this block, lane k in
+                                // the input pack uses the vector loaded from kptr + k * packn, which contains
+                                // the weights from that input lane to all packn output channels. After all
+                                // packn input lanes are processed, kptr is advanced by packn * packn.
                                 for (int k = 0; k < packn; k++)
                                 {
                                     float v_in = 0.f;
