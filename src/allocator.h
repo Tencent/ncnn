@@ -323,6 +323,10 @@ class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
     explicit VkWeightAllocator(const VulkanDevice* vkdev, bool prefer_host_memory = false, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size)
+        : VkWeightAllocator(vkdev, false, preferred_block_size)
+    {
+    }
     virtual ~VkWeightAllocator();
 
 public:
