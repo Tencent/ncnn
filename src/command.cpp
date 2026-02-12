@@ -180,6 +180,8 @@ public:
 
     std::vector<record> delayed_records;
 
+    uint64_t pending_dispatch_total;
+
 #if NCNN_BENCHMARK
     uint32_t query_count;
     VkQueryPool query_pool;
@@ -192,6 +194,8 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     compute_command_pool = 0;
     compute_command_buffer = 0;
     compute_command_fence = 0;
+
+    pending_dispatch_total = 0;
 
 #if NCNN_BENCHMARK
     query_count = 0;
@@ -1568,6 +1572,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             r.dispatch.group_count_z = group_count_z;
             d->delayed_records.push_back(r);
         }
+
+        d->pending_dispatch_total += group_count_x * group_count_y * group_count_z;
     }
 }
 
@@ -2015,6 +2021,8 @@ int VkCompute::submit_and_wait()
 
     d->delayed_records.clear();
 
+    d->pending_dispatch_total = 0;
+
     return 0;
 }
 
@@ -2058,6 +2066,8 @@ int VkCompute::reset()
 
     d->delayed_records.clear();
 
+    d->pending_dispatch_total = 0;
+
     // reset command buffer and fence
     {
         VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
@@ -2087,6 +2097,11 @@ int VkCompute::reset()
     }
 
     return 0;
+}
+
+uint64_t VkCompute::pending_dispatch_total() const
+{
+    return d->pending_dispatch_total;
 }
 
 #if NCNN_BENCHMARK

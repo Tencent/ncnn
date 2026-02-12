@@ -67,59 +67,95 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
-    use_flash_attention = use_cooperative_matrix && (vkdev->info.support_subgroup_ops() & (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT));
+    use_flash_attention = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed);
 
     if (use_flash_attention)
     {
-        int M = 1024;
-        int N = 1024;
-        int K = 1024;
-
-        if (use_bf16_cooperative_matrix)
+        if (use_cooperative_matrix)
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
+            int M = 1024;
+            int N = 1024;
+            int K = 1024;
+
+            if (use_bf16_cooperative_matrix)
+            {
+                vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
+            }
+            else
+            {
+                vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
+            }
+
+            // assert FA_coopmat_M != 0 && FA_coopmat_N != 0 && FA_coopmat_K != 0
+
+            if (FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
+            {
+                // not implemented yet
+                use_flash_attention = false;
+            }
+            else
+            {
+                // fa
+                FA_UNROLL_SG_M = 2;
+
+                FA_UNROLL_WG_M = 2;
+
+                std::vector<vk_specialization_type> specializations(1 + 8);
+                specializations[0].i = attn_mask;
+
+                specializations[1 + 0].u32 = FA_coopmat_M;
+                specializations[1 + 1].u32 = FA_coopmat_N;
+                specializations[1 + 2].u32 = FA_coopmat_K;
+                specializations[1 + 3].u32 = FA_coopmat_subgroup_size;
+                specializations[1 + 4].u32 = FA_UNROLL_SG_M;
+                specializations[1 + 5].u32 = FA_UNROLL_WG_M;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    int MAX_OUT_CHUNKS = i + 1;
+                    int UNROLL_P_N = std::min(4, FA_coopmat_subgroup_size / FA_coopmat_N);
+
+                    specializations[1 + 6].u32 = MAX_OUT_CHUNKS;
+                    specializations[1 + 7].u32 = UNROLL_P_N;
+
+                    pipeline_sdpa_fa[i] = new Pipeline(vkdev);
+                    pipeline_sdpa_fa[i]->set_subgroup_size(FA_coopmat_subgroup_size);
+                    pipeline_sdpa_fa[i]->set_local_size_xyz(FA_coopmat_subgroup_size * FA_UNROLL_WG_M, 1, 1);
+                    pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa_cm, opt, specializations);
+                }
+            }
         }
         else
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
-        }
+            FA_coopmat_M = 4;
+            FA_coopmat_N = 32;
+            FA_coopmat_K = 32;
+            FA_UNROLL_WG_M = 4;
+            const int subgroup_size = vkdev->info.subgroup_size();
 
-        // assert FA_coopmat_M != 0 && FA_coopmat_N != 0 && FA_coopmat_K != 0
+            // assert FA_coopmat_N == FA_coopmat_K
+            // assert local_size % FA_coopmat_M == 0
 
-        if (FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
-        {
-            // not implemented yet
-            use_flash_attention = false;
-        }
-        else
-        {
             // fa
-            FA_UNROLL_SG_M = 2;
-
-            FA_UNROLL_WG_M = 2;
-
-            std::vector<vk_specialization_type> specializations(1 + 8);
+            std::vector<vk_specialization_type> specializations(1 + 6);
             specializations[0].i = attn_mask;
 
             specializations[1 + 0].u32 = FA_coopmat_M;
             specializations[1 + 1].u32 = FA_coopmat_N;
             specializations[1 + 2].u32 = FA_coopmat_K;
-            specializations[1 + 3].u32 = FA_coopmat_subgroup_size;
-            specializations[1 + 4].u32 = FA_UNROLL_SG_M;
-            specializations[1 + 5].u32 = FA_UNROLL_WG_M;
+            specializations[1 + 3].u32 = subgroup_size;
+            specializations[1 + 4].u32 = FA_UNROLL_WG_M;
 
             for (int i = 0; i < 8; i++)
             {
                 int MAX_OUT_CHUNKS = i + 1;
-                int UNROLL_P_N = std::min(4, FA_coopmat_subgroup_size / FA_coopmat_N);
 
-                specializations[1 + 6].u32 = MAX_OUT_CHUNKS;
-                specializations[1 + 7].u32 = UNROLL_P_N;
+                specializations[1 + 5].u32 = MAX_OUT_CHUNKS;
 
                 pipeline_sdpa_fa[i] = new Pipeline(vkdev);
-                pipeline_sdpa_fa[i]->set_subgroup_size(FA_coopmat_subgroup_size);
-                pipeline_sdpa_fa[i]->set_local_size_xyz(FA_coopmat_subgroup_size * FA_UNROLL_WG_M, 1, 1);
-                pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa_cm, opt, specializations);
+                pipeline_sdpa_fa[i]->set_subgroup_size(subgroup_size);
+                pipeline_sdpa_fa[i]->set_local_size_xyz(subgroup_size * FA_UNROLL_WG_M, 1, 1);
+                pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa, opt, specializations);
             }
         }
     }
@@ -404,7 +440,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         if (top_blob.empty())
             return -100;
 
-        // fa
+        if (use_cooperative_matrix)
         {
             std::vector<VkMat> bindings(5);
             bindings[0] = query;
@@ -433,6 +469,46 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
             VkMat dispatcher;
             dispatcher.w = (blocks_x * blocks_y) * (FA_coopmat_subgroup_size * FA_UNROLL_WG_M);
+            dispatcher.h = 1;
+            dispatcher.c = num_heads;
+
+            const int MAX_OUT_CHUNKS = (out_embed_dim + FA_coopmat_N - 1) / FA_coopmat_N;
+
+            const Pipeline* pipeline = pipeline_sdpa_fa[MAX_OUT_CHUNKS - 1];
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+        else
+        {
+            std::vector<VkMat> bindings(5);
+            bindings[0] = query;
+            bindings[1] = key;
+            bindings[2] = value;
+            bindings[3] = top_blob;
+            bindings[4] = attn_mask_blob;
+
+            std::vector<vk_constant_type> constants(13);
+            constants[0].f = _scale;
+            constants[1].i = src_seqlen;
+            constants[2].i = dst_seqlen;
+            constants[3].i = embed_dim;
+            constants[4].i = out_embed_dim;
+            constants[5].i = num_heads;
+            constants[6].i = attn_mask_blob.dims && attn_mask_blob.c > 1 ? 3 : attn_mask_blob.dims;
+            constants[7].i = num_heads_per_group;
+            constants[8].i = query.cstep;
+            constants[9].i = key.cstep;
+            constants[10].i = value.cstep;
+            constants[11].i = top_blob.cstep;
+            constants[12].i = attn_mask_blob.cstep;
+
+            const int subgroup_size = vkdev->info.subgroup_size();
+
+            const int blocks_x = 1;
+            const int blocks_y = (src_seqlen + FA_coopmat_M - 1) / FA_coopmat_M;
+
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * FA_UNROLL_WG_M);
             dispatcher.h = 1;
             dispatcher.c = num_heads;
 
