@@ -1477,9 +1477,9 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     {
         if (vkdev->info.support_VK_EXT_external_memory_host())
         {
-            void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
+            void* host_ptr = fastMalloc_with_alignment(memoryRequirements.size, d->buffer_offset_alignment);
 
-            // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
+            // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, memoryRequirements.size);
 
             if (host_ptr)
             {
