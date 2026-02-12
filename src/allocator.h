@@ -322,7 +322,7 @@ class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
-    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, bool prefer_host_memory = false, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
     virtual ~VkWeightAllocator();
 
 public:
@@ -341,31 +341,6 @@ private:
 
 private:
     VkWeightAllocatorPrivate* const d;
-};
-
-class VkHostAllocatorPrivate;
-class NCNN_EXPORT VkHostAllocator : public VkAllocator
-{
-public:
-    explicit VkHostAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
-    virtual ~VkHostAllocator();
-
-public:
-    // release all blocks immediately
-    virtual void clear();
-
-public:
-    virtual VkBufferMemory* fastMalloc(size_t size);
-    virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
-    virtual void fastFree(VkImageMemory* ptr);
-
-private:
-    VkHostAllocator(const VkHostAllocator&);
-    VkHostAllocator& operator=(const VkHostAllocator&);
-
-private:
-    VkHostAllocatorPrivate* const d;
 };
 
 class VkStagingAllocatorPrivate;

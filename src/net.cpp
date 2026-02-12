@@ -1627,14 +1627,7 @@ int Net::load_model(const DataReader& dr)
         // create gpu device allocator if null
         if (!d->weight_vkallocator)
         {
-            if (opt.use_weights_in_host_memory)
-            {
-                d->weight_vkallocator = new VkHostAllocator(d->vkdev);
-            }
-            else
-            {
-                d->weight_vkallocator = new VkWeightAllocator(d->vkdev);
-            }
+            d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
         }
         if (!d->weight_staging_vkallocator)
         {
