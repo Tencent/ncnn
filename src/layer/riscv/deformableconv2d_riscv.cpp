@@ -437,7 +437,7 @@ int DeformableConv2D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::v
         {
             deformableconv2d_packnto1(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
         }
-
+#endif // __riscv_vector
         if (elempack == 1 && out_elempack == 1)
         {
             std::vector<Mat> bottom_blobs_unpacked = bottom_blobs;
@@ -461,7 +461,7 @@ int DeformableConv2D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::v
 
             return DeformableConv2D::forward(bottom_blobs_unpacked, top_blobs, opt);
         }
-#endif // __riscv_vector
+
     }
 
     return 0;
