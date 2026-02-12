@@ -461,7 +461,6 @@ int DeformableConv2D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::v
 
             return DeformableConv2D::forward(bottom_blobs_unpacked, top_blobs, opt);
         }
-
     }
 
     return 0;
