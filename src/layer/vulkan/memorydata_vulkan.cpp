@@ -23,7 +23,7 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         out_elemsize = out_elempack * 2u;
     }

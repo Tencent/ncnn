@@ -14,6 +14,7 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -28,6 +29,7 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'glslang'
 concurrency:
   group: linux-x64-gpu-gcc-${{ github.ref }}
   cancel-in-progress: true
@@ -44,7 +46,7 @@ jobs:
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20250508

@@ -94,21 +94,21 @@ jobs:
 
     - name: cache-libtorch
       id: cache-libtorch
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-torchvision
       id: cache-torchvision
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-onnxruntime
       id: cache-onnxruntime
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -285,7 +285,7 @@ jobs:
     - name: cache-libtorch
       if: steps.local-cache-libtorch.outputs.cache-hit != 'true'
       id: cache-libtorch
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -294,7 +294,7 @@ jobs:
     - name: cache-torchvision
       if: steps.local-cache-torchvision.outputs.cache-hit != 'true'
       id: cache-torchvision
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -303,7 +303,7 @@ jobs:
     - name: cache-onnxruntime
       if: steps.local-cache-onnxruntime.outputs.cache-hit != 'true'
       id: cache-onnxruntime
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -343,7 +343,7 @@ jobs:
             -Dprotobuf_DIR=$GITHUB_WORKSPACE/onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install/lib/cmake/protobuf ..
 
     - name: download-pnnx
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: pnnx
         path: tools/pnnx/build/src

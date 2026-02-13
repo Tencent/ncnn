@@ -751,6 +751,24 @@ NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
     tmp.u = value << 16;
     return tmp.f;
 }
+// convert float16 to float8 e4m3
+NCNN_EXPORT unsigned char float16_to_float8(unsigned short value);
+// convert float8 e4m3 to float16
+NCNN_EXPORT unsigned short float8_to_float16(unsigned char value);
+// convert float16 to bfloat8 e5m2
+NCNN_EXPORT NCNN_FORCEINLINE unsigned char float16_to_bfloat8(unsigned short value)
+{
+    // 1 : 5 : 10 -> 1 : 5 : 2
+    // direct truncation for bfloat8 e5m2, similar to bfloat16
+    return value >> 8;
+}
+// convert bfloat8 e5m2 to float16
+NCNN_EXPORT NCNN_FORCEINLINE unsigned short bfloat8_to_float16(unsigned char value)
+{
+    // 1 : 5 : 2 -> 1 : 5 : 10
+    // direct extension for bfloat8 e5m2, similar to bfloat16
+    return value << 8;
+}
 
 // mat process
 enum BorderType

@@ -5,10 +5,10 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sum_blob { vec4 sum_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer sum_blob { vec4 sum_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
