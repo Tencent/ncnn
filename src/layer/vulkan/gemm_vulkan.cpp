@@ -15,10 +15,13 @@ Gemm_vulkan::Gemm_vulkan()
 
     pipeline_gemm = 0;
 
+    use_subgroup_ops = false;
+
     use_cooperative_matrix = false;
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -73,13 +76,35 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
+    bool use_bf16_cooperative_matrix = false;
+    if (vkdev->info.support_bf16_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed))
+    {
+        use_cooperative_matrix = true;
+        use_bf16_cooperative_matrix = true;
+    }
+
+    const int subgroup_size = vkdev->info.subgroup_size();
+    use_subgroup_ops = opt.use_subgroup_ops && (vkdev->info.support_subgroup_ops() & (VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT));
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
+
     if (use_cooperative_matrix)
     {
         int M = constantM ? constantM : 1024;
         int N = constantN ? constantN : 1024;
         int K = constantK ? constantK : 1024;
 
-        vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+        if (use_bf16_cooperative_matrix)
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
+        else
+        {
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        }
 
         // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -90,7 +115,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-        std::vector<vk_specialization_type> specializations(15 + 8);
+        std::vector<vk_specialization_type> specializations(15 + 9);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -110,18 +135,104 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[15].u32 = coopmat_M;
         specializations[16].u32 = coopmat_N;
         specializations[17].u32 = coopmat_K;
-        specializations[18].u32 = UNROLL_SG_M;
-        specializations[19].u32 = UNROLL_SG_N;
-        specializations[20].u32 = UNROLL_SG_K;
-        specializations[21].u32 = UNROLL_WG_M;
-        specializations[22].u32 = UNROLL_WG_N;
+        specializations[18].u32 = coopmat_subgroup_size;
+        specializations[19].u32 = UNROLL_SG_M;
+        specializations[20].u32 = UNROLL_SG_N;
+        specializations[21].u32 = UNROLL_SG_K;
+        specializations[22].u32 = UNROLL_WG_M;
+        specializations[23].u32 = UNROLL_WG_N;
 
-        const int subgroup_size = vkdev->info.subgroup_size();
+        pipeline_gemm = new Pipeline(vkdev);
+        pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
+        pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+        pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
+    }
+    else if (opt.use_shader_local_memory)
+    {
+        std::vector<vk_specialization_type> specializations(15);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = transA;
+        specializations[3].i = transB;
+        specializations[4].i = constantA;
+        specializations[5].i = constantB;
+        specializations[6].i = constantC;
+        specializations[7].i = constantM;
+        specializations[8].i = constantN;
+        specializations[9].i = constantK;
+        specializations[10].i = constant_broadcast_type_C;
+        specializations[11].i = output_N1M;
+        specializations[12].i = output_elempack;
+        specializations[13].i = output_elemtype;
+        specializations[14].i = output_transpose;
+
+        pipeline_gemm = new Pipeline(vkdev);
+        pipeline_gemm->set_local_size_xyz(8, 8, 1);
+        pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
+    }
+    else if (use_subgroup_ops)
+    {
+        if (subgroup_size == 128)
+        {
+            UNROLL_SG_M = 16;
+            UNROLL_SG_N = 8;
+            UNROLL_SG_K = 8;
+        }
+        if (subgroup_size == 64)
+        {
+            UNROLL_SG_M = 8;
+            UNROLL_SG_N = 8;
+            UNROLL_SG_K = 8;
+        }
+        if (subgroup_size == 32)
+        {
+            UNROLL_SG_M = 8;
+            UNROLL_SG_N = 4;
+            UNROLL_SG_K = 4;
+        }
+        if (subgroup_size == 16)
+        {
+            UNROLL_SG_M = 4;
+            UNROLL_SG_N = 4;
+            UNROLL_SG_K = 4;
+        }
+        if (subgroup_size == 8)
+        {
+            UNROLL_SG_M = 4;
+            UNROLL_SG_N = 2;
+            UNROLL_SG_K = 2;
+        }
+        if (subgroup_size == 4)
+        {
+            UNROLL_SG_M = 2;
+            UNROLL_SG_N = 2;
+            UNROLL_SG_K = 2;
+        }
+
+        std::vector<vk_specialization_type> specializations(18);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = transA;
+        specializations[3].i = transB;
+        specializations[4].i = constantA;
+        specializations[5].i = constantB;
+        specializations[6].i = constantC;
+        specializations[7].u32 = constantM;
+        specializations[8].u32 = constantN;
+        specializations[9].u32 = constantK;
+        specializations[10].i = constant_broadcast_type_C;
+        specializations[11].i = output_N1M;
+        specializations[12].i = output_elempack;
+        specializations[13].i = output_elemtype;
+        specializations[14].i = output_transpose;
+        specializations[15].u32 = UNROLL_SG_M;
+        specializations[16].u32 = UNROLL_SG_N;
+        specializations[17].u32 = UNROLL_SG_K;
 
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(subgroup_size);
-        pipeline_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-        pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
+        pipeline_gemm->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_gemm->create(LayerShaderType::gemm_sg, opt, specializations);
     }
     else
     {
@@ -143,24 +254,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[14].i = output_transpose;
 
         Mat local_size_xyz;
-        // if (shape_packed.dims == 2)
-        // {
-        //     local_size_xyz.w = std::min(8, shape_packed.w);
-        //     local_size_xyz.h = std::min(8, shape_packed.h);
-        //     local_size_xyz.c = 1;
-        // }
 
-        // pack1
-        // if (shape.dims == 0 || elempack == 1)
-        {
-            pipeline_gemm = new Pipeline(vkdev);
-            pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
-            if (opt.use_shader_local_memory)
-            {
-                pipeline_gemm->set_local_size_xyz(8, 8, 1);
-            }
-            pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
-        }
+        pipeline_gemm = new Pipeline(vkdev);
+        pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
 
     if (opt.lightmode)
@@ -177,6 +274,19 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_gemm;
     pipeline_gemm = 0;
+
+    use_subgroup_ops = false;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 
     return 0;
 }
@@ -330,24 +440,41 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-        const int subgroup_size = vkdev->info.subgroup_size();
-
         VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+        dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
         dispatcher.h = 1;
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
     }
-    else
+    else if (opt.use_shader_local_memory)
     {
-        const Pipeline* pipeline = pipeline_gemm;
+        VkMat dispatcher;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+    }
+    else if (use_subgroup_ops)
+    {
+        const int subgroup_size = vkdev->info.subgroup_size();
+
+        const int blocks_x = (M + (UNROLL_SG_M * 4 - 1)) / (UNROLL_SG_M * 4);
+        const int blocks_y = (N + (UNROLL_SG_N * 4 - 1)) / (UNROLL_SG_N * 4);
 
         VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
+        dispatcher.h = 1;
         dispatcher.c = 1;
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+    }
+    else
+    {
+        VkMat dispatcher;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
     }
 
     int out_elempack = 1;

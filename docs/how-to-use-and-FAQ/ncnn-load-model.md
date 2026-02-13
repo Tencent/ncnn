@@ -3,6 +3,7 @@
 |load from|alexnet.param|alexnet.param.bin|alexnet.bin|
 |---|---|---|---|
 |file path|load_param(const char*)|load_param_bin(const char*)|load_model(const char*)|
+|file path<br/>(wchar_t for windows)|load_param(const wchar_t*)|load_param_bin(const wchar_t*)|load_model(const wchar_t*)|
 |file descriptor|load_param(FILE*)|load_param_bin(FILE*)|load_model(FILE*)|
 |file memory|load_param_mem(const char*)|load_param(const unsigned char*)|load_model(const unsigned char*)|
 |android asset|load_param(AAsset*)|load_param_bin(AAsset*)|load_model(AAsset*)|
@@ -18,8 +19,8 @@
 2. Never modify Net opt member after loading
 
 3. Most loading functions return 0 if success, except loading alexnet.param.bin and alexnet.bin from file memory, which returns the bytes consumed after loading
-    * int Net::load_param(const unsigned char*)
-    * int Net::load_model(const unsigned char*)
+    * size_t Net::load_param(const unsigned char*)
+    * size_t Net::load_model(const unsigned char*)
 
 4. It is recommended to load model from Android asset directly to avoid copying them to sdcard on Android platform
 

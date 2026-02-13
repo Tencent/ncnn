@@ -48,7 +48,7 @@ jobs:
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
         zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
@@ -87,7 +87,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -104,14 +104,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-macos-release-18.1.2-20251004
@@ -159,7 +158,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-macos
         path: openmp-install
@@ -196,7 +195,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-macos
         path: openmp-macos
@@ -272,7 +271,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -289,14 +288,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-ios-release-18.1.2-20251004
@@ -333,7 +331,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-ios
         path: openmp-install
@@ -368,7 +366,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-ios
         path: openmp-ios
@@ -434,7 +432,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -451,14 +449,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-ios-simulator-release-18.1.2-20251004
@@ -506,7 +503,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-ios-simulator
         path: openmp-install
@@ -541,7 +538,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -623,7 +620,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -640,14 +637,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-mac-catalyst-release-18.1.2-20251004
@@ -695,7 +691,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-mac-catalyst
         path: openmp-install
@@ -730,7 +726,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -812,7 +808,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -829,14 +825,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-watchos-release-18.1.2-20251004
@@ -884,7 +879,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-watchos
         path: openmp-install
@@ -911,7 +906,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: download-openmp-watchos
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-watchos
         path: openmp-watchos
@@ -961,7 +956,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -978,14 +973,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-watchos-simulator-release-18.1.2-20251004
@@ -1033,7 +1027,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-watchos-simulator
         path: openmp-install
@@ -1060,7 +1054,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: download-openmp-watchos-simulator
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-watchos-simulator
         path: openmp-watchos-simulator
@@ -1110,7 +1104,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1127,14 +1121,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-tvos-release-18.1.2-20251004
@@ -1182,7 +1175,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-tvos
         path: openmp-install
@@ -1217,7 +1210,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-tvos
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-tvos
         path: openmp-tvos
@@ -1299,7 +1292,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1316,14 +1309,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-tvos-simulator-release-18.1.2-20251004
@@ -1371,7 +1363,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-tvos-simulator
         path: openmp-install
@@ -1406,7 +1398,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-tvos-simulator
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-tvos-simulator
         path: openmp-tvos-simulator
@@ -1488,7 +1480,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1505,14 +1497,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-visionos-release-18.1.2-20251004
@@ -1549,7 +1540,7 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-visionos
         path: openmp-install
@@ -1584,7 +1575,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-visionos
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-visionos
         path: openmp-visionos
@@ -1650,7 +1641,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1667,14 +1658,13 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-visionos-simulator-release-18.1.2-20251004
@@ -1722,7 +1712,7 @@ jobs:
             openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: openmp-visionos-simulator
         path: openmp-install
@@ -1757,7 +1747,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-visionos-simulator
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: openmp-visionos-simulator
         path: openmp-visionos-simulator
@@ -1839,7 +1829,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1916,7 +1906,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1981,7 +1971,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2046,7 +2036,7 @@ jobs:
 
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.opt.toolset-version }}-x86-x64-install
@@ -2105,7 +2095,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2118,7 +2108,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_16.4.0.app
     - name: download
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         path: artifacts
 
@@ -2239,12 +2229,12 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}-vulkan.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}-vulkan.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
     - name: upload-zip-vulkan
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGENAME }}-vulkan
         path: ${{ env.PACKAGENAME }}-vulkan.zip
@@ -2256,7 +2246,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         path: artifacts
 

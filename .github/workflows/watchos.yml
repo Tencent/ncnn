@@ -47,7 +47,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -69,7 +68,7 @@ jobs:
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
         key: openmp-watchos-install-20251004
