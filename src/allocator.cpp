@@ -1200,7 +1200,9 @@ public:
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 
     bool prefer_host_memory;
+#if !defined(_WIN32)
     std::vector<void*> host_ptrs;
+#endif
 };
 
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_host_memory, size_t preferred_block_size)
@@ -1305,15 +1307,15 @@ void VkWeightAllocator::clear()
     }
     d->dedicated_image_memory_blocks.clear();
 
+#if !defined(_WIN32)
     for (size_t i = 0; i < d->host_ptrs.size(); i++)
     {
         void* host_ptr = d->host_ptrs[i];
 
-        // NCNN_LOGE("host_ptr = %p   free", host_ptr);
-
         ncnn::fastFree(host_ptr);
     }
     d->host_ptrs.clear();
+#endif
 }
 
 // fastMalloc() with alignment parameter and no malloc overread
@@ -1475,11 +1477,10 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
     if (d->prefer_host_memory)
     {
+#if !defined(_WIN32)
         if (vkdev->info.support_VK_EXT_external_memory_host())
         {
             void* host_ptr = fastMalloc_with_alignment(memoryRequirements.size, d->buffer_offset_alignment);
-
-            // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, memoryRequirements.size);
 
             if (host_ptr)
             {
@@ -1524,6 +1525,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             }
         }
         else
+#endif // !defined(_WIN32)
         {
             // setup memory type and alignment
             if (buffer_memory_type_index == (uint32_t)-1)
@@ -1546,6 +1548,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
             buffer_memory_type_index = (uint32_t)-1;
+            image_memory_type_index = (uint32_t)-1;
         }
     }
     if (!d->prefer_host_memory)
@@ -1842,11 +1845,10 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
     if (d->prefer_host_memory)
     {
+#if !defined(_WIN32)
         if (vkdev->info.support_VK_EXT_external_memory_host())
         {
             void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
-
-            // NCNN_LOGE("host_ptr = %p   %lu", host_ptr, new_block_size);
 
             if (host_ptr)
             {
@@ -1891,6 +1893,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
             }
         }
         else
+#endif // !defined(_WIN32)
         {
             // setup memory type and alignment
             if (image_memory_type_index == (uint32_t)-1)
@@ -1913,6 +1916,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (!d->prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
+            buffer_memory_type_index = (uint32_t)-1;
             image_memory_type_index = (uint32_t)-1;
         }
     }
