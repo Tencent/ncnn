@@ -34,7 +34,7 @@ void main()
     int maxk = p.kernel_w * p.kernel_h;
 
     if (t >= size || r >= maxk * p.channels)
-    return;
+        return;
 
     int pch = r / maxk;
     int k = r - pch * maxk;

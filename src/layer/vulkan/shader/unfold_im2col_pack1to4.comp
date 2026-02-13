@@ -36,7 +36,7 @@ void main()
     int out_h4 = out_h / 4;
 
     if (t >= size || r4 >= out_h4)
-    return;
+        return;
 
     int i = t / p.outw;
     int j = t - i * p.outw;
@@ -67,10 +67,14 @@ void main()
             val = buffer_ld1(src_blob_data, si);
         }
 
-        if (lane_out == 0) outv.x = val;
-        else if (lane_out == 1) outv.y = val;
-        else if (lane_out == 2) outv.z = val;
-        else outv.w = val;
+        if (lane_out == 0)
+            outv.x = val;
+        else if (lane_out == 1)
+            outv.y = val;
+        else if (lane_out == 2)
+            outv.z = val;
+        else
+            outv.w = val;
 
         v++;
         if (v == p.kernel_w)

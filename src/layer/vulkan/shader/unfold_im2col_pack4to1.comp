@@ -24,7 +24,7 @@ layout(push_constant) uniform parameter
 
 void main()
 {
-    int t = int(gl_GlobalInvocationID.x); // [0, size)
+    int t = int(gl_GlobalInvocationID.x);  // [0, size)
     int r4 = int(gl_GlobalInvocationID.y); // [0, (channels/4)*maxk)
 
     int size = p.outw * p.outh;
@@ -37,8 +37,8 @@ void main()
         return;
 
     // decode r4 -> (pch4, k)
-    int pch4 = r4 / maxk;      // pack4 channel group index
-    int k    = r4 - pch4*maxk; // kernel index within group
+    int pch4 = r4 / maxk;     // pack4 channel group index
+    int k = r4 - pch4 * maxk; // kernel index within group
 
     int u = k / p.kernel_w;
     int v = k - u * p.kernel_w;
