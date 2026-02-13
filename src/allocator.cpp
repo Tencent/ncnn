@@ -488,6 +488,32 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
+VkDeviceMemory VkAllocator::allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr)
+{
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = 0;
+    memoryAllocateInfo.allocationSize = size;
+    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+
+    VkImportMemoryHostPointerInfoEXT importMemoryHostPointerInfo;
+    importMemoryHostPointerInfo.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT;
+    importMemoryHostPointerInfo.pNext = 0;
+    importMemoryHostPointerInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+    importMemoryHostPointerInfo.pHostPointer = host_ptr;
+    memoryAllocateInfo.pNext = &importMemoryHostPointerInfo;
+
+    VkDeviceMemory memory = 0;
+    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    return memory;
+}
+
 VkImage VkAllocator::create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageCreateInfo;
@@ -755,6 +781,12 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1034,6 +1066,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1160,9 +1198,14 @@ public:
     std::vector<size_t> image_memory_block_free_spaces;
     std::vector<VkDeviceMemory> image_memory_blocks;
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
+
+    bool prefer_host_memory;
+#if !defined(_WIN32)
+    std::vector<void*> host_ptrs;
+#endif
 };
 
-VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
+VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_host_memory, size_t preferred_block_size)
     : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate)
 {
     d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
@@ -1184,7 +1227,15 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, size_t preferre
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, robust_storage_buffer_access_size_alignment);
     }
 
+    if (_prefer_host_memory && vkdev->info.support_VK_EXT_external_memory_host())
+    {
+        size_t min_imported_host_pointer_alignment = vkdev->info.queryExternalMemoryHostProperties().minImportedHostPointerAlignment;
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, min_imported_host_pointer_alignment);
+    }
+
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
+
+    d->prefer_host_memory = _prefer_host_memory;
 }
 
 VkWeightAllocator::~VkWeightAllocator()
@@ -1255,6 +1306,38 @@ void VkWeightAllocator::clear()
         vkFreeMemory(vkdev->vkdevice(), memory, 0);
     }
     d->dedicated_image_memory_blocks.clear();
+
+#if !defined(_WIN32)
+    for (size_t i = 0; i < d->host_ptrs.size(); i++)
+    {
+        void* host_ptr = d->host_ptrs[i];
+
+        ncnn::fastFree(host_ptr);
+    }
+    d->host_ptrs.clear();
+#endif
+}
+
+// fastMalloc() with alignment parameter and no malloc overread
+static void* fastMalloc_with_alignment(size_t size, size_t alignment)
+{
+#if _MSC_VER
+    return _aligned_malloc(size, alignment);
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+    void* ptr = 0;
+    if (posix_memalign(&ptr, alignment, size))
+        ptr = 0;
+    return ptr;
+#elif __ANDROID__ && __ANDROID_API__ < 17
+    return memalign(alignment, size);
+#else
+    unsigned char* udata = (unsigned char*)malloc(size + sizeof(void*) + alignment);
+    if (!udata)
+        return 0;
+    unsigned char** adata = alignPtr((unsigned char**)udata + 1, alignment);
+    adata[-1] = udata;
+    return adata;
+#endif
 }
 
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
@@ -1298,7 +1381,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     block->offset = 0;
 
-    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation())
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation() && !d->prefer_host_memory)
     {
         VkBufferMemoryRequirementsInfo2KHR bufferMemoryRequirementsInfo2;
         bufferMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
@@ -1341,7 +1424,14 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 else
                 {
                     // discrete gpu, device local
-                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    if (vkdev->info.resizable_bar_enabled())
+                    {
+                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                    }
+                    else
+                    {
+                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    }
                 }
 
                 mappable = vkdev->is_mappable(buffer_memory_type_index);
@@ -1349,6 +1439,12 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             }
 
             block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
+            if (!block->memory)
+            {
+                vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                delete block;
+                return 0;
+            }
 
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1379,35 +1475,127 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
-    // setup memory type and alignment
-    if (buffer_memory_type_index == (uint32_t)-1)
+    if (d->prefer_host_memory)
     {
-        if (vkdev->info.type() == 1)
+#if !defined(_WIN32)
+        if (vkdev->info.support_VK_EXT_external_memory_host())
         {
-            // integrated gpu, prefer unified memory
-            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+            void* host_ptr = fastMalloc_with_alignment(memoryRequirements.size, d->buffer_offset_alignment);
 
-            // on amd integrated gpu, there is a faster and larger device-only heap
-            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
-            uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
-            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
-            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+            if (host_ptr)
             {
-                buffer_memory_type_index = device_local_memory_type_index;
+                VkMemoryHostPointerPropertiesEXT pointerProperties;
+                pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+                pointerProperties.pNext = 0;
+                VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+                if (ret != VK_SUCCESS)
+                {
+                    NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                    ncnn::fastFree(host_ptr);
+                    vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+                    delete block;
+                    return 0;
+                }
+
+                // setup memory type and alignment
+                if (buffer_memory_type_index == (uint32_t)-1)
+                {
+                    buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                    mappable = vkdev->is_mappable(buffer_memory_type_index);
+                    coherent = vkdev->is_coherent(buffer_memory_type_index);
+                }
+
+                block->memory = allocate_import_host_memory(memoryRequirements.size, buffer_memory_type_index, host_ptr);
+                if (!block->memory)
+                {
+                    // oom
+                    ncnn::fastFree(host_ptr);
+                    d->prefer_host_memory = false;
+                }
+                else
+                {
+                    d->host_ptrs.push_back(host_ptr);
+                }
+            }
+            else
+            {
+                // oom
+                d->prefer_host_memory = false;
             }
         }
         else
+#endif // !defined(_WIN32)
         {
-            // discrete gpu, device local
-            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            // setup memory type and alignment
+            if (buffer_memory_type_index == (uint32_t)-1)
+            {
+                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                mappable = vkdev->is_mappable(buffer_memory_type_index);
+                coherent = vkdev->is_coherent(buffer_memory_type_index);
+            }
+
+            block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+            if (!block->memory)
+            {
+                // oom
+                d->prefer_host_memory = false;
+            }
         }
 
-        mappable = vkdev->is_mappable(buffer_memory_type_index);
-        coherent = vkdev->is_coherent(buffer_memory_type_index);
+        if (!d->prefer_host_memory)
+        {
+            NCNN_LOGE("weight allocator fallback to device memory");
+            buffer_memory_type_index = (uint32_t)-1;
+            image_memory_type_index = (uint32_t)-1;
+        }
     }
+    if (!d->prefer_host_memory)
+    {
+        // setup memory type and alignment
+        if (buffer_memory_type_index == (uint32_t)-1)
+        {
+            if (vkdev->info.type() == 1)
+            {
+                // integrated gpu, prefer unified memory
+                buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
 
-    block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+                // on amd integrated gpu, there is a faster and larger device-only heap
+                uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
+                uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                {
+                    buffer_memory_type_index = device_local_memory_type_index;
+                }
+            }
+            else
+            {
+                // discrete gpu, device local
+                if (vkdev->info.resizable_bar_enabled())
+                {
+                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                }
+                else
+                {
+                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                }
+            }
+
+            mappable = vkdev->is_mappable(buffer_memory_type_index);
+            coherent = vkdev->is_coherent(buffer_memory_type_index);
+        }
+
+        block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    }
+    if (!block->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
+        delete block;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1513,7 +1701,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
     ptr->depth = depth;
     ptr->format = format;
 
-    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation())
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation() && !d->prefer_host_memory)
     {
         VkImageMemoryRequirementsInfo2KHR imageMemoryRequirementsInfo2;
         imageMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR;
@@ -1556,7 +1744,14 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                 else
                 {
                     // discrete gpu, device local
-                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    if (vkdev->info.resizable_bar_enabled())
+                    {
+                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                    }
+                    else
+                    {
+                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    }
                 }
 
                 mappable = vkdev->is_mappable(image_memory_type_index);
@@ -1565,6 +1760,12 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 
             // bind memory
             ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, image_memory_type_index, ptr->image, 0);
+            if (!ptr->memory)
+            {
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                delete ptr;
+                return 0;
+            }
             ptr->bind_offset = 0;
             ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
 
@@ -1639,39 +1840,132 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         }
     }
 
-    // setup memory type and alignment
-    if (image_memory_type_index == (uint32_t)-1)
-    {
-        if (vkdev->info.type() == 1)
-        {
-            // integrated gpu, prefer unified memory
-            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
-
-            // on amd integrated gpu, there is a faster and larger device-only heap
-            uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-            const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
-            uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
-            uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
-            if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
-            {
-                image_memory_type_index = device_local_memory_type_index;
-            }
-        }
-        else
-        {
-            // discrete gpu, device local
-            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-        }
-
-        mappable = vkdev->is_mappable(image_memory_type_index);
-        coherent = vkdev->is_coherent(image_memory_type_index);
-    }
-
     // create new block
     size_t new_block_size = std::max(d->block_size, aligned_size);
 
-    // bind at memory offset
-    ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    if (d->prefer_host_memory)
+    {
+#if !defined(_WIN32)
+        if (vkdev->info.support_VK_EXT_external_memory_host())
+        {
+            void* host_ptr = fastMalloc_with_alignment(new_block_size, d->buffer_offset_alignment);
+
+            if (host_ptr)
+            {
+                VkMemoryHostPointerPropertiesEXT pointerProperties;
+                pointerProperties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+                pointerProperties.pNext = 0;
+                VkResult ret = vkdev->vkGetMemoryHostPointerPropertiesEXT(vkdev->vkdevice(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, host_ptr, &pointerProperties);
+                if (ret != VK_SUCCESS)
+                {
+                    NCNN_LOGE("vkGetMemoryHostPointerPropertiesEXT failed %d", ret);
+                    ncnn::fastFree(host_ptr);
+                    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+                    delete ptr;
+                    return 0;
+                }
+
+                // setup memory type and alignment
+                if (image_memory_type_index == (uint32_t)-1)
+                {
+                    image_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                    mappable = vkdev->is_mappable(image_memory_type_index);
+                    coherent = vkdev->is_coherent(image_memory_type_index);
+                }
+
+                ptr->memory = allocate_import_host_memory(new_block_size, image_memory_type_index, host_ptr);
+                if (!ptr->memory)
+                {
+                    // oom
+                    ncnn::fastFree(host_ptr);
+                    d->prefer_host_memory = false;
+                }
+                else
+                {
+                    d->host_ptrs.push_back(host_ptr);
+                }
+            }
+            else
+            {
+                // oom
+                d->prefer_host_memory = false;
+            }
+        }
+        else
+#endif // !defined(_WIN32)
+        {
+            // setup memory type and alignment
+            if (image_memory_type_index == (uint32_t)-1)
+            {
+                image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+                mappable = vkdev->is_mappable(image_memory_type_index);
+                coherent = vkdev->is_coherent(image_memory_type_index);
+            }
+
+            // bind at memory offset
+            ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+            if (!ptr->memory)
+            {
+                // oom
+                d->prefer_host_memory = false;
+            }
+        }
+
+        if (!d->prefer_host_memory)
+        {
+            NCNN_LOGE("weight allocator fallback to device memory");
+            buffer_memory_type_index = (uint32_t)-1;
+            image_memory_type_index = (uint32_t)-1;
+        }
+    }
+    if (!d->prefer_host_memory)
+    {
+        // setup memory type and alignment
+        if (image_memory_type_index == (uint32_t)-1)
+        {
+            if (vkdev->info.type() == 1)
+            {
+                // integrated gpu, prefer unified memory
+                image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+
+                // on amd integrated gpu, there is a faster and larger device-only heap
+                uint32_t device_local_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                const VkPhysicalDeviceMemoryProperties& memory_properties = vkdev->info.physicalDeviceMemoryProperties();
+                uint32_t buffer_heap_index = memory_properties.memoryTypes[image_memory_type_index].heapIndex;
+                uint32_t device_local_heap_index = memory_properties.memoryTypes[device_local_memory_type_index].heapIndex;
+                if (device_local_heap_index < buffer_heap_index && memory_properties.memoryHeaps[device_local_heap_index].size > memory_properties.memoryHeaps[buffer_heap_index].size)
+                {
+                    image_memory_type_index = device_local_memory_type_index;
+                }
+            }
+            else
+            {
+                // discrete gpu, device local
+                if (vkdev->info.resizable_bar_enabled())
+                {
+                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                }
+                else
+                {
+                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                }
+            }
+
+            mappable = vkdev->is_mappable(image_memory_type_index);
+            coherent = vkdev->is_coherent(image_memory_type_index);
+        }
+
+        // bind at memory offset
+        ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
+    }
+    if (!ptr->memory)
+    {
+        vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+        delete ptr;
+        return 0;
+    }
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1806,6 +2100,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -1915,6 +2215,12 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
+    if (!ptr->memory)
+    {
+        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+        delete ptr;
+        return 0;
+    }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -2111,6 +2417,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     ptr->image = image;
     ptr->memory = memory;
     ptr->imageview = imageview;
+    ptr->mapped_ptr = 0;
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
