@@ -225,6 +225,12 @@ public:
     // 3 = cpu
     int type() const;
 
+    // performance score roughly evaluated based on parameters such as device type,
+    // supported extensions, video memory size etc.
+    // high-end device scores over 75
+    // low-end device scores below 10
+    uint32_t rough_score() const;
+
     // hardware limit
     uint32_t max_shared_memory_size() const;
     uint32_t max_workgroup_count_x() const;
