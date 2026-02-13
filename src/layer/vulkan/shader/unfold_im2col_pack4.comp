@@ -20,15 +20,10 @@ layout(push_constant) uniform parameter
     int stride_w;
     int stride_h;
     int src_cstep;
+    int pad_left;
+    int pad_top;
+    float pad_value;
 } p;
-
-afp lane_get(afpvec4 v, int lane)
-{
-    if (lane == 0) return v.x;
-    if (lane == 1) return v.y;
-    if (lane == 2) return v.z;
-    return v.w;
-}
 
 void main()
 {
@@ -41,13 +36,13 @@ void main()
     int out_h4 = out_h / 4;
 
     if (t >= size || r4 >= out_h4)
-        return;
+    return;
 
     int i = t / p.outw;
     int j = t - i * p.outw;
 
-    int base_sy = i * p.stride_h;
-    int base_sx = j * p.stride_w;
+    int base_sy = i * p.stride_h - p.pad_top;
+    int base_sx = j * p.stride_w - p.pad_left;
 
     int r = r4 * 4;
 
@@ -58,27 +53,28 @@ void main()
     int v = k - u * p.kernel_w;
 
     afpvec4 outv;
+    afp pv = afp(p.pad_value);
 
     for (int lane_out = 0; lane_out < 4; lane_out++)
     {
         int sy = u * p.dilation_h + base_sy;
         int sx = v * p.dilation_w + base_sx;
 
-        int pch4 = pch >> 2;
-        int lane_in = pch & 3;
+        afp val = pv;
+        if (uint(sx) < uint(p.src_w) && uint(sy) < uint(p.src_h))
+        {
+            int pch4 = pch >> 2;
+            int lane_in = pch & 3;
 
-        int si4 = pch4 * p.src_cstep + sy * p.src_w + sx;
-        afpvec4 vv = buffer_ld4(src_blob_data, si4);
-        afp val = lane_get(vv, lane_in);
+            int si4 = pch4 * p.src_cstep + sy * p.src_w + sx;
+            afpvec4 vv = buffer_ld4(src_blob_data, si4);
+            val = vv[lane_in];
+        }
 
-        if (lane_out == 0)
-            outv.x = val;
-        else if (lane_out == 1)
-            outv.y = val;
-        else if (lane_out == 2)
-            outv.z = val;
-        else
-            outv.w = val;
+        if (lane_out == 0) outv.x = val;
+        else if (lane_out == 1) outv.y = val;
+        else if (lane_out == 2) outv.z = val;
+        else outv.w = val;
 
         v++;
         if (v == p.kernel_w)
