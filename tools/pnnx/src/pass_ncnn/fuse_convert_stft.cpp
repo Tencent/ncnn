@@ -1,7 +1,6 @@
 // Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
-
 #include "fuse_convert_stft.h"
 
 #include "pass_level2.h"
@@ -111,7 +110,6 @@ pnnx.Output             output      1 0 out
         op->params["8"] = onesided;
     }
 };
-
 
 void fuse_convert_stft(Graph& graph)
 {
