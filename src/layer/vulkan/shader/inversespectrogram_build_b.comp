@@ -1,0 +1,59 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer b_blob { sfp b_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int freqs;
+    int n_fft;
+    int bottom_cstep;
+    int onesided;
+} p;
+
+void main()
+{
+    int k = int(gl_GlobalInvocationID.x);
+    int j = int(gl_GlobalInvocationID.y);
+
+    if (k >= p.n_fft || j >= p.frames)
+        return;
+
+    int src_k = k;
+    afp re;
+    afp im;
+
+    if (p.onesided == 0)
+    {
+        int base = src_k * p.bottom_cstep + j * 2;
+        re = buffer_ld1(bottom_blob_data, base + 0);
+        im = buffer_ld1(bottom_blob_data, base + 1);
+    }
+    else
+    {
+        if (k < p.freqs)
+        {
+            int base = src_k * p.bottom_cstep + j * 2;
+            re = buffer_ld1(bottom_blob_data, base + 0);
+            im = buffer_ld1(bottom_blob_data, base + 1);
+        }
+        else
+        {
+            int mk = p.n_fft - k;
+            int base = mk * p.bottom_cstep + j * 2;
+            re = buffer_ld1(bottom_blob_data, base + 0);
+            im = -buffer_ld1(bottom_blob_data, base + 1);
+        }
+    }
+
+    int K = p.n_fft * 2;
+    int dst0 = j * K + k;
+    int dst1 = j * K + k + p.n_fft;
+
+    buffer_st1(b_blob_data, dst0, re);
+    buffer_st1(b_blob_data, dst1, im);
+}

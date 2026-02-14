@@ -23,7 +23,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
 
     // assert winlen <= n_fft
     // generate window
-    window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
+    window_data.create(n_fft);
     {
         float* p = window_data;
         for (int i = 0; i < (n_fft - winlen) / 2; i++)
@@ -60,14 +60,24 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
         }
 
         // pre-calculated window norm factor
+        if (normalized == 1)
+        {
+            float inv = 1.f / sqrtf((float)n_fft);
+            for (int i = 0; i < n_fft; i++)
+                window_data[i] *= inv;
+        }
         if (normalized == 2)
         {
             float sqsum = 0.f;
             for (int i = 0; i < n_fft; i++)
-            {
                 sqsum += window_data[i] * window_data[i];
+
+            if (sqsum > 0.f)
+            {
+                float inv = 1.f / sqrtf(sqsum);
+                for (int i = 0; i < n_fft; i++)
+                    window_data[i] *= inv;
             }
-            window_data[n_fft] = sqrt(sqsum);
         }
     }
 
@@ -132,23 +142,6 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 sp.row(k)[0] = bottom_blob.channel(k).row(j)[0];
                 sp.row(k)[1] = bottom_blob.channel(k).row(j)[1];
-            }
-        }
-
-        if (normalized == 1)
-        {
-            float norm = sqrt(n_fft);
-            for (int i = 0; i < 2 * n_fft; i++)
-            {
-                sp[i] *= norm;
-            }
-        }
-        if (normalized == 2)
-        {
-            float norm = window_data[n_fft];
-            for (int i = 0; i < 2 * n_fft; i++)
-            {
-                sp[i] *= norm;
             }
         }
 

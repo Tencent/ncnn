@@ -1,0 +1,52 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int power = 0;
+
+layout(binding = 0) readonly buffer y_blob { sfp y_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_freq;
+    int y_row_stride;
+    int top_row_stride;
+} p;
+
+void main()
+{
+    int t = int(gl_GlobalInvocationID.x);
+    int f = int(gl_GlobalInvocationID.y);
+
+    if (t >= p.frames || f >= p.n_freq)
+        return;
+
+    int y_re = f * p.y_row_stride + t;
+    int y_im = (f + p.n_freq) * p.y_row_stride + t;
+
+    afp re = buffer_ld1(y_blob_data, y_re);
+    afp im = buffer_ld1(y_blob_data, y_im);
+
+    if (power == 0)
+    {
+        int top_base = f * p.top_row_stride + t * 2;
+        buffer_st1(top_blob_data, top_base + 0, re);
+        buffer_st1(top_blob_data, top_base + 1, im);
+        return;
+    }
+
+    int top_idx = f * p.top_row_stride + t;
+
+    if (power == 1)
+    {
+        afp mag = sqrt(re * re + im * im);
+        buffer_st1(top_blob_data, top_idx, mag);
+        return;
+    }
+
+    afp pw = re * re + im * im;
+    buffer_st1(top_blob_data, top_idx, pw);
+}
