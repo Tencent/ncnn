@@ -10,27 +10,17 @@ namespace ncnn {
 Unfold_vulkan::Unfold_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = false;
-    support_any_packing = false;
+    support_vulkan_packing = true;
+    support_vulkan_any_packing = true;
 
     pipeline_unfold_im2col = 0;
-    pipeline_unfold_padding = 0;
-}
-
-int Unfold_vulkan::load_param(const ParamDict& pd)
-{
-    return Unfold::load_param(pd);
+    pipeline_unfold_im2col_pack4 = 0;
+    pipeline_unfold_im2col_pack1to4 = 0;
+    pipeline_unfold_im2col_pack4to1 = 0;
 }
 
 int Unfold_vulkan::create_pipeline(const Option& opt)
 {
-    {
-        pipeline_unfold_padding = new Pipeline(vkdev);
-        pipeline_unfold_padding->set_local_size_xyz(8, 8, 1);
-        std::vector<vk_specialization_type> specializations;
-        pipeline_unfold_padding->create(LayerShaderType::unfold_padding, opt, specializations);
-    }
-
     {
         pipeline_unfold_im2col = new Pipeline(vkdev);
         pipeline_unfold_im2col->set_local_size_xyz(8, 8, 1);
@@ -38,24 +28,59 @@ int Unfold_vulkan::create_pipeline(const Option& opt)
         pipeline_unfold_im2col->create(LayerShaderType::unfold_im2col, opt, specializations);
     }
 
+    {
+        pipeline_unfold_im2col_pack4 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack4->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack4->create(LayerShaderType::unfold_im2col_pack4, opt, specializations);
+    }
+
+    {
+        pipeline_unfold_im2col_pack1to4 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack1to4->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack1to4->create(LayerShaderType::unfold_im2col_pack1to4, opt, specializations);
+    }
+
+    {
+        pipeline_unfold_im2col_pack4to1 = new Pipeline(vkdev);
+        pipeline_unfold_im2col_pack4to1->set_local_size_xyz(8, 8, 1);
+        std::vector<vk_specialization_type> specializations;
+        pipeline_unfold_im2col_pack4to1->create(LayerShaderType::unfold_im2col_pack4to1, opt, specializations);
+    }
+
     return 0;
 }
 
 int Unfold_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    delete pipeline_unfold_padding;
-    pipeline_unfold_padding = 0;
-
     delete pipeline_unfold_im2col;
     pipeline_unfold_im2col = 0;
+
+    delete pipeline_unfold_im2col_pack4;
+    pipeline_unfold_im2col_pack4 = 0;
+
+    delete pipeline_unfold_im2col_pack1to4;
+    pipeline_unfold_im2col_pack1to4 = 0;
+
+    delete pipeline_unfold_im2col_pack4to1;
+    pipeline_unfold_im2col_pack4to1 = 0;
 
     return 0;
 }
 
-int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bordered, VkCompute& cmd, const Option& opt) const
+int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
+    const int in_elempack = bottom_blob.elempack;
+    if (in_elempack != 1 && in_elempack != 4)
+        return -1;
+
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int elempack = in_elempack;
+
+    const int channels_packed = bottom_blob.c;
+    const int channels = channels_packed * elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -67,6 +92,7 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
 
     if (pl > 0 || pr > 0 || pt > 0 || pb > 0)
     {
+        // explicit pad
     }
     else if (pl == -233 && pr == -233 && pt == -233 && pb == -233)
     {
@@ -107,81 +133,31 @@ int Unfold_vulkan::make_padding(const VkMat& bottom_blob, VkMat& bottom_blob_bor
         pl = pr = pt = pb = 0;
     }
 
-    if (pl == 0 && pr == 0 && pt == 0 && pb == 0)
-    {
-        bottom_blob_bordered = bottom_blob;
-        return 0;
-    }
+    const int wpaded = w + pl + pr;
+    const int hpaded = h + pt + pb;
 
-    const int outw = w + pl + pr;
-    const int outh = h + pt + pb;
-    const int channels = bottom_blob.c;
-
-    bottom_blob_bordered.create(outw, outh, channels, bottom_blob.elemsize, 1, opt.workspace_vkallocator);
-    if (bottom_blob_bordered.empty())
-        return -100;
-
-    const int src_cstep = (int)bottom_blob.cstep;
-    const int dst_cstep = (int)bottom_blob_bordered.cstep;
-
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_blob;
-    bindings[1] = bottom_blob_bordered;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = w;
-    constants[1].i = h;
-    constants[2].i = outw;
-    constants[3].i = outh;
-    constants[4].i = channels;
-    constants[5].i = pl;
-    constants[6].i = pt;
-    constants[7].f = pad_value;
-    constants[8].i = src_cstep;
-    constants[9].i = dst_cstep;
-
-    VkMat dispatcher;
-    dispatcher.w = outw;
-    dispatcher.h = outh;
-    dispatcher.c = channels;
-
-    cmd.record_pipeline(pipeline_unfold_padding, bindings, constants, dispatcher);
-
-    return 0;
-}
-
-int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
-{
-    if (bottom_blob.elempack != 1)
-        return -1;
-
-    VkMat bottom_blob_bordered;
-    int ret = make_padding(bottom_blob, bottom_blob_bordered, cmd, opt);
-    if (ret != 0)
-        return ret;
-
-    const int w = bottom_blob_bordered.w;
-    const int h = bottom_blob_bordered.h;
-    const int channels = bottom_blob_bordered.c;
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    const int outw = (w - kernel_extent_w) / stride_w + 1;
-    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int outw = (wpaded - kernel_extent_w) / stride_w + 1;
+    const int outh = (hpaded - kernel_extent_h) / stride_h + 1;
 
     const int size = outw * outh;
     const int maxk = kernel_w * kernel_h;
+    const int out_h = maxk * channels;
 
-    top_blob.create(size, maxk * channels, bottom_blob_bordered.elemsize, 1, opt.blob_vkallocator);
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+        out_elempack = out_h % 4 == 0 ? 4 : 1;
+
+    const size_t out_elemsize = bottom_blob.elemsize / elempack * out_elempack;
+
+    top_blob.create(size, out_h / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
     std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_blob_bordered;
+    bindings[0] = bottom_blob;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(12);
+    std::vector<vk_constant_type> constants(15);
     constants[0].i = w;
     constants[1].i = h;
     constants[2].i = channels;
@@ -193,14 +169,42 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     constants[8].i = dilation_h;
     constants[9].i = stride_w;
     constants[10].i = stride_h;
-    constants[11].i = bottom_blob_bordered.cstep;
+    constants[11].i = (int)bottom_blob.cstep;
+    constants[12].i = pl;
+    constants[13].i = pt;
+    constants[14].f = pad_value;
 
     VkMat dispatcher;
     dispatcher.w = size;
-    dispatcher.h = maxk * channels;
     dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_unfold_im2col, bindings, constants, dispatcher);
+    Pipeline* pipeline = 0;
+
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_unfold_im2col;
+        dispatcher.h = top_blob.h;
+    }
+    else if (elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_unfold_im2col_pack4;
+        dispatcher.h = top_blob.h;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_unfold_im2col_pack1to4;
+        dispatcher.h = top_blob.h;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_unfold_im2col_pack4to1;
+        dispatcher.h = (maxk * channels) / 4;
+    }
+
+    if (!pipeline)
+        return -1;
+
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }
