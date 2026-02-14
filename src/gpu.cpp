@@ -88,11 +88,46 @@ static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 static Mutex g_default_vkdev_lock;
 static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
+#if NCNN_SHADER_COMPRESS
+struct layer_shader_registry_entry
+{
+    const unsigned char* comp_data;
+    int comp_data_size;
+};
+
+void decompress_layer_shader(const unsigned char* comp_data, const int comp_data_size, char*& decompressed_data, int& decompressed_data_size)
+{
+    static const char* dict[] = {
+#include "shader_compress_dict.in"
+    };
+
+    std::vector<char> buffer;
+    for (int i = 0; i < comp_data_size; i++)
+    {
+        if (comp_data[i] < 0x80)
+        {
+            buffer.push_back(comp_data[i]);
+        }
+        else
+        {
+            for (char* c = (char*)dict[comp_data[i] - 0x80]; *c; c++)
+            {
+                buffer.push_back(*c);
+            }
+        }
+    }
+    decompressed_data_size = (int)buffer.size();
+    decompressed_data = new char[decompressed_data_size];
+    memcpy(decompressed_data, buffer.data(), decompressed_data_size);
+}
+
+#else
 struct layer_shader_registry_entry
 {
     const char* comp_data;
     int comp_data_size;
 };
+#endif
 
 #include "layer_shader_spv_data.h"
 
@@ -4858,9 +4893,19 @@ public:
     {
         if (strcmp(headerName, "vulkan_activation.comp") == 0)
         {
+#if NCNN_SHADER_COMPRESS
+            char* headerData;
+            int headerLength;
+
+            decompress_layer_shader(vulkan_activation_comp_data, sizeof(vulkan_activation_comp_data), headerData, headerLength);
+#else
             const char* const headerData = vulkan_activation_comp_data;
             const size_t headerLength = sizeof(vulkan_activation_comp_data);
+#endif
+
             glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
+
+            delete[] headerData;
             return r;
         }
 
@@ -6084,11 +6129,22 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return -1;
     }
-
+#if NCNN_SHADER_COMPRESS
+    char* comp_data;
+    int comp_data_size;
+    decompress_layer_shader(layer_shader_registry[shader_type_index].comp_data, layer_shader_registry[shader_type_index].comp_data_size, comp_data, comp_data_size);
+#else
     const char* comp_data = layer_shader_registry[shader_type_index].comp_data;
     int comp_data_size = layer_shader_registry[shader_type_index].comp_data_size;
+#endif
 
-    return compile_spirv_module(comp_data, comp_data_size, opt, spirv);
+    int ret = compile_spirv_module(comp_data, comp_data_size, opt, spirv);
+
+#if NCNN_SHADER_COMPRESS
+    delete[] comp_data;
+#endif
+
+    return ret;
 }
 
 int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info)

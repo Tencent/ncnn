@@ -1,0 +1,66 @@
+#define shape_constant_id_offset
+layout (constant_id = shape_constant_id_offset + 
+layout (constant_id = 
+layout (binding = 
+layout (push_constant) uniform parameter
+layout
+void main()
+if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+int gx = int(gl_GlobalInvocationID.x);
+int gy = int(gl_GlobalInvocationID.y);
+int gz = int(gl_GlobalInvocationID.z);
+const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+gl_GlobalInvocationID
+afp v = buffer_ld1(bottom_top_blob_data, gi);
+buffer_st1(bottom_top_blob_data, gi, v);
+afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+buffer_st4(bottom_top_blob_data, gi, v);
+bottom_top_blob_data
+bottom_top_blob
+top_blob_data
+dims
+cstep
+out
+scale
+axis
+buffer_ld8(
+buffer_ld4(
+buffer_ld1(
+buffer
+const
+int
+uint
+afpvec4
+sfpvec8
+sfpvec4
+sfp
+afp
+readonly
+writeonly
+sum
+bias
+offset
+psc
+if
+else
+for
+extension
+return
+#version 450
+matrix
+fcoopmatNV
+vec4
+coop
+fp16
+order
+type
+blob
+data
+v_offset
+gl_ScopeSubgroup
+activation_type
+CooperativeMatrix
+max
+min
+abs
+slope
