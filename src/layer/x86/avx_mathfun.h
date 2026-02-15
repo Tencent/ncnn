@@ -1096,4 +1096,17 @@ static NCNN_FORCEINLINE __m256 abs256_ps(const __m256& x)
     return _mm256_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m256 trunc256_ps(const __m256& x)
+{
+    // truncate toward zero
+    return _mm256_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+}
+
+static NCNN_FORCEINLINE __m256 fmod256_ps(const __m256& x, const __m256& y)
+{
+    __m256 q = _mm256_div_ps(x, y);
+    __m256 tq = trunc256_ps(q);
+    return _mm256_sub_ps(x, _mm256_mul_ps(tq, y));
+}
+
 #endif // AVX_MATHFUN_H

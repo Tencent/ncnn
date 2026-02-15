@@ -854,4 +854,17 @@ static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
     return _mm512_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m512 trunc512_ps(const __m512& x)
+{
+    // truncate toward zero
+    return _mm512_roundscale_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+}
+
+static NCNN_FORCEINLINE __m512 fmod512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    __m512 tq = trunc512_ps(q);
+    return _mm512_sub_ps(x, _mm512_mul_ps(tq, y));
+}
+
 #endif // AVX512_MATHFUN_H

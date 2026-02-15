@@ -1166,4 +1166,18 @@ static NCNN_FORCEINLINE __m128 abs_ps(const __m128& x)
     return _mm_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m128 trunc_ps(const __m128& x)
+{
+    // truncate toward zero
+    __m128i xi = _mm_cvttps_epi32(x);
+    return _mm_cvtepi32_ps(xi);
+}
+
+static NCNN_FORCEINLINE __m128 fmod_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 tq = trunc_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(tq, y));
+}
+
 #endif // SSE_MATHFUN_H

@@ -207,7 +207,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
             if (t == "floor_divide") fprintf(stderr, "BinaryOp floor_divide not supported yet\n"); // TODO
-            if (t == "fmod") fprintf(stderr, "BinaryOp fmod not supported yet\n");                 // TODO
+            if (t == "fmod") op_binary->params["0"] = 12;
             if (t == "remainder") fprintf(stderr, "BinaryOp remainder not supported yet\n");       // TODO
             if (t == "pow") op_binary->params["0"] = 6;
             if (t == "atan2") op_binary->params["0"] = 10;
@@ -218,6 +218,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 if (t == "div") op_binary->params["0"] = 8;
                 if (t == "pow") op_binary->params["0"] = 9;
                 if (t == "atan2") op_binary->params["0"] = 11;
+                if (t == "fmod") op_binary->params["0"] = 13;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
                 op_binary_inb->consumers.push_back(op_binary);

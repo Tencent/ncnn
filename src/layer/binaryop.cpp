@@ -226,6 +226,22 @@ struct binary_op_ratan2
     }
 };
 
+struct binary_op_fmod
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)fmodf(x, y);
+    }
+};
+
+struct binary_op_rfmod
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)fmodf(y, x);
+    }
+};
+
 static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast<binary_op_add>(a, b, c, opt);
@@ -240,6 +256,8 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast<binary_op_pow>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast<binary_op_atan2>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast<binary_op_atan2>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_FMOD) return binary_op_broadcast<binary_op_fmod>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RFMOD) return binary_op_broadcast<binary_op_rfmod>(a, b, c, opt);
 
     // should never reach here
 }
@@ -258,6 +276,8 @@ static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_FMOD) return binary_op_scalar_inplace<binary_op_fmod>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RFMOD) return binary_op_scalar_inplace<binary_op_rfmod>(bottom_top_blob, b, opt);
 
     // should never reach here
 }

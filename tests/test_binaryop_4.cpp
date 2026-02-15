@@ -11,36 +11,29 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
 {
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
-    if (op_type == 6 || op_type == 9)
+    if (op_type == 12 || op_type == 13)
     {
-        // value must be positive for pow/rpow
+        // value must be non-zero for fmod/rfmod
         a = a.clone();
         b = b.clone();
-        Randomize(a, 0.001f, 2.f);
-        Randomize(b, 0.001f, 2.f);
-    }
-    if (op_type == 3 || op_type == 8)
-    {
-        // value must be positive for div/rdiv
-        a = a.clone();
-        b = b.clone();
-        Randomize(a, 0.1f, 10.f);
-        Randomize(b, 0.1f, 10.f);
-    }
-    if (op_type == 10 || op_type == 11)
-    {
-        // value must be non-zero for atan2/ratan2
-        a = a.clone();
-        b = b.clone();
-        for (int i = 0; i < a.total(); i++)
+
+        if (op_type == 12)
         {
-            if (a[i] == 0.f)
-                a[i] = 0.001f;
+            // fmod(a, b) -> b must be non-zero
+            for (int i = 0; i < b.total(); i++)
+            {
+                if (b[i] == 0.f)
+                    b[i] = 0.001f;
+            }
         }
-        for (int i = 0; i < b.total(); i++)
+        else
         {
-            if (b[i] == 0.f)
-                b[i] = 0.001f;
+            // rfmod(a, b) = fmod(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
         }
     }
 
@@ -67,26 +60,25 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
 static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 {
     ncnn::Mat a = _a;
-    if (op_type == 6 || op_type == 9)
+    if (op_type == 12 || op_type == 13)
     {
-        // value must be positive for pow
-        Randomize(a, 0.001f, 2.f);
-        b = RandomFloat(0.001f, 2.f);
-    }
-    if (op_type == 3 || op_type == 8)
-    {
-        // value must be positive for div/rdiv
+        // value must be non-zero for fmod/rfmod
         a = a.clone();
-        Randomize(a, 0.1f, 10.f);
-    }
-    if (op_type == 10 || op_type == 11)
-    {
-        // value must be non-zero for atan2/ratan2
-        a = a.clone();
-        for (int i = 0; i < a.total(); i++)
+
+        if (op_type == 12)
         {
-            if (a[i] == 0.f)
-                a[i] = 0.001f;
+            // fmod(a, b) -> b must be non-zero
+            if (b == 0.f)
+                b = 0.001f;
+        }
+        else
+        {
+            // rfmod(a, b) = fmod(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
         }
     }
 
@@ -126,6 +118,8 @@ static int test_binaryop_1()
         {
             for (int k = 0; k < 2; k++)
             {
+                if (j == k) // due to uncontiguous issue, if a == b, gpu and cpu results may differ
+                    continue;
                 int ret = test_binaryop(a[j], a[k], flag);
                 if (ret != 0)
                     return ret;
@@ -166,6 +160,9 @@ static int test_binaryop_2()
         {
             for (int k = 0; k < 4; k++)
             {
+                if (j == k) // due to uncontiguous issue, if a == b, gpu and cpu results may differ
+                    continue;
+
                 int ret = test_binaryop(a[j], a[k], flag);
                 if (ret != 0)
                     return ret;
@@ -212,6 +209,9 @@ static int test_binaryop_3()
         {
             for (int k = 0; k < 8; k++)
             {
+                if (j == k) // due to uncontiguous issue, if a == b, gpu and cpu results may differ
+                    continue;
+
                 int ret = test_binaryop(a[j], a[k], flag);
                 if (ret != 0)
                     return ret;
@@ -264,6 +264,9 @@ static int test_binaryop_4()
         {
             for (int k = 0; k < 16; k++)
             {
+                if (j == k) // due to uncontiguous issue, if a == b, gpu and cpu results may differ
+                    continue;
+
                 int ret = test_binaryop(a[j], a[k], flag);
                 if (ret != 0)
                     return ret;
@@ -304,7 +307,7 @@ static int test_binaryop_5()
         {
             for (int k = 0; k < 4; k++)
             {
-                if (j == k)
+                if (j == k) // due to uncontiguous issue, if a == b, gpu and cpu results may differ
                     continue;
 
                 int ret = test_binaryop(a[j], a[k], flag);
@@ -370,7 +373,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 0; op_type < 3; op_type++)
+    for (op_type = 12; op_type < OP_TYPE_MAX; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()
