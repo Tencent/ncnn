@@ -13,8 +13,9 @@ namespace ncnn {
 Spectrogram_vulkan::Spectrogram_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = false;
-    support_any_packing = false;
+    support_vulkan_packing = true;
+    support_vulkan_any_packing = true;
+    support_any_packing = true;
 
     n_freq = 0;
 
@@ -23,14 +24,12 @@ Spectrogram_vulkan::Spectrogram_vulkan()
     gemm = 0;
 
     pipeline_spectrogram_post = 0;
+    pipeline_spectrogram_post_pack4 = 0;
 }
 
 int Spectrogram_vulkan::create_pipeline(const Option& opt)
 {
-    if (onesided)
-        n_freq = n_fft / 2 + 1;
-    else
-        n_freq = n_fft;
+    n_freq = onesided ? (n_fft / 2 + 1) : n_fft;
 
     padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
     padding->vkdev = vkdev;
@@ -57,17 +56,17 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
     {
         ncnn::ParamDict pd;
 
-        pd.set(1, n_fft);  // kernel_w
-        pd.set(11, 1);     // kernel_h
-        pd.set(2, 1);      // dilation_w
-        pd.set(12, 1);     // dilation_h
-        pd.set(3, hoplen); // stride_w
-        pd.set(13, 1);     // stride_h
-        pd.set(4, 0);      // pad_left
-        pd.set(15, 0);     // pad_right
-        pd.set(14, 0);     // pad_top
-        pd.set(16, 0);     // pad_bottom
-        pd.set(18, 0.f);   // pad_value
+        pd.set(1, n_fft);
+        pd.set(11, 1);
+        pd.set(2, 1);
+        pd.set(12, 1);
+        pd.set(3, hoplen);
+        pd.set(13, 1);
+        pd.set(4, 0);
+        pd.set(15, 0);
+        pd.set(14, 0);
+        pd.set(16, 0);
+        pd.set(18, 0.f);
 
         unfold->load_param(pd);
         unfold->load_model(ModelBinFromMatArray(0));
@@ -79,17 +78,17 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
     {
         ncnn::ParamDict pd;
 
-        pd.set(0, 1.f);        // alpha
-        pd.set(1, 1.f);        // beta
-        pd.set(2, 0);          // transA
-        pd.set(3, 0);          // transB
-        pd.set(4, 1);          // constantA
-        pd.set(5, 0);          // constantB
-        pd.set(6, 0);          // constantC
-        pd.set(7, 2 * n_freq); // constantM
-        pd.set(8, 0);          // constantN
-        pd.set(9, n_fft);      // constantK
-        pd.set(14, 0);         // output_transpose
+        pd.set(0, 1.f);
+        pd.set(1, 1.f);
+        pd.set(2, 0);
+        pd.set(3, 0);
+        pd.set(4, 1);
+        pd.set(5, 0);
+        pd.set(6, 0);
+        pd.set(7, 2 * n_freq);
+        pd.set(8, 0);
+        pd.set(9, n_fft);
+        pd.set(14, 0);
 
         gemm->load_param(pd);
 
@@ -132,6 +131,10 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
         pipeline_spectrogram_post = new Pipeline(vkdev);
         pipeline_spectrogram_post->set_local_size_xyz(8, 8, 1);
         pipeline_spectrogram_post->create(LayerShaderType::spectrogram_post, opt, specializations);
+
+        pipeline_spectrogram_post_pack4 = new Pipeline(vkdev);
+        pipeline_spectrogram_post_pack4->set_local_size_xyz(8, 8, 1);
+        pipeline_spectrogram_post_pack4->create(LayerShaderType::spectrogram_post_pack4, opt, specializations);
     }
 
     return 0;
@@ -163,6 +166,9 @@ int Spectrogram_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_spectrogram_post;
     pipeline_spectrogram_post = 0;
 
+    delete pipeline_spectrogram_post_pack4;
+    pipeline_spectrogram_post_pack4 = 0;
+
     return 0;
 }
 
@@ -187,7 +193,7 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         x = xpad;
     }
 
-    const int size = x.w;
+    const int size = x.w * x.elempack;
     const int frames = (size - n_fft) / hoplen + 1;
     if (frames <= 0)
         return -100;
@@ -214,17 +220,19 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         vkdev->convert_packing(outputs[0], y, 1, cmd, opt);
     }
 
-    const size_t elemsize = bottom_blob.elemsize;
+    const int out_elempack = (opt.use_packing_layout && (n_freq % 4 == 0)) ? 4 : 1;
+    const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
+    const size_t out_elemsize = scalar_elemsize * out_elempack;
 
     if (power == 0)
     {
-        top_blob.create(2, frames, n_freq, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(2, frames, n_freq / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
     else
     {
-        top_blob.create(frames, n_freq, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(frames, n_freq / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
@@ -233,20 +241,41 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bindings[0] = y;
     bindings[1] = top_blob;
 
-    const int top_row_stride = (power != 0) ? top_blob.w : (int)top_blob.cstep;
+    if (out_elempack == 1)
+    {
+        const int top_row_stride = (power != 0) ? top_blob.w : (int)top_blob.cstep;
 
-    std::vector<vk_constant_type> constants(4);
-    constants[0].i = frames;
-    constants[1].i = n_freq;
-    constants[2].i = y.w;
-    constants[3].i = top_row_stride;
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = frames;
+        constants[1].i = n_freq;
+        constants[2].i = y.w;
+        constants[3].i = top_row_stride;
 
-    VkMat dispatcher;
-    dispatcher.w = frames; // x = frame index
-    dispatcher.h = n_freq; // y = freq index
-    dispatcher.c = 1;
+        VkMat dispatcher;
+        dispatcher.w = frames;
+        dispatcher.h = n_freq;
+        dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_spectrogram_post, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_spectrogram_post, bindings, constants, dispatcher);
+    }
+    else
+    {
+        const int top_row_stride = (power != 0) ? top_blob.w : (int)top_blob.cstep;
+
+        std::vector<vk_constant_type> constants(5);
+        constants[0].i = frames;
+        constants[1].i = n_freq;
+        constants[2].i = n_freq / 4;
+        constants[3].i = y.w;
+        constants[4].i = top_row_stride;
+
+        VkMat dispatcher;
+        dispatcher.w = frames;
+        dispatcher.h = n_freq / 4;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_spectrogram_post_pack4, bindings, constants, dispatcher);
+    }
 
     return 0;
 }

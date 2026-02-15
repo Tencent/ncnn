@@ -1,0 +1,63 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int power = 0;
+
+layout(binding = 0) readonly buffer y_blob { sfp y_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int frames;
+    int n_freq;
+    int n_freq_pack;
+    int y_row_stride;
+    int top_row_stride;
+} p;
+
+void main()
+{
+    int t = int(gl_GlobalInvocationID.x);
+    int q = int(gl_GlobalInvocationID.y);
+
+    if (t >= p.frames || q >= p.n_freq_pack)
+    return;
+
+    int f0 = q * 4;
+
+    afpvec4 re4 = afpvec4(0);
+    afpvec4 im4 = afpvec4(0);
+
+    for (int lane = 0; lane < 4; lane++)
+    {
+        int f = f0 + lane;
+
+        int y_re = f * p.y_row_stride + t;
+        int y_im = (f + p.n_freq) * p.y_row_stride + t;
+
+        re4[lane] = buffer_ld1(y_blob_data, y_re);
+        im4[lane] = buffer_ld1(y_blob_data, y_im);
+    }
+
+    if (power == 0)
+    {
+        int top_base = q * p.top_row_stride + t * 2;
+        buffer_st4(top_blob_data, top_base + 0, re4);
+        buffer_st4(top_blob_data, top_base + 1, im4);
+        return;
+    }
+
+    int top_idx = q * p.top_row_stride + t;
+
+    if (power == 1)
+    {
+        afpvec4 mag = sqrt(re4 * re4 + im4 * im4);
+        buffer_st4(top_blob_data, top_idx, mag);
+        return;
+    }
+
+    afpvec4 pw = re4 * re4 + im4 * im4;
+    buffer_st4(top_blob_data, top_idx, pw);
+}

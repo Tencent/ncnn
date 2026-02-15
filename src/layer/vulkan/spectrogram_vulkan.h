@@ -29,6 +29,7 @@ public:
     Layer* gemm;
 
     Pipeline* pipeline_spectrogram_post;
+    Pipeline* pipeline_spectrogram_post_pack4;
 };
 
 } // namespace ncnn
