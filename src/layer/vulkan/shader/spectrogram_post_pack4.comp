@@ -23,7 +23,7 @@ void main()
     int q = int(gl_GlobalInvocationID.y);
 
     if (t >= p.frames || q >= p.n_freq_pack)
-    return;
+        return;
 
     int f0 = q * 4;
 
