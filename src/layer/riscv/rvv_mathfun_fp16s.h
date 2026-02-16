@@ -407,10 +407,10 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
 #define _RVV_FLOAT16_FMOD_OP(LMUL, MLEN)                                                               \
     static inline vfloat16m##LMUL##_t fmod_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
     {                                                                                                  \
-        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                  \
-        vint16m##LMUL##_t qi = __riscv_vfcvt_x_f_v_i16m##LMUL(q, vl);                                   \
-        vfloat16m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f16m##LMUL(qi, vl);                                \
-        return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(qf, b, vl), vl);              \
+        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                 \
+        vint16m##LMUL##_t qi = __riscv_vfcvt_x_f_v_i16m##LMUL(q, vl);                                  \
+        vfloat16m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f16m##LMUL(qi, vl);                               \
+        return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(qf, b, vl), vl);             \
     }
 
 _RVV_FLOAT16_FMOD_OP(1, 16)
