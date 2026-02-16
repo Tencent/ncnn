@@ -12,19 +12,6 @@
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-static inline float32x4_t trunc_ps(const float32x4_t& x)
-{
-    int32x4_t xi = vcvtq_s32_f32(x);
-    return vcvtq_f32_s32(xi);
-}
-
-static inline float32x4_t fmod_ps(const float32x4_t& x, const float32x4_t& y)
-{
-    float32x4_t q = vdivq_f32(x, y);
-    float32x4_t tq = trunc_ps(q);
-    return vsubq_f32(x, vmulq_f32(tq, y));
-}
-
 static inline float16x4_t fmod_f16(const float16x4_t& x, const float16x4_t& y)
 {
     float32x4_t fx = vcvt_f32_f16(x);
