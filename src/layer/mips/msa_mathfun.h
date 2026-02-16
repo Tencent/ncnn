@@ -271,7 +271,7 @@ static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b   (trunc toward 0)
     v4f32 q = __msa_fdiv_w(a, b);
-    v4i32 qi = __msa_ftrunc_s_w(q);   // trunc toward zero (independent of RM)
+    v4i32 qi = __msa_ftrunc_s_w(q); // trunc toward zero (independent of RM)
     v4f32 qf = __msa_ffint_s_w(qi);
     return __msa_fsub_w(a, __msa_fmul_w(qf, b));
 }
