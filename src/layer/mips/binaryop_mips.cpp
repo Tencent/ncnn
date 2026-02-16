@@ -114,8 +114,7 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
 #if __mips_msa
     if (elempack == 4)
     {
-        int i = 0;
-        for (; i < w; i++)
+        for (int i = 0; i < w; i++)
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -126,8 +125,17 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
             ptr1 += 1;
             outptr += 4;
         }
+        return;
     }
 #endif // __mips_msa
+    const int size = w * elempack;
+    for (int i = 0; i < size; i++)
+    {
+        *outptr = op(*ptr, *ptr1);
+        ptr++;
+        outptr++;
+        if ((i + 1) % elempack == 0) ptr1++;
+    }
 }
 
 template<typename Op>
@@ -136,10 +144,11 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
     const Op op;
 
     const int size = w * elempack;
+    const float b = *ptr1;
 
     int i = 0;
 #if __mips_msa
-    v4f32 _b = __msa_fill_w_f32(*ptr1);
+    v4f32 _b = __msa_fill_w_f32(b);
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
@@ -150,6 +159,12 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
         outptr += 4;
     }
 #endif // __mips_msa
+    for (; i < size; i++)
+    {
+        *outptr = op(*ptr, b);
+        ptr += 1;
+        outptr += 1;
+    }
 }
 
 template<typename Op>
@@ -160,18 +175,26 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
 #if __mips_msa
     if (elempack == 4)
     {
-        int i = 0;
-        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-        for (; i < w; i++)
+        v4f32 _a = (v4f32)__msa_ld_w(ptr, 0);
+        for (int i = 0; i < w; i++)
         {
             v4f32 _b = __msa_fill_w_f32(*ptr1);
-            v4f32 _outp = op(_p, _b);
+            v4f32 _outp = op(_a, _b);
             __msa_st_w((v4i32)_outp, outptr, 0);
             ptr1 += 1;
             outptr += 4;
         }
+        return;
     }
 #endif // __mips_msa
+    const float a = *ptr;
+    const int size = w * elempack;
+    for (int i = 0; i < size; i++)
+    {
+        *outptr = op(a, *ptr1);
+        outptr++;
+        if ((i + 1) % elempack == 0) ptr1++;
+    }
 }
 
 template<typename Op>
