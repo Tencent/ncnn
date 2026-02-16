@@ -128,6 +128,16 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
         }
     }
 #endif // __loongarch_sx
+    for (int i = 0; i < w; i++)
+    {
+        const float b = ptr1[i];
+        for (int j = 0; j < elempack; j++)
+        {
+            outptr[j] = op(ptr[j], b);
+        }
+        ptr += elempack;
+        outptr += elempack;
+    }
 }
 
 template<typename Op>
@@ -150,6 +160,12 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
         outptr += 4;
     }
 #endif // __loongarch_sx
+    for (; i < size; i++)
+    {
+        *outptr = op(*ptr, b);
+        ptr++;
+        outptr++;
+    }
 }
 
 template<typename Op>
@@ -172,6 +188,15 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
         }
     }
 #endif // __loongarch_sx
+    for (int i = 0; i < w; i++)
+    {
+        const float b = ptr1[i];
+        for (int j = 0; j < elempack; j++)
+        {
+            outptr[j] = op(ptr[j], b);
+        }
+        outptr += elempack;
+    }
 }
 
 template<typename Op>
