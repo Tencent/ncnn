@@ -635,5 +635,4 @@ static inline __m128 fmod_ps(__m128 a, __m128 b)
     return __lsx_vfsub_s(a, __lsx_vfmul_s(qf, b));
 }
 
-
 #endif // LSX_MATHFUN_H
