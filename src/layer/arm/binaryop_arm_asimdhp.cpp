@@ -12,6 +12,38 @@
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+static inline float32x4_t trunc_ps(const float32x4_t& x)
+{
+    int32x4_t xi = vcvtq_s32_f32(x);
+    return vcvtq_f32_s32(xi);
+}
+
+static inline float32x4_t fmod_ps(const float32x4_t& x, const float32x4_t& y)
+{
+    float32x4_t q = vdivq_f32(x, y);
+    float32x4_t tq = trunc_ps(q);
+    return vsubq_f32(x, vmulq_f32(tq, y));
+}
+
+static inline float16x4_t fmod_f16(const float16x4_t& x, const float16x4_t& y)
+{
+    float32x4_t fx = vcvt_f32_f16(x);
+    float32x4_t fy = vcvt_f32_f16(y);
+    return vcvt_f16_f32(fmod_ps(fx, fy));
+}
+
+static inline float16x8_t fmodq_f16(const float16x8_t& x, const float16x8_t& y)
+{
+    float16x4_t xl = vget_low_f16(x);
+    float16x4_t xh = vget_high_f16(x);
+    float16x4_t yl = vget_low_f16(y);
+    float16x4_t yh = vget_high_f16(y);
+
+    float16x4_t rl = fmod_f16(xl, yl);
+    float16x4_t rh = fmod_f16(xh, yh);
+    return vcombine_f16(rl, rh);
+}
+
 template<typename Op>
 static void binary_op_vector_no_broadcast_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size)
 {
@@ -318,6 +350,8 @@ MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, vdiv_f16(y, x), vdivq_f16(y, x))
 MAKE_FUNCTION(binary_op_rpow_fp16s, (__fp16)powf(y, x), vcvt_f16_f32(pow_ps(vcvt_f32_f16(y), vcvt_f32_f16(x))), vcombine_f16(vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(y)), vcvt_f32_f16(vget_low_f16(x)))), vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(y)), vcvt_f32_f16(vget_high_f16(x))))))
 MAKE_FUNCTION(binary_op_atan2_fp16s, (__fp16)atan2f(x, y), vcvt_f16_f32(atan2_ps(vcvt_f32_f16(x), vcvt_f32_f16(y))), vcombine_f16(vcvt_f16_f32(atan2_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y)))), vcvt_f16_f32(atan2_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))))))
 MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2f(y, x), vcvt_f16_f32(atan2_ps(vcvt_f32_f16(y), vcvt_f32_f16(x))), vcombine_f16(vcvt_f16_f32(atan2_ps(vcvt_f32_f16(vget_low_f16(y)), vcvt_f32_f16(vget_low_f16(x)))), vcvt_f16_f32(atan2_ps(vcvt_f32_f16(vget_high_f16(y)), vcvt_f32_f16(vget_high_f16(x))))))
+MAKE_FUNCTION(binary_op_fmod_fp16s, (__fp16)fmodf((float)x, (float)y), fmod_f16(x, y), fmodq_f16(x, y))
+MAKE_FUNCTION(binary_op_rfmod_fp16s, (__fp16)fmodf((float)y, (float)x), fmod_f16(y, x), fmodq_f16(y, x))
 // *INDENT-ON*
 // clang-format on
 
@@ -341,6 +375,8 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector_fp16s<binary_op_rpow_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector_fp16s<binary_op_atan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector_fp16s<binary_op_ratan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector_fp16s<binary_op_fmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector_fp16s<binary_op_rfmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
@@ -485,10 +521,14 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
+    if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
+
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
+    if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
+
     return op_type;
 }
 

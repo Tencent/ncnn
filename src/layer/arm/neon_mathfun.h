@@ -404,6 +404,25 @@ static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
     return vld1q_f32(tmpx);
 }
 
+static inline float32x4_t trunc_ps(const float32x4_t& x)
+{
+    // truncate toward zero
+    int32x4_t xi = vcvtq_s32_f32(x);
+    return vcvtq_f32_s32(xi);
+}
+
+static inline float32x4_t fmod_ps(const float32x4_t& x, const float32x4_t& y)
+{
+    // fmod(x,y) = x - trunc(x/y) * y
+#if __aarch64__
+    float32x4_t q = vdivq_f32(x, y);
+#else
+    float32x4_t q = div_ps(x, y);
+#endif
+    float32x4_t tq = trunc_ps(q);
+    return vsubq_f32(x, vmulq_f32(tq, y));
+}
+
 #include "neon_mathfun_tanh.h"
 
 // Clean up macros
