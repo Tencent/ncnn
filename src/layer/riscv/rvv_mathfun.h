@@ -567,4 +567,72 @@ _RVV_FLOAT32_ATAN2_OP(2, 16)
 _RVV_FLOAT32_ATAN2_OP(4, 8)
 _RVV_FLOAT32_ATAN2_OP(8, 4)
 
+/* fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0) */
+#define _RVV_FLOAT32_FMOD_OP(LMUL, MLEN)                                                                                 \
+    static inline vfloat32m##LMUL##_t fmod_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl)                   \
+    {                                                                                                                    \
+        /* masks */                                                                                                      \
+        vbool##MLEN##_t a_nan = __riscv_vmfne_vv_f32m##LMUL##_b##MLEN(a, a, vl);                                         \
+        vbool##MLEN##_t b_nan = __riscv_vmfne_vv_f32m##LMUL##_b##MLEN(b, b, vl);                                         \
+        vbool##MLEN##_t b_zero = __riscv_vmfeq_vf_f32m##LMUL##_b##MLEN(b, 0.f, vl);                                      \
+                                                                                                                         \
+        /* +inf constant */                                                                                              \
+        vuint32m##LMUL##_t inf_u = __riscv_vmv_v_x_u32m##LMUL(0x7f800000u, vl);                                           \
+        vfloat32m##LMUL##_t inf_f = __riscv_vreinterpret_v_u32m##LMUL##_f32m##LMUL(inf_u);                               \
+                                                                                                                         \
+        /* isinf(x) <=> abs(x) == +inf */                                                                                \
+        vfloat32m##LMUL##_t a_abs = __riscv_vfsgnjx_vv_f32m##LMUL(a, a, vl);                                              \
+        vfloat32m##LMUL##_t b_abs = __riscv_vfsgnjx_vv_f32m##LMUL(b, b, vl);                                              \
+        vbool##MLEN##_t a_inf = __riscv_vmfeq_vv_f32m##LMUL##_b##MLEN(a_abs, inf_f, vl);                                 \
+        vbool##MLEN##_t b_inf = __riscv_vmfeq_vv_f32m##LMUL##_b##MLEN(b_abs, inf_f, vl);                                 \
+                                                                                                                         \
+        /* finite(a) = !isnan(a) && !isinf(a) */                                                                          \
+        vbool##MLEN##_t a_finite = __riscv_vmnot_m_b##MLEN(a_nan, vl);                                                    \
+        a_finite = __riscv_vmandnot_mm_b##MLEN(a_finite, a_inf, vl);                                                     \
+                                                                                                                         \
+        /* core: r = a - trunc(a/b)*b */                                                                                 \
+        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                                    \
+        vint32m##LMUL##_t qi = __riscv_vfcvt_x_f_v_i32m##LMUL(q, vl); /* toward-zero trunc */                             \
+        vfloat32m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f32m##LMUL(qi, vl);                                                  \
+        vfloat32m##LMUL##_t r = __riscv_vfsub_vv_f32m##LMUL(a, __riscv_vfmul_vv_f32m##LMUL(qf, b, vl), vl);              \
+                                                                                                                         \
+        /* if r == 0, force sign to match a (helps -0 and exact multiples) */                                             \
+        vbool##MLEN##_t r_zero = __riscv_vmfeq_vf_f32m##LMUL##_b##MLEN(r, 0.f, vl);                                      \
+        r = __riscv_vfsgnj_vv_f32m##LMUL##_mu(r_zero, r, r, a, vl);                                                      \
+                                                                                                                         \
+        /* Special cases */                                                                                               \
+        /* b is +/-inf and a is finite -> return a */                                                                     \
+        vbool##MLEN##_t b_inf_a_finite = __riscv_vmand_mm_b##MLEN(b_inf, a_finite, vl);                                   \
+        r = __riscv_vmerge_vvm_f32m##LMUL(r, a, b_inf_a_finite, vl);                                                      \
+                                                                                                                         \
+        /* a == 0 -> return a (preserve signed zero) */                                                                   \
+        vbool##MLEN##_t a_zero = __riscv_vmfeq_vf_f32m##LMUL##_b##MLEN(a, 0.f, vl);                                      \
+        r = __riscv_vmerge_vvm_f32m##LMUL(r, a, a_zero, vl);                                                              \
+                                                                                                                         \
+        /* invalid -> NaN:                                                                                                 \
+           - any NaN inputs                                                                                                 \
+           - b == 0                                                                                                         \
+           - a is +/-inf and b is finite nonzero                                                                             \
+           - fmod(inf, inf) is NaN (covered by a_inf & b_inf)                                                                */ \
+        vbool##MLEN##_t invalid = __riscv_vmor_mm_b##MLEN(a_nan, b_nan, vl);                                                \
+        invalid = __riscv_vmor_mm_b##MLEN(invalid, b_zero, vl);                                                             \
+        vbool##MLEN##_t b_finite_nonzero = __riscv_vmnot_m_b##MLEN(b_nan, vl);                                              \
+        b_finite_nonzero = __riscv_vmandnot_mm_b##MLEN(b_finite_nonzero, b_inf, vl);                                       \
+        b_finite_nonzero = __riscv_vmandnot_mm_b##MLEN(b_finite_nonzero, b_zero, vl);                                      \
+        invalid = __riscv_vmor_mm_b##MLEN(invalid, __riscv_vmand_mm_b##MLEN(a_inf, b_finite_nonzero, vl), vl);              \
+        invalid = __riscv_vmor_mm_b##MLEN(invalid, __riscv_vmand_mm_b##MLEN(a_inf, b_inf, vl), vl);                         \
+                                                                                                                         \
+        /* canonical quiet NaN */                                                                                          \
+        vuint32m##LMUL##_t qnan_u = __riscv_vmv_v_x_u32m##LMUL(0x7fc00000u, vl);                                            \
+        vfloat32m##LMUL##_t qnan_f = __riscv_vreinterpret_v_u32m##LMUL##_f32m##LMUL(qnan_u);                               \
+        r = __riscv_vmerge_vvm_f32m##LMUL(r, qnan_f, invalid, vl);                                                         \
+                                                                                                                         \
+        return r;                                                                                                          \
+    }
+
+_RVV_FLOAT32_FMOD_OP(1, 32)
+_RVV_FLOAT32_FMOD_OP(2, 16)
+_RVV_FLOAT32_FMOD_OP(4, 8)
+_RVV_FLOAT32_FMOD_OP(8, 4)
+
 #endif // RVV_MATHFUN_H
