@@ -626,4 +626,14 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     return final_result;
 }
 
+static inline __m128 fmod_ps(__m128 a, __m128 b)
+{
+    // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
+    __m128 q = __lsx_vfdiv_s(a, b);
+    __m128i qi = __lsx_vftintrz_w_s(q); // float -> int32 trunc toward zero
+    __m128 qf = __lsx_vffint_s_w(qi);   // int32 -> float
+    return __lsx_vfsub_s(a, __lsx_vfmul_s(qf, b));
+}
+
+
 #endif // LSX_MATHFUN_H
