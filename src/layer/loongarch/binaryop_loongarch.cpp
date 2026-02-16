@@ -114,7 +114,8 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
 #if __loongarch_sx
     if (elempack == 4)
     {
-        for (int i = 0; i < w; i++)
+        int i = 0;
+        for (; i < w; i++)
         {
             __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
@@ -125,32 +126,20 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __loongarch_sx
-    for (int i = 0; i < w; i++)
-    {
-        const float b = ptr1[i];
-        for (int j = 0; j < elempack; j++)
-        {
-            outptr[j] = op(ptr[j], b);
-        }
-        ptr += elempack;
-        outptr += elempack;
-    }
 }
 
 template<typename Op>
 static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
     const Op op;
-    const int size = w * elempack;
 
-    const float b = *ptr1;
+    const int size = w * elempack;
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _b = __lsx_vreplfr2vr_s(b);
+    __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
@@ -161,13 +150,6 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
         outptr += 4;
     }
 #endif // __loongarch_sx
-
-    for (; i < size; i++)
-    {
-        *outptr = op(*ptr, b);
-        ptr++;
-        outptr++;
-    }
 }
 
 template<typename Op>
@@ -178,8 +160,9 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
 #if __loongarch_sx
     if (elempack == 4)
     {
-        __m128 _p = (__m128)__lsx_vld(ptr, 0); // a 是 pack4 常量
-        for (int i = 0; i < w; i++)
+        int i = 0;
+        __m128 _p = (__m128)__lsx_vld(ptr, 0);
+        for (; i < w; i++)
         {
             __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
             __m128 _outp = op(_p, _b);
@@ -187,18 +170,8 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
             ptr1 += 1;
             outptr += 4;
         }
-        return;
     }
 #endif // __loongarch_sx
-    for (int i = 0; i < w; i++)
-    {
-        const float b = ptr1[i];
-        for (int j = 0; j < elempack; j++)
-        {
-            outptr[j] = op(ptr[j], b);
-        }
-        outptr += elempack;
-    }
 }
 
 template<typename Op>
