@@ -144,12 +144,13 @@ template<typename Op>
 static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
     const Op op;
-
     const int size = w * elempack;
+
+    const float b = *ptr1;
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
+    __m128 _b = __lsx_vreplfr2vr_s(b);
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
@@ -160,6 +161,7 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
         outptr += 4;
     }
 #endif // __loongarch_sx
+
     for (; i < size; i++)
     {
         *outptr = op(*ptr, b);
