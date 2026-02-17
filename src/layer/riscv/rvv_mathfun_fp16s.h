@@ -407,7 +407,7 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
 #define _RVV_FLOAT16_FMOD_OP(LMUL, MLEN)                                                               \
     static inline vfloat16m##LMUL##_t fmod_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
     {                                                                                                  \
-        /* LMUL=8 -> f32m4, LMUL=4 -> f32m2, LMUL=2 -> f32m1 */                                         \
+        /* LMUL=8 -> f32m4, LMUL=4 -> f32m2, LMUL=2 -> f32m1 */                                        \
         if (LMUL == 8)                                                                                 \
         {                                                                                              \
             vfloat32m4_t a32 = __riscv_vfwcvt_f_f_v_f32m4(a, vl);                                      \
@@ -430,7 +430,7 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
             return __riscv_vfncvt_f_f_w_f16m2(r32, vl);                                                \
         }                                                                                              \
                                                                                                        \
-        /* LMUL == 1 : widen is f32mf2, no fmod_ps overload in rvv_mathfun.h -> scalar fallback */      \
+        /* LMUL == 1 : widen is f32mf2, no fmod_ps overload in rvv_mathfun.h -> scalar fallback */     \
         std::vector<__fp16> tmpa(vl);                                                                  \
         std::vector<__fp16> tmpb(vl);                                                                  \
         std::vector<__fp16> tmpr(vl);                                                                  \
