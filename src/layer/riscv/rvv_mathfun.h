@@ -572,7 +572,7 @@ _RVV_FLOAT32_ATAN2_OP(8, 4)
     static inline vfloat32m##LMUL##_t fmod_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
     {                                                                                                  \
         vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                 \
-        vint32m##LMUL##_t qi = __riscv_vfcvt_x_f_v_i32m##LMUL(q, vl);                                  \
+        vint32m##LMUL##_t qi = __riscv_vfcvt_rtz_x_f_v_i32m##LMUL(q, vl);                              \
         vfloat32m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f32m##LMUL(qi, vl);                               \
         return __riscv_vfsub_vv_f32m##LMUL(a, __riscv_vfmul_vv_f32m##LMUL(qf, b, vl), vl);             \
     }
