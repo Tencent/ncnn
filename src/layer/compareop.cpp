@@ -153,6 +153,20 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, int op_type, const 
     if (op_type == CompareOp::Operation_NE) return compare_op_scalar<compare_op_ne>(a, b, c, opt);
 }
 
+int CompareOp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    if (bottom_blob.dims == 1) top_blob.create(bottom_blob.w, (size_t)4u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 2) top_blob.create(bottom_blob.w, bottom_blob.h, (size_t)4u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 3) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.c, (size_t)4u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 4) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.d, bottom_blob.c, (size_t)4u, 1, opt.blob_allocator);
+
+    if (top_blob.empty())
+        return -100;
+
+    compare_op_scalar(bottom_blob, b, top_blob, op_type, opt);
+    return 0;
+}
+
 int CompareOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (with_scalar)
