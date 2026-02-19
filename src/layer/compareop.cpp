@@ -55,7 +55,7 @@ static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Optio
 
     if (dims == 2)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < h; y++)
         {
             const float* ptr = a.row(std::min(y, a.h - 1));
@@ -76,7 +76,7 @@ static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Optio
 
     if (dims == 3 || dims == 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             int* outptr = (int*)c.channel(q);
@@ -113,7 +113,7 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
     const int channels = a.c;
     const int size = a.w * a.h * a.d;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* ptr = a.channel(q);
@@ -126,12 +126,48 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
     }
 }
 
-struct compare_op_lt { int operator()(const float& x, const float& y) const { return x < y ? 1 : 0; } };
-struct compare_op_gt { int operator()(const float& x, const float& y) const { return x > y ? 1 : 0; } };
-struct compare_op_le { int operator()(const float& x, const float& y) const { return x <= y ? 1 : 0; } };
-struct compare_op_ge { int operator()(const float& x, const float& y) const { return x >= y ? 1 : 0; } };
-struct compare_op_eq { int operator()(const float& x, const float& y) const { return x == y ? 1 : 0; } };
-struct compare_op_ne { int operator()(const float& x, const float& y) const { return x != y ? 1 : 0; } };
+struct compare_op_lt
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x < y ? 1 : 0;
+    }
+};
+struct compare_op_gt
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x > y ? 1 : 0;
+    }
+};
+struct compare_op_le
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x <= y ? 1 : 0;
+    }
+};
+struct compare_op_ge
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x >= y ? 1 : 0;
+    }
+};
+struct compare_op_eq
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x == y ? 1 : 0;
+    }
+};
+struct compare_op_ne
+{
+    int operator()(const float& x, const float& y) const
+    {
+        return x != y ? 1 : 0;
+    }
+};
 
 static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
