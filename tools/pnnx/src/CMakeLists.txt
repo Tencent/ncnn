@@ -622,6 +622,12 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
     pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
+    pass_ncnn/torch_lt.cpp
+    pass_ncnn/torch_gt.cpp
+    pass_ncnn/torch_le.cpp
+    pass_ncnn/torch_ge.cpp
+    pass_ncnn/torch_eq.cpp
+    pass_ncnn/torch_ne.cpp
 )
 
 if(PROTOBUF_FOUND)
