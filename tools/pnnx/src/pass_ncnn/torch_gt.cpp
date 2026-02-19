@@ -35,8 +35,8 @@ pnnx.Output             output      1 0 out
     {
         float other = captured_params.at("other").type == 3 ? captured_params.at("other").f : captured_params.at("other").i;
 
-        op->params["0"] = 1; // op_type GT
-        op->params["1"] = 1; // with_scalar
+        op->params["0"] = 1;     // op_type GT
+        op->params["1"] = 1;     // with_scalar
         op->params["2"] = other; // b
     }
 };
