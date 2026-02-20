@@ -136,6 +136,62 @@ ncnn::Mat RandomIntMat(int w, int h, int d, int c)
     return m;
 }
 
+ncnn::Mat RandomBoolMat(int w)
+{
+    ncnn::Mat m(w, (size_t)4u);
+    int* ptr = (int*)m;
+    for (int i = 0; i < w; i++)
+    {
+        ptr[i] = (RAND() % 2);
+    }
+    return m;
+}
+
+ncnn::Mat RandomBoolMat(int w, int h)
+{
+    ncnn::Mat m(w, h, (size_t)4u);
+    for (int y = 0; y < h; y++)
+    {
+        int* ptr = (int*)m.row(y);
+        for (int x = 0; x < w; x++)
+        {
+            ptr[x] = (RAND() % 2);
+        }
+    }
+    return m;
+}
+
+ncnn::Mat RandomBoolMat(int w, int h, int c)
+{
+    ncnn::Mat m(w, h, c, (size_t)4u);
+    for (int q = 0; q < c; q++)
+    {
+        int* ptr = (int*)m.channel(q);
+        for (int i = 0; i < w * h; i++)
+        {
+            ptr[i] = (RAND() % 2);
+        }
+    }
+    return m;
+}
+
+ncnn::Mat RandomBoolMat(int w, int h, int d, int c)
+{
+    ncnn::Mat m(w, h, d, c, (size_t)4u);
+    for (int q = 0; q < c; q++)
+    {
+        for (int z = 0; z < d; z++)
+        {
+            int* ptr = (int*)m.channel(q).depth(z);
+            for (int i = 0; i < w * h; i++)
+            {
+                ptr[i] = (RAND() % 2);
+            }
+        }
+    }
+    return m;
+}
+
 ncnn::Mat RandomS8Mat(int w)
 {
     ncnn::Mat m(w, (size_t)1u);

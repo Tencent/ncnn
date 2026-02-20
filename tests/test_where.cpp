@@ -50,7 +50,7 @@ static int test_where(const ncnn::Mat& cond, const ncnn::Mat& a, const ncnn::Mat
 
 static int test_where_1()
 {
-    ncnn::Mat cond = RandomMat(16);
+    ncnn::Mat cond = RandomBoolMat(16);
     ncnn::Mat a = RandomMat(16);
     ncnn::Mat b = RandomMat(16);
 
@@ -59,7 +59,7 @@ static int test_where_1()
 
 static int test_where_2()
 {
-    ncnn::Mat cond = RandomMat(16, 16);
+    ncnn::Mat cond = RandomBoolMat(16, 16);
     ncnn::Mat a = RandomMat(16, 16);
     ncnn::Mat b = RandomMat(16, 16);
 
@@ -68,7 +68,7 @@ static int test_where_2()
 
 static int test_where_3()
 {
-    ncnn::Mat cond = RandomMat(8, 8, 8);
+    ncnn::Mat cond = RandomBoolMat(8, 8, 8);
     ncnn::Mat a = RandomMat(8, 8, 8);
     ncnn::Mat b = RandomMat(8, 8, 8);
 
@@ -77,7 +77,7 @@ static int test_where_3()
 
 static int test_where_4()
 {
-    ncnn::Mat cond = RandomMat(4, 4, 4, 4);
+    ncnn::Mat cond = RandomBoolMat(4, 4, 4, 4);
     ncnn::Mat a = RandomMat(4, 4, 4, 4);
     ncnn::Mat b = RandomMat(4, 4, 4, 4);
 
@@ -86,7 +86,7 @@ static int test_where_4()
 
 static int test_where_broadcast()
 {
-    ncnn::Mat cond = RandomMat(1);
+    ncnn::Mat cond = RandomBoolMat(1);
     ncnn::Mat a = RandomMat(16);
     ncnn::Mat b = RandomMat(16);
 
