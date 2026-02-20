@@ -602,6 +602,12 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_flip.cpp
+    pass_ncnn/torch_eq.cpp
+    pass_ncnn/torch_ge.cpp
+    pass_ncnn/torch_gt.cpp
+    pass_ncnn/torch_le.cpp
+    pass_ncnn/torch_lt.cpp
+    pass_ncnn/torch_ne.cpp
     pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
@@ -619,6 +625,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
+    pass_ncnn/torch_where.cpp
     pass_ncnn/torchaudio_F_inverse_spectrogram.cpp
     pass_ncnn/torchaudio_F_spectrogram.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
