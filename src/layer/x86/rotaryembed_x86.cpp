@@ -55,9 +55,6 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-                const __m512 signmask512 = _mm512_castsi512_ps(_mm512_set_epi32(
-                                               0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
-                                               0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
                 const __m512i dupidx = _mm512_set_epi32(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8);
                 const __m512i dupidx_lo = _mm512_set_epi32(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
                 for (; j + 15 < embed_dim / 2; j += 16)
@@ -79,10 +76,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m512 ss0 = _mm512_mul_ps(swap0, s0);
                     __m512 ss1 = _mm512_mul_ps(swap1, s1);
 
-                    ss0 = _mm512_xor_ps(ss0, signmask512);
-                    ss1 = _mm512_xor_ps(ss1, signmask512);
-                    __m512 y0 = _mm512_fmadd_ps(a0, c0, ss0);
-                    __m512 y1 = _mm512_fmadd_ps(a1, c1, ss1);
+                    __m512 y0 = _mm512_fmaddsub_ps(a0, c0, ss0);
+                    __m512 y1 = _mm512_fmaddsub_ps(a1, c1, ss1);
 
                     _mm512_storeu_ps(outptr, y0);
                     _mm512_storeu_ps(outptr + 16, y1);
@@ -109,17 +104,14 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m256 s0 = _mm256_permutevar8x32_ps(s_src, dupidx256_lo);
                     __m256 s1 = _mm256_permutevar8x32_ps(s_src, dupidx256);
 
-                    __m256 ac0 = _mm256_mul_ps(a0, c0);
-                    __m256 ac1 = _mm256_mul_ps(a1, c1);
-
                     __m256 swap0 = _mm256_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
                     __m256 swap1 = _mm256_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
-                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
+                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
 
                     _mm256_storeu_ps(outptr, y0);
                     _mm256_storeu_ps(outptr + 8, y1);
@@ -156,18 +148,22 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m256 s0 = combine4x2_ps(slo_lo, slo_hi);
                     __m256 s1 = combine4x2_ps(shi_lo, shi_hi);
 
-                    __m256 ac0 = _mm256_mul_ps(a0, c0);
-                    __m256 ac1 = _mm256_mul_ps(a1, c1);
-
                     __m256 swap0 = _mm256_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
                     __m256 swap1 = _mm256_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
                     __m256 ss0 = _mm256_mul_ps(swap0, s0);
                     __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
+#if __FMA__
+                    __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
+                    __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
+#else
+                    __m256 ac0 = _mm256_mul_ps(a0, c0);
+                    __m256 ac1 = _mm256_mul_ps(a1, c1);
+
                     __m256 y0 = _mm256_addsub_ps(ac0, ss0);
                     __m256 y1 = _mm256_addsub_ps(ac1, ss1);
-
+#endif
                     _mm256_storeu_ps(outptr, y0);
                     _mm256_storeu_ps(outptr + 8, y1);
 
@@ -194,14 +190,17 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m128 slo = _mm_unpacklo_ps(s4, s4); // [s0,s0,s1,s1]
                     __m128 shi = _mm_unpackhi_ps(s4, s4); // [s2,s2,s3,s3]
 
-                    __m128 ac0 = _mm_mul_ps(a0, clo);
-                    __m128 ac1 = _mm_mul_ps(a1, chi);
-
                     __m128 swap0 = _mm_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 swap1 = _mm_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
                     __m128 ss0 = _mm_mul_ps(swap0, slo);
                     __m128 ss1 = _mm_mul_ps(swap1, shi);
+#if __FMA__
+                    __m128 y0 = _mm_fmaddsub_ps(a0, clo, ss0);
+                    __m128 y1 = _mm_fmaddsub_ps(a1, chi, ss1);
+#else
+                    __m128 ac0 = _mm_mul_ps(a0, clo);
+                    __m128 ac1 = _mm_mul_ps(a1, chi);
 #if __SSE3__
                     __m128 y0 = _mm_addsub_ps(ac0, ss0);
                     __m128 y1 = _mm_addsub_ps(ac1, ss1);
@@ -210,6 +209,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     ss1 = _mm_xor_ps(ss1, signmask128);
                     __m128 y0 = _mm_add_ps(ac0, ss0);
                     __m128 y1 = _mm_add_ps(ac1, ss1);
+#endif
 #endif
                     _mm_storeu_ps(outptr, y0);
                     _mm_storeu_ps(outptr + 4, y1);
@@ -229,16 +229,19 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m128 c = _mm_unpacklo_ps(c01, c01); // [c0,c0,c1,c1]
                     __m128 s = _mm_unpacklo_ps(s01, s01); // [s0,s0,s1,s1]
 
-                    __m128 ac = _mm_mul_ps(a, c);
-
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
 
+#if __FMA__
+                    __m128 y = _mm_fmaddsub_ps(a, c, ss);
+#else
+                    __m128 ac = _mm_mul_ps(a, c);
 #if __SSE3__
                     __m128 y = _mm_addsub_ps(ac, ss);
 #else
                     ss = _mm_xor_ps(ss, signmask128);
                     __m128 y = _mm_add_ps(ac, ss);
+#endif
 #endif
                     _mm_storeu_ps(outptr, y);
 
