@@ -22,17 +22,18 @@
 layout(constant_id = 0) const uint M = 1;
 layout(constant_id = 1) const uint N = 1;
 layout(constant_id = 2) const uint K = 1;
-layout(constant_id = 3) const uint UNROLL_SG_M = 2;
-layout(constant_id = 4) const uint UNROLL_SG_N = 2;
-layout(constant_id = 5) const uint UNROLL_SG_K = 2;
-layout(constant_id = 6) const uint UNROLL_WG_M = 2;
-layout(constant_id = 7) const uint UNROLL_WG_N = 2;
-layout(constant_id = 8) const uint inch = 1;
-layout(constant_id = 9) const uint outch = 1;
-layout(constant_id = 10) const uint elempack = 1;
-layout(constant_id = 11) const uint out_elempack = 1;
+layout(constant_id = 3) const uint subgroup_size = 32;
+layout(constant_id = 4) const uint UNROLL_SG_M = 2;
+layout(constant_id = 5) const uint UNROLL_SG_N = 2;
+layout(constant_id = 6) const uint UNROLL_SG_K = 2;
+layout(constant_id = 7) const uint UNROLL_WG_M = 2;
+layout(constant_id = 8) const uint UNROLL_WG_N = 2;
+layout(constant_id = 9) const uint inch = 1;
+layout(constant_id = 10) const uint outch = 1;
+layout(constant_id = 11) const uint elempack = 1;
+layout(constant_id = 12) const uint out_elempack = 1;
 
-#define shape_constant_id_offset 12
+#define shape_constant_id_offset 13
 layout(constant_id = shape_constant_id_offset + 0) const uint size = 0;
 layout(constant_id = shape_constant_id_offset + 1) const uint cstep = 0;
 layout(constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
@@ -58,7 +59,7 @@ void main()
 {
     // assert gl_WorkGroupSize.x == gl_SubgroupSize
     // but neither gl_SubgroupSize nor gl_WorkGroupSize.x is a constant
-    const uint local_size = ncnn_subgroupSize * UNROLL_WG_M * UNROLL_WG_N;
+    const uint local_size = subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
 
     // [ WG_UN * WG_UM * [ SG_UN * SG_UM * subgroup ] ]
 
@@ -144,8 +145,8 @@ void main()
         // local stack and shared memory ping-pong
 
         // prefetch
-        uvec2 prefetch_tmp_v[(UNROLL_SG_M * UNROLL_SG_K * M * K / 4 + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N)];
-        uvec2 prefetch_tmp_k[(UNROLL_SG_N * UNROLL_SG_K * K * N / 4 + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M)];
+        uvec2 prefetch_tmp_v[(UNROLL_SG_M * UNROLL_SG_K * M * K / 4 + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N)];
+        uvec2 prefetch_tmp_k[(UNROLL_SG_N * UNROLL_SG_K * K * N / 4 + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M)];
 
         // prefetch the very first
         {
@@ -176,12 +177,12 @@ void main()
                     const uint cstepd4 = psc(cstep) / 4;
 
                     const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
-                    const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                    const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                        if (Md4_K_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
+                        if (Md4_K_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
                         {
                             const uint zk = siq / (Md4 * K * UNROLL_SG_M);
                             const uint zmij = siq % (Md4 * K * UNROLL_SG_M);
@@ -222,12 +223,12 @@ void main()
                     const uint inchd4 = inch / 4;
 
                     const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
-                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                        if (Kd4_M_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                        if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
                         {
                             const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
                             const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
@@ -272,12 +273,12 @@ void main()
 
                 const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
-                const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+                const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
                 [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
+                    if (Nd4_K_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                     {
                         prefetch_tmp_k[q] = weight_data[w_offset + siq];
                     }
@@ -298,12 +299,12 @@ void main()
                     if (elempack == 1)
                     {
                         const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
-                        const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                        const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                         {
-                            const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                            const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                            if (Md4_K_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
+                            if (Md4_K_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
                             {
                                 tmp_v[sgmi][siq] = prefetch_tmp_v[q];
                             }
@@ -312,12 +313,12 @@ void main()
                     else // if (elempack == 4)
                     {
                         const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
-                        const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                        const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
                         {
-                            const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                            const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                            if (Kd4_M_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                            if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
                             {
                                 tmp_v[sgmi][siq] = prefetch_tmp_v[q];
                             }
@@ -328,12 +329,12 @@ void main()
                 // load weight
                 {
                     const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
-                    const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+                    const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
                     [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                        if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
+                        if (Nd4_K_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                         {
                             tmp_k[sgni][siq] = prefetch_tmp_k[q];
                         }
@@ -372,12 +373,12 @@ void main()
                         const uint cstepd4 = psc(cstep) / 4;
 
                         const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
-                        const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                        const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                         {
-                            const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                            const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                            if (Md4_K_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
+                            if (Md4_K_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
                             {
                                 const uint zk = siq / (Md4 * K * UNROLL_SG_M);
                                 const uint zmij = siq % (Md4 * K * UNROLL_SG_M);
@@ -418,12 +419,12 @@ void main()
                         const uint inchd4 = inch / 4;
 
                         const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
-                        const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                        const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                         [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
                         {
-                            const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                            const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                            if (Kd4_M_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                            if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
                             {
                                 const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
                                 const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
@@ -468,12 +469,12 @@ void main()
 
                     const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
-                    const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+                    const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
                     [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                        if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
+                        if (Nd4_K_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                         {
                             prefetch_tmp_k[q] = weight_data[w_offset + siq];
                         }
@@ -544,12 +545,12 @@ void main()
                 if (elempack == 1)
                 {
                     const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
-                    const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                    const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                        if (Md4_K_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
+                        if (Md4_K_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
                         {
                             tmp_v[sgmi][siq] = prefetch_tmp_v[q];
                         }
@@ -558,12 +559,12 @@ void main()
                 else // if (elempack == 4)
                 {
                     const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
-                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
                     {
-                        const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                        if (Kd4_M_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                        if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
                         {
                             tmp_v[sgmi][siq] = prefetch_tmp_v[q];
                         }
@@ -574,12 +575,12 @@ void main()
             // load weight
             {
                 const uint Nd4_K_USGN_USGK = Nd4 * K * UNROLL_SG_N * UNROLL_SG_K;
-                const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+                const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
                 [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                    if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
+                    if (Nd4_K_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                     {
                         tmp_k[sgni][siq] = prefetch_tmp_k[q];
                     }
@@ -673,12 +674,12 @@ void main()
                 const uint cstepd4 = psc(cstep) / 4;
 
                 const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
-                const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                 [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (Md4_K_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
+                    if (Md4_K_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM_USGK)
                     {
                         const uint zk = siq / (Md4 * K * UNROLL_SG_M);
                         const uint zmij = siq % (Md4 * K * UNROLL_SG_M);
@@ -719,12 +720,12 @@ void main()
                 const uint inchd4 = inch / 4;
 
                 const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
-                const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                 [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (Kd4_M_USGM_USGK % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                    if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
                     {
                         const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
                         const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
@@ -769,12 +770,12 @@ void main()
 
             const uint w_offset = ((wgni * kk) * UNROLL_WG_N) * Nd4_K_USGN + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * Nd4_K_USGN_USGK;
 
-            const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+            const uint Nd4_K_USGN_USGK_d_subgroupsize = (Nd4_K_USGN_USGK + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
             [[unroll]] for (uint q = 0; q < Nd4_K_USGN_USGK_d_subgroupsize; q++)
             {
-                const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (Nd4_K_USGN_USGK % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
+                if (Nd4_K_USGN_USGK % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN_USGK)
                 {
                     tmp_k[sgni][siq] = weight_data[w_offset + siq];
                 }
@@ -862,12 +863,12 @@ void main()
                 const uint cstepd4 = psc(cstep) / 4;
 
                 const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
-                const uint Md4_K_USGM_d_subgroupsize = (Md4_K_USGM + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                const uint Md4_K_USGM_d_subgroupsize = (Md4_K_USGM + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                 [[unroll]] for (uint q = 0; q < Md4_K_USGM_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (Md4_K_USGM % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Md4_K_USGM)
+                    if (Md4_K_USGM % (subgroup_size * UNROLL_WG_N) == 0 || siq < Md4_K_USGM)
                     {
                         const uint zm = siq / (Md4 * K);
                         const uint ij = siq % (Md4 * K);
@@ -898,12 +899,12 @@ void main()
                 const uint inchd4 = inch / 4;
 
                 const uint Kd4_M_USGM = Kd4 * M * UNROLL_SG_M;
-                const uint Kd4_M_USGM_d_subgroupsize = (Kd4_M_USGM + (ncnn_subgroupSize * UNROLL_WG_N - 1)) / (ncnn_subgroupSize * UNROLL_WG_N);
+                const uint Kd4_M_USGM_d_subgroupsize = (Kd4_M_USGM + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                 [[unroll]] for (uint q = 0; q < Kd4_M_USGM_d_subgroupsize; q++)
                 {
-                    const uint siq = (q * UNROLL_WG_N + sgni) * ncnn_subgroupSize + si;
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
-                    if (Kd4_M_USGM % (ncnn_subgroupSize * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM)
+                    if (Kd4_M_USGM % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM)
                     {
                         const uint zmi = siq / Kd4;
                         const uint j = siq % Kd4;
@@ -937,12 +938,12 @@ void main()
 
             const uint w_offset = ((wgni * kk + k) * UNROLL_WG_N + sgni) * Nd4_K_USGN;
 
-            const uint Nd4_K_USGN_d_subgroupsize = (Nd4_K_USGN + (ncnn_subgroupSize * UNROLL_WG_M - 1)) / (ncnn_subgroupSize * UNROLL_WG_M);
+            const uint Nd4_K_USGN_d_subgroupsize = (Nd4_K_USGN + (subgroup_size * UNROLL_WG_M - 1)) / (subgroup_size * UNROLL_WG_M);
             [[unroll]] for (uint q = 0; q < Nd4_K_USGN_d_subgroupsize; q++)
             {
-                const uint siq = (q * UNROLL_WG_M + sgmi) * ncnn_subgroupSize + si;
+                const uint siq = (q * UNROLL_WG_M + sgmi) * subgroup_size + si;
 
-                if (Nd4_K_USGN % (ncnn_subgroupSize * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN)
+                if (Nd4_K_USGN % (subgroup_size * UNROLL_WG_M) == 0 || siq < Nd4_K_USGN)
                 {
                     tmp_k[sgni][siq] = weight_data[w_offset + siq];
                 }
@@ -1088,12 +1089,12 @@ void main()
             const uint outcstepd4 = psc(outcstep) / 4;
 
             const uint Md4_N_USGM_USGN = Md4 * N * UNROLL_SG_M * UNROLL_SG_N;
-            const uint Md4_N_USGM_USGN_d_subgroupsize = (Md4_N_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
+            const uint Md4_N_USGM_USGN_d_subgroupsize = (Md4_N_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Md4_N_USGM_USGN_d_subgroupsize; q++)
             {
-                const uint siq = si + q * ncnn_subgroupSize;
+                const uint siq = si + q * subgroup_size;
 
-                if (Md4_N_USGM_USGN % ncnn_subgroupSize == 0 || siq < Md4_N_USGM_USGN)
+                if (Md4_N_USGM_USGN % subgroup_size == 0 || siq < Md4_N_USGM_USGN)
                 {
                     const uint zn = siq / (Md4 * N * UNROLL_SG_M);
                     const uint zmij = siq % (Md4 * N * UNROLL_SG_M);
@@ -1151,12 +1152,12 @@ void main()
             const uint outchd4 = outch / 4;
 
             const uint Nd4_M_USGM_USGN = Nd4 * M * UNROLL_SG_M * UNROLL_SG_N;
-            const uint Nd4_M_USGM_USGN_d_subgroupsize = (Nd4_M_USGM_USGN + ncnn_subgroupSize - 1) / ncnn_subgroupSize;
+            const uint Nd4_M_USGM_USGN_d_subgroupsize = (Nd4_M_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Nd4_M_USGM_USGN_d_subgroupsize; q++)
             {
-                const uint siq = si + q * ncnn_subgroupSize;
+                const uint siq = si + q * subgroup_size;
 
-                if (Nd4_M_USGM_USGN % ncnn_subgroupSize == 0 || siq < Nd4_M_USGM_USGN)
+                if (Nd4_M_USGM_USGN % subgroup_size == 0 || siq < Nd4_M_USGM_USGN)
                 {
                     const uint zn = siq / (Nd4 * M * UNROLL_SG_M);
                     const uint zmij = siq % (Nd4 * M * UNROLL_SG_M);

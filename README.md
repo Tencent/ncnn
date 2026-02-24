@@ -77,7 +77,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Source</td>
 <td colspan=2>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-full-source.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-full-source.zip)
 
 </td>
 </tr>
@@ -97,8 +97,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Android</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-android-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-android.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android.zip)
 
 </td>
 <td rowspan=2>
@@ -111,8 +111,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Android shared</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-android-vulkan-shared.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-android-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-vulkan-shared.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-android-shared.zip)
 
 </td>
 </tr>
@@ -159,8 +159,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>iOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ios-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ios.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios.zip)
 
 </td>
 <td rowspan=2>
@@ -173,8 +173,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>iOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ios-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ios-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ios-simulator.zip)
 
 </td>
 </tr>
@@ -193,8 +193,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>macOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-macos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-macos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-macos.zip)
 
 </td>
 <td rowspan=1>
@@ -207,8 +207,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Mac-Catalyst</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-mac-catalyst-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-mac-catalyst.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-mac-catalyst-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-mac-catalyst.zip)
 
 </td>
 <td rowspan=1>
@@ -221,7 +221,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>watchOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-watchos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-watchos.zip)
 
 </td>
 <td rowspan=2>
@@ -234,7 +234,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>watchOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-watchos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-watchos-simulator.zip)
 
 </td>
 </tr>
@@ -242,8 +242,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>tvOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-tvos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-tvos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos.zip)
 
 </td>
 <td rowspan=2>
@@ -256,8 +256,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>tvOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-tvos-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-tvos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-tvos-simulator.zip)
 
 </td>
 </tr>
@@ -265,8 +265,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>visionOS</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-visionos-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-visionos.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos.zip)
 
 </td>
 <td rowspan=2>
@@ -279,8 +279,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>visionOS-Simulator</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-visionos-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-visionos-simulator.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-visionos-simulator.zip)
 
 </td>
 </tr>
@@ -288,8 +288,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Apple xcframework</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-apple-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-apple.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-apple-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+cpuonly-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-apple.zip)
 
 </td>
 <td rowspan=1>
@@ -311,8 +311,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Ubuntu 22.04</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2204.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2204-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2204-shared.zip)
 
 </td>
 <td rowspan=2>
@@ -325,8 +325,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>Ubuntu 24.04</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2404.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-ubuntu-2404-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-ubuntu-2404-shared.zip)
 
 </td>
 </tr>
@@ -346,8 +346,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2015</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2015.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2015-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2015.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2015-shared.zip)
 
 </td>
 <td rowspan=4>
@@ -360,8 +360,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2017</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2017.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2017-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2017.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2017-shared.zip)
 
 </td>
 </tr>
@@ -369,8 +369,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2019</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2019.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2019-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2019.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2019-shared.zip)
 
 </td>
 </tr>
@@ -378,8 +378,8 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>VS2022</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2022.zip)
-  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-windows-vs2022-shared.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-windows-vs2022-shared.zip)
 
 </td>
 </tr>
@@ -398,7 +398,7 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>WebAssembly</td>
 <td>
 
-  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20250503-webassembly.zip)
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20260113-webassembly.zip)
 
 </td>
 <td>

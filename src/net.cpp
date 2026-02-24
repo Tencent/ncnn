@@ -31,12 +31,6 @@ public:
 
     Option& opt;
 
-#if NCNN_VULKAN
-
-    int upload_model();
-
-#endif // NCNN_VULKAN
-
     friend class Extractor;
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
@@ -75,6 +69,10 @@ public:
     PoolAllocator* local_blob_allocator;
     PoolAllocator* local_workspace_allocator;
 
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    MappedFile mapped_model_file;
+#endif
+
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
 
@@ -104,8 +102,9 @@ static Option get_masked_option(const Option& opt, int featmask)
     // mask option usage as layer specific featmask
     Option opt1 = opt;
     opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
-    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
     opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_bf16_packed = opt1.use_bf16_packed && !(featmask & (1 << 2));
     opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
     opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
     opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
@@ -120,45 +119,6 @@ static Option get_masked_option(const Option& opt, int featmask)
 
     return opt1;
 }
-
-#if NCNN_VULKAN
-int NetPrivate::upload_model()
-{
-    ncnn::VkTransfer cmd(vkdev);
-
-    // create gpu device allocator if null
-    if (!weight_vkallocator)
-    {
-        weight_vkallocator = new VkWeightAllocator(vkdev);
-    }
-    if (!weight_staging_vkallocator)
-    {
-        weight_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
-    }
-
-    Option opt_upload = opt;
-    opt_upload.blob_allocator = 0;
-    opt_upload.workspace_allocator = 0;
-    opt_upload.blob_vkallocator = weight_vkallocator;
-    opt_upload.workspace_vkallocator = weight_vkallocator;
-    opt_upload.staging_vkallocator = weight_staging_vkallocator;
-
-    for (size_t i = 0; i < layers.size(); i++)
-    {
-        if (layers[i]->support_vulkan)
-        {
-            int uret = layers[i]->upload_model(cmd, get_masked_option(opt_upload, layers[i]->featmask));
-            if (uret != 0)
-            {
-                NCNN_LOGE("layer upload_model %d failed", (int)i);
-                return -1;
-            }
-        }
-    }
-
-    return cmd.submit_and_wait();
-}
-#endif // NCNN_VULKAN
 
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
@@ -285,6 +245,31 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                 cmd_submit_and_wait = true;
             }
         }
+    }
+
+    // for avoiding driver timeout
+    // commit as soon as we collect enough pending
+    const uint32_t rough_score = vkdev->info.rough_score();
+    uint32_t pending_dispatch_threshold = 32 * 1024; // 32K
+    if (rough_score > 75)
+    {
+        pending_dispatch_threshold = 8 * 1024 * 1024; // 8M
+    }
+    else if (rough_score > 50)
+    {
+        pending_dispatch_threshold = 4 * 1024 * 1024; // 4M
+    }
+    else if (rough_score > 15)
+    {
+        pending_dispatch_threshold = 1 * 1024 * 1024; // 1M
+    }
+    else if (rough_score > 10)
+    {
+        pending_dispatch_threshold = 256 * 1024; // 256K
+    }
+    if (cmd.pending_dispatch_total() > pending_dispatch_threshold)
+    {
+        cmd_submit_and_wait = true;
     }
 
     int ret;
@@ -882,8 +867,11 @@ void NetPrivate::update_input_output_indexes()
     {
         if (layers[i]->typeindex == LayerType::Input)
         {
-            int blob_index = layers[i]->tops[0];
-            input_blob_indexes.push_back(blob_index);
+            for (size_t j = 0; j < layers[i]->tops.size(); j++)
+            {
+                int blob_index = layers[i]->tops[j];
+                input_blob_indexes.push_back(blob_index);
+            }
         }
     }
 
@@ -1062,10 +1050,6 @@ int Net::load_param(const DataReader& dr)
     d->blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1089,6 +1073,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1369,10 +1355,6 @@ int Net::load_param_bin(const DataReader& dr)
     d->blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1396,6 +1378,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1626,6 +1610,9 @@ int Net::load_model(const DataReader& dr)
     int ret = 0;
 
 #if NCNN_VULKAN
+    ncnn::VkTransfer* cmd_upload = 0;
+    Option opt_upload = opt;
+
     if (opt.use_vulkan_compute)
     {
         if (!opt.pipeline_cache)
@@ -1634,6 +1621,24 @@ int Net::load_model(const DataReader& dr)
                 d->pipeline_cache = new PipelineCache(d->vkdev);
             opt.pipeline_cache = d->pipeline_cache;
         }
+
+        cmd_upload = new ncnn::VkTransfer(d->vkdev);
+
+        // create gpu device allocator if null
+        if (!d->weight_vkallocator)
+        {
+            d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
+        }
+        if (!d->weight_staging_vkallocator)
+        {
+            d->weight_staging_vkallocator = new VkWeightStagingAllocator(d->vkdev);
+        }
+
+        opt_upload.blob_allocator = 0;
+        opt_upload.workspace_allocator = 0;
+        opt_upload.blob_vkallocator = d->weight_vkallocator;
+        opt_upload.workspace_vkallocator = d->weight_vkallocator;
+        opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
     }
 #endif // NCNN_VULKAN
 
@@ -1675,6 +1680,36 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+
+#if NCNN_VULKAN
+        if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
+        {
+            int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
+            if (uret != 0)
+            {
+#if NCNN_STRING
+                NCNN_LOGE("layer upload_model %d %s failed", i, layer->name.c_str());
+#else
+                NCNN_LOGE("layer upload_model %d failed", i);
+#endif
+                ret = -1;
+                break;
+            }
+
+            // commit as soon as we collect 256M pending
+            if (cmd_upload->pending_upload_total() > 256 * 1024 * 1024)
+            {
+                uret = cmd_upload->submit_and_wait();
+                if (uret != 0)
+                {
+                    ret = -1;
+                    break;
+                }
+
+                cmd_upload->reset();
+            }
+        }
+#endif // NCNN_VULKAN
     }
 
     if (opt.use_local_pool_allocator)
@@ -1698,9 +1733,14 @@ int Net::load_model(const DataReader& dr)
     }
 
 #if NCNN_VULKAN
-    if (ret == 0 && opt.use_vulkan_compute)
+    if (ret == 0 && opt.use_vulkan_compute && cmd_upload)
     {
-        ret = d->upload_model();
+        ret = cmd_upload->submit_and_wait();
+    }
+
+    if (cmd_upload)
+    {
+        delete cmd_upload;
     }
 #endif // NCNN_VULKAN
 
@@ -1735,6 +1775,22 @@ int Net::load_param(const char* protopath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_param(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STRING
 
 int Net::load_param_bin(FILE* fp)
@@ -1757,6 +1813,22 @@ int Net::load_param_bin(const char* protopath)
     return ret;
 }
 
+#if _WIN32
+int Net::load_param_bin(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param_bin(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
+
 int Net::load_model(FILE* fp)
 {
     DataReaderFromStdio dr(fp);
@@ -1765,6 +1837,29 @@ int Net::load_model(FILE* fp)
 
 int Net::load_model(const char* modelpath)
 {
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
     FILE* fp = fopen(modelpath, "rb");
     if (!fp)
     {
@@ -1776,22 +1871,61 @@ int Net::load_model(const char* modelpath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_model(const wchar_t* modelpath)
+{
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
+    FILE* fp = _wfopen(modelpath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", modelpath);
+        return -1;
+    }
+
+    int ret = load_model(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STDIO
 
-int Net::load_param(const unsigned char* _mem)
+size_t Net::load_param(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_param_bin(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
-int Net::load_model(const unsigned char* _mem)
+size_t Net::load_model(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_model(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
 #if NCNN_PLATFORM_API

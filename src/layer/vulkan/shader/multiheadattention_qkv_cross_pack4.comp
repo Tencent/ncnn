@@ -56,11 +56,11 @@ void main()
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
-            tmp_qk[ly][lx] = sfp2lfpvec4(qkcross_blob_data[ai]);
+            tmp_qk[ly][lx] = buffer_sm4(qkcross_blob_data, ai);
         }
 
         {
-            tmp_v[lx][ly] = sfp2lfpvec4(v_blob_data[bi]);
+            tmp_v[lx][ly] = buffer_sm4(v_blob_data, bi);
         }
 
         barrier();
@@ -89,12 +89,12 @@ void main()
 
         if (lx < remain)
         {
-            tmp_qk[ly][lx] = sfp2lfpvec4(qkcross_blob_data[ai]);
+            tmp_qk[ly][lx] = buffer_sm4(qkcross_blob_data, ai);
         }
 
         if (ly < remain)
         {
-            tmp_v[lx][ly] = sfp2lfpvec4(v_blob_data[bi]);
+            tmp_v[lx][ly] = buffer_sm4(v_blob_data, bi);
         }
 
         barrier();

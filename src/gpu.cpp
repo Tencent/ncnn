@@ -256,9 +256,11 @@ public:
     void query_features();
     void query_properties();
     void query_queue_properties();
+    void query_memory_properties();
     int query_extensions();
     void query_extension_features();
     void query_extension_properties();
+    void evaluate_rough_score();
 
 public:
     int device_index;
@@ -284,6 +286,8 @@ public:
     // 3 = cpu
     int type;
 
+    uint32_t rough_score;
+
     // runtime
     uint32_t compute_queue_family_index;
     uint32_t transfer_queue_family_index;
@@ -293,6 +297,7 @@ public:
 
     // property
     bool unified_compute_transfer_queue;
+    bool resizable_bar_enabled;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -307,6 +312,9 @@ public:
     bool support_cooperative_matrix_16_8_8;
     bool support_cooperative_matrix_16_8_16;
     bool support_cooperative_matrix_16_16_16;
+
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
@@ -342,6 +350,7 @@ public:
     int support_VK_KHR_zero_initialize_workgroup_memory;
     int support_VK_EXT_buffer_device_address;
     int support_VK_EXT_descriptor_indexing;
+    int support_VK_EXT_external_memory_host;
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_memory_priority;
     int support_VK_EXT_queue_family_foreign;
@@ -387,6 +396,7 @@ public:
     VkPhysicalDeviceSubgroupProperties querySubgroupProperties;
     VkPhysicalDeviceDriverPropertiesKHR queryDriverProperties;
     VkPhysicalDeviceSubgroupSizeControlPropertiesEXT querySubgroupSizeControlProperties;
+    VkPhysicalDeviceExternalMemoryHostPropertiesEXT queryExternalMemoryHostProperties;
     VkPhysicalDeviceCooperativeMatrix2PropertiesNV queryCooperativeMatrix2PropertiesNV;
     VkPhysicalDeviceCooperativeVectorPropertiesNV queryCooperativeVectorPropertiesNV;
 
@@ -604,6 +614,57 @@ void GpuInfoPrivate::query_queue_properties()
     unified_compute_transfer_queue = compute_queue_family_index == transfer_queue_family_index;
 }
 
+void GpuInfoPrivate::query_memory_properties()
+{
+    // cache memory properties
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
+
+    if (type == 0)
+    {
+        // discrete gpu
+        resizable_bar_enabled = false;
+
+        // find heap that is device local and host visible and not host cached
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                VkFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+                VkFlags disallowed = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                for (uint32_t j = 0; j < physicalDeviceMemoryProperties.memoryTypeCount; j++)
+                {
+                    const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
+                    if (memoryType.heapIndex != i)
+                        continue;
+
+                    if ((memoryType.propertyFlags & disallowed) != 0)
+                    {
+                        // some driver treats a portion of host memory as device local heap, do not select this option
+                        resizable_bar_enabled = false;
+                        break;
+                    }
+
+                    if ((memoryType.propertyFlags & required) == required)
+                    {
+                        resizable_bar_enabled = true;
+                    }
+                }
+
+                // subsequent device local heap is no longer considered
+                // amd may declare a small device local + host visible heap for uploading
+                // resizable bar feature is for the main device heap anyway
+                break;
+            }
+        }
+    }
+    else
+    {
+        // integrated gpu
+        resizable_bar_enabled = true;
+    }
+}
+
 int GpuInfoPrivate::query_extensions()
 {
     // get device extension
@@ -657,6 +718,7 @@ int GpuInfoPrivate::query_extensions()
     support_VK_KHR_zero_initialize_workgroup_memory = 0;
     support_VK_EXT_buffer_device_address = 0;
     support_VK_EXT_descriptor_indexing = 0;
+    support_VK_EXT_external_memory_host = 0;
     support_VK_EXT_memory_budget = 0;
     support_VK_EXT_memory_priority = 0;
     support_VK_EXT_queue_family_foreign = 0;
@@ -743,6 +805,8 @@ int GpuInfoPrivate::query_extensions()
             support_VK_EXT_buffer_device_address = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_descriptor_indexing") == 0)
             support_VK_EXT_descriptor_indexing = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_external_memory_host") == 0)
+            support_VK_EXT_external_memory_host = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_memory_budget") == 0)
             support_VK_EXT_memory_budget = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_memory_priority") == 0)
@@ -1011,6 +1075,93 @@ void GpuInfoPrivate::query_extension_features()
         // fp16 arithmetic yields wrong result on old adreno drivers :(
         queryFloat16Int8Features.shaderFloat16 = VK_FALSE;
     }
+
+    if (physicalDeviceProperties.vendorID == 0x1002)
+    {
+        // emulated cooperative matrix on amd rdna2 is slow
+        switch (physicalDeviceProperties.deviceID)
+        {
+        case 0x73a1: // V620
+        case 0x73a2: // W6900X
+        case 0x73a3: // W6800
+        case 0x73a4: // NAVI21-USB
+        case 0x73a5: // 6950XT
+        case 0x73ab: // W6800X/W6800X-DUO
+        case 0x73ae: // V620-MX
+        case 0x73af: // 6900XT
+        case 0x73bf: // 6800/6800XT/6900XT
+        case 0x73c3: // NAVI22-?
+        case 0x73c4: // NAVI22-USB
+        case 0x73df: // 6700/6700XT/6750XT/6750GRE-12G/6800M/6850MXT
+        case 0x73e0: // NAVI23-?
+        case 0x73e1: // W6600M
+        case 0x73e3: // W6600
+        case 0x73e4: // NAVI23-USB
+        case 0x73ef: // 6650XT/6700S/6800S
+        case 0x73ff: // 6600/6600XT/6750GRE-10G/6600M
+        case 0x7421: // W6500M
+        case 0x7422: // W6400
+        case 0x7423: // W6300/W6300M
+        case 0x7424: // 6300
+        case 0x743f: // 6400/6500XT/6500M
+        {
+            queryCooperativeMatrixFeatures.cooperativeMatrix = VK_FALSE;
+            queryCooperativeMatrixFeaturesNV.cooperativeMatrix = VK_FALSE;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+}
+
+void GpuInfoPrivate::evaluate_rough_score()
+{
+    rough_score = 0;
+
+    // device type score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        rough_score += 50;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+        rough_score += 5;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+        rough_score += 4;
+
+    // simd width score
+    rough_score += querySubgroupProperties.subgroupSize / 32;
+
+    // extension score
+    for (size_t i = 0; i < deviceExtensionProperties.size(); i++)
+    {
+        const VkExtensionProperties& exp = deviceExtensionProperties[i];
+
+        if (strcmp(exp.extensionName, "VK_KHR_cooperative_matrix") == 0)
+            rough_score += 10;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
+            rough_score += 2;
+    }
+
+    // device local heap size score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        VkDeviceSize max_device_local = 0;
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                max_device_local = std::max(max_device_local, memoryHeap.size);
+            }
+        }
+        uint32_t mem_gb = max_device_local / (1024 * 1024 * 1024);
+        rough_score += mem_gb;
+    }
 }
 
 static int get_vendor_default_subgroup_size(uint32_t vendorID)
@@ -1099,6 +1250,16 @@ void GpuInfoPrivate::query_extension_properties()
         queryExtensionProperties = &querySubgroupSizeControlProperties;
     }
 
+    // query external memory host
+    memset(&queryExternalMemoryHostProperties, 0, sizeof(queryExternalMemoryHostProperties));
+    queryExternalMemoryHostProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
+    queryExternalMemoryHostProperties.pNext = 0;
+    if (support_VK_EXT_external_memory_host)
+    {
+        queryExternalMemoryHostProperties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryExternalMemoryHostProperties;
+    }
+
     // query nv cooperative matrix2
     memset(&queryCooperativeMatrix2PropertiesNV, 0, sizeof(queryCooperativeMatrix2PropertiesNV));
     queryCooperativeMatrix2PropertiesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_PROPERTIES_NV;
@@ -1157,6 +1318,7 @@ void GpuInfoPrivate::query_extension_properties()
     support_cooperative_matrix_16_8_8 = false;
     support_cooperative_matrix_16_8_16 = false;
     support_cooperative_matrix_16_16_16 = false;
+    support_bf16_cooperative_matrix = false;
     if (support_VK_KHR_cooperative_matrix && queryCooperativeMatrixFeatures.cooperativeMatrix)
     {
         uint32_t propertyCount = 0;
@@ -1211,6 +1373,13 @@ void GpuInfoPrivate::query_extension_properties()
                     && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
             {
                 support_cooperative_matrix_16_16_16 = true;
+            }
+
+            if (cmp.AType == VK_COMPONENT_TYPE_BFLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_BFLOAT16_KHR
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                    && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+            {
+                support_bf16_cooperative_matrix = true;
             }
         }
     }
@@ -1446,6 +1615,11 @@ int GpuInfo::type() const
     return d->type;
 }
 
+uint32_t GpuInfo::rough_score() const
+{
+    return d->rough_score;
+}
+
 uint32_t GpuInfo::max_shared_memory_size() const
 {
     return d->physicalDeviceProperties.limits.maxComputeSharedMemorySize;
@@ -1551,6 +1725,11 @@ bool GpuInfo::unified_compute_transfer_queue() const
     return d->unified_compute_transfer_queue;
 }
 
+bool GpuInfo::resizable_bar_enabled() const
+{
+    return d->resizable_bar_enabled;
+}
+
 uint32_t GpuInfo::subgroup_size() const
 {
     return d->querySubgroupProperties.subgroupSize;
@@ -1646,6 +1825,16 @@ bool GpuInfo::support_int8_arithmetic() const
     return d->queryFloat16Int8Features.shaderInt8;
 }
 
+bool GpuInfo::support_bf16_packed() const
+{
+    return true;
+}
+
+bool GpuInfo::support_bf16_storage() const
+{
+    return d->queryShaderBfloat16Features.shaderBFloat16Type;
+}
+
 bool GpuInfo::support_fp16_image() const
 {
     return d->physicalDevicefeatures.shaderStorageImageExtendedFormats;
@@ -1689,6 +1878,11 @@ bool GpuInfo::support_cooperative_matrix_16_8_16() const
 bool GpuInfo::support_cooperative_matrix_16_16_16() const
 {
     return d->support_cooperative_matrix_16_16_16;
+}
+
+bool GpuInfo::support_bf16_cooperative_matrix() const
+{
+    return d->support_bf16_cooperative_matrix;
 }
 
 int GpuInfo::support_VK_KHR_8bit_storage() const
@@ -1854,6 +2048,11 @@ int GpuInfo::support_VK_EXT_buffer_device_address() const
 int GpuInfo::support_VK_EXT_descriptor_indexing() const
 {
     return d->support_VK_EXT_descriptor_indexing;
+}
+
+int GpuInfo::support_VK_EXT_external_memory_host() const
+{
+    return d->support_VK_EXT_external_memory_host;
 }
 
 int GpuInfo::support_VK_EXT_memory_budget() const
@@ -2063,6 +2262,11 @@ const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& GpuInfo::querySubgroupSi
     return d->querySubgroupSizeControlProperties;
 }
 
+const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& GpuInfo::queryExternalMemoryHostProperties() const
+{
+    return d->queryExternalMemoryHostProperties;
+}
+
 const std::vector<VkCooperativeMatrixPropertiesKHR>& GpuInfo::queryCooperativeMatrixSubProperties() const
 {
     return d->queryCooperativeMatrixSubProperties;
@@ -2083,11 +2287,12 @@ const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVec
     return d->queryCooperativeVectorSubPropertiesNV;
 }
 
-void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const
+void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const
 {
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = d->querySubgroupProperties.subgroupSize;
 
     // collect mnk candidates
     std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
@@ -2129,7 +2334,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
     if (mnk_properties.empty() && (acctype == VK_COMPONENT_TYPE_FLOAT16_KHR || acctype == VK_COMPONENT_TYPE_BFLOAT16_KHR))
     {
         // try acctype fp32
-        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K);
+        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
     }
 
     if (mnk_properties.empty())
@@ -2679,8 +2884,7 @@ int create_gpu_instance(const char* driver_path)
 
         gpu_info.d->query_queue_properties();
 
-        // cache memory properties
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.d->physicalDeviceMemoryProperties);
+        gpu_info.d->query_memory_properties();
 
         int rqde = gpu_info.d->query_extensions();
         if (rqde != 0)
@@ -2691,13 +2895,16 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_features();
         gpu_info.d->query_extension_properties();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]", i, gpu_info.device_name(),
-                  gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count());
+        gpu_info.d->evaluate_rough_score();
 
-        NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d", i, gpu_info.device_name(),
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
+                  gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
+
+        NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
-                  gpu_info.support_int8_packed(), gpu_info.support_int8_storage(), gpu_info.support_int8_uniform(), gpu_info.support_int8_arithmetic());
+                  gpu_info.support_int8_packed(), gpu_info.support_int8_storage(), gpu_info.support_int8_uniform(), gpu_info.support_int8_arithmetic(),
+                  gpu_info.support_bf16_packed(), gpu_info.support_bf16_storage());
 
         NCNN_LOGE("[%u %s]  subgroup=%u(%u~%u)  ops=%d/%d/%d/%d/%d/%d/%d/%d/%d/%d", i, gpu_info.device_name(),
                   gpu_info.subgroup_size(), gpu_info.min_subgroup_size(), gpu_info.max_subgroup_size(),
@@ -3100,6 +3307,9 @@ public:
     // to int8
     // to pack1 | pack4
     mutable ncnn::Layer* uop_packing_int8[2];
+    // from fp32 to bf16 / from bf16 to fp32 / bf16
+    // to pack1 | pack4
+    mutable ncnn::Layer* uop_packing_bf16[3][2];
     mutable Mutex uop_lock;
 
     // device is valid and sucessfully initialized
@@ -3116,6 +3326,7 @@ VulkanDevicePrivate::VulkanDevicePrivate(VulkanDevice* _vkdev)
     valid = false;
     memset(uop_packing, 0, sizeof(uop_packing));
     memset(uop_packing_int8, 0, sizeof(uop_packing_int8));
+    memset(uop_packing_bf16, 0, sizeof(uop_packing_bf16));
 }
 
 int VulkanDevicePrivate::create_dummy_buffer_image()
@@ -3167,6 +3378,7 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
 {
     bool use_fp16 = (cast_type_from_index == 1 || cast_type_to_index == 1);
     bool use_int8 = (cast_type_from_index == 3 || cast_type_to_index == 3);
+    bool use_bf16 = (cast_type_from_index == 4 || cast_type_to_index == 4);
 
     MutexLockGuard lock(uop_lock);
 
@@ -3174,6 +3386,21 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     if (use_int8)
     {
         cached_uop = uop_packing_int8[packing_type_to_index];
+    }
+    else if (use_bf16)
+    {
+        if (cast_type_from_index == 4 && cast_type_to_index == 4)
+        {
+            cached_uop = uop_packing_bf16[2][packing_type_to_index];
+        }
+        else if (cast_type_to_index == 4)
+        {
+            cached_uop = uop_packing_bf16[1][packing_type_to_index];
+        }
+        else // if (cast_type_from_index == 4)
+        {
+            cached_uop = uop_packing_bf16[0][packing_type_to_index];
+        }
     }
     else
     {
@@ -3188,6 +3415,8 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
     opt.use_int8_packed = use_int8; // int8p is always supported
     opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+    opt.use_bf16_packed = use_bf16; // bf16p is always supported
+    opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
 
     // fp16/int8 arithmetic are not necessary for packing
     // and may conflict with storage options
@@ -3209,7 +3438,7 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
 
     ncnn::ParamDict pd;
     pd.set(0, packing_type_to_index == 0 ? 1 : 4); // out_elempack
-    pd.set(2, cast_type_from_index + 1);           // 0=auto 1=fp32 2=fp16 3=int8
+    pd.set(2, cast_type_from_index + 1);           // 0=auto 1=fp32 2=fp16 3=int32 4=int8 5=bf16
     pd.set(3, cast_type_to_index + 1);
 
     uop->load_param(pd);
@@ -3219,6 +3448,21 @@ const ncnn::Layer* VulkanDevicePrivate::get_utility_operator(int cast_type_from_
     if (use_int8)
     {
         uop_packing_int8[packing_type_to_index] = uop;
+    }
+    else if (use_bf16)
+    {
+        if (cast_type_from_index == 4 && cast_type_to_index == 4)
+        {
+            uop_packing_bf16[2][packing_type_to_index] = uop;
+        }
+        else if (cast_type_to_index == 4)
+        {
+            uop_packing_bf16[1][packing_type_to_index] = uop;
+        }
+        else // if (cast_type_from_index == 4)
+        {
+            uop_packing_bf16[0][packing_type_to_index] = uop;
+        }
     }
     else
     {
@@ -3250,6 +3494,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
             opt.use_fp16_storage = use_fp16 && vkdev->info.support_fp16_storage();
             opt.use_int8_packed = false;
             opt.use_int8_storage = false;
+            opt.use_bf16_packed = false;
+            opt.use_bf16_storage = false;
 
             // to pack1 | pack4
             for (int k = 0; k < 2; k++)
@@ -3275,6 +3521,8 @@ void VulkanDevicePrivate::destroy_utility_operator()
         opt.use_fp16_storage = false;
         opt.use_int8_packed = use_int8;
         opt.use_int8_storage = use_int8 && vkdev->info.support_int8_storage();
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
 
         // to pack1 | pack4
         for (int k = 0; k < 2; k++)
@@ -3288,6 +3536,35 @@ void VulkanDevicePrivate::destroy_utility_operator()
             delete uop;
 
             uop_packing_int8[k] = 0;
+        }
+    }
+
+    // from fp32 to bf16
+    // from bf16 to fp32
+    // bf16
+    for (int j = 0; j < 3; j++)
+    {
+        bool use_bf16 = true;
+
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_int8_packed = false;
+        opt.use_int8_storage = false;
+        opt.use_bf16_packed = use_bf16;
+        opt.use_bf16_storage = use_bf16 && vkdev->info.support_bf16_storage();
+
+        // to pack1 | pack4
+        for (int k = 0; k < 2; k++)
+        {
+            ncnn::Layer* uop = uop_packing_bf16[j][k];
+            if (!uop)
+                continue;
+
+            uop->destroy_pipeline(opt);
+
+            delete uop;
+
+            uop_packing_bf16[j][k] = 0;
         }
     }
 }
@@ -3364,6 +3641,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_EXT_buffer_device_address");
     if (info.support_VK_EXT_descriptor_indexing())
         enabledExtensions.push_back("VK_EXT_descriptor_indexing");
+    if (info.support_VK_EXT_external_memory_host())
+        enabledExtensions.push_back("VK_EXT_external_memory_host");
     if (info.support_VK_EXT_memory_budget())
         enabledExtensions.push_back("VK_EXT_memory_budget");
     if (info.support_VK_EXT_memory_priority())
@@ -3998,6 +4277,19 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         }
     }
 
+    if (info.driver_id() == VK_DRIVER_ID_GOOGLE_SWIFTSHADER)
+    {
+        // buggy swiftshader may set memory property flags in memory_type_bits field
+        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+        {
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
+            if ((memoryType.propertyFlags & (required | memory_type_bits)) == (required | memory_type_bits))
+            {
+                return i;
+            }
+        }
+    }
+
     NCNN_LOGE("no such memory type %u %u %u %u", memory_type_bits, required, preferred, preferred_not);
     return -1;
 }
@@ -4294,7 +4586,10 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     }
     else if (src.elembits() == 16)
     {
-        cast_type_from_index = 1;
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+            cast_type_from_index = 4;
+        else
+            cast_type_from_index = 1;
     }
     else // if (src.elembits() == 8)
     {
@@ -4305,14 +4600,24 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    if ((cast_type_from_index == 0 || cast_type_from_index == 1) && (cast_type_to_index == 2 || cast_type_to_index == 3))
+    if ((cast_type_from_index == 0 || cast_type_from_index == 1 || cast_type_from_index == 4) && (cast_type_to_index == 2 || cast_type_to_index == 3))
     {
-        NCNN_LOGE("convert_packing from fp32/fp16 to int32/int8 is not supported");
+        NCNN_LOGE("convert_packing from fp32/fp16/bf16 to int32/int8 is not supported");
         return;
     }
-    if ((cast_type_from_index == 2 || cast_type_from_index == 3) && (cast_type_to_index == 0 || cast_type_to_index == 1))
+    if ((cast_type_from_index == 2 || cast_type_from_index == 3) && (cast_type_to_index == 0 || cast_type_to_index == 1 || cast_type_to_index == 4))
     {
-        NCNN_LOGE("convert_packing from int32/int8 to fp32/fp16 is not supported");
+        NCNN_LOGE("convert_packing from int32/int8 to fp32/fp16/bf16 is not supported");
+        return;
+    }
+    if (cast_type_from_index == 1 && cast_type_to_index == 4)
+    {
+        NCNN_LOGE("convert_packing from fp16 to bf16 is not supported");
+        return;
+    }
+    if (cast_type_from_index == 4 && cast_type_to_index == 1)
+    {
+        NCNN_LOGE("convert_packing from bf16 to fp16 is not supported");
         return;
     }
 
@@ -4321,6 +4626,8 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     opt2.use_fp16_storage = (cast_type_from_index == 1 || cast_type_to_index == 1) && info.support_fp16_storage();
     opt2.use_int8_packed = (cast_type_from_index == 3 || cast_type_to_index == 3);
     opt2.use_int8_storage = (cast_type_from_index == 3 || cast_type_to_index == 3) && info.support_int8_storage();
+    opt2.use_bf16_packed = (cast_type_from_index == 4 || cast_type_to_index == 4);
+    opt2.use_bf16_storage = (cast_type_from_index == 4 || cast_type_to_index == 4) && info.support_bf16_storage();
 
     const ncnn::Layer* uop = d->get_utility_operator(cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt2);
@@ -4392,6 +4699,11 @@ int VulkanDevice::init_device_extension()
     if (info.support_VK_EXT_buffer_device_address())
     {
         vkGetBufferDeviceAddressEXT = (PFN_vkGetBufferDeviceAddressEXT)vkGetDeviceProcAddr(d->device, "vkGetBufferDeviceAddressEXT");
+    }
+
+    if (info.support_VK_EXT_external_memory_host())
+    {
+        vkGetMemoryHostPointerPropertiesEXT = (PFN_vkGetMemoryHostPointerPropertiesEXT)vkGetDeviceProcAddr(d->device, "vkGetMemoryHostPointerPropertiesEXT");
     }
 
 #if __ANDROID_API__ >= 26
@@ -4625,7 +4937,42 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     DefinitionCollector custom_defines;
     DefinitionCollector device_defines;
 
-    if (opt.use_fp16_storage)
+    int device_index = opt.vulkan_device_index;
+    if (device_index < 0 || device_index >= get_gpu_count())
+        device_index = get_default_gpu_index();
+
+    const GpuInfo& info = get_gpu_info(device_index);
+    const bool support_fp16_storage = info.support_fp16_storage();
+    const bool support_fp16_uniform = info.support_fp16_uniform();
+
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("sfp", "bfloat16_t");
+        custom_defines.append("sfpvec2", "bf16vec2");
+        custom_defines.append("sfpvec4", "bf16vec4");
+
+        // define pack and unpack macro for bf16s
+        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToBFloat16EXT(unpackUint2x16(v)))");
+        custom_defines.append("packBFloat2x16(v)", "packUint2x16(bfloat16BitsToUintEXT(bf16vec2(v)))");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        if (support_fp16_storage)
+        {
+            custom_defines.append("sfp", "uint16_t");
+        }
+        else
+        {
+            custom_defines.append("sfp", "uint");
+        }
+        custom_defines.append("sfpvec2", "uint");
+        custom_defines.append("sfpvec4", "uvec2");
+
+        // define pack and unpack macro for bf16p
+        custom_defines.append("unpackBFloat2x16(v)", "vec2(uintBitsToFloat(v<<16),uintBitsToFloat(v&0xffff0000u))");
+        custom_defines.append("packBFloat2x16(v)", "uint((floatBitsToUint(v.x)>>16)|(floatBitsToUint(v.y)&0xffff0000u))");
+    }
+    else if (opt.use_fp16_storage)
     {
         custom_defines.append("sfp", "float16_t");
         custom_defines.append("sfpvec2", "f16vec2");
@@ -4650,7 +4997,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("sfpmat4", "mat4");
     }
 
-    if (opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        // bf16 conflicts with fp16a
+        custom_defines.append("afp", "float");
+        custom_defines.append("afpvec2", "vec2");
+        custom_defines.append("afpvec4", "vec4");
+        custom_defines.append("afpmat4", "mat4");
+    }
+    else if (opt.use_fp16_arithmetic)
     {
         custom_defines.append("afp", "float16_t");
         custom_defines.append("afpvec2", "f16vec2");
@@ -4665,7 +5020,25 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("afpmat4", "mat4");
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage)
+    {
+        // bf16s implies 16bit uniform
+        custom_defines.append("lfp", "bfloat16_t");
+        custom_defines.append("lfpvec4", "bf16vec4");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        if (support_fp16_uniform)
+        {
+            custom_defines.append("lfp", "uint16_t");
+        }
+        else
+        {
+            custom_defines.append("lfp", "float");
+        }
+        custom_defines.append("lfpvec4", "uvec2");
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.append("lfp", "float16_t");
         custom_defines.append("lfpvec4", "f16vec4");
@@ -4686,56 +5059,149 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("lfpvec4", "vec4");
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage)
     {
-        custom_defines.append("sfp2lfp(v)", "v");
-        custom_defines.append("sfp2lfpvec4(v)", "v");
+        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
+
+        custom_defines.append("lfp2afp(v)", "float(v)");
+        custom_defines.append("afp2lfp(v)", "bfloat16_t(v)");
+        custom_defines.append("lfp2afpvec4(v)", "vec4(v)");
+        custom_defines.append("afp2lfpvec4(v)", "bf16vec4(v)");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        if (support_fp16_uniform)
+        {
+            custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
+        }
+        else if (support_fp16_storage)
+        {
+            custom_defines.append("buffer_sm1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
+        }
+        else
+        {
+            custom_defines.append("buffer_sm1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
+        }
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
+
+        if (support_fp16_uniform)
+        {
+            custom_defines.append("lfp2afp(v)", "uintBitsToFloat(uint(v)<<16)");
+            custom_defines.append("afp2lfp(v)", "uint16_t(floatBitsToUint(v)>>16)");
+        }
+        else
+        {
+            custom_defines.append("lfp2afp(v)", "v");
+            custom_defines.append("afp2lfp(v)", "v");
+        }
+        custom_defines.append("lfp2afpvec4(v)", "vec4(unpackBFloat2x16(v.x),unpackBFloat2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba))");
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
+    {
+        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "v");
+        custom_defines.append("afp2lfpvec4(v)", "v");
     }
     else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
-        custom_defines.append("sfp2lfp(v)", "float(v)");
-        custom_defines.append("sfp2lfpvec4(v)", "pack64(halfBitsToUInt16(v))");
+        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
+        custom_defines.append("buffer_sm4(buf,i)", "pack64(halfBitsToUint16(buf[i]))");
 
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
-        custom_defines.append("lfp2afpvec4(v)", "int16BitsToHalf(unpack16(v))");
+        custom_defines.append("afp2lfp(v)", "float(v)");
+        custom_defines.append("lfp2afpvec4(v)", "uint16BitsToHalf(unpack16(v))");
+        custom_defines.append("afp2lfpvec4(v)", "pack64(halfBitsToUint16(v))");
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
-        custom_defines.append("sfp2lfp(v)", "v");
-        custom_defines.append("sfp2lfpvec4(v)", "v");
+        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "float16_t(v)");
+        custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "f16vec4(unpackFloat2x16(v.x),unpackFloat2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba))");
     }
     else if (opt.use_fp16_storage)
     {
-        custom_defines.append("sfp2lfp(v)", "float(v)");
-        custom_defines.append("sfp2lfpvec4(v)", "uvec2(packHalf2x16(vec4(v).rg),packHalf2x16(vec4(v).ba))");
+        custom_defines.append("buffer_sm1(buf,i)", "float(buf[i])");
+        custom_defines.append("buffer_sm4(buf,i)", "uvec2(packHalf2x16(vec4(buf[i]).rg),packHalf2x16(vec4(buf[i]).ba))");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "float(v)");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else if (opt.use_fp16_packed)
     {
-        custom_defines.append("sfp2lfp(v)", "v");
-        custom_defines.append("sfp2lfpvec4(v)", "v");
+        custom_defines.append("buffer_sm1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))");
+        custom_defines.append("afp2lfpvec4(v)", "uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba))");
     }
     else
     {
-        custom_defines.append("sfp2lfp(v)", "v");
-        custom_defines.append("sfp2lfpvec4(v)", "v");
+        custom_defines.append("buffer_sm1(buf,i)", "buf[i]");
+        custom_defines.append("buffer_sm4(buf,i)", "buf[i]");
 
         custom_defines.append("lfp2afp(v)", "v");
+        custom_defines.append("afp2lfp(v)", "v");
         custom_defines.append("lfp2afpvec4(v)", "v");
+        custom_defines.append("afp2lfpvec4(v)", "v");
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("buffer_ld1(buf,i)", "float(buf[i])");
+        custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=bfloat16_t(v);}");
+        custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}");
+        custom_defines.append("buffer_ld2(buf,i)", "vec2(buf[i])");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=bf16vec2(v);}");
+        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_ld4(buf,i)", "vec4(buf[i])");
+        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=bf16vec4(v);}");
+        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}");
+    }
+    else if (opt.use_bf16_packed)
+    {
+        if (support_fp16_storage)
+        {
+            custom_defines.append("buffer_ld1(buf,i)", "uintBitsToFloat(uint(buf[i])<<16)");
+            custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=uint16_t(floatBitsToUint(v)>>16);}");
+            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+
+            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(pack32(u16vec2(sbuf[si4.r],sbuf[si4.g])),pack32(u16vec2(sbuf[si4.b],sbuf[si4.a])));}");
+            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=unpack16(sbuf[si].x).x;buf[i4.g]=unpack16(sbuf[si].x).y;buf[i4.b]=unpack16(sbuf[si].y).x;buf[i4.a]=unpack16(sbuf[si].y).y;}");
+        }
+        else
+        {
+            custom_defines.append("buffer_ld1(buf,i)", "unpackBFloat2x16(buf[(i)/2])[(i)%2]");
+            custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=_vs;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+            custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackBFloat2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackBFloat2x16(_old_v);_v[_im2]=v;_new_v=packBFloat2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
+
+            custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.r])[_si4m2.r],unpackBFloat2x16(sbuf[_si4d2.g])[_si4m2.g])),packBFloat2x16(vec2(unpackBFloat2x16(sbuf[_si4d2.b])[_si4m2.b],unpackBFloat2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
+            custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackBFloat2x16(_v.x);vec2 _v1=unpackBFloat2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
+        }
+
+        custom_defines.append("buffer_ld2(buf,i)", "unpackBFloat2x16(buf[i])");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packBFloat2x16(v);}");
+        custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+        custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackBFloat2x16(buf[i].x),unpackBFloat2x16(buf[i].y))");
+        custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packBFloat2x16(v.rg),packBFloat2x16(v.ba));}");
+        custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
         custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
@@ -4753,14 +5219,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
-        // custom_defines.append("buffer_ld1(buf,i)", "float16_t(buf[i])");
         custom_defines.append("buffer_ld1(buf,i)", "float16_t(unpackHalf2x16(buf[(i)/2])[(i)%2])");
-        // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=float(v);}");
         custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packFloat2x16(f16vec2(sbuf[si4.r],sbuf[si4.g])),packFloat2x16(f16vec2(sbuf[si4.b],sbuf[si4.a])));}");
 
         custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
 
@@ -4771,9 +5232,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}");
         custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
 
-        // custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; f16vec2 _v0=unpackFloat2x16(_v.x);f16vec2 _v1=unpackFloat2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
     }
     else if (opt.use_fp16_storage)
     {
@@ -4791,27 +5250,20 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_packed)
     {
-        // custom_defines.append("buffer_ld1(buf,i)", "buf[i]");
         custom_defines.append("buffer_ld1(buf,i)", "unpackHalf2x16(buf[(i)/2])[(i)%2]");
-        // custom_defines.append("buffer_st1(buf,i,v)", "{buf[i]=v;}");
         custom_defines.append("buffer_st1(buf,i,v)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;float _vs=float(v);uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=_vs;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-        // custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_cp1(buf,i,sbuf,si)", "{uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}");
-
-        // custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uvec2(packHalf2x16(vec2(sbuf[si4.r],sbuf[si4.g])),packHalf2x16(vec2(sbuf[si4.b],sbuf[si4.a])));}");
 
         custom_defines.append("buffer_cp1to4(buf,i,sbuf,si4)", "{uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2; buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}");
 
         custom_defines.append("buffer_ld2(buf,i)", "unpackHalf2x16(buf[i])");
-        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v)}");
+        custom_defines.append("buffer_st2(buf,i,v)", "{buf[i]=packHalf2x16(v);}");
         custom_defines.append("buffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
         custom_defines.append("buffer_ld4(buf,i)", "vec4(unpackHalf2x16(buf[i].x),unpackHalf2x16(buf[i].y))");
         custom_defines.append("buffer_st4(buf,i,v)", "{buf[i]=uvec2(packHalf2x16(v.rg),packHalf2x16(v.ba));}");
         custom_defines.append("buffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}");
 
-        // custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g;}");
-
-        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
+        custom_defines.append("buffer_cp4to1(buf,i4,sbuf,si)", "{uvec2 _v=sbuf[si];vec2 _v0=unpackHalf2x16(_v.x);vec2 _v1=unpackHalf2x16(_v.y);buffer_st1(buf,i4.r,_v0.r);buffer_st1(buf,i4.g,_v0.g);buffer_st1(buf,i4.b,_v1.r);buffer_st1(buf,i4.a,_v1.g);}");
     }
     else
     {
@@ -4870,7 +5322,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("psc(x)", "(x==0?p.x:x)");
 
-    if (opt.use_fp16_storage)
+    if (opt.use_bf16_storage)
+    {
+        custom_defines.append("NCNN_bf16_storage", 1);
+    }
+    else if (opt.use_bf16_packed)
+    {
+        custom_defines.append("NCNN_bf16_packed", 1);
+    }
+    else if (opt.use_fp16_storage)
     {
         custom_defines.append("NCNN_fp16_storage", 1);
     }
@@ -4919,18 +5379,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
     custom_defines.append("ncnn_glsl_version", 1);
 
-    bool support_shader_int64 = false;
+    const bool support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
+    const bool support_shader_int16 = info.physicalDevicefeatures().shaderInt16;
 
     // fill device macros
     {
-        int device_index = opt.vulkan_device_index;
-        if (device_index < 0 || device_index >= get_gpu_count())
-            device_index = get_default_gpu_index();
-
-        const GpuInfo& info = get_gpu_info(device_index);
-
-        support_shader_int64 = info.physicalDevicefeatures().shaderInt64;
-
         // pull in device extensions
         {
             const std::vector<VkExtensionProperties>& properties = info.deviceExtensionProperties();
@@ -5489,7 +5942,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int64: require\n";
     }
-    if (opt.use_fp16_storage)
+    if (support_shader_int16)
+    {
+        custom_exts += "#extension GL_EXT_shader_explicit_arithmetic_types_int16: require\n";
+    }
+    if (opt.use_bf16_storage)
+    {
+        custom_exts += "#extension GL_EXT_bfloat16: require\n";
+    }
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         custom_exts += "#extension GL_EXT_shader_16bit_storage: require\n";
     }

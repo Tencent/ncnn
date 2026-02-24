@@ -77,7 +77,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -103,7 +103,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize_g;
     size_t out_elemsize_g;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize_g = elempack_g * 2u;
         out_elemsize_g = out_elempack_g * 2u;

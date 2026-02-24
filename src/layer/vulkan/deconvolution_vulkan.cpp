@@ -25,6 +25,7 @@ Deconvolution_vulkan::Deconvolution_vulkan()
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -71,7 +72,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -149,7 +150,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             if (shape_packed.dims == 3)
                 size = shape_packed.w * shape_packed.h;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, maxk * num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, maxk * num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -299,28 +300,27 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
                 }
             }
 
-            std::vector<vk_specialization_type> specializations(12 + 3);
+            std::vector<vk_specialization_type> specializations(13 + 3);
             specializations[0].u32 = coopmat_M;
             specializations[1].u32 = coopmat_N;
             specializations[2].u32 = coopmat_K;
-            specializations[3].u32 = UNROLL_SG_M;
-            specializations[4].u32 = UNROLL_SG_N;
-            specializations[5].u32 = UNROLL_SG_K;
-            specializations[6].u32 = UNROLL_WG_M;
-            specializations[7].u32 = UNROLL_WG_N;
-            specializations[8].u32 = num_input;
-            specializations[9].u32 = maxk * num_output;
-            specializations[10].u32 = elempack;
-            specializations[11].u32 = out_elempack;
-            specializations[12 + 0].u32 = shape_packed.w * shape_packed.h;
-            specializations[12 + 1].u32 = shape_packed.cstep;
-            specializations[12 + 2].u32 = out_shape_col_packed.cstep;
-
-            const int subgroup_size = vkdev->info.subgroup_size();
+            specializations[3].u32 = coopmat_subgroup_size;
+            specializations[4].u32 = UNROLL_SG_M;
+            specializations[5].u32 = UNROLL_SG_N;
+            specializations[6].u32 = UNROLL_SG_K;
+            specializations[7].u32 = UNROLL_WG_M;
+            specializations[8].u32 = UNROLL_WG_N;
+            specializations[9].u32 = num_input;
+            specializations[10].u32 = maxk * num_output;
+            specializations[11].u32 = elempack;
+            specializations[12].u32 = out_elempack;
+            specializations[13 + 0].u32 = shape_packed.w * shape_packed.h;
+            specializations[13 + 1].u32 = shape_packed.cstep;
+            specializations[13 + 2].u32 = out_shape_col_packed.cstep;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
-            pipeline_deconvolution_gemm->set_subgroup_size(subgroup_size);
-            pipeline_deconvolution_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_deconvolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm, opt, specializations);
         }
         else
@@ -556,6 +556,7 @@ int Deconvolution_vulkan::destroy_pipeline(const Option& opt)
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -637,10 +638,8 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 const int blocks_x = (size + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
                 const int blocks_y = (maxk * num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-                const int subgroup_size = vkdev->info.subgroup_size();
-
                 VkMat dispatcher;
-                dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+                dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
                 dispatcher.h = 1;
                 dispatcher.c = 1;
 

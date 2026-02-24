@@ -35,6 +35,7 @@ Convolution_vulkan::Convolution_vulkan()
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -95,7 +96,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
@@ -194,7 +195,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             //     size = block_x * block_y;
             // }
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -457,7 +458,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             {
                 Mat weight_winograd43_data_packed_fp16 = Mat(weight_winograd43_data_packed.w, weight_winograd43_data_packed.h, weight_winograd43_data_packed.c, (void*)0, 2u, 1);
 
-                std::vector<vk_specialization_type> specializations(14 + 3);
+                std::vector<vk_specialization_type> specializations(15 + 3);
                 specializations[0].u32 = 36; //batch
                 specializations[1].u32 = coopmat_M;
                 specializations[2].u32 = coopmat_N;
@@ -467,20 +468,19 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[6].u32 = UNROLL_SG_K;
                 specializations[7].u32 = UNROLL_WG_M;
                 specializations[8].u32 = UNROLL_WG_N;
-                specializations[9].u32 = num_input;
-                specializations[10].u32 = num_output;
-                specializations[11].u32 = elempack;
-                specializations[12].u32 = out_elempack;
-                specializations[13].u32 = weight_winograd43_data_packed_fp16.cstep;
-                specializations[14 + 0].u32 = shape_winograd_input_transformed_packed.w;
-                specializations[14 + 1].u32 = shape_winograd_input_transformed_packed.cstep;
-                specializations[14 + 2].u32 = shape_winograd_gemm_packed.cstep;
-
-                const int subgroup_size = vkdev->info.subgroup_size();
+                specializations[9].u32 = coopmat_subgroup_size;
+                specializations[10].u32 = num_input;
+                specializations[11].u32 = num_output;
+                specializations[12].u32 = elempack;
+                specializations[13].u32 = out_elempack;
+                specializations[14].u32 = weight_winograd43_data_packed_fp16.cstep;
+                specializations[15 + 0].u32 = shape_winograd_input_transformed_packed.w;
+                specializations[15 + 1].u32 = shape_winograd_input_transformed_packed.cstep;
+                specializations[15 + 2].u32 = shape_winograd_gemm_packed.cstep;
 
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd43_gemm->set_subgroup_size(subgroup_size);
-                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
                 pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt, specializations);
             }
             else
@@ -784,7 +784,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             {
                 Mat weight_winograd23_data_packed_fp16 = Mat(weight_winograd23_data_packed.w, weight_winograd23_data_packed.h, weight_winograd23_data_packed.c, (void*)0, 2u, 1);
 
-                std::vector<vk_specialization_type> specializations(14 + 3);
+                std::vector<vk_specialization_type> specializations(15 + 3);
                 specializations[0].u32 = 16; //batch
                 specializations[1].u32 = coopmat_M;
                 specializations[2].u32 = coopmat_N;
@@ -794,20 +794,19 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[6].u32 = UNROLL_SG_K;
                 specializations[7].u32 = UNROLL_WG_M;
                 specializations[8].u32 = UNROLL_WG_N;
-                specializations[9].u32 = num_input;
-                specializations[10].u32 = num_output;
-                specializations[11].u32 = elempack;
-                specializations[12].u32 = out_elempack;
-                specializations[13].u32 = weight_winograd23_data_packed_fp16.cstep;
-                specializations[14 + 0].u32 = shape_winograd_input_transformed_packed.w;
-                specializations[14 + 1].u32 = shape_winograd_input_transformed_packed.cstep;
-                specializations[14 + 2].u32 = shape_winograd_gemm_packed.cstep;
-
-                const int subgroup_size = vkdev->info.subgroup_size();
+                specializations[9].u32 = coopmat_subgroup_size;
+                specializations[10].u32 = num_input;
+                specializations[11].u32 = num_output;
+                specializations[12].u32 = elempack;
+                specializations[13].u32 = out_elempack;
+                specializations[14].u32 = weight_winograd23_data_packed_fp16.cstep;
+                specializations[15 + 0].u32 = shape_winograd_input_transformed_packed.w;
+                specializations[15 + 1].u32 = shape_winograd_input_transformed_packed.cstep;
+                specializations[15 + 2].u32 = shape_winograd_gemm_packed.cstep;
 
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
-                pipeline_convolution_3x3s1d1_winograd23_gemm->set_subgroup_size(subgroup_size);
-                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
                 pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt, specializations);
             }
             else
@@ -872,7 +871,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             if (out_shape_packed.dims == 3)
                 size = out_shape_packed.w * out_shape_packed.h;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -1051,7 +1050,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             if (shape_bordered_packed.dims == 3)
                 size = shape_bordered_packed.w * shape_bordered_packed.h;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
             // assert coopmat_M != 0 && coopmat_N != 0 && coopmat_K != 0
 
@@ -1233,7 +1232,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     {
         if (use_cooperative_matrix)
         {
-            std::vector<vk_specialization_type> specializations(22 + 6);
+            std::vector<vk_specialization_type> specializations(23 + 6);
             specializations[0].u32 = kernel_w;
             specializations[1].u32 = kernel_h;
             specializations[2].u32 = dilation_w;
@@ -1247,27 +1246,26 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[10].u32 = coopmat_M;
             specializations[11].u32 = coopmat_N;
             specializations[12].u32 = coopmat_K;
-            specializations[13].u32 = UNROLL_SG_M;
-            specializations[14].u32 = UNROLL_SG_N;
-            specializations[15].u32 = UNROLL_SG_K;
-            specializations[16].u32 = UNROLL_WG_M;
-            specializations[17].u32 = UNROLL_WG_N;
-            specializations[18].u32 = num_input;
-            specializations[19].u32 = num_output;
-            specializations[20].u32 = elempack;
-            specializations[21].u32 = out_elempack;
-            specializations[22 + 0].u32 = shape_bordered_packed.w;
-            specializations[22 + 1].u32 = shape_bordered_packed.h;
-            specializations[22 + 2].u32 = shape_bordered_packed.cstep;
-            specializations[22 + 3].u32 = out_shape_packed.w;
-            specializations[22 + 4].u32 = out_shape_packed.h;
-            specializations[22 + 5].u32 = out_shape_packed.cstep;
-
-            const int subgroup_size = vkdev->info.subgroup_size();
+            specializations[13].u32 = coopmat_subgroup_size;
+            specializations[14].u32 = UNROLL_SG_M;
+            specializations[15].u32 = UNROLL_SG_N;
+            specializations[16].u32 = UNROLL_SG_K;
+            specializations[17].u32 = UNROLL_WG_M;
+            specializations[18].u32 = UNROLL_WG_N;
+            specializations[19].u32 = num_input;
+            specializations[20].u32 = num_output;
+            specializations[21].u32 = elempack;
+            specializations[22].u32 = out_elempack;
+            specializations[23 + 0].u32 = shape_bordered_packed.w;
+            specializations[23 + 1].u32 = shape_bordered_packed.h;
+            specializations[23 + 2].u32 = shape_bordered_packed.cstep;
+            specializations[23 + 3].u32 = out_shape_packed.w;
+            specializations[23 + 4].u32 = out_shape_packed.h;
+            specializations[23 + 5].u32 = out_shape_packed.cstep;
 
             pipeline_convolution_gemm = new Pipeline(vkdev);
-            pipeline_convolution_gemm->set_subgroup_size(subgroup_size);
-            pipeline_convolution_gemm->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_convolution_gemm->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_convolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_convolution_gemm->create(LayerShaderType::convolution_gemm_cm, opt, specializations);
         }
         else
@@ -1321,7 +1319,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     {
         if (use_cooperative_matrix)
         {
-            std::vector<vk_specialization_type> specializations(16 + 3);
+            std::vector<vk_specialization_type> specializations(17 + 3);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1329,24 +1327,23 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[4].u32 = coopmat_M;
             specializations[5].u32 = coopmat_N;
             specializations[6].u32 = coopmat_K;
-            specializations[7].u32 = UNROLL_SG_M;
-            specializations[8].u32 = UNROLL_SG_N;
-            specializations[9].u32 = UNROLL_SG_K;
-            specializations[10].u32 = UNROLL_WG_M;
-            specializations[11].u32 = UNROLL_WG_N;
-            specializations[12].u32 = num_input;
-            specializations[13].u32 = num_output;
-            specializations[14].u32 = elempack;
-            specializations[15].u32 = out_elempack;
-            specializations[16 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-            specializations[16 + 1].u32 = shape_bordered_packed.cstep;
-            specializations[16 + 2].u32 = out_shape_packed.cstep;
-
-            const int subgroup_size = vkdev->info.subgroup_size();
+            specializations[7].u32 = coopmat_subgroup_size;
+            specializations[8].u32 = UNROLL_SG_M;
+            specializations[9].u32 = UNROLL_SG_N;
+            specializations[10].u32 = UNROLL_SG_K;
+            specializations[11].u32 = UNROLL_WG_M;
+            specializations[12].u32 = UNROLL_WG_N;
+            specializations[13].u32 = num_input;
+            specializations[14].u32 = num_output;
+            specializations[15].u32 = elempack;
+            specializations[16].u32 = out_elempack;
+            specializations[17 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
+            specializations[17 + 1].u32 = shape_bordered_packed.cstep;
+            specializations[17 + 2].u32 = out_shape_packed.cstep;
 
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-            pipeline_convolution_1x1s1d1->set_subgroup_size(subgroup_size);
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_convolution_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt, specializations);
         }
         else
@@ -1485,6 +1482,7 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
+    coopmat_subgroup_size = 0;
     UNROLL_SG_M = 1;
     UNROLL_SG_N = 1;
     UNROLL_SG_K = 1;
@@ -1724,10 +1722,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     const int blocks_x = (bottom_tm_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
                     const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-                    const int subgroup_size = vkdev->info.subgroup_size();
-
                     VkMat dispatcher;
-                    dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+                    dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
                     dispatcher.h = 1;
                     dispatcher.c = 36;
 
@@ -1836,10 +1832,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     const int blocks_x = (bottom_tm_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
                     const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-                    const int subgroup_size = vkdev->info.subgroup_size();
-
                     VkMat dispatcher;
-                    dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+                    dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
                     dispatcher.h = 1;
                     dispatcher.c = 16;
 
@@ -1922,10 +1916,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
             const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-            const int subgroup_size = vkdev->info.subgroup_size();
-
             VkMat dispatcher;
-            dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
             dispatcher.h = 1;
             dispatcher.c = 1;
 
@@ -1981,10 +1973,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
             const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-            const int subgroup_size = vkdev->info.subgroup_size();
-
             VkMat dispatcher;
-            dispatcher.w = (blocks_x * blocks_y) * (subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
             dispatcher.h = 1;
             dispatcher.c = 1;
 

@@ -104,7 +104,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -289,7 +288,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -451,7 +449,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -640,7 +637,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -829,7 +825,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -978,7 +973,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -1127,7 +1121,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -1316,7 +1309,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -1505,7 +1497,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -1667,7 +1658,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \

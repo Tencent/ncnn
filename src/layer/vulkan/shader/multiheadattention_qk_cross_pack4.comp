@@ -71,14 +71,14 @@ void main()
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
-            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
-            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
-            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
-            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+            tmp_q[ly][lx][0] = buffer_sm4(q_blob_data, ai);
+            tmp_q[ly][lx][1] = buffer_sm4(q_blob_data, ai + 1);
+            tmp_q[ly][lx][2] = buffer_sm4(q_blob_data, ai + 2);
+            tmp_q[ly][lx][3] = buffer_sm4(q_blob_data, ai + 3);
         }
 
         {
-            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+            tmp_k[lx][ly] = buffer_sm4(k_blob_data, bi);
         }
 
         barrier();
@@ -110,15 +110,15 @@ void main()
 
         if (lx < remain)
         {
-            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
-            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
-            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
-            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+            tmp_q[ly][lx][0] = buffer_sm4(q_blob_data, ai);
+            tmp_q[ly][lx][1] = buffer_sm4(q_blob_data, ai + 1);
+            tmp_q[ly][lx][2] = buffer_sm4(q_blob_data, ai + 2);
+            tmp_q[ly][lx][3] = buffer_sm4(q_blob_data, ai + 3);
         }
 
         if (ly < remain)
         {
-            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+            tmp_k[lx][ly] = buffer_sm4(k_blob_data, bi);
         }
 
         barrier();
