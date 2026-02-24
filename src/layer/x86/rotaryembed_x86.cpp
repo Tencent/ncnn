@@ -121,7 +121,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     cos_ptr += 8;
                     sin_ptr += 8;
                 }
-#else  // __AVX2__
+#else // __AVX2__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 a0 = _mm256_loadu_ps(ptr);
