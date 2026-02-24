@@ -5,9 +5,12 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSE3__
+#include <pmmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE3__
 #endif // __SSE2__
 
 #include "x86_usability.h"
