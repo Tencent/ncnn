@@ -73,9 +73,6 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m512 s0 = _mm512_permutexvar_ps(dupidx_lo, ss_src);
                     __m512 s1 = _mm512_permutexvar_ps(dupidx, ss_src);
 
-                    __m512 ac0 = _mm512_mul_ps(a0, c0);
-                    __m512 ac1 = _mm512_mul_ps(a1, c1);
-
                     __m512 swap0 = _mm512_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
                     __m512 swap1 = _mm512_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
@@ -84,8 +81,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 
                     ss0 = _mm512_xor_ps(ss0, signmask512);
                     ss1 = _mm512_xor_ps(ss1, signmask512);
-                    __m512 y0 = _mm512_add_ps(ac0, ss0);
-                    __m512 y1 = _mm512_add_ps(ac1, ss1);
+                    __m512 y0 = _mm512_fmadd_ps(a0, c0, ss0);
+                    __m512 y1 = _mm512_fmadd_ps(a1, c1, ss1);
 
                     _mm512_storeu_ps(outptr, y0);
                     _mm512_storeu_ps(outptr + 16, y1);
@@ -286,8 +283,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m512 c = _mm512_loadu_ps(cos_ptr);
                     __m512 s = _mm512_loadu_ps(sin_ptr);
 
-                    __m512 y0 = _mm512_sub_ps(_mm512_mul_ps(x0, c), _mm512_mul_ps(x1, s));
-                    __m512 y1 = _mm512_add_ps(_mm512_mul_ps(x0, s), _mm512_mul_ps(x1, c));
+                    __m512 y0 = _mm512_fnmadd_ps(x1, s, _mm512_mul_ps(x0, c));
+                    __m512 y1 = _mm512_fmadd_ps(x0, s, _mm512_mul_ps(x1, c));
 
                     _mm512_storeu_ps(outptr0, y0);
                     _mm512_storeu_ps(outptr1, y1);
@@ -307,8 +304,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m256 c = _mm256_loadu_ps(cos_ptr);
                     __m256 s = _mm256_loadu_ps(sin_ptr);
 
-                    __m256 y0 = _mm256_sub_ps(_mm256_mul_ps(x0, c), _mm256_mul_ps(x1, s));
-                    __m256 y1 = _mm256_add_ps(_mm256_mul_ps(x0, s), _mm256_mul_ps(x1, c));
+                    __m256 y0 = _mm256_comp_fnmadd_ps(x1, s, _mm256_mul_ps(x0, c));
+                    __m256 y1 = _mm256_comp_fmadd_ps(x0, s, _mm256_mul_ps(x1, c));
 
                     _mm256_storeu_ps(outptr0, y0);
                     _mm256_storeu_ps(outptr1, y1);
@@ -328,8 +325,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m128 c = _mm_loadu_ps(cos_ptr);
                     __m128 s = _mm_loadu_ps(sin_ptr);
 
-                    __m128 y0 = _mm_sub_ps(_mm_mul_ps(x0, c), _mm_mul_ps(x1, s));
-                    __m128 y1 = _mm_add_ps(_mm_mul_ps(x0, s), _mm_mul_ps(x1, c));
+                    __m128 y0 = _mm_comp_fnmadd_ps(x1, s, _mm_mul_ps(x0, c));
+                    __m128 y1 = _mm_comp_fmadd_ps(x0, s, _mm_mul_ps(x1, c));
 
                     _mm_storeu_ps(outptr0, y0);
                     _mm_storeu_ps(outptr1, y1);
