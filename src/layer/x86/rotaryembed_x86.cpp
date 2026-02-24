@@ -175,7 +175,14 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __AVX2__
 #endif // __AVX__
 #if !__SSE3__
+#if defined(__MINGW32__) && !defined(__x86_64__)
+                // 32-bit Windows ABI only guarantees 4-byte stack alignment
+                // declare signmask128 as static const, which places it in .rodata (always properly aligned)
+                // rather than on the stack     --- nihui
+                static const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(0, (int)0x80000000, 0, (int)0x80000000));
+#else
                 const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(0, (int)0x80000000, 0, (int)0x80000000));
+#endif
 #endif
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
