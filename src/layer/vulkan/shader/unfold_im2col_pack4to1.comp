@@ -1,0 +1,81 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfpvec4 src_blob_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfp dst_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int src_w;
+    int src_h;
+    int channels;
+    int outw;
+    int outh;
+    int kernel_w;
+    int kernel_h;
+    int dilation_w;
+    int dilation_h;
+    int stride_w;
+    int stride_h;
+    int src_cstep;
+    int pad_left;
+    int pad_top;
+    float pad_value;
+} p;
+
+void main()
+{
+    int t = int(gl_GlobalInvocationID.x);  // [0, size)
+    int r4 = int(gl_GlobalInvocationID.y); // [0, (channels/4)*maxk)
+
+    int size = p.outw * p.outh;
+    int maxk = p.kernel_w * p.kernel_h;
+
+    int channels4 = p.channels / 4;
+    int total_r4 = channels4 * maxk;
+
+    if (t >= size || r4 >= total_r4)
+        return;
+
+    // decode r4 -> (pch4, k)
+    int pch4 = r4 / maxk;     // pack4 channel group index
+    int k = r4 - pch4 * maxk; // kernel index within group
+
+    int u = k / p.kernel_w;
+    int v = k - u * p.kernel_w;
+
+    int i = t / p.outw;
+    int j = t - i * p.outw;
+
+    int sy = u * p.dilation_h + i * p.stride_h - p.pad_top;
+    int sx = v * p.dilation_w + j * p.stride_w - p.pad_left;
+
+    afpvec4 vv;
+    afp pv = afp(p.pad_value);
+
+    if (uint(sx) < uint(p.src_w) && uint(sy) < uint(p.src_h))
+    {
+        int si4 = pch4 * p.src_cstep + sy * p.src_w + sx;
+        vv = buffer_ld4(src_blob_data, si4);
+    }
+    else
+    {
+        vv = afpvec4(pv);
+    }
+
+    // write 4 scalar outputs to 4 different r rows (strided by maxk)
+    // r = pch*maxk + k  where pch = pch4*4 + lane
+    int base_pch = pch4 * 4;
+
+    int r0 = (base_pch + 0) * maxk + k;
+    int r1 = (base_pch + 1) * maxk + k;
+    int r2 = (base_pch + 2) * maxk + k;
+    int r3 = (base_pch + 3) * maxk + k;
+
+    buffer_st1(dst_blob_data, r0 * size + t, vv.x);
+    buffer_st1(dst_blob_data, r1 * size + t, vv.y);
+    buffer_st1(dst_blob_data, r2 * size + t, vv.z);
+    buffer_st1(dst_blob_data, r3 * size + t, vv.w);
+}

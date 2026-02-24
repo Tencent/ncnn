@@ -288,6 +288,7 @@ protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
+    VkDeviceMemory allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr);
 
     VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImage image, VkFormat format);
@@ -321,7 +322,11 @@ class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
-    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, bool prefer_host_memory = false, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size)
+        : VkWeightAllocator(vkdev, false, preferred_block_size)
+    {
+    }
     virtual ~VkWeightAllocator();
 
 public:

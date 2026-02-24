@@ -49,9 +49,12 @@ Option::Option()
     use_tensor_storage = false;
     use_reserved_1p = false;
 
-    use_reserved_2 = false;
+    use_weights_in_host_memory = false;
 
     flush_denormals = 3;
+    use_reserved_2f = false;
+    use_reserved_3f = false;
+    use_mapped_model_loading = false;
 
     use_local_pool_allocator = true;
 
