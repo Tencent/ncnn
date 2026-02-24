@@ -8,10 +8,9 @@
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-#if __AVX512F__
-#include <immintrin.h>
-#endif // __AVX512F__
 #endif // __SSE2__
+
+#include "x86_usability.h"
 
 namespace ncnn {
 
@@ -19,9 +18,7 @@ RotaryEmbed_x86::RotaryEmbed_x86()
 {
 }
 
-int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
-                             std::vector<Mat>& top_blobs,
-                             const Option& opt) const
+int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& cos_cache = bottom_blobs[1];
@@ -52,157 +49,205 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                 float* outptr = out_head.row(i);
 
                 int j = 0;
-
 #if __SSE2__
+#if __AVX__
 #if __AVX512F__
+                const __m512 signmask512 = _mm512_castsi512_ps(_mm512_set_epi32(
+                                                0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
+                                                0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                const __m512i dupidx = _mm512_set_epi32(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8);
+                const __m512i dupidx_lo = _mm512_set_epi32(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
+                for (; j + 15 < embed_dim / 2; j += 16)
                 {
-                    const __m512 signmask512 = _mm512_castsi512_ps(_mm512_set_epi32(
-                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
-                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                    __m512 a0 = _mm512_loadu_ps(ptr);
+                    __m512 a1 = _mm512_loadu_ps(ptr + 16);
 
-                    const __m512i dupidx = _mm512_set_epi32(
-                                               7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
+                    __m512 cs_src = _mm512_loadu_ps(cos_ptr);
+                    __m512 ss_src = _mm512_loadu_ps(sin_ptr);
 
-                    for (; j + 7 < embed_dim / 2; j += 8)
-                    {
-                        __m512 a = _mm512_loadu_ps(ptr);
+                    __m512 c0 = _mm512_permutexvar_ps(dupidx_lo, cs_src);
+                    __m512 c1 = _mm512_permutexvar_ps(dupidx, cs_src);
+                    __m512 s0 = _mm512_permutexvar_ps(dupidx_lo, ss_src);
+                    __m512 s1 = _mm512_permutexvar_ps(dupidx, ss_src);
 
-                        __m256 c8 = _mm256_loadu_ps(cos_ptr);
-                        __m256 s8 = _mm256_loadu_ps(sin_ptr);
+                    __m512 ac0 = _mm512_mul_ps(a0, c0);
+                    __m512 ac1 = _mm512_mul_ps(a1, c1);
 
-                        __m512 csrc = _mm512_castps256_ps512(c8);
-                        __m512 ssrc = _mm512_castps256_ps512(s8);
+                    __m512 swap0 = _mm512_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m512 swap1 = _mm512_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
-                        __m512 c = _mm512_permutexvar_ps(dupidx, csrc);
-                        __m512 s = _mm512_permutexvar_ps(dupidx, ssrc);
+                    __m512 ss0 = _mm512_mul_ps(swap0, s0);
+                    __m512 ss1 = _mm512_mul_ps(swap1, s1);
 
-                        __m512 ac = _mm512_mul_ps(a, c);
+                    ss0 = _mm512_xor_ps(ss0, signmask512);
+                    ss1 = _mm512_xor_ps(ss1, signmask512);
+                    __m512 y0 = _mm512_add_ps(ac0, ss0);
+                    __m512 y1 = _mm512_add_ps(ac1, ss1);
 
-                        __m512 swap = _mm512_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
-                        __m512 ss = _mm512_mul_ps(swap, s);
+                    _mm512_storeu_ps(outptr, y0);
+                    _mm512_storeu_ps(outptr + 16, y1);
 
-                        ss = _mm512_xor_ps(ss, signmask512);
-
-                        __m512 y = _mm512_add_ps(ac, ss);
-                        _mm512_storeu_ps(outptr, y);
-
-                        ptr += 16;
-                        outptr += 16;
-                        cos_ptr += 8;
-                        sin_ptr += 8;
-                    }
+                    ptr += 32;
+                    outptr += 32;
+                    cos_ptr += 16;
+                    sin_ptr += 16;
                 }
 #endif // __AVX512F__
-
 #if __AVX2__
+                const __m256i dupidx256 = _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4);
+                const __m256i dupidx256_lo = _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0);
+                for (; j + 7 < embed_dim / 2; j += 8)
                 {
-                    const __m256 signmask256 = _mm256_castsi256_ps(_mm256_set_epi32(
-                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                    __m256 a0 = _mm256_loadu_ps(ptr);
+                    __m256 a1 = _mm256_loadu_ps(ptr + 8);
 
-                    const __m256i dupidx256 = _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0);
+                    __m256 c_src = _mm256_loadu_ps(cos_ptr);
+                    __m256 s_src = _mm256_loadu_ps(sin_ptr);
 
-                    for (; j + 3 < embed_dim / 2; j += 4)
-                    {
-                        __m256 a = _mm256_loadu_ps(ptr);
+                    __m256 c0 = _mm256_permutevar8x32_ps(c_src, dupidx256_lo);
+                    __m256 c1 = _mm256_permutevar8x32_ps(c_src, dupidx256);
+                    __m256 s0 = _mm256_permutevar8x32_ps(s_src, dupidx256_lo);
+                    __m256 s1 = _mm256_permutevar8x32_ps(s_src, dupidx256);
 
-                        __m128 c4 = _mm_loadu_ps(cos_ptr);
-                        __m128 s4 = _mm_loadu_ps(sin_ptr);
+                    __m256 ac0 = _mm256_mul_ps(a0, c0);
+                    __m256 ac1 = _mm256_mul_ps(a1, c1);
 
-                        __m256 csrc = _mm256_castps128_ps256(c4);
-                        __m256 ssrc = _mm256_castps128_ps256(s4);
+                    __m256 swap0 = _mm256_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m256 swap1 = _mm256_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
-                        __m256 c = _mm256_permutevar8x32_ps(csrc, dupidx256);
-                        __m256 s = _mm256_permutevar8x32_ps(ssrc, dupidx256);
+                    __m256 ss0 = _mm256_mul_ps(swap0, s0);
+                    __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                        __m256 ac = _mm256_mul_ps(a, c);
+                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
+                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
 
-                        __m256 swap = _mm256_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
-                        __m256 ss = _mm256_mul_ps(swap, s);
+                    _mm256_storeu_ps(outptr, y0);
+                    _mm256_storeu_ps(outptr + 8, y1);
 
-                        ss = _mm256_xor_ps(ss, signmask256);
-
-                        __m256 y = _mm256_add_ps(ac, ss);
-                        _mm256_storeu_ps(outptr, y);
-
-                        ptr += 8;
-                        outptr += 8;
-                        cos_ptr += 4;
-                        sin_ptr += 4;
-                    }
+                    ptr += 16;
+                    outptr += 16;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
                 }
-#elif __AVX__
+#else // __AVX2__
+                for (; j + 7 < embed_dim / 2; j += 8)
                 {
-                    const __m256 signmask256 = _mm256_castsi256_ps(_mm256_set_epi32(
-                                                   0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                    __m256 a0 = _mm256_loadu_ps(ptr);
+                    __m256 a1 = _mm256_loadu_ps(ptr + 8);
 
-                    for (; j + 3 < embed_dim / 2; j += 4)
-                    {
-                        __m256 a = _mm256_loadu_ps(ptr);
+                    __m128 clo4 = _mm_loadu_ps(cos_ptr);
+                    __m128 chi4 = _mm_loadu_ps(cos_ptr + 4);
+                    __m128 slo4 = _mm_loadu_ps(sin_ptr);
+                    __m128 shi4 = _mm_loadu_ps(sin_ptr + 4);
 
-                        __m128 c4 = _mm_loadu_ps(cos_ptr);
-                        __m128 s4 = _mm_loadu_ps(sin_ptr);
+                    __m128 clo_lo = _mm_unpacklo_ps(clo4, clo4); // [c0,c0,c1,c1]
+                    __m128 clo_hi = _mm_unpackhi_ps(clo4, clo4); // [c2,c2,c3,c3]
+                    __m128 chi_lo = _mm_unpacklo_ps(chi4, chi4); // [c4,c4,c5,c5]
+                    __m128 chi_hi = _mm_unpackhi_ps(chi4, chi4); // [c6,c6,c7,c7]
 
-                        __m128 clo = _mm_unpacklo_ps(c4, c4); // [c0,c0,c1,c1]
-                        __m128 chi = _mm_unpackhi_ps(c4, c4); // [c2,c2,c3,c3]
-                        __m128 slo = _mm_unpacklo_ps(s4, s4); // [s0,s0,s1,s1]
-                        __m128 shi = _mm_unpackhi_ps(s4, s4); // [s2,s2,s3,s3]
+                    __m256 c0 = combine4x2_ps(clo_lo, clo_hi);
+                    __m256 c1 = combine4x2_ps(chi_lo, chi_hi);
 
-                        __m256 c = _mm256_castps128_ps256(clo);
-                        c = _mm256_insertf128_ps(c, chi, 1);
+                    __m128 slo_lo = _mm_unpacklo_ps(slo4, slo4); // [s0,s0,s1,s1]
+                    __m128 slo_hi = _mm_unpackhi_ps(slo4, slo4); // [s2,s2,s3,s3]
+                    __m128 shi_lo = _mm_unpacklo_ps(shi4, shi4); // [s4,s4,s5,s5]
+                    __m128 shi_hi = _mm_unpackhi_ps(shi4, shi4); // [s6,s6,s7,s7]
 
-                        __m256 s = _mm256_castps128_ps256(slo);
-                        s = _mm256_insertf128_ps(s, shi, 1);
+                    __m256 s0 = combine4x2_ps(slo_lo, slo_hi);
+                    __m256 s1 = combine4x2_ps(shi_lo, shi_hi);
 
-                        __m256 ac = _mm256_mul_ps(a, c);
+                    __m256 ac0 = _mm256_mul_ps(a0, c0);
+                    __m256 ac1 = _mm256_mul_ps(a1, c1);
 
-                        __m256 swap = _mm256_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
-                        __m256 ss = _mm256_mul_ps(swap, s);
+                    __m256 swap0 = _mm256_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m256 swap1 = _mm256_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
-                        ss = _mm256_xor_ps(ss, signmask256);
+                    __m256 ss0 = _mm256_mul_ps(swap0, s0);
+                    __m256 ss1 = _mm256_mul_ps(swap1, s1);
 
-                        __m256 y = _mm256_add_ps(ac, ss);
-                        _mm256_storeu_ps(outptr, y);
+                    __m256 y0 = _mm256_addsub_ps(ac0, ss0);
+                    __m256 y1 = _mm256_addsub_ps(ac1, ss1);
 
-                        ptr += 8;
-                        outptr += 8;
-                        cos_ptr += 4;
-                        sin_ptr += 4;
-                    }
+                    _mm256_storeu_ps(outptr, y0);
+                    _mm256_storeu_ps(outptr + 8, y1);
+
+                    ptr += 16;
+                    outptr += 16;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
                 }
+#endif // __AVX2__
 #endif // __AVX__
-
+#if !__SSE3__
+                const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(0, (int)0x80000000, 0, (int)0x80000000));
+#endif
+                for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(
-                                                   0, (int)0x80000000, 0, (int)0x80000000));
+                    __m128 a0 = _mm_loadu_ps(ptr);
+                    __m128 a1 = _mm_loadu_ps(ptr + 4);
 
-                    for (; j + 1 < embed_dim / 2; j += 2)
-                    {
-                        __m128 a = _mm_loadu_ps(ptr);
+                    __m128 c4 = _mm_loadu_ps(cos_ptr);
+                    __m128 s4 = _mm_loadu_ps(sin_ptr);
 
-                        __m128 c01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)cos_ptr));
-                        __m128 s01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)sin_ptr));
+                    __m128 clo = _mm_unpacklo_ps(c4, c4); // [c0,c0,c1,c1]
+                    __m128 chi = _mm_unpackhi_ps(c4, c4); // [c2,c2,c3,c3]
+                    __m128 slo = _mm_unpacklo_ps(s4, s4); // [s0,s0,s1,s1]
+                    __m128 shi = _mm_unpackhi_ps(s4, s4); // [s2,s2,s3,s3]
 
-                        __m128 c = _mm_unpacklo_ps(c01, c01); // [c0,c0,c1,c1]
-                        __m128 s = _mm_unpacklo_ps(s01, s01); // [s0,s0,s1,s1]
+                    __m128 ac0 = _mm_mul_ps(a0, clo);
+                    __m128 ac1 = _mm_mul_ps(a1, chi);
 
-                        __m128 ac = _mm_mul_ps(a, c);
+                    __m128 swap0 = _mm_shuffle_ps(a0, a0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m128 swap1 = _mm_shuffle_ps(a1, a1, _MM_SHUFFLE(2, 3, 0, 1));
 
-                        __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
-                        __m128 ss = _mm_mul_ps(swap, s);
+                    __m128 ss0 = _mm_mul_ps(swap0, slo);
+                    __m128 ss1 = _mm_mul_ps(swap1, shi);
+#if __SSE3__
+                    __m128 y0 = _mm_addsub_ps(ac0, ss0);
+                    __m128 y1 = _mm_addsub_ps(ac1, ss1);
+#else
+                    ss0 = _mm_xor_ps(ss0, signmask128);
+                    ss1 = _mm_xor_ps(ss1, signmask128);
+                    __m128 y0 = _mm_add_ps(ac0, ss0);
+                    __m128 y1 = _mm_add_ps(ac1, ss1);
+#endif
+                    _mm_storeu_ps(outptr, y0);
+                    _mm_storeu_ps(outptr + 4, y1);
 
-                        ss = _mm_xor_ps(ss, signmask128);
+                    ptr += 8;
+                    outptr += 8;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                }
+                for (; j + 1 < embed_dim / 2; j += 2)
+                {
+                    __m128 a = _mm_loadu_ps(ptr);
 
-                        __m128 y = _mm_add_ps(ac, ss);
-                        _mm_storeu_ps(outptr, y);
+                    __m128 c01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)cos_ptr));
+                    __m128 s01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)sin_ptr));
 
-                        ptr += 4;
-                        outptr += 4;
-                        cos_ptr += 2;
-                        sin_ptr += 2;
-                    }
+                    __m128 c = _mm_unpacklo_ps(c01, c01); // [c0,c0,c1,c1]
+                    __m128 s = _mm_unpacklo_ps(s01, s01); // [s0,s0,s1,s1]
+
+                    __m128 ac = _mm_mul_ps(a, c);
+
+                    __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m128 ss = _mm_mul_ps(swap, s);
+
+#if __SSE3__
+                    __m128 y = _mm_addsub_ps(ac, ss);
+#else
+                    ss = _mm_xor_ps(ss, signmask128);
+                    __m128 y = _mm_add_ps(ac, ss);
+#endif
+                    _mm_storeu_ps(outptr, y);
+
+                    ptr += 4;
+                    outptr += 4;
+                    cos_ptr += 2;
+                    sin_ptr += 2;
                 }
 #endif // __SSE2__
-
                 for (; j < embed_dim / 2; j++)
                 {
                     const float x0 = ptr[0];
@@ -228,8 +273,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                 float* outptr1 = outptr0 + embed_dim / 2;
 
                 int j = 0;
-
 #if __SSE2__
+#if __AVX__
 #if __AVX512F__
                 for (; j + 15 < embed_dim / 2; j += 16)
                 {
@@ -251,7 +296,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     outptr0 += 16;
                     outptr1 += 16;
                 }
-#elif __AVX__
+#endif // __AVX512F__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 x0 = _mm256_loadu_ps(ptr0);
@@ -273,7 +318,6 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     outptr1 += 8;
                 }
 #endif // __AVX__
-
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
                     __m128 x0 = _mm_loadu_ps(ptr0);
@@ -295,7 +339,6 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs,
                     outptr1 += 4;
                 }
 #endif // __SSE2__
-
                 for (; j < embed_dim / 2; j++)
                 {
                     const float x0 = *ptr0++;
