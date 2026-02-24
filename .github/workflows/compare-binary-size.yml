@@ -8,6 +8,7 @@ on:
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/**'
+    - 'glslang'
 
 concurrency:
   group: compare-binary-size-${{ github.ref }}

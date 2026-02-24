@@ -52,6 +52,11 @@ def test_option():
     opt.use_vulkan_compute = False
     assert opt.use_vulkan_compute == False
 
+    opt.use_bf16_packed = True
+    assert opt.use_bf16_packed == True
+    opt.use_bf16_packed = False
+    assert opt.use_bf16_packed == False
+
     opt.use_bf16_storage = True
     assert opt.use_bf16_storage == True
     opt.use_bf16_storage = False

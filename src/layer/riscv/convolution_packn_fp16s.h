@@ -71,7 +71,7 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
                             vfloat16m1_t _w0 = __riscv_vle16_v_f16m1(kptr, vl);
                             // _sum = __riscv_vfwmacc_vf_f32m2(_sum, val, _w0, vl);
 
-                            vfloat32m2_t _qwq = __riscv_vfwmul_vf_f32m2(_w0, val, vl);
+                            vfloat32m2_t _qwq = __riscv_vfwmul_vf_f32m2(_w0, (__fp16)val, vl);
                             _sum = __riscv_vfadd_vv_f32m2(_sum, _qwq, vl);
 
                             kptr += packn;
@@ -134,7 +134,7 @@ static void convolution_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, 
         {
             for (int j = 0; j < outw; j++)
             {
-                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 if (bias_data_ptr)
                 {

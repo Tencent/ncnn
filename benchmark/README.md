@@ -4,7 +4,7 @@ Only the network definition files (ncnn param) are required.
 
 The large model binary files (ncnn bin) are not loaded but generated randomly for speed test.
 
-If no model specified, it would benchmark default list. More model networks may be added later.
+If no model specified, it would benchmark default built-in models. More model networks may be added later.
 
 ---
 Build
@@ -31,11 +31,20 @@ run benchncnn on android device
 ```shell
 # for running on android device, upload to /data/local/tmp/ folder
 adb push benchncnn /data/local/tmp/
-adb push <ncnn-root-dir>/benchmark/*.param /data/local/tmp/
-adb shell
+
+# (optional) upload your ncnn model param to /data/local/tmp/ folder
+adb push model.param /data/local/tmp/
 
 # executed in android adb shell
+adb shell
 cd /data/local/tmp/
+
+# sample: benchmark built-in models on cpu, with 4 threads on big core, 4 loops and cooling_down
+./benchncnn 4 4 2 -1 1
+
+# sample: benchmark built-in models on gpu id 0, with 1 thread on big core, 8 loops, without cooling_down
+./benchncnn 8 1 2 0 0
+
 ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
   param=model.param
   shape=[227,227,3],..
@@ -1651,6 +1660,94 @@ cooling_down = 1
       yolo-fastestv2  min =    9.72  max =   10.04  avg =    9.85
   vision_transformer  min =  744.98  max =  758.15  avg =  751.62
           FastestDet  min =   11.95  max =   13.12  avg =   12.46
+```
+
+### Qualcomm Snapdragon X Elite (X1E78100), Oryon 3.4GHz x 12 + Adreno X1-85
+
+Test on Oryon CPU
+
+```
+loop_count = 10
+num_threads = 12
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    5.13  max =    5.19  avg =    5.16
+     squeezenet_int8  min =    4.31  max =    4.81  avg =    4.67
+           mobilenet  min =    3.73  max =    3.85  avg =    3.78
+      mobilenet_int8  min =    2.51  max =    3.11  avg =    2.64
+        mobilenet_v2  min =    3.55  max =    3.70  avg =    3.60
+        mobilenet_v3  min =    3.28  max =    3.88  avg =    3.40
+          shufflenet  min =    3.77  max =    5.07  avg =    4.02
+       shufflenet_v2  min =    3.24  max =    3.34  avg =    3.29
+             mnasnet  min =    3.49  max =    4.09  avg =    3.58
+     proxylessnasnet  min =    4.30  max =    4.93  avg =    4.41
+     efficientnet_b0  min =    4.97  max =   17.26  avg =    6.28
+   efficientnetv2_b0  min =    6.85  max =   10.19  avg =    7.39
+        regnety_400m  min =   11.26  max =   11.36  avg =   11.31
+           blazeface  min =    1.43  max =    1.48  avg =    1.44
+           googlenet  min =    9.84  max =    9.96  avg =    9.89
+      googlenet_int8  min =    8.04  max =    8.33  avg =    8.13
+            resnet18  min =    6.63  max =    9.34  avg =    6.94
+       resnet18_int8  min =    5.47  max =    6.24  avg =    5.59
+             alexnet  min =    7.52  max =    7.61  avg =    7.54
+               vgg16  min =   29.66  max =   32.27  avg =   30.07
+          vgg16_int8  min =   32.97  max =   34.43  avg =   33.32
+            resnet50  min =   16.54  max =   16.68  avg =   16.63
+       resnet50_int8  min =   11.12  max =   13.84  avg =   11.42
+      squeezenet_ssd  min =    9.20  max =    9.77  avg =    9.39
+ squeezenet_ssd_int8  min =    8.50  max =    9.17  avg =    8.73
+       mobilenet_ssd  min =    8.28  max =    8.67  avg =    8.36
+  mobilenet_ssd_int8  min =    5.59  max =    6.25  avg =    5.74
+      mobilenet_yolo  min =   21.42  max =   22.77  avg =   21.65
+  mobilenetv2_yolov3  min =   14.03  max =   14.34  avg =   14.13
+         yolov4-tiny  min =   23.60  max =   23.84  avg =   23.70
+           nanodet_m  min =    6.64  max =    7.40  avg =    6.77
+    yolo-fastest-1.1  min =    4.14  max =    7.15  avg =    4.53
+      yolo-fastestv2  min =    3.63  max =    3.70  avg =    3.66
+  vision_transformer  min =  384.74  max =  415.74  avg =  391.28
+          FastestDet  min =    4.29  max =    4.94  avg =    4.40
+```
+
+Test on X1-85 GPU
+
+```
+[0 Adreno X1-85]  queueC=0[1]  queueT=0[1]
+[0 Adreno X1-85]  fp16-p/s/u/a=1/1/0/1  int8-p/s/u/a=1/0/0/1  bf16-p/s=1/0
+[0 Adreno X1-85]  subgroup=128(64~128)  ops=1/1/1/1/1/1/1/1/1/1
+[0 Adreno X1-85]  fp16-cm=0  int8-cm=0  bf16-cm=0  fp8-cm=0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    3.23  max =    3.99  avg =    3.63
+           mobilenet  min =    3.33  max =    5.86  avg =    5.20
+        mobilenet_v2  min =    4.06  max =    4.77  avg =    4.52
+        mobilenet_v3  min =    4.61  max =    8.12  avg =    6.60
+          shufflenet  min =    3.16  max =    7.45  avg =    4.65
+       shufflenet_v2  min =    3.90  max =    6.00  avg =    5.02
+             mnasnet  min =    4.44  max =    5.12  avg =    4.81
+     proxylessnasnet  min =    4.91  max =    7.02  avg =    6.15
+     efficientnet_b0  min =    6.61  max =    7.25  avg =    7.04
+   efficientnetv2_b0  min =   21.48  max =   56.52  avg =   39.03
+        regnety_400m  min =    7.33  max =    7.60  avg =    7.44
+           blazeface  min =    2.83  max =    4.59  avg =    4.30
+           googlenet  min =   11.00  max =   12.98  avg =   12.60
+            resnet18  min =   12.11  max =   14.59  avg =   13.27
+             alexnet  min =   11.64  max =   12.18  avg =   11.96
+               vgg16  min =   40.06  max =   45.62  avg =   42.88
+            resnet50  min =   18.99  max =   21.93  avg =   20.88
+      squeezenet_ssd  min =   10.95  max =   14.73  avg =   13.03
+       mobilenet_ssd  min =    7.92  max =    9.75  avg =    9.46
+      mobilenet_yolo  min =    9.02  max =   12.54  avg =   11.38
+  mobilenetv2_yolov3  min =   12.70  max =   14.70  avg =   13.95
+         yolov4-tiny  min =   25.88  max =   30.26  avg =   28.12
+           nanodet_m  min =    9.38  max =   33.46  avg =   20.29
+    yolo-fastest-1.1  min =    6.08  max =    6.75  avg =    6.43
+      yolo-fastestv2  min =    4.50  max =    6.47  avg =    6.04
+  vision_transformer  min =  184.89  max =  191.78  avg =  189.07
+          FastestDet  min =    6.01  max =    7.83  avg =    6.43
 ```
 
 ### Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4)

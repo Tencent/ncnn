@@ -225,6 +225,12 @@ public:
     // 3 = cpu
     int type() const;
 
+    // performance score roughly evaluated based on parameters such as device type,
+    // supported extensions, video memory size etc.
+    // high-end device scores over 75
+    // low-end device scores below 10
+    uint32_t rough_score() const;
+
     // hardware limit
     uint32_t max_shared_memory_size() const;
     uint32_t max_workgroup_count_x() const;
@@ -252,6 +258,7 @@ public:
 
     // property
     bool unified_compute_transfer_queue() const;
+    bool resizable_bar_enabled() const;
 
     // subgroup
     uint32_t subgroup_size() const;
@@ -301,6 +308,9 @@ public:
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;
 
+    // bf16 cooperative matrix feature
+    bool support_bf16_cooperative_matrix() const;
+
     // extension capability
     int support_VK_KHR_8bit_storage() const;
     int support_VK_KHR_16bit_storage() const;
@@ -335,6 +345,7 @@ public:
     int support_VK_KHR_zero_initialize_workgroup_memory() const;
     int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
+    int support_VK_EXT_external_memory_host() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
@@ -382,6 +393,7 @@ public:
     const VkPhysicalDeviceShaderIntegerDotProductProperties& queryShaderIntegerDotProductProperties() const;
     const VkPhysicalDeviceSubgroupProperties& querySubgroupProperties() const;
     const VkPhysicalDeviceSubgroupSizeControlPropertiesEXT& querySubgroupSizeControlProperties() const;
+    const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& queryExternalMemoryHostProperties() const;
 
     // extension sub properties
     const std::vector<VkCooperativeMatrixPropertiesKHR>& queryCooperativeMatrixSubProperties() const;
@@ -390,7 +402,7 @@ public:
     const std::vector<VkCooperativeVectorPropertiesNV>& queryCooperativeVectorSubPropertiesNV() const;
 
     // some utility functions
-    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K) const;
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -507,6 +519,9 @@ public:
 
     // VK_EXT_buffer_device_address
     PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
+
+    // VK_EXT_external_memory_host
+    PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
 
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer
