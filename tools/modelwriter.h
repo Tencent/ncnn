@@ -2112,7 +2112,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 7=%d", front)
             fprintf_param_value(" 8=%d", behind)
 
-            fwrite_weight_data(op->per_channel_pad_data, bp);
+            if (op->per_channel_pad_data_size > 0)
+            {
+                fwrite_weight_data(op->per_channel_pad_data, bp);
+            }
         }
         else if (layer->type == "Permute")
         {

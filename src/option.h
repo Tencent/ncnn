@@ -118,7 +118,11 @@ public:
     // 1 = DAZ ON , FTZ OFF
     // 2 = DAZ OFF, FTZ ON
     // 3 = DAZ ON,  FTZ ON
-    int flush_denormals;
+    unsigned char flush_denormals;
+
+    bool use_reserved_2f;
+    bool use_reserved_3f;
+    bool use_mapped_model_loading;
 
     bool use_local_pool_allocator;
 

@@ -256,9 +256,11 @@ public:
     void query_features();
     void query_properties();
     void query_queue_properties();
+    void query_memory_properties();
     int query_extensions();
     void query_extension_features();
     void query_extension_properties();
+    void evaluate_rough_score();
 
 public:
     int device_index;
@@ -284,6 +286,8 @@ public:
     // 3 = cpu
     int type;
 
+    uint32_t rough_score;
+
     // runtime
     uint32_t compute_queue_family_index;
     uint32_t transfer_queue_family_index;
@@ -293,6 +297,7 @@ public:
 
     // property
     bool unified_compute_transfer_queue;
+    bool resizable_bar_enabled;
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
@@ -607,6 +612,57 @@ void GpuInfoPrivate::query_queue_properties()
     transfer_queue_count = queueFamilyProperties[transfer_queue_family_index].queueCount;
 
     unified_compute_transfer_queue = compute_queue_family_index == transfer_queue_family_index;
+}
+
+void GpuInfoPrivate::query_memory_properties()
+{
+    // cache memory properties
+    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &physicalDeviceMemoryProperties);
+
+    if (type == 0)
+    {
+        // discrete gpu
+        resizable_bar_enabled = false;
+
+        // find heap that is device local and host visible and not host cached
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                VkFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+                VkFlags disallowed = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                for (uint32_t j = 0; j < physicalDeviceMemoryProperties.memoryTypeCount; j++)
+                {
+                    const VkMemoryType& memoryType = physicalDeviceMemoryProperties.memoryTypes[j];
+                    if (memoryType.heapIndex != i)
+                        continue;
+
+                    if ((memoryType.propertyFlags & disallowed) != 0)
+                    {
+                        // some driver treats a portion of host memory as device local heap, do not select this option
+                        resizable_bar_enabled = false;
+                        break;
+                    }
+
+                    if ((memoryType.propertyFlags & required) == required)
+                    {
+                        resizable_bar_enabled = true;
+                    }
+                }
+
+                // subsequent device local heap is no longer considered
+                // amd may declare a small device local + host visible heap for uploading
+                // resizable bar feature is for the main device heap anyway
+                break;
+            }
+        }
+    }
+    else
+    {
+        // integrated gpu
+        resizable_bar_enabled = true;
+    }
 }
 
 int GpuInfoPrivate::query_extensions()
@@ -1056,6 +1112,55 @@ void GpuInfoPrivate::query_extension_features()
         default:
             break;
         }
+    }
+}
+
+void GpuInfoPrivate::evaluate_rough_score()
+{
+    rough_score = 0;
+
+    // device type score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        rough_score += 50;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+        rough_score += 5;
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+        rough_score += 4;
+
+    // simd width score
+    rough_score += querySubgroupProperties.subgroupSize / 32;
+
+    // extension score
+    for (size_t i = 0; i < deviceExtensionProperties.size(); i++)
+    {
+        const VkExtensionProperties& exp = deviceExtensionProperties[i];
+
+        if (strcmp(exp.extensionName, "VK_KHR_cooperative_matrix") == 0)
+            rough_score += 10;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_bfloat16") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_integer_dot_product") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_KHR_shader_float16_int8") == 0)
+            rough_score += 2;
+        else if (strcmp(exp.extensionName, "VK_EXT_shader_float8") == 0)
+            rough_score += 2;
+    }
+
+    // device local heap size score
+    if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+    {
+        VkDeviceSize max_device_local = 0;
+        for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryHeapCount; i++)
+        {
+            const VkMemoryHeap& memoryHeap = physicalDeviceMemoryProperties.memoryHeaps[i];
+            if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+            {
+                max_device_local = std::max(max_device_local, memoryHeap.size);
+            }
+        }
+        uint32_t mem_gb = max_device_local / (1024 * 1024 * 1024);
+        rough_score += mem_gb;
     }
 }
 
@@ -1510,6 +1615,11 @@ int GpuInfo::type() const
     return d->type;
 }
 
+uint32_t GpuInfo::rough_score() const
+{
+    return d->rough_score;
+}
+
 uint32_t GpuInfo::max_shared_memory_size() const
 {
     return d->physicalDeviceProperties.limits.maxComputeSharedMemorySize;
@@ -1613,6 +1723,11 @@ uint32_t GpuInfo::transfer_queue_count() const
 bool GpuInfo::unified_compute_transfer_queue() const
 {
     return d->unified_compute_transfer_queue;
+}
+
+bool GpuInfo::resizable_bar_enabled() const
+{
+    return d->resizable_bar_enabled;
 }
 
 uint32_t GpuInfo::subgroup_size() const
@@ -2769,8 +2884,7 @@ int create_gpu_instance(const char* driver_path)
 
         gpu_info.d->query_queue_properties();
 
-        // cache memory properties
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.d->physicalDeviceMemoryProperties);
+        gpu_info.d->query_memory_properties();
 
         int rqde = gpu_info.d->query_extensions();
         if (rqde != 0)
@@ -2781,9 +2895,11 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.d->query_extension_features();
         gpu_info.d->query_extension_properties();
 
-        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]", i, gpu_info.device_name(),
+        gpu_info.d->evaluate_rough_score();
+
+        NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueT=%u[%u]  rebar=%d  r-score=%u", i, gpu_info.device_name(),
                   gpu_info.compute_queue_family_index(), gpu_info.compute_queue_count(),
-                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count());
+                  gpu_info.transfer_queue_family_index(), gpu_info.transfer_queue_count(), gpu_info.resizable_bar_enabled(), gpu_info.rough_score());
 
         NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d  bf16-p/s=%d/%d", i, gpu_info.device_name(),
                   gpu_info.support_fp16_packed(), gpu_info.support_fp16_storage(), gpu_info.support_fp16_uniform(), gpu_info.support_fp16_arithmetic(),
@@ -4155,6 +4271,19 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required)
+            {
+                return i;
+            }
+        }
+    }
+
+    if (info.driver_id() == VK_DRIVER_ID_GOOGLE_SWIFTSHADER)
+    {
+        // buggy swiftshader may set memory property flags in memory_type_bits field
+        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+        {
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
+            if ((memoryType.propertyFlags & (required | memory_type_bits)) == (required | memory_type_bits))
             {
                 return i;
             }
