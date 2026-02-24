@@ -175,7 +175,13 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __AVX2__
 #endif // __AVX__
 #if !__SSE3__
+#if defined(__MINGW32__) && !defined(__x86_64__)
+                __attribute__((aligned(16)))
+                const float signmask128_array[4] = {-0.f, 0.f, -0.f, 0.f};
+                const __m128 signmask128 = _mm_load_ps(signmask128_array);
+#else
                 const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
+#endif
 #endif
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
