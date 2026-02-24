@@ -174,16 +174,6 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 }
 #endif // __AVX2__
 #endif // __AVX__
-#if !__SSE3__
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                // 32-bit Windows ABI only guarantees 4-byte stack alignment
-                // declare signmask128 as static const, which places it in .rodata (always properly aligned)
-                // rather than on the stack     --- nihui
-                static const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(0, (int)0x80000000, 0, (int)0x80000000));
-#else
-                const __m128 signmask128 = _mm_castsi128_ps(_mm_set_epi32(0, (int)0x80000000, 0, (int)0x80000000));
-#endif
-#endif
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
                     __m128 a0 = _mm_loadu_ps(ptr);
@@ -212,10 +202,12 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m128 y0 = _mm_addsub_ps(ac0, ss0);
                     __m128 y1 = _mm_addsub_ps(ac1, ss1);
 #else
-                    ss0 = _mm_xor_ps(ss0, signmask128);
-                    ss1 = _mm_xor_ps(ss1, signmask128);
-                    __m128 y0 = _mm_add_ps(ac0, ss0);
-                    __m128 y1 = _mm_add_ps(ac1, ss1);
+                    __m128 y0_even = _mm_sub_ps(ac0, ss0);
+                    __m128 y1_even = _mm_sub_ps(ac1, ss1);
+                    __m128 y0_odd = _mm_add_ps(ac0, ss0);
+                    __m128 y1_odd = _mm_add_ps(ac1, ss1);
+                    __m128 y0 = _mm_shuffle_ps(y0_even, y0_odd, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m128 y1 = _mm_shuffle_ps(y1_even, y1_odd, _MM_SHUFFLE(3, 1, 2, 0));
 #endif
 #endif
                     _mm_storeu_ps(outptr, y0);
@@ -246,8 +238,9 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #if __SSE3__
                     __m128 y = _mm_addsub_ps(ac, ss);
 #else
-                    ss = _mm_xor_ps(ss, signmask128);
-                    __m128 y = _mm_add_ps(ac, ss);
+                    __m128 y_even = _mm_sub_ps(ac, ss);
+                    __m128 y_odd = _mm_add_ps(ac, ss);
+                    __m128 y = _mm_shuffle_ps(y_even, y_odd, _MM_SHUFFLE(3, 1, 2, 0));
 #endif
 #endif
                     _mm_storeu_ps(outptr, y);
