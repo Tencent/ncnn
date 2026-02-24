@@ -275,12 +275,41 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
     const size_t elemsize = a.elemsize;
     const int dims = a.dims;
 
-    // NCNN_LOGE("%d  (%d %d %d %d)    %d %d %d %d", dims, a.w, a.h, a.d, a.c, reduce_w, reduce_h, reduce_d, reduce_c);
+    int out_w = reduce_w ? 1 : a.w;
+    int out_h = reduce_h ? 1 : a.h;
+    int out_d = reduce_d ? 1 : a.d;
+    int out_c = reduce_c ? 1 : a.c;
+
+    if (keepdims)
+    {
+        if (dims == 1) b.create(out_w, elemsize, opt.blob_allocator);
+        if (dims == 2) b.create(out_w, out_h, elemsize, opt.blob_allocator);
+        if (dims == 3) b.create(out_w, out_h, out_c, elemsize, opt.blob_allocator);
+        if (dims == 4) b.create(out_w, out_h, out_d, out_c, elemsize, opt.blob_allocator);
+    }
+    else
+    {
+        // resolve output shape
+        std::vector<int> out_shape;
+        if (!reduce_w) out_shape.push_back(a.w);
+        if (dims >= 2 && !reduce_h) out_shape.push_back(a.h);
+        if (dims == 4 && !reduce_d) out_shape.push_back(a.d);
+        if (dims >= 3 && !reduce_c) out_shape.push_back(a.c);
+
+        const int outdims = (int)out_shape.size();
+
+        if (outdims == 0) b.create(1, elemsize, opt.blob_allocator);
+        if (outdims == 1) b.create(out_shape[0], elemsize, opt.blob_allocator);
+        if (outdims == 2) b.create(out_shape[0], out_shape[1], elemsize, opt.blob_allocator);
+        if (outdims == 3) b.create(out_shape[0], out_shape[1], out_shape[2], elemsize, opt.blob_allocator);
+        if (outdims == 4) b.create(out_shape[0], out_shape[1], out_shape[2], out_shape[3], elemsize, opt.blob_allocator);
+    }
+    if (b.empty())
+        return -100;
 
     if (dims == 1)
     {
         const int w = a.w;
-        b.create(1, elemsize, opt.blob_allocator);
 
         b[0] = reduction(v0, a, w, op_type);
     }
@@ -293,11 +322,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h)
         {
             // w h -> X X
-            if (keepdims)
-                b.create(1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(1, elemsize, opt.blob_allocator);
-
             Mat sums(h, elemsize, opt.workspace_allocator);
             if (sums.empty())
                 return -100;
@@ -316,11 +340,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h)
         {
             // w h -> X h
-            if (keepdims)
-                b.create(1, h, elemsize, opt.blob_allocator);
-            else
-                b.create(h, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
@@ -333,11 +352,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h)
         {
             // w h -> w X
-            if (keepdims)
-                b.create(w, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -356,10 +370,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && reduce_c)
         {
             // w h c -> X X X
-            if (keepdims)
-                b.create(1, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(1, elemsize, opt.blob_allocator);
             Mat sums(channels, elemsize, opt.workspace_allocator);
             if (sums.empty())
                 return -100;
@@ -378,11 +388,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && !reduce_c)
         {
             // w h c -> X X c
-            if (keepdims)
-                b.create(1, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -396,11 +401,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && reduce_c)
         {
             // w h c -> X h X
-            if (keepdims)
-                b.create(1, h, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(h, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
@@ -411,11 +411,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && reduce_c)
         {
             // w h c -> w X X
-            if (keepdims)
-                b.create(w, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int j = 0; j < w; j++)
             {
@@ -426,11 +421,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && !reduce_c)
         {
             // w h c -> X h c
-            if (keepdims)
-                b.create(1, h, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(h, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -448,11 +438,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && !reduce_h && reduce_c)
         {
             // w h c -> w h X
-            if (keepdims)
-                b.create(w, h, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, h, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < size; i++)
             {
@@ -463,11 +448,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && !reduce_c)
         {
             // w h c -> w X c
-            if (keepdims)
-                b.create(w, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(w, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -493,10 +473,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && reduce_d && reduce_c)
         {
             // w h d c -> X X X X
-            if (keepdims)
-                b.create(1, 1, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(1, elemsize, opt.blob_allocator);
             Mat sums(channels, elemsize, opt.workspace_allocator);
             if (sums.empty())
                 return -100;
@@ -515,11 +491,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && reduce_d && !reduce_c)
         {
             // w h d c -> X X X c
-            if (keepdims)
-                b.create(1, 1, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -533,11 +504,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && !reduce_d && reduce_c)
         {
             // w h d c -> X X d X
-            if (keepdims)
-                b.create(1, 1, d, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(d, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < d; i++)
             {
@@ -548,10 +514,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && reduce_d && reduce_c)
         {
             // w h d c -> X h X X
-            if (keepdims)
-                b.create(1, h, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(h, elemsize, opt.blob_allocator);
             Mat mins(h, 1, channels, elemsize, opt.workspace_allocator);
             if (mins.empty())
                 return -100;
@@ -579,11 +541,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && reduce_d && reduce_c)
         {
             // w h d c -> w X X X
-            if (keepdims)
-                b.create(w, 1, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
@@ -594,11 +551,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && reduce_h && !reduce_d && !reduce_c)
         {
             // w h d c -> X X d c
-            if (keepdims)
-                b.create(1, 1, d, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(d, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -616,11 +568,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && !reduce_d && reduce_c)
         {
             // w h d c -> X h d X
-            if (keepdims)
-                b.create(1, h, d, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(h, d, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < d; i++)
             {
@@ -636,11 +583,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && !reduce_h && reduce_d && reduce_c)
         {
             // w h d c -> w h X X
-            if (keepdims)
-                b.create(w, h, 1, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, h, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
@@ -656,11 +598,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && reduce_d && !reduce_c)
         {
             // w h d c -> X h X c
-            if (keepdims)
-                b.create(1, h, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(h, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -678,11 +615,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && !reduce_d && reduce_c)
         {
             // w h d c -> w X d X
-            if (keepdims)
-                b.create(w, 1, d, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, d, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < d; i++)
             {
@@ -698,11 +630,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && reduce_d && !reduce_c)
         {
             // w h d c -> w X X c
-            if (keepdims)
-                b.create(w, 1, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(w, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -719,11 +646,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (reduce_w && !reduce_h && !reduce_d && !reduce_c)
         {
             // w h d c -> X h d c
-            if (keepdims)
-                b.create(1, h, d, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(h, d, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -741,11 +663,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && !reduce_h && !reduce_d && reduce_c)
         {
             // w h d c -> w h d X
-            if (keepdims)
-                b.create(w, h, d, 1, elemsize, opt.blob_allocator);
-            else
-                b.create(w, h, d, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < d; i++)
             {
@@ -761,11 +678,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && reduce_h && !reduce_d && !reduce_c)
         {
             // w h d c -> w X d c
-            if (keepdims)
-                b.create(w, 1, d, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(w, d, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -787,11 +699,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         if (!reduce_w && !reduce_h && reduce_d && !reduce_c)
         {
             // w h d c -> w h X c
-            if (keepdims)
-                b.create(w, h, 1, channels, elemsize, opt.blob_allocator);
-            else
-                b.create(w, h, channels, elemsize, opt.blob_allocator);
-
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {

@@ -211,7 +211,7 @@ void main()
 
     if (subgroupElect())
     {
-        sdata[int(gl_SubgroupID)] = sfp2lfp(sg);
+        sdata[int(gl_SubgroupID)] = afp2lfp(sg);
     }
 
     barrier();
@@ -231,7 +231,7 @@ void main()
         }
     }
 #else
-    sdata[tid] = sfp2lfp(acc);
+    sdata[tid] = afp2lfp(acc);
     barrier();
 
     for (int stride = 128; stride > 0; stride >>= 1)
@@ -240,7 +240,7 @@ void main()
         {
             afp a = lfp2afp(sdata[tid]);
             afp b = lfp2afp(sdata[tid + stride]);
-            sdata[tid] = sfp2lfp(combine_accum(a, b));
+            sdata[tid] = afp2lfp(combine_accum(a, b));
         }
         barrier();
     }

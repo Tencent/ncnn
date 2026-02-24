@@ -279,13 +279,13 @@ static inline float compute_coeff2_for_mean(const VkMat& bottom_blob,
 
 int Reduction_vulkan::create_pipeline(const Option& opt)
 {
-    pipeline_reduction = new Pipeline(vkdev);
-    pipeline_reduction->set_local_size_xyz(256, 1, 1);
-
     std::vector<vk_specialization_type> specializations(1);
     specializations[0].i = operation;
 
+    pipeline_reduction = new Pipeline(vkdev);
+    pipeline_reduction->set_local_size_xyz(256, 1, 1);
     pipeline_reduction->create(LayerShaderType::reduction, opt, specializations);
+
     return 0;
 }
 
@@ -293,14 +293,12 @@ int Reduction_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_reduction;
     pipeline_reduction = 0;
+
     return 0;
 }
 
 int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    if (bottom_blob.empty())
-        return -100;
-
     bool reduce_w, reduce_h, reduce_d, reduce_c;
     resolve_reduce_flags(bottom_blob.dims, reduce_all, axes, reduce_w, reduce_h, reduce_d, reduce_c);
 
