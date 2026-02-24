@@ -53,8 +53,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #if __AVX__
 #if __AVX512F__
                 const __m512 signmask512 = _mm512_castsi512_ps(_mm512_set_epi32(
-                                                0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
-                                                0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
+                                               0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000,
+                                               0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000, 0, (int)0x80000000));
                 const __m512i dupidx = _mm512_set_epi32(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8);
                 const __m512i dupidx_lo = _mm512_set_epi32(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
                 for (; j + 15 < embed_dim / 2; j += 16)
@@ -129,7 +129,7 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     cos_ptr += 8;
                     sin_ptr += 8;
                 }
-#else // __AVX2__
+#else  // __AVX2__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
                     __m256 a0 = _mm256_loadu_ps(ptr);
