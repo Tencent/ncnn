@@ -75,10 +75,10 @@ int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompu
     {
         if (keepdims)
         {
-            map_out_c = 0;
-            map_out_d = 1;
-            map_out_h = 2;
             map_out_w = 3;
+            map_out_h = (dims >= 2) ? 2 : -1;
+            map_out_d = (dims >= 4) ? 1 : -1;
+            map_out_c = (dims >= 3) ? 0 : -1;
         }
         else
         {
@@ -94,7 +94,7 @@ int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompu
 
             if (dims >= 3 && !reduce_c) surviving[num_surviving++] = 0;
             if (dims >= 4 && !reduce_d) surviving[num_surviving++] = 1;
-            if ((dims >= 2 || (dims >= 3)) && !reduce_h) surviving[num_surviving++] = 2;
+            if (dims >= 2 && !reduce_h) surviving[num_surviving++] = 2;
             if (!reduce_w) surviving[num_surviving++] = 3;
 
             // Map output dims to surviving input axes
