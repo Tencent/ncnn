@@ -19,12 +19,10 @@ int Softplus_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    const int dims = shape.dims;
-
-    int elempack = 0;
-    if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+    int elempack = 1;
+    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
