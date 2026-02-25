@@ -45,22 +45,6 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 {
     // const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    // int elempack = 1;
-    // if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-
-    // size_t elemsize;
-    // if (opt.use_fp16_storage || opt.use_fp16_packed)
-    // {
-    //     elemsize = elempack * 2u;
-    // }
-    // else
-    // {
-    //     elemsize = elempack * 4u;
-    // }
-
-    // Mat shape_packed;
-    // if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-
     if (constantA)
     {
         A_data_packed = transA ? A_data.reshape(constantM, constantK) : A_data.reshape(constantK, constantM);

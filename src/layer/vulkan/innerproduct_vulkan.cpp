@@ -23,9 +23,8 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     pipeline_innerproduct_gemm = 0;
 }
 
-int InnerProduct_vulkan::create_pipeline(const Option& _opt)
+int InnerProduct_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -66,21 +65,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
-        int elempack = shape.h % 4 == 0 ? 4 : 1;
-
-        size_t elemsize;
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
-        {
-            elemsize = elempack * 2u;
-        }
-        else
-        {
-            elemsize = elempack * 4u;
-        }
-
-        Mat shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-        Mat out_shape_packed = Mat(out_shape.w, out_shape.h / elempack, (void*)0, elemsize, elempack);
-
         std::vector<vk_specialization_type> specializations(4 + 10);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
@@ -100,7 +84,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         Mat local_size_xyz(std::min(16, num_output / out_elempack), 4, 1, (void*)0);
         if (out_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(16, out_shape.w / out_elempack);
+            local_size_xyz.w = std::min(16, out_shape.w);
             local_size_xyz.h = std::min(4, out_shape.h);
             local_size_xyz.c = 1;
         }
@@ -126,27 +110,8 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     Mat shape_flatten;
     if (shape.dims != 0)
     {
-        shape_flatten = Mat(shape.w * shape.h * shape.c, (void*)0);
+        shape_flatten = Mat(shape.w * shape.h * shape.c * shape.elempack / in_elempack, (void*)0, shape.elemsize / shape.elempack * in_elempack, in_elempack);
     }
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = in_elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = in_elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_flatten_packed;
-    if (shape_flatten.dims == 1) shape_flatten_packed = Mat(shape_flatten.w / in_elempack, (void*)0, elemsize, in_elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     {
         flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
@@ -166,15 +131,15 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
     if (num_input / in_elempack >= 32)
     {
-        Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output, (void*)0);
-        Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+        Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output / out_elempack, (void*)0, out_shape.elemsize, out_elempack);
+        // Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_shape.elemsize, out_elempack);
 
         // sum8
         {
             std::vector<vk_specialization_type> specializations(0 + 3);
-            specializations[0 + 0].i = shape_flatten_packed.w;
-            specializations[0 + 1].i = out_sum8_shape_packed.w;
-            specializations[0 + 2].i = out_sum8_shape_packed.h;
+            specializations[0 + 0].i = shape_flatten.w;
+            specializations[0 + 1].i = out_sum8_shape.w;
+            specializations[0 + 2].i = out_sum8_shape.h;
 
             int shader_type_index = -1;
             if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8;
@@ -194,9 +159,9 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[4 + 0].i = out_sum8_shape_packed.w;
-            specializations[4 + 1].i = out_sum8_shape_packed.h;
-            specializations[4 + 2].i = out_shape_packed.w;
+            specializations[4 + 0].i = out_sum8_shape.w;
+            specializations[4 + 1].i = out_sum8_shape.h;
+            specializations[4 + 2].i = out_shape.w;
 
             int shader_type_index = -1;
             if (out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_reduce_sum8;
@@ -214,21 +179,21 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4 + 0].i = shape_flatten_packed.dims;
-        specializations[4 + 1].i = shape_flatten_packed.w;
-        specializations[4 + 2].i = shape_flatten_packed.h;
-        specializations[4 + 3].i = shape_flatten_packed.c;
-        specializations[4 + 4].i = shape_flatten_packed.cstep;
-        specializations[4 + 5].i = out_shape_packed.dims;
-        specializations[4 + 6].i = out_shape_packed.w;
-        specializations[4 + 7].i = out_shape_packed.h;
-        specializations[4 + 8].i = out_shape_packed.c;
-        specializations[4 + 9].i = out_shape_packed.cstep;
+        specializations[4 + 0].i = shape_flatten.dims;
+        specializations[4 + 1].i = shape_flatten.w;
+        specializations[4 + 2].i = shape_flatten.h;
+        specializations[4 + 3].i = shape_flatten.c;
+        specializations[4 + 4].i = shape_flatten.cstep;
+        specializations[4 + 5].i = out_shape.dims;
+        specializations[4 + 6].i = out_shape.w;
+        specializations[4 + 7].i = out_shape.h;
+        specializations[4 + 8].i = out_shape.c;
+        specializations[4 + 9].i = out_shape.cstep;
 
         Mat local_size_xyz(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
-        if (out_shape_packed.dims != 0)
+        if (out_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(64, out_shape_packed.w);
+            local_size_xyz.w = std::min(64, out_shape.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }

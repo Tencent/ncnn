@@ -38,58 +38,9 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& A_shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& B_shape = with_scalar ? A_shape : bottom_shapes.empty() ? Mat() : bottom_shapes[1];
+    Mat A_shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat B_shape = with_scalar ? A_shape : bottom_shapes.empty() ? Mat() : bottom_shapes[1];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
-
-    int A_elempack = 1;
-    if (A_shape.dims == 1) A_elempack = A_shape.w % 4 == 0 ? 4 : 1;
-    if (A_shape.dims == 2) A_elempack = A_shape.h % 4 == 0 ? 4 : 1;
-    if (A_shape.dims == 3 || A_shape.dims == 4) A_elempack = A_shape.c % 4 == 0 ? 4 : 1;
-
-    int B_elempack = 1;
-    if (B_shape.dims == 1) B_elempack = B_shape.w % 4 == 0 ? 4 : 1;
-    if (B_shape.dims == 2) B_elempack = B_shape.h % 4 == 0 ? 4 : 1;
-    if (B_shape.dims == 3 || B_shape.dims == 4) B_elempack = B_shape.c % 4 == 0 ? 4 : 1;
-
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
-
-    size_t A_elemsize;
-    size_t B_elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        A_elemsize = A_elempack * 2u;
-        B_elemsize = B_elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        A_elemsize = A_elempack * 4u;
-        B_elemsize = B_elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat A_shape_packed;
-    if (A_shape.dims == 1) A_shape_packed = Mat(A_shape.w / A_elempack, (void*)0, A_elemsize, A_elempack);
-    if (A_shape.dims == 2) A_shape_packed = Mat(A_shape.w, A_shape.h / A_elempack, (void*)0, A_elemsize, A_elempack);
-    if (A_shape.dims == 3) A_shape_packed = Mat(A_shape.w, A_shape.h, A_shape.c / A_elempack, (void*)0, A_elemsize, A_elempack);
-    if (A_shape.dims == 4) A_shape_packed = Mat(A_shape.w, A_shape.h, A_shape.d, A_shape.c / A_elempack, (void*)0, A_elemsize, A_elempack);
-
-    Mat B_shape_packed;
-    if (B_shape.dims == 1) B_shape_packed = Mat(B_shape.w / B_elempack, (void*)0, B_elemsize, B_elempack);
-    if (B_shape.dims == 2) B_shape_packed = Mat(B_shape.w, B_shape.h / B_elempack, (void*)0, B_elemsize, B_elempack);
-    if (B_shape.dims == 3) B_shape_packed = Mat(B_shape.w, B_shape.h, B_shape.c / B_elempack, (void*)0, B_elemsize, B_elempack);
-    if (B_shape.dims == 4) B_shape_packed = Mat(B_shape.w, B_shape.h, B_shape.d, B_shape.c / B_elempack, (void*)0, B_elemsize, B_elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     bool broadcast = true;
     if (A_shape.dims == B_shape.dims && A_shape.w == B_shape.w && A_shape.h == B_shape.h && A_shape.d == B_shape.d && A_shape.c == B_shape.c)
@@ -104,50 +55,50 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = op_type;
         specializations[1].i = with_scalar;
         specializations[2].f = b;
-        specializations[3 + 0].i = A_shape_packed.dims;
-        specializations[3 + 1].i = A_shape_packed.w;
-        specializations[3 + 2].i = A_shape_packed.h * A_shape_packed.d;
-        specializations[3 + 3].i = A_shape_packed.c;
-        specializations[3 + 4].i = A_shape_packed.cstep;
-        specializations[3 + 5].i = B_shape_packed.dims;
-        specializations[3 + 6].i = B_shape_packed.w;
-        specializations[3 + 7].i = B_shape_packed.h * B_shape_packed.d;
-        specializations[3 + 8].i = B_shape_packed.c;
-        specializations[3 + 9].i = B_shape_packed.cstep;
-        specializations[3 + 10].i = out_shape_packed.dims;
-        specializations[3 + 11].i = out_shape_packed.w;
-        specializations[3 + 12].i = out_shape_packed.h * out_shape_packed.d;
-        specializations[3 + 13].i = out_shape_packed.c;
-        specializations[3 + 14].i = out_shape_packed.cstep;
+        specializations[3 + 0].i = A_shape.dims;
+        specializations[3 + 1].i = A_shape.w;
+        specializations[3 + 2].i = A_shape.h * A_shape.d;
+        specializations[3 + 3].i = A_shape.c;
+        specializations[3 + 4].i = A_shape.cstep;
+        specializations[3 + 5].i = B_shape.dims;
+        specializations[3 + 6].i = B_shape.w;
+        specializations[3 + 7].i = B_shape.h * B_shape.d;
+        specializations[3 + 8].i = B_shape.c;
+        specializations[3 + 9].i = B_shape.cstep;
+        specializations[3 + 10].i = out_shape.dims;
+        specializations[3 + 11].i = out_shape.w;
+        specializations[3 + 12].i = out_shape.h * out_shape.d;
+        specializations[3 + 13].i = out_shape.c;
+        specializations[3 + 14].i = out_shape.cstep;
 
         Mat local_size_xyz;
-        if (out_shape_packed.dims == 1)
+        if (out_shape.dims == 1)
         {
-            local_size_xyz.w = std::min(64, out_shape_packed.w);
+            local_size_xyz.w = std::min(64, out_shape.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (out_shape_packed.dims == 2)
+        if (out_shape.dims == 2)
         {
-            local_size_xyz.w = std::min(8, out_shape_packed.w);
-            local_size_xyz.h = std::min(8, out_shape_packed.h);
+            local_size_xyz.w = std::min(8, out_shape.w);
+            local_size_xyz.h = std::min(8, out_shape.h);
             local_size_xyz.c = 1;
         }
-        if (out_shape_packed.dims == 3)
+        if (out_shape.dims == 3)
         {
-            local_size_xyz.w = std::min(4, out_shape_packed.w);
-            local_size_xyz.h = std::min(4, out_shape_packed.h);
-            local_size_xyz.c = std::min(4, out_shape_packed.c);
+            local_size_xyz.w = std::min(4, out_shape.w);
+            local_size_xyz.h = std::min(4, out_shape.h);
+            local_size_xyz.c = std::min(4, out_shape.c);
         }
-        if (out_shape_packed.dims == 4)
+        if (out_shape.dims == 4)
         {
-            local_size_xyz.w = std::min(4, out_shape_packed.w);
-            local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
-            local_size_xyz.c = std::min(4, out_shape_packed.c);
+            local_size_xyz.w = std::min(4, out_shape.w);
+            local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
+            local_size_xyz.c = std::min(4, out_shape.c);
         }
 
         // pack1
-        if (out_shape.dims == 0 || out_elempack == 1)
+        if (out_shape.dims == 0 || out_shape.elempack == 1)
         {
             pipeline_binaryop = new Pipeline(vkdev);
             pipeline_binaryop->set_optimal_local_size_xyz(local_size_xyz);
@@ -155,7 +106,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (out_shape.dims == 0 || out_elempack == 4)
+        if (out_shape.dims == 0 || out_shape.elempack == 4)
         {
             pipeline_binaryop_pack4 = new Pipeline(vkdev);
             pipeline_binaryop_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -170,20 +121,20 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         {
             const bool a_rank_is_lower = A_shape.dims < B_shape.dims;
             const bool a_rank_is_equal = A_shape.dims == B_shape.dims;
-            const bool a_pack_is_lower = A_elempack < B_elempack;
-            const bool a_pack_is_equal = A_elempack == B_elempack;
+            const bool a_pack_is_lower = A_shape.elempack < B_shape.elempack;
+            const bool a_pack_is_equal = A_shape.elempack == B_shape.elempack;
             const bool a_size_is_lower = A_shape.w * A_shape.h * A_shape.d * A_shape.c < B_shape.w * B_shape.h * B_shape.d * B_shape.c;
             if (a_rank_is_lower || (a_rank_is_equal && a_pack_is_lower) || (a_pack_is_equal && a_size_is_lower))
             {
                 // swap AB
-                std::swap(A_shape_packed, B_shape_packed);
+                std::swap(A_shape, B_shape);
             }
 
-            if (B_shape_packed.dims == 1 && ((A_shape_packed.dims == 2 && B_shape_packed.w * B_shape_packed.elempack != A_shape_packed.h * A_shape_packed.elempack) || ((A_shape_packed.dims == 3 || A_shape_packed.dims == 4) && B_shape_packed.w * B_shape_packed.elempack != A_shape_packed.c * A_shape_packed.elempack)))
+            if (B_shape.dims == 1 && ((A_shape.dims == 2 && B_shape.w * B_shape.elempack != A_shape.h * A_shape.elempack) || ((A_shape.dims == 3 || A_shape.dims == 4) && B_shape.w * B_shape.elempack != A_shape.c * A_shape.elempack)))
             {
-                B_shape_packed.dims = out_shape.dims;
-                B_shape_packed.w = B_shape_packed.w * B_shape_packed.elempack;
-                B_shape_packed.elempack = 1;
+                B_shape.dims = out_shape.dims;
+                B_shape.w = B_shape.w * B_shape.elempack;
+                B_shape.elempack = 1;
             }
         }
 
@@ -191,74 +142,74 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
 
         std::vector<vk_specialization_type> specializations(1 + 18);
         specializations[0].i = op_type;
-        specializations[1 + 0].i = A_shape_packed.dims;
-        specializations[1 + 1].i = A_shape_packed.w;
-        specializations[1 + 2].i = A_shape_packed.h;
-        specializations[1 + 3].i = A_shape_packed.d;
-        specializations[1 + 4].i = A_shape_packed.c;
-        specializations[1 + 5].i = A_shape_packed.cstep;
-        specializations[1 + 6].i = B_shape_packed.dims;
-        specializations[1 + 7].i = B_shape_packed.w;
-        specializations[1 + 8].i = B_shape_packed.h;
-        specializations[1 + 9].i = B_shape_packed.d;
-        specializations[1 + 10].i = B_shape_packed.c;
-        specializations[1 + 11].i = B_shape_packed.cstep;
-        specializations[1 + 12].i = out_shape_packed.dims;
-        specializations[1 + 13].i = out_shape_packed.w;
-        specializations[1 + 14].i = out_shape_packed.h;
-        specializations[1 + 15].i = out_shape_packed.d;
-        specializations[1 + 16].i = out_shape_packed.c;
-        specializations[1 + 17].i = out_shape_packed.cstep;
+        specializations[1 + 0].i = A_shape.dims;
+        specializations[1 + 1].i = A_shape.w;
+        specializations[1 + 2].i = A_shape.h;
+        specializations[1 + 3].i = A_shape.d;
+        specializations[1 + 4].i = A_shape.c;
+        specializations[1 + 5].i = A_shape.cstep;
+        specializations[1 + 6].i = B_shape.dims;
+        specializations[1 + 7].i = B_shape.w;
+        specializations[1 + 8].i = B_shape.h;
+        specializations[1 + 9].i = B_shape.d;
+        specializations[1 + 10].i = B_shape.c;
+        specializations[1 + 11].i = B_shape.cstep;
+        specializations[1 + 12].i = out_shape.dims;
+        specializations[1 + 13].i = out_shape.w;
+        specializations[1 + 14].i = out_shape.h;
+        specializations[1 + 15].i = out_shape.d;
+        specializations[1 + 16].i = out_shape.c;
+        specializations[1 + 17].i = out_shape.cstep;
 
         std::vector<vk_specialization_type> specializations_r(1 + 18);
         specializations_r[0].i = op_type_r;
-        specializations_r[1 + 0].i = A_shape_packed.dims;
-        specializations_r[1 + 1].i = A_shape_packed.w;
-        specializations_r[1 + 2].i = A_shape_packed.h;
-        specializations_r[1 + 3].i = A_shape_packed.d;
-        specializations_r[1 + 4].i = A_shape_packed.c;
-        specializations_r[1 + 5].i = A_shape_packed.cstep;
-        specializations_r[1 + 6].i = B_shape_packed.dims;
-        specializations_r[1 + 7].i = B_shape_packed.w;
-        specializations_r[1 + 8].i = B_shape_packed.h;
-        specializations_r[1 + 9].i = B_shape_packed.d;
-        specializations_r[1 + 10].i = B_shape_packed.c;
-        specializations_r[1 + 11].i = B_shape_packed.cstep;
-        specializations_r[1 + 12].i = out_shape_packed.dims;
-        specializations_r[1 + 13].i = out_shape_packed.w;
-        specializations_r[1 + 14].i = out_shape_packed.h;
-        specializations_r[1 + 15].i = out_shape_packed.d;
-        specializations_r[1 + 16].i = out_shape_packed.c;
-        specializations_r[1 + 17].i = out_shape_packed.cstep;
+        specializations_r[1 + 0].i = A_shape.dims;
+        specializations_r[1 + 1].i = A_shape.w;
+        specializations_r[1 + 2].i = A_shape.h;
+        specializations_r[1 + 3].i = A_shape.d;
+        specializations_r[1 + 4].i = A_shape.c;
+        specializations_r[1 + 5].i = A_shape.cstep;
+        specializations_r[1 + 6].i = B_shape.dims;
+        specializations_r[1 + 7].i = B_shape.w;
+        specializations_r[1 + 8].i = B_shape.h;
+        specializations_r[1 + 9].i = B_shape.d;
+        specializations_r[1 + 10].i = B_shape.c;
+        specializations_r[1 + 11].i = B_shape.cstep;
+        specializations_r[1 + 12].i = out_shape.dims;
+        specializations_r[1 + 13].i = out_shape.w;
+        specializations_r[1 + 14].i = out_shape.h;
+        specializations_r[1 + 15].i = out_shape.d;
+        specializations_r[1 + 16].i = out_shape.c;
+        specializations_r[1 + 17].i = out_shape.cstep;
 
         Mat local_size_xyz;
-        if (out_shape_packed.dims == 1)
+        if (out_shape.dims == 1)
         {
-            local_size_xyz.w = std::min(64, out_shape_packed.w);
+            local_size_xyz.w = std::min(64, out_shape.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (out_shape_packed.dims == 2)
+        if (out_shape.dims == 2)
         {
-            local_size_xyz.w = std::min(8, out_shape_packed.w);
-            local_size_xyz.h = std::min(8, out_shape_packed.h);
+            local_size_xyz.w = std::min(8, out_shape.w);
+            local_size_xyz.h = std::min(8, out_shape.h);
             local_size_xyz.c = 1;
         }
-        if (out_shape_packed.dims == 3)
+        if (out_shape.dims == 3)
         {
-            local_size_xyz.w = std::min(4, out_shape_packed.w);
-            local_size_xyz.h = std::min(4, out_shape_packed.h);
-            local_size_xyz.c = std::min(4, out_shape_packed.c);
+            local_size_xyz.w = std::min(4, out_shape.w);
+            local_size_xyz.h = std::min(4, out_shape.h);
+            local_size_xyz.c = std::min(4, out_shape.c);
         }
-        if (out_shape_packed.dims == 4)
+        if (out_shape.dims == 4)
         {
-            local_size_xyz.w = std::min(4, out_shape_packed.w);
-            local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
-            local_size_xyz.c = std::min(4, out_shape_packed.c);
+            local_size_xyz.w = std::min(4, out_shape.w);
+            local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
+            local_size_xyz.c = std::min(4, out_shape.c);
         }
 
         // pack1
-        if (out_shape.dims == 0 || (out_elempack == 1))
+        if (out_shape.dims == 0 || (out_shape.elempack == 1))
         {
             pipeline_binaryop_broadcast[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -274,7 +225,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (out_shape.dims == 0 || (A_shape_packed.elempack == 4 && B_shape_packed.elempack == 4 && out_elempack == 4))
+        if (out_shape.dims == 0 || (A_shape.elempack == 4 && B_shape.elempack == 4 && out_shape.elempack == 4))
         {
             pipeline_binaryop_broadcast_pack4[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -290,7 +241,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack1to4
-        if (out_shape.dims == 0 || ((A_shape_packed.elempack == 1 || B_shape_packed.elempack == 1) && out_elempack == 4))
+        if (out_shape.dims == 0 || ((A_shape.elempack == 1 || B_shape.elempack == 1) && out_shape.elempack == 4))
         {
             pipeline_binaryop_broadcast_pack1to4[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack1to4[0]->set_optimal_local_size_xyz(local_size_xyz);
