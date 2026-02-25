@@ -57,8 +57,12 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
 
 int Convolution_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    // skip fc like hint
+    if (shape.dims != 3) shape = Mat();
+    if (out_shape.dims != 3) out_shape = Mat();
 
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
