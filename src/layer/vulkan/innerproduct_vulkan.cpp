@@ -132,7 +132,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (num_input / in_elempack >= 32)
     {
         Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output / out_elempack, (void*)0, out_shape.elemsize, out_elempack);
-        // Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_shape.elemsize, out_elempack);
 
         // sum8
         {

@@ -779,10 +779,54 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     ncnn::Option opt = _opt;
+    opt.use_vulkan_compute = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
     op->vkdev = vkdev;
+
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    if (flag & TEST_LAYER_ENABLE_THREADING)
+        opt.num_threads = ncnn::get_physical_big_cpu_count();
+    else
+        opt.num_threads = 1;
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
+    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
+    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
+    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
+    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
+
+    if (opt.use_bf16_packed || opt.use_bf16_storage)
+    {
+        // winograd produce large error
+        opt.use_winograd_convolution = false;
+
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            return 233;
+        }
+    }
 
     if (!top_shapes.empty())
     {
@@ -862,51 +906,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
-
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
-    opt.use_vulkan_compute = true;
-
-    if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
-    else
-        opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
-
-    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
-    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
-
-    // FIXME fp16a may produce large error
-    opt.use_fp16_arithmetic = false;
-
-    if (opt.use_bf16_packed || opt.use_bf16_storage)
-    {
-        // winograd produce large error
-        opt.use_winograd_convolution = false;
-
-        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
-        {
-            fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
-            return 233;
-        }
-    }
 
     op->create_pipeline(opt);
 
@@ -1331,6 +1330,51 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->vkdev = vkdev;
 
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.use_vulkan_compute = true;
+
+    if (flag & TEST_LAYER_ENABLE_THREADING)
+        opt.num_threads = ncnn::get_physical_big_cpu_count();
+    else
+        opt.num_threads = 1;
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
+    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
+    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
+    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
+    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
+
+    if (opt.use_bf16_packed || opt.use_bf16_storage)
+    {
+        // winograd produce large error
+        opt.use_winograd_convolution = false;
+
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            return 233;
+        }
+    }
+
     if (top_shape.dims)
     {
         op->bottom_shapes.resize(1);
@@ -1402,51 +1446,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
-
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
-    opt.use_vulkan_compute = true;
-
-    if (flag & TEST_LAYER_ENABLE_THREADING)
-        opt.num_threads = ncnn::get_physical_big_cpu_count();
-    else
-        opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
-
-    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
-    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
-    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
-    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
-    if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
-    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
-    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
-    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
-    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
-
-    // FIXME fp16a may produce large error
-    opt.use_fp16_arithmetic = false;
-
-    if (opt.use_bf16_packed || opt.use_bf16_storage)
-    {
-        // winograd produce large error
-        opt.use_winograd_convolution = false;
-
-        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
-        {
-            fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
-            return 233;
-        }
-    }
 
     op->create_pipeline(opt);
 
