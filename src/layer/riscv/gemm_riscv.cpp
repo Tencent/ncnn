@@ -31,7 +31,7 @@ Gemm_riscv::Gemm_riscv()
     nT = 0;
 }
 
-static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
