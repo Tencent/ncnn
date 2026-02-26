@@ -2285,7 +2285,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
             const int max_jj = std::min((N - j), TILE_N);
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -2392,7 +2392,7 @@ static int gemm_AT_riscv_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -2464,7 +2464,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -2540,7 +2540,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -2659,7 +2659,12 @@ int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
 
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+#if __riscv_vector
+            const int packn = csrr_vlenb() / 2;
+#else
+            const int packn = 4;
+#endif
+            int C_elempack = constantM % packn == 0 ? packn : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
         }
 
@@ -2805,7 +2810,12 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     if (opt.use_packing_layout)
     {
         int outh = output_transpose ? N : M;
-        out_elempack = outh % 4 == 0 ? 4 : 1;
+#if __riscv_vector
+        const int packn = csrr_vlenb() / 2;
+#else
+        const int packn = 4;
+#endif
+        out_elempack = outh % packn == 0 ? packn : 1;
     }
     if (output_elempack)
         out_elempack = output_elempack;
