@@ -1875,6 +1875,7 @@ int Gemm_riscv::create_pipeline(const Option& opt)
     if (int8_scale_term)
     {
         support_packing = false;
+        support_fp16_storage = false;
         return 0;
     }
 #endif
