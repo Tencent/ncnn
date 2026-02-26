@@ -85,10 +85,10 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
         specializations[4 + 9].i = out_shape_unpacked.cstep;
 
         Mat local_size_xyz(std::min(16, num_output / out_elempack), 4, 1, (void*)0);
-        if (out_shape.dims != 0)
+        if (out_shape_unpacked.dims != 0)
         {
-            local_size_xyz.w = std::min(16, out_shape.w);
-            local_size_xyz.h = std::min(4, out_shape.h);
+            local_size_xyz.w = std::min(16, out_shape_unpacked.w);
+            local_size_xyz.h = std::min(4, out_shape_unpacked.h);
             local_size_xyz.c = 1;
         }
 
@@ -110,10 +110,23 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
         return 0;
     }
 
+    size_t elemsize;
+    size_t out_elemsize;
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    {
+        elemsize = in_elempack * 2u;
+        out_elemsize = out_elempack * 2u;
+    }
+    else
+    {
+        elemsize = in_elempack * 4u;
+        out_elemsize = out_elempack * 4u;
+    }
+
     Mat shape_flatten;
     if (shape.dims != 0)
     {
-        shape_flatten = Mat(shape.w * shape.h * shape.c * shape.elempack / in_elempack, (void*)0, shape.elemsize / shape.elempack * in_elempack, in_elempack);
+        shape_flatten = Mat(shape.w * shape.h * shape.c * shape.elempack / in_elempack, (void*)0, elemsize, in_elempack);
     }
 
     {
@@ -134,7 +147,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
 
     if (num_input / in_elempack >= 32)
     {
-        Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output / out_elempack, (void*)0, out_shape.elemsize, out_elempack);
+        Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
 
         // sum8
         {
