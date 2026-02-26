@@ -111,23 +111,23 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
 {
     const Op op;
 
-#if __loongarch_sx
+#if __mips_msa
     if (elempack == 4)
     {
         int i = 0;
         for (; i < w; i++)
         {
             __builtin_prefetch(ptr + 16);
-            __m128 _p = (__m128)__lsx_vld(ptr, 0);
-            __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
-            __m128 _outp = op(_p, _b);
-            __lsx_vst(_outp, outptr, 0);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            v4f32 _b = __msa_fill_w_f32(*ptr1);
+            v4f32 _outp = op(_p, _b);
+            __msa_st_w((v4i32)_outp, outptr, 0);
             ptr += 4;
             ptr1 += 1;
             outptr += 4;
         }
     }
-#endif // __loongarch_sx
+#endif // __mips_msa
 }
 
 template<typename Op>
@@ -138,18 +138,18 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
     const int size = w * elempack;
 
     int i = 0;
-#if __loongarch_sx
-    __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
+#if __mips_msa
+    v4f32 _b = __msa_fill_w_f32(*ptr1);
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
-        __m128 _p = (__m128)__lsx_vld(ptr, 0);
-        __m128 _outp = op(_p, _b);
-        __lsx_vst(_outp, outptr, 0);
+        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+        v4f32 _outp = op(_p, _b);
+        __msa_st_w((v4i32)_outp, outptr, 0);
         ptr += 4;
         outptr += 4;
     }
-#endif // __loongarch_sx
+#endif // __mips_msa
 }
 
 template<typename Op>
@@ -157,21 +157,21 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
 {
     const Op op;
 
-#if __loongarch_sx
+#if __mips_msa
     if (elempack == 4)
     {
         int i = 0;
-        __m128 _p = (__m128)__lsx_vld(ptr, 0);
+        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
         for (; i < w; i++)
         {
-            __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
-            __m128 _outp = op(_p, _b);
-            __lsx_vst(_outp, outptr, 0);
+            v4f32 _b = __msa_fill_w_f32(*ptr1);
+            v4f32 _outp = op(_p, _b);
+            __msa_st_w((v4i32)_outp, outptr, 0);
             ptr1 += 1;
             outptr += 4;
         }
     }
-#endif // __loongarch_sx
+#endif // __mips_msa
 }
 
 template<typename Op>
