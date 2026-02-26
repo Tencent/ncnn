@@ -13,8 +13,10 @@
 
 namespace ncnn {
 
+#if __riscv_zfh
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
+#endif
 
 Gemm_riscv::Gemm_riscv()
 {
