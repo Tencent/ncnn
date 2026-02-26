@@ -45,15 +45,14 @@ int Deconvolution_vulkan::load_param(const ParamDict& pd)
     return ret;
 }
 
-int Deconvolution_vulkan::create_pipeline(const Option& _opt)
+int Deconvolution_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     // the shape before unpadding
     Mat out_shape_bordered;
-    if (shape.dims != 0)
+    if (shape.dims != 0 && out_shape.dims != 0)
     {
         const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
         const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -61,7 +60,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         int outw = (shape.w - 1) * stride_w + kernel_extent_w + output_pad_right;
         int outh = (shape.h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
 
-        out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0);
+        out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0, out_shape.elemsize, out_shape.elempack);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -69,29 +68,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
     int elempack = num_input % 4 == 0 ? 4 : 1;
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_bordered_packed;
-    if (out_shape_bordered.dims == 1) out_shape_bordered_packed = Mat(out_shape_bordered.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape_bordered.dims == 2) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape_bordered.dims == 3) out_shape_bordered_packed = Mat(out_shape_bordered.w, out_shape_bordered.h, out_shape_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     {
         crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
@@ -136,19 +112,16 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         Mat out_shape_col;
         if (shape.dims != 0 && out_shape.dims != 0)
         {
-            out_shape_col = Mat(shape.w * shape.h, 1, maxk * out_shape.c, (void*)0);
+            out_shape_col = Mat(shape.w * shape.h, 1, maxk * out_shape.c, (void*)0, out_shape.elemsize, out_elempack);
         }
-
-        Mat out_shape_col_packed;
-        if (out_shape_col.dims == 3) out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h, out_shape_col.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
         use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
         if (use_cooperative_matrix)
         {
             int size = 1024;
-            if (shape_packed.dims == 3)
-                size = shape_packed.w * shape_packed.h;
+            if (shape.dims == 3)
+                size = shape.w * shape.h;
 
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, maxk * num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
@@ -314,9 +287,9 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[10].u32 = maxk * num_output;
             specializations[11].u32 = elempack;
             specializations[12].u32 = out_elempack;
-            specializations[13 + 0].u32 = shape_packed.w * shape_packed.h;
-            specializations[13 + 1].u32 = shape_packed.cstep;
-            specializations[13 + 2].u32 = out_shape_col_packed.cstep;
+            specializations[13 + 0].u32 = shape.w * shape.h;
+            specializations[13 + 1].u32 = shape.cstep;
+            specializations[13 + 2].u32 = out_shape_col.cstep;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
@@ -354,18 +327,18 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
             std::vector<vk_specialization_type> specializations(1 + 6);
             specializations[0].i = maxk;
-            specializations[1 + 0].i = shape_packed.w;
-            specializations[1 + 1].i = shape_packed.h;
-            specializations[1 + 2].i = shape_packed.c;
-            specializations[1 + 3].i = shape_packed.cstep;
-            specializations[1 + 4].i = out_shape_col_packed.cstep;
-            specializations[1 + 5].i = out_shape_col_packed.c;
+            specializations[1 + 0].i = shape.w;
+            specializations[1 + 1].i = shape.h;
+            specializations[1 + 2].i = shape.c;
+            specializations[1 + 3].i = shape.cstep;
+            specializations[1 + 4].i = out_shape_col.cstep;
+            specializations[1 + 5].i = out_shape_col.c;
 
             Mat local_size_xyz(8, std::min(4, num_output / out_elempack), 1, (void*)0);
-            if (out_shape_col_packed.dims != 0)
+            if (out_shape_col.dims != 0)
             {
-                local_size_xyz.w = std::min(8, out_shape_col_packed.w);
-                local_size_xyz.h = std::min(4, out_shape_col_packed.c);
+                local_size_xyz.w = std::min(8, out_shape_col.w);
+                local_size_xyz.h = std::min(4, out_shape_col.c);
             }
 
             int shader_type_index = -1;
@@ -399,19 +372,19 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
             specializations[10].i = num_output / out_elempack;
-            specializations[11 + 0].i = shape_packed.w;
-            specializations[11 + 1].i = shape_packed.h;
-            specializations[11 + 2].i = out_shape_col_packed.cstep;
-            specializations[11 + 3].i = out_shape_bordered_packed.w;
-            specializations[11 + 4].i = out_shape_bordered_packed.h;
-            specializations[11 + 5].i = out_shape_bordered_packed.cstep;
+            specializations[11 + 0].i = shape.w;
+            specializations[11 + 1].i = shape.h;
+            specializations[11 + 2].i = out_shape_col.cstep;
+            specializations[11 + 3].i = out_shape_bordered.w;
+            specializations[11 + 4].i = out_shape_bordered.h;
+            specializations[11 + 5].i = out_shape_bordered.cstep;
 
             Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
-            if (out_shape_bordered_packed.dims != 0)
+            if (out_shape_bordered.dims != 0)
             {
-                local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
-                local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
-                local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+                local_size_xyz.w = std::min(8, out_shape_bordered.w);
+                local_size_xyz.h = std::min(8, out_shape_bordered.h);
+                local_size_xyz.c = std::min(4, out_shape_bordered.c);
             }
 
             int shader_type_index = -1;
@@ -490,23 +463,23 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     specializations[7].i = activation_type;
     specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-    specializations[10 + 0].i = shape_packed.dims;
-    specializations[10 + 1].i = shape_packed.w;
-    specializations[10 + 2].i = shape_packed.h;
-    specializations[10 + 3].i = shape_packed.c;
-    specializations[10 + 4].i = shape_packed.cstep;
-    specializations[10 + 5].i = out_shape_bordered_packed.dims;
-    specializations[10 + 6].i = out_shape_bordered_packed.w;
-    specializations[10 + 7].i = out_shape_bordered_packed.h;
-    specializations[10 + 8].i = out_shape_bordered_packed.c;
-    specializations[10 + 9].i = out_shape_bordered_packed.cstep;
+    specializations[10 + 0].i = shape.dims;
+    specializations[10 + 1].i = shape.w;
+    specializations[10 + 2].i = shape.h;
+    specializations[10 + 3].i = shape.c;
+    specializations[10 + 4].i = shape.cstep;
+    specializations[10 + 5].i = out_shape_bordered.dims;
+    specializations[10 + 6].i = out_shape_bordered.w;
+    specializations[10 + 7].i = out_shape_bordered.h;
+    specializations[10 + 8].i = out_shape_bordered.c;
+    specializations[10 + 9].i = out_shape_bordered.cstep;
 
     Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
-    if (out_shape_bordered_packed.dims != 0)
+    if (out_shape_bordered.dims != 0)
     {
-        local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+        local_size_xyz.w = std::min(8, out_shape_bordered.w);
+        local_size_xyz.h = std::min(8, out_shape_bordered.h);
+        local_size_xyz.c = std::min(4, out_shape_bordered.c);
     }
 
     int shader_type_index = -1;

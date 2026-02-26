@@ -55,11 +55,14 @@ int Convolution_vulkan::load_param(const ParamDict& pd)
     return ret;
 }
 
-int Convolution_vulkan::create_pipeline(const Option& _opt)
+int Convolution_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
+    Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+
+    // skip fc like hint
+    if (shape.dims != 3) shape = Mat();
+    if (out_shape.dims != 3) out_shape = Mat();
 
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
@@ -70,7 +73,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     {
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
-            shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
+            shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0, shape.elemsize, shape.elempack);
         }
         else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
                  || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
@@ -82,7 +85,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             int hpad = kernel_extent_h + (shape.h - 1) / stride_h * stride_h - shape.h;
             if (wpad > 0 || hpad > 0)
             {
-                shape_bordered = Mat(shape.w + wpad, shape.h + hpad, shape.c, (void*)0);
+                shape_bordered = Mat(shape.w + wpad, shape.h + hpad, shape.c, (void*)0, shape.elemsize, shape.elempack);
             }
         }
         else
@@ -107,12 +110,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         out_elemsize = out_elempack * 4u;
     }
 
-    Mat shape_bordered_packed;
-    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, num_input / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
-
     // fc
     if (kernel_w == 1 && kernel_h == 1)
     {
@@ -121,9 +118,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             reshape_1x1xw->vkdev = vkdev;
 
             reshape_1x1xw->bottom_shapes.resize(1);
-            reshape_1x1xw->bottom_shapes[0] = Mat(num_input, (void*)0);
+            reshape_1x1xw->bottom_shapes[0] = Mat(num_input / elempack, (void*)0, elemsize, elempack);
             reshape_1x1xw->top_shapes.resize(1);
-            reshape_1x1xw->top_shapes[0] = Mat(1, 1, num_input, (void*)0);
+            reshape_1x1xw->top_shapes[0] = Mat(1, 1, num_input / elempack, (void*)0, elemsize, elempack);
 
             ncnn::ParamDict pd;
             pd.set(0, 1);         // w
@@ -140,9 +137,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             reshape_w->vkdev = vkdev;
 
             reshape_w->bottom_shapes.resize(1);
-            reshape_w->bottom_shapes[0] = Mat(1, 1, num_output, (void*)0);
+            reshape_w->bottom_shapes[0] = Mat(1, 1, num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
             reshape_w->top_shapes.resize(1);
-            reshape_w->top_shapes[0] = Mat(num_output, (void*)0);
+            reshape_w->top_shapes[0] = Mat(num_output / out_elempack, (void*)0, out_elemsize, out_elempack);
 
             ncnn::ParamDict pd;
             pd.set(0, num_output); // w
@@ -438,9 +435,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             {
                 std::vector<vk_specialization_type> specializations(1 + 6);
                 specializations[0].i = num_input / elempack;
-                specializations[1 + 0].i = shape_bordered_packed.w;
-                specializations[1 + 1].i = shape_bordered_packed.h;
-                specializations[1 + 2].i = shape_bordered_packed.cstep;
+                specializations[1 + 0].i = shape_bordered.w;
+                specializations[1 + 1].i = shape_bordered.h;
+                specializations[1 + 2].i = shape_bordered.cstep;
                 specializations[1 + 3].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[1 + 4].i = block_x;
                 specializations[1 + 5].i = block_y;
@@ -521,9 +518,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[5 + 0].i = shape_winograd_gemm_packed.cstep;
                 specializations[5 + 1].i = block_x;
                 specializations[5 + 2].i = block_y;
-                specializations[5 + 3].i = out_shape_packed.w;
-                specializations[5 + 4].i = out_shape_packed.h;
-                specializations[5 + 5].i = out_shape_packed.cstep;
+                specializations[5 + 3].i = out_shape.w;
+                specializations[5 + 4].i = out_shape.h;
+                specializations[5 + 5].i = out_shape.cstep;
 
                 int shader_type_index = -1;
                 if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd43_transform_output;
@@ -764,9 +761,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             {
                 std::vector<vk_specialization_type> specializations(1 + 6);
                 specializations[0].i = num_input / elempack;
-                specializations[1 + 0].i = shape_bordered_packed.w;
-                specializations[1 + 1].i = shape_bordered_packed.h;
-                specializations[1 + 2].i = shape_bordered_packed.cstep;
+                specializations[1 + 0].i = shape_bordered.w;
+                specializations[1 + 1].i = shape_bordered.h;
+                specializations[1 + 2].i = shape_bordered.cstep;
                 specializations[1 + 3].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[1 + 4].i = block_x;
                 specializations[1 + 5].i = block_y;
@@ -847,9 +844,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[5 + 0].i = shape_winograd_gemm_packed.cstep;
                 specializations[5 + 1].i = block_x;
                 specializations[5 + 2].i = block_y;
-                specializations[5 + 3].i = out_shape_packed.w;
-                specializations[5 + 4].i = out_shape_packed.h;
-                specializations[5 + 5].i = out_shape_packed.cstep;
+                specializations[5 + 3].i = out_shape.w;
+                specializations[5 + 4].i = out_shape.h;
+                specializations[5 + 5].i = out_shape.cstep;
 
                 int shader_type_index = -1;
                 if (out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd23_transform_output;
@@ -868,8 +865,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (use_cooperative_matrix)
         {
             int size = 1024;
-            if (out_shape_packed.dims == 3)
-                size = out_shape_packed.w * out_shape_packed.h;
+            if (out_shape.dims == 3)
+                size = out_shape.w * out_shape.h;
 
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
@@ -1047,8 +1044,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (use_cooperative_matrix)
         {
             int size = 1024;
-            if (shape_bordered_packed.dims == 3)
-                size = shape_bordered_packed.w * shape_bordered_packed.h;
+            if (shape_bordered.dims == 3)
+                size = shape_bordered.w * shape_bordered.h;
 
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
@@ -1256,12 +1253,12 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[20].u32 = num_output;
             specializations[21].u32 = elempack;
             specializations[22].u32 = out_elempack;
-            specializations[23 + 0].u32 = shape_bordered_packed.w;
-            specializations[23 + 1].u32 = shape_bordered_packed.h;
-            specializations[23 + 2].u32 = shape_bordered_packed.cstep;
-            specializations[23 + 3].u32 = out_shape_packed.w;
-            specializations[23 + 4].u32 = out_shape_packed.h;
-            specializations[23 + 5].u32 = out_shape_packed.cstep;
+            specializations[23 + 0].u32 = shape_bordered.w;
+            specializations[23 + 1].u32 = shape_bordered.h;
+            specializations[23 + 2].u32 = shape_bordered.cstep;
+            specializations[23 + 3].u32 = out_shape.w;
+            specializations[23 + 4].u32 = out_shape.h;
+            specializations[23 + 5].u32 = out_shape.cstep;
 
             pipeline_convolution_gemm = new Pipeline(vkdev);
             pipeline_convolution_gemm->set_subgroup_size(coopmat_subgroup_size);
@@ -1281,20 +1278,20 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[7].i = activation_type;
             specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[10 + 0].i = shape_bordered_packed.w;
-            specializations[10 + 1].i = shape_bordered_packed.h;
-            specializations[10 + 2].i = shape_bordered_packed.c;
-            specializations[10 + 3].i = shape_bordered_packed.cstep;
-            specializations[10 + 4].i = out_shape_packed.w;
-            specializations[10 + 5].i = out_shape_packed.h;
-            specializations[10 + 6].i = out_shape_packed.c;
-            specializations[10 + 7].i = out_shape_packed.cstep;
+            specializations[10 + 0].i = shape_bordered.w;
+            specializations[10 + 1].i = shape_bordered.h;
+            specializations[10 + 2].i = shape_bordered.c;
+            specializations[10 + 3].i = shape_bordered.cstep;
+            specializations[10 + 4].i = out_shape.w;
+            specializations[10 + 5].i = out_shape.h;
+            specializations[10 + 6].i = out_shape.c;
+            specializations[10 + 7].i = out_shape.cstep;
 
             Mat local_size_xyz(16, std::min(4, num_output / out_elempack), 1, (void*)0);
-            if (out_shape_packed.dims != 0)
+            if (out_shape.dims != 0)
             {
-                local_size_xyz.w = std::min(16, out_shape_packed.w * out_shape_packed.h);
-                local_size_xyz.h = std::min(4, out_shape_packed.c);
+                local_size_xyz.w = std::min(16, out_shape.w * out_shape.h);
+                local_size_xyz.h = std::min(4, out_shape.c);
             }
 
             int shader_type_index = -1;
@@ -1337,9 +1334,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[14].u32 = num_output;
             specializations[15].u32 = elempack;
             specializations[16].u32 = out_elempack;
-            specializations[17 + 0].u32 = shape_bordered_packed.w * shape_bordered_packed.h;
-            specializations[17 + 1].u32 = shape_bordered_packed.cstep;
-            specializations[17 + 2].u32 = out_shape_packed.cstep;
+            specializations[17 + 0].u32 = shape_bordered.w * shape_bordered.h;
+            specializations[17 + 1].u32 = shape_bordered.cstep;
+            specializations[17 + 2].u32 = out_shape.cstep;
 
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
@@ -1353,14 +1350,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[4 + 0].i = shape_bordered_packed.w;
-            specializations[4 + 1].i = shape_bordered_packed.h;
-            specializations[4 + 2].i = shape_bordered_packed.c;
-            specializations[4 + 3].i = shape_bordered_packed.cstep;
-            specializations[4 + 4].i = out_shape_packed.w;
-            specializations[4 + 5].i = out_shape_packed.h;
-            specializations[4 + 6].i = out_shape_packed.c;
-            specializations[4 + 7].i = out_shape_packed.cstep;
+            specializations[4 + 0].i = shape_bordered.w;
+            specializations[4 + 1].i = shape_bordered.h;
+            specializations[4 + 2].i = shape_bordered.c;
+            specializations[4 + 3].i = shape_bordered.cstep;
+            specializations[4 + 4].i = out_shape.w;
+            specializations[4 + 5].i = out_shape.h;
+            specializations[4 + 6].i = out_shape.c;
+            specializations[4 + 7].i = out_shape.cstep;
 
             int shader_type_index = -1;
             if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_1x1s1d1;
@@ -1393,23 +1390,23 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         specializations[7].i = activation_type;
         specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[10 + 0].i = shape_bordered_packed.dims;
-        specializations[10 + 1].i = shape_bordered_packed.w;
-        specializations[10 + 2].i = shape_bordered_packed.h;
-        specializations[10 + 3].i = shape_bordered_packed.c;
-        specializations[10 + 4].i = shape_bordered_packed.cstep;
-        specializations[10 + 5].i = out_shape_packed.dims;
-        specializations[10 + 6].i = out_shape_packed.w;
-        specializations[10 + 7].i = out_shape_packed.h;
-        specializations[10 + 8].i = out_shape_packed.c;
-        specializations[10 + 9].i = out_shape_packed.cstep;
+        specializations[10 + 0].i = shape_bordered.dims;
+        specializations[10 + 1].i = shape_bordered.w;
+        specializations[10 + 2].i = shape_bordered.h;
+        specializations[10 + 3].i = shape_bordered.c;
+        specializations[10 + 4].i = shape_bordered.cstep;
+        specializations[10 + 5].i = out_shape.dims;
+        specializations[10 + 6].i = out_shape.w;
+        specializations[10 + 7].i = out_shape.h;
+        specializations[10 + 8].i = out_shape.c;
+        specializations[10 + 9].i = out_shape.cstep;
 
         Mat local_size_xyz(8, 8, std::min(4, (num_output / out_elempack + 1) / 2), (void*)0);
-        if (out_shape_packed.dims != 0)
+        if (out_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(8, out_shape_packed.w);
-            local_size_xyz.h = std::min(8, out_shape_packed.h);
-            local_size_xyz.c = std::min(4, (out_shape_packed.c + 1) / 2);
+            local_size_xyz.w = std::min(8, out_shape.w);
+            local_size_xyz.h = std::min(8, out_shape.h);
+            local_size_xyz.c = std::min(4, (out_shape.c + 1) / 2);
         }
 
         int shader_type_index = -1;

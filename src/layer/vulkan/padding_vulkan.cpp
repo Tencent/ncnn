@@ -21,92 +21,48 @@ Padding_vulkan::Padding_vulkan()
     pipeline_padding_3d_pack4 = 0;
 }
 
-int Padding_vulkan::create_pipeline(const Option& _opt)
+int Padding_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
-
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
 
     int offset_elempack = 1;
     if (shape.dims == 1)
     {
         if (left == 0)
-            offset_elempack = elempack;
+            offset_elempack = shape.elempack;
         else
             offset_elempack = left % 4 == 0 ? 4 : 1;
     }
     else if (shape.dims == 2)
     {
         if (top == 0)
-            offset_elempack = elempack;
+            offset_elempack = shape.elempack;
         else
             offset_elempack = top % 4 == 0 ? 4 : 1;
     }
     else if (shape.dims == 3)
     {
         if (front == 0)
-            offset_elempack = elempack;
+            offset_elempack = shape.elempack;
         else
             offset_elempack = front % 4 == 0 ? 4 : 1;
     }
     else // if (shape.dims == 4)
     {
-        offset_elempack = elempack;
+        offset_elempack = shape.elempack;
     }
 
-    offset_elempack = std::min(offset_elempack, elempack);
+    offset_elempack = std::min(offset_elempack, shape.elempack);
 
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+    Mat shape_unpacked = shape;
+    if (one_blob_only && shape.dims != 0 && shape.elempack > offset_elempack)
     {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
+        size_t offset_elemsize = shape.elemsize / shape.elempack * offset_elempack;
 
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
-    Mat shape_unpacked = shape_packed;
-    if (one_blob_only && shape.dims != 0 && elempack > offset_elempack)
-    {
-        size_t offset_elemsize;
-        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-        {
-            offset_elemsize = offset_elempack * 2u;
-        }
-        else
-        {
-            offset_elemsize = offset_elempack * 4u;
-        }
-
-        if (shape.dims == 1) shape_unpacked = Mat(shape.w / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
-        if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
-        if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 1) shape_unpacked = Mat(shape.w * shape.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h * shape.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c * shape.elempack / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
         // if (shape.dims == 4) should never reach here
     }
 
@@ -119,11 +75,11 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     specializations[3 + 2].i = shape_unpacked.h;
     specializations[3 + 3].i = shape_unpacked.c;
     specializations[3 + 4].i = shape_unpacked.cstep;
-    specializations[3 + 5].i = out_shape_packed.dims;
-    specializations[3 + 6].i = out_shape_packed.w;
-    specializations[3 + 7].i = out_shape_packed.h;
-    specializations[3 + 8].i = out_shape_packed.c;
-    specializations[3 + 9].i = out_shape_packed.cstep;
+    specializations[3 + 5].i = out_shape.dims;
+    specializations[3 + 6].i = out_shape.w;
+    specializations[3 + 7].i = out_shape.h;
+    specializations[3 + 8].i = out_shape.c;
+    specializations[3 + 9].i = out_shape.cstep;
 
     std::vector<vk_specialization_type> specializations_3d(3 + 12);
     specializations_3d[0].i = type;
@@ -135,41 +91,41 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     specializations_3d[3 + 3].i = shape_unpacked.d;
     specializations_3d[3 + 4].i = shape_unpacked.c;
     specializations_3d[3 + 5].i = shape_unpacked.cstep;
-    specializations_3d[3 + 6].i = out_shape_packed.dims;
-    specializations_3d[3 + 7].i = out_shape_packed.w;
-    specializations_3d[3 + 8].i = out_shape_packed.h;
-    specializations_3d[3 + 9].i = out_shape_packed.d;
-    specializations_3d[3 + 10].i = out_shape_packed.c;
-    specializations_3d[3 + 11].i = out_shape_packed.cstep;
+    specializations_3d[3 + 6].i = out_shape.dims;
+    specializations_3d[3 + 7].i = out_shape.w;
+    specializations_3d[3 + 8].i = out_shape.h;
+    specializations_3d[3 + 9].i = out_shape.d;
+    specializations_3d[3 + 10].i = out_shape.c;
+    specializations_3d[3 + 11].i = out_shape.cstep;
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims == 1)
+    if (out_shape.dims == 1)
     {
-        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.w = std::min(64, out_shape.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 2)
+    if (out_shape.dims == 2)
     {
-        local_size_xyz.w = std::min(8, out_shape_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.w = std::min(8, out_shape.w);
+        local_size_xyz.h = std::min(8, out_shape.h);
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 3)
+    if (out_shape.dims == 3)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
-    if (out_shape_packed.dims == 4)
+    if (out_shape.dims == 4)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
 
     // pack1
-    if (out_shape.dims == 0 || (offset_elempack == 1 && out_elempack == 1))
+    if (out_shape.dims == 0 || (offset_elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
@@ -181,7 +137,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4
-    if (out_shape.dims == 0 || (offset_elempack == 4 && out_elempack == 4))
+    if (out_shape.dims == 0 || (offset_elempack == 4 && out_shape.elempack == 4))
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -193,7 +149,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to4
-    if (out_shape.dims == 0 || (offset_elempack == 1 && out_elempack == 4))
+    if (out_shape.dims == 0 || (offset_elempack == 1 && out_shape.elempack == 4))
     {
         pipeline_padding_pack1to4 = new Pipeline(vkdev);
         pipeline_padding_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -201,7 +157,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to1
-    if (out_shape.dims == 0 || (offset_elempack == 4 && out_elempack == 1))
+    if (out_shape.dims == 0 || (offset_elempack == 4 && out_shape.elempack == 1))
     {
         pipeline_padding_pack4to1 = new Pipeline(vkdev);
         pipeline_padding_pack4to1->set_optimal_local_size_xyz(local_size_xyz);

@@ -458,7 +458,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     if (param.type == 10)
     {
         char buf[128];
-        sprintf(buf, "%e+%ej", param.c.real(), param.c.imag());
+        snprintf(buf, 128, "%e+%ej", param.c.real(), param.c.imag());
         return std::string(buf);
     }
     if (param.type == 11)
@@ -467,7 +467,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
         for (size_t i = 0; i < param.ac.size(); i++)
         {
             char buf[128];
-            sprintf(buf, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
+            snprintf(buf, 128, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
             s += std::string(buf);
             if (i + 1 != param.ac.size())
                 s += std::string(",");

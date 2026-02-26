@@ -69,7 +69,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         const auto& in = g->inputs()[i];
 
         char name[32];
-        sprintf(name, "pnnx_input_%d", i - 1);
+        snprintf(name, 32, "pnnx_input_%d", i - 1);
 
         Operator* op = pg.new_operator("pnnx.Input", name);
         Operand* r = pg.new_operand(in);
@@ -151,7 +151,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         else if (n->kind() == c10::prim::Constant) // || n->kind() == c10::prim::ListConstruct)
         {
             char name[32];
-            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
+            snprintf(name, 32, "pnnx_%d", pnnx_unknown_index++);
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
@@ -321,7 +321,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     for (auto attr : constant_attr_nodes)
                     {
                         char name[32];
-                        sprintf(name, "pnnx_%02d", pnnx_moduleop_unknown_index);
+                        snprintf(name, 32, "pnnx_%02d", pnnx_moduleop_unknown_index);
                         op->attrs[name] = attr.second->t(torch::jit::attr::value);
                         pnnx_moduleop_unknown_index++;
                     }
@@ -395,7 +395,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         else
         {
             char name[32];
-            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
+            snprintf(name, 32, "pnnx_%d", pnnx_unknown_index++);
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
@@ -422,7 +422,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         const auto& in = g->outputs()[i];
 
         char name[32];
-        sprintf(name, "pnnx_output_%d", i);
+        snprintf(name, 32, "pnnx_output_%d", i);
         Operator* op = pg.new_operator("pnnx.Output", name);
         Operand* r = pg.get_operand(in->debugName());
         r->consumers.push_back(op);
