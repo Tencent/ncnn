@@ -48,10 +48,14 @@ void main()
         for (int i = 0; i < p.w; i++)
         {
             vec4 v = bottom_top_blob_data[v_offset + i];
-            if (component == 0) sum += v.r;
-            else if (component == 1) sum += v.g;
-            else if (component == 2) sum += v.b;
-            else sum += v.a;
+            if (component == 0)
+                sum += v.r;
+            else if (component == 1)
+                sum += v.g;
+            else if (component == 2)
+                sum += v.b;
+            else
+                sum += v.a;
         }
     }
 
