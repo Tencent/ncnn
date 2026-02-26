@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "clip_riscv.h"
+#include "gemm_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
