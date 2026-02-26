@@ -523,14 +523,14 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     if (out_elempack == 1)
                     {
                         vfloat16m1x8_t _sum_f16 = __riscv_vcreate_v_f16m1x8(
-                            __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum3, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum4, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum5, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum6, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum7, vl));
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum3, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum4, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum5, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum6, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum7, vl));
                         __riscv_vssseg8e16_v_f16m1x8(outptr0, out_hstep * sizeof(__fp16), _sum_f16, vl);
                         outptr0 += 8;
                     }
@@ -639,10 +639,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     if (out_elempack == 1)
                     {
                         vfloat16m1x4_t _sum_f16 = __riscv_vcreate_v_f16m1x4(
-                            __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
-                            __riscv_vfncvt_f_f_w_f16m1(_sum3, vl));
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
+                                                      __riscv_vfncvt_f_f_w_f16m1(_sum3, vl));
                         __riscv_vssseg4e16_v_f16m1x4(outptr0, out_hstep * sizeof(__fp16), _sum_f16, vl);
                         outptr0 += 4;
                     }
@@ -728,8 +728,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 if (out_elempack == 1)
                 {
                     vfloat16m1x2_t _sum_f16 = __riscv_vcreate_v_f16m1x2(
-                        __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
-                        __riscv_vfncvt_f_f_w_f16m1(_sum1, vl));
+                                                  __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
+                                                  __riscv_vfncvt_f_f_w_f16m1(_sum1, vl));
                     __riscv_vssseg2e16_v_f16m1x2(outptr0, out_hstep * sizeof(__fp16), _sum_f16, vl);
                     outptr0 += 2;
                 }
