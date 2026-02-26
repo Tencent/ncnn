@@ -7,6 +7,10 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
+#include "cpu.h"
+
 namespace ncnn {
 
 #if NCNN_ZFH
