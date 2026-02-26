@@ -419,7 +419,8 @@ int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
             }
         }
 
-        A_data.release();
+        if (opt.lightmode)
+            A_data.release();
     }
 
     if (constantB)
@@ -459,29 +460,33 @@ int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
             }
         }
 
-        B_data.release();
+        if (opt.lightmode)
+            B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
     {
         CT_data = C_data;
 
+#if __riscv_vector
+        const int packn = csrr_vlenb() / 2;
+
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-#if __riscv_vector
-            const int packn = csrr_vlenb() / 2;
-#else
-            const int packn = 4;
-#endif
             int C_elempack = constantM % packn == 0 ? packn : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
+#endif // __riscv_vector
 
         // pre-multiply C with beta
         if (beta != 1.f)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -492,7 +497,8 @@ int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
             CT_data = C2;
         }
 
-        C_data.release();
+        if (opt.lightmode)
+            C_data.release();
     }
 
     if (constantA || constantB || constantC)
@@ -597,12 +603,17 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 Mat CT_data;
                 cast_float16_to_float32(C, CT_data);
                 C = CT_data;
+                if (C.empty())
+                    return -100;
             }
+
             // pre-multiply C with beta
             if (beta != 1.f)
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
@@ -615,17 +626,18 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
         }
     }
 
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+#endif
+
     int out_elempack = 1;
+#if __riscv_vector
     if (opt.use_packing_layout)
     {
         int outh = output_transpose ? N : M;
-#if __riscv_vector
-        const int packn = csrr_vlenb() / 2;
-#else
-        const int packn = 4;
-#endif
         out_elempack = outh % packn == 0 ? packn : 1;
     }
+#endif // __riscv_vector
     if (output_elempack)
         out_elempack = output_elempack;
     size_t out_elemsize = 2u * out_elempack;
