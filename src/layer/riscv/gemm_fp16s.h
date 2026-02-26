@@ -32,34 +32,24 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
-        int kk = 0;
-        int n = max_kk;
-        while (n > 0)
+        for (int kk = 0; kk < max_kk; kk++)
         {
-            size_t vl2 = __riscv_vsetvl_e32m2(n);
-            vfloat16m1_t _r0 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(p0, vl2), vl2);
-            vfloat16m1_t _r1 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(p1, vl2), vl2);
-            __riscv_vsseg2e16_v_f16m1x2(pp, __riscv_vcreate_v_f16m1x2(_r0, _r1), vl2);
-            pp += 2 * vl2;
-            p0 += vl2;
-            p1 += vl2;
-            n -= vl2;
+            pp[0] = (__fp16)p0[0];
+            pp[1] = (__fp16)p1[0];
+            pp += 2;
+            p0++;
+            p1++;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
-        int kk = 0;
-        int n = max_kk;
-        while (n > 0)
+        for (int kk = 0; kk < max_kk; kk++)
         {
-            size_t vl2 = __riscv_vsetvl_e32m2(n);
-            vfloat16m1_t _r0 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2(p0, vl2), vl2);
-            __riscv_vse16_v_f16m1(pp, _r0, vl2);
-            pp += vl2;
-            p0 += vl2;
-            n -= vl2;
+            pp[0] = (__fp16)p0[0];
+            pp += 1;
+            p0++;
         }
     }
 }
