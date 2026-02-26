@@ -592,6 +592,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_unflatten.cpp
+    pass_ncnn/TopK.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
