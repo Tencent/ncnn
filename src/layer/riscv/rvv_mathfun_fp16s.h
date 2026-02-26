@@ -404,6 +404,28 @@ _RVV_FLOAT16_ATAN2_OP(4, 4)
 _RVV_FLOAT16_ATAN2_OP(8, 2)
 
 /* fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0) */
+#if __riscv_xtheadvector
+// simulate trunc with floor positives and ceil negative
+// xi = round(x)
+// floorx = xi - (xi > x)
+// ceilx = xi + (xi < x)
+// truncx = x >= 0 ? floorx : ceilx
+#define _RVV_FLOAT16_FMOD_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t fmod_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                  \
+        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                 \
+        vint16m##LMUL##_t qi = __riscv_vfcvt_x_f_v_i16m##LMUL(q, vl);                                   \
+        vfloat16m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f16m##LMUL(qi, vl);                                \
+        vbool##MLEN##_t _floormask = __riscv_vmfgt_vv_f16m##LMUL##_b##MLEN(qf, q, vl);                 \
+        vint16m##LMUL##_t _floorx = __riscv_vsub_vx_i16m##LMUL##_mu(_floormask, qi, qi, 1, vl);        \
+        vbool##MLEN##_t _ceilmask = __riscv_vmflt_vv_f16m##LMUL##_b##MLEN(qf, q, vl);                   \
+        vint16m##LMUL##_t _ceilx = __riscv_vadd_vx_i16m##LMUL##_mu(_ceilmask, qi, qi, 1, vl);          \
+        vbool##MLEN##_t _negative = __riscv_vmflt_vf_f16m##LMUL##_b##MLEN(q, (__fp16)0.f, vl);         \
+        vint16m##LMUL##_t trunc_qi = __riscv_vmerge_vvm_i16m##LMUL(_floorx, _ceilx, _negative, vl);    \
+        vfloat16m##LMUL##_t trunc_q = __riscv_vfcvt_f_x_v_f16m##LMUL(trunc_qi, vl);                     \
+        return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(trunc_q, b, vl), vl);         \
+    }
+#else
 #define _RVV_FLOAT16_FMOD_OP(LMUL, MLEN)                                                               \
     static inline vfloat16m##LMUL##_t fmod_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
     {                                                                                                  \
@@ -412,6 +434,7 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
         vfloat16m##LMUL##_t qf = __riscv_vfcvt_f_x_v_f16m##LMUL(qi, vl);                               \
         return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(qf, b, vl), vl);             \
     }
+#endif
 
 _RVV_FLOAT16_FMOD_OP(1, 16)
 _RVV_FLOAT16_FMOD_OP(2, 8)
