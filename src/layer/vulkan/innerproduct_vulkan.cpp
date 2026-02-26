@@ -65,21 +65,24 @@ int InnerProduct_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
+        Mat shape_unpacked(shape.w, shape.h * shape.elempack, (void*)0);
+        Mat out_shape_unpacked(out_shape.w, out_shape.h * out_shape.elempack, (void*)0);
+
         std::vector<vk_specialization_type> specializations(4 + 10);
         specializations[0].i = bias_term;
         specializations[1].i = activation_type;
         specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[4 + 0].i = shape.dims;
-        specializations[4 + 1].i = shape.w;
-        specializations[4 + 2].i = shape.h;
-        specializations[4 + 3].i = shape.c;
-        specializations[4 + 4].i = shape.cstep;
-        specializations[4 + 5].i = out_shape.dims;
-        specializations[4 + 6].i = out_shape.w;
-        specializations[4 + 7].i = out_shape.h;
-        specializations[4 + 8].i = out_shape.c;
-        specializations[4 + 9].i = out_shape.cstep;
+        specializations[4 + 0].i = shape_unpacked.dims;
+        specializations[4 + 1].i = shape_unpacked.w;
+        specializations[4 + 2].i = shape_unpacked.h;
+        specializations[4 + 3].i = shape_unpacked.c;
+        specializations[4 + 4].i = shape_unpacked.cstep;
+        specializations[4 + 5].i = out_shape_unpacked.dims;
+        specializations[4 + 6].i = out_shape_unpacked.w;
+        specializations[4 + 7].i = out_shape_unpacked.h;
+        specializations[4 + 8].i = out_shape_unpacked.c;
+        specializations[4 + 9].i = out_shape_unpacked.cstep;
 
         Mat local_size_xyz(std::min(16, num_output / out_elempack), 4, 1, (void*)0);
         if (out_shape.dims != 0)
