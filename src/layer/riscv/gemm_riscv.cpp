@@ -31,6 +31,7 @@ Gemm_riscv::Gemm_riscv()
     nT = 0;
 }
 
+namespace Gemm_riscv {
 void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
@@ -126,6 +127,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
         }
     }
 }
+} // namespace Gemm_riscv
 
 static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
