@@ -1281,16 +1281,6 @@ int Net::load_param(const DataReader& dr)
             layer_cpu->top_shapes = layer->top_shapes;
             layer_cpu->featmask = layer->featmask;
 
-            // use unpacked shape hint for cpu layer
-            for (int j = 0; j < bottom_count; j++)
-            {
-                layer_cpu->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-            }
-            for (int j = 0; j < top_count; j++)
-            {
-                layer_cpu->top_shapes[j] = d->blobs[layer->tops[j]].shape;
-            }
-
             int lr = layer_cpu->load_param(pd);
             if (lr != 0)
             {
@@ -1651,16 +1641,6 @@ int Net::load_param_bin(const DataReader& dr)
             layer_cpu->bottom_shapes = layer->bottom_shapes;
             layer_cpu->top_shapes = layer->top_shapes;
             layer_cpu->featmask = layer->featmask;
-
-            // use unpacked shape hint for cpu layer
-            for (int j = 0; j < bottom_count; j++)
-            {
-                layer_cpu->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-            }
-            for (int j = 0; j < top_count; j++)
-            {
-                layer_cpu->top_shapes[j] = d->blobs[layer->tops[j]].shape;
-            }
 
             int lr = layer_cpu->load_param(pd);
             if (lr != 0)
