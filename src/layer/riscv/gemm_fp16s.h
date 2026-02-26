@@ -364,7 +364,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         int jj = 0;
         for (; jj + (packn - 1) < max_jj; jj += packn)
         {
-            if (packn == 8)
+            if (packn == 16)
             {
                 vfloat32m2_t _sum0;
                 vfloat32m2_t _sum1;
