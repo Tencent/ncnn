@@ -111,11 +111,7 @@ static inline vfloat16m8_t __riscv_vle16_v_f16m8_f16m1(const __fp16* ptr)
     vuint16m8_t bindex = __riscv_vle16_v_u16m8(index, vl);
     return __riscv_vloxei16_v_f16m8(ptr, bindex, vl);
 }
-
 #endif // __riscv_zfh
-#endif // __riscv_vector
-
-#if __riscv_vector
 
 static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
@@ -336,7 +332,6 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3l = __riscv_vle32_v_f32m1(ptr + 6 * 4, vl);
     _r3h = __riscv_vle32_v_f32m1(ptr + 7 * 4, vl);
 }
-
 #endif // __riscv_vector
 
 #endif // RISCV_USABILITY_H
