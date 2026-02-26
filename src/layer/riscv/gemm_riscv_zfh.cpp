@@ -17,11 +17,6 @@ namespace ncnn {
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
-namespace Gemm_riscv_utility {
-extern void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
-}
-
-using Gemm_riscv_utility::pack_A_tile;
 
 static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
@@ -94,7 +89,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
             const int max_jj = std::min((N - j), TILE_N);
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -201,7 +196,7 @@ static int gemm_AT_riscv_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -273,7 +268,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -349,7 +344,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_fp16s(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
