@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution1d_x86.h"
 
@@ -34,7 +23,7 @@ Convolution1D_x86::Convolution1D_x86()
 #endif // __SSE2__
 }
 
-int Convolution1D_x86::create_pipeline(const Option& /*opt*/)
+int Convolution1D_x86::create_pipeline(const Option& opt)
 {
     if (dynamic_weight)
         return 0;
@@ -43,7 +32,8 @@ int Convolution1D_x86::create_pipeline(const Option& /*opt*/)
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

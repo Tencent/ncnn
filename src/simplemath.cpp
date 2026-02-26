@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
@@ -134,6 +123,12 @@ float truncf(float x)
 float frac(float x)
 {
     return x - floor(x);
+}
+
+float fmodf(float x, float y)
+{
+    float m = frac(fabsf(x / y)) * fabsf(y);
+    return (x < 0) ? -m : m;
 }
 
 /*
@@ -314,14 +309,39 @@ float atan2f(float y, float x)
     }
 }
 
-float tanhf(float v)
+float sinhf(float x)
 {
-    if (v >= 8 || v <= -8)
+    return 0.5 * (expf(x) - expf(-x));
+}
+
+float coshf(float x)
+{
+    return 0.5 * (expf(x) + expf(-x));
+}
+
+float tanhf(float x)
+{
+    if (x >= 8 || x <= -8)
     {
-        return copysignf(1, v);
+        return copysignf(1, x);
     }
-    float exp2v = expf(2 * v);
+    float exp2v = expf(2 * x);
     return (exp2v - 1) / (exp2v + 1);
+}
+
+float asinhf(float x)
+{
+    return logf(x + sqrtf(x * x + 1));
+}
+
+float acoshf(float x)
+{
+    return logf(x + sqrtf(x * x - 1));
+}
+
+float atanhf(float x)
+{
+    return 0.5f * logf((1 + x) / (1 - x));
 }
 
 /*

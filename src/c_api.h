@@ -1,16 +1,5 @@
-/* Tencent is pleased to support the open source community by making ncnn available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
- *
- * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
- * in compliance with the License. You may obtain a copy of the License at
- *
- * https://opensource.org/licenses/BSD-3-Clause
- *
- * Unless required by applicable law or agreed to in writing, software distributed
- * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations under the License.
+/* Copyright 2020 Tencent
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #ifndef NCNN_C_API_H
@@ -26,7 +15,8 @@
 extern "C" {
 #endif
 
-NCNN_EXPORT const char* ncnn_version();
+NCNN_EXPORT const char* ncnn_version(void);
+NCNN_EXPORT int ncnn_version_number(void);
 
 /* allocator api */
 typedef struct __ncnn_allocator_t* ncnn_allocator_t;
@@ -38,32 +28,58 @@ struct NCNN_EXPORT __ncnn_allocator_t
     void (*fast_free)(ncnn_allocator_t allocator, void* ptr);
 };
 
-NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator();
-NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator(void);
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator(void);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
 /* option api */
 typedef struct __ncnn_option_t* ncnn_option_t;
 
-NCNN_EXPORT ncnn_option_t ncnn_option_create();
+NCNN_EXPORT ncnn_option_t ncnn_option_create(void);
 NCNN_EXPORT void ncnn_option_destroy(ncnn_option_t opt);
 
 NCNN_EXPORT int ncnn_option_get_num_threads(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
 
-NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator);
-
 NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
+NCNN_EXPORT int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_packing_layout(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_int8_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt);
+
+NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_int8_arithmetic(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable);
 
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create();
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create(void);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
@@ -140,7 +156,7 @@ NCNN_EXPORT void ncnn_blob_get_shape(const ncnn_blob_t blob, int* dims, int* w, 
 /* paramdict api */
 typedef struct __ncnn_paramdict_t* ncnn_paramdict_t;
 
-NCNN_EXPORT ncnn_paramdict_t ncnn_paramdict_create();
+NCNN_EXPORT ncnn_paramdict_t ncnn_paramdict_create(void);
 NCNN_EXPORT void ncnn_paramdict_destroy(ncnn_paramdict_t pd);
 
 NCNN_EXPORT int ncnn_paramdict_get_type(const ncnn_paramdict_t pd, int id);
@@ -165,7 +181,7 @@ struct NCNN_EXPORT __ncnn_datareader_t
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);
 };
 
-NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create();
+NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create(void);
 #if NCNN_STDIO
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp);
 #endif /* NCNN_STDIO */
@@ -206,7 +222,7 @@ struct NCNN_EXPORT __ncnn_layer_t
     int (*forward_inplace_n)(const ncnn_layer_t layer, ncnn_mat_t* bottom_top_blobs, int n, const ncnn_option_t opt);
 };
 
-NCNN_EXPORT ncnn_layer_t ncnn_layer_create();
+NCNN_EXPORT ncnn_layer_t ncnn_layer_create(void);
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
 #if NCNN_STRING
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_type(const char* type);
@@ -229,7 +245,9 @@ NCNN_EXPORT int ncnn_layer_get_support_vulkan(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_packing(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_bf16_storage(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_support_fp16_storage(const ncnn_layer_t layer);
-NCNN_EXPORT int ncnn_layer_get_support_image_storage(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_any_packing(const ncnn_layer_t layer);
+NCNN_EXPORT int ncnn_layer_get_support_vulkan_any_packing(const ncnn_layer_t layer);
 
 NCNN_EXPORT void ncnn_layer_set_one_blob_only(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_inplace(ncnn_layer_t layer, int enable);
@@ -237,7 +255,9 @@ NCNN_EXPORT void ncnn_layer_set_support_vulkan(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_packing(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_bf16_storage(ncnn_layer_t layer, int enable);
 NCNN_EXPORT void ncnn_layer_set_support_fp16_storage(ncnn_layer_t layer, int enable);
-NCNN_EXPORT void ncnn_layer_set_support_image_storage(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_any_packing(ncnn_layer_t layer, int enable);
+NCNN_EXPORT void ncnn_layer_set_support_vulkan_any_packing(ncnn_layer_t layer, int enable);
 
 NCNN_EXPORT int ncnn_layer_get_bottom_count(const ncnn_layer_t layer);
 NCNN_EXPORT int ncnn_layer_get_bottom(const ncnn_layer_t layer, int i);
@@ -269,11 +289,15 @@ struct __ncnn_net_t
     ncnn_net_custom_layer_factory_t custom_layer_factory;
 };
 
-NCNN_EXPORT ncnn_net_t ncnn_net_create();
+NCNN_EXPORT ncnn_net_t ncnn_net_create(void);
 NCNN_EXPORT void ncnn_net_destroy(ncnn_net_t net);
 
 NCNN_EXPORT ncnn_option_t ncnn_net_get_option(ncnn_net_t net);
 NCNN_EXPORT void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
+
+#if NCNN_VULKAN
+NCNN_EXPORT void ncnn_net_set_vulkan_device(ncnn_net_t net, int device_index);
+#endif
 
 #if NCNN_STRING
 NCNN_EXPORT void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata);
@@ -286,6 +310,13 @@ NCNN_EXPORT int ncnn_net_load_param(ncnn_net_t net, const char* path);
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_net_load_param_bin(ncnn_net_t net, const char* path);
 NCNN_EXPORT int ncnn_net_load_model(ncnn_net_t net, const char* path);
+#if _WIN32
+#if NCNN_STRING
+NCNN_EXPORT int ncnn_net_load_param_w(ncnn_net_t net, const wchar_t* path);
+#endif /* NCNN_STRING */
+NCNN_EXPORT int ncnn_net_load_param_bin_w(ncnn_net_t net, const wchar_t* path);
+NCNN_EXPORT int ncnn_net_load_model_w(ncnn_net_t net, const wchar_t* path);
+#endif /* _WIN32 */
 #endif /* NCNN_STDIO */
 
 #if NCNN_STDIO
@@ -293,8 +324,8 @@ NCNN_EXPORT int ncnn_net_load_model(ncnn_net_t net, const char* path);
 NCNN_EXPORT int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem);
 #endif /* NCNN_STRING */
 #endif /* NCNN_STDIO */
-NCNN_EXPORT int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem);
-NCNN_EXPORT int ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem);
+NCNN_EXPORT size_t ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem);
+NCNN_EXPORT size_t ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem);
 
 #if NCNN_STRING
 NCNN_EXPORT int ncnn_net_load_param_datareader(ncnn_net_t net, const ncnn_datareader_t dr);
@@ -338,6 +369,7 @@ NCNN_EXPORT void ncnn_copy_make_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, 
 NCNN_EXPORT void ncnn_copy_cut_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, const ncnn_option_t opt);
 
+#if NCNN_PIXEL_DRAWING
 /* mat pixel drawing api*/
 NCNN_EXPORT void ncnn_draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
 NCNN_EXPORT void ncnn_draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
@@ -358,6 +390,7 @@ NCNN_EXPORT void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, 
 NCNN_EXPORT void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
 NCNN_EXPORT void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
 NCNN_EXPORT void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+#endif /* NCNN_PIXEL_DRAWING */
 
 #ifdef __cplusplus
 } /* extern "C" */

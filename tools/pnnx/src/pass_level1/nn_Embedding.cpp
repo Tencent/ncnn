@@ -1,20 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
-#include "pass_level1.h"
-
-#include "../utils.h"
+#include "fuse_module_pass.h"
 
 namespace pnnx {
 
@@ -31,11 +18,11 @@ public:
         return "nn.Embedding";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
     {
-        const torch::jit::Node* embedding = find_node_by_kind(graph, "aten::embedding");
+        const TorchNodeProxy* embedding = graph.find_node_by_kind("aten::embedding");
 
-        const auto& weight = mod.attr("weight").toTensor();
+        const TorchTensorProxy& weight = mod.attr("weight");
 
         op->params["num_embeddings"] = weight.size(0);
         op->params["embedding_dim"] = weight.size(1);

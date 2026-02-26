@@ -1,22 +1,18 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
 #include <algorithm>
 #include <map>
+#include <set>
 #include <unordered_map>
+#include <unordered_set>
+
+#include "pass_level2/eliminate_contiguous.h"
+#include "pass_level2/eliminate_size_numtotensor_int.h"
+#include "pass_level2/functionize.h"
+#include "pass_level2/fuse_constantlist.h"
 
 namespace pnnx {
 
@@ -110,7 +106,7 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
             int ai = shape[j];
             if (ai == -233)
             {
-                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+                std::string key = operand->params.at(std::string("__shape__") + std::to_string(j)).s;
 
                 if (captured_params.find(key) == captured_params.end())
                 {
@@ -132,7 +128,7 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
             int ai = shape[j];
             if (ai == -233)
             {
-                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+                std::string key = operand->params.at(std::string("__shape__") + std::to_string(j)).s;
 
                 if (captured_params.find(key) == captured_params.end())
                 {
@@ -365,6 +361,13 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
         size_t i = 0;
         while (!lcss.eof())
         {
+            if (a.type == 5 && a.ai.size() <= i)
+                return false;
+            if (a.type == 6 && a.af.size() <= i)
+                return false;
+            if (a.type == 7 && a.as.size() <= i)
+                return false;
+
             std::string elem;
             std::getline(lcss, elem, ',');
 
@@ -554,7 +557,7 @@ static bool match_attribute(const Attribute& a, const Attribute& b, std::map<std
         if (bi != -233)
             return false;
 
-        std::string key = b.params.at(std::string("__shape_") + std::to_string(j)).s;
+        std::string key = b.params.at(std::string("__shape__") + std::to_string(j)).s;
 
         if (captured_params.find(key) != captured_params.end())
         {
@@ -652,7 +655,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
             if (bi != -233)
                 return false;
 
-            std::string key = b->inputs[i]->params.at(std::string("__shape_") + std::to_string(j)).s;
+            std::string key = b->inputs[i]->params.at(std::string("__shape__") + std::to_string(j)).s;
 
             if (captured_params.find(key) != captured_params.end())
             {
@@ -700,7 +703,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
             if (bi != -233)
                 return false;
 
-            std::string key = b->outputs[i]->params.at(std::string("__shape_") + std::to_string(j)).s;
+            std::string key = b->outputs[i]->params.at(std::string("__shape__") + std::to_string(j)).s;
 
             if (captured_params.find(key) != captured_params.end())
             {
@@ -736,7 +739,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
     return true;
 }
 
-static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
+static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, const Operand*>& matched_outputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
 {
     if (!match_operator(anchor, pattern, captured_params, captured_attrs))
         return false;
@@ -744,7 +747,17 @@ static bool match(const Operator* anchor, const Operator* pattern, std::map<std:
     for (size_t i = 0; i < pattern->outputs.size(); i++)
     {
         if (pattern->outputs[i]->consumers.size() == 1 && pattern->outputs[i]->consumers[0]->type == "pnnx.Output")
+        {
+            if (matched_outputs.find(pattern->outputs[i]->name) == matched_outputs.end())
+            {
+                matched_outputs[pattern->outputs[i]->name] = anchor->outputs[i];
+            }
+            else if (matched_outputs[pattern->outputs[i]->name] != anchor->outputs[i])
+            {
+                return false;
+            }
             continue;
+        }
 
         if (anchor->outputs[i]->consumers.size() != pattern->outputs[i]->consumers.size())
             return false;
@@ -771,7 +784,7 @@ static bool match(const Operator* anchor, const Operator* pattern, std::map<std:
             continue;
         }
 
-        if (!match(anchor2, pattern2, matched_operators, matched_inputs, captured_params, captured_attrs))
+        if (!match(anchor2, pattern2, matched_operators, matched_inputs, matched_outputs, captured_params, captured_attrs))
             return false;
     }
 
@@ -821,6 +834,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         int q = graph_op_count - 1;
         for (; q >= 1; q--)
         {
+            matched = true;
+
             for (const Operator* pattern : pattern_graph_output_operators)
             {
                 for (size_t i = 0; i < pattern->inputs.size(); i++)
@@ -834,9 +849,10 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
                         std::map<std::string, const Operator*> matched_operators2;
                         std::map<std::string, const Operand*> matched_inputs2;
+                        std::map<std::string, const Operand*> matched_outputs2;
                         std::map<std::string, Parameter> captured_params2;
                         std::map<std::string, Attribute> captured_attrs2;
-                        if (!match(anchor, pattern2, matched_operators2, matched_inputs2, captured_params2, captured_attrs2))
+                        if (!match(anchor, pattern2, matched_operators2, matched_inputs2, matched_outputs2, captured_params2, captured_attrs2))
                             continue;
 
                         bool submatch_matched = true;
@@ -868,6 +884,13 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                                 matched_inputs[x.first] = x.second;
                             }
                         }
+                        for (auto x : matched_outputs2)
+                        {
+                            if (matched_outputs.find(x.first) == matched_outputs.end())
+                            {
+                                matched_outputs[x.first] = x.second;
+                            }
+                        }
                         for (auto x : captured_params2)
                         {
                             captured_params[x.first] = x.second;
@@ -878,7 +901,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                         }
 
                         // match !
-                        matched_outputs[pattern->inputs[i]->name] = anchor->outputs[i];
                         break;
                     }
 
@@ -900,6 +922,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 matched_outputs.clear();
                 captured_params.clear();
                 captured_attrs.clear();
+                matched = false;
                 continue;
             }
 
@@ -965,6 +988,20 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             delete r;
         }
 
+        // insert new operator at the last matched one
+        const Operator* cur = 0;
+        {
+            int cur_index = 1;
+            for (auto& o : matched_operators)
+            {
+                int c_index = std::find(graph.ops.begin(), graph.ops.end(), o.second) - graph.ops.begin();
+                cur_index = std::max(cur_index, c_index + 1);
+            }
+
+            cur_index = std::min(cur_index, (int)graph.ops.size() - 1);
+            cur = graph.ops[cur_index];
+        }
+
         // remove all matched_operators
         for (auto& _x : matched_operators)
         {
@@ -975,22 +1012,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
 
             delete _x.second;
-        }
-
-        // insert new operator before all output consumers
-        const Operator* cur = 0;
-        {
-            int cur_index = graph.ops.size() - 1;
-            for (auto& o : matched_outputs)
-            {
-                for (auto& c : o.second->consumers)
-                {
-                    int c_index = std::find(graph.ops.begin(), graph.ops.end(), c) - graph.ops.begin();
-                    cur_index = std::min(cur_index, c_index);
-                }
-            }
-
-            cur = graph.ops[cur_index];
         }
 
         if (pass->replace_pattern_graph() == 0)
@@ -1024,6 +1045,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             Graph replace_graph;
             replace_graph.parse(pass->replace_pattern_graph());
 
+            static int rgi = 0;
+
             // move operators and operands from replace_graph to graph except input and output
             std::map<std::string, Operator*> ops;
             for (size_t i = 0; i < replace_graph.ops.size(); i++)
@@ -1042,6 +1065,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 Operand* r = replace_graph.operands[i];
                 if (r->producer->type == "pnnx.Input" || (r->consumers.size() == 1 && r->consumers[0]->type == "pnnx.Output"))
                     continue;
+
+                r->name = std::string("rg") + std::to_string(rgi) + "_" + r->name;
 
                 graph.operands.push_back(r);
                 replace_graph.operands[i] = 0;
@@ -1097,6 +1122,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             {
                 new_ops.push_back(x.second);
             }
+
+            rgi++;
         }
     }
 
@@ -1107,112 +1134,15 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     }
 }
 
-static void fix_inplace_copy_output(Graph& graph)
-{
-    while (1)
-    {
-        bool matched = false;
-        for (size_t i = 0; i < graph.ops.size(); i++)
-        {
-            Operator* op = graph.ops[i];
-
-            bool is_inplace_op = op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_';
-            if (!is_inplace_op)
-                continue;
-
-            // replace inplace op with non-inplace version
-            op->type = op->type.substr(0, op->type.size() - 1);
-
-            if (op->type == "aten::copy")
-                continue;
-
-            if (op->outputs[0]->consumers.size() != 0)
-                continue;
-
-            matched = true;
-
-            // find in0 from slice / select chain
-            Operand* in0 = op->inputs[0];
-            while (in0->producer->type == "aten::slice" || in0->producer->type == "aten::select")
-            {
-                in0 = in0->producer->inputs[0];
-            }
-
-            // append copy for inplace op
-            Operator* op_copy = graph.new_operator_after("aten::copy", op->name + "_copy", op);
-            Operand* copy_out = graph.new_operand(op->name + "_copy_out");
-
-            copy_out->type = in0->type;
-            copy_out->shape = in0->shape;
-
-            op_copy->inputs.push_back(op->inputs[0]);
-            op_copy->inputs.push_back(op->outputs[0]);
-            op->inputs[0]->consumers.push_back(op_copy);
-            op->outputs[0]->consumers.push_back(op_copy);
-
-            op_copy->outputs.push_back(copy_out);
-            copy_out->producer = op_copy;
-
-            break;
-        }
-
-        if (!matched)
-            break;
-    }
-
-    for (size_t i = 0; i < graph.ops.size(); i++)
-    {
-        Operator* op = graph.ops[i];
-
-        if (op->type != "aten::copy")
-            continue;
-
-        if (op->outputs[0]->consumers.size() != 0)
-            continue;
-
-        // aten::slice   5 1 in0 .... a
-        // aten::slice   5 1 a .... b
-        // aten::copy    2 1 b in1 out
-
-        // aten::select  3 1 in0 .... a
-        // aten::copy    2 1 a in1 out
-
-        // find in0 from slice / select chain
-        Operand* in0 = op->inputs[0];
-        while (in0->producer->type == "aten::slice" || in0->producer->type == "aten::select")
-        {
-            in0 = in0->producer->inputs[0];
-        }
-
-        // replace all the following uses of in0 with out
-        Operand* out0 = op->outputs[0];
-        out0->shape = in0->shape;
-        for (size_t j = i; j < graph.ops.size(); j++)
-        {
-            Operator* op2 = graph.ops[j];
-
-            bool use_in0 = false;
-            for (size_t k = 0; k < op2->inputs.size(); k++)
-            {
-                if (op2->inputs[k] == in0)
-                {
-                    op2->inputs[k] = out0;
-                    use_in0 = true;
-                }
-            }
-
-            if (use_in0)
-            {
-                in0->remove_consumer(op2);
-                out0->consumers.push_back(op2);
-            }
-        }
-    }
-}
-
 void pass_level2(Graph& g)
 {
-    fix_inplace_copy_output(g);
+    functionize(g);
+
+    eliminate_contiguous(g);
+
+    eliminate_size_numtotensor_int(g);
+
+    fuse_constantlist(g);
 
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)

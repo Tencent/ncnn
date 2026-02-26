@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pooling_arm.h"
 
@@ -612,7 +601,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                                 }
                             }
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                             float16x4_t _inv_area0 = vcvt_f16_f32(vdupq_n_f32(1.f / area));
                             float16x8_t _inv_area = vcombine_f16(_inv_area0, _inv_area0);
 #else
@@ -672,7 +661,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                                 }
                             }
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                             float16x4_t _inv_area = vcvt_f16_f32(vdupq_n_f32(1.f / area));
 #else
                             float16x4_t _inv_area = vdup_n_f16((__fp16)(1.f / area));
@@ -750,7 +739,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const Mat m = bottom_blob_bordered.channel(q);
                     __fp16* outptr = top_blob.channel(q);
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     float16x4_t _inv_maxk0 = vcvt_f16_f32(vdupq_n_f32(1.f / maxk));
                     float16x8_t _inv_maxk = vcombine_f16(_inv_maxk0, _inv_maxk0);
 #else
@@ -788,7 +777,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const Mat m = bottom_blob_bordered.channel(q);
                     __fp16* outptr = top_blob.channel(q);
 
-#if _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
                     float16x4_t _inv_maxk = vcvt_f16_f32(vdupq_n_f32(1.f / maxk));
 #else
                     float16x4_t _inv_maxk = vdup_n_f16((__fp16)(1.f / maxk));

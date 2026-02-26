@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
@@ -121,7 +110,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, 0, flag);
+    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
@@ -233,7 +222,7 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, 0, flag);
+    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);

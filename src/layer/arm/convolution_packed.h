@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
@@ -510,14 +499,14 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
 
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
     const int outch = top_blob.c * out_elempack;
 
-    const int M = top_blob.cstep * out_elempack;
+    const size_t M = top_blob.cstep * out_elempack;
 
     const int maxk = kernel_w * kernel_h;
 

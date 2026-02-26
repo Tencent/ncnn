@@ -1,16 +1,5 @@
-// yala is pleased to support the open source community by making ncnn available.
-//
-//
-// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "innerproduct_loongarch.h"
 
@@ -99,7 +88,8 @@ int InnerProduct_loongarch::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -652,7 +642,8 @@ int InnerProduct_loongarch::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -1140,7 +1131,8 @@ int InnerProduct_loongarch::create_pipeline_int8_loongarch(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

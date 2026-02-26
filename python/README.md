@@ -87,6 +87,15 @@ cmake -DNCNN_PYTHON=ON ..
 make
 ```
 
+To use the pybind11 package provided by your system, set the CMake variable `NCNN_SYSTEM_PYBIND11` to `ON` during the build process, like this:
+
+```bash
+mkdir build
+cd build
+cmake -DNCNN_PYTHON=ON -DNCNN_SYSTEM_PYBIND11=ON ..
+make
+```
+
 3. install
 
 ```bash

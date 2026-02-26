@@ -52,6 +52,12 @@ static const layer_registry_entry layer_registry_rvv[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_RVV
 
+#if NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+static const layer_registry_entry layer_registry_xtheadvector[] = {
+@layer_registry_xtheadvector@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+
 #if NCNN_VULKAN
 static const layer_registry_entry layer_registry_vulkan[] = {
 @layer_registry_vulkan@

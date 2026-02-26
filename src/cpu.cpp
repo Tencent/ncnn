@@ -1,25 +1,17 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"
 
 #include "platform.h"
 
 #include <limits.h>
+#ifndef __wasi__
 #include <setjmp.h>
 #include <signal.h>
+#endif // __wasi__
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _OPENMP
@@ -44,19 +36,21 @@
 #include <emscripten/threading.h>
 #endif
 
-#if defined _WIN32 && !(defined __MINGW32__)
+#if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <powerbase.h>
 #endif
 
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __OHOS__ || __linux__
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
 #include <sys/auxv.h> // getauxval()
 #endif
 #include <sys/system_properties.h> // __system_property_get()
 #include <dlfcn.h>
+#endif
+#if defined __OHOS__
+#include <sys/auxv.h> // getauxval()
 #endif
 #include <ctype.h>
 #include <stdint.h>
@@ -93,11 +87,11 @@
 #ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
 #define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
 #endif
-// A14
+// A14 / M1
 #ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
 #define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
 #endif
-// A15
+// A15 / M2
 #ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
 #define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
@@ -105,18 +99,83 @@
 #ifndef CPUFAMILY_ARM_EVEREST_SAWTOOTH
 #define CPUFAMILY_ARM_EVEREST_SAWTOOTH 0x8765edea
 #endif
-// M1
-#ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
-#define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+// A17
+#ifndef CPUFAMILY_ARM_COLL
+#define CPUFAMILY_ARM_COLL 0x2876f5b5
 #endif
-// M2
-#ifndef CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD
-#define CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD 0xda33d83d
+// A18
+#ifndef CPUFAMILY_ARM_TUPAI
+#define CPUFAMILY_ARM_TUPAI 0x204526d0
+#endif
+// A18 Pro
+#ifndef CPUFAMILY_ARM_TAHITI
+#define CPUFAMILY_ARM_TAHITI 0x75d4acb9
+#endif
+// M3
+#ifndef CPUFAMILY_ARM_IBIZA
+#define CPUFAMILY_ARM_IBIZA 0xfa33415e
+#endif
+// M3 Pro
+#ifndef CPUFAMILY_ARM_LOBOS
+#define CPUFAMILY_ARM_LOBOS 0x5f4dea93
+#endif
+// M3 Max
+#ifndef CPUFAMILY_ARM_PALMA
+#define CPUFAMILY_ARM_PALMA 0x72015832
+#endif
+// M4
+#ifndef CPUFAMILY_ARM_DONAN
+#define CPUFAMILY_ARM_DONAN 0x6f5129ac
+#endif
+// M4 Pro / M4 Max
+#ifndef CPUFAMILY_ARM_BRAVA
+#define CPUFAMILY_ARM_BRAVA 0x17d5b93a
 #endif
 #endif // __APPLE__
 
 #if defined(__SSE3__)
 #include <immintrin.h>
+#endif
+
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
+#define RUAPU_IMPLEMENTATION
+#include "ruapu.h"
+#endif
+
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+__attribute__((constructor)) void ncnn_kmp_env_initializer()
+{
+    // this function should be called before touching all openmp stuff
+    // the env setting here helps prevent abort from happening inside openmp
+
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // disable affinity capability, we handle thread affinity for openmp threads
+#if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
+    _putenv_s("KMP_AFFINITY", "disabled");
+#else
+    _putenv("KMP_AFFINITY=disabled");
+#endif
+#else
+    setenv("KMP_AFFINITY", "disabled", 1);
+#endif
+
+    // openmp initialization triggers abort when another openmp runtime detected
+    // ref __kmp_register_library_startup in openmp/runtime/src/kmp_runtime.cpp
+    // this happens when loading multiple libraries that are static linked openmp
+    // just let it continue to work, it works well in most cases, at least it won't crash unexpectedly
+#if defined _WIN32
+#if _WIN32_WINNT >= 0x0600
+    _putenv_s("KMP_DUPLICATE_LIB_OK", "1");
+#else
+    _putenv("KMP_DUPLICATE_LIB_OK=1");
+#endif
+#else
+    setenv("KMP_DUPLICATE_LIB_OK", "1", 1);
+#endif
+}
 #endif
 
 // topology info
@@ -169,11 +228,22 @@ static int g_cpu_support_x86_xop;
 static int g_cpu_support_x86_f16c;
 static int g_cpu_support_x86_avx2;
 static int g_cpu_support_x86_avx_vnni;
+static int g_cpu_support_x86_avx_vnni_int8;
+static int g_cpu_support_x86_avx_vnni_int16;
+static int g_cpu_support_x86_avx_ne_convert;
 static int g_cpu_support_x86_avx512;
 static int g_cpu_support_x86_avx512_vnni;
 static int g_cpu_support_x86_avx512_bf16;
 static int g_cpu_support_x86_avx512_fp16;
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+static int g_cpu_support_riscv_zfh;
+static int g_cpu_support_riscv_zvfh;
+static int g_cpu_support_riscv_xtheadvector;
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
 
 static int g_cpu_level2_cachesize;
 static int g_cpu_level3_cachesize;
@@ -185,7 +255,6 @@ static int g_cpu_is_arm_a53_a55;
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
-static bool g_is_being_debugged = false;
 static bool is_being_debugged()
 {
 #if defined _WIN32
@@ -240,187 +309,7 @@ static bool is_being_debugged()
 #endif
 }
 
-#if defined _WIN32
-#if WINAPI_FAMILY == WINAPI_FAMILY_APP
-static int detectisa(const void* /*some_inst*/)
-{
-    // uwp does not support seh  :(
-    return 0;
-}
-#else  // WINAPI_FAMILY == WINAPI_FAMILY_APP
-static int g_sigill_caught = 0;
-static jmp_buf g_jmpbuf;
-
-static LONG CALLBACK catch_sigill(struct _EXCEPTION_POINTERS* ExceptionInfo)
-{
-    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ILLEGAL_INSTRUCTION)
-    {
-        g_sigill_caught = 1;
-        longjmp(g_jmpbuf, -1);
-    }
-
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
-static int detectisa(const void* some_inst)
-{
-    if (g_is_being_debugged)
-        return 0;
-
-    g_sigill_caught = 0;
-
-    PVOID eh = AddVectoredExceptionHandler(1, catch_sigill);
-
-    if (setjmp(g_jmpbuf) == 0)
-    {
-        ((void (*)())some_inst)();
-    }
-
-    RemoveVectoredExceptionHandler(eh);
-
-    return g_sigill_caught ? 0 : 1;
-}
-#endif // WINAPI_FAMILY == WINAPI_FAMILY_APP
-
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned char name[] = {__VA_ARGS__, 0xc3};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned char name[] = {__VA_ARGS__, 0xc3};
-#endif
-#elif __aarch64__
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
-#endif
-#elif __arm__
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
-#endif
-#endif
-
-#elif defined __ANDROID__ || defined __linux__ || defined __APPLE__
-static int g_sigill_caught = 0;
-static sigjmp_buf g_jmpbuf;
-
-static void catch_sigill(int /*signo*/, siginfo_t* /*si*/, void* /*data*/)
-{
-    g_sigill_caught = 1;
-    siglongjmp(g_jmpbuf, -1);
-}
-
-static int detectisa(void (*some_inst)())
-{
-    if (g_is_being_debugged)
-        return 0;
-
-    g_sigill_caught = 0;
-
-    struct sigaction sa;
-    struct sigaction old_sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = catch_sigill;
-    sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
-    sigaction(SIGILL, &sa, &old_sa);
-
-    if (sigsetjmp(g_jmpbuf, 1) == 0)
-    {
-        some_inst();
-    }
-
-    sigaction(SIGILL, &old_sa, NULL);
-
-    return g_sigill_caught ? 0 : 1;
-}
-
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".byte " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#elif __aarch64__
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".word " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#elif __arm__
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".word " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#endif
-
-#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
-
-#if defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-DEFINE_INSTCODE(some_mmx, 0x0f, 0xdb, 0xc0)                           // pand mm0,mm0
-DEFINE_INSTCODE(some_sse, 0x0f, 0x54, 0xc0)                           // andps xmm0,xmm0
-DEFINE_INSTCODE(some_sse2, 0x66, 0x0f, 0xfe, 0xc0)                    // paddd xmm0,xmm0
-DEFINE_INSTCODE(some_sse3, 0xf2, 0x0f, 0x7c, 0xc0)                    // haddps xmm0,xmm0
-DEFINE_INSTCODE(some_ssse3, 0x66, 0x0f, 0x38, 0x06, 0xc0)             // phsubd xmm0,xmm0
-DEFINE_INSTCODE(some_sse41, 0x66, 0x0f, 0x38, 0x3d, 0xc0)             // pmaxsd xmm0,xmm0
-DEFINE_INSTCODE(some_sse42, 0x66, 0x0f, 0x38, 0x37, 0xc0)             // pcmpgtq xmm0,xmm0
-DEFINE_INSTCODE(some_sse4a, 0x66, 0x0f, 0x79, 0xc0)                   // extrq xmm0,xmm0
-DEFINE_INSTCODE(some_xop, 0x8f, 0xe8, 0x78, 0xb6, 0xc0, 0x00)         // vpmadcswd %xmm0,%xmm0,%xmm0,%xmm0
-DEFINE_INSTCODE(some_avx, 0xc5, 0xfc, 0x54, 0xc0)                     // vandps ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_f16c, 0xc4, 0xe2, 0x7d, 0x13, 0xc0)              // vcvtph2ps ymm0,xmm0
-DEFINE_INSTCODE(some_fma, 0xc4, 0xe2, 0x7d, 0x98, 0xc0)               // vfmadd132ps ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avx2, 0xc5, 0xfd, 0xfe, 0xc0)                    // vpaddd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avx512f, 0x62, 0xf1, 0x7c, 0x48, 0x58, 0xc0)     // vaddps zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512bw, 0x62, 0xf1, 0x7d, 0x48, 0xfd, 0xc0)    // vpaddw zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512cd, 0x62, 0xf2, 0xfd, 0x48, 0x44, 0xc0)    // vplzcntq zmm0,zmm0
-DEFINE_INSTCODE(some_avx512dq, 0x62, 0xf1, 0x7c, 0x48, 0x54, 0xc0)    // vandps zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512vl, 0x62, 0xf2, 0xfd, 0x28, 0x1f, 0xc0)    // vpabsq ymm0,ymm0
-DEFINE_INSTCODE(some_avx512vnni, 0x62, 0xf2, 0x7d, 0x48, 0x52, 0xc0)  // vpdpwssd %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512bf16, 0x62, 0xf2, 0x7e, 0x48, 0x52, 0xc0)  // vdpbf16ps %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512ifma, 0x62, 0xf2, 0xfd, 0x48, 0xb4, 0xc0)  // vpmadd52luq %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512vbmi, 0x62, 0xf2, 0x7d, 0x48, 0x75, 0xc0)  // vpermi2b %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512vbmi2, 0x62, 0xf2, 0x7d, 0x48, 0x71, 0xc0) // vpshldvd %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512fp16, 0x62, 0xf6, 0x7d, 0x48, 0x98, 0xc0)  // vfmadd132ph %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avxvnni, 0x62, 0xf2, 0x7d, 0x28, 0x52, 0xc0)     // vpdpwssd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avxvnniint8, 0xc4, 0xe2, 0x7f, 0x50, 0xc0)       // vpdpbssd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avxifma, 0x62, 0xf2, 0xfd, 0x28, 0xb4, 0xc0)     // vpmadd52luq %ymm0,%ymm0,%ymm0
-
-#elif __aarch64__
-DEFINE_INSTCODE(some_neon, 0x4e20d400)     // fadd v0.4s,v0.4s,v0.4s
-DEFINE_INSTCODE(some_vfpv4, 0x0e216800)    // fcvtn v0.4h,v0.4s
-DEFINE_INSTCODE(some_cpuid, 0xd5380000)    // mrs x0,midr_el1
-DEFINE_INSTCODE(some_asimdhp, 0x0e401400)  // fadd v0.4h,v0.4h,v0.4h
-DEFINE_INSTCODE(some_asimddp, 0x4e809400)  // sdot v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_asimdfhm, 0x4e20ec00) // fmlal v0.4s,v0.4h,v0.4h
-DEFINE_INSTCODE(some_bf16, 0x6e40ec00)     // bfmmla v0.4h,v0.8h,v0.8h
-DEFINE_INSTCODE(some_i8mm, 0x4e80a400)     // smmla v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_sve, 0x65608000)      // fmad z0.h,p0/m,z0.h,z0.h
-DEFINE_INSTCODE(some_sve2, 0x44405000)     // smlslb z0.h,z0.b,z0.b
-DEFINE_INSTCODE(some_svebf16, 0x6460e400)  // bfmmla z0.s,z0.h,z0.h
-DEFINE_INSTCODE(some_svei8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
-DEFINE_INSTCODE(some_svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
-
-#elif __arm__
-DEFINE_INSTCODE(some_edsp, 0x0000fb20)  // smlad r0,r0,r0,r0
-DEFINE_INSTCODE(some_neon, 0x0d40ef00)  // vadd.f32 q0,q0,q0
-DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
-
-#endif
-#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
-
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __OHOS__ || defined __linux__
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
@@ -464,10 +353,12 @@ DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
 #define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __OHOS__
 // Probe the system's C library for a 'getauxval' function and call it if
 // it exits, or return 0 for failure. This function is available since API
 // level 18.
+//
+// HarmonyOS NEXT support `getauxval` directly.
 //
 // Note that getauxval() can't really be re-implemented here, because
 // its implementation does not parse /proc/self/auxv. Instead it depends
@@ -475,6 +366,9 @@ DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
 // C runtime initialization layer.
 static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
 {
+#if defined __OHOS__
+    return getauxval(type);
+#else
 #if __ANDROID_API__ >= 18
     unsigned int hwcap = getauxval(type);
     if (hwcap)
@@ -505,8 +399,9 @@ static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
     dlclose(libc_handle);
 
     return result;
+#endif
 }
-#endif // defined __ANDROID__
+#endif // defined __ANDROID__ || defined __OHOS__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
@@ -559,7 +454,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
 {
     unsigned int hwcap = 0;
 
-#if defined __ANDROID__
+#if defined __ANDROID__ || defined __OHOS__
     hwcap = get_elf_hwcap_from_getauxval(type);
 #endif
 
@@ -587,7 +482,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
 
     return hwcap;
 }
-#endif // defined __ANDROID__ || defined __linux__
+#endif // defined __ANDROID__ || defined __OHOS__ || defined __linux__
 
 #if __APPLE__
 static unsigned int get_hw_cpufamily()
@@ -764,9 +659,6 @@ static int get_cpu_support_x86_avx2()
 
 static int get_cpu_support_x86_avx_vnni()
 {
-#if __APPLE__
-    return detectisa(some_avxvnni);
-#else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
 
@@ -785,13 +677,82 @@ static int get_cpu_support_x86_avx_vnni()
 
     x86_cpuid_sublevel(7, 1, cpu_info);
     return cpu_info[0] & (1u << 4);
-#endif
+}
+
+static int get_cpu_support_x86_avx_vnni_int8()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx_vnni_int16()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 10);
+}
+
+static int get_cpu_support_x86_avx_ne_convert()
+{
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[3] & (1u << 5);
 }
 
 static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
-    return detectisa(some_avx512f) && detectisa(some_avx512bw) && detectisa(some_avx512cd) && detectisa(some_avx512dq) && detectisa(some_avx512vl);
+    return get_hw_capability("hw.optional.avx512f")
+           && get_hw_capability("hw.optional.avx512bw")
+           && get_hw_capability("hw.optional.avx512cd")
+           && get_hw_capability("hw.optional.avx512dq")
+           && get_hw_capability("hw.optional.avx512vl");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -821,7 +782,7 @@ static int get_cpu_support_x86_avx512()
 static int get_cpu_support_x86_avx512_vnni()
 {
 #if __APPLE__
-    return detectisa(some_avx512vnni);
+    return get_hw_capability("hw.optional.avx512vnni");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -851,7 +812,7 @@ static int get_cpu_support_x86_avx512_vnni()
 static int get_cpu_support_x86_avx512_bf16()
 {
 #if __APPLE__
-    return detectisa(some_avx512bf16);
+    return get_hw_capability("hw.optional.avx512bf16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -877,7 +838,7 @@ static int get_cpu_support_x86_avx512_bf16()
 static int get_cpu_support_x86_avx512_fp16()
 {
 #if __APPLE__
-    return detectisa(some_avx512fp16);
+    return get_hw_capability("hw.optional.avx512fp16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -913,7 +874,7 @@ static int get_cpucount()
         count = emscripten_num_logical_cores();
     else
         count = 1;
-#elif (defined _WIN32 && !(defined __MINGW32__))
+#elif defined _WIN32
     SYSTEM_INFO system_info;
     GetSystemInfo(&system_info);
     count = system_info.dwNumberOfProcessors;
@@ -960,27 +921,73 @@ static int get_thread_siblings(int cpuid)
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
 
-    FILE* fp = fopen(path, "rb");
-    if (!fp)
-        return -1;
-
-    int thread_siblings = -1;
-    int nscan = fscanf(fp, "%x", &thread_siblings);
-    if (nscan != 1)
+    FILE* fp = 0; //fopen(path, "rb");
+    if (fp)
     {
-        // ignore
+        int thread_siblings = -1;
+        int nscan = fscanf(fp, "%x", &thread_siblings);
+        if (nscan != 1)
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
     }
 
-    fclose(fp);
+    // second try, parse from human-readable thread_siblings_list
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
 
-    return thread_siblings;
+    fp = fopen(path, "rb");
+    if (fp)
+    {
+        int thread_siblings = -1;
+
+        int id0;
+        char sep;
+        int id1;
+
+        int nscan = fscanf(fp, "%d", &id0);
+        if (nscan == 1)
+        {
+            thread_siblings = (1 << id0);
+
+            while (fscanf(fp, "%c%d", &sep, &id1) == 2)
+            {
+                if (sep == ',')
+                {
+                    thread_siblings |= (1 << id1);
+                }
+                if (sep == '-' && id0 < id1)
+                {
+                    for (int i = id0 + 1; i <= id1; i++)
+                    {
+                        thread_siblings |= (1 << i);
+                    }
+                }
+
+                id0 = id1;
+            }
+        }
+        else
+        {
+            // ignore
+        }
+
+        fclose(fp);
+
+        return thread_siblings;
+    }
+
+    return -1;
 }
 #endif // defined __ANDROID__ || defined __linux__
 
 static int get_physical_cpucount()
 {
     int count = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi == NULL)
@@ -1035,6 +1042,11 @@ static int get_physical_cpucount()
             thread_set.push_back(thread_siblings);
             count++;
         }
+    }
+    if (count == 0)
+    {
+        // cannot resolve siblings, fallback to all cpu count
+        count = g_cpucount;
     }
 #elif __APPLE__
     size_t len = sizeof(count);
@@ -1218,7 +1230,7 @@ static int get_big_cpu_data_cache_size(int level)
 static int get_cpu_level2_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1288,7 +1300,7 @@ static int get_cpu_level2_cachesize()
 static int get_cpu_level3_cachesize()
 {
     int size = 0;
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi != NULL)
@@ -1335,7 +1347,7 @@ static int get_cpu_level3_cachesize()
     return size;
 }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 static ncnn::CpuSet get_smt_cpu_mask()
 {
     ncnn::CpuSet smt_cpu_mask;
@@ -1429,7 +1441,7 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 
     return 0;
 }
-#endif // (defined _WIN32 && !(defined __MINGW32__))
+#endif // defined _WIN32
 
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
@@ -1603,46 +1615,146 @@ static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::Cp
         mask_all.enable(i);
     }
 
-#if (defined _WIN32 && !(defined __MINGW32__))
-    // get max freq mhz for all cores
-    int max_freq_mhz_min = INT_MAX;
-    int max_freq_mhz_max = 0;
-    std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
-    for (int i = 0; i < g_cpucount; i++)
+#if defined _WIN32
+// Check SDK >= Win7
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN7 // win7
+
+    // Load GetLogicalProcessorInformationEx
+    HMODULE kernel32 = LoadLibrary(TEXT("kernel32.dll"));
+    if (!kernel32)
     {
-        int max_freq_mhz = cpu_max_freq_mhz[i];
-
-        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
-
-        if (max_freq_mhz > max_freq_mhz_max)
-            max_freq_mhz_max = max_freq_mhz;
-        if (max_freq_mhz < max_freq_mhz_min)
-            max_freq_mhz_min = max_freq_mhz;
-    }
-
-    int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
-    if (max_freq_mhz_medium == max_freq_mhz_max)
-    {
-        mask_little.disable_all();
-        mask_big = mask_all;
+        NCNN_LOGE("LoadLibrary kernel32.dll failed");
         return;
     }
 
-    ncnn::CpuSet smt_cpu_mask = get_smt_cpu_mask();
+    typedef BOOL(WINAPI * LPFN_GLPIE)(LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+    LPFN_GLPIE glpie = (LPFN_GLPIE)GetProcAddress(kernel32, "GetLogicalProcessorInformationEx");
 
-    for (int i = 0; i < g_cpucount; i++)
+    if (glpie != NULL)
     {
-        if (smt_cpu_mask.is_enabled(i))
+        DWORD bufferSize = 0;
+        glpie(RelationProcessorCore, nullptr, &bufferSize);
+        std::vector<BYTE> buffer(bufferSize);
+        if (!glpie(RelationProcessorCore, (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(buffer.data()), &bufferSize))
         {
-            // always treat smt core as big core
-            mask_big.enable(i);
-            continue;
+            NCNN_LOGE("GetLogicalProcessorInformationEx failed");
+            return;
         }
 
-        if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
-            mask_little.enable(i);
+        // A map from processor number to whether it is an E core
+        std::vector<std::pair<DWORD, bool> > processorCoreType;
+        BYTE maxEfficiencyClass = 0; // In a system without E cores, all cores EfficiencyClass is 0
+
+        BYTE* ptr = buffer.data();
+        while (ptr < buffer.data() + bufferSize)
+        {
+            SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX* info = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)ptr;
+            if (info->Relationship == RelationProcessorCore)
+            {
+                // Mingw and some old MSVC do not have EfficiencyClass in PROCESSOR_RELATIONSHIP
+                // So we should redefine PROCESSOR_RELATIONSHIP
+                // Because ncnn need to support c++98, so we can't use some new features in c++11
+                // So there is a ugly implementation
+
+                BYTE efficiencyClass = ((BYTE*)&info->Processor)[1];
+
+                bool isECore = (efficiencyClass == 0);
+                maxEfficiencyClass = (std::max)(maxEfficiencyClass, efficiencyClass);
+
+                for (WORD g = 0; g < info->Processor.GroupCount; ++g)
+                {
+                    const GROUP_AFFINITY& ga = info->Processor.GroupMask[g];
+                    KAFFINITY mask = ga.Mask;
+                    WORD group = ga.Group;
+                    for (int bit = 0; bit < 64; ++bit)
+                    {   // for each bit in the mask
+                        if (mask & (static_cast<KAFFINITY>(1) << bit))
+                        {
+                            DWORD processorNumber = group * 64 + bit;
+                            processorCoreType.push_back(std::pair<DWORD, bool>(processorNumber, isECore));
+                        }
+                    }
+                }
+            }
+            ptr += info->Size;
+        }
+
+        if (maxEfficiencyClass == 0)
+        {
+            // All cores are P cores
+            mask_little.disable_all();
+            mask_big = mask_all;
+        }
         else
-            mask_big.enable(i);
+        {
+            for (int i = 0; i < g_cpucount; i++)
+            {
+                bool isECore = false;
+                for (int j = 0; j < processorCoreType.size(); j++)
+                {
+                    std::pair<DWORD, bool> p = processorCoreType[j];
+                    if (p.first == i)
+                    {
+                        isECore = p.second;
+                        break;
+                    }
+                }
+                // fprintf(stderr, "processor %d is %s\n", i, isECore ? "E" : "P");
+
+                if (isECore)
+                {
+                    mask_little.enable(i);
+                }
+                else
+                {
+                    mask_big.enable(i);
+                }
+            }
+        }
+    }
+    else
+#endif
+    {
+        // get max freq mhz for all cores
+        int max_freq_mhz_min = INT_MAX;
+        int max_freq_mhz_max = 0;
+        std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            int max_freq_mhz = cpu_max_freq_mhz[i];
+
+            // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
+
+            if (max_freq_mhz > max_freq_mhz_max)
+                max_freq_mhz_max = max_freq_mhz;
+            if (max_freq_mhz < max_freq_mhz_min)
+                max_freq_mhz_min = max_freq_mhz;
+        }
+
+        int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
+        if (max_freq_mhz_medium == max_freq_mhz_max)
+        {
+            mask_little.disable_all();
+            mask_big = mask_all;
+            return;
+        }
+
+        ncnn::CpuSet smt_cpu_mask = get_smt_cpu_mask();
+
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (smt_cpu_mask.is_enabled(i))
+            {
+                // always treat smt core as big core
+                mask_big.enable(i);
+                continue;
+            }
+
+            if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
+                mask_little.enable(i);
+            else
+                mask_big.enable(i);
+        }
     }
 #elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -2030,30 +2142,39 @@ static int detect_cpu_is_arm_a53_a55()
 // the initialization
 static void initialize_global_cpu_info()
 {
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
+    ncnn_kmp_env_initializer();
+#endif
+
     g_cpucount = get_cpucount();
     g_physical_cpucount = get_physical_cpucount();
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-    g_is_being_debugged = is_being_debugged();
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || ((defined __ANDROID__ || defined __linux__) && __riscv)
+    if (!is_being_debugged())
+    {
+        ruapu_init();
+    }
+#endif
 
 #if defined _WIN32
 #if __aarch64__
-    g_cpu_support_arm_cpuid = detectisa(some_cpuid);
-    g_cpu_support_arm_asimdhp = detectisa(some_asimdhp) || IsProcessorFeaturePresent(43); // dp implies hp
-    g_cpu_support_arm_asimddp = detectisa(some_asimddp) || IsProcessorFeaturePresent(43); // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
-    g_cpu_support_arm_asimdfhm = detectisa(some_asimdfhm);
-    g_cpu_support_arm_bf16 = detectisa(some_bf16);
-    g_cpu_support_arm_i8mm = detectisa(some_i8mm);
-    g_cpu_support_arm_sve = detectisa(some_sve);
-    g_cpu_support_arm_sve2 = detectisa(some_sve2);
-    g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
-    g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
-    g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
+    g_cpu_support_arm_cpuid = ruapu_supports("cpuid");
+    g_cpu_support_arm_asimdhp = ruapu_supports("asimdhp") || IsProcessorFeaturePresent(43) || IsProcessorFeaturePresent(67);   // dp implies hp, 67 is PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_asimddp = ruapu_supports("asimddp") || IsProcessorFeaturePresent(43);                                    // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_asimdfhm = ruapu_supports("asimdfhm") || IsProcessorFeaturePresent(66) || IsProcessorFeaturePresent(68); // bf16 or i8mm implies fhm
+    g_cpu_support_arm_bf16 = ruapu_supports("bf16") || IsProcessorFeaturePresent(68);                                          // 68 is PF_ARM_V86_BF16_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_i8mm = ruapu_supports("i8mm") || IsProcessorFeaturePresent(66);                                          // 66 is PF_ARM_V82_I8MM_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_sve = ruapu_supports("sve") || IsProcessorFeaturePresent(46);                                            // 46 is PF_ARM_SVE_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_sve2 = ruapu_supports("sve2") || IsProcessorFeaturePresent(47);                                          // 47 is PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svebf16 = ruapu_supports("svebf16") || IsProcessorFeaturePresent(52);                                    // 52 is PF_ARM_SVE_BF16_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm") || IsProcessorFeaturePresent(57);                                    // 57 is PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm") || IsProcessorFeaturePresent(58);                                  // 58 is PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE
 #elif __arm__
-    g_cpu_support_arm_edsp = detectisa(some_edsp);
+    g_cpu_support_arm_edsp = ruapu_supports("edsp");
     g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
-    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
+    g_cpu_support_arm_vfpv4 = ruapu_supports("vfpv4");
 #endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
@@ -2068,6 +2189,32 @@ static void initialize_global_cpu_info()
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+
+    switch (g_hw_cpufamily)
+    {
+    case CPUFAMILY_ARM_TUPAI:
+    case CPUFAMILY_ARM_TAHITI:
+    case CPUFAMILY_ARM_DONAN:
+    case CPUFAMILY_ARM_BRAVA:
+    // TODO check sve sme
+    case CPUFAMILY_ARM_AVALANCHE_BLIZZARD:
+    case CPUFAMILY_ARM_EVEREST_SAWTOOTH:
+    case CPUFAMILY_ARM_COLL:
+    case CPUFAMILY_ARM_IBIZA:
+    case CPUFAMILY_ARM_LOBOS:
+    case CPUFAMILY_ARM_PALMA:
+        g_hw_optional_arm_FEAT_BF16 = 1;
+        g_hw_optional_arm_FEAT_I8MM = 1;
+    case CPUFAMILY_ARM_LIGHTNING_THUNDER:
+    case CPUFAMILY_ARM_FIRESTORM_ICESTORM:
+        g_hw_optional_arm_FEAT_DotProd = 1;
+        g_hw_optional_arm_FEAT_FHM = 1;
+    case CPUFAMILY_ARM_MONSOON_MISTRAL:
+    case CPUFAMILY_ARM_VORTEX_TEMPEST:
+        g_hw_optional_arm_FEAT_FP16 = 1;
+    default:
+        break;
+    }
 #endif // __aarch64__
 #endif
 
@@ -2078,11 +2225,22 @@ static void initialize_global_cpu_info()
     g_cpu_support_x86_f16c = get_cpu_support_x86_f16c();
     g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
     g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
+    g_cpu_support_x86_avx_vnni_int8 = get_cpu_support_x86_avx_vnni_int8();
+    g_cpu_support_x86_avx_vnni_int16 = get_cpu_support_x86_avx_vnni_int16();
+    g_cpu_support_x86_avx_ne_convert = get_cpu_support_x86_avx_ne_convert();
     g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
     g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
     g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
     g_cpu_support_x86_avx512_fp16 = get_cpu_support_x86_avx512_fp16();
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector");   // xtheadvector implies zfh
+    g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
+#endif // __riscv
+#endif // defined __ANDROID__ || defined __linux__
 
     g_cpu_level2_cachesize = get_cpu_level2_cachesize();
     g_cpu_level3_cachesize = get_cpu_level3_cachesize();
@@ -2107,7 +2265,7 @@ static inline void try_initialize_global_cpu_info()
 
 namespace ncnn {
 
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if defined _WIN32
 CpuSet::CpuSet()
 {
     disable_all();
@@ -2313,13 +2471,7 @@ int cpu_support_arm_asimdhp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDHP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FP16
-           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
-           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+    return g_hw_optional_arm_FEAT_FP16;
 #else
     return 0;
 #endif
@@ -2355,11 +2507,7 @@ int cpu_support_arm_asimddp()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDDP;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_DotProd
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+    return g_hw_optional_arm_FEAT_DotProd;
 #else
     return 0;
 #endif
@@ -2377,11 +2525,7 @@ int cpu_support_arm_asimdfhm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDFHM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_FHM
-           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+    return g_hw_optional_arm_FEAT_FHM;
 #else
     return 0;
 #endif
@@ -2399,9 +2543,7 @@ int cpu_support_arm_bf16()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_BF16;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_BF16
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+    return g_hw_optional_arm_FEAT_BF16;
 #else
     return 0;
 #endif
@@ -2419,9 +2561,7 @@ int cpu_support_arm_i8mm()
 #elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_I8MM;
 #elif __APPLE__
-    return g_hw_optional_arm_FEAT_I8MM
-           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+    return g_hw_optional_arm_FEAT_I8MM;
 #else
     return 0;
 #endif
@@ -2580,6 +2720,36 @@ int cpu_support_x86_avx_vnni()
 #endif
 }
 
+int cpu_support_x86_avx_vnni_int8()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int8;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_vnni_int16()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_vnni_int16;
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx_ne_convert()
+{
+    try_initialize_global_cpu_info();
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    return g_cpu_support_x86_avx_ne_convert;
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_x86_avx512()
 {
     try_initialize_global_cpu_info();
@@ -2695,9 +2865,35 @@ int cpu_support_riscv_zfh()
     try_initialize_global_cpu_info();
 #if defined __ANDROID__ || defined __linux__
 #if __riscv
-    // v + f does not imply zfh, but how to discover zfh properly ?
-    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
-    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+    return g_cpu_support_riscv_zfh;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zvfh()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_zvfh;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_xtheadvector()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_xtheadvector;
 #else
     return 0;
 #endif
@@ -2708,6 +2904,10 @@ int cpu_support_riscv_zfh()
 
 int cpu_riscv_vlenb()
 {
+#if C906
+    // FIXME xuantie qemu reports all zero auxv flags
+    return 16;
+#endif
     try_initialize_global_cpu_info();
 #if __riscv
     if (!cpu_support_riscv_v())
@@ -2828,7 +3028,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__ || (defined _WIN32 && !(defined __MINGW32__))
+#if defined __ANDROID__ || defined __linux__ || defined _WIN32
 #ifdef _OPENMP
     int num_threads = thread_affinity_mask.num_enabled();
 
@@ -3010,7 +3210,7 @@ int get_omp_thread_num()
 
 int get_kmp_blocktime()
 {
-#if defined(_OPENMP) && __clang__
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
     return kmp_get_blocktime();
 #else
     return 0;
@@ -3019,7 +3219,7 @@ int get_kmp_blocktime()
 
 void set_kmp_blocktime(int time_ms)
 {
-#if defined(_OPENMP) && __clang__
+#if defined(_OPENMP) && (__clang__ || defined(_OPENMP_LLVM_RUNTIME))
     kmp_set_blocktime(time_ms);
 #else
     (void)time_ms;
@@ -3074,21 +3274,3 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
-
-#if defined __ANDROID__ && defined(_OPENMP) && __clang__
-#ifdef __cplusplus
-extern "C" {
-#endif
-void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
-{
-    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
-    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
-    // and cpu core goes offline in powersave mode on android, which triggers abort
-    // ATM there is no known api for controlling the abort behavior
-    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
-    // ugly hack works >.<    --- nihui
-}
-#ifdef __cplusplus
-} // extern "C"
-#endif
-#endif

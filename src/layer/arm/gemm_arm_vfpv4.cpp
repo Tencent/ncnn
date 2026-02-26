@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_arm.h"
 
@@ -26,6 +15,10 @@ namespace ncnn {
 
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
+
+#if NCNN_INT8
+#include "gemm_int8_fp16s.h"
+#endif
 
 extern void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 
@@ -47,7 +40,11 @@ static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -78,7 +75,11 @@ static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -160,6 +161,8 @@ static int gemm_AT_arm_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -190,7 +193,11 @@ static int gemm_AT_arm_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -255,10 +262,16 @@ static int gemm_BT_arm_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -338,7 +351,11 @@ static int gemm_AT_BT_arm_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -427,7 +444,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
             }
         }
 
-        A_data.release();
+        if (opt.lightmode)
+            A_data.release();
     }
 
     if (constantB)
@@ -467,7 +485,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
             }
         }
 
-        B_data.release();
+        if (opt.lightmode)
+            B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -479,6 +498,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         {
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __ARM_NEON
 
@@ -487,6 +508,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -497,7 +520,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
             CT_data = C2;
         }
 
-        C_data.release();
+        if (opt.lightmode)
+            C_data.release();
     }
 
     if (constantA || constantB || constantC)
@@ -602,6 +626,8 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 Mat CT_data;
                 cast_float16_to_float32(C, CT_data);
                 C = CT_data;
+                if (C.empty())
+                    return -100;
             }
 
             // pre-multiply C with beta
@@ -609,6 +635,8 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
@@ -681,5 +709,52 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     return ret;
 }
+
+#if NCNN_INT8
+void compute_A_tile_fp16_int8_scales_vfpv4(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void transpose_compute_A_tile_fp16_int8_scales_vfpv4(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
+{
+    transpose_compute_A_tile_fp16_int8_scales(A, scales, B_scale, out_descales, i, max_ii);
+}
+
+void pack_A_tile_fp16_to_int8_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void transpose_pack_A_tile_fp16_to_int8_vfpv4(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
+{
+    transpose_pack_A_tile_fp16_to_int8(A, AT, i, max_ii, k, max_kk, scales);
+}
+
+void compute_B_fp16_int8_scale_vfpv4(const Mat& B, float& scale)
+{
+    compute_B_fp16_int8_scale(B, scale);
+}
+
+void pack_B_tile_fp16_to_int8_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void transpose_pack_B_tile_fp16_to_int8_vfpv4(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
+{
+    transpose_pack_B_tile_fp16_to_int8(B, BT, j, max_jj, k, max_kk, scale);
+}
+
+void unpack_output_tile_int32_to_fp16_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+{
+    unpack_output_tile_int32_to_fp16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+}
+
+void transpose_unpack_output_tile_int32_to_fp16_vfpv4(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta)
+{
+    transpose_unpack_output_tile_int32_to_fp16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, descales, alpha, beta);
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

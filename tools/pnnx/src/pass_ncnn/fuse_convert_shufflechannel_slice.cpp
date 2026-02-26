@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_convert_shufflechannel_slice.h"
 
@@ -37,7 +26,7 @@ public:
 6 6
 pnnx.Input              input       0 1 input #input=(%batch,%c,%h,%w)f32
 Tensor.reshape          op_0        1 1 input a shape=(%batch_mul_ch_per_group,%groups,%h_mul_w)
-torch.permute           op_1        1 1 a b dims=(1,0,2)
+Tensor.permute          op_1        1 1 a b dims=(1,0,2)
 Tensor.reshape          op_2        1 1 b c shape=(%groups,%batch,%ch_per_group,%h,%w)
 torch.unbind            op_3        1 2 c out0 out1 dim=0
 pnnx.Output             output      2 0 out0 out1

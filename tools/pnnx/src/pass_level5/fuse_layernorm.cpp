@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_layernorm.h"
 
@@ -18,8 +7,6 @@
 
 #include <math.h>
 #include <string.h>
-
-#include <torch/csrc/api/include/torch/torch.h>
 
 namespace pnnx {
 
@@ -43,16 +30,6 @@ pnnx.Output             output      1 0 out
 
     const char* replace_pattern_graph() const
     {
-#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-torch.permute           op_0        1 1 input a dims=(0,2,3,1)
-nn.LayerNorm            op_1        1 1 a b elementwise_affine=True eps=%eps normalized_shape=(%c) @weight=%op_0.data @bias=%op_1.data
-torch.permute           op_2        1 1 b out dims=(0,3,1,2)
-pnnx.Output             output      1 0 out
-)PNNXIR";
-#else
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
@@ -61,7 +38,6 @@ nn.LayerNorm            op_1        1 1 a b elementwise_affine=True eps=%eps nor
 Tensor.permute          op_2        1 1 b out dims=(0,3,1,2)
 pnnx.Output             output      1 0 out
 )PNNXIR";
-#endif
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_OPTION_H
 #define NCNN_OPTION_H
@@ -36,6 +25,13 @@ public:
     // intermediate blob will be recycled when enabled
     // enabled by default
     bool lightmode;
+
+    bool use_reserved_m0;
+
+    // enable subgroup in shader
+    bool use_subgroup_ops;
+
+    bool use_reserved_0;
 
     // thread count
     // default value is the one returned by get_cpu_count()
@@ -105,19 +101,16 @@ public:
     // enabled by default
     bool use_packing_layout;
 
-    bool use_shader_pack8;
+    // the vulkan device
+    int vulkan_device_index;
 
-    // subgroup option
-    bool use_subgroup_basic;
-    bool use_subgroup_vote;
-    bool use_subgroup_ballot;
-    bool use_subgroup_shuffle;
+    // enable options for gpu inference
+    bool use_bf16_packed;
 
-    // turn on for adreno
-    bool use_image_storage;
     bool use_tensor_storage;
 
-    bool use_reserved_0;
+    bool use_reserved_1p;
+    bool use_weights_in_host_memory;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3
@@ -125,7 +118,11 @@ public:
     // 1 = DAZ ON , FTZ OFF
     // 2 = DAZ OFF, FTZ ON
     // 3 = DAZ ON,  FTZ ON
-    int flush_denormals;
+    unsigned char flush_denormals;
+
+    bool use_reserved_2f;
+    bool use_reserved_3f;
+    bool use_mapped_model_loading;
 
     bool use_local_pool_allocator;
 

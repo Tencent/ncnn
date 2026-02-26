@@ -9,8 +9,8 @@ endif()
 
 set(RISCV_ROOT_PATH ${RISCV_ROOT_PATH} CACHE STRING "root path to riscv gnu toolchain")
 
-set(CMAKE_C_COMPILER "clang")
-set(CMAKE_CXX_COMPILER "clang++")
+set(CMAKE_C_COMPILER "${RISCV_ROOT_PATH}/bin/clang")
+set(CMAKE_CXX_COMPILER "${RISCV_ROOT_PATH}/bin/clang++")
 set(CMAKE_SYSROOT "${RISCV_ROOT_PATH}/sysroot")
 
 set(CMAKE_C_COMPILER_TARGET "riscv64-unknown-linux-gnu")

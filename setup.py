@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import shutil
 import subprocess
 
 from setuptools import setup, find_packages, Extension
@@ -37,6 +38,7 @@ OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
 ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
 ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+EXTRA_CMAKE_ARGS = os.getenv("EXTRA_CMAKE_ARGS", "").split()
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -128,6 +130,8 @@ class CMakeBuild(build_ext):
         if ENABLE_VISIBILITY != "":
             cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
 
+        cmake_args += EXTRA_CMAKE_ARGS
+
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
@@ -159,7 +163,9 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j4"]
+                # Automatically set parallel jobs based on CPU core count
+                cpu_count = os.cpu_count() or 1
+                build_args += ["-j{}".format(cpu_count)]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -176,6 +182,11 @@ if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
 requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+setup_requires = []
+if shutil.which("cmake") is None:
+    setup_requires += ["cmake>=3.12"]
+if shutil.which("ninja") is None:
+    setup_requires += ["ninja; sys_platform != 'win32'"]
 
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
@@ -199,13 +210,19 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     license="BSD-3",
     python_requires=">=3.5",
     packages=find_packages("python"),
     package_dir={"": "python"},
+    setup_requires=setup_requires,
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
     cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},

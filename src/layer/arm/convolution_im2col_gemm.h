@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
@@ -191,7 +180,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
     // NCNN_LOGE("convolution_gemm_transB_packed_tile %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = (int)top_blob.cstep;
+    const size_t out_hstep = top_blob.cstep;
 
     const float* pAT = AT_tile;
     const float* pBT = BT_tile;
@@ -3377,7 +3366,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "cbz    %w10, 0f                    \n"
 
                 "ld1    {v30.4s, v31.4s}, [%0]      \n"
-                "b      3f                          \n"
+                "b      2f                          \n"
 
                 "0:                                 \n"
                 // if pC
@@ -6829,7 +6818,7 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     }
 }
 
-static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
+static int convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -6847,6 +6836,8 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -6870,7 +6861,11 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
 
     Mat topT_tileX;
     if (K > TILE_K)
+    {
         topT_tileX.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT_tileX.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -6901,4 +6896,6 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
             }
         }
     }
+
+    return 0;
 }

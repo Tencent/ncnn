@@ -1,16 +1,5 @@
-# Tencent is pleased to support the open source community by making ncnn available.
-#
-# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-#
-# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# https://opensource.org/licenses/BSD-3-Clause
-#
-# Unless required by applicable law or agreed to in writing, software distributed
-# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-# CONDITIONS OF ANY KIND, either express or implied. See the License for the
-# specific language governing permissions and limitations under the License.
+# Copyright 2023 Tencent
+# SPDX-License-Identifier: BSD-3-Clause
 
 import torch
 import torch.nn as nn
@@ -21,11 +10,17 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        z = F.max_pool2d(z, kernel_size=(2,2))
+        w = F.max_pool2d(w, kernel_size=(2,2))
         out0 = torch.stack((x, y), dim=0)
-        out1 = torch.stack((z, w), dim=2)
+        out1 = torch.stack((x, y), dim=2)
+        out2 = torch.stack((z, w), dim=2)
+        out3 = torch.stack((z, w), dim=-1)
         out0.relu_()
         out1.relu_()
-        return out0, out1
+        out2.relu_()
+        out3.relu_()
+        return out0, out1, out2, out3
 
 def test():
     net = Model()
@@ -34,10 +29,10 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
-    z = torch.rand(5, 9, 3)
-    w = torch.rand(5, 9, 3)
+    z = torch.rand(1, 5, 10, 4)
+    w = torch.rand(1, 5, 10, 4)
 
-    a0, a1 = net(x, y, z, w)
+    a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
@@ -45,13 +40,16 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[5,9,3],[5,9,3]")
+    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[1,5,10,4],[1,5,10,4]")
 
     # ncnn inference
     import test_torch_stack_ncnn
-    b0, b1 = test_torch_stack_ncnn.test_inference()
+    b = test_torch_stack_ncnn.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

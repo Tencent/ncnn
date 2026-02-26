@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "cast_riscv.h"
 
@@ -18,15 +7,14 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Cast_riscv::Cast_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
 }
 
@@ -89,55 +77,33 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
     int size = w * h * d * elempack;
 
-#if __riscv_vector && __riscv_zfh
+#if NCNN_ZFH
     if (type_from == 1 && type_to == 2)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+#if __riscv_vector
+        if (cpu_support_riscv_zvfh())
+#else
+        if (cpu_support_riscv_zfh())
+#endif
         {
-            const float* ptr = bottom_blob.channel(q);
-            __fp16* outptr = top_blob.channel(q);
-
-            int n = size;
-            while (n > 0)
-            {
-                size_t vl = vsetvl_e32m8(n);
-
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat16m4_t _outp = vfncvt_f_f_w_f16m4(_p, vl);
-                vse16_v_f16m4(outptr, _outp, vl);
-
-                ptr += vl;
-                outptr += vl;
-                n -= vl;
-            }
+            cast_fp32_to_fp16(bottom_blob, top_blob, opt);
+            return 0;
         }
     }
 
     if (type_from == 2 && type_to == 1)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+#if __riscv_vector
+        if (cpu_support_riscv_zvfh())
+#else
+        if (cpu_support_riscv_zfh())
+#endif
         {
-            const __fp16* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            int n = size;
-            while (n > 0)
-            {
-                size_t vl = vsetvl_e16m4(n);
-
-                vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
-                vfloat32m8_t _outp = vfwcvt_f_f_v_f32m8(_p, vl);
-                vse32_v_f32m8(outptr, _outp, vl);
-
-                ptr += vl;
-                outptr += vl;
-                n -= vl;
-            }
+            cast_fp16_to_fp32(bottom_blob, top_blob, opt);
+            return 0;
         }
     }
-#endif // __riscv_vector && __riscv_zfh
+#endif // NCNN_ZFH
 
     if (type_from == 3 && type_to == 1)
     {
@@ -152,6 +118,8 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                 outptr[i] = (float)ptr[i];
             }
         }
+
+        return 0;
     }
 
     // TODO more cast type

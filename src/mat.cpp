@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
 
@@ -41,6 +30,9 @@ Mat Mat::clone(Allocator* _allocator) const
         m.create(w, h, c, elemsize, elempack, _allocator);
     else if (dims == 4)
         m.create(w, h, d, c, elemsize, elempack, _allocator);
+
+    if (m.empty())
+        return m;
 
     if (total() > 0)
     {
@@ -74,12 +66,14 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * d * elemsize;
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
             memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
@@ -94,7 +88,7 @@ Mat Mat::reshape(int _w, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = _w;
+    m.cstep = alignSize(_w * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -108,12 +102,14 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     {
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
+        if (m.empty())
+            return m;
 
         // flatten
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * d * elemsize;
+            void* mptr = (unsigned char*)m.data + i * (size_t)w * h * d * elemsize;
             memcpy(mptr, ptr, (size_t)w * h * d * elemsize);
         }
 
@@ -128,7 +124,7 @@ Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     m.d = 1;
     m.c = 1;
 
-    m.cstep = (size_t)_w * _h;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -144,11 +140,13 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, (size_t)_w * _h * elemsize);
             }
@@ -187,11 +185,13 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
         {
             Mat m;
             m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
+            if (m.empty())
+                return m;
 
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * _d * elemsize;
+                const void* ptr = (unsigned char*)data + i * (size_t)_w * _h * _d * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, (size_t)_w * _h * _d * elemsize);
             }
@@ -236,7 +236,7 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -271,7 +271,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -376,7 +376,7 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -411,7 +411,7 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
     d = 1;
     c = 1;
 
-    cstep = (size_t)w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     size_t totalsize = alignSize(total() * elemsize, 4);
     if (totalsize > 0)
@@ -558,7 +558,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -591,7 +591,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -624,7 +624,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -657,7 +657,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -690,7 +690,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     d = 1;
     c = 1;
 
-    cstep = w;
+    cstep = alignSize(w * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -723,7 +723,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     d = 1;
     c = 1;
 
-    cstep = w * h;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -756,7 +756,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     d = 1;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -789,7 +789,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     d = _d;
     c = _c;
 
-    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -1329,6 +1329,95 @@ float float16_to_float32(unsigned short value)
     }
 
     return tmp.f;
+}
+
+unsigned char float16_to_float8(unsigned short value)
+{
+    // 1 : 5 : 10 -> 1 : 4 : 3 (E4M3)
+    unsigned short sign = (value & 0x8000) >> 15;
+    unsigned short exponent = (value & 0x7c00) >> 10;
+    unsigned short significand = value & 0x03FF;
+
+    // 1 : 4 : 3
+    unsigned char fp8;
+    if (exponent == 0)
+    {
+        // zero or denormal, always underflow to zero
+        fp8 = (sign << 7) | (0x0 << 3) | 0x0;
+    }
+    else if (exponent == 0x1F)
+    {
+        // infinity or NaN
+        if (significand == 0)
+        {
+            // infinity -> NaN (E4M3 has no infinity)
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+        else
+        {
+            // NaN -> NaN
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+    }
+    else
+    {
+        // normalized
+        short newexp = exponent + (-15 + 7);
+        if (newexp >= 15)
+        {
+            // overflow, return NaN (E4M3 has no infinity)
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+        else if (newexp <= 0)
+        {
+            // underflow to zero
+            fp8 = (sign << 7) | (0x0 << 3) | 0x0;
+        }
+        else
+        {
+            // normal fp8
+            fp8 = (sign << 7) | (newexp << 3) | (significand >> 7);
+        }
+    }
+
+    return fp8;
+}
+
+unsigned short float8_to_float16(unsigned char value)
+{
+    // 1 : 4 : 3 -> 1 : 5 : 10 (E4M3)
+    unsigned char sign = (value & 0x80) >> 7;
+    unsigned char exponent = (value & 0x78) >> 3;
+    unsigned char significand = value & 0x07;
+
+    // 1 : 5 : 10
+    unsigned short fp16;
+    if (exponent == 0)
+    {
+        if (significand == 0)
+        {
+            // zero
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+        }
+        else
+        {
+            // denormal (should not happen in E4M3, but handle it)
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+        }
+    }
+    else if (exponent == 0xF)
+    {
+        // NaN (E4M3 has no infinity)
+        fp16 = (sign << 15) | (0x1F << 10) | 0x200;
+    }
+    else
+    {
+        // normalized
+        unsigned short newexp = exponent + (-7 + 15);
+        fp16 = (sign << 15) | (newexp << 10) | (significand << 7);
+    }
+
+    return fp16;
 }
 
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt)
