@@ -17,7 +17,6 @@ namespace ncnn {
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
-
 static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
