@@ -574,23 +574,23 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     if (out_elempack == 1)
                     {
                         vfloat16m1x8_t _sum0_f16 = __riscv_vcreate_v_f16m1x8(
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum3, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum4, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum5, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum6, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum7, vl));
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum0, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum1, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum2, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum3, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum4, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum5, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum6, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum7, vl));
                         vfloat16m1x8_t _sum1_f16 = __riscv_vcreate_v_f16m1x8(
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum8, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sum9, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_suma, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sumb, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sumc, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sumd, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sume, vl),
-                                                      __riscv_vfncvt_f_f_w_f16m1(_sumf, vl));
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum8, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sum9, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_suma, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sumb, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sumc, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sumd, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sume, vl),
+                                                       __riscv_vfncvt_f_f_w_f16m1(_sumf, vl));
                         __riscv_vssseg8e16_v_f16m1x8(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
                         __riscv_vssseg8e16_v_f16m1x8(outptr0 + 8, out_hstep * sizeof(__fp16), _sum1_f16, vl);
                         outptr0 += 16;
