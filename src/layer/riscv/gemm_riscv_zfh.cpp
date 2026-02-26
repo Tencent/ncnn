@@ -17,9 +17,11 @@ namespace ncnn {
 #include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
-namespace Gemm_riscv {
+namespace Gemm_riscv_utility {
 extern void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
 }
+
+using Gemm_riscv_utility::pack_A_tile;
 
 static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {

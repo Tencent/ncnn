@@ -31,8 +31,7 @@ Gemm_riscv::Gemm_riscv()
     nT = 0;
 }
 
-namespace Gemm_riscv {
-void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
@@ -127,7 +126,6 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
         }
     }
 }
-} // namespace Gemm_riscv
 
 static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
@@ -2218,6 +2216,13 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 
     return 0;
+}
+
+namespace Gemm_riscv_utility {
+void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+{
+    ncnn::pack_A_tile(A, AT, i, max_ii, k, max_kk);
+}
 }
 
 } // namespace ncnn
