@@ -1227,7 +1227,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 }
             }
         }
-
     }
 
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
