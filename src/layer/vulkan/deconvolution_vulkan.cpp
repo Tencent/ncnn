@@ -421,29 +421,35 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
         }
     }
 
-    // src = kw-kh-inch-outch
-    // dst = pa-pb-kw-kh-inch/pa-outch/pb
+    // unified pack4 weight layout: output channels always packed by 4
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        const int num_output_packed = (num_output + 3) / 4 * 4;
 
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        weight_data_packed.create(maxk, num_input / elempack, num_output_packed / 4, (size_t)4 * 4 * elempack, 4 * elempack);
+
+        for (int q = 0; q < num_output_packed; q += 4)
         {
-            float* g00 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_packed.channel(q / 4);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
                 for (int k = 0; k < maxk; k++)
                 {
-                    for (int i = 0; i < out_elempack; i++)
+                    for (int i = 0; i < 4; i++)
                     {
-                        const Mat k0 = weight_data_r2.channel(q + i);
-
                         for (int j = 0; j < elempack; j++)
                         {
-                            const float* k00 = k0.row(p + j);
-                            g00[0] = k00[k];
+                            if (q + i < num_output)
+                            {
+                                const float* k00 = weight_data_r2.channel(q + i).row(p + j);
+                                g00[0] = k00[k];
+                            }
+                            else
+                            {
+                                g00[0] = 0.f;
+                            }
                             g00++;
                         }
                     }
@@ -452,7 +458,10 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
         }
     }
 
-    std::vector<vk_specialization_type> specializations(10 + 10);
+    const int num_output_packed = (num_output + 3) / 4 * 4;
+    const int outc_pack4 = num_output_packed / 4;
+
+    std::vector<vk_specialization_type> specializations(12 + 11);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
     specializations[2].i = dilation_w;
@@ -463,34 +472,31 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
     specializations[7].i = activation_type;
     specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
     specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-    specializations[10 + 0].i = shape.dims;
-    specializations[10 + 1].i = shape.w;
-    specializations[10 + 2].i = shape.h;
-    specializations[10 + 3].i = shape.c;
-    specializations[10 + 4].i = shape.cstep;
-    specializations[10 + 5].i = out_shape_bordered.dims;
-    specializations[10 + 6].i = out_shape_bordered.w;
-    specializations[10 + 7].i = out_shape_bordered.h;
-    specializations[10 + 8].i = out_shape_bordered.c;
-    specializations[10 + 9].i = out_shape_bordered.cstep;
+    specializations[10].i = elempack;
+    specializations[11].i = out_elempack;
+    specializations[12 + 0].i = shape.dims;
+    specializations[12 + 1].i = shape.w;
+    specializations[12 + 2].i = shape.h;
+    specializations[12 + 3].i = shape.c;
+    specializations[12 + 4].i = shape.cstep;
+    specializations[12 + 5].i = out_shape_bordered.dims;
+    specializations[12 + 6].i = out_shape_bordered.w;
+    specializations[12 + 7].i = out_shape_bordered.h;
+    specializations[12 + 8].i = out_shape_bordered.dims != 0 ? outc_pack4 : 0;
+    specializations[12 + 9].i = out_shape_bordered.dims != 0 ? (out_elempack == 4 ? out_shape_bordered.cstep : out_shape_bordered.cstep * 4) : 0;
+    specializations[12 + 10].i = num_output;
 
-    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+    Mat local_size_xyz(8, 8, std::min(4, (outc_pack4 + 1) / 2), (void*)0);
     if (out_shape_bordered.dims != 0)
     {
         local_size_xyz.w = std::min(8, out_shape_bordered.w);
         local_size_xyz.h = std::min(8, out_shape_bordered.h);
-        local_size_xyz.c = std::min(4, out_shape_bordered.c);
+        local_size_xyz.c = std::min(4, (outc_pack4 + 1) / 2);
     }
-
-    int shader_type_index = -1;
-    if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution;
-    if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4;
-    if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4;
-    if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1;
 
     pipeline_deconvolution = new Pipeline(vkdev);
     pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
-    pipeline_deconvolution->create(shader_type_index, opt, specializations);
+    pipeline_deconvolution->create(LayerShaderType::deconvolution_packed, opt, specializations);
 
     if (opt.lightmode)
     {
@@ -557,7 +563,20 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     if (bias_term)
     {
-        cmd.record_upload(bias_data, bias_data_gpu, opt);
+        // pad bias to multiple of 4 for the unified packed shader
+        const int num_output_packed = (num_output + 3) / 4 * 4;
+        Mat bias_data_packed(num_output_packed, (size_t)4u, 1);
+        float* bias_ptr = bias_data_packed;
+        for (int i = 0; i < num_output; i++)
+        {
+            bias_ptr[i] = bias_data[i];
+        }
+        for (int i = num_output; i < num_output_packed; i++)
+        {
+            bias_ptr[i] = 0.f;
+        }
+
+        cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
 
         bias_data.release();
     }
@@ -673,6 +692,10 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     }
     else
     {
+        // for the unified shader, outc and outcstep are in pack4 units
+        const int num_output_packed = (num_output + 3) / 4 * 4;
+        const int outc_pack4 = num_output_packed / 4;
+
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
         {
             top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
@@ -684,13 +707,15 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         if (top_blob_bordered.empty())
             return -100;
 
-        std::vector<VkMat> bindings(4);
+        std::vector<VkMat> bindings(6);
         bindings[0] = bottom_blob;
         bindings[1] = top_blob_bordered;
-        bindings[2] = weight_data_gpu;
-        bindings[3] = bias_data_gpu;
+        bindings[2] = bottom_blob;
+        bindings[3] = top_blob_bordered;
+        bindings[4] = weight_data_gpu;
+        bindings[5] = bias_data_gpu;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(11);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -699,10 +724,16 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         constants[5].i = top_blob_bordered.dims;
         constants[6].i = top_blob_bordered.w;
         constants[7].i = top_blob_bordered.h;
-        constants[8].i = top_blob_bordered.c;
-        constants[9].i = top_blob_bordered.cstep;
+        constants[8].i = outc_pack4;
+        constants[9].i = (out_elempack == 4) ? top_blob_bordered.cstep : (top_blob_bordered.cstep * 4);
+        constants[10].i = num_output;
 
-        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, top_blob_bordered);
+        VkMat dispatcher;
+        dispatcher.w = (top_blob_bordered.w + 1) / 2;
+        dispatcher.h = (top_blob_bordered.h + 1) / 2;
+        dispatcher.c = (outc_pack4 + 1) / 2;
+
+        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, dispatcher);
     }
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
