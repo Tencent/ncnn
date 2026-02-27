@@ -37,6 +37,25 @@ static inline bool topk_pair_comp(const std::pair<float, int>& a, const std::pai
     return a.second < b.second;
 }
 
+static inline bool topk_value_index_comp(float a_value, int a_index, float b_value, int b_index, bool largest)
+{
+    const bool a_nan = topk_isnan(a_value);
+    const bool b_nan = topk_isnan(b_value);
+
+    if (a_nan || b_nan)
+    {
+        if (a_nan != b_nan)
+            return !a_nan && b_nan;
+
+        return a_index < b_index;
+    }
+
+    if (a_value != b_value)
+        return largest ? (a_value > b_value) : (a_value < b_value);
+
+    return a_index < b_index;
+}
+
 struct topk_pair_comparator
 {
     topk_pair_comparator(bool _largest)
@@ -178,7 +197,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             for (int j = 1; j < axis_size; j++)
             {
                 const float candidate_value = ptr[in_base + j * inner];
-                if (topk_pair_comp(std::make_pair(candidate_value, j), std::make_pair(best_value, best_index), largest_flag))
+                if (topk_value_index_comp(candidate_value, j, best_value, best_index, largest_flag))
                 {
                     best_value = candidate_value;
                     best_index = j;
