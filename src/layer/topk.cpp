@@ -252,6 +252,78 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
+    if (_k <= 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int line = 0; line < total_lines; line++)
+        {
+            int outer_i = line / inner;
+            int inner_i = line - outer_i * inner;
+
+            int in_base = outer_i * axis_size * inner + inner_i;
+            int out_base = outer_i * _k * inner + inner_i;
+
+            float top_values[4];
+            int top_indices[4];
+            int top_count = 0;
+
+            for (int j = 0; j < axis_size; j++)
+            {
+                const float candidate_value = ptr[in_base + j * inner];
+
+                if (top_count < _k)
+                {
+                    int insert_pos = top_count;
+                    while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
+                    {
+                        top_values[insert_pos] = top_values[insert_pos - 1];
+                        top_indices[insert_pos] = top_indices[insert_pos - 1];
+                        insert_pos--;
+                    }
+
+                    top_values[insert_pos] = candidate_value;
+                    top_indices[insert_pos] = j;
+                    top_count++;
+                }
+                else if (topk_value_index_comp(candidate_value, j, top_values[_k - 1], top_indices[_k - 1], largest_flag))
+                {
+                    int insert_pos = _k - 1;
+                    while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
+                    {
+                        top_values[insert_pos] = top_values[insert_pos - 1];
+                        top_indices[insert_pos] = top_indices[insert_pos - 1];
+                        insert_pos--;
+                    }
+
+                    top_values[insert_pos] = candidate_value;
+                    top_indices[insert_pos] = j;
+                }
+            }
+
+            if (output_indices)
+            {
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = top_values[j];
+                    outidxptr[out_base + j * inner] = (float)top_indices[j];
+                }
+            }
+            else
+            {
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = top_values[j];
+                }
+            }
+        }
+
+        top_blobs[0] = values;
+        if (top_blobs.size() >= 2)
+            top_blobs[1] = indices;
+
+        return 0;
+    }
+
     #pragma omp parallel num_threads(opt.num_threads)
     {
         std::vector<std::pair<float, int> > vec;
