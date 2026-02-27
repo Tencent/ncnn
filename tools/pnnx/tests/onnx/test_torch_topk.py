@@ -22,6 +22,9 @@ class Model(nn.Module):
         x_unsorted_values, x_unsorted_indices = torch.topk(
             x, 2, dim=1, largest=True, sorted=False
         )
+        x_values_only = torch.topk(
+            x, 3, dim=1, largest=True, sorted=True
+        )[0]
         y_values, y_indices = torch.topk(
             y, 4, dim=3, largest=False, sorted=True
         )
@@ -47,6 +50,7 @@ class Model(nn.Module):
             x_k0_indices,
             x_unsorted_values,
             x_unsorted_indices,
+            x_values_only,
             y_values,
             y_indices,
             z_values,
