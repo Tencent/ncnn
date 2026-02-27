@@ -26,7 +26,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 k
-TopK                    op_0        2 2 input k values indices %*=%*
+TopK                    op_0        2 2 input k values indices axis=%axis largest=%largest sorted=%sorted
 pnnx.Output             output      2 0 values indices
 )PNNXIR";
     }
@@ -44,16 +44,16 @@ pnnx.Output             output      2 0 values indices
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int axis = -1;
-        if (captured_params.find("op_0.axis") != captured_params.end())
-            axis = captured_params.at("op_0.axis").i;
+        if (captured_params.find("axis") != captured_params.end())
+            axis = captured_params.at("axis").i;
 
         int largest = 1;
-        if (captured_params.find("op_0.largest") != captured_params.end())
-            largest = parameter_to_bool(captured_params.at("op_0.largest"), 1);
+        if (captured_params.find("largest") != captured_params.end())
+            largest = parameter_to_bool(captured_params.at("largest"), 1);
 
         int sorted = 1;
-        if (captured_params.find("op_0.sorted") != captured_params.end())
-            sorted = parameter_to_bool(captured_params.at("op_0.sorted"), 1);
+        if (captured_params.find("sorted") != captured_params.end())
+            sorted = parameter_to_bool(captured_params.at("sorted"), 1);
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
@@ -84,7 +84,7 @@ public:
 4 2
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 k
-TopK                    op_0        2 1 input k values %*=%*
+TopK                    op_0        2 1 input k values axis=%axis largest=%largest sorted=%sorted
 pnnx.Output             output      1 0 values
 )PNNXIR";
     }
