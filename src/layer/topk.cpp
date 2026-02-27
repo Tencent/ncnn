@@ -4,7 +4,6 @@
 #include "topk.h"
 
 #include <algorithm>
-#include <float.h>
 #include <stdint.h>
 #include <string.h>
 #include <vector>
@@ -202,11 +201,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             {
                 const float* lineptr = ptr + in_base;
 
-                float best_value = largest_flag ? -FLT_MAX : FLT_MAX;
-                int j = 0;
-                int has_nan = 0;
+                float best_value = lineptr[0];
+                int j = 1;
+                int has_nan = topk_isnan(best_value);
 
-                for (; j + 3 < axis_size; j += 4)
+                for (; !has_nan && j + 3 < axis_size; j += 4)
                 {
                     float32x4_t v = vld1q_f32(lineptr + j);
                     uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(v, v));
