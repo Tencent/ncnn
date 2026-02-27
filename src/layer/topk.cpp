@@ -152,44 +152,47 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     const int total_lines = outer * inner;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int line = 0; line < total_lines; line++)
+    #pragma omp parallel num_threads(opt.num_threads)
     {
-        int outer_i = line / inner;
-        int inner_i = line - outer_i * inner;
-
-        int in_base = outer_i * axis_size * inner + inner_i;
-        int out_base = outer_i * _k * inner + inner_i;
-
         std::vector<std::pair<float, int> > vec;
         vec.resize(axis_size);
 
-        for (int j = 0; j < axis_size; j++)
-        {
-            vec[j].first = ptr[in_base + j * inner];
-            vec[j].second = j;
-        }
-
         topk_pair_comparator comp(largest_flag);
 
-        if (_k < axis_size)
+        #pragma omp for
+        for (int line = 0; line < total_lines; line++)
         {
-            if (sorted_flag)
-                std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
-            else
-                std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
-        }
-        else
-        {
-            if (sorted_flag)
-                std::sort(vec.begin(), vec.end(), comp);
-        }
+            int outer_i = line / inner;
+            int inner_i = line - outer_i * inner;
 
-        for (int j = 0; j < _k; j++)
-        {
-            outptr[out_base + j * inner] = vec[j].first;
-            if (outidxptr)
-                outidxptr[out_base + j * inner] = (float)vec[j].second;
+            int in_base = outer_i * axis_size * inner + inner_i;
+            int out_base = outer_i * _k * inner + inner_i;
+
+            for (int j = 0; j < axis_size; j++)
+            {
+                vec[j].first = ptr[in_base + j * inner];
+                vec[j].second = j;
+            }
+
+            if (_k < axis_size)
+            {
+                if (sorted_flag)
+                    std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
+                else
+                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
+            }
+            else
+            {
+                if (sorted_flag)
+                    std::sort(vec.begin(), vec.end(), comp);
+            }
+
+            for (int j = 0; j < _k; j++)
+            {
+                outptr[out_base + j * inner] = vec[j].first;
+                if (outidxptr)
+                    outidxptr[out_base + j * inner] = (float)vec[j].second;
+            }
         }
     }
 
