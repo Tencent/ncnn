@@ -1363,7 +1363,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             //   elempack=1: shape_bordered.cstep (scalar units), but sfpvec4 stride = cstep_scalar/4
             const int c_packed = num_input_packed / 4;
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
-                                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
+                                   : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
             std::vector<vk_specialization_type> specializations(6 + 7);
             specializations[0].i = bias_term;
