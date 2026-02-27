@@ -332,6 +332,6 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3l = __riscv_vle32_v_f32m1(ptr + 6 * 4, vl);
     _r3h = __riscv_vle32_v_f32m1(ptr + 7 * 4, vl);
 }
-#endif
+#endif // __riscv_vector
 
 #endif // RISCV_USABILITY_H

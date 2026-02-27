@@ -22,18 +22,12 @@ jobs:
     - name: Ensure workflow_run is for a PR
       id: validate
       run: |
-        # Save raw payload to a file to avoid echo/pipe issues with large JSON
-        printf '%s\n' "${{ toJson(github.event) }}" > /tmp/event.json
-        echo "Saved /tmp/event.json, size: $(wc -c < /tmp/event.json) bytes"
-
-        # Try to pretty-print for logs; if jq fails, show head for debugging
-        if ! jq . /tmp/event.json; then
-          echo "jq parse failed for /tmp/event.json; showing head (200 lines):"
-          sed -n '1,200p' /tmp/event.json || true
-        fi
+        # Use the event payload file provided by GitHub Actions directly
+        echo "Using event payload from: $GITHUB_EVENT_PATH"
+        echo "Event file size: $(wc -c < "$GITHUB_EVENT_PATH") bytes"
 
         # Safely compute number of associated PRs (use // 0 to default if missing)
-        PR_COUNT=$(jq -r '.workflow_run.pull_requests | length // 0' /tmp/event.json)
+        PR_COUNT=$(jq -r '.workflow_run.pull_requests | length // 0' "$GITHUB_EVENT_PATH")
         echo "Associated pull_request count: $PR_COUNT"
 
         if [ "$PR_COUNT" -eq 0 ]; then
