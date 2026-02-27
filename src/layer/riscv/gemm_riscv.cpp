@@ -1440,12 +1440,12 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
     TILE_M = std::max(packn, tile_size / packn * packn);
     TILE_N = std::max(packn, tile_size / packn * packn);
-    TILE_K = std::max(8, tile_size / 8 * 8);
+    TILE_K = std::max(packn, tile_size / packn * packn);
 
     if (K > 0)
     {
         int nn_K = (K + TILE_K - 1) / TILE_K;
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + (packn - 1)) / packn * packn);
 
         if (nn_K == 1)
         {
@@ -1487,7 +1487,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
     if (constant_TILE_K > 0)
     {
-        TILE_K = (constant_TILE_K + 7) / 8 * 8;
+        TILE_K = (constant_TILE_K + (packn - 1)) / packn * packn;
     }
 }
 
