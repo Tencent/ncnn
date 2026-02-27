@@ -23,6 +23,7 @@ layout(constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
 layout(constant_id = shape_constant_id_offset + 4) const int outcstep_native = 0;
 layout(constant_id = shape_constant_id_offset + 5) const int size = 0;
 layout(constant_id = shape_constant_id_offset + 6) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int num_input = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
@@ -38,6 +39,7 @@ layout(push_constant) uniform parameter
     int outcstep_native;
     int size;
     int num_output;
+    int num_input;
 } p;
 
 #if NCNN_shader_local_memory
@@ -103,7 +105,10 @@ void main()
             {
                 for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
                 {
-                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx + ((z + z4) * 4 + ly) * psc(cstep));
+                    if ((z + z4) * 4 + ly < psc(num_input))
+                        tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx + ((z + z4) * 4 + ly) * psc(cstep));
+                    else
+                        tmp_v[lx][z4][ly] = lfpvec4(0);
                 }
             }
         }
@@ -180,7 +185,10 @@ void main()
             {
                 for (int z4 = 0; z4 < remain; z4++)
                 {
-                    tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx + ((z + z4) * 4 + ly) * psc(cstep));
+                    if ((z + z4) * 4 + ly < psc(num_input))
+                        tmp_v[lx][z4][ly] = buffer_sm4(bottom_blob_data, gx + ((z + z4) * 4 + ly) * psc(cstep));
+                    else
+                        tmp_v[lx][z4][ly] = lfpvec4(0);
                 }
             }
         }
@@ -252,10 +260,11 @@ void main()
             // each sfpvec4 = 4 spatial positions at one input channel
             // read 4 input channels, then transpose to 4 spatial x 4 input
             int v_offset = gx + z * 4 * psc(cstep);
+            int ci = z * 4;
             afpvec4 r0 = buffer_ld4(bottom_blob_data, v_offset);
-            afpvec4 r1 = buffer_ld4(bottom_blob_data, v_offset + psc(cstep));
-            afpvec4 r2 = buffer_ld4(bottom_blob_data, v_offset + psc(cstep) * 2);
-            afpvec4 r3 = buffer_ld4(bottom_blob_data, v_offset + psc(cstep) * 3);
+            afpvec4 r1 = ci + 1 < psc(num_input) ? buffer_ld4(bottom_blob_data, v_offset + psc(cstep)) : afpvec4(0.f);
+            afpvec4 r2 = ci + 2 < psc(num_input) ? buffer_ld4(bottom_blob_data, v_offset + psc(cstep) * 2) : afpvec4(0.f);
+            afpvec4 r3 = ci + 3 < psc(num_input) ? buffer_ld4(bottom_blob_data, v_offset + psc(cstep) * 3) : afpvec4(0.f);
 
             // transpose: r[channel].spatial -> v[spatial].channel
             v0 = afpvec4(r0.r, r1.r, r2.r, r3.r);

@@ -1373,7 +1373,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
-            std::vector<vk_specialization_type> specializations(6 + 7);
+            std::vector<vk_specialization_type> specializations(6 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1387,6 +1387,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[6 + 4].i = out_shape.dims != 0 ? out_shape.cstep / 4 : 0;
             specializations[6 + 5].i = out_shape.dims != 0 ? (out_shape.w * out_shape.h + 3) / 4 : 0;
             specializations[6 + 6].i = num_output;
+            specializations[6 + 7].i = num_input;
 
             const int outc_pack4 = num_output_packed / 4;
 
@@ -2022,7 +2023,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[2] = weight_data_gpu;
             bindings[3] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(7);
+            std::vector<vk_constant_type> constants(8);
             constants[0].i = c_packed;
             constants[1].i = cstep_vec4;
             constants[2].i = outc_pack4;
@@ -2030,6 +2031,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             constants[4].i = outcstep_native;
             constants[5].i = size;
             constants[6].i = num_output;
+            constants[7].i = num_input;
 
             VkMat dispatcher;
             dispatcher.w = size;
