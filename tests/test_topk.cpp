@@ -49,6 +49,49 @@ static int test_topk_cpu_forward(const ncnn::Mat& a, int axis, int k, int larges
     return 0;
 }
 
+static int test_topk_cpu_forward_values_only(const ncnn::Mat& a, int axis, int k, int largest, int sorted, ncnn::Mat& values)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, axis);
+    pd.set(1, largest);
+    pd.set(2, sorted);
+    pd.set(3, k);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = false;
+    opt.use_packing_layout = false;
+
+    ncnn::Layer* op = ncnn::create_layer_cpu("TopK");
+    if (!op)
+        return -1;
+
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+    op->load_model(mb);
+
+    op->create_pipeline(opt);
+
+    std::vector<ncnn::Mat> bottom_blobs(1);
+    bottom_blobs[0] = a;
+
+    std::vector<ncnn::Mat> top_blobs(1);
+    int ret = op->forward(bottom_blobs, top_blobs, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != 0)
+        return ret;
+
+    values = top_blobs[0];
+
+    return 0;
+}
+
 static int test_topk(const ncnn::Mat& a, int axis, int k, int largest, int sorted)
 {
     ncnn::ParamDict pd;
@@ -251,6 +294,57 @@ static int test_topk_nan_robust()
     return 0;
 }
 
+static int test_topk_values_only_fastpaths()
+{
+    ncnn::Mat a(5);
+    float* ptr = a;
+    ptr[0] = 1.f;
+    ptr[1] = -2.f;
+    ptr[2] = 4.f;
+    ptr[3] = 3.f;
+    ptr[4] = 0.f;
+
+    ncnn::Mat values;
+
+    int ret = test_topk_cpu_forward_values_only(a, 0, 1, 1, 0, values);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_topk_values_only_fastpaths k1 failed ret=%d\n", ret);
+        return -1;
+    }
+
+    if (values.w != 1 || ((const float*)values)[0] != 4.f)
+    {
+        fprintf(stderr, "test_topk_values_only_fastpaths k1 result mismatch\n");
+        return -1;
+    }
+
+    ret = test_topk_cpu_forward_values_only(a, 0, 5, 1, 0, values);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_topk_values_only_fastpaths fullk failed ret=%d\n", ret);
+        return -1;
+    }
+
+    if (values.w != 5)
+    {
+        fprintf(stderr, "test_topk_values_only_fastpaths fullk shape mismatch\n");
+        return -1;
+    }
+
+    const float* vptr = values;
+    for (int i = 0; i < 5; i++)
+    {
+        if (vptr[i] != ptr[i])
+        {
+            fprintf(stderr, "test_topk_values_only_fastpaths fullk value mismatch\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -261,5 +355,6 @@ int main()
            || test_topk_2()
            || test_topk_3()
            || test_topk_inf_order()
-           || test_topk_nan_robust();
+           || test_topk_nan_robust()
+           || test_topk_values_only_fastpaths();
 }
