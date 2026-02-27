@@ -9,9 +9,18 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, u, v):
         x_values, x_indices = torch.topk(
             x, 2, dim=1, largest=True, sorted=True
+        )
+        x_k1_values, x_k1_indices = torch.topk(
+            x, 1, dim=1, largest=True, sorted=True
+        )
+        x_k0_values, x_k0_indices = torch.topk(
+            x, 0, dim=1, largest=True, sorted=True
+        )
+        x_unsorted_values, x_unsorted_indices = torch.topk(
+            x, 2, dim=1, largest=True, sorted=False
         )
         y_values, y_indices = torch.topk(
             y, 4, dim=3, largest=False, sorted=True
@@ -19,7 +28,36 @@ class Model(nn.Module):
         z_values, z_indices = torch.topk(
             z, 3, dim=0, largest=True, sorted=True
         )
-        return x_values, x_indices, y_values, y_indices, z_values, z_indices
+        z_unsorted_values, z_unsorted_indices = torch.topk(
+            z, 3, dim=0, largest=True, sorted=False
+        )
+        u_values, u_indices = torch.topk(
+            u, 2, dim=-1, largest=True, sorted=True
+        )
+        v_values, v_indices = torch.topk(
+            v, 2, dim=1, largest=True, sorted=True
+        )
+
+        return (
+            x_values,
+            x_indices,
+            x_k1_values,
+            x_k1_indices,
+            x_k0_values,
+            x_k0_indices,
+            x_unsorted_values,
+            x_unsorted_indices,
+            y_values,
+            y_indices,
+            z_values,
+            z_indices,
+            z_unsorted_values,
+            z_unsorted_indices,
+            u_values,
+            u_indices,
+            v_values,
+            v_indices,
+        )
 
 
 def test():
@@ -30,18 +68,20 @@ def test():
     x = torch.rand(1, 3, 16)
     y = torch.rand(1, 5, 9, 11)
     z = torch.rand(14, 8, 5, 9, 10)
+    u = torch.rand(2, 8, 4)
+    v = torch.rand(2, 4, 3)
 
-    a = net(x, y, z)
+    a = net(x, y, z, u, v)
 
     # export onnx
-    torch.onnx.export(net, (x, y, z), "test_torch_topk.onnx")
+    torch.onnx.export(net, (x, y, z, u, v), "test_torch_topk.onnx")
 
     # onnx to pnnx
     import os
 
     os.system(
         "../../src/pnnx test_torch_topk.onnx "
-        "inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]"
+        "inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[2,8,4],[2,4,3]"
     )
 
     # pnnx inference
