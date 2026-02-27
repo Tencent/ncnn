@@ -4,9 +4,14 @@
 #include "topk.h"
 
 #include <algorithm>
+#include <float.h>
 #include <stdint.h>
 #include <string.h>
 #include <vector>
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
 
 namespace ncnn {
 
@@ -191,6 +196,76 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
             int in_base = outer_i * axis_size * inner + inner_i;
             int out_base = outer_i * inner + inner_i;
+
+#if __ARM_NEON
+            if (!output_indices && inner == 1 && axis_size >= 4)
+            {
+                const float* lineptr = ptr + in_base;
+
+                float best_value = largest_flag ? -FLT_MAX : FLT_MAX;
+                int j = 0;
+                int has_nan = 0;
+
+                for (; j + 3 < axis_size; j += 4)
+                {
+                    float32x4_t v = vld1q_f32(lineptr + j);
+                    uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(v, v));
+                    if (vmaxvq_u32(nan_mask) != 0)
+                    {
+                        has_nan = 1;
+                        break;
+                    }
+
+                    float tmp[4];
+                    vst1q_f32(tmp, v);
+
+                    if (largest_flag)
+                    {
+                        if (tmp[0] > best_value) best_value = tmp[0];
+                        if (tmp[1] > best_value) best_value = tmp[1];
+                        if (tmp[2] > best_value) best_value = tmp[2];
+                        if (tmp[3] > best_value) best_value = tmp[3];
+                    }
+                    else
+                    {
+                        if (tmp[0] < best_value) best_value = tmp[0];
+                        if (tmp[1] < best_value) best_value = tmp[1];
+                        if (tmp[2] < best_value) best_value = tmp[2];
+                        if (tmp[3] < best_value) best_value = tmp[3];
+                    }
+                }
+
+                if (!has_nan)
+                {
+                    for (; j < axis_size; j++)
+                    {
+                        const float candidate_value = lineptr[j];
+                        if (topk_isnan(candidate_value))
+                        {
+                            has_nan = 1;
+                            break;
+                        }
+
+                        if (largest_flag)
+                        {
+                            if (candidate_value > best_value)
+                                best_value = candidate_value;
+                        }
+                        else
+                        {
+                            if (candidate_value < best_value)
+                                best_value = candidate_value;
+                        }
+                    }
+                }
+
+                if (!has_nan)
+                {
+                    outptr[out_base] = best_value;
+                    continue;
+                }
+            }
+#endif // __ARM_NEON
 
             float best_value = ptr[in_base];
             int best_index = 0;
