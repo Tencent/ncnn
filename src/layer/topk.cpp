@@ -217,6 +217,41 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
+    if (_k == axis_size && !sorted_flag)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int line = 0; line < total_lines; line++)
+        {
+            int outer_i = line / inner;
+            int inner_i = line - outer_i * inner;
+
+            int in_base = outer_i * axis_size * inner + inner_i;
+            int out_base = outer_i * _k * inner + inner_i;
+
+            if (output_indices)
+            {
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = ptr[in_base + j * inner];
+                    outidxptr[out_base + j * inner] = (float)j;
+                }
+            }
+            else
+            {
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = ptr[in_base + j * inner];
+                }
+            }
+        }
+
+        top_blobs[0] = values;
+        if (top_blobs.size() >= 2)
+            top_blobs[1] = indices;
+
+        return 0;
+    }
+
     #pragma omp parallel num_threads(opt.num_threads)
     {
         std::vector<std::pair<float, int> > vec;
