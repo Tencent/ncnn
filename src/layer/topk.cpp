@@ -131,6 +131,15 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             return -100;
     }
 
+    if (_k == 0)
+    {
+        top_blobs[0] = values;
+        if (top_blobs.size() >= 2)
+            top_blobs[1] = indices;
+
+        return 0;
+    }
+
     const float* ptr = bottom_blob;
     float* outptr = values;
     float* outidxptr = indices;
@@ -177,7 +186,10 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             if (_k < axis_size)
             {
                 if (sorted_flag)
-                    std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
+                {
+                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
+                    std::sort(vec.begin(), vec.begin() + _k, comp);
+                }
                 else
                     std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
             }
