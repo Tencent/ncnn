@@ -209,7 +209,9 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 {
                     float32x4_t v = vld1q_f32(lineptr + j);
                     uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(v, v));
-                    if (vmaxvq_u32(nan_mask) != 0)
+                    uint32_t nan_mask_lanes[4];
+                    vst1q_u32(nan_mask_lanes, nan_mask);
+                    if (nan_mask_lanes[0] || nan_mask_lanes[1] || nan_mask_lanes[2] || nan_mask_lanes[3])
                     {
                         has_nan = 1;
                         break;
