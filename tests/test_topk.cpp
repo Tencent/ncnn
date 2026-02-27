@@ -78,6 +78,7 @@ static int test_topk_0()
     return 0
            || test_topk(a, 0, 1, 1, 1)
            || test_topk(a, 0, 5, 1, 1)
+            || test_topk(a, 0, 1, 0, 0)
            || test_topk(a, -1, 7, 0, 1)
            || test_topk(a, 0, 4, 1, 0)
            || test_topk(a, 0, 9, 1, 1);
