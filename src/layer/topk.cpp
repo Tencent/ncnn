@@ -343,36 +343,68 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             int top_indices[4];
             int top_count = 0;
 
-            for (int j = 0; j < axis_size; j++)
+            if (sorted_flag)
             {
-                const float candidate_value = ptr[in_base + j * inner];
-
-                if (top_count < _k)
+                for (int j = 0; j < axis_size; j++)
                 {
-                    int insert_pos = top_count;
-                    while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
-                    {
-                        top_values[insert_pos] = top_values[insert_pos - 1];
-                        top_indices[insert_pos] = top_indices[insert_pos - 1];
-                        insert_pos--;
-                    }
+                    const float candidate_value = ptr[in_base + j * inner];
 
-                    top_values[insert_pos] = candidate_value;
-                    top_indices[insert_pos] = j;
-                    top_count++;
+                    if (top_count < _k)
+                    {
+                        int insert_pos = top_count;
+                        while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
+                        {
+                            top_values[insert_pos] = top_values[insert_pos - 1];
+                            top_indices[insert_pos] = top_indices[insert_pos - 1];
+                            insert_pos--;
+                        }
+
+                        top_values[insert_pos] = candidate_value;
+                        top_indices[insert_pos] = j;
+                        top_count++;
+                    }
+                    else if (topk_value_index_comp(candidate_value, j, top_values[_k - 1], top_indices[_k - 1], largest_flag))
+                    {
+                        int insert_pos = _k - 1;
+                        while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
+                        {
+                            top_values[insert_pos] = top_values[insert_pos - 1];
+                            top_indices[insert_pos] = top_indices[insert_pos - 1];
+                            insert_pos--;
+                        }
+
+                        top_values[insert_pos] = candidate_value;
+                        top_indices[insert_pos] = j;
+                    }
                 }
-                else if (topk_value_index_comp(candidate_value, j, top_values[_k - 1], top_indices[_k - 1], largest_flag))
+            }
+            else
+            {
+                for (int j = 0; j < axis_size; j++)
                 {
-                    int insert_pos = _k - 1;
-                    while (insert_pos > 0 && topk_value_index_comp(candidate_value, j, top_values[insert_pos - 1], top_indices[insert_pos - 1], largest_flag))
-                    {
-                        top_values[insert_pos] = top_values[insert_pos - 1];
-                        top_indices[insert_pos] = top_indices[insert_pos - 1];
-                        insert_pos--;
-                    }
+                    const float candidate_value = ptr[in_base + j * inner];
 
-                    top_values[insert_pos] = candidate_value;
-                    top_indices[insert_pos] = j;
+                    if (top_count < _k)
+                    {
+                        top_values[top_count] = candidate_value;
+                        top_indices[top_count] = j;
+                        top_count++;
+                    }
+                    else
+                    {
+                        int worst_pos = 0;
+                        for (int t = 1; t < _k; t++)
+                        {
+                            if (topk_value_index_comp(top_values[worst_pos], top_indices[worst_pos], top_values[t], top_indices[t], largest_flag))
+                                worst_pos = t;
+                        }
+
+                        if (topk_value_index_comp(candidate_value, j, top_values[worst_pos], top_indices[worst_pos], largest_flag))
+                        {
+                            top_values[worst_pos] = candidate_value;
+                            top_indices[worst_pos] = j;
+                        }
+                    }
                 }
             }
 
