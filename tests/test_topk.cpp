@@ -79,6 +79,7 @@ static int test_topk_0()
            || test_topk(a, 0, 1, 1, 1)
            || test_topk(a, 0, 5, 1, 1)
            || test_topk(a, -1, 7, 0, 1)
+           || test_topk(a, 0, 4, 1, 0)
            || test_topk(a, 0, 9, 1, 1);
 }
 
@@ -91,6 +92,7 @@ static int test_topk_1()
            || test_topk(a, 0, 5, 1, 1)
            || test_topk(a, 1, 3, 1, 1)
            || test_topk(a, -1, 8, 0, 1)
+           || test_topk(a, 1, 6, 0, 0)
            || test_topk(a, -2, 7, 1, 1);
 }
 
@@ -102,6 +104,7 @@ static int test_topk_2()
            || test_topk(a, 0, 3, 1, 1)
            || test_topk(a, 1, 4, 1, 1)
            || test_topk(a, 2, 2, 0, 1)
+           || test_topk(a, 2, 5, 1, 0)
            || test_topk(a, -1, 6, 1, 1)
            || test_topk(a, -2, 5, 0, 1)
            || test_topk(a, -3, 7, 1, 1);
@@ -115,6 +118,7 @@ static int test_topk_3()
            || test_topk(a, 0, 2, 1, 1)
            || test_topk(a, 1, 3, 0, 1)
            || test_topk(a, 2, 4, 1, 1)
+           || test_topk(a, 3, 4, 0, 0)
            || test_topk(a, 3, 5, 1, 1)
            || test_topk(a, -1, 6, 0, 1)
            || test_topk(a, -2, 3, 1, 1)
