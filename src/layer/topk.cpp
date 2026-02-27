@@ -162,6 +162,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     const float* ptr = bottom_blob;
     float* outptr = values;
     float* outidxptr = indices;
+    const bool output_indices = outidxptr != 0;
 
     int inner = 1;
     for (int i = 0; i < positive_axis; i++)
@@ -205,7 +206,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             }
 
             outptr[out_base] = best_value;
-            if (outidxptr)
+            if (output_indices)
                 outidxptr[out_base] = (float)best_index;
         }
 
@@ -254,11 +255,20 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     std::sort(vec.begin(), vec.end(), comp);
             }
 
-            for (int j = 0; j < _k; j++)
+            if (output_indices)
             {
-                outptr[out_base + j * inner] = vec[j].first;
-                if (outidxptr)
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = vec[j].first;
                     outidxptr[out_base + j * inner] = (float)vec[j].second;
+                }
+            }
+            else
+            {
+                for (int j = 0; j < _k; j++)
+                {
+                    outptr[out_base + j * inner] = vec[j].first;
+                }
             }
         }
     }
