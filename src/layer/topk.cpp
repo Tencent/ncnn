@@ -4,19 +4,58 @@
 #include "topk.h"
 
 #include <algorithm>
+#include <stdint.h>
+#include <string.h>
 #include <vector>
 
 namespace ncnn {
+
+static inline bool topk_isnan(float v)
+{
+    uint32_t u;
+    memcpy(&u, &v, sizeof(uint32_t));
+    return (u & 0x7fffffff) > 0x7f800000;
+}
+
+static inline bool topk_pair_comp(const std::pair<float, int>& a, const std::pair<float, int>& b, bool largest)
+{
+    const bool a_nan = topk_isnan(a.first);
+    const bool b_nan = topk_isnan(b.first);
+
+    // Keep NaN at the end for both largest/smallest to ensure deterministic ordering.
+    if (a_nan || b_nan)
+    {
+        if (a_nan != b_nan)
+            return !a_nan && b_nan;
+
+        return a.second < b.second;
+    }
+
+    if (a.first != b.first)
+        return largest ? (a.first > b.first) : (a.first < b.first);
+
+    return a.second < b.second;
+}
+
+struct topk_pair_comparator
+{
+    topk_pair_comparator(bool _largest)
+        : largest(_largest)
+    {
+    }
+
+    bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b) const
+    {
+        return topk_pair_comp(a, b, largest);
+    }
+
+    bool largest;
+};
 
 TopK::TopK()
 {
     one_blob_only = false;
     support_inplace = false;
-
-    axis = -1;
-    largest = 1;
-    sorted = 1;
-    k = 1;
 }
 
 int TopK::load_param(const ParamDict& pd)
@@ -49,10 +88,10 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     if (bottom_blob.dims < 1 || bottom_blob.dims > 4)
         return -100;
 
-    int dims = bottom_blob.dims;
+    const int dims = bottom_blob.dims;
 
-    int axis_p = axis < 0 ? axis + dims : axis;
-    if (axis_p < 0 || axis_p >= dims)
+    const int positive_axis = axis < 0 ? axis + dims : axis;
+    if (positive_axis < 0 || positive_axis >= dims)
         return -1;
 
     int shape[4] = {1, 1, 1, 1};
@@ -61,7 +100,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     if (dims >= 3) shape[2] = bottom_blob.dims == 3 ? bottom_blob.c : bottom_blob.d;
     if (dims >= 4) shape[3] = bottom_blob.c;
 
-    int axis_size = shape[axis_p];
+    const int axis_size = shape[positive_axis];
     if (axis_size <= 0)
         return -1;
 
@@ -71,7 +110,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         _k = axis_size;
 
     int out_shape[4] = {shape[0], shape[1], shape[2], shape[3]};
-    out_shape[axis_p] = _k;
+    out_shape[positive_axis] = _k;
 
     Mat values;
     if (dims == 1) values.create(out_shape[0], 4u, opt.blob_allocator);
@@ -97,23 +136,23 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     float* outidxptr = indices;
 
     int inner = 1;
-    for (int i = 0; i < axis_p; i++)
+    for (int i = 0; i < positive_axis; i++)
     {
         inner *= shape[i];
     }
 
     int outer = 1;
-    for (int i = axis_p + 1; i < dims; i++)
+    for (int i = positive_axis + 1; i < dims; i++)
     {
         outer *= shape[i];
     }
 
-    const bool largest_p = largest != 0;
-    const bool sorted_p = sorted != 0;
+    const bool largest_flag = largest != 0;
+    const bool sorted_flag = sorted != 0;
 
     const int total_lines = outer * inner;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int line = 0; line < total_lines; line++)
     {
         int outer_i = line / inner;
@@ -131,49 +170,19 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             vec[j].second = j;
         }
 
-        if (largest_p)
-        {
-            auto comp = [](const std::pair<float, int>& a, const std::pair<float, int>& b)
-            {
-                if (a.first != b.first)
-                    return a.first > b.first;
-                return a.second < b.second;
-            };
+        topk_pair_comparator comp(largest_flag);
 
-            if (_k < axis_size)
-            {
-                if (sorted_p)
-                    std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
-                else
-                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
-            }
+        if (_k < axis_size)
+        {
+            if (sorted_flag)
+                std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
             else
-            {
-                if (sorted_p)
-                    std::sort(vec.begin(), vec.end(), comp);
-            }
+                std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
         }
         else
         {
-            auto comp = [](const std::pair<float, int>& a, const std::pair<float, int>& b)
-            {
-                if (a.first != b.first)
-                    return a.first < b.first;
-                return a.second < b.second;
-            };
-
-            if (_k < axis_size)
-            {
-                if (sorted_p)
-                    std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
-                else
-                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
-            }
-            else
-            {
-                if (sorted_p)
-                    std::sort(vec.begin(), vec.end(), comp);
-            }
+            if (sorted_flag)
+                std::sort(vec.begin(), vec.end(), comp);
         }
 
         for (int j = 0; j < _k; j++)
