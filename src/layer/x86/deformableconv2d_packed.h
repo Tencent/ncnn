@@ -39,21 +39,21 @@ static void deformableconv2d_packed(const std::vector<Mat>& bottom_blobs, Mat& t
                 if (out_elempack == 16)
                 {
                     if (bias_data_ptr)
-                        _sum_avx512 = _mm512_loadu_ps(bias_data_ptr + oc * out_elempack);
+                        _sum_avx512 = _mm512_load_ps(bias_data_ptr + oc * out_elempack);
                 }
 #endif // __AVX512F__
                 __m256 _sum_avx = _mm256_setzero_ps();
                 if (out_elempack == 8)
                 {
                     if (bias_data_ptr)
-                        _sum_avx = _mm256_loadu_ps(bias_data_ptr + oc * out_elempack);
+                        _sum_avx = _mm256_load_ps(bias_data_ptr + oc * out_elempack);
                 }
 #endif // __AVX__
                 __m128 _sum_sse = _mm_setzero_ps();
                 if (out_elempack == 4)
                 {
                     if (bias_data_ptr)
-                        _sum_sse = _mm_loadu_ps(bias_data_ptr + oc * out_elempack);
+                        _sum_sse = _mm_load_ps(bias_data_ptr + oc * out_elempack);
                 }
 #endif // __SSE2__
                 float _sum_scalar = 0.f;
@@ -215,7 +215,7 @@ static void deformableconv2d_packed(const std::vector<Mat>& bottom_blobs, Mat& t
                 if (out_elempack == 4)
                 {
                     _sum_sse = activation_sse(_sum_sse, activation_type, activation_params);
-                    _mm_storeu_ps(outptr + (h_col * outw + w_col) * out_elempack, _sum_sse);
+                    _mm_store_ps(outptr + (h_col * outw + w_col) * out_elempack, _sum_sse);
                 }
 #endif // __SSE2__
                 if (out_elempack == 1)
