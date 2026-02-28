@@ -607,6 +607,9 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             for (int j = 0; j < outw; j++)
             {
                 __m512 _sum0 = _mm512_setzero_ps();
+                __m512 _sum1 = _mm512_setzero_ps();
+                __m512 _sum2 = _mm512_setzero_ps();
+                __m512 _sum3 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -660,21 +663,21 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _vale = _mm512_set1_ps(sptr[14]);
                                 __m512 _valf = _mm512_set1_ps(sptr[15]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val8, _mm512_load_ps(kptr0 + 16 * 8), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_valc, _mm512_load_ps(kptr0 + 16 * 12), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum3);
                             }
                             if (elempack == 8)
                             {
@@ -698,21 +701,21 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _vale = _mm512_set1_ps(sptr1[6]);
                                 __m512 _valf = _mm512_set1_ps(sptr1[7]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val8, _mm512_load_ps(kptr0 + 16 * 8), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_valc, _mm512_load_ps(kptr0 + 16 * 12), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum3);
                             }
                             if (elempack == 4)
                             {
@@ -738,30 +741,56 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _vale = _mm512_set1_ps(sptr3[2]);
                                 __m512 _valf = _mm512_set1_ps(sptr3[3]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val8, _mm512_load_ps(kptr0 + 16 * 8), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_valc, _mm512_load_ps(kptr0 + 16 * 12), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 16; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m512 _val = _mm512_set1_ps(sptr[0]);
-                                    _sum0 = _mm512_fmadd_ps(_val, _mm512_load_ps(kptr0 + 16 * qi), _sum0);
-                                }
+                                __m512 _val0 = _mm512_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m512 _val1 = _mm512_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m512 _val2 = _mm512_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m512 _val3 = _mm512_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                __m512 _val4 = _mm512_set1_ps(bottom_blob.channel(q + 4).row(sy)[sx]);
+                                __m512 _val5 = _mm512_set1_ps(bottom_blob.channel(q + 5).row(sy)[sx]);
+                                __m512 _val6 = _mm512_set1_ps(bottom_blob.channel(q + 6).row(sy)[sx]);
+                                __m512 _val7 = _mm512_set1_ps(bottom_blob.channel(q + 7).row(sy)[sx]);
+                                __m512 _val8 = _mm512_set1_ps(bottom_blob.channel(q + 8).row(sy)[sx]);
+                                __m512 _val9 = _mm512_set1_ps(bottom_blob.channel(q + 9).row(sy)[sx]);
+                                __m512 _vala = _mm512_set1_ps(bottom_blob.channel(q + 10).row(sy)[sx]);
+                                __m512 _valb = _mm512_set1_ps(bottom_blob.channel(q + 11).row(sy)[sx]);
+                                __m512 _valc = _mm512_set1_ps(bottom_blob.channel(q + 12).row(sy)[sx]);
+                                __m512 _vald = _mm512_set1_ps(bottom_blob.channel(q + 13).row(sy)[sx]);
+                                __m512 _vale = _mm512_set1_ps(bottom_blob.channel(q + 14).row(sy)[sx]);
+                                __m512 _valf = _mm512_set1_ps(bottom_blob.channel(q + 15).row(sy)[sx]);
+                                _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
+                                _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
+                                _sum0 = _mm512_fmadd_ps(_val8, _mm512_load_ps(kptr0 + 16 * 8), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val9, _mm512_load_ps(kptr0 + 16 * 9), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vala, _mm512_load_ps(kptr0 + 16 * 10), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valb, _mm512_load_ps(kptr0 + 16 * 11), _sum3);
+                                _sum0 = _mm512_fmadd_ps(_valc, _mm512_load_ps(kptr0 + 16 * 12), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_vald, _mm512_load_ps(kptr0 + 16 * 13), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_vale, _mm512_load_ps(kptr0 + 16 * 14), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_valf, _mm512_load_ps(kptr0 + 16 * 15), _sum3);
                             }
                         }
                     }
@@ -804,13 +833,13 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _val6 = _mm512_set1_ps(sptr[6]);
                                 __m512 _val7 = _mm512_set1_ps(sptr[7]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                             }
                             if (elempack == 4)
                             {
@@ -826,22 +855,32 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _val6 = _mm512_set1_ps(sptr1[2]);
                                 __m512 _val7 = _mm512_set1_ps(sptr1[3]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                                 _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m512 _val = _mm512_set1_ps(sptr[0]);
-                                    _sum0 = _mm512_fmadd_ps(_val, _mm512_load_ps(kptr0 + 16 * qi), _sum0);
-                                }
+                                __m512 _val0 = _mm512_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m512 _val1 = _mm512_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m512 _val2 = _mm512_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m512 _val3 = _mm512_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                __m512 _val4 = _mm512_set1_ps(bottom_blob.channel(q + 4).row(sy)[sx]);
+                                __m512 _val5 = _mm512_set1_ps(bottom_blob.channel(q + 5).row(sy)[sx]);
+                                __m512 _val6 = _mm512_set1_ps(bottom_blob.channel(q + 6).row(sy)[sx]);
+                                __m512 _val7 = _mm512_set1_ps(bottom_blob.channel(q + 7).row(sy)[sx]);
+                                _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
+                                _sum0 = _mm512_fmadd_ps(_val4, _mm512_load_ps(kptr0 + 16 * 4), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val5, _mm512_load_ps(kptr0 + 16 * 5), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val6, _mm512_load_ps(kptr0 + 16 * 6), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val7, _mm512_load_ps(kptr0 + 16 * 7), _sum3);
                             }
                         }
                     }
@@ -880,18 +919,20 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m512 _val2 = _mm512_set1_ps(sptr[2]);
                                 __m512 _val3 = _mm512_set1_ps(sptr[3]);
                                 _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum0);
-                                _sum0 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m512 _val = _mm512_set1_ps(sptr[0]);
-                                    _sum0 = _mm512_fmadd_ps(_val, _mm512_load_ps(kptr0 + 16 * qi), _sum0);
-                                }
+                                __m512 _val0 = _mm512_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m512 _val1 = _mm512_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m512 _val2 = _mm512_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m512 _val3 = _mm512_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
+                                _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
+                                _sum2 = _mm512_fmadd_ps(_val2, _mm512_load_ps(kptr0 + 16 * 2), _sum2);
+                                _sum3 = _mm512_fmadd_ps(_val3, _mm512_load_ps(kptr0 + 16 * 3), _sum3);
                             }
                         }
                     }
@@ -926,7 +967,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             __m512 _val0 = _mm512_set1_ps(sptr0[0]);
                             __m512 _val1 = _mm512_set1_ps(sptr1[0]);
                             _sum0 = _mm512_fmadd_ps(_val0, _mm512_load_ps(kptr0), _sum0);
-                            _sum0 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_val1, _mm512_load_ps(kptr0 + 16), _sum1);
                         }
                     }
 
@@ -963,6 +1004,10 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                     kptr += maxk * 16;
                 }
+
+                _sum0 = _mm512_add_ps(_sum0, _sum1);
+                _sum2 = _mm512_add_ps(_sum2, _sum3);
+                _sum0 = _mm512_add_ps(_sum0, _sum2);
 
                 _sum0 = activation_avx512(_sum0, activation_type, activation_params);
 
@@ -1037,6 +1082,9 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             for (int j = 0; j < outw; j++)
             {
                 __m256 _sum0 = _mm256_setzero_ps();
+                __m256 _sum1 = _mm256_setzero_ps();
+                __m256 _sum2 = _mm256_setzero_ps();
+                __m256 _sum3 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -1095,21 +1143,21 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _vale = _mm256_broadcast_ss(sptr + 14);
                                 __m256 _valf = _mm256_broadcast_ss(sptr + 15);
                                 _sum0 = _mm256_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val8, _mm256_load_ps(kptr0 + 8 * 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_valc, _mm256_load_ps(kptr0 + 8 * 12), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum3);
                             }
                             if (elempack == 8)
                             {
@@ -1133,21 +1181,21 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _vale = _mm256_broadcast_ss(sptr1 + 6);
                                 __m256 _valf = _mm256_broadcast_ss(sptr1 + 7);
                                 _sum0 = _mm256_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val8, _mm256_load_ps(kptr0 + 8 * 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_valc, _mm256_load_ps(kptr0 + 8 * 12), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum3);
                             }
                             if (elempack == 4)
                             {
@@ -1173,30 +1221,56 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _vale = _mm256_broadcast_ss(sptr3 + 2);
                                 __m256 _valf = _mm256_broadcast_ss(sptr3 + 3);
                                 _sum0 = _mm256_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_val8, _mm256_load_ps(kptr0 + 8 * 8), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum3);
                                 _sum0 = _mm256_fmadd_ps(_valc, _mm256_load_ps(kptr0 + 8 * 12), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum0);
-                                _sum0 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 16; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m256 _val = _mm256_broadcast_ss(sptr);
-                                    _sum0 = _mm256_fmadd_ps(_val, _mm256_load_ps(kptr0 + 8 * qi), _sum0);
-                                }
+                                __m256 _val0 = _mm256_broadcast_ss(bottom_blob.channel(q).row(sy) + sx);
+                                __m256 _val1 = _mm256_broadcast_ss(bottom_blob.channel(q + 1).row(sy) + sx);
+                                __m256 _val2 = _mm256_broadcast_ss(bottom_blob.channel(q + 2).row(sy) + sx);
+                                __m256 _val3 = _mm256_broadcast_ss(bottom_blob.channel(q + 3).row(sy) + sx);
+                                __m256 _val4 = _mm256_broadcast_ss(bottom_blob.channel(q + 4).row(sy) + sx);
+                                __m256 _val5 = _mm256_broadcast_ss(bottom_blob.channel(q + 5).row(sy) + sx);
+                                __m256 _val6 = _mm256_broadcast_ss(bottom_blob.channel(q + 6).row(sy) + sx);
+                                __m256 _val7 = _mm256_broadcast_ss(bottom_blob.channel(q + 7).row(sy) + sx);
+                                __m256 _val8 = _mm256_broadcast_ss(bottom_blob.channel(q + 8).row(sy) + sx);
+                                __m256 _val9 = _mm256_broadcast_ss(bottom_blob.channel(q + 9).row(sy) + sx);
+                                __m256 _vala = _mm256_broadcast_ss(bottom_blob.channel(q + 10).row(sy) + sx);
+                                __m256 _valb = _mm256_broadcast_ss(bottom_blob.channel(q + 11).row(sy) + sx);
+                                __m256 _valc = _mm256_broadcast_ss(bottom_blob.channel(q + 12).row(sy) + sx);
+                                __m256 _vald = _mm256_broadcast_ss(bottom_blob.channel(q + 13).row(sy) + sx);
+                                __m256 _vale = _mm256_broadcast_ss(bottom_blob.channel(q + 14).row(sy) + sx);
+                                __m256 _valf = _mm256_broadcast_ss(bottom_blob.channel(q + 15).row(sy) + sx);
+                                _sum0 = _mm256_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
+                                _sum0 = _mm256_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
+                                _sum0 = _mm256_fmadd_ps(_val8, _mm256_load_ps(kptr0 + 8 * 8), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_val9, _mm256_load_ps(kptr0 + 8 * 9), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vala, _mm256_load_ps(kptr0 + 8 * 10), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valb, _mm256_load_ps(kptr0 + 8 * 11), _sum3);
+                                _sum0 = _mm256_fmadd_ps(_valc, _mm256_load_ps(kptr0 + 8 * 12), _sum0);
+                                _sum1 = _mm256_fmadd_ps(_vald, _mm256_load_ps(kptr0 + 8 * 13), _sum1);
+                                _sum2 = _mm256_fmadd_ps(_vale, _mm256_load_ps(kptr0 + 8 * 14), _sum2);
+                                _sum3 = _mm256_fmadd_ps(_valf, _mm256_load_ps(kptr0 + 8 * 15), _sum3);
                             }
                         }
                     }
@@ -1240,13 +1314,13 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _val6 = _mm256_broadcast_ss(sptr + 6);
                                 __m256 _val7 = _mm256_broadcast_ss(sptr + 7);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                             }
                             if (elempack == 4)
                             {
@@ -1262,22 +1336,40 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _val6 = _mm256_broadcast_ss(sptr1 + 2);
                                 __m256 _val7 = _mm256_broadcast_ss(sptr1 + 3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m256 _val = _mm256_broadcast_ss(sptr);
-                                    _sum0 = _mm256_comp_fmadd_ps(_val, _mm256_load_ps(kptr0 + 8 * qi), _sum0);
-                                }
+                                const float* sptr0 = bottom_blob.channel(q).row(sy) + sx;
+                                const float* sptr1 = bottom_blob.channel(q + 1).row(sy) + sx;
+                                const float* sptr2 = bottom_blob.channel(q + 2).row(sy) + sx;
+                                const float* sptr3 = bottom_blob.channel(q + 3).row(sy) + sx;
+                                const float* sptr4 = bottom_blob.channel(q + 4).row(sy) + sx;
+                                const float* sptr5 = bottom_blob.channel(q + 5).row(sy) + sx;
+                                const float* sptr6 = bottom_blob.channel(q + 6).row(sy) + sx;
+                                const float* sptr7 = bottom_blob.channel(q + 7).row(sy) + sx;
+                                __m256 _val0 = _mm256_broadcast_ss(sptr0);
+                                __m256 _val1 = _mm256_broadcast_ss(sptr1);
+                                __m256 _val2 = _mm256_broadcast_ss(sptr2);
+                                __m256 _val3 = _mm256_broadcast_ss(sptr3);
+                                __m256 _val4 = _mm256_broadcast_ss(sptr4);
+                                __m256 _val5 = _mm256_broadcast_ss(sptr5);
+                                __m256 _val6 = _mm256_broadcast_ss(sptr6);
+                                __m256 _val7 = _mm256_broadcast_ss(sptr7);
+                                _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
+                                _sum0 = _mm256_comp_fmadd_ps(_val4, _mm256_load_ps(kptr0 + 8 * 4), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val5, _mm256_load_ps(kptr0 + 8 * 5), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val6, _mm256_load_ps(kptr0 + 8 * 6), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val7, _mm256_load_ps(kptr0 + 8 * 7), _sum3);
                             }
                         }
                     }
@@ -1316,18 +1408,24 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m256 _val2 = _mm256_broadcast_ss(sptr + 2);
                                 __m256 _val3 = _mm256_broadcast_ss(sptr + 3);
                                 _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum0);
-                                _sum0 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m256 _val = _mm256_broadcast_ss(sptr);
-                                    _sum0 = _mm256_comp_fmadd_ps(_val, _mm256_load_ps(kptr0 + 8 * qi), _sum0);
-                                }
+                                const float* sptr0 = bottom_blob.channel(q).row(sy) + sx;
+                                const float* sptr1 = bottom_blob.channel(q + 1).row(sy) + sx;
+                                const float* sptr2 = bottom_blob.channel(q + 2).row(sy) + sx;
+                                const float* sptr3 = bottom_blob.channel(q + 3).row(sy) + sx;
+                                __m256 _val0 = _mm256_broadcast_ss(sptr0);
+                                __m256 _val1 = _mm256_broadcast_ss(sptr1);
+                                __m256 _val2 = _mm256_broadcast_ss(sptr2);
+                                __m256 _val3 = _mm256_broadcast_ss(sptr3);
+                                _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
+                                _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
+                                _sum2 = _mm256_comp_fmadd_ps(_val2, _mm256_load_ps(kptr0 + 8 * 2), _sum2);
+                                _sum3 = _mm256_comp_fmadd_ps(_val3, _mm256_load_ps(kptr0 + 8 * 3), _sum3);
                             }
                         }
                     }
@@ -1362,7 +1460,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             __m256 _val0 = _mm256_broadcast_ss(sptr0);
                             __m256 _val1 = _mm256_broadcast_ss(sptr1);
                             _sum0 = _mm256_comp_fmadd_ps(_val0, _mm256_load_ps(kptr0), _sum0);
-                            _sum0 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_val1, _mm256_load_ps(kptr0 + 8), _sum1);
                         }
                     }
 
@@ -1399,6 +1497,10 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                     kptr += maxk * 8;
                 }
+
+                _sum0 = _mm256_add_ps(_sum0, _sum1);
+                _sum2 = _mm256_add_ps(_sum2, _sum3);
+                _sum0 = _mm256_add_ps(_sum0, _sum2);
 
                 _sum0 = activation_avx(_sum0, activation_type, activation_params);
 
@@ -1456,6 +1558,9 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             for (int j = 0; j < outw; j++)
             {
                 __m128 _sum0 = _mm_setzero_ps();
+                __m128 _sum1 = _mm_setzero_ps();
+                __m128 _sum2 = _mm_setzero_ps();
+                __m128 _sum3 = _mm_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -1497,47 +1602,149 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             if (elempack == 16)
                             {
                                 const float* sptr = bottom_blob.channel(q / 16).row(sy) + sx * 16;
-                                for (int qi = 0; qi < 16; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr[qi]);
-                                    _sum0 = _mm_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(sptr[0]);
+                                __m128 _val1 = _mm_set1_ps(sptr[1]);
+                                __m128 _val2 = _mm_set1_ps(sptr[2]);
+                                __m128 _val3 = _mm_set1_ps(sptr[3]);
+                                __m128 _val4 = _mm_set1_ps(sptr[4]);
+                                __m128 _val5 = _mm_set1_ps(sptr[5]);
+                                __m128 _val6 = _mm_set1_ps(sptr[6]);
+                                __m128 _val7 = _mm_set1_ps(sptr[7]);
+                                __m128 _val8 = _mm_set1_ps(sptr[8]);
+                                __m128 _val9 = _mm_set1_ps(sptr[9]);
+                                __m128 _vala = _mm_set1_ps(sptr[10]);
+                                __m128 _valb = _mm_set1_ps(sptr[11]);
+                                __m128 _valc = _mm_set1_ps(sptr[12]);
+                                __m128 _vald = _mm_set1_ps(sptr[13]);
+                                __m128 _vale = _mm_set1_ps(sptr[14]);
+                                __m128 _valf = _mm_set1_ps(sptr[15]);
+                                _sum0 = _mm_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val8, _mm_load_ps(kptr0 + 4 * 8), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val9, _mm_load_ps(kptr0 + 4 * 9), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vala, _mm_load_ps(kptr0 + 4 * 10), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valb, _mm_load_ps(kptr0 + 4 * 11), _sum3);
+                                _sum0 = _mm_fmadd_ps(_valc, _mm_load_ps(kptr0 + 4 * 12), _sum0);
+                                _sum1 = _mm_fmadd_ps(_vald, _mm_load_ps(kptr0 + 4 * 13), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vale, _mm_load_ps(kptr0 + 4 * 14), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valf, _mm_load_ps(kptr0 + 4 * 15), _sum3);
                             }
                             if (elempack == 8)
                             {
                                 const float* sptr0 = bottom_blob.channel(q / 8).row(sy) + sx * 8;
                                 const float* sptr1 = bottom_blob.channel(q / 8 + 1).row(sy) + sx * 8;
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr0[qi]);
-                                    _sum0 = _mm_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr1[qi]);
-                                    _sum0 = _mm_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * (8 + qi)), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(sptr0[0]);
+                                __m128 _val1 = _mm_set1_ps(sptr0[1]);
+                                __m128 _val2 = _mm_set1_ps(sptr0[2]);
+                                __m128 _val3 = _mm_set1_ps(sptr0[3]);
+                                __m128 _val4 = _mm_set1_ps(sptr0[4]);
+                                __m128 _val5 = _mm_set1_ps(sptr0[5]);
+                                __m128 _val6 = _mm_set1_ps(sptr0[6]);
+                                __m128 _val7 = _mm_set1_ps(sptr0[7]);
+                                __m128 _val8 = _mm_set1_ps(sptr1[0]);
+                                __m128 _val9 = _mm_set1_ps(sptr1[1]);
+                                __m128 _vala = _mm_set1_ps(sptr1[2]);
+                                __m128 _valb = _mm_set1_ps(sptr1[3]);
+                                __m128 _valc = _mm_set1_ps(sptr1[4]);
+                                __m128 _vald = _mm_set1_ps(sptr1[5]);
+                                __m128 _vale = _mm_set1_ps(sptr1[6]);
+                                __m128 _valf = _mm_set1_ps(sptr1[7]);
+                                _sum0 = _mm_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val8, _mm_load_ps(kptr0 + 4 * 8), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val9, _mm_load_ps(kptr0 + 4 * 9), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vala, _mm_load_ps(kptr0 + 4 * 10), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valb, _mm_load_ps(kptr0 + 4 * 11), _sum3);
+                                _sum0 = _mm_fmadd_ps(_valc, _mm_load_ps(kptr0 + 4 * 12), _sum0);
+                                _sum1 = _mm_fmadd_ps(_vald, _mm_load_ps(kptr0 + 4 * 13), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vale, _mm_load_ps(kptr0 + 4 * 14), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valf, _mm_load_ps(kptr0 + 4 * 15), _sum3);
                             }
                             if (elempack == 4)
                             {
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q / 4 + qi).row(sy) + sx * 4;
-                                    for (int vi = 0; vi < 4; vi++)
-                                    {
-                                        __m128 _val = _mm_set1_ps(sptr[vi]);
-                                        _sum0 = _mm_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * (qi * 4 + vi)), _sum0);
-                                    }
-                                }
+                                const float* sptr_q0 = bottom_blob.channel(q / 4).row(sy) + sx * 4;
+                                const float* sptr_q1 = bottom_blob.channel(q / 4 + 1).row(sy) + sx * 4;
+                                const float* sptr_q2 = bottom_blob.channel(q / 4 + 2).row(sy) + sx * 4;
+                                const float* sptr_q3 = bottom_blob.channel(q / 4 + 3).row(sy) + sx * 4;
+                                __m128 _val0 = _mm_set1_ps(sptr_q0[0]);
+                                __m128 _val1 = _mm_set1_ps(sptr_q0[1]);
+                                __m128 _val2 = _mm_set1_ps(sptr_q0[2]);
+                                __m128 _val3 = _mm_set1_ps(sptr_q0[3]);
+                                __m128 _val4 = _mm_set1_ps(sptr_q1[0]);
+                                __m128 _val5 = _mm_set1_ps(sptr_q1[1]);
+                                __m128 _val6 = _mm_set1_ps(sptr_q1[2]);
+                                __m128 _val7 = _mm_set1_ps(sptr_q1[3]);
+                                __m128 _val8 = _mm_set1_ps(sptr_q2[0]);
+                                __m128 _val9 = _mm_set1_ps(sptr_q2[1]);
+                                __m128 _vala = _mm_set1_ps(sptr_q2[2]);
+                                __m128 _valb = _mm_set1_ps(sptr_q2[3]);
+                                __m128 _valc = _mm_set1_ps(sptr_q3[0]);
+                                __m128 _vald = _mm_set1_ps(sptr_q3[1]);
+                                __m128 _vale = _mm_set1_ps(sptr_q3[2]);
+                                __m128 _valf = _mm_set1_ps(sptr_q3[3]);
+                                _sum0 = _mm_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val8, _mm_load_ps(kptr0 + 4 * 8), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val9, _mm_load_ps(kptr0 + 4 * 9), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vala, _mm_load_ps(kptr0 + 4 * 10), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valb, _mm_load_ps(kptr0 + 4 * 11), _sum3);
+                                _sum0 = _mm_fmadd_ps(_valc, _mm_load_ps(kptr0 + 4 * 12), _sum0);
+                                _sum1 = _mm_fmadd_ps(_vald, _mm_load_ps(kptr0 + 4 * 13), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vale, _mm_load_ps(kptr0 + 4 * 14), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valf, _mm_load_ps(kptr0 + 4 * 15), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 16; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m128 _val = _mm_set1_ps(sptr[0]);
-                                    _sum0 = _mm_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m128 _val1 = _mm_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m128 _val2 = _mm_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m128 _val3 = _mm_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                __m128 _val4 = _mm_set1_ps(bottom_blob.channel(q + 4).row(sy)[sx]);
+                                __m128 _val5 = _mm_set1_ps(bottom_blob.channel(q + 5).row(sy)[sx]);
+                                __m128 _val6 = _mm_set1_ps(bottom_blob.channel(q + 6).row(sy)[sx]);
+                                __m128 _val7 = _mm_set1_ps(bottom_blob.channel(q + 7).row(sy)[sx]);
+                                __m128 _val8 = _mm_set1_ps(bottom_blob.channel(q + 8).row(sy)[sx]);
+                                __m128 _val9 = _mm_set1_ps(bottom_blob.channel(q + 9).row(sy)[sx]);
+                                __m128 _vala = _mm_set1_ps(bottom_blob.channel(q + 10).row(sy)[sx]);
+                                __m128 _valb = _mm_set1_ps(bottom_blob.channel(q + 11).row(sy)[sx]);
+                                __m128 _valc = _mm_set1_ps(bottom_blob.channel(q + 12).row(sy)[sx]);
+                                __m128 _vald = _mm_set1_ps(bottom_blob.channel(q + 13).row(sy)[sx]);
+                                __m128 _vale = _mm_set1_ps(bottom_blob.channel(q + 14).row(sy)[sx]);
+                                __m128 _valf = _mm_set1_ps(bottom_blob.channel(q + 15).row(sy)[sx]);
+                                _sum0 = _mm_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
+                                _sum0 = _mm_fmadd_ps(_val8, _mm_load_ps(kptr0 + 4 * 8), _sum0);
+                                _sum1 = _mm_fmadd_ps(_val9, _mm_load_ps(kptr0 + 4 * 9), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vala, _mm_load_ps(kptr0 + 4 * 10), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valb, _mm_load_ps(kptr0 + 4 * 11), _sum3);
+                                _sum0 = _mm_fmadd_ps(_valc, _mm_load_ps(kptr0 + 4 * 12), _sum0);
+                                _sum1 = _mm_fmadd_ps(_vald, _mm_load_ps(kptr0 + 4 * 13), _sum1);
+                                _sum2 = _mm_fmadd_ps(_vale, _mm_load_ps(kptr0 + 4 * 14), _sum2);
+                                _sum3 = _mm_fmadd_ps(_valf, _mm_load_ps(kptr0 + 4 * 15), _sum3);
                             }
                         }
                     }
@@ -1568,35 +1775,62 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             if (elempack == 8)
                             {
                                 const float* sptr = bottom_blob.channel(q / 8).row(sy) + sx * 8;
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr[qi]);
-                                    _sum0 = _mm_comp_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(sptr[0]);
+                                __m128 _val1 = _mm_set1_ps(sptr[1]);
+                                __m128 _val2 = _mm_set1_ps(sptr[2]);
+                                __m128 _val3 = _mm_set1_ps(sptr[3]);
+                                __m128 _val4 = _mm_set1_ps(sptr[4]);
+                                __m128 _val5 = _mm_set1_ps(sptr[5]);
+                                __m128 _val6 = _mm_set1_ps(sptr[6]);
+                                __m128 _val7 = _mm_set1_ps(sptr[7]);
+                                _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_comp_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
                             }
                             if (elempack == 4)
                             {
                                 const float* sptr0 = bottom_blob.channel(q / 4).row(sy) + sx * 4;
                                 const float* sptr1 = bottom_blob.channel(q / 4 + 1).row(sy) + sx * 4;
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr0[qi]);
-                                    _sum0 = _mm_comp_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    __m128 _val = _mm_set1_ps(sptr1[qi]);
-                                    _sum0 = _mm_comp_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * (4 + qi)), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(sptr0[0]);
+                                __m128 _val1 = _mm_set1_ps(sptr0[1]);
+                                __m128 _val2 = _mm_set1_ps(sptr0[2]);
+                                __m128 _val3 = _mm_set1_ps(sptr0[3]);
+                                __m128 _val4 = _mm_set1_ps(sptr1[0]);
+                                __m128 _val5 = _mm_set1_ps(sptr1[1]);
+                                __m128 _val6 = _mm_set1_ps(sptr1[2]);
+                                __m128 _val7 = _mm_set1_ps(sptr1[3]);
+                                _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_comp_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 8; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m128 _val = _mm_set1_ps(sptr[0]);
-                                    _sum0 = _mm_comp_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m128 _val1 = _mm_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m128 _val2 = _mm_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m128 _val3 = _mm_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                __m128 _val4 = _mm_set1_ps(bottom_blob.channel(q + 4).row(sy)[sx]);
+                                __m128 _val5 = _mm_set1_ps(bottom_blob.channel(q + 5).row(sy)[sx]);
+                                __m128 _val6 = _mm_set1_ps(bottom_blob.channel(q + 6).row(sy)[sx]);
+                                __m128 _val7 = _mm_set1_ps(bottom_blob.channel(q + 7).row(sy)[sx]);
+                                _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
+                                _sum0 = _mm_comp_fmadd_ps(_val4, _mm_load_ps(kptr0 + 4 * 4), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val5, _mm_load_ps(kptr0 + 4 * 5), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val6, _mm_load_ps(kptr0 + 4 * 6), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val7, _mm_load_ps(kptr0 + 4 * 7), _sum3);
                             }
                         }
                     }
@@ -1632,18 +1866,20 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 __m128 _val2 = _mm_load1_ps(sptr + 2);
                                 __m128 _val3 = _mm_load1_ps(sptr + 3);
                                 _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0), _sum0);
-                                _sum0 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4), _sum0);
-                                _sum0 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 8), _sum0);
-                                _sum0 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 12), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 8), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 12), _sum3);
                             }
                             if (elempack == 1)
                             {
-                                for (int qi = 0; qi < 4; qi++)
-                                {
-                                    const float* sptr = bottom_blob.channel(q + qi).row(sy) + sx;
-                                    __m128 _val = _mm_set1_ps(sptr[0]);
-                                    _sum0 = _mm_comp_fmadd_ps(_val, _mm_load_ps(kptr0 + 4 * qi), _sum0);
-                                }
+                                __m128 _val0 = _mm_set1_ps(bottom_blob.channel(q).row(sy)[sx]);
+                                __m128 _val1 = _mm_set1_ps(bottom_blob.channel(q + 1).row(sy)[sx]);
+                                __m128 _val2 = _mm_set1_ps(bottom_blob.channel(q + 2).row(sy)[sx]);
+                                __m128 _val3 = _mm_set1_ps(bottom_blob.channel(q + 3).row(sy)[sx]);
+                                _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0 + 4 * 0), _sum0);
+                                _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4 * 1), _sum1);
+                                _sum2 = _mm_comp_fmadd_ps(_val2, _mm_load_ps(kptr0 + 4 * 2), _sum2);
+                                _sum3 = _mm_comp_fmadd_ps(_val3, _mm_load_ps(kptr0 + 4 * 3), _sum3);
                             }
                         }
                     }
@@ -1675,7 +1911,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             __m128 _val0 = _mm_set1_ps(sptr0[0]);
                             __m128 _val1 = _mm_set1_ps(sptr1[0]);
                             _sum0 = _mm_comp_fmadd_ps(_val0, _mm_load_ps(kptr0), _sum0);
-                            _sum0 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_val1, _mm_load_ps(kptr0 + 4), _sum1);
                         }
                     }
                     kptr += maxk * 2 * 4;
@@ -1708,6 +1944,10 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                     }
                     kptr += maxk * 4;
                 }
+
+                _sum0 = _mm_add_ps(_sum0, _sum1);
+                _sum2 = _mm_add_ps(_sum2, _sum3);
+                _sum0 = _mm_add_ps(_sum0, _sum2);
 
                 _sum0 = activation_sse(_sum0, activation_type, activation_params);
 
