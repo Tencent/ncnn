@@ -16,15 +16,15 @@ cmake --build . -j$(nproc)
 | `NCNN_VULKAN` | OFF | Enable Vulkan GPU support |
 | `NCNN_OPENMP` | ON | Enable OpenMP multi-threading |
 | `NCNN_BUILD_TESTS` | OFF | Build unit tests |
-| `NCNN_BUILD_TOOLS` | ON | Build converter tools |
-| `NCNN_BUILD_EXAMPLES` | ON | Build example programs |
+| `NCNN_BUILD_TOOLS` | ON* | Build converter tools |
+| `NCNN_BUILD_EXAMPLES` | ON* | Build example programs |
 | `NCNN_BUILD_BENCHMARK` | ON | Build benchmark tool |
 | `NCNN_SHARED_LIB` | OFF | Build shared library |
 | `NCNN_RUNTIME_CPU` | ON | Runtime CPU feature detection & dispatch |
 | `NCNN_SSE2` | ON | x86 SSE2 support |
 | `NCNN_AVX` | ON | x86 AVX support |
 | `NCNN_AVX2` | ON | x86 AVX2/FMA support |
-| `NCNN_AVX512` | OFF | x86 AVX-512 support |
+| `NCNN_AVX512` | ON* | x86 AVX-512 support |
 | `NCNN_ARM82` | ON | AArch64 fp16 (ARMv8.2) |
 | `NCNN_ARM82DOT` | ON | AArch64 dot product |
 | `NCNN_ARM84BF16` | ON | AArch64 BFloat16 |
@@ -34,6 +34,8 @@ cmake --build . -j$(nproc)
 | `NCNN_SIMPLEMATH` | OFF | Use built-in math (no libm) |
 | `NCNN_SIMPLESTL` | OFF | Use built-in STL (no libstdc++) |
 | `WITH_LAYER_xxx` | ON | Enable/disable individual layers |
+
+\* `NCNN_BUILD_TOOLS` and `NCNN_BUILD_EXAMPLES` default to OFF when cross-compiling or targeting Android/iOS. `NCNN_AVX512` defaults to ON only when the compiler supports it and `NCNN_AVX2` is ON.
 
 ## Build with Vulkan
 

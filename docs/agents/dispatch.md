@@ -2,16 +2,15 @@
 
 ## CPU Layer Dispatch
 
-The `ncnn_add_layer()` CMake macro (in `cmake/ncnn_add_layer.cmake`) handles layer registration and architecture dispatch:
+The `ncnn_add_layer()` CMake macro (in `cmake/ncnn_add_layer.cmake`) accumulates layer information into CMake variables. Then `src/CMakeLists.txt` calls `configure_file()` to generate the following header files:
 
 1. **Generic implementation**: `src/layer/<name>.cpp` — always compiled
 2. **Arch-specific override**: `src/layer/<arch>/<name>_<arch>.cpp` — compiled if the file exists and the target arch matches
 3. **Runtime CPU dispatch**: When `NCNN_RUNTIME_CPU=ON`, the build system generates additional variants for sub-ISA levels (e.g., `avx`, `avx2`, `avx512` for x86) and the runtime selects the best one based on detected CPU features
 
-The macro generates:
+Generated headers (via `configure_file()` in `src/CMakeLists.txt`):
 - `layer_declaration.h` — includes all layer headers and `DEFINE_LAYER_CREATOR()` macros
-- `layer_registry.h` — table mapping layer type index to creator function
-- `layer_registry_<arch>.h` — arch-optimized creator table
+- `layer_registry.h` — a single file containing multiple registry arrays: `layer_registry[]` (generic), `layer_registry_arch[]` (arch-optimized), plus conditional arrays for runtime CPU dispatch (`layer_registry_avx512[]`, `layer_registry_avx[]`, `layer_registry_rvv[]`, etc.) and Vulkan (`layer_registry_vulkan[]`)
 - `layer_type_enum.h` — enum of all layer type indices
 
 At runtime, `Net` looks up the layer creator function from the registry. When `NCNN_RUNTIME_CPU=ON`, it uses the arch-optimized registry that was compiled with the appropriate ISA flags.

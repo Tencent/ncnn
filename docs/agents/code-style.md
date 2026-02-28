@@ -9,11 +9,11 @@ Key conventions:
 - **Braces**: Allman style (opening brace on new line for functions, classes, control statements)
 - **Namespaces**: No indentation inside `namespace ncnn { ... }`
 - **Pointers**: Left-aligned (`float* ptr`, not `float *ptr`)
-- **Column limit**: None (no line length limit)
+- **Column limit**: None (no hard line length limit)
 - **Includes**: Not sorted by clang-format
 - **Naming**: `snake_case` for variables/functions, `PascalCase` for class names, `UPPER_CASE` for macros
 - **Comments**: `//` style, minimal — code is expected to be self-explanatory
-- **Copyright header**: Every file starts with `// Copyright YYYY Tencent` and `// SPDX-License-Identifier: BSD-3-Clause`
+- **Copyright header**: Every ncnn-authored source file starts with `// Copyright YYYY Tencent` and `// SPDX-License-Identifier: BSD-3-Clause`
 - **SIMD code**: Uses `#if __SSE2__` / `#if __AVX__` / `#if __ARM_NEON` preprocessor guards, nested from wider to narrower
 - **OpenMP**: `#pragma omp parallel for num_threads(opt.num_threads)` on the outer channel loop
 
