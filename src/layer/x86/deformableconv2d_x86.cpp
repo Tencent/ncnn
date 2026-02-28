@@ -21,29 +21,7 @@
 
 namespace ncnn {
 
-#if __SSE2__
-#include "deformableconv2d_pack4.h"
-#include "deformableconv2d_pack1to4.h"
-#include "deformableconv2d_pack4to1.h"
-
-#if __AVX__
-#include "deformableconv2d_pack8.h"
-#include "deformableconv2d_pack4to8.h"
-#include "deformableconv2d_pack1to8.h"
-#include "deformableconv2d_pack8to4.h"
-#include "deformableconv2d_pack8to1.h"
-
-#if __AVX512F__
-#include "deformableconv2d_pack16.h"
-#include "deformableconv2d_pack8to16.h"
-#include "deformableconv2d_pack4to16.h"
-#include "deformableconv2d_pack1to16.h"
-#include "deformableconv2d_pack16to8.h"
-#include "deformableconv2d_pack16to4.h"
-#include "deformableconv2d_pack16to1.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
+#include "deformableconv2d_packed.h"
 
 DeformableConv2D_x86::DeformableConv2D_x86()
 {
@@ -606,88 +584,7 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
         return 0;
     }
 
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-    if (elempack == 16 && out_elempack == 16)
-    {
-        deformableconv2d_pack16_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 8 && out_elempack == 16)
-    {
-        deformableconv2d_pack8to16_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 16 && out_elempack == 8)
-    {
-        deformableconv2d_pack16to8_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 4 && out_elempack == 16)
-    {
-        deformableconv2d_pack4to16_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 16 && out_elempack == 4)
-    {
-        deformableconv2d_pack16to4_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 1 && out_elempack == 16)
-    {
-        deformableconv2d_pack1to16_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 16 && out_elempack == 1)
-    {
-        deformableconv2d_pack16to1_avx512(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-#endif // __AVX512F__
-
-    if (elempack == 8 && out_elempack == 8)
-    {
-        deformableconv2d_pack8_avx(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 1 && out_elempack == 8)
-    {
-        deformableconv2d_pack1to8_avx(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 4 && out_elempack == 8)
-    {
-        deformableconv2d_pack4to8_avx(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 8 && out_elempack == 1)
-    {
-        deformableconv2d_pack8to1_avx(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 8 && out_elempack == 4)
-    {
-        deformableconv2d_pack8to4_avx(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-#endif // __AVX__
-
-    if (elempack == 4 && out_elempack == 4)
-    {
-        deformableconv2d_pack4_sse(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        deformableconv2d_pack1to4_sse(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        deformableconv2d_pack4to1_sse(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
-    }
-#endif // __SSE2__
-
+    // packed conv path
     if (elempack == 1 && out_elempack == 1)
     {
         const bool offset_not_pack = offset.elempack == 1;
@@ -798,6 +695,10 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                 }
             }
         }
+    }
+    else
+    {
+        deformableconv2d_packed(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
     }
 
     return 0;
