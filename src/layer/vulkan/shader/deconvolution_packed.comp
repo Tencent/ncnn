@@ -87,13 +87,23 @@ void main()
     {
         // bias is always packed as vec4
         sum0 = buffer_ld4(bias_data, gz2.x);
-        sum4 = buffer_ld4(bias_data, gz2.y);
         sum1 = sum0;
         sum2 = sum0;
         sum3 = sum0;
-        sum5 = sum4;
-        sum6 = sum4;
-        sum7 = sum4;
+        if (gz + 1 < psc(outc))
+        {
+            sum4 = buffer_ld4(bias_data, gz2.y);
+            sum5 = sum4;
+            sum6 = sum4;
+            sum7 = sum4;
+        }
+        else
+        {
+            sum4 = afpvec4(0.f);
+            sum5 = afpvec4(0.f);
+            sum6 = afpvec4(0.f);
+            sum7 = afpvec4(0.f);
+        }
     }
     else
     {
@@ -167,20 +177,25 @@ void main()
                         buffer_ld4(weight_data, (w_offset.x + z * kernel_w * kernel_h) * 4 + 1),
                         buffer_ld4(weight_data, (w_offset.x + z * kernel_w * kernel_h) * 4 + 2),
                         buffer_ld4(weight_data, (w_offset.x + z * kernel_w * kernel_h) * 4 + 3));
-                    afpmat4 k1 = afpmat4(
-                        buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 0),
-                        buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 1),
-                        buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 2),
-                        buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 3));
 
                     sum0 += v0 * k0;
                     sum1 += v1 * k0;
                     sum2 += v2 * k0;
                     sum3 += v3 * k0;
-                    sum4 += v0 * k1;
-                    sum5 += v1 * k1;
-                    sum6 += v2 * k1;
-                    sum7 += v3 * k1;
+
+                    if (gz + 1 < psc(outc))
+                    {
+                        afpmat4 k1 = afpmat4(
+                            buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 0),
+                            buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 1),
+                            buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 2),
+                            buffer_ld4(weight_data, (w_offset.y + z * kernel_w * kernel_h) * 4 + 3));
+
+                        sum4 += v0 * k1;
+                        sum5 += v1 * k1;
+                        sum6 += v2 * k1;
+                        sum7 += v3 * k1;
+                    }
                 }
                 else // elempack == 1
                 {
@@ -191,16 +206,21 @@ void main()
 
                     // weight is vec4 (4 output channels per input channel)
                     afpvec4 k0 = buffer_ld4(weight_data, w_offset.x + z * kernel_w * kernel_h);
-                    afpvec4 k1 = buffer_ld4(weight_data, w_offset.y + z * kernel_w * kernel_h);
 
                     sum0 += v0 * k0;
                     sum1 += v1 * k0;
                     sum2 += v2 * k0;
                     sum3 += v3 * k0;
-                    sum4 += v0 * k1;
-                    sum5 += v1 * k1;
-                    sum6 += v2 * k1;
-                    sum7 += v3 * k1;
+
+                    if (gz + 1 < psc(outc))
+                    {
+                        afpvec4 k1 = buffer_ld4(weight_data, w_offset.y + z * kernel_w * kernel_h);
+
+                        sum4 += v0 * k1;
+                        sum5 += v1 * k1;
+                        sum6 += v2 * k1;
+                        sum7 += v3 * k1;
+                    }
                 }
             }
         }
