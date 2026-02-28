@@ -35,13 +35,3 @@ Read these docs selectively based on the task at hand:
 | Task: x86 SIMD optimization | [docs/agents/task-x86-optimization.md](docs/agents/task-x86-optimization.md) | SSE/AVX/AVX-512 layer optimization |
 | Task: Vulkan optimization | [docs/agents/task-vulkan-optimization.md](docs/agents/task-vulkan-optimization.md) | GPU compute shader layer |
 | Task: Cross-arch optimization | [docs/agents/task-cross-arch-optimization.md](docs/agents/task-cross-arch-optimization.md) | ARM NEON/SVE, RISC-V RVV, QEMU testing |
-
-## Existing Project Documentation
-
-- `docs/developer-guide/operation-param-weight-table.md` — all operator param/weight definitions
-- `docs/developer-guide/param-and-model-file-structure.md` — .param and .bin file format
-- `docs/developer-guide/element-packing.md` — element packing design
-- `docs/developer-guide/how-to-implement-custom-layer-step-by-step.md` — custom layer guide
-- `docs/developer-guide/glsl-extension.md` — ncnn Vulkan GLSL extensions
-- `docs/developer-guide/layer-support-behavior.md` — layer support flags behavior
-- `docs/how-to-build/how-to-build.md` — build instructions for all platforms
