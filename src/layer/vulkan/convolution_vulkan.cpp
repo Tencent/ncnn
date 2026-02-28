@@ -1316,7 +1316,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             specializations[12 + 4].i = out_shape.w;
             specializations[12 + 5].i = out_shape.h;
             specializations[12 + 6].i = out_shape.dims != 0 ? num_output_packed / 4 : 0;
-            specializations[12 + 7].i = out_shape.dims != 0 ? (out_elempack == 4 ? out_shape.cstep : out_shape.cstep) : 0;
+            specializations[12 + 7].i = out_shape.dims != 0 ? out_shape.cstep : 0;
             specializations[12 + 8].i = num_output;
             specializations[12 + 9].i = num_input;
 
