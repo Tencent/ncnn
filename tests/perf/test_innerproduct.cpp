@@ -27,8 +27,8 @@ static void perf_innerproduct(int w, int h, int c, int outch, int bias,
     }
 
     ncnn::ParamDict pd;
-    pd.set(0, outch);           // num_output
-    pd.set(1, bias);            // bias_term
+    pd.set(0, outch);            // num_output
+    pd.set(1, bias);             // bias_term
     pd.set(2, weight_data_size); // weight_data_size
 
     std::vector<ncnn::Mat> weights(bias ? 2 : 1);
@@ -110,10 +110,10 @@ int main()
     // --- vary shapes, fixed: out=4096 bias=1, threads=1, fp32, all-core ---
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
-        perf_innerproduct(25088, 0, 0, 4096, 1, opt, "fp32  all-core");  // VGG-style
+        perf_innerproduct(25088, 0, 0, 4096, 1, opt, "fp32  all-core"); // VGG-style
         perf_innerproduct(4096, 0, 0, 1000, 1, opt, "fp32  all-core");
-        perf_innerproduct(2048, 0, 0, 1000, 1, opt, "fp32  all-core");   // ResNet final
-        perf_innerproduct(7, 7, 512, 4096, 1, opt, "fp32  all-core");    // 3D input
+        perf_innerproduct(2048, 0, 0, 1000, 1, opt, "fp32  all-core"); // ResNet final
+        perf_innerproduct(7, 7, 512, 4096, 1, opt, "fp32  all-core");  // 3D input
     }
 
     fprintf(stdout, "\n");

@@ -12,12 +12,12 @@ static void perf_convolution(int w, int h, int c, int outch, int kernel, int dil
     ncnn::Mat input = PerfMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, outch);                      // num_output
-    pd.set(1, kernel);                     // kernel_w
-    pd.set(2, dilation);                   // dilation_w
-    pd.set(3, stride);                     // stride_w
-    pd.set(4, pad);                        // pad_w
-    pd.set(5, 1);                          // bias_term
+    pd.set(0, outch);                       // num_output
+    pd.set(1, kernel);                      // kernel_w
+    pd.set(2, dilation);                    // dilation_w
+    pd.set(3, stride);                      // stride_w
+    pd.set(4, pad);                         // pad_w
+    pd.set(5, 1);                           // bias_term
     pd.set(6, outch * c * kernel * kernel); // weight_data_size
 
     std::vector<ncnn::Mat> weights(2);
@@ -88,8 +88,8 @@ int main()
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
         static const ConvConfig shapes[] = {
-            {224, 224, 3, 64, 7, 1, 2, 3},   // ResNet first conv
-            {56, 56, 64, 64, 3, 1, 1, 1},    // ResNet block
+            {224, 224, 3, 64, 7, 1, 2, 3}, // ResNet first conv
+            {56, 56, 64, 64, 3, 1, 1, 1},  // ResNet block
             {28, 28, 128, 128, 3, 1, 1, 1},
             {14, 14, 256, 256, 3, 1, 1, 1},
             {7, 7, 512, 512, 3, 1, 1, 1},
@@ -106,10 +106,10 @@ int main()
     // --- vary conv params, fixed: shape=(56x56x64), threads=1, fp32 ---
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
-        perf_convolution(56, 56, 64, 64, 3, 1, 1, 1, opt, "fp32  all-core");   // k=3 s=1
-        perf_convolution(56, 56, 64, 128, 3, 1, 2, 1, opt, "fp32  all-core");  // k=3 s=2 downsample
-        perf_convolution(56, 56, 64, 256, 1, 1, 1, 0, opt, "fp32  all-core");  // k=1 pointwise
-        perf_convolution(56, 56, 64, 64, 5, 1, 1, 2, opt, "fp32  all-core");   // k=5 s=1
+        perf_convolution(56, 56, 64, 64, 3, 1, 1, 1, opt, "fp32  all-core");  // k=3 s=1
+        perf_convolution(56, 56, 64, 128, 3, 1, 2, 1, opt, "fp32  all-core"); // k=3 s=2 downsample
+        perf_convolution(56, 56, 64, 256, 1, 1, 1, 0, opt, "fp32  all-core"); // k=1 pointwise
+        perf_convolution(56, 56, 64, 64, 5, 1, 1, 2, opt, "fp32  all-core");  // k=5 s=1
     }
 
     fprintf(stdout, "\n");

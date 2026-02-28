@@ -20,9 +20,9 @@
 #endif // NCNN_VULKAN
 
 // default benchmark parameters
-#define PERF_WARMUP_COUNT  10
-#define PERF_RUN_COUNT     20
-#define PERF_MIN_TOTAL_MS  100.0
+#define PERF_WARMUP_COUNT 10
+#define PERF_RUN_COUNT    20
+#define PERF_MIN_TOTAL_MS 100.0
 
 // benchmark result for a single test case
 struct PerfResult

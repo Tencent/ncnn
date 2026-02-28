@@ -11,14 +11,14 @@ static void perf_convolutiondepthwise(int w, int h, int c, int kernel, int dilat
     ncnn::Mat input = PerfMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, c);                          // num_output (same as input for depthwise)
-    pd.set(1, kernel);                     // kernel_w
-    pd.set(2, dilation);                   // dilation_w
-    pd.set(3, stride);                     // stride_w
-    pd.set(4, pad);                        // pad_w
-    pd.set(5, 1);                          // bias_term
+    pd.set(0, c);                           // num_output (same as input for depthwise)
+    pd.set(1, kernel);                      // kernel_w
+    pd.set(2, dilation);                    // dilation_w
+    pd.set(3, stride);                      // stride_w
+    pd.set(4, pad);                         // pad_w
+    pd.set(5, 1);                           // bias_term
     pd.set(6, c * kernel * kernel / group); // weight_data_size per group * num_output
-    pd.set(7, group);                      // group
+    pd.set(7, group);                       // group
 
     // For depthwise, weight_data_size = num_output / group * c / group * kernel * kernel * group
     // When group == c == num_output, that simplifies to kernel * kernel * c
@@ -43,7 +43,7 @@ static void perf_convolutiondepthwise(int w, int h, int c, int kernel, int dilat
 
 #if NCNN_VULKAN
 static void perf_convolutiondepthwise_gpu(int w, int h, int c, int kernel, int dilation, int stride, int pad, int group,
-                                          const ncnn::Option& opt, ncnn::VulkanDevice* vkdev)
+        const ncnn::Option& opt, ncnn::VulkanDevice* vkdev)
 {
     ncnn::Mat input = PerfMat(w, h, c);
 
@@ -105,8 +105,8 @@ int main()
     // --- vary kernel, fixed: shape=(56x56x64) g=64, threads=1, fp32 ---
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
-        perf_convolutiondepthwise(56, 56, 64, 3, 1, 1, 1, 64, opt, "fp32  all-core");  // 3x3
-        perf_convolutiondepthwise(56, 56, 64, 5, 1, 1, 2, 64, opt, "fp32  all-core");  // 5x5
+        perf_convolutiondepthwise(56, 56, 64, 3, 1, 1, 1, 64, opt, "fp32  all-core"); // 3x3
+        perf_convolutiondepthwise(56, 56, 64, 5, 1, 1, 2, 64, opt, "fp32  all-core"); // 5x5
     }
 
     fprintf(stdout, "\n");

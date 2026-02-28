@@ -11,13 +11,13 @@ static void perf_pooling(int w, int h, int c, int pooling_type, int kernel, int 
     ncnn::Mat input = PerfMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, pooling_type);  // pooling_type: 0=max, 1=avg
-    pd.set(1, kernel);        // kernel_w
-    pd.set(2, stride);        // stride_w
-    pd.set(3, pad);           // pad_w
+    pd.set(0, pooling_type); // pooling_type: 0=max, 1=avg
+    pd.set(1, kernel);       // kernel_w
+    pd.set(2, stride);       // stride_w
+    pd.set(3, pad);          // pad_w
     pd.set(4, global_pooling);
-    pd.set(5, 0);             // pad_mode
-    pd.set(6, 1);             // avgpool_count_include_pad
+    pd.set(5, 0); // pad_mode
+    pd.set(6, 1); // avgpool_count_include_pad
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -109,9 +109,9 @@ int main()
     // --- vary pool type, fixed: shape=(56x56x128), threads=1, fp32 ---
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
-        perf_pooling(56, 56, 128, 0, 3, 2, 1, 0, opt, "fp32  all-core");  // MaxPool k=3 s=2
-        perf_pooling(56, 56, 128, 1, 3, 2, 1, 0, opt, "fp32  all-core");  // AvgPool k=3 s=2
-        perf_pooling(7, 7, 512, 1, 0, 0, 0, 1, opt, "fp32  all-core");    // Global AvgPool
+        perf_pooling(56, 56, 128, 0, 3, 2, 1, 0, opt, "fp32  all-core"); // MaxPool k=3 s=2
+        perf_pooling(56, 56, 128, 1, 3, 2, 1, 0, opt, "fp32  all-core"); // AvgPool k=3 s=2
+        perf_pooling(7, 7, 512, 1, 0, 0, 0, 1, opt, "fp32  all-core");   // Global AvgPool
     }
 
     fprintf(stdout, "\n");

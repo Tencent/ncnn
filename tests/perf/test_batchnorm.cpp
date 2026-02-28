@@ -14,10 +14,10 @@ static void perf_batchnorm(int w, int h, int c, const ncnn::Option& opt, const c
 
     // BatchNorm weights: slope, mean, variance, bias
     std::vector<ncnn::Mat> weights(4);
-    weights[0] = PerfMat(c, 1.0f);   // slope (gamma)
-    weights[1] = PerfMat(c, 0.0f);   // mean
-    weights[2] = PerfMat(c, 1.0f);   // variance
-    weights[3] = PerfMat(c, 0.0f);   // bias (beta)
+    weights[0] = PerfMat(c, 1.0f); // slope (gamma)
+    weights[1] = PerfMat(c, 0.0f); // mean
+    weights[2] = PerfMat(c, 1.0f); // variance
+    weights[3] = PerfMat(c, 0.0f); // bias (beta)
 
     PerfResult result;
     int ret = perf_layer_cpu("BatchNorm", pd, weights, input, opt, PERF_WARMUP_COUNT, PERF_RUN_COUNT, result);

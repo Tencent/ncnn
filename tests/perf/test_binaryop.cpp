@@ -17,7 +17,7 @@ static const char* op_type_name(int op_type)
 }
 
 static void perf_binaryop(const ncnn::Mat& a, const ncnn::Mat& b, int op_type,
-                           const ncnn::Option& opt, const char* env_tag)
+                          const ncnn::Option& opt, const char* env_tag)
 {
     ncnn::ParamDict pd;
     pd.set(0, op_type); // op_type
@@ -45,7 +45,7 @@ static void perf_binaryop(const ncnn::Mat& a, const ncnn::Mat& b, int op_type,
 }
 
 static void perf_binaryop_scalar(const ncnn::Mat& a, int op_type, float scalar_b,
-                                  const ncnn::Option& opt, const char* env_tag)
+                                 const ncnn::Option& opt, const char* env_tag)
 {
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -69,7 +69,7 @@ static void perf_binaryop_scalar(const ncnn::Mat& a, int op_type, float scalar_b
 
 #if NCNN_VULKAN
 static void perf_binaryop_gpu(const ncnn::Mat& a, const ncnn::Mat& b, int op_type,
-                               const ncnn::Option& opt, ncnn::VulkanDevice* vkdev)
+                              const ncnn::Option& opt, ncnn::VulkanDevice* vkdev)
 {
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -124,9 +124,9 @@ int main()
     {
         ncnn::Option opt = make_perf_option(1, true, false, false);
         ncnn::Mat input = PerfMat(56, 56, 64);
-        perf_binaryop(input, input, 0, opt, "fp32  all-core");  // Add
-        perf_binaryop(input, input, 2, opt, "fp32  all-core");  // Mul
-        perf_binaryop(input, input, 1, opt, "fp32  all-core");  // Sub
+        perf_binaryop(input, input, 0, opt, "fp32  all-core");       // Add
+        perf_binaryop(input, input, 2, opt, "fp32  all-core");       // Mul
+        perf_binaryop(input, input, 1, opt, "fp32  all-core");       // Sub
         perf_binaryop_scalar(input, 0, 0.5f, opt, "fp32  all-core"); // Add scalar
     }
 
