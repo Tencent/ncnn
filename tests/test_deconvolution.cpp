@@ -131,7 +131,22 @@ static int test_deconvolution_0()
             return -1;
     }
 
+    // small outch tier coverage with varied kdsp
     return 0
+           || test_deconvolution(7, 5, 4, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0)
+           || test_deconvolution(5, 9, 8, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(6, 4, 1, 2, 1, 1, 2, 0, 1, 0, 1, 0, 0)
+           || test_deconvolution(5, 8, 4, 2, 3, 2, 1, 1, 0, 1, 0, 0, 0)
+           || test_deconvolution(8, 6, 8, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(3, 5, 4, 3, 3, 1, 2, 1, 1, 1, 1, 0, 0)
+           || test_deconvolution(6, 7, 8, 3, 2, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 8, 5, 3, 1, 1, 1, 1, 0, 1, 0, 0)
+           || test_deconvolution(7, 3, 8, 6, 1, 1, 1, 0, 0, 1, 0, 0, 0)
+           || test_deconvolution(3, 6, 8, 7, 3, 2, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(4, 7, 8, 10, 2, 1, 2, -233, 0, 1, 1, 0, 0)
+           || test_deconvolution(6, 5, 8, 14, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(8, 4, 8, 15, 1, 1, 2, 0, 0, 0, 1, 0, 0)
            || test_deconvolution(7, 5, 24, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
            || test_deconvolution(7, 5, 32, 24, 4, 2, 2, 2, 1, 0, 0, 0, 0)
            || test_deconvolution(7, 5, 28, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
@@ -223,7 +238,22 @@ static int test_deconvolution_1()
             return -1;
     }
 
-    return 0;
+    // small outch tier coverage with varied kdsp
+    return 0
+           || test_deconvolution_dynamic(7, 5, 4, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0)
+           || test_deconvolution_dynamic(5, 9, 8, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(6, 4, 1, 2, 1, 1, 2, 0, 1, 0, 1, 0, 0)
+           || test_deconvolution_dynamic(5, 8, 4, 2, 3, 2, 1, 1, 0, 1, 0, 0, 0)
+           || test_deconvolution_dynamic(8, 6, 8, 2, 2, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(3, 5, 4, 3, 3, 1, 2, 1, 1, 1, 1, 0, 0)
+           || test_deconvolution_dynamic(6, 7, 8, 3, 2, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 8, 5, 3, 1, 1, 1, 1, 0, 1, 0, 0)
+           || test_deconvolution_dynamic(7, 3, 8, 6, 1, 1, 1, 0, 0, 1, 0, 0, 0)
+           || test_deconvolution_dynamic(3, 6, 8, 7, 3, 2, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 7, 8, 10, 2, 1, 2, -233, 0, 1, 1, 0, 0)
+           || test_deconvolution_dynamic(6, 5, 8, 14, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(8, 4, 8, 15, 1, 1, 2, 0, 0, 0, 1, 0, 0);
 }
 
 int main()
