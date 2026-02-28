@@ -36,38 +36,52 @@
 
    int NewOp_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
    {
+       int w = bottom_blob.w;
+       int h = bottom_blob.h;
+       int d = bottom_blob.d;
+       int channels = bottom_blob.c;
        int elempack = bottom_blob.elempack;
        int size = w * h * d * elempack;
 
-       // Process with widest available SIMD first, then fall through
-       int i = 0;
+       top_blob.create(w, h, d, channels, bottom_blob.elemsize, elempack, opt.blob_allocator);
+       if (top_blob.empty())
+           return -100;
+
+       #pragma omp parallel for num_threads(opt.num_threads)
+       for (int q = 0; q < channels; q++)
+       {
+           const float* ptr = bottom_blob.channel(q);
+           float* outptr = top_blob.channel(q);
+
+           int i = 0;
    #if __SSE2__
    #if __AVX__
    #if __AVX512F__
-       for (; i + 15 < size; i += 16)
-       {
-           __m512 _v = _mm512_loadu_ps(ptr + i);
-           // ... AVX-512 processing
-           _mm512_storeu_ps(outptr + i, _v);
-       }
+           for (; i + 15 < size; i += 16)
+           {
+               __m512 _v = _mm512_loadu_ps(ptr + i);
+               // ... AVX-512 processing
+               _mm512_storeu_ps(outptr + i, _v);
+           }
    #endif // __AVX512F__
-       for (; i + 7 < size; i += 8)
-       {
-           __m256 _v = _mm256_loadu_ps(ptr + i);
-           // ... AVX processing
-           _mm256_storeu_ps(outptr + i, _v);
-       }
+           for (; i + 7 < size; i += 8)
+           {
+               __m256 _v = _mm256_loadu_ps(ptr + i);
+               // ... AVX processing
+               _mm256_storeu_ps(outptr + i, _v);
+           }
    #endif // __AVX__
-       for (; i + 3 < size; i += 4)
-       {
-           __m128 _v = _mm_loadu_ps(ptr + i);
-           // ... SSE processing
-           _mm_storeu_ps(outptr + i, _v);
-       }
+           for (; i + 3 < size; i += 4)
+           {
+               __m128 _v = _mm_loadu_ps(ptr + i);
+               // ... SSE processing
+               _mm_storeu_ps(outptr + i, _v);
+           }
    #endif // __SSE2__
-       for (; i < size; i++)
-       {
-           // scalar fallback
+           for (; i < size; i++)
+           {
+               outptr[i] = /* scalar op */ ptr[i];
+           }
        }
        return 0;
    }
