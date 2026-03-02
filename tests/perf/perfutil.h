@@ -4,13 +4,10 @@
 #ifndef PERFUTIL_H
 #define PERFUTIL_H
 
-#include "benchmark.h"
 #include "layer.h"
 #include "mat.h"
 #include "option.h"
 #include "paramdict.h"
-
-#include <vector>
 
 ncnn::Mat PerfMat(int w, float v = 0.01f);
 ncnn::Mat PerfMat(int w, int h, float v = 0.01f);

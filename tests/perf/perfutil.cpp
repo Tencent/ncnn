@@ -3,6 +3,7 @@
 
 #include "perfutil.h"
 
+#include "benchmark.h"
 #include "cpu.h"
 #include "layer.h"
 #include "modelbin.h"
