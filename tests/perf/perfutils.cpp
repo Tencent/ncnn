@@ -755,6 +755,9 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
         print_perf_result(full_tag, result);
     }
 
+    fprintf(stdout, "\n");
+    fflush(stdout);
+
 #if NCNN_VULKAN
     // --- GPU ---
     {
@@ -788,12 +791,12 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
                 snprintf(full_tag, sizeof(full_tag), "%s  gpu-%d %s", tag, gpu_id, s_configs[i].label);
                 print_perf_result(full_tag, result);
             }
+
+            fprintf(stdout, "\n");
+            fflush(stdout);
         }
     }
 #endif // NCNN_VULKAN
-
-    fprintf(stdout, "\n");
-    fflush(stdout);
 }
 
 void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
