@@ -702,10 +702,10 @@ static const PrecisionConfig s_configs[] = {
 static const int s_num_configs = sizeof(s_configs) / sizeof(s_configs[0]);
 
 static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
-                             const std::vector<ncnn::Mat>& weights,
-                             const std::vector<ncnn::Mat>& inputs,
-                             int top_blob_count,
-                             const char* tag)
+                            const std::vector<ncnn::Mat>& weights,
+                            const std::vector<ncnn::Mat>& inputs,
+                            int top_blob_count,
+                            const char* tag)
 {
     // --- CPU ---
     for (int i = 0; i < s_num_configs; i++)
@@ -779,4 +779,3 @@ void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
 
     perf_layer_impl(layer_type, pd, weights, inputs, 1, tag);
 }
-
