@@ -18,10 +18,11 @@
 #endif // NCNN_VULKAN
 
 // default benchmark parameters
-#define PERF_WARMUP_COUNT     10
-#define PERF_GPU_WARMUP_COUNT 30
-#define PERF_RUN_COUNT        20
-#define PERF_MIN_TOTAL_MS     100.0
+#define PERF_WARMUP_COUNT      10
+#define PERF_GPU_WARMUP_COUNT  50
+#define PERF_GPU_WARMUP_BATCH  10
+#define PERF_RUN_COUNT         20
+#define PERF_TARGET_MIN_MS     2.0
 
 // benchmark result for a single test case
 struct PerfResult
@@ -241,11 +242,14 @@ static int run_layer_forward_cpu(ncnn::Layer* op,
     }
 }
 
+// forced_inner_loops > 0: use the given value, skip calibration
+// forced_inner_loops <= 0: calibrate from warmup min time
 static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
                           const std::vector<ncnn::Mat>& weights,
                           const std::vector<ncnn::Mat>& inputs,
                           int top_blob_count,
                           const ncnn::Option& opt,
+                          int forced_inner_loops,
                           PerfResult& result)
 {
     ncnn::Layer* op = ncnn::create_layer_cpu(layer_type);
@@ -286,12 +290,20 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
         if (t < warmup_min_ms) warmup_min_ms = t;
     }
 
-    // calibrate inner loop count from warmup min time
-    int inner_loops = 1;
-    if (warmup_min_ms < PERF_MIN_TOTAL_MS)
+    int inner_loops;
+    if (forced_inner_loops > 0)
     {
-        if (warmup_min_ms < 0.001) warmup_min_ms = 0.001;
-        inner_loops = (int)(PERF_MIN_TOTAL_MS / warmup_min_ms) + 1;
+        inner_loops = forced_inner_loops;
+    }
+    else
+    {
+        // calibrate inner loop count to power of 10, so total time >= PERF_TARGET_MIN_MS
+        inner_loops = 1;
+        if (warmup_min_ms > 0 && warmup_min_ms < PERF_TARGET_MIN_MS)
+        {
+            while (inner_loops * warmup_min_ms < PERF_TARGET_MIN_MS)
+                inner_loops *= 10;
+        }
     }
 
     double* times = new double[PERF_RUN_COUNT];
@@ -309,7 +321,7 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
         }
 
         double end = ncnn::get_current_time();
-        double t = (end - start) / inner_loops;
+        double t = end - start;
 
         times[i] = t;
         time_sum += t;
@@ -379,6 +391,7 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
                           int top_blob_count,
                           ncnn::VulkanDevice* vkdev,
                           const ncnn::Option& _opt,
+                          int forced_inner_loops,
                           PerfResult& result)
 {
     ncnn::Layer* op = ncnn::create_layer_vulkan(layer_type);
@@ -485,27 +498,37 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     }
 
     // warmup and calibrate inner loop count from warmup min time
+    // batch multiple forwards per submit to amortize submit_and_wait overhead
     double warmup_min_ms = DBL_MAX;
     for (int i = 0; i < PERF_GPU_WARMUP_COUNT; i++)
     {
         ncnn::VkCompute cmd(vkdev);
-        run_layer_forward_gpu(op, vk_inputs, top_blob_count, cmd, opt);
+        for (int b = 0; b < PERF_GPU_WARMUP_BATCH; b++)
+        {
+            run_layer_forward_gpu(op, vk_inputs, top_blob_count, cmd, opt);
+        }
         double t0 = ncnn::get_current_time();
         cmd.submit_and_wait();
         double t1 = ncnn::get_current_time();
-        double t = t1 - t0;
+        double t = (t1 - t0) / PERF_GPU_WARMUP_BATCH;
         if (t < warmup_min_ms) warmup_min_ms = t;
     }
 
-    // calibrate inner loop count from warmup min time
-    int inner_loops = 1;
-    if (warmup_min_ms < PERF_MIN_TOTAL_MS)
+    int inner_loops;
+    if (forced_inner_loops > 0)
     {
-        if (warmup_min_ms < 0.001) warmup_min_ms = 0.001;
-        inner_loops = (int)(PERF_MIN_TOTAL_MS / warmup_min_ms) + 1;
+        inner_loops = forced_inner_loops;
     }
-
-    // benchmark
+    else
+    {
+        // calibrate inner loop count to power of 10, so total time >= PERF_TARGET_MIN_MS
+        inner_loops = 1;
+        if (warmup_min_ms > 0 && warmup_min_ms < PERF_TARGET_MIN_MS)
+        {
+            while (inner_loops * warmup_min_ms < PERF_TARGET_MIN_MS)
+                inner_loops *= 10;
+        }
+    }
     // record inner_loops forwards into one command buffer, single submit
     // this measures pure GPU kernel time, excluding per-launch overhead
     double* times = new double[PERF_RUN_COUNT];
@@ -525,7 +548,7 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
         cmd.submit_and_wait();
         double end = ncnn::get_current_time();
 
-        double t = (end - start) / inner_loops;
+        double t = end - start;
 
         times[i] = t;
         time_sum += t;
@@ -558,40 +581,17 @@ static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
 }
 #endif // NCNN_VULKAN
 
-static void print_perf_result(const char* tag, const PerfResult& result, bool gpu)
+static void print_perf_result(const char* tag, const PerfResult& result)
 {
-    if (gpu)
+    if (result.loop_count > 1)
     {
-        // GPU: display in microseconds
-        double min_us = result.time_min * 1000.0;
-        double max_us = result.time_max * 1000.0;
-        double avg_us = result.time_avg * 1000.0;
-        double median_us = result.time_median * 1000.0;
-
-        if (result.loop_count > 1)
-        {
-            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f us  (x%d)\n",
-                    tag, min_us, max_us, avg_us, median_us, result.loop_count);
-        }
-        else
-        {
-            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f us\n",
-                    tag, min_us, max_us, avg_us, median_us);
-        }
+        fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f  (x%d)\n",
+                tag, result.time_min, result.time_max, result.time_avg, result.time_median, result.loop_count);
     }
     else
     {
-        // CPU: display in milliseconds
-        if (result.loop_count > 1)
-        {
-            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f ms  (x%d)\n",
-                    tag, result.time_min, result.time_max, result.time_avg, result.time_median, result.loop_count);
-        }
-        else
-        {
-            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f ms\n",
-                    tag, result.time_min, result.time_max, result.time_avg, result.time_median);
-        }
+        fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f\n",
+                tag, result.time_min, result.time_max, result.time_avg, result.time_median);
     }
     fflush(stdout);
 }
@@ -709,23 +709,6 @@ static ncnn::Option make_perf_option(bool use_fp16_ps, bool use_fp16_arith, bool
     return opt;
 }
 
-static void run_cpu_perf(const char* layer_type, const ncnn::ParamDict& pd,
-                         const std::vector<ncnn::Mat>& weights,
-                         const std::vector<ncnn::Mat>& inputs,
-                         int top_blob_count,
-                         const char* tag, const char* precision,
-                         const ncnn::Option& opt)
-{
-    PerfResult result;
-    int ret = perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, result);
-    if (ret != 0)
-        return;
-
-    char full_tag[512];
-    snprintf(full_tag, sizeof(full_tag), "%s  %s", tag, precision);
-    print_perf_result(full_tag, result, false);
-}
-
 // precision configs
 struct PrecisionConfig
 {
@@ -752,10 +735,24 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
                             const char* tag)
 {
     // --- CPU ---
+    // run fp32 first to calibrate inner_loops, then reuse for all precisions
+    int cpu_inner_loops = 0;
     for (int i = 0; i < s_num_configs; i++)
     {
         ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
-        run_cpu_perf(layer_type, pd, weights, inputs, top_blob_count, tag, s_configs[i].label, opt);
+
+        PerfResult result;
+        int ret = perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, cpu_inner_loops, result);
+        if (ret != 0)
+            continue;
+
+        // use the first successful calibration for all subsequent configs
+        if (cpu_inner_loops <= 0)
+            cpu_inner_loops = result.loop_count;
+
+        char full_tag[512];
+        snprintf(full_tag, sizeof(full_tag), "%s  %s", tag, s_configs[i].label);
+        print_perf_result(full_tag, result);
     }
 
 #if NCNN_VULKAN
@@ -773,18 +770,23 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
             ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_id);
             if (!vkdev) continue;
 
+            // run fp32 first to calibrate inner_loops, then reuse for all precisions
+            int gpu_inner_loops = 0;
             for (int i = 0; i < s_num_configs; i++)
             {
                 ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
 
                 PerfResult result;
-                int ret = perf_layer_gpu(layer_type, pd, weights, inputs, top_blob_count, vkdev, opt, result);
+                int ret = perf_layer_gpu(layer_type, pd, weights, inputs, top_blob_count, vkdev, opt, gpu_inner_loops, result);
                 if (ret != 0)
                     continue;
 
+                if (gpu_inner_loops <= 0)
+                    gpu_inner_loops = result.loop_count;
+
                 char full_tag[512];
                 snprintf(full_tag, sizeof(full_tag), "%s  GPU(%d) %s", tag, gpu_id, s_configs[i].label);
-                print_perf_result(full_tag, result, true);
+                print_perf_result(full_tag, result);
             }
         }
     }
