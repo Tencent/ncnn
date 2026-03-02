@@ -34,39 +34,31 @@ struct PerfResult
     int loop_count; // inner loops per iteration (for short ops)
 };
 
-void FillMat(ncnn::Mat& m, float v)
-{
-    for (size_t i = 0; i < m.total(); i++)
-    {
-        m[i] = v;
-    }
-}
-
 ncnn::Mat PerfMat(int w, float v)
 {
     ncnn::Mat m(w);
-    FillMat(m, v);
+    m.fill(v);
     return m;
 }
 
 ncnn::Mat PerfMat(int w, int h, float v)
 {
     ncnn::Mat m(w, h);
-    FillMat(m, v);
+    m.fill(v);
     return m;
 }
 
 ncnn::Mat PerfMat(int w, int h, int c, float v)
 {
     ncnn::Mat m(w, h, c);
-    FillMat(m, v);
+    m.fill(v);
     return m;
 }
 
 ncnn::Mat PerfMat(int w, int h, int d, int c, float v)
 {
     ncnn::Mat m(w, h, d, c);
-    FillMat(m, v);
+    m.fill(v);
     return m;
 }
 

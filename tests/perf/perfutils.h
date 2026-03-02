@@ -12,9 +12,6 @@
 
 #include <vector>
 
-// fill mat with constant value for reproducible benchmarks
-void FillMat(ncnn::Mat& m, float v = 0.01f);
-
 ncnn::Mat PerfMat(int w, float v = 0.01f);
 ncnn::Mat PerfMat(int w, int h, float v = 0.01f);
 ncnn::Mat PerfMat(int w, int h, int c, float v = 0.01f);
