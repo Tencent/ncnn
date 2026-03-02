@@ -626,14 +626,29 @@ static void build_tag(char* tag, int tagsize,
         if (i > 0)
         {
             n = snprintf(tag + pos, remain, ",");
-            if (n > 0 && n < remain) { pos += n; remain -= n; }
-            else { remain = 0; break; }
+            if (n > 0 && n < remain)
+            {
+                pos += n;
+                remain -= n;
+            }
+            else
+            {
+                remain = 0;
+                break;
+            }
         }
         char shape[64];
         format_shape(shape, sizeof(shape), inputs[i]);
         n = snprintf(tag + pos, remain, "%s", shape);
-        if (n > 0 && n < remain) { pos += n; remain -= n; }
-        else { remain = 0; }
+        if (n > 0 && n < remain)
+        {
+            pos += n;
+            remain -= n;
+        }
+        else
+        {
+            remain = 0;
+        }
     }
 
     // pad to fixed column for params
@@ -648,14 +663,28 @@ static void build_tag(char* tag, int tagsize,
     if (param_fmt && param_fmt[0] && remain > 0)
     {
         n = snprintf(tag + pos, remain, "  ");
-        if (n > 0 && n < remain) { pos += n; remain -= n; }
-        else { remain = 0; }
+        if (n > 0 && n < remain)
+        {
+            pos += n;
+            remain -= n;
+        }
+        else
+        {
+            remain = 0;
+        }
 
         if (remain > 0)
         {
             n = vsnprintf(tag + pos, remain, param_fmt, args);
-            if (n > 0 && n < remain) { pos += n; remain -= n; }
-            else { remain = 0; }
+            if (n > 0 && n < remain)
+            {
+                pos += n;
+                remain -= n;
+            }
+            else
+            {
+                remain = 0;
+            }
         }
     }
 
