@@ -3,15 +3,15 @@ if(MSVC)
     add_definitions(/wd4996)
 endif()
 
-add_library(ncnnperftestutil STATIC perftestutil.cpp)
-target_link_libraries(ncnnperftestutil PUBLIC ncnn)
+add_library(ncnnperfutils STATIC perfutils.cpp)
+target_link_libraries(ncnnperfutils PUBLIC ncnn)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../src/layer)
 
 macro(ncnn_add_perftest name)
     add_executable(perf_${name} test_${name}.cpp)
-    target_link_libraries(perf_${name} PRIVATE ncnnperftestutil ncnn)
+    target_link_libraries(perf_${name} PRIVATE ncnnperfutils ncnn)
 
     # add to a virtual project group
     set_property(TARGET perf_${name} PROPERTY FOLDER "perftests")

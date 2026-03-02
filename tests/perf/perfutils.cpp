@@ -1,11 +1,14 @@
 // Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "perftestutil.h"
+#include "perfutils.h"
 
+#include "cpu.h"
 #include "layer.h"
 #include "modelbin.h"
 
+#include <float.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -50,7 +53,7 @@ ncnn::Mat PerfMat(int w, int h, int d, int c, float v)
     return m;
 }
 
-void sort_doubles(double* arr, int n)
+static void sort_doubles(double* arr, int n)
 {
     for (int i = 1; i < n; i++)
     {
@@ -187,6 +190,7 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
 // run a single forward pass (pure compute, no conversion)
 static int run_layer_forward_cpu(ncnn::Layer* op,
                                  const std::vector<ncnn::Mat>& converted_inputs,
+                                 int top_blob_count,
                                  const ncnn::Option& opt)
 {
     if (op->one_blob_only)
@@ -215,7 +219,7 @@ static int run_layer_forward_cpu(ncnn::Layer* op,
         }
         else
         {
-            std::vector<ncnn::Mat> outputs;
+            std::vector<ncnn::Mat> outputs(top_blob_count);
             return op->forward(converted_inputs, outputs, opt);
         }
     }
@@ -224,11 +228,11 @@ static int run_layer_forward_cpu(ncnn::Layer* op,
 // calibrate inner loop count so that total time per iteration >= PERF_MIN_TOTAL_MS
 static int calibrate_loop_count(ncnn::Layer* op,
                                 const std::vector<ncnn::Mat>& converted_inputs,
+                                int top_blob_count,
                                 const ncnn::Option& opt)
 {
-    // time a single forward to estimate duration
     double t0 = ncnn::get_current_time();
-    run_layer_forward_cpu(op, converted_inputs, opt);
+    run_layer_forward_cpu(op, converted_inputs, top_blob_count, opt);
     double t1 = ncnn::get_current_time();
     double single_ms = t1 - t0;
 
@@ -245,12 +249,12 @@ static int calibrate_loop_count(ncnn::Layer* op,
     return loops;
 }
 
-int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
-                   const std::vector<ncnn::Mat>& weights,
-                   const std::vector<ncnn::Mat>& inputs,
-                   const ncnn::Option& opt,
-                   int warmup_count, int run_count,
-                   PerfResult& result)
+static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
+                          const std::vector<ncnn::Mat>& weights,
+                          const std::vector<ncnn::Mat>& inputs,
+                          int top_blob_count,
+                          const ncnn::Option& opt,
+                          PerfResult& result)
 {
     ncnn::Layer* op = ncnn::create_layer_cpu(layer_type);
     if (!op)
@@ -267,7 +271,6 @@ int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     op->create_pipeline(opt);
 
     // pre-convert inputs to the layout the layer expects
-    // so that cast/packing cost is excluded from timing
     std::vector<ncnn::Mat> converted(inputs.size());
     for (size_t i = 0; i < inputs.size(); i++)
     {
@@ -275,12 +278,11 @@ int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     }
 
     // warmup
-    for (int i = 0; i < warmup_count; i++)
+    for (int i = 0; i < PERF_WARMUP_COUNT; i++)
     {
-        int ret = run_layer_forward_cpu(op, converted, opt);
+        int ret = run_layer_forward_cpu(op, converted, top_blob_count, opt);
         if (ret != 0)
         {
-            fprintf(stderr, "perf_layer_cpu: warmup forward failed ret=%d\n", ret);
             op->destroy_pipeline(opt);
             delete op;
             return -1;
@@ -288,20 +290,20 @@ int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     }
 
     // calibrate inner loop count for short ops
-    int inner_loops = calibrate_loop_count(op, converted, opt);
+    int inner_loops = calibrate_loop_count(op, converted, top_blob_count, opt);
 
-    double* times = new double[run_count];
+    double* times = new double[PERF_RUN_COUNT];
     double time_sum = 0;
     double time_min_val = DBL_MAX;
     double time_max_val = -DBL_MAX;
 
-    for (int i = 0; i < run_count; i++)
+    for (int i = 0; i < PERF_RUN_COUNT; i++)
     {
         double start = ncnn::get_current_time();
 
         for (int k = 0; k < inner_loops; k++)
         {
-            run_layer_forward_cpu(op, converted, opt);
+            run_layer_forward_cpu(op, converted, top_blob_count, opt);
         }
 
         double end = ncnn::get_current_time();
@@ -313,16 +315,16 @@ int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
         if (t > time_max_val) time_max_val = t;
     }
 
-    sort_doubles(times, run_count);
+    sort_doubles(times, PERF_RUN_COUNT);
     double time_median_val;
-    if (run_count % 2 == 0)
-        time_median_val = (times[run_count / 2 - 1] + times[run_count / 2]) / 2.0;
+    if (PERF_RUN_COUNT % 2 == 0)
+        time_median_val = (times[PERF_RUN_COUNT / 2 - 1] + times[PERF_RUN_COUNT / 2]) / 2.0;
     else
-        time_median_val = times[run_count / 2];
+        time_median_val = times[PERF_RUN_COUNT / 2];
 
     result.time_min = time_min_val;
     result.time_max = time_max_val;
-    result.time_avg = time_sum / run_count;
+    result.time_avg = time_sum / PERF_RUN_COUNT;
     result.time_median = time_median_val;
     result.loop_count = inner_loops;
 
@@ -332,18 +334,6 @@ int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
     delete op;
 
     return 0;
-}
-
-int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
-                   const std::vector<ncnn::Mat>& weights,
-                   const ncnn::Mat& input,
-                   const ncnn::Option& opt,
-                   int warmup_count, int run_count,
-                   PerfResult& result)
-{
-    std::vector<ncnn::Mat> inputs(1);
-    inputs[0] = input;
-    return perf_layer_cpu(layer_type, pd, weights, inputs, opt, warmup_count, run_count, result);
 }
 
 #if NCNN_VULKAN
@@ -380,13 +370,12 @@ static void run_layer_forward_gpu(ncnn::Layer* op,
     }
 }
 
-int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
-                   const std::vector<ncnn::Mat>& weights,
-                   const std::vector<ncnn::Mat>& inputs,
-                   const ncnn::Option& _opt,
-                   ncnn::VulkanDevice* vkdev,
-                   int warmup_count, int run_count,
-                   PerfResult& result)
+static int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
+                          const std::vector<ncnn::Mat>& weights,
+                          const std::vector<ncnn::Mat>& inputs,
+                          ncnn::VulkanDevice* vkdev,
+                          const ncnn::Option& _opt,
+                          PerfResult& result)
 {
     ncnn::Layer* op = ncnn::create_layer_vulkan(layer_type);
     if (!op)
@@ -419,6 +408,8 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
     if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
     if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
     if (!vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
@@ -489,8 +480,8 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
         cmd.submit_and_wait();
     }
 
-    // warmup (forward only, inputs already on device)
-    for (int i = 0; i < warmup_count; i++)
+    // warmup
+    for (int i = 0; i < PERF_WARMUP_COUNT; i++)
     {
         ncnn::VkCompute cmd(vkdev);
         run_layer_forward_gpu(op, vk_inputs, cmd, opt);
@@ -498,6 +489,7 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     }
 
     // calibrate inner loops for fast GPU ops
+    // record multiple forwards in one command buffer, single submit
     int inner_loops = 1;
     {
         double t0 = ncnn::get_current_time();
@@ -516,23 +508,25 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
     }
 
     // benchmark
-    double* times = new double[run_count];
+    // record inner_loops forwards into one command buffer, single submit
+    // this measures pure GPU kernel time, excluding per-launch overhead
+    double* times = new double[PERF_RUN_COUNT];
     double time_sum = 0;
     double time_min_val = DBL_MAX;
     double time_max_val = -DBL_MAX;
 
-    for (int i = 0; i < run_count; i++)
+    for (int i = 0; i < PERF_RUN_COUNT; i++)
     {
-        double start = ncnn::get_current_time();
-
+        ncnn::VkCompute cmd(vkdev);
         for (int k = 0; k < inner_loops; k++)
         {
-            ncnn::VkCompute cmd(vkdev);
             run_layer_forward_gpu(op, vk_inputs, cmd, opt);
-            cmd.submit_and_wait();
         }
 
+        double start = ncnn::get_current_time();
+        cmd.submit_and_wait();
         double end = ncnn::get_current_time();
+
         double t = (end - start) / inner_loops;
 
         times[i] = t;
@@ -541,16 +535,16 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
         if (t > time_max_val) time_max_val = t;
     }
 
-    sort_doubles(times, run_count);
+    sort_doubles(times, PERF_RUN_COUNT);
     double time_median_val;
-    if (run_count % 2 == 0)
-        time_median_val = (times[run_count / 2 - 1] + times[run_count / 2]) / 2.0;
+    if (PERF_RUN_COUNT % 2 == 0)
+        time_median_val = (times[PERF_RUN_COUNT / 2 - 1] + times[PERF_RUN_COUNT / 2]) / 2.0;
     else
-        time_median_val = times[run_count / 2];
+        time_median_val = times[PERF_RUN_COUNT / 2];
 
     result.time_min = time_min_val;
     result.time_max = time_max_val;
-    result.time_avg = time_sum / run_count;
+    result.time_avg = time_sum / PERF_RUN_COUNT;
     result.time_median = time_median_val;
     result.loop_count = inner_loops;
 
@@ -564,62 +558,105 @@ int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
 
     return 0;
 }
-
-int perf_layer_gpu(const char* layer_type, const ncnn::ParamDict& pd,
-                   const std::vector<ncnn::Mat>& weights,
-                   const ncnn::Mat& input,
-                   const ncnn::Option& opt,
-                   ncnn::VulkanDevice* vkdev,
-                   int warmup_count, int run_count,
-                   PerfResult& result)
-{
-    std::vector<ncnn::Mat> inputs(1);
-    inputs[0] = input;
-    return perf_layer_gpu(layer_type, pd, weights, inputs, opt, vkdev, warmup_count, run_count, result);
-}
 #endif // NCNN_VULKAN
 
-void print_perf_result(const char* tag, const PerfResult& result)
+static void print_perf_result(const char* tag, const PerfResult& result, bool gpu)
 {
-    if (result.loop_count > 1)
+    if (gpu)
     {
-        fprintf(stdout, "%-72s  min=%7.3f  max=%7.3f  avg=%7.3f  median=%7.3f ms  (x%d)\n",
-                tag, result.time_min, result.time_max, result.time_avg, result.time_median, result.loop_count);
+        // GPU: display in microseconds
+        double min_us = result.time_min * 1000.0;
+        double max_us = result.time_max * 1000.0;
+        double avg_us = result.time_avg * 1000.0;
+        double median_us = result.time_median * 1000.0;
+
+        if (result.loop_count > 1)
+        {
+            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f us  (x%d)\n",
+                    tag, min_us, max_us, avg_us, median_us, result.loop_count);
+        }
+        else
+        {
+            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f us\n",
+                    tag, min_us, max_us, avg_us, median_us);
+        }
     }
     else
     {
-        fprintf(stdout, "%-72s  min=%7.3f  max=%7.3f  avg=%7.3f  median=%7.3f ms\n",
-                tag, result.time_min, result.time_max, result.time_avg, result.time_median);
+        // CPU: display in milliseconds
+        if (result.loop_count > 1)
+        {
+            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f ms  (x%d)\n",
+                    tag, result.time_min, result.time_max, result.time_avg, result.time_median, result.loop_count);
+        }
+        else
+        {
+            fprintf(stdout, "%-72s  min = %8.2f  max = %8.2f  avg = %8.2f  median = %8.2f ms\n",
+                    tag, result.time_min, result.time_max, result.time_avg, result.time_median);
+        }
     }
     fflush(stdout);
 }
 
-char* format_shape(char* buf, int bufsize, const ncnn::Mat& m)
+static void format_shape(char* buf, int bufsize, const ncnn::Mat& m)
 {
-    char tmp[64];
     if (m.dims == 1)
-        snprintf(tmp, sizeof(tmp), "(%d)", m.w);
+        snprintf(buf, bufsize, "(%d)", m.w);
     else if (m.dims == 2)
-        snprintf(tmp, sizeof(tmp), "(%dx%d)", m.w, m.h);
+        snprintf(buf, bufsize, "(%dx%d)", m.w, m.h);
     else if (m.dims == 3)
-        snprintf(tmp, sizeof(tmp), "(%dx%dx%d)", m.w, m.h, m.c);
+        snprintf(buf, bufsize, "(%dx%dx%d)", m.w, m.h, m.c);
     else if (m.dims == 4)
-        snprintf(tmp, sizeof(tmp), "(%dx%dx%dx%d)", m.w, m.h, m.d, m.c);
+        snprintf(buf, bufsize, "(%dx%dx%dx%d)", m.w, m.h, m.d, m.c);
     else
-        snprintf(tmp, sizeof(tmp), "(empty)");
-    snprintf(buf, bufsize, "%-16s", tmp);
-    return buf;
+        snprintf(buf, bufsize, "(empty)");
 }
 
-ncnn::Option make_perf_option(int num_threads, bool use_packing, bool use_fp16, bool use_bf16)
+// build tag: "LayerType  (shape)+(shape)  params"
+static void build_tag(char* tag, int tagsize,
+                      const char* layer_type,
+                      const std::vector<ncnn::Mat>& inputs,
+                      const char* param_fmt, va_list args)
+{
+    int pos = 0;
+
+    // layer type
+    pos += snprintf(tag + pos, tagsize - pos, "%-12s", layer_type);
+
+    // input shapes
+    for (size_t i = 0; i < inputs.size(); i++)
+    {
+        if (i > 0)
+            pos += snprintf(tag + pos, tagsize - pos, "+");
+        char shape[64];
+        format_shape(shape, sizeof(shape), inputs[i]);
+        pos += snprintf(tag + pos, tagsize - pos, "%s", shape);
+    }
+
+    // pad to fixed column for params
+    while (pos < 32 && pos < tagsize - 1)
+        tag[pos++] = ' ';
+
+    // layer-specific params
+    if (param_fmt && param_fmt[0])
+    {
+        pos += snprintf(tag + pos, tagsize - pos, "  ");
+        pos += vsnprintf(tag + pos, tagsize - pos, param_fmt, args);
+    }
+
+    tag[tagsize - 1] = '\0';
+}
+
+static ncnn::Option make_perf_option(bool use_fp16_ps, bool use_fp16_arith, bool use_bf16)
 {
     ncnn::Option opt;
     opt.lightmode = true;
-    opt.num_threads = num_threads;
-    opt.use_packing_layout = use_packing;
-    opt.use_fp16_packed = use_fp16;
-    opt.use_fp16_storage = use_fp16;
-    opt.use_fp16_arithmetic = use_fp16;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = use_fp16_ps;
+    opt.use_fp16_storage = use_fp16_ps;
+    opt.use_fp16_arithmetic = use_fp16_arith;
+    opt.use_bf16_packed = use_bf16;
     opt.use_bf16_storage = use_bf16;
     opt.use_vulkan_compute = false;
     opt.use_winograd_convolution = true;
@@ -627,3 +664,119 @@ ncnn::Option make_perf_option(int num_threads, bool use_packing, bool use_fp16, 
     opt.use_int8_inference = true;
     return opt;
 }
+
+static void run_cpu_perf(const char* layer_type, const ncnn::ParamDict& pd,
+                         const std::vector<ncnn::Mat>& weights,
+                         const std::vector<ncnn::Mat>& inputs,
+                         int top_blob_count,
+                         const char* tag, const char* precision,
+                         const ncnn::Option& opt)
+{
+    PerfResult result;
+    int ret = perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, result);
+    if (ret != 0)
+        return;
+
+    char full_tag[512];
+    snprintf(full_tag, sizeof(full_tag), "%s  %s", tag, precision);
+    print_perf_result(full_tag, result, false);
+}
+
+// precision configs
+struct PrecisionConfig
+{
+    bool fp16_ps;
+    bool fp16_arith;
+    bool bf16;
+    const char* label;
+};
+
+static const PrecisionConfig s_configs[] = {
+    {false, false, false, "fp32"},
+    {true, false, false, "fp16ps"},
+    {true, true, false, "fp16ps+fp16a"},
+#if NCNN_BF16
+    {false, false, true, "bf16ps"},
+#endif
+};
+static const int s_num_configs = sizeof(s_configs) / sizeof(s_configs[0]);
+
+static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
+                             const std::vector<ncnn::Mat>& weights,
+                             const std::vector<ncnn::Mat>& inputs,
+                             int top_blob_count,
+                             const char* tag)
+{
+    // --- CPU ---
+    for (int i = 0; i < s_num_configs; i++)
+    {
+        ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
+        run_cpu_perf(layer_type, pd, weights, inputs, top_blob_count, tag, s_configs[i].label, opt);
+    }
+
+#if NCNN_VULKAN
+    // --- GPU ---
+    {
+        static bool gpu_initialized = false;
+        if (!gpu_initialized)
+        {
+            ncnn::create_gpu_instance();
+            gpu_initialized = true;
+        }
+        int gpu_count = ncnn::get_gpu_count();
+        for (int gpu_id = 0; gpu_id < gpu_count; gpu_id++)
+        {
+            ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(gpu_id);
+            if (!vkdev) continue;
+
+            for (int i = 0; i < s_num_configs; i++)
+            {
+                ncnn::Option opt = make_perf_option(s_configs[i].fp16_ps, s_configs[i].fp16_arith, s_configs[i].bf16);
+
+                PerfResult result;
+                int ret = perf_layer_gpu(layer_type, pd, weights, inputs, vkdev, opt, result);
+                if (ret != 0)
+                    continue;
+
+                char full_tag[512];
+                snprintf(full_tag, sizeof(full_tag), "%s  GPU(%d) %s", tag, gpu_id, s_configs[i].label);
+                print_perf_result(full_tag, result, true);
+            }
+        }
+    }
+#endif // NCNN_VULKAN
+
+    fprintf(stdout, "\n");
+    fflush(stdout);
+}
+
+void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
+                const std::vector<ncnn::Mat>& weights,
+                const std::vector<ncnn::Mat>& inputs, int top_blob_count,
+                const char* param_fmt, ...)
+{
+    char tag[256];
+    va_list args;
+    va_start(args, param_fmt);
+    build_tag(tag, sizeof(tag), layer_type, inputs, param_fmt, args);
+    va_end(args);
+
+    perf_layer_impl(layer_type, pd, weights, inputs, top_blob_count, tag);
+}
+
+void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
+                const std::vector<ncnn::Mat>& weights,
+                const ncnn::Mat& input, const char* param_fmt, ...)
+{
+    std::vector<ncnn::Mat> inputs(1);
+    inputs[0] = input;
+
+    char tag[256];
+    va_list args;
+    va_start(args, param_fmt);
+    build_tag(tag, sizeof(tag), layer_type, inputs, param_fmt, args);
+    va_end(args);
+
+    perf_layer_impl(layer_type, pd, weights, inputs, 1, tag);
+}
+
