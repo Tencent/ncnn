@@ -18,11 +18,11 @@
 #endif // NCNN_VULKAN
 
 // default benchmark parameters
-#define PERF_WARMUP_COUNT      10
-#define PERF_GPU_WARMUP_COUNT  50
-#define PERF_GPU_WARMUP_BATCH  10
-#define PERF_RUN_COUNT         20
-#define PERF_TARGET_MIN_MS     2.0
+#define PERF_WARMUP_COUNT     10
+#define PERF_GPU_WARMUP_COUNT 50
+#define PERF_GPU_WARMUP_BATCH 10
+#define PERF_RUN_COUNT        20
+#define PERF_TARGET_MIN_MS    2.0
 
 // benchmark result for a single test case
 struct PerfResult
