@@ -19,10 +19,10 @@
 
 // default benchmark parameters
 #define PERF_WARMUP_COUNT     10
-#define PERF_GPU_WARMUP_COUNT 50
-#define PERF_GPU_WARMUP_BATCH 10
+#define PERF_GPU_WARMUP_COUNT 20
+#define PERF_GPU_WARMUP_BATCH 100
 #define PERF_RUN_COUNT        20
-#define PERF_TARGET_MIN_MS    2.0
+#define PERF_TARGET_MIN_MS    5.0
 
 // benchmark result for a single test case
 struct PerfResult
@@ -751,7 +751,7 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
             cpu_inner_loops = result.loop_count;
 
         char full_tag[512];
-        snprintf(full_tag, sizeof(full_tag), "%s  %s", tag, s_configs[i].label);
+        snprintf(full_tag, sizeof(full_tag), "%s        %s", tag, s_configs[i].label);
         print_perf_result(full_tag, result);
     }
 
@@ -785,7 +785,7 @@ static void perf_layer_impl(const char* layer_type, const ncnn::ParamDict& pd,
                     gpu_inner_loops = result.loop_count;
 
                 char full_tag[512];
-                snprintf(full_tag, sizeof(full_tag), "%s  GPU(%d) %s", tag, gpu_id, s_configs[i].label);
+                snprintf(full_tag, sizeof(full_tag), "%s  gpu-%d %s", tag, gpu_id, s_configs[i].label);
                 print_perf_result(full_tag, result);
             }
         }
