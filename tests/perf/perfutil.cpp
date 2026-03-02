@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "perfutils.h"
+#include "perfutil.h"
 
 #include "cpu.h"
 #include "layer.h"

@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "perfutils.h"
+#include "perfutil.h"
 
 static void perf_convolutiondepthwise(int w, int h, int c, int kernel, int dilation, int stride, int pad, int group)
 {

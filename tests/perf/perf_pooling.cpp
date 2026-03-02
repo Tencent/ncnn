@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "perfutils.h"
+#include "perfutil.h"
 
 static void perf_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling)
 {

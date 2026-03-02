@@ -1,8 +1,8 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef PERFUTILS_H
-#define PERFUTILS_H
+#ifndef PERFUTIL_H
+#define PERFUTIL_H
 
 #include "benchmark.h"
 #include "layer.h"
@@ -31,4 +31,4 @@ void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
                 const std::vector<ncnn::Mat>& inputs, int top_blob_count,
                 const char* param_fmt, ...);
 
-#endif // PERFUTILS_H
+#endif // PERFUTIL_H
