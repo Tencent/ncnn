@@ -10,29 +10,7 @@
 #include "option.h"
 #include "paramdict.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <vector>
-
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
-
-// default benchmark parameters
-#define PERF_WARMUP_COUNT 10
-#define PERF_RUN_COUNT    20
-#define PERF_MIN_TOTAL_MS 100.0
-
-// benchmark result for a single test case
-struct PerfResult
-{
-    double time_min;
-    double time_max;
-    double time_avg;
-    double time_median;
-    int loop_count; // inner loops per iteration (for short ops)
-};
 
 // fill mat with constant value for reproducible benchmarks
 void FillMat(ncnn::Mat& m, float v = 0.01f);
