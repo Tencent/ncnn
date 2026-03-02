@@ -380,47 +380,57 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         }
     }
 
-    int elempack = A.elempack;
     size_t elemsize = A.elemsize;
+
+    int out_elempack = 1;
+    if (!use_cooperative_matrix)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+        if (output_elempack)
+            out_elempack = output_elempack;
+    }
+
+    size_t out_elemsize = elemsize * out_elempack;
 
     VkMat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, elemsize, opt.blob_vkallocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         else
-            top_blob.create(M, N, elemsize, opt.blob_vkallocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, elemsize, opt.blob_vkallocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         else
-            top_blob.create(N, M, elemsize, opt.blob_vkallocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
-    bindings[0] = top_blob;
-    bindings[1] = A;
-    bindings[2] = B;
-    bindings[3] = C;
-
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = M;
-    constants[1].i = N;
-    constants[2].i = K;
-    constants[3].i = broadcast_type_C;
-    constants[4].i = A.dims;
-    constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
-    constants[6].i = B.dims;
-    constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
-    constants[8].i = top_blob.dims;
-    constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
-
     if (use_cooperative_matrix)
     {
+        std::vector<VkMat> bindings(4);
+        bindings[0] = top_blob;
+        bindings[1] = A;
+        bindings[2] = B;
+        bindings[3] = C;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = M;
+        constants[1].i = N;
+        constants[2].i = K;
+        constants[3].i = broadcast_type_C;
+        constants[4].i = A.dims;
+        constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
+        constants[6].i = B.dims;
+        constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+        constants[8].i = top_blob.dims;
+        constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
@@ -430,50 +440,74 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
-    }
-    else if (opt.use_shader_local_memory)
-    {
-        VkMat dispatcher;
-        dispatcher.w = (N + 3) / 4;
-        dispatcher.h = (M + 3) / 4;
-        dispatcher.c = 1;
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
-    }
-    else if (use_subgroup_ops)
-    {
-        const int subgroup_size = vkdev->info.subgroup_size();
 
-        const int blocks_x = (M + (UNROLL_SG_M * 4 - 1)) / (UNROLL_SG_M * 4);
-        const int blocks_y = (N + (UNROLL_SG_N * 4 - 1)) / (UNROLL_SG_N * 4);
+        // cooperative matrix path still needs post-dispatch convert_packing
+        int cm_out_elempack = 1;
+        {
+            int outh = output_transpose ? N : M;
+            cm_out_elempack = outh % 4 == 0 ? 4 : 1;
+        }
+        if (output_elempack)
+            cm_out_elempack = output_elempack;
 
-        VkMat dispatcher;
-        dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
-        dispatcher.h = 1;
-        dispatcher.c = 1;
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        if (cm_out_elempack != 1)
+        {
+            VkMat top_blob0;
+            vkdev->convert_packing(top_blob, top_blob0, cm_out_elempack, cmd, opt);
+            top_blobs[0] = top_blob0;
+        }
     }
     else
     {
-        VkMat dispatcher;
-        dispatcher.w = (N + 3) / 4;
-        dispatcher.h = (M + 3) / 4;
-        dispatcher.c = 1;
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
-    }
+        std::vector<VkMat> bindings(5);
+        bindings[0] = top_blob;
+        bindings[1] = A;
+        bindings[2] = B;
+        bindings[3] = C;
+        bindings[4] = top_blob;
 
-    int out_elempack = 1;
-    {
-        int outh = output_transpose ? N : M;
-        out_elempack = outh % 4 == 0 ? 4 : 1;
-    }
-    if (output_elempack)
-        out_elempack = output_elempack;
+        std::vector<vk_constant_type> constants(11);
+        constants[0].i = M;
+        constants[1].i = N;
+        constants[2].i = K;
+        constants[3].i = broadcast_type_C;
+        constants[4].i = A.dims;
+        constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
+        constants[6].i = B.dims;
+        constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+        constants[8].i = top_blob.dims;
+        constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+        constants[10].i = out_elempack;
 
-    if (out_elempack != 1)
-    {
-        VkMat top_blob0;
-        vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
-        top_blobs[0] = top_blob0;
+        if (opt.use_shader_local_memory)
+        {
+            VkMat dispatcher;
+            dispatcher.w = (N + 3) / 4;
+            dispatcher.h = (M + 3) / 4;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        }
+        else if (use_subgroup_ops)
+        {
+            const int subgroup_size = vkdev->info.subgroup_size();
+
+            const int blocks_x = (M + (UNROLL_SG_M * 4 - 1)) / (UNROLL_SG_M * 4);
+            const int blocks_y = (N + (UNROLL_SG_N * 4 - 1)) / (UNROLL_SG_N * 4);
+
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
+            dispatcher.h = 1;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        }
+        else
+        {
+            VkMat dispatcher;
+            dispatcher.w = (N + 3) / 4;
+            dispatcher.h = (M + 3) / 4;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        }
     }
 
     return 0;
