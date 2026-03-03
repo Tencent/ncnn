@@ -414,14 +414,12 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     if (use_cooperative_matrix)
     {
-        std::vector<VkMat> bindings(7);
+        std::vector<VkMat> bindings(5);
         bindings[0] = top_blob;
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
         bindings[4] = top_blob;
-        bindings[5] = A;
-        bindings[6] = B;
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
