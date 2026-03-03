@@ -444,8 +444,7 @@ void main()
                                         ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                         ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                         ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                    );
+                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                     uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                     uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -604,8 +603,7 @@ void main()
                                         ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                         ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                         ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                    );
+                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                     uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
                                     uvec4 mask8 = uvec4(lessThan(gm8, uvec4(psc(GM)))) * 0xFFFFu;
@@ -761,8 +759,7 @@ void main()
                                         ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                         ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                         ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                    );
+                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                     uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
                                     uvec4 mask8 = uvec4(lessThan(gn8, uvec4(psc(GN)))) * 0xFFFFu;
@@ -913,8 +910,7 @@ void main()
                                         ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                         ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                         ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                    );
+                                        ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                     uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                     uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -1163,8 +1159,7 @@ void main()
                                             ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                             ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                             ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                        );
+                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                         uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                         uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -1323,8 +1318,7 @@ void main()
                                             ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                             ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                             ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                        );
+                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                         uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
                                         uvec4 mask8 = uvec4(lessThan(gm8, uvec4(psc(GM)))) * 0xFFFFu;
@@ -1480,8 +1474,7 @@ void main()
                                             ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                             ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                             ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                        );
+                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                         uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
                                         uvec4 mask8 = uvec4(lessThan(gn8, uvec4(psc(GN)))) * 0xFFFFu;
@@ -1632,8 +1625,7 @@ void main()
                                             ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                             ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                             ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                        );
+                                            ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                         uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                         uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -2018,8 +2010,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -2178,8 +2169,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gm8, uvec4(psc(GM)))) * 0xFFFFu;
@@ -2335,8 +2325,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gn8, uvec4(psc(GN)))) * 0xFFFFu;
@@ -2487,8 +2476,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -2720,8 +2708,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
@@ -2870,8 +2857,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gm8, uvec4(psc(GM)))) * 0xFFFFu;
@@ -3017,8 +3003,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gn8, uvec4(psc(GN)))) * 0xFFFFu;
@@ -3159,8 +3144,7 @@ void main()
                                     ((d0[se] >> shift) & 0xFFFFu) | (((d0[so] >> shift) & 0xFFFFu) << 16),
                                     ((d1[se] >> shift) & 0xFFFFu) | (((d1[so] >> shift) & 0xFFFFu) << 16),
                                     ((d2[se] >> shift) & 0xFFFFu) | (((d2[so] >> shift) & 0xFFFFu) << 16),
-                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16)
-                                );
+                                    ((d3[se] >> shift) & 0xFFFFu) | (((d3[so] >> shift) & 0xFFFFu) << 16));
 
                                 uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                 uvec4 mask8 = uvec4(lessThan(gk8, uvec4(psc(GK)))) * 0xFFFFu;
