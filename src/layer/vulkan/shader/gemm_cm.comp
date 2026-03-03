@@ -50,6 +50,7 @@ layout(binding = 2) readonly buffer B_blob { uvec4 B_blob_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 5) readonly buffer A_blob_4 { sfpvec4 A_blob_data_4[]; };
+layout(binding = 6) readonly buffer B_blob_4 { sfpvec4 B_blob_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -65,6 +66,7 @@ layout(push_constant) uniform parameter
     int outhstep;
     int out_elempack;
     int A_elempack;
+    int B_elempack;
 } p;
 
 const uint Md8 = M / 8;
@@ -675,7 +677,31 @@ void main()
                             const uvec4 gn4 = gn * 8 + uvec4(0, 1, 2, 3);
                             const uvec4 gn8 = gn4 + 4;
 
-                            if (p.B_hstep % 8 == 0)
+                            if (p.B_elempack == 4)
+                            {
+                                const uint gkd4 = gk / 4;
+                                const uint gkm4 = gk % 4;
+
+                                vec4 v4 = vec4(0.f);
+                                vec4 v8 = vec4(0.f);
+
+                                if (gn4.r < psc(GN)) v4.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.r)[gkm4]);
+                                if (gn4.g < psc(GN)) v4.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.g)[gkm4]);
+                                if (gn4.b < psc(GN)) v4.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.b)[gkm4]);
+                                if (gn4.a < psc(GN)) v4.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.a)[gkm4]);
+
+                                if (gn8.r < psc(GN)) v8.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.r)[gkm4]);
+                                if (gn8.g < psc(GN)) v8.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.g)[gkm4]);
+                                if (gn8.b < psc(GN)) v8.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.b)[gkm4]);
+                                if (gn8.a < psc(GN)) v8.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.a)[gkm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                                v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                            }
+                            else if (p.B_hstep % 8 == 0)
                             {
                                 const uint bi = gk * (p.B_hstep / 8) + gn;
 
@@ -772,7 +798,31 @@ void main()
                             const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
                             const uvec4 gk8 = gk4 + 4;
 
-                            if (p.B_hstep % 8 == 0)
+                            if (p.B_elempack == 4)
+                            {
+                                const uint gnd4 = gn / 4;
+                                const uint gnm4 = gn % 4;
+
+                                vec4 v4 = vec4(0.f);
+                                vec4 v8 = vec4(0.f);
+
+                                if (gk4.r < psc(GK)) v4.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.r)[gnm4]);
+                                if (gk4.g < psc(GK)) v4.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.g)[gnm4]);
+                                if (gk4.b < psc(GK)) v4.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.b)[gnm4]);
+                                if (gk4.a < psc(GK)) v4.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.a)[gnm4]);
+
+                                if (gk8.r < psc(GK)) v8.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.r)[gnm4]);
+                                if (gk8.g < psc(GK)) v8.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.g)[gnm4]);
+                                if (gk8.b < psc(GK)) v8.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.b)[gnm4]);
+                                if (gk8.a < psc(GK)) v8.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.a)[gnm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                                v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                                v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                            }
+                            else if (p.B_hstep % 8 == 0)
                             {
                                 const uint bi = gn * (p.B_hstep / 8) + gk;
 
@@ -1222,7 +1272,31 @@ void main()
                                 const uvec4 gn4 = gn * 8 + uvec4(0, 1, 2, 3);
                                 const uvec4 gn8 = gn4 + 4;
 
-                                if (p.B_hstep % 8 == 0)
+                                if (p.B_elempack == 4)
+                                {
+                                    const uint gkd4 = gk / 4;
+                                    const uint gkm4 = gk % 4;
+
+                                    vec4 v4 = vec4(0.f);
+                                    vec4 v8 = vec4(0.f);
+
+                                    if (gn4.r < psc(GN)) v4.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.r)[gkm4]);
+                                    if (gn4.g < psc(GN)) v4.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.g)[gkm4]);
+                                    if (gn4.b < psc(GN)) v4.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.b)[gkm4]);
+                                    if (gn4.a < psc(GN)) v4.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.a)[gkm4]);
+
+                                    if (gn8.r < psc(GN)) v8.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.r)[gkm4]);
+                                    if (gn8.g < psc(GN)) v8.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.g)[gkm4]);
+                                    if (gn8.b < psc(GN)) v8.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.b)[gkm4]);
+                                    if (gn8.a < psc(GN)) v8.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.a)[gkm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                                    v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                                }
+                                else if (p.B_hstep % 8 == 0)
                                 {
                                     const uint bi = gk * (p.B_hstep / 8) + gn;
 
@@ -1319,7 +1393,31 @@ void main()
                                 const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
                                 const uvec4 gk8 = gk4 + 4;
 
-                                if (p.B_hstep % 8 == 0)
+                                if (p.B_elempack == 4)
+                                {
+                                    const uint gnd4 = gn / 4;
+                                    const uint gnm4 = gn % 4;
+
+                                    vec4 v4 = vec4(0.f);
+                                    vec4 v8 = vec4(0.f);
+
+                                    if (gk4.r < psc(GK)) v4.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.r)[gnm4]);
+                                    if (gk4.g < psc(GK)) v4.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.g)[gnm4]);
+                                    if (gk4.b < psc(GK)) v4.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.b)[gnm4]);
+                                    if (gk4.a < psc(GK)) v4.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.a)[gnm4]);
+
+                                    if (gk8.r < psc(GK)) v8.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.r)[gnm4]);
+                                    if (gk8.g < psc(GK)) v8.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.g)[gnm4]);
+                                    if (gk8.b < psc(GK)) v8.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.b)[gnm4]);
+                                    if (gk8.a < psc(GK)) v8.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.a)[gnm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                                    v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                                    v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                                }
+                                else if (p.B_hstep % 8 == 0)
                                 {
                                     const uint bi = gn * (p.B_hstep / 8) + gk;
 
@@ -1905,7 +2003,31 @@ void main()
                         const uvec4 gn4 = gn * 8 + uvec4(0, 1, 2, 3);
                         const uvec4 gn8 = gn4 + 4;
 
-                        if (p.B_hstep % 8 == 0)
+                        if (p.B_elempack == 4)
+                        {
+                            const uint gkd4 = gk / 4;
+                            const uint gkm4 = gk % 4;
+
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
+
+                            if (gn4.r < psc(GN)) v4.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.r)[gkm4]);
+                            if (gn4.g < psc(GN)) v4.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.g)[gkm4]);
+                            if (gn4.b < psc(GN)) v4.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.b)[gkm4]);
+                            if (gn4.a < psc(GN)) v4.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.a)[gkm4]);
+
+                            if (gn8.r < psc(GN)) v8.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.r)[gkm4]);
+                            if (gn8.g < psc(GN)) v8.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.g)[gkm4]);
+                            if (gn8.b < psc(GN)) v8.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.b)[gkm4]);
+                            if (gn8.a < psc(GN)) v8.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.a)[gkm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                            v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                        }
+                        else if (p.B_hstep % 8 == 0)
                         {
                             const uint bi = gk * (p.B_hstep / 8) + gn;
 
@@ -2002,7 +2124,31 @@ void main()
                         const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
                         const uvec4 gk8 = gk4 + 4;
 
-                        if (p.B_hstep % 8 == 0)
+                        if (p.B_elempack == 4)
+                        {
+                            const uint gnd4 = gn / 4;
+                            const uint gnm4 = gn % 4;
+
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
+
+                            if (gk4.r < psc(GK)) v4.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.r)[gnm4]);
+                            if (gk4.g < psc(GK)) v4.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.g)[gnm4]);
+                            if (gk4.b < psc(GK)) v4.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.b)[gnm4]);
+                            if (gk4.a < psc(GK)) v4.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.a)[gnm4]);
+
+                            if (gk8.r < psc(GK)) v8.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.r)[gnm4]);
+                            if (gk8.g < psc(GK)) v8.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.g)[gnm4]);
+                            if (gk8.b < psc(GK)) v8.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.b)[gnm4]);
+                            if (gk8.a < psc(GK)) v8.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.a)[gnm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                            v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                        }
+                        else if (p.B_hstep % 8 == 0)
                         {
                             const uint bi = gn * (p.B_hstep / 8) + gk;
 
@@ -2415,7 +2561,31 @@ void main()
                         const uvec4 gn4 = gn * 8 + uvec4(0, 1, 2, 3);
                         const uvec4 gn8 = gn4 + 4;
 
-                        if (p.B_hstep % 8 == 0)
+                        if (p.B_elempack == 4)
+                        {
+                            const uint gkd4 = gk / 4;
+                            const uint gkm4 = gk % 4;
+
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
+
+                            if (gn4.r < psc(GN)) v4.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.r)[gkm4]);
+                            if (gn4.g < psc(GN)) v4.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.g)[gkm4]);
+                            if (gn4.b < psc(GN)) v4.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.b)[gkm4]);
+                            if (gn4.a < psc(GN)) v4.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn4.a)[gkm4]);
+
+                            if (gn8.r < psc(GN)) v8.r = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.r)[gkm4]);
+                            if (gn8.g < psc(GN)) v8.g = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.g)[gkm4]);
+                            if (gn8.b < psc(GN)) v8.b = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.b)[gkm4]);
+                            if (gn8.a < psc(GN)) v8.a = float(buffer_ld4(B_blob_data_4, gkd4 * p.B_hstep + gn8.a)[gkm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                            v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                        }
+                        else if (p.B_hstep % 8 == 0)
                         {
                             const uint bi = gk * (p.B_hstep / 8) + gn;
 
@@ -2502,7 +2672,31 @@ void main()
                         const uvec4 gk4 = gk * 8 + uvec4(0, 1, 2, 3);
                         const uvec4 gk8 = gk4 + 4;
 
-                        if (p.B_hstep % 8 == 0)
+                        if (p.B_elempack == 4)
+                        {
+                            const uint gnd4 = gn / 4;
+                            const uint gnm4 = gn % 4;
+
+                            vec4 v4 = vec4(0.f);
+                            vec4 v8 = vec4(0.f);
+
+                            if (gk4.r < psc(GK)) v4.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.r)[gnm4]);
+                            if (gk4.g < psc(GK)) v4.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.g)[gnm4]);
+                            if (gk4.b < psc(GK)) v4.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.b)[gnm4]);
+                            if (gk4.a < psc(GK)) v4.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk4.a)[gnm4]);
+
+                            if (gk8.r < psc(GK)) v8.r = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.r)[gnm4]);
+                            if (gk8.g < psc(GK)) v8.g = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.g)[gnm4]);
+                            if (gk8.b < psc(GK)) v8.b = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.b)[gnm4]);
+                            if (gk8.a < psc(GK)) v8.a = float(buffer_ld4(B_blob_data_4, gnd4 * p.B_hstep + gk8.a)[gnm4]);
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                            v = uvec4(packBFloat2x16(v4.rg), packBFloat2x16(v4.ba), packBFloat2x16(v8.rg), packBFloat2x16(v8.ba));
+#else
+                            v = uvec4(packHalf2x16(v4.rg), packHalf2x16(v4.ba), packHalf2x16(v8.rg), packHalf2x16(v8.ba));
+#endif
+                        }
+                        else if (p.B_hstep % 8 == 0)
                         {
                             const uint bi = gn * (p.B_hstep / 8) + gk;
 

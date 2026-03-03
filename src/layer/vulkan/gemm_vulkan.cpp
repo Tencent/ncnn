@@ -308,16 +308,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     VkMat A;
     VkMat B;
-    if (use_cooperative_matrix)
-    {
-        A = A0;
-        vkdev->convert_packing(B0, B, 1, cmd, opt);
-    }
-    else
-    {
-        A = A0;
-        B = B0;
-    }
+    A = A0;
+    B = B0;
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;
@@ -422,15 +414,16 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     if (use_cooperative_matrix)
     {
-        std::vector<VkMat> bindings(6);
+        std::vector<VkMat> bindings(7);
         bindings[0] = top_blob;
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
         bindings[4] = top_blob;
         bindings[5] = A;
+        bindings[6] = B;
 
-        std::vector<vk_constant_type> constants(12);
+        std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
         constants[1].i = N;
         constants[2].i = K;
@@ -438,11 +431,12 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[4].i = A.dims;
         constants[5].i = A.dims == 3 ? A.cstep : A.dims == 2 ? A.w : transA ? M : K;
         constants[6].i = B.dims;
-        constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+        constants[7].i = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
         constants[8].i = top_blob.dims;
         constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
         constants[10].i = out_elempack;
         constants[11].i = A_elempack;
+        constants[12].i = B_elempack;
 
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
