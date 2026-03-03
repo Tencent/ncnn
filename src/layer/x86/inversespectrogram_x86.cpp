@@ -305,23 +305,23 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
             if (mask)
             {
                 __m512 inv_wss = _mm512_div_ps(_mm512_set1_ps(1.0f), wss);
-                
+
                 float re_buf[16], im_buf[16];
                 for (int k = 0; k < 16; k++)
                 {
                     re_buf[k] = top_blob.row(i + k)[0];
                     im_buf[k] = top_blob.row(i + k)[1];
                 }
-                
+
                 __m512 re_vals = _mm512_loadu_ps(re_buf);
                 __m512 im_vals = _mm512_loadu_ps(im_buf);
-                
+
                 re_vals = _mm512_mul_ps(re_vals, inv_wss);
                 im_vals = _mm512_mul_ps(im_vals, inv_wss);
-                
+
                 _mm512_storeu_ps(re_buf, re_vals);
                 _mm512_storeu_ps(im_buf, im_vals);
-                
+
                 for (int k = 0; k < 16; k++)
                 {
                     if (((const float*)window_sumsquare)[i + k] != 0.f)
@@ -340,23 +340,23 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
             if (_mm256_movemask_ps(mask))
             {
                 __m256 inv_wss = _mm256_div_ps(_mm256_set1_ps(1.0f), wss);
-                
+
                 float re_buf[8], im_buf[8];
                 for (int k = 0; k < 8; k++)
                 {
                     re_buf[k] = top_blob.row(i + k)[0];
                     im_buf[k] = top_blob.row(i + k)[1];
                 }
-                
+
                 __m256 re_vals = _mm256_loadu_ps(re_buf);
                 __m256 im_vals = _mm256_loadu_ps(im_buf);
-                
+
                 re_vals = _mm256_mul_ps(re_vals, inv_wss);
                 im_vals = _mm256_mul_ps(im_vals, inv_wss);
-                
+
                 _mm256_storeu_ps(re_buf, re_vals);
                 _mm256_storeu_ps(im_buf, im_vals);
-                
+
                 for (int k = 0; k < 8; k++)
                 {
                     if (((const float*)window_sumsquare)[i + k] != 0.f)
@@ -375,23 +375,23 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
             if (_mm_movemask_ps(mask))
             {
                 __m128 inv_wss = _mm_div_ps(_mm_set1_ps(1.0f), wss);
-                
+
                 float re_buf[4], im_buf[4];
                 for (int k = 0; k < 4; k++)
                 {
                     re_buf[k] = top_blob.row(i + k)[0];
                     im_buf[k] = top_blob.row(i + k)[1];
                 }
-                
+
                 __m128 re_vals = _mm_loadu_ps(re_buf);
                 __m128 im_vals = _mm_loadu_ps(im_buf);
-                
+
                 re_vals = _mm_mul_ps(re_vals, inv_wss);
                 im_vals = _mm_mul_ps(im_vals, inv_wss);
-                
+
                 _mm_storeu_ps(re_buf, re_vals);
                 _mm_storeu_ps(im_buf, im_vals);
-                
+
                 for (int k = 0; k < 4; k++)
                 {
                     if (((const float*)window_sumsquare)[i + k] != 0.f)

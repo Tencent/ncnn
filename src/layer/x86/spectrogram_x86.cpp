@@ -233,7 +233,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m512 re_vals = _mm512_setzero_ps();
                 __m512 im_vals = _mm512_setzero_ps();
-                
+
                 // gather real and imaginary parts
                 // process 16 elements at a time
                 float re_buf[16], im_buf[16];
@@ -246,13 +246,13 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm512_loadu_ps(re_buf);
                 im_vals = _mm512_loadu_ps(im_buf);
-                
+
                 __m512 sq = _mm512_add_ps(_mm512_mul_ps(re_vals, re_vals), _mm512_mul_ps(im_vals, im_vals));
                 __m512 mag = _mm512_sqrt_ps(sq);
-                
+
                 float out_buf[16];
                 _mm512_storeu_ps(out_buf, mag);
-                
+
                 for (int k = 0; k < 16; k++)
                 {
                     int idx_i = (i + k) % frames;
@@ -265,7 +265,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m256 re_vals = _mm256_setzero_ps();
                 __m256 im_vals = _mm256_setzero_ps();
-                
+
                 float re_buf[8], im_buf[8];
                 for (int k = 0; k < 8; k++)
                 {
@@ -276,13 +276,13 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm256_loadu_ps(re_buf);
                 im_vals = _mm256_loadu_ps(im_buf);
-                
+
                 __m256 sq = _mm256_add_ps(_mm256_mul_ps(re_vals, re_vals), _mm256_mul_ps(im_vals, im_vals));
                 __m256 mag = _mm256_sqrt_ps(sq);
-                
+
                 float out_buf[8];
                 _mm256_storeu_ps(out_buf, mag);
-                
+
                 for (int k = 0; k < 8; k++)
                 {
                     int idx_i = (i + k) % frames;
@@ -295,7 +295,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m128 re_vals = _mm_setzero_ps();
                 __m128 im_vals = _mm_setzero_ps();
-                
+
                 float re_buf[4], im_buf[4];
                 for (int k = 0; k < 4; k++)
                 {
@@ -306,13 +306,13 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm_loadu_ps(re_buf);
                 im_vals = _mm_loadu_ps(im_buf);
-                
+
                 __m128 sq = _mm_add_ps(_mm_mul_ps(re_vals, re_vals), _mm_mul_ps(im_vals, im_vals));
                 __m128 mag = _mm_sqrt_ps(sq);
-                
+
                 float out_buf[4];
                 _mm_storeu_ps(out_buf, mag);
-                
+
                 for (int k = 0; k < 4; k++)
                 {
                     int idx_i = (i + k) % frames;
@@ -343,7 +343,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m512 re_vals = _mm512_setzero_ps();
                 __m512 im_vals = _mm512_setzero_ps();
-                
+
                 float re_buf[16], im_buf[16];
                 for (int k = 0; k < 16; k++)
                 {
@@ -354,12 +354,12 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm512_loadu_ps(re_buf);
                 im_vals = _mm512_loadu_ps(im_buf);
-                
+
                 __m512 sq = _mm512_add_ps(_mm512_mul_ps(re_vals, re_vals), _mm512_mul_ps(im_vals, im_vals));
-                
+
                 float out_buf[16];
                 _mm512_storeu_ps(out_buf, sq);
-                
+
                 for (int k = 0; k < 16; k++)
                 {
                     int idx_i = (i + k) % frames;
@@ -372,7 +372,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m256 re_vals = _mm256_setzero_ps();
                 __m256 im_vals = _mm256_setzero_ps();
-                
+
                 float re_buf[8], im_buf[8];
                 for (int k = 0; k < 8; k++)
                 {
@@ -383,12 +383,12 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm256_loadu_ps(re_buf);
                 im_vals = _mm256_loadu_ps(im_buf);
-                
+
                 __m256 sq = _mm256_add_ps(_mm256_mul_ps(re_vals, re_vals), _mm256_mul_ps(im_vals, im_vals));
-                
+
                 float out_buf[8];
                 _mm256_storeu_ps(out_buf, sq);
-                
+
                 for (int k = 0; k < 8; k++)
                 {
                     int idx_i = (i + k) % frames;
@@ -401,7 +401,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 __m128 re_vals = _mm_setzero_ps();
                 __m128 im_vals = _mm_setzero_ps();
-                
+
                 float re_buf[4], im_buf[4];
                 for (int k = 0; k < 4; k++)
                 {
@@ -412,12 +412,12 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 re_vals = _mm_loadu_ps(re_buf);
                 im_vals = _mm_loadu_ps(im_buf);
-                
+
                 __m128 sq = _mm_add_ps(_mm_mul_ps(re_vals, re_vals), _mm_mul_ps(im_vals, im_vals));
-                
+
                 float out_buf[4];
                 _mm_storeu_ps(out_buf, sq);
-                
+
                 for (int k = 0; k < 4; k++)
                 {
                     int idx_i = (i + k) % frames;
