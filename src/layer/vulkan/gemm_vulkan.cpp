@@ -308,12 +308,22 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     VkMat A;
     VkMat B;
-    vkdev->convert_packing(A0, A, 1, cmd, opt);
-    vkdev->convert_packing(B0, B, 1, cmd, opt);
+    if (use_cooperative_matrix)
+    {
+        vkdev->convert_packing(A0, A, 1, cmd, opt);
+        vkdev->convert_packing(B0, B, 1, cmd, opt);
+    }
+    else
+    {
+        A = A0;
+        B = B0;
+    }
 
-    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
-    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
-    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+    const int A_elempack = A.elempack;
+    const int B_elempack = B.elempack;
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c * A_elempack : A.h * A_elempack);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c * A_elempack : A.h * A_elempack) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c * B_elempack : B.h * B_elempack) : B.w;
 
     VkMat C;
     int broadcast_type_C = -1;
@@ -380,7 +390,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         }
     }
 
-    size_t elemsize = A.elemsize;
+    size_t elemsize = A.elemsize / A_elempack;
 
     int out_elempack = 1;
     if (!use_cooperative_matrix)
@@ -459,25 +469,30 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     }
     else
     {
-        std::vector<VkMat> bindings(5);
+        std::vector<VkMat> bindings(8);
         bindings[0] = top_blob;
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
         bindings[4] = top_blob;
+        bindings[5] = A;
+        bindings[6] = B;
+        bindings[7] = B;
 
-        std::vector<vk_constant_type> constants(11);
+        std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
         constants[1].i = N;
         constants[2].i = K;
         constants[3].i = broadcast_type_C;
         constants[4].i = A.dims;
-        constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
+        constants[5].i = A.dims == 3 ? A.cstep : A.dims == 2 ? A.w : transA ? M : K;
         constants[6].i = B.dims;
-        constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+        constants[7].i = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
         constants[8].i = top_blob.dims;
         constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
         constants[10].i = out_elempack;
+        constants[11].i = A_elempack;
+        constants[12].i = B_elempack;
 
         if (opt.use_shader_local_memory)
         {

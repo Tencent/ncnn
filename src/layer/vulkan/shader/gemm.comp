@@ -28,6 +28,9 @@ layout(binding = 1) readonly buffer A_blob { sfpvec4 A_blob_data[]; };
 layout(binding = 2) readonly buffer B_blob { sfpvec4 B_blob_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 5) readonly buffer A_blob_4 { sfp A_blob_data_1[]; };
+layout(binding = 6) readonly buffer B_blob_4 { sfpvec4 B_blob_data_4[]; };
+layout(binding = 7) readonly buffer B_blob_1 { sfp B_blob_data_1[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -42,6 +45,8 @@ layout(push_constant) uniform parameter
     int outdims;
     int outhstep;
     int out_elempack;
+    int A_elempack;
+    int B_elempack;
 } p;
 
 #if NCNN_shader_local_memory
@@ -138,6 +143,31 @@ void main()
     for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
     {
         {
+            if (p.A_elempack == 4)
+            {
+                if (transA == 1)
+                {
+                    // A is (M, K), K packed
+                    const uint kd4 = (k + lx) / 4;
+                    const uint km4 = (k + lx) % 4;
+                    const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+
+                    afpvec4 a;
+                    a.r = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.r)[km4];
+                    a.g = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.g)[km4];
+                    a.b = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.b)[km4];
+                    a.a = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.a)[km4];
+
+                    tmp_a[ly][lx] = afp2lfpvec4(a);
+                }
+                else
+                {
+                    // A is (K, M), M packed. Single vec4 load.
+                    tmp_a[ly][lx] = buffer_sm4(A_blob_data, gy * p.A_hstep + (k + lx));
+                }
+            }
+            else
+            {
             if (transA == 1)
             {
                 if (p.A_hstep % 4 == 0)
@@ -177,7 +207,33 @@ void main()
 
                 tmp_a[ly][lx] = afp2lfpvec4(a);
             }
+            }
 
+            if (p.B_elempack == 4)
+            {
+                if (transB == 0)
+                {
+                    // B is (N, K), K packed
+                    const uint kd4 = (k + ly) / 4;
+                    const uint km4 = (k + ly) % 4;
+                    const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+
+                    afpvec4 b;
+                    b.r = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.r)[km4];
+                    b.g = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.g)[km4];
+                    b.b = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.b)[km4];
+                    b.a = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.a)[km4];
+
+                    tmp_b[lx][ly] = afp2lfpvec4(b);
+                }
+                else
+                {
+                    // B is (K, N), N packed. Single vec4 load.
+                    tmp_b[lx][ly] = buffer_sm4(B_blob_data_4, gx * p.B_hstep + (k + ly));
+                }
+            }
+            else
+            {
             if (transB == 1)
             {
                 const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
@@ -216,6 +272,7 @@ void main()
 
                     tmp_b[lx][ly] = afp2lfpvec4(b);
                 }
+            }
             }
         }
 
@@ -242,6 +299,29 @@ void main()
 
         if (lx < remain)
         {
+            if (p.A_elempack == 4)
+            {
+                if (transA == 1)
+                {
+                    const uint kd4 = (k + lx) / 4;
+                    const uint km4 = (k + lx) % 4;
+                    const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+
+                    afpvec4 a;
+                    a.r = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.r)[km4];
+                    a.g = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.g)[km4];
+                    a.b = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.b)[km4];
+                    a.a = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.a)[km4];
+
+                    tmp_a[ly][lx] = afp2lfpvec4(a);
+                }
+                else
+                {
+                    tmp_a[ly][lx] = buffer_sm4(A_blob_data, gy * p.A_hstep + (k + lx));
+                }
+            }
+            else
+            {
             if (transA == 1)
             {
                 if (p.A_hstep % 4 == 0)
@@ -281,10 +361,34 @@ void main()
 
                 tmp_a[ly][lx] = afp2lfpvec4(a);
             }
+            }
         }
 
         if (ly < remain)
         {
+            if (p.B_elempack == 4)
+            {
+                if (transB == 0)
+                {
+                    const uint kd4 = (k + ly) / 4;
+                    const uint km4 = (k + ly) % 4;
+                    const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+
+                    afpvec4 b;
+                    b.r = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.r)[km4];
+                    b.g = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.g)[km4];
+                    b.b = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.b)[km4];
+                    b.a = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.a)[km4];
+
+                    tmp_b[lx][ly] = afp2lfpvec4(b);
+                }
+                else
+                {
+                    tmp_b[lx][ly] = buffer_sm4(B_blob_data_4, gx * p.B_hstep + (k + ly));
+                }
+            }
+            else
+            {
             if (transB == 1)
             {
                 const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
@@ -324,6 +428,7 @@ void main()
                     tmp_b[lx][ly] = afp2lfpvec4(b);
                 }
             }
+            }
         }
 
         barrier();
@@ -344,6 +449,29 @@ void main()
     for (int k = 0; k < psc(K); k++)
     {
         afpvec4 a;
+        if (p.A_elempack == 4)
+        {
+            if (transA == 1)
+            {
+                // A is (M, K), K packed. k is K-index, gy is M-group.
+                // vec4 at (k/4, row_m): data[(k/4) * hstep + row_m], component k%4
+                const uint kd4 = k / 4;
+                const uint km4 = k % 4;
+                const uvec4 gy4 = gy * 4 + uvec4(0, 1, 2, 3);
+                a.r = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.r)[km4];
+                a.g = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.g)[km4];
+                a.b = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.b)[km4];
+                a.a = buffer_ld4(A_blob_data, kd4 * p.A_hstep + gy4.a)[km4];
+            }
+            else
+            {
+                // A is (K, M), M packed. gy is M-group.
+                // vec4 at (gy, k): data[gy * hstep + k] = vec4(A[4*gy+0..3][k])
+                a = buffer_ld4(A_blob_data, gy * p.A_hstep + k);
+            }
+        }
+        else
+        {
         if (transA == 1)
         {
             if (p.A_hstep % 4 == 0)
@@ -377,8 +505,30 @@ void main()
             a.b = buffer_ld4(A_blob_data, ai4d4.b)[ai4m4.b];
             a.a = buffer_ld4(A_blob_data, ai4d4.a)[ai4m4.a];
         }
+        }
 
         afpvec4 b;
+        if (p.B_elempack == 4)
+        {
+            if (transB == 0)
+            {
+                // B is (N, K), K packed. k is K-index, gx is N-group.
+                const uint kd4 = k / 4;
+                const uint km4 = k % 4;
+                const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
+                b.r = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.r)[km4];
+                b.g = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.g)[km4];
+                b.b = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.b)[km4];
+                b.a = buffer_ld4(B_blob_data_4, kd4 * p.B_hstep + gx4.a)[km4];
+            }
+            else
+            {
+                // B is (K, N), N packed. gx is N-group.
+                b = buffer_ld4(B_blob_data_4, gx * p.B_hstep + k);
+            }
+        }
+        else
+        {
         if (transB == 1)
         {
             const uvec4 gx4 = gx * 4 + uvec4(0, 1, 2, 3);
@@ -411,6 +561,7 @@ void main()
                 b.b = buffer_ld4(B_blob_data, bi4d4.b)[bi4m4.b];
                 b.a = buffer_ld4(B_blob_data, bi4d4.a)[bi4m4.a];
             }
+        }
         }
 
         sum0 += a.r * b;
