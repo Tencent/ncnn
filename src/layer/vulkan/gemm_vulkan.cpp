@@ -393,7 +393,6 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     size_t elemsize = A.elemsize / A_elempack;
 
     int out_elempack = 1;
-    if (!use_cooperative_matrix)
     {
         int outh = output_transpose ? N : M;
         out_elempack = outh % 4 == 0 ? 4 : 1;
@@ -423,13 +422,14 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     if (use_cooperative_matrix)
     {
-        std::vector<VkMat> bindings(4);
+        std::vector<VkMat> bindings(5);
         bindings[0] = top_blob;
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
+        bindings[4] = top_blob;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(11);
         constants[0].i = M;
         constants[1].i = N;
         constants[2].i = K;
@@ -440,6 +440,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
         constants[8].i = top_blob.dims;
         constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+        constants[10].i = out_elempack;
 
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
@@ -450,22 +451,6 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
-
-        // cooperative matrix path still needs post-dispatch convert_packing
-        int cm_out_elempack = 1;
-        {
-            int outh = output_transpose ? N : M;
-            cm_out_elempack = outh % 4 == 0 ? 4 : 1;
-        }
-        if (output_elempack)
-            cm_out_elempack = output_elempack;
-
-        if (cm_out_elempack != 1)
-        {
-            VkMat top_blob0;
-            vkdev->convert_packing(top_blob, top_blob0, cm_out_elempack, cmd, opt);
-            top_blobs[0] = top_blob0;
-        }
     }
     else
     {

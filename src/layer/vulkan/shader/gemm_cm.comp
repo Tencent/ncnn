@@ -48,6 +48,7 @@ layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_blob { uvec4 A_blob_data[]; };
 layout(binding = 2) readonly buffer B_blob { uvec4 B_blob_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -61,6 +62,7 @@ layout(push_constant) uniform parameter
     int B_hstep;
     int outdims;
     int outhstep;
+    int out_elempack;
 } p;
 
 const uint Md8 = M / 8;
@@ -2526,6 +2528,74 @@ void main()
         //   |      |   |
         //   v      +---+
 
+        if (p.out_elempack == 4)
+        {
+            // pack4 along M dimension: group every 4 consecutive M rows into a vec4
+            const uint Md4 = M / 4;
+            const uint Nd8_Md4_USGM_USGN = Nd8 * Md4 * UNROLL_SG_M * UNROLL_SG_N;
+            const uint Nd8_Md4_USGM_USGN_d_subgroupsize = (Nd8_Md4_USGM_USGN + subgroup_size - 1) / subgroup_size;
+            [[unroll]] for (uint q = 0; q < Nd8_Md4_USGM_USGN_d_subgroupsize; q++)
+            {
+                const uint siq = si + q * subgroup_size;
+
+                if (Nd8_Md4_USGM_USGN % subgroup_size == 0 || siq < Nd8_Md4_USGM_USGN)
+                {
+                    const uint zn = siq / (Nd8 * Md4 * UNROLL_SG_M);
+                    const uint zmij = siq % (Nd8 * Md4 * UNROLL_SG_M);
+                    const uint zm = zmij / (Nd8 * Md4);
+                    const uint ij = zmij % (Nd8 * Md4);
+                    const uint i4 = ij / Nd8;
+                    const uint j = ij % Nd8;
+
+                    const uint gm_base = (mi + zm) * M + i4 * 4;
+                    const uint gn = (ni + zn) * Nd8 + j;
+
+                    if (gm_base < psc(GM))
+                    {
+                        const uint tmp_o_base = ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M;
+
+                        uvec4 v0 = tmp_o[(tmp_o_base + i4 * 4 + 0) * Nd8p + j];
+                        uvec4 v1 = tmp_o[(tmp_o_base + i4 * 4 + 1) * Nd8p + j];
+                        uvec4 v2 = tmp_o[(tmp_o_base + i4 * 4 + 2) * Nd8p + j];
+                        uvec4 v3 = tmp_o[(tmp_o_base + i4 * 4 + 3) * Nd8p + j];
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                        afpvec4 v0ab = afpvec4(unpackBFloat2x16(v0.r), unpackBFloat2x16(v0.g));
+                        afpvec4 v0cd = afpvec4(unpackBFloat2x16(v0.b), unpackBFloat2x16(v0.a));
+                        afpvec4 v1ab = afpvec4(unpackBFloat2x16(v1.r), unpackBFloat2x16(v1.g));
+                        afpvec4 v1cd = afpvec4(unpackBFloat2x16(v1.b), unpackBFloat2x16(v1.a));
+                        afpvec4 v2ab = afpvec4(unpackBFloat2x16(v2.r), unpackBFloat2x16(v2.g));
+                        afpvec4 v2cd = afpvec4(unpackBFloat2x16(v2.b), unpackBFloat2x16(v2.a));
+                        afpvec4 v3ab = afpvec4(unpackBFloat2x16(v3.r), unpackBFloat2x16(v3.g));
+                        afpvec4 v3cd = afpvec4(unpackBFloat2x16(v3.b), unpackBFloat2x16(v3.a));
+#else
+                        afpvec4 v0ab = afpvec4(unpackHalf2x16(v0.r), unpackHalf2x16(v0.g));
+                        afpvec4 v0cd = afpvec4(unpackHalf2x16(v0.b), unpackHalf2x16(v0.a));
+                        afpvec4 v1ab = afpvec4(unpackHalf2x16(v1.r), unpackHalf2x16(v1.g));
+                        afpvec4 v1cd = afpvec4(unpackHalf2x16(v1.b), unpackHalf2x16(v1.a));
+                        afpvec4 v2ab = afpvec4(unpackHalf2x16(v2.r), unpackHalf2x16(v2.g));
+                        afpvec4 v2cd = afpvec4(unpackHalf2x16(v2.b), unpackHalf2x16(v2.a));
+                        afpvec4 v3ab = afpvec4(unpackHalf2x16(v3.r), unpackHalf2x16(v3.g));
+                        afpvec4 v3cd = afpvec4(unpackHalf2x16(v3.b), unpackHalf2x16(v3.a));
+#endif
+
+                        // pack4: vec4(row0, row1, row2, row3) for each column
+                        const uint gi = (gm_base / 4) * p.outhstep + gn * 8;
+
+                        if (gn * 8 < psc(GN)) buffer_st4(top_blob_data_4, gi, afpvec4(v0ab.r, v1ab.r, v2ab.r, v3ab.r));
+                        if (gn * 8 + 1 < psc(GN)) buffer_st4(top_blob_data_4, gi + 1, afpvec4(v0ab.g, v1ab.g, v2ab.g, v3ab.g));
+                        if (gn * 8 + 2 < psc(GN)) buffer_st4(top_blob_data_4, gi + 2, afpvec4(v0ab.b, v1ab.b, v2ab.b, v3ab.b));
+                        if (gn * 8 + 3 < psc(GN)) buffer_st4(top_blob_data_4, gi + 3, afpvec4(v0ab.a, v1ab.a, v2ab.a, v3ab.a));
+                        if (gn * 8 + 4 < psc(GN)) buffer_st4(top_blob_data_4, gi + 4, afpvec4(v0cd.r, v1cd.r, v2cd.r, v3cd.r));
+                        if (gn * 8 + 5 < psc(GN)) buffer_st4(top_blob_data_4, gi + 5, afpvec4(v0cd.g, v1cd.g, v2cd.g, v3cd.g));
+                        if (gn * 8 + 6 < psc(GN)) buffer_st4(top_blob_data_4, gi + 6, afpvec4(v0cd.b, v1cd.b, v2cd.b, v3cd.b));
+                        if (gn * 8 + 7 < psc(GN)) buffer_st4(top_blob_data_4, gi + 7, afpvec4(v0cd.a, v1cd.a, v2cd.a, v3cd.a));
+                    }
+                }
+            }
+        }
+        else
+        {
         const uint Nd8_M_USGM_USGN = Nd8 * M * UNROLL_SG_M * UNROLL_SG_N;
         const uint Nd8_M_USGM_USGN_d_subgroupsize = (Nd8_M_USGM_USGN + subgroup_size - 1) / subgroup_size;
         [[unroll]] for (uint q = 0; q < Nd8_M_USGM_USGN_d_subgroupsize; q++)
@@ -2570,6 +2640,7 @@ void main()
                 }
             }
         }
+        }
     }
     else
     {
@@ -2607,6 +2678,74 @@ void main()
         //   |      |   |
         //   v      +---+
 
+        if (p.out_elempack == 4)
+        {
+            // pack4 along N dimension: group every 4 consecutive N rows into a vec4
+            const uint Nd4 = N / 4;
+            const uint Md8_Nd4_USGM_USGN = Md8 * Nd4 * UNROLL_SG_M * UNROLL_SG_N;
+            const uint Md8_Nd4_USGM_USGN_d_subgroupsize = (Md8_Nd4_USGM_USGN + subgroup_size - 1) / subgroup_size;
+            [[unroll]] for (uint q = 0; q < Md8_Nd4_USGM_USGN_d_subgroupsize; q++)
+            {
+                const uint siq = si + q * subgroup_size;
+
+                if (Md8_Nd4_USGM_USGN % subgroup_size == 0 || siq < Md8_Nd4_USGM_USGN)
+                {
+                    const uint zn = siq / (Md8 * Nd4 * UNROLL_SG_M);
+                    const uint zmij = siq % (Md8 * Nd4 * UNROLL_SG_M);
+                    const uint zm = zmij / (Md8 * Nd4);
+                    const uint ij = zmij % (Md8 * Nd4);
+                    const uint i4 = ij / Md8;
+                    const uint j = ij % Md8;
+
+                    const uint gn_base = (ni + zn) * N + i4 * 4;
+                    const uint gm = (mi + zm) * Md8 + j;
+
+                    if (gn_base < psc(GN))
+                    {
+                        const uint tmp_o_base = ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * N;
+
+                        uvec4 v0 = tmp_o[(tmp_o_base + i4 * 4 + 0) * Md8p + j];
+                        uvec4 v1 = tmp_o[(tmp_o_base + i4 * 4 + 1) * Md8p + j];
+                        uvec4 v2 = tmp_o[(tmp_o_base + i4 * 4 + 2) * Md8p + j];
+                        uvec4 v3 = tmp_o[(tmp_o_base + i4 * 4 + 3) * Md8p + j];
+
+#if NCNN_bf16_storage || NCNN_bf16_packed
+                        afpvec4 v0ab = afpvec4(unpackBFloat2x16(v0.r), unpackBFloat2x16(v0.g));
+                        afpvec4 v0cd = afpvec4(unpackBFloat2x16(v0.b), unpackBFloat2x16(v0.a));
+                        afpvec4 v1ab = afpvec4(unpackBFloat2x16(v1.r), unpackBFloat2x16(v1.g));
+                        afpvec4 v1cd = afpvec4(unpackBFloat2x16(v1.b), unpackBFloat2x16(v1.a));
+                        afpvec4 v2ab = afpvec4(unpackBFloat2x16(v2.r), unpackBFloat2x16(v2.g));
+                        afpvec4 v2cd = afpvec4(unpackBFloat2x16(v2.b), unpackBFloat2x16(v2.a));
+                        afpvec4 v3ab = afpvec4(unpackBFloat2x16(v3.r), unpackBFloat2x16(v3.g));
+                        afpvec4 v3cd = afpvec4(unpackBFloat2x16(v3.b), unpackBFloat2x16(v3.a));
+#else
+                        afpvec4 v0ab = afpvec4(unpackHalf2x16(v0.r), unpackHalf2x16(v0.g));
+                        afpvec4 v0cd = afpvec4(unpackHalf2x16(v0.b), unpackHalf2x16(v0.a));
+                        afpvec4 v1ab = afpvec4(unpackHalf2x16(v1.r), unpackHalf2x16(v1.g));
+                        afpvec4 v1cd = afpvec4(unpackHalf2x16(v1.b), unpackHalf2x16(v1.a));
+                        afpvec4 v2ab = afpvec4(unpackHalf2x16(v2.r), unpackHalf2x16(v2.g));
+                        afpvec4 v2cd = afpvec4(unpackHalf2x16(v2.b), unpackHalf2x16(v2.a));
+                        afpvec4 v3ab = afpvec4(unpackHalf2x16(v3.r), unpackHalf2x16(v3.g));
+                        afpvec4 v3cd = afpvec4(unpackHalf2x16(v3.b), unpackHalf2x16(v3.a));
+#endif
+
+                        // pack4: vec4(n0, n1, n2, n3) for each M column
+                        const uint gi = (gn_base / 4) * p.outhstep + gm * 8;
+
+                        if (gm * 8 < psc(GM)) buffer_st4(top_blob_data_4, gi, afpvec4(v0ab.r, v1ab.r, v2ab.r, v3ab.r));
+                        if (gm * 8 + 1 < psc(GM)) buffer_st4(top_blob_data_4, gi + 1, afpvec4(v0ab.g, v1ab.g, v2ab.g, v3ab.g));
+                        if (gm * 8 + 2 < psc(GM)) buffer_st4(top_blob_data_4, gi + 2, afpvec4(v0ab.b, v1ab.b, v2ab.b, v3ab.b));
+                        if (gm * 8 + 3 < psc(GM)) buffer_st4(top_blob_data_4, gi + 3, afpvec4(v0ab.a, v1ab.a, v2ab.a, v3ab.a));
+                        if (gm * 8 + 4 < psc(GM)) buffer_st4(top_blob_data_4, gi + 4, afpvec4(v0cd.r, v1cd.r, v2cd.r, v3cd.r));
+                        if (gm * 8 + 5 < psc(GM)) buffer_st4(top_blob_data_4, gi + 5, afpvec4(v0cd.g, v1cd.g, v2cd.g, v3cd.g));
+                        if (gm * 8 + 6 < psc(GM)) buffer_st4(top_blob_data_4, gi + 6, afpvec4(v0cd.b, v1cd.b, v2cd.b, v3cd.b));
+                        if (gm * 8 + 7 < psc(GM)) buffer_st4(top_blob_data_4, gi + 7, afpvec4(v0cd.a, v1cd.a, v2cd.a, v3cd.a));
+                    }
+                }
+            }
+        }
+        else
+        {
         const uint Md8_N_USGM_USGN = Md8 * N * UNROLL_SG_M * UNROLL_SG_N;
         const uint Md8_N_USGM_USGN_d_subgroupsize = (Md8_N_USGM_USGN + subgroup_size - 1) / subgroup_size;
         [[unroll]] for (uint q = 0; q < Md8_N_USGM_USGN_d_subgroupsize; q++)
@@ -2650,6 +2789,7 @@ void main()
                     if (gm * 8 + 7 < psc(GM)) buffer_st1(top_blob_data, oi8.a, vcd.a);
                 }
             }
+        }
         }
     }
 }
