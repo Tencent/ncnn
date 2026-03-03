@@ -300,7 +300,10 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            weight_data_packed.create(num_input / elempack, maxk * num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+            // unified pack4x4 weight layout: always group input channels by 4
+            const int num_input_packed = (num_input + 3) / 4 * 4;
+
+            weight_data_packed.create(num_input_packed / 4, maxk * num_output / out_elempack, (size_t)4 * 4 * 4, 4 * 4);
 
             for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
             {
@@ -308,16 +311,21 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                 {
                     float* g00 = weight_data_packed.row(q / out_elempack * maxk + k);
 
-                    for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                    for (int p = 0; p < num_input_packed; p += 4)
                     {
-                        for (int i = 0; i < out_elempack; i++)
+                        for (int i = 0; i < 4; i++)
                         {
-                            const Mat k0 = weight_data_r2.channel(q + i);
-
-                            for (int j = 0; j < elempack; j++)
+                            for (int j = 0; j < 4; j++)
                             {
-                                const float* k00 = k0.row(p + j);
-                                g00[0] = k00[k];
+                                if (q + i < num_output && p + j < num_input)
+                                {
+                                    const float* k00 = weight_data_r2.channel(q + i).row(p + j);
+                                    g00[0] = k00[k];
+                                }
+                                else
+                                {
+                                    g00[0] = 0.f;
+                                }
                                 g00++;
                             }
                         }
@@ -325,14 +333,19 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                 }
             }
 
-            std::vector<vk_specialization_type> specializations(1 + 6);
+            const int c_packed = num_input_packed / 4;
+
+            std::vector<vk_specialization_type> specializations(3 + 7);
             specializations[0].i = maxk;
-            specializations[1 + 0].i = shape.w;
-            specializations[1 + 1].i = shape.h;
-            specializations[1 + 2].i = shape.c;
-            specializations[1 + 3].i = shape.cstep;
-            specializations[1 + 4].i = out_shape_col.cstep;
-            specializations[1 + 5].i = out_shape_col.c;
+            specializations[1].i = elempack;
+            specializations[2].i = out_elempack;
+            specializations[3 + 0].i = shape.w;
+            specializations[3 + 1].i = shape.h;
+            specializations[3 + 2].i = shape.dims != 0 ? c_packed : 0;
+            specializations[3 + 3].i = shape.cstep;
+            specializations[3 + 4].i = out_shape_col.cstep;
+            specializations[3 + 5].i = out_shape_col.c;
+            specializations[3 + 6].i = num_input;
 
             Mat local_size_xyz(8, std::min(4, num_output / out_elempack), 1, (void*)0);
             if (out_shape_col.dims != 0)
@@ -340,12 +353,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                 local_size_xyz.w = std::min(8, out_shape_col.w);
                 local_size_xyz.h = std::min(4, out_shape_col.c);
             }
-
-            int shader_type_index = -1;
-            if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_gemm;
-            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4_gemm;
-            if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4_gemm;
-            if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1_gemm;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             if (opt.use_shader_local_memory)
@@ -356,7 +363,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
             }
-            pipeline_deconvolution_gemm->create(shader_type_index, opt, specializations);
+            pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_packed, opt, specializations);
         }
 
         {
@@ -639,18 +646,23 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             }
             else
             {
-                std::vector<VkMat> bindings(3);
+                const int num_input_packed = (num_input + 3) / 4 * 4;
+
+                std::vector<VkMat> bindings(5);
                 bindings[0] = bottom_blob;
                 bindings[1] = top_blob_col;
-                bindings[2] = weight_data_gpu;
+                bindings[2] = bottom_blob;
+                bindings[3] = top_blob_col;
+                bindings[4] = weight_data_gpu;
 
-                std::vector<vk_constant_type> constants(6);
+                std::vector<vk_constant_type> constants(7);
                 constants[0].i = bottom_blob.w;
                 constants[1].i = bottom_blob.h;
-                constants[2].i = bottom_blob.c;
+                constants[2].i = num_input_packed / 4;
                 constants[3].i = bottom_blob.cstep;
                 constants[4].i = top_blob_col.cstep;
                 constants[5].i = top_blob_col.c;
+                constants[6].i = num_input;
 
                 VkMat dispatcher;
                 dispatcher.w = (top_blob_col.cstep + 3) / 4;
