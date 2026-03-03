@@ -43,6 +43,11 @@ the meaning of existing param key index can be looked up at [operation-param-wei
 * integer array value : [array size],int,int,...,int
 * float array value : [array size],float,float,...,float
 
+In modern ncnn param file
+
+* array could be represented as `3=2.0,3.0` that is much more human friendly
+* string typed value: `4=hello` and the string is no longer than 255
+
 ## net.bin
 ```
   +---------+---------+---------+---------+---------+---------+

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -54,6 +43,53 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d, 140)
 
+class F_conv_transpose3d_bias : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+F.conv_transpose3d      op_0        2 1 input weight a bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Attribute          op_1        0 1 bias @data=(1,%out_channels,1,1,1)f32
+aten::add               op_2        2 1 a bias out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Attribute          bias        0 1 bias @data=%op_1.data
+F.conv_transpose3d      conv        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* op_conv = ops.at("conv");
+
+        op_conv->inputnames = {"input", "weight", "bias"};
+
+        const int out_channels = captured_params.at("out_channels").i;
+
+        Operator* op_bias = ops.at("bias");
+        // fix bias shape
+        op_bias->attrs["data"].shape = std::vector<int>{out_channels};
+        op_bias->outputs[0]->shape = std::vector<int>{out_channels};
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose3d_bias, 141)
+
 class F_conv_transpose3d_onnx : public GraphRewriterPass
 {
 public:
@@ -62,7 +98,7 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?,?)f32
 pnnx.Input              input_2     0 1 bias
 ConvTranspose           op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
@@ -107,6 +143,16 @@ pnnx.Output             output      1 0 out
 
             const std::vector<int>& pads = captured_params.at("op_0.pads").ai;
             if (pads[0] != pads[3] || pads[1] != pads[4] || pads[2] != pads[5])
+                return false;
+        }
+
+        if (captured_params.find("op_0.auto_pad") != captured_params.end())
+        {
+            if (captured_params.at("op_0.auto_pad").type != 4)
+                return false;
+
+            const std::string& auto_pad = captured_params.at("op_0.auto_pad").s;
+            if (auto_pad != "NOTSET")
                 return false;
         }
 
@@ -173,7 +219,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_1     0 1 weight #weight=(?,?,?,?,?)f32
 ConvTranspose           op_0        2 1 input weight out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";

@@ -1,16 +1,5 @@
-// BUG1989 is pleased to support the open source community by supporting ncnn available.
-//
-// Copyright (C) 2019 BUG1989. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 BUG1989
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_DEPRECATE
@@ -136,6 +125,7 @@ public:
     int quantize_embed();
     int quantize_gemm();
     int quantize_multiheadattention();
+    int quantize_sdpa();
 
     int fuse_requantize();
 };
@@ -160,7 +150,7 @@ int NetQuantize::quantize_convolution()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -218,7 +208,7 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -280,7 +270,7 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -853,6 +843,25 @@ int NetQuantize::quantize_multiheadattention()
     return 0;
 }
 
+int NetQuantize::quantize_sdpa()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "SDPA")
+            continue;
+
+        ncnn::SDPA* sdpa = (ncnn::SDPA*)layers[i];
+
+        fprintf(stderr, "quantize_sdpa %s\n", sdpa->name.c_str());
+
+        // TODO move to ncnn2table
+
+        sdpa->int8_scale_term = 2;
+    }
+
+    return 0;
+}
+
 int NetQuantize::fuse_requantize()
 {
     const size_t layer_count = layers.size();
@@ -1071,6 +1080,7 @@ int main(int argc, char** argv)
     const char* int8scale_table_path = argc == 6 ? argv[5] : NULL;
 
     NetQuantize quantizer;
+    quantizer.storage_type = 1; // use fp16 where int8 not applied
 
     // parse the calibration scale table
     if (int8scale_table_path)
@@ -1103,6 +1113,7 @@ int main(int argc, char** argv)
     quantizer.quantize_embed();
     quantizer.quantize_gemm();
     quantizer.quantize_multiheadattention();
+    quantizer.quantize_sdpa();
 
     quantizer.fuse_requantize();
 

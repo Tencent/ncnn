@@ -32,7 +32,9 @@
 * [ELU](#elu)
 * [Embed](#embed)
 * [Exp](#exp)
+* [ExpandDims](#expanddims)
 * [Flatten](#flatten)
+* [Flip](#flip)
 * [Fold](#fold)
 * [GELU](#gelu)
 * [GLU](#glu)
@@ -74,7 +76,9 @@
 * [Reshape](#reshape)
 * [RMSNorm](#rmsnorm)
 * [RNN](#rnn)
+* [RotaryEmbed](#rotaryembed)
 * [Scale](#scale)
+* [SDPA](#sdpa)
 * [SELU](#selu)
 * [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
@@ -84,6 +88,7 @@
 * [Softplus](#softplus)
 * [Spectrogram](#spectrogram)
 * [Split](#split)
+* [Squeeze](#squeeze)
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
@@ -493,6 +498,9 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+| 19        | starts_expr   | str   | ""        |                   |
+| 20        | ends_expr     | str   | ""        |                   |
+| 21        | axes_expr     | str   | ""        |                   |
 
 # CumulativeSum
 
@@ -862,10 +870,26 @@ else            y = pow(base, (shift + x * scale))
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
+# ExpandDims
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 3         | axes          | array | [ ]       |                   |
+
 # Flatten
 Reshape blob to 1 dimension
 
 * one_blob_only
+
+# Flip
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axes          | array | [ ]       |                   |
 
 # Fold
 ```
@@ -1137,6 +1161,7 @@ else                            y = resize(x0, size(x1))
 | 4         | output_width  | int   | 0         |                   |
 | 5         | dynamic_target_size| int | 0      |                   |
 | 6         | align_corner  | int   | 0         |                   |
+| 9         | size_expr     | str   | ""        |                   |
 
 Resize type:
 - 1 = Nearest
@@ -1281,16 +1306,16 @@ y = x * tanh(log(exp(x) + 1))
 
 # MultiHeadAttention
 ```
+q_affine = affine(q) / (embed_dim / num_head)
+k_affine = affine(k) or reuse kv_cache part
+v_affine = affine(v) or reuse kv_cache part
 split q k v into num_head part q0, k0, v0, q1, k1, v1 ...
 for each num_head part
-    xq = affine(q) / (embed_dim / num_head)
-    xk = affine(k)
-    xv = affine(v)
-    xqk = xq * xk
-    xqk = xqk + attn_mask if attn_mask exists
-    softmax_inplace(xqk)
-    xqkv = xqk * xv
-    merge xqkv to out
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+    merge qkv to out
 y = affine(out)
 ```
 
@@ -1303,6 +1328,7 @@ y = affine(out)
 | 4         | vdim          | int   | embed_dim |                   |
 | 5         | attn_mask     | int   | 0         |                   |
 | 6         | scale         | float | 1.f / sqrt(embed_dim / num_heads) | |
+| 7         | kv_cache      | int   | 0         |                   |
 | 18        | int8_scale_term | int | 0         |                   |
 
 | weight        | type  | shape                 |
@@ -1688,8 +1714,7 @@ y = float2int8(x3 * scale_out)
 
 # Reshape
 ```
-if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
-else                y = reshape(x)
+y = reshape(x)
 ```
 
 * one_blob_only
@@ -1700,7 +1725,7 @@ else                y = reshape(x)
 | 1         | h             | int   | -233      |                   |
 | 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
-| 3         | permute       | int   | 0         |                   |
+| 6         | shape_expr    | str   | ""        |                   |
 
 Reshape flag:
 - 0 = copy from bottom
@@ -1754,6 +1779,18 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
+# RotaryEmbed
+Apply rotary positional embeddings with cos and sin cache
+
+```
+y1 = x1 * cos - x2 * sin
+y2 = x1 * sin + x2 * cos
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | interleaved   | int   | 0         |                   |
+
 # Scale
 ```
 if scale_data_size == -233  y = x0 * x1
@@ -1772,6 +1809,23 @@ else                        y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [scale_data_size]     |
+
+# SDPA
+```
+scaled dot product attention
+for each num_head part
+    qk = q * k
+    qk = qk + attn_mask if attn_mask exists
+    softmax(qk)
+    qkv = qk * v
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 5         | attn_mask     | int   | 0         |                   |
+| 6         | scale         | float | 0.f       | auto = 1.f / sqrt(embed_dim) |
+| 7         | kv_cache      | int   | 0         |                   |
+| 18        | int8_scale_term | int | 0         |                   |
 
 # SELU
 ```
@@ -1884,6 +1938,18 @@ if power == 2 return square of magnitude
 ```
 y0, y1 ... = x
 ```
+
+# Squeeze
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | squeeze_w     | int   | 0         |                   |
+| 1         | squeeze_h     | int   | 0         |                   |
+| 11        | squeeze_d     | int   | 0         |                   |
+| 2         | squeeze_c     | int   | 0         |                   |
+| 3         | axes          | array | [ ]       |                   |
 
 # Swish
 ```

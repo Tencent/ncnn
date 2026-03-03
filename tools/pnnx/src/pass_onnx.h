@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef PNNX_PASS_ONNX_H
 #define PNNX_PASS_ONNX_H
@@ -147,34 +136,9 @@ protected:
     std::unordered_map<std::string, int> initializers;
 };
 
-class FuseFunctionPass
-{
-public:
-    virtual ~FuseFunctionPass();
-
-    virtual const char* match_type_str() const = 0;
-
-    virtual const char* type_str() const = 0;
-
-    virtual void write(Operator* op, const OnnxFunctionProxy& function) const;
-};
-
-class FuseFunctionPassRegister
-{
-public:
-    FuseFunctionPassRegister(const FuseFunctionPass* pass);
-    ~FuseFunctionPassRegister();
-    const FuseFunctionPass* pass;
-};
-
-const std::vector<const FuseFunctionPass*>& get_global_pnnx_fuse_function_passes();
-
-#define REGISTER_GLOBAL_PNNX_FUSE_FUNCTION_PASS(CLASS) \
-    static FuseFunctionPassRegister g_global_pnnx_fusefunctionpass_##CLASS##_register(new CLASS);
-
 } // namespace onnx2pnnx
 
-void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph);
+void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& external_data, Graph& pnnx_graph);
 
 } // namespace pnnx
 

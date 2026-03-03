@@ -1,19 +1,9 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fold_constants.h"
 
+#include <stdlib.h>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -158,7 +148,7 @@ static bool check_outputs_foldable(const onnx::NodeProto& node, const std::unord
     return true;
 }
 
-void fold_constants(onnx::ModelProto& model,
+void fold_constants(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
                     const std::vector<std::vector<int64_t> >& input_shapes2,
@@ -318,17 +308,33 @@ void fold_constants(onnx::ModelProto& model,
             fprintf(stderr, "ort SetSessionGraphOptimizationLevel failed %s\n", ort_api->GetErrorMessage(ort_status));
         }
 
-        // ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
-        //
-        // ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
+        const char* omp_thread_limit = std::getenv("OMP_THREAD_LIMIT");
+        const int num_threads = omp_thread_limit ? std::stoi(omp_thread_limit) : 0;
+
+        ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        if (!external_data.empty())
+        {
+            const ORTCHAR_T* external_initializer_file_names[] = {(const ORTCHAR_T*)external_data_path.c_str()};
+            char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
+            const size_t external_initializer_file_lengths[] = {external_data.size()};
+
+            ort_status = ort_api->AddExternalInitializersFromFilesInMemory(ort_session_opt, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, 1);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort AddExternalInitializersFromFilesInMemory failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+        }
 
         OrtSession* ort_session = 0;
         ort_status = ort_api->CreateSessionFromArray(ort_env, (const void*)tmp_onnx_data.data(), tmp_onnx_data.size(), ort_session_opt, &ort_session);
@@ -543,7 +549,7 @@ void fold_constants(onnx::ModelProto& model,
     onnx2pnnx::dead_code_elimination(model);
 }
 
-void fold_constants_dynamic_shape(onnx::ModelProto& model,
+void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                                   const std::vector<std::vector<int64_t> >& input_shapes,
                                   const std::vector<std::string>& input_types)
 {
@@ -677,6 +683,35 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
                                 if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
                                 slice_args.push_back((int)i64);
                             }
+                        }
+
+                        if (slice_args.empty())
+                        {
+                            // old opset, look for args in attributes
+                            int axis = 0;
+                            int start = 0;
+                            int end = 0;
+                            for (int j = 0; j < node.attribute_size(); j++)
+                            {
+                                const onnx::AttributeProto& attr = node.attribute(j);
+
+                                if (attr.type() != onnx::AttributeProto::INTS || attr.ints_size() != 1)
+                                    continue;
+
+                                int64_t i64 = attr.ints(0);
+                                if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                                if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
+                                if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                                if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
+
+                                if (attr.name() == "axes")
+                                    axis = (int)i64;
+                                if (attr.name() == "starts")
+                                    start = (int)i64;
+                                if (attr.name() == "ends")
+                                    end = (int)i64;
+                            }
+                            slice_args = {start, end, axis};
                         }
 
                         // check slice dim=0 step=1
@@ -901,17 +936,33 @@ void fold_constants_dynamic_shape(onnx::ModelProto& model,
             fprintf(stderr, "ort SetSessionGraphOptimizationLevel failed %s\n", ort_api->GetErrorMessage(ort_status));
         }
 
-        // ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
-        //
-        // ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, 4);
-        // if (ort_status)
-        // {
-        //     fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
-        // }
+        const char* omp_thread_limit = std::getenv("OMP_THREAD_LIMIT");
+        const int num_threads = omp_thread_limit ? std::stoi(omp_thread_limit) : 0;
+
+        ort_status = ort_api->SetIntraOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetIntraOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        ort_status = ort_api->SetInterOpNumThreads(ort_session_opt, num_threads);
+        if (ort_status)
+        {
+            fprintf(stderr, "ort SetInterOpNumThreads failed %s\n", ort_api->GetErrorMessage(ort_status));
+        }
+
+        if (!external_data.empty())
+        {
+            const ORTCHAR_T* external_initializer_file_names[] = {(const ORTCHAR_T*)external_data_path.c_str()};
+            char* external_initializer_file_buffer_array[] = {(char*)external_data.data()};
+            const size_t external_initializer_file_lengths[] = {external_data.size()};
+
+            ort_status = ort_api->AddExternalInitializersFromFilesInMemory(ort_session_opt, external_initializer_file_names, external_initializer_file_buffer_array, external_initializer_file_lengths, 1);
+            if (ort_status)
+            {
+                fprintf(stderr, "ort AddExternalInitializersFromFilesInMemory failed %s\n", ort_api->GetErrorMessage(ort_status));
+            }
+        }
 
         OrtSession* ort_session = 0;
         ort_status = ort_api->CreateSessionFromArray(ort_env, (const void*)tmp_onnx_data.data(), tmp_onnx_data.size(), ort_session_opt, &ort_session);

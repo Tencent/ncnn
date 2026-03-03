@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -26,7 +15,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.flatten           op_0        1 1 input out start_dim=1 end_dim=-1
+torch.flatten           op_0        1 1 input out start_dim=%start_dim end_dim=%end_dim
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -40,6 +29,30 @@ pnnx.Output             output      1 0 out
     {
         return "flatten";
     }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        const int input_rank = op->inputs[0]->shape.size();
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+
+        const int start_dim = captured_params.at("start_dim").i;
+        if (start_dim == 0 || (start_dim == 1 && batch_index == 0))
+        {
+            const int end_dim = captured_params.at("end_dim").i;
+            if (end_dim == -1)
+                return true;
+
+            if (end_dim == input_rank - 1)
+                return true;
+        }
+
+        return false;
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+    }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_flatten, 20)
@@ -52,7 +65,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.flatten           op_0        1 1 input out start_dim=2 end_dim=-1
+torch.flatten           op_0        1 1 input out start_dim=%start_dim end_dim=%end_dim
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -67,22 +80,167 @@ pnnx.Output             output      1 0 out
         return "flatten";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int input_rank = op->inputs[0]->shape.size();
+        int start_dim = captured_params.at("start_dim").i;
+        int end_dim = captured_params.at("end_dim").i;
 
-        if (input_rank <= 2)
+        const int input_rank = op->inputs[0]->shape.size();
+
+        if (start_dim < 0)
+            start_dim += input_rank;
+
+        if (end_dim < 0)
+            end_dim += input_rank;
+
+        if (input_rank <= start_dim || input_rank <= end_dim)
         {
-            fprintf(stderr, "flatten 2 to -1 not possible for %d-rank tensor\n", input_rank);
+            fprintf(stderr, "flatten %d to %d not possible for %d-rank tensor\n", start_dim, end_dim, input_rank);
             return;
         }
 
-        op->params["0"] = -1;
-        op->params["1"] = op->inputs[0]->shape[1];
+        std::vector<int> shape_flattened;
+        for (int i = 0; i < start_dim; i++)
+        {
+            shape_flattened.push_back(op->inputs[0]->shape[i]);
+        }
+        int flattened_dimsize = 1;
+        for (int i = start_dim; i <= end_dim; i++)
+        {
+            if (op->inputs[0]->shape[i] == -1)
+            {
+                // flatten includes dynamic axis
+                flattened_dimsize = -1;
+                break;
+            }
+
+            flattened_dimsize *= op->inputs[0]->shape[i];
+        }
+        shape_flattened.push_back(flattened_dimsize);
+        for (int i = end_dim + 1; i < input_rank; i++)
+        {
+            shape_flattened.push_back(op->inputs[0]->shape[i]);
+        }
+
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+
+        std::vector<int> new_shape;
+        for (int i = 0; i < (int)shape_flattened.size(); i++)
+        {
+            if (i == batch_index && shape_flattened[i] == 1)
+                continue;
+
+            new_shape.push_back(shape_flattened[i]);
+        }
+
+        if (new_shape.size() == 5 && batch_index == 233)
+        {
+            if (new_shape[0] == 1)
+            {
+                fprintf(stderr, "assume flatten 5-rank tensor has batch_index 0\n");
+                new_shape.erase(new_shape.begin());
+            }
+        }
+
+        const int shape_rank = (int)new_shape.size();
+
+        if (shape_rank > 5)
+        {
+            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
+            return;
+        }
+
+        // handle multiple dynamic dimension
+        int dynamic_dimension_count = 0;
+        for (size_t i = 0; i < new_shape.size(); i++)
+        {
+            if (new_shape[i] == -1)
+                dynamic_dimension_count++;
+        }
+
+        if (dynamic_dimension_count > 1)
+        {
+            const int flattened_index = start_dim > batch_index ? start_dim - 1 : start_dim;
+
+            int in_batch_index = op->inputs[0]->params["__batch_index"].i;
+            int in_shape_rank = op->inputs[0]->shape.size();
+            if (in_batch_index != 233)
+                in_shape_rank -= 1;
+
+            std::string shape_expr;
+            if (shape_rank == 1)
+            {
+                // flatten style
+                shape_expr = "-1";
+            }
+            if (shape_rank == 2)
+            {
+                if (flattened_index == 0)
+                {
+                    shape_expr = "0w,-1";
+                }
+                if (flattened_index == 1)
+                {
+                    if (in_shape_rank == 2)
+                        shape_expr = "-1,0h";
+                    else // if (in_shape_rank == 3 || in_shape_rank == 4)
+                        shape_expr = "-1,0c";
+                }
+            }
+            if (shape_rank == 3)
+            {
+                if (flattened_index == 0)
+                {
+                    shape_expr = "0w,0h,-1";
+                }
+                if (flattened_index == 1)
+                {
+                    shape_expr = "0w,-1,0c";
+                }
+                if (flattened_index == 2)
+                {
+                    if (in_shape_rank == 3)
+                        shape_expr = "-1,0h,0c";
+                    else // if (in_shape_rank == 4)
+                        shape_expr = "-1,0d,0c";
+                }
+            }
+            if (shape_rank == 4)
+            {
+                // noop style
+                shape_expr = "0w,0h,0d,0c";
+            }
+
+            op->params["6"] = shape_expr;
+            return;
+        }
+
+        if (shape_rank == 1)
+        {
+            op->params["0"] = new_shape[0];
+        }
+        if (shape_rank == 2)
+        {
+            op->params["0"] = new_shape[1];
+            op->params["1"] = new_shape[0];
+        }
+        if (shape_rank == 3)
+        {
+            op->params["0"] = new_shape[2];
+            op->params["1"] = new_shape[1];
+            op->params["2"] = new_shape[0];
+        }
+        if (shape_rank == 4)
+        {
+            op->params["0"] = new_shape[3];
+            op->params["1"] = new_shape[2];
+            op->params["11"] = new_shape[1];
+            op->params["2"] = new_shape[0];
+        }
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_flatten_2, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_flatten_2, 21)
 
 } // namespace ncnn
 

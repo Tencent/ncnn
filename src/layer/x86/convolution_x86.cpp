@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution_x86.h"
 
@@ -553,7 +542,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             top_blob.w = top_blob_3d.c;
             top_blob.h = 1;
             top_blob.c = 1;
-            bottom_blob_3d.cstep = top_blob_3d.c;
+            top_blob.cstep = top_blob_3d.c;
         }
         else
         {
@@ -976,7 +965,15 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_int8_requantize)
             out_elempack = num_output % 8 == 0 ? 8 : 1;
         else
+        {
+#if __AVX512F__
+            out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
+            out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
             out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+        }
     }
 #endif // __SSE2__
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
@@ -993,7 +990,37 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-        out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+        if (use_int8_requantize)
+        {
+#if __AVX__
+            out_elempack_int32 = num_output % 8 == 0 ? 8 : 1;
+#else
+            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+#endif
+        }
+        else
+        {
+#if __AVX512F__
+            out_elempack_int32 = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
+            out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+#endif
+        }
+    }
+#endif // __SSE2__
+
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        if ((opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) || (!opt.use_sgemm_convolution))
+        {
+            // TODO implement winograd and packed int8 avx pack8 output
+            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+        }
     }
 #endif // __SSE2__
 
@@ -1001,8 +1028,6 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
     if (top_blob_int32.empty())
         return -100;
-
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
     int _nT = nT ? nT : opt.num_threads;
     if (nT != 0 && opt.num_threads != nT)
@@ -1030,6 +1055,41 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     }
     if (ret != 0)
         return ret;
+
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        // NCNN_LOGE("top_blob_int32  %d  %d", top_blob_int32.c, top_blob_int32.elempack);
+        if (use_int8_requantize)
+        {
+            // TODO implement winograd and packed int8 pack1 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 1)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 1, opt);
+                top_blob_int32 = tmp;
+            }
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+        }
+        else
+        {
+#if __AVX__
+            // TODO implement winograd and packed int8 avx pack8 output
+            if (top_blob_int32.elempack == 4 && top_blob_int32.c % 2 == 0)
+            {
+                Mat tmp;
+                convert_packing(top_blob_int32, tmp, 8, opt);
+                top_blob_int32 = tmp;
+            }
+#endif // __AVX__
+        }
+    }
+#endif
 
     if (use_int8_requantize)
     {

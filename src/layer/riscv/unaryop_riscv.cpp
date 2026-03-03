@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop_riscv.h"
 
@@ -175,7 +164,7 @@ struct unary_op_tan
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
-        // TODO rvv optimize
+#if __riscv_xtheadvector
         std::vector<float> tmp(vl);
         __riscv_vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
@@ -183,6 +172,11 @@ struct unary_op_tan
             tmp[i] = tanf(tmp[i]);
         }
         return __riscv_vle32_v_f32m8(tmp.data(), vl);
+#else
+        vfloat32m8_t sin_x, cos_x;
+        sincos_ps(x, &sin_x, &cos_x, vl);
+        return __riscv_vfdiv_vv_f32m8(sin_x, cos_x, vl);
+#endif
     }
 };
 

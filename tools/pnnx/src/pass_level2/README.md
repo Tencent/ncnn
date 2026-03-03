@@ -66,7 +66,6 @@
 
 ## 60 relayout / reshape
 
-* Tensor.contiguous
 * Tensor.copy
 * Tensor.expand
 * Tensor.expand_as
@@ -75,7 +74,7 @@
 * Tensor.reshape
 * Tensor.to
 * Tensor.type_as
-* Tensor.view
+* Tensor.unflatten
 * torch.cat
 * torch.chunk
 * torch.complex

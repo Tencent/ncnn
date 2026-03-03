@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2020 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
 
@@ -550,7 +539,7 @@ int main(int argc, char** argv)
         }
 
         char splitname[256];
-        sprintf(splitname, "splitncnn_%d", internal_split);
+        snprintf(splitname, 256, "splitncnn_%d", internal_split);
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
         fprintf(pp, " %s", input_name.c_str());
@@ -779,7 +768,7 @@ int main(int argc, char** argv)
         }
 
         char opid_name[64];
-        sprintf(opid_name, "op_%d", opid);
+        snprintf(opid_name, 64, "op_%d", opid);
 
         fprintf(pp, " %-24s %d %d", opid_name, num_input, num_output);
 
@@ -799,7 +788,7 @@ int main(int argc, char** argv)
                 split_node_reference[input_name] = refidx;
 
                 char splitsuffix[256];
-                sprintf(splitsuffix, "_splitncnn_%d", refidx);
+                snprintf(splitsuffix, 256, "_splitncnn_%d", refidx);
                 input_name = input_name + splitsuffix;
             }
 
@@ -1795,7 +1784,7 @@ int main(int argc, char** argv)
                 if (refcount > 1)
                 {
                     char splitname[256];
-                    sprintf(splitname, "splitncnn_%d", internal_split);
+                    snprintf(splitname, 256, "splitncnn_%d", internal_split);
                     fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
 
                     fprintf(pp, " %s", output_name.c_str());

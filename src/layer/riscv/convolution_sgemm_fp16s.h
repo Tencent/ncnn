@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -120,7 +109,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
         __fp16* outptr6 = top_blob.channel(p + 6);
         __fp16* outptr7 = top_blob.channel(p + 7);
 
-        const __fp16 zeros[8] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+        const __fp16 zeros[8] = {(__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f};
         const __fp16* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -235,7 +224,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
         __fp16* outptr2 = top_blob.channel(p + 2);
         __fp16* outptr3 = top_blob.channel(p + 3);
 
-        const __fp16 zeros[4] = {0.f, 0.f, 0.f, 0.f};
+        const __fp16 zeros[4] = {(__fp16)0.f, (__fp16)0.f, (__fp16)0.f, (__fp16)0.f};
         const __fp16* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -313,7 +302,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     {
         __fp16* outptr0 = top_blob.channel(p);
 
-        const __fp16 bias0 = bias ? bias[p] : 0.f;
+        const __fp16 bias0 = bias ? (__fp16)bias[p] : (__fp16)0.f;
 
         int i = 0;
         for (; i + (packn - 1) < size; i += packn)
@@ -363,7 +352,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     {
         __fp16* outptr0 = top_blob.channel(p);
 
-        const __fp16 bias0 = bias ? bias[p] : 0.f;
+        const __fp16 bias0 = bias ? (__fp16)bias[p] : (__fp16)0.f;
 
         for (int i = 0; i < size; i++)
         {

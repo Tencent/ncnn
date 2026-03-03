@@ -1,0 +1,68 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const float eps = 0;
+layout(constant_id = 1) const int affine = 0;
+layout(constant_id = 2) const int w = 0;
+layout(constant_id = 3) const int channels_g = 0;
+
+layout(binding = 0) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) readonly buffer var_blob { float var_data[]; };
+layout(binding = 3) readonly buffer gamma_blob { sfpvec4 gamma_data[]; };
+layout(binding = 4) readonly buffer beta_blob { sfpvec4 beta_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(w) || gy >= 1 || gz >= 1)
+        return;
+
+    // gx is packed channel index, channels_g is actual channels per group
+    int actual_channel_base = gx * 4;
+    int group_id0 = actual_channel_base / channels_g;
+    int group_id1 = (actual_channel_base + 1) / channels_g;
+    int group_id2 = (actual_channel_base + 2) / channels_g;
+    int group_id3 = (actual_channel_base + 3) / channels_g;
+
+    vec4 mean;
+    mean.r = mean_data[group_id0];
+    mean.g = mean_data[group_id1];
+    mean.b = mean_data[group_id2];
+    mean.a = mean_data[group_id3];
+
+    vec4 var;
+    var.r = var_data[group_id0];
+    var.g = var_data[group_id1];
+    var.b = var_data[group_id2];
+    var.a = var_data[group_id3];
+
+    vec4 a;
+    vec4 b;
+    if (affine == 0)
+    {
+        a = 1.f / (sqrt(var + eps));
+        b = -mean * a;
+    }
+    else
+    {
+        vec4 gamma = vec4(buffer_ld4(gamma_data, gx));
+        vec4 beta = vec4(buffer_ld4(beta_data, gx));
+
+        a = gamma / (sqrt(var + eps));
+        b = -mean * a + beta;
+    }
+
+    buffer_st4(coeffs_blob_data, gx * 2, afpvec4(a));
+    buffer_st4(coeffs_blob_data, gx * 2 + 1, afpvec4(b));
+}

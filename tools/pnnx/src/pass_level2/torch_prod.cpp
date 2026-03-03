@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -58,33 +47,39 @@ pnnx.Output             output      1 0 out
         return "torch.prod";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (captured_params.find("op_0.axes") == captured_params.end())
-            return false;
-
-        if (captured_params.at("op_0.axes").type != 2 && captured_params.at("op_0.axes").type != 5)
-            return false;
-
-        if (captured_params.at("op_0.axes").type == 5 && captured_params.at("op_0.axes").ai.size() > 1)
-            return false;
-
-        return true;
-    }
-
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int dim;
-        if (captured_params.at("op_0.axes").type == 2)
+        if (captured_params.find("op_0.axes") != captured_params.end())
         {
-            dim = captured_params.at("op_0.axes").i;
+            if (captured_params.at("op_0.axes").type == 2)
+            {
+                op->params["dim"] = captured_params.at("op_0.axes");
+            }
+            else
+            {
+                const std::vector<int>& dim = captured_params.at("op_0.axes").ai;
+                if (dim.size() == 1)
+                {
+                    // prefer single dim for compatible with torch
+                    op->params["dim"] = dim[0];
+                }
+                else
+                {
+                    op->params["dim"] = dim;
+                }
+            }
         }
-        else // if (captured_params.at("op_0.axes").type == 5)
+        else
         {
-            dim = captured_params.at("op_0.axes").ai[0];
+            // reduce all
+            const int input_rank = (int)op->inputs[0]->shape.size();
+            std::vector<int> dim(input_rank);
+            for (int i = 0; i < input_rank; i++)
+            {
+                dim[i] = i;
+            }
+            op->params["dim"] = dim;
         }
-
-        op->params["dim"] = dim;
 
         if (captured_params.find("op_0.keepdims") != captured_params.end())
         {

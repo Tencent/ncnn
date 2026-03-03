@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
@@ -2023,7 +2012,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w - 1) / 2;
 
@@ -2073,10 +2062,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
+                        _r0 = combine8x2_ps(_mm256_load_ps(r0), _mm256_load_ps(r1));
+                        if (tj * 2 + 1 < w) _r1 = combine8x2_ps(_mm256_load_ps(r0 + 8), _mm256_load_ps(r1 + 8));
+                        if (tj * 2 + 2 < w) _r2 = combine8x2_ps(_mm256_load_ps(r0 + 16), _mm256_load_ps(r1 + 16));
+                        if (tj * 2 + 3 < w) _r3 = combine8x2_ps(_mm256_load_ps(r0 + 24), _mm256_load_ps(r1 + 24));
                     }
                     if (elempack == 4)
                     {
@@ -2084,10 +2073,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                         const float* r2 = r0 + N * 2;
                         const float* r3 = r0 + N * 3;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
+                        _r0 = combine4x4_ps(_mm_load_ps(r0), _mm_load_ps(r1), _mm_load_ps(r2), _mm_load_ps(r3));
+                        if (tj * 2 + 1 < w) _r1 = combine4x4_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4), _mm_load_ps(r2 + 4), _mm_load_ps(r3 + 4));
+                        if (tj * 2 + 2 < w) _r2 = combine4x4_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8), _mm_load_ps(r2 + 8), _mm_load_ps(r3 + 8));
+                        if (tj * 2 + 3 < w) _r3 = combine4x4_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12), _mm_load_ps(r2 + 12), _mm_load_ps(r3 + 12));
                     }
                     if (elempack == 1)
                     {
@@ -2129,10 +2118,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
                         _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                        _r0 = combine4x4_ps(_t0, _t4, _t8, _tc);
+                        if (tj * 2 + 1 < w) _r1 = combine4x4_ps(_t1, _t5, _t9, _td);
+                        if (tj * 2 + 2 < w) _r2 = combine4x4_ps(_t2, _t6, _ta, _te);
+                        if (tj * 2 + 3 < w) _r3 = combine4x4_ps(_t3, _t7, _tb, _tf);
                     }
                 }
 
@@ -2223,10 +2212,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
+                        _r0 = combine4x2_ps(_mm_load_ps(r0), _mm_load_ps(r1));
+                        if (tj * 2 + 1 < w) _r1 = combine4x2_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4));
+                        if (tj * 2 + 2 < w) _r2 = combine4x2_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8));
+                        if (tj * 2 + 3 < w) _r3 = combine4x2_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12));
                     }
                     if (elempack == 1)
                     {
@@ -2250,10 +2239,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
                         _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                        _r0 = combine4x2_ps(_t0, _t4);
+                        if (tj * 2 + 1 < w) _r1 = combine4x2_ps(_t1, _t5);
+                        if (tj * 2 + 2 < w) _r2 = combine4x2_ps(_t2, _t6);
+                        if (tj * 2 + 3 < w) _r3 = combine4x2_ps(_t3, _t7);
                     }
                 }
 
@@ -2608,7 +2597,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 1) / 2;
 
@@ -3387,7 +3376,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 1) / 4;
 
@@ -3447,12 +3436,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 32)), _mm256_load_ps(r1 + 32), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 40)), _mm256_load_ps(r1 + 40), 1);
+                        _r0 = combine8x2_ps(_mm256_load_ps(r0), _mm256_load_ps(r1));
+                        if (tj * 4 + 1 < w) _r1 = combine8x2_ps(_mm256_load_ps(r0 + 8), _mm256_load_ps(r1 + 8));
+                        if (tj * 4 + 2 < w) _r2 = combine8x2_ps(_mm256_load_ps(r0 + 16), _mm256_load_ps(r1 + 16));
+                        if (tj * 4 + 3 < w) _r3 = combine8x2_ps(_mm256_load_ps(r0 + 24), _mm256_load_ps(r1 + 24));
+                        if (tj * 4 + 4 < w) _r4 = combine8x2_ps(_mm256_load_ps(r0 + 32), _mm256_load_ps(r1 + 32));
+                        if (tj * 4 + 5 < w) _r5 = combine8x2_ps(_mm256_load_ps(r0 + 40), _mm256_load_ps(r1 + 40));
                     }
                     if (elempack == 4)
                     {
@@ -3460,12 +3449,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         const float* r2 = r0 + N * 2;
                         const float* r3 = r0 + N * 3;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 16)), _mm_load_ps(r3 + 16), 1), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 20)), _mm_load_ps(r3 + 20), 1), 1);
+                        _r0 = combine4x4_ps(_mm_load_ps(r0), _mm_load_ps(r1), _mm_load_ps(r2), _mm_load_ps(r3));
+                        if (tj * 4 + 1 < w) _r1 = combine4x4_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4), _mm_load_ps(r2 + 4), _mm_load_ps(r3 + 4));
+                        if (tj * 4 + 2 < w) _r2 = combine4x4_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8), _mm_load_ps(r2 + 8), _mm_load_ps(r3 + 8));
+                        if (tj * 4 + 3 < w) _r3 = combine4x4_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12), _mm_load_ps(r2 + 12), _mm_load_ps(r3 + 12));
+                        if (tj * 4 + 4 < w) _r4 = combine4x4_ps(_mm_load_ps(r0 + 16), _mm_load_ps(r1 + 16), _mm_load_ps(r2 + 16), _mm_load_ps(r3 + 16));
+                        if (tj * 4 + 5 < w) _r5 = combine4x4_ps(_mm_load_ps(r0 + 20), _mm_load_ps(r1 + 20), _mm_load_ps(r2 + 20), _mm_load_ps(r3 + 20));
                     }
                     if (elempack == 1)
                     {
@@ -3507,10 +3496,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
                         _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                        _r0 = combine4x4_ps(_t0, _t4, _t8, _tc);
+                        if (tj * 4 + 1 < w) _r1 = combine4x4_ps(_t1, _t5, _t9, _td);
+                        if (tj * 4 + 2 < w) _r2 = combine4x4_ps(_t2, _t6, _ta, _te);
+                        if (tj * 4 + 3 < w) _r3 = combine4x4_ps(_t3, _t7, _tb, _tf);
                         if (tj * 4 + 4 < w) _r4 = _mm512_set_ps(rf[4], re[4], rd[4], rc[4], rb[4], ra[4], r9[4], r8[4], r7[4], r6[4], r5[4], r4[4], r3[4], r2[4], r1[4], r0[4]);
                         if (tj * 4 + 5 < w) _r5 = _mm512_set_ps(rf[5], re[5], rd[5], rc[5], rb[5], ra[5], r9[5], r8[5], r7[5], r6[5], r5[5], r4[5], r3[5], r2[5], r1[5], r0[5]);
                     }
@@ -3637,12 +3626,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1);
+                        _r0 = combine4x2_ps(_mm_load_ps(r0), _mm_load_ps(r1));
+                        if (tj * 4 + 1 < w) _r1 = combine4x2_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4));
+                        if (tj * 4 + 2 < w) _r2 = combine4x2_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8));
+                        if (tj * 4 + 3 < w) _r3 = combine4x2_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12));
+                        if (tj * 4 + 4 < w) _r4 = combine4x2_ps(_mm_load_ps(r0 + 16), _mm_load_ps(r1 + 16));
+                        if (tj * 4 + 5 < w) _r5 = combine4x2_ps(_mm_load_ps(r0 + 20), _mm_load_ps(r1 + 20));
                     }
                     if (elempack == 1)
                     {
@@ -3666,10 +3655,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
                         _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                        _r0 = combine4x2_ps(_t0, _t4);
+                        if (tj * 4 + 1 < w) _r1 = combine4x2_ps(_t1, _t5);
+                        if (tj * 4 + 2 < w) _r2 = combine4x2_ps(_t2, _t6);
+                        if (tj * 4 + 3 < w) _r3 = combine4x2_ps(_t3, _t7);
                         if (tj * 4 + 4 < w) _r4 = _mm256_set_ps(r7[4], r6[4], r5[4], r4[4], r3[4], r2[4], r1[4], r0[4]);
                         if (tj * 4 + 5 < w) _r5 = _mm256_set_ps(r7[5], r6[5], r5[5], r4[5], r3[5], r2[5], r1[5], r0[5]);
                     }
@@ -4176,7 +4165,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 3) / 4;
 
@@ -5238,7 +5227,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int elempack = bottom_blob.elempack;
-    const int N = bottom_blob.cstep * elempack;
+    const size_t N = bottom_blob.cstep * elempack;
 
     const int w_tiles = (w + 3) / 6;
 
@@ -5296,14 +5285,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
-                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
-                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
-                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
-                        if (tj * 6 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 32)), _mm256_load_ps(r1 + 32), 1);
-                        if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 40)), _mm256_load_ps(r1 + 40), 1);
-                        if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 48)), _mm256_load_ps(r1 + 48), 1);
-                        if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 56)), _mm256_load_ps(r1 + 56), 1);
+                        _r0 = combine8x2_ps(_mm256_load_ps(r0), _mm256_load_ps(r1));
+                        if (tj * 6 + 1 < w) _r1 = combine8x2_ps(_mm256_load_ps(r0 + 8), _mm256_load_ps(r1 + 8));
+                        if (tj * 6 + 2 < w) _r2 = combine8x2_ps(_mm256_load_ps(r0 + 16), _mm256_load_ps(r1 + 16));
+                        if (tj * 6 + 3 < w) _r3 = combine8x2_ps(_mm256_load_ps(r0 + 24), _mm256_load_ps(r1 + 24));
+                        if (tj * 6 + 4 < w) _r4 = combine8x2_ps(_mm256_load_ps(r0 + 32), _mm256_load_ps(r1 + 32));
+                        if (tj * 6 + 5 < w) _r5 = combine8x2_ps(_mm256_load_ps(r0 + 40), _mm256_load_ps(r1 + 40));
+                        if (tj * 6 + 6 < w) _r6 = combine8x2_ps(_mm256_load_ps(r0 + 48), _mm256_load_ps(r1 + 48));
+                        if (tj * 6 + 7 < w) _r7 = combine8x2_ps(_mm256_load_ps(r0 + 56), _mm256_load_ps(r1 + 56));
                     }
                     if (elempack == 4)
                     {
@@ -5311,14 +5300,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                         const float* r2 = r0 + N * 2;
                         const float* r3 = r0 + N * 3;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
-                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
-                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
-                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
-                        if (tj * 6 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 16)), _mm_load_ps(r3 + 16), 1), 1);
-                        if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 20)), _mm_load_ps(r3 + 20), 1), 1);
-                        if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 24)), _mm_load_ps(r1 + 24), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 24)), _mm_load_ps(r3 + 24), 1), 1);
-                        if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 28)), _mm_load_ps(r1 + 28), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 28)), _mm_load_ps(r3 + 28), 1), 1);
+                        _r0 = combine4x4_ps(_mm_load_ps(r0), _mm_load_ps(r1), _mm_load_ps(r2), _mm_load_ps(r3));
+                        if (tj * 6 + 1 < w) _r1 = combine4x4_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4), _mm_load_ps(r2 + 4), _mm_load_ps(r3 + 4));
+                        if (tj * 6 + 2 < w) _r2 = combine4x4_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8), _mm_load_ps(r2 + 8), _mm_load_ps(r3 + 8));
+                        if (tj * 6 + 3 < w) _r3 = combine4x4_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12), _mm_load_ps(r2 + 12), _mm_load_ps(r3 + 12));
+                        if (tj * 6 + 4 < w) _r4 = combine4x4_ps(_mm_load_ps(r0 + 16), _mm_load_ps(r1 + 16), _mm_load_ps(r2 + 16), _mm_load_ps(r3 + 16));
+                        if (tj * 6 + 5 < w) _r5 = combine4x4_ps(_mm_load_ps(r0 + 20), _mm_load_ps(r1 + 20), _mm_load_ps(r2 + 20), _mm_load_ps(r3 + 20));
+                        if (tj * 6 + 6 < w) _r6 = combine4x4_ps(_mm_load_ps(r0 + 24), _mm_load_ps(r1 + 24), _mm_load_ps(r2 + 24), _mm_load_ps(r3 + 24));
+                        if (tj * 6 + 7 < w) _r7 = combine4x4_ps(_mm_load_ps(r0 + 28), _mm_load_ps(r1 + 28), _mm_load_ps(r2 + 28), _mm_load_ps(r3 + 28));
                     }
                     if (elempack == 1)
                     {
@@ -5360,10 +5349,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
                         _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
-                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
-                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
-                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                        _r0 = combine4x4_ps(_t0, _t4, _t8, _tc);
+                        if (tj * 6 + 1 < w) _r1 = combine4x4_ps(_t1, _t5, _t9, _td);
+                        if (tj * 6 + 2 < w) _r2 = combine4x4_ps(_t2, _t6, _ta, _te);
+                        if (tj * 6 + 3 < w) _r3 = combine4x4_ps(_t3, _t7, _tb, _tf);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = _mm_loadu_ps(r0 + 4);
@@ -5388,10 +5377,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                             _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
                             _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
 
-                            _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
-                            if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
-                            if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
-                            if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                            _r4 = combine4x4_ps(_t0, _t4, _t8, _tc);
+                            if (tj * 6 + 5 < w) _r5 = combine4x4_ps(_t1, _t5, _t9, _td);
+                            if (tj * 6 + 6 < w) _r6 = combine4x4_ps(_t2, _t6, _ta, _te);
+                            if (tj * 6 + 7 < w) _r7 = combine4x4_ps(_t3, _t7, _tb, _tf);
                         }
                     }
                 }
@@ -5551,14 +5540,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
-                        if (tj * 6 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
-                        if (tj * 6 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
-                        if (tj * 6 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
-                        if (tj * 6 + 4 < w) _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1);
-                        if (tj * 6 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1);
-                        if (tj * 6 + 6 < w) _r6 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 24)), _mm_load_ps(r1 + 24), 1);
-                        if (tj * 6 + 7 < w) _r7 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 28)), _mm_load_ps(r1 + 28), 1);
+                        _r0 = combine4x2_ps(_mm_load_ps(r0), _mm_load_ps(r1));
+                        if (tj * 6 + 1 < w) _r1 = combine4x2_ps(_mm_load_ps(r0 + 4), _mm_load_ps(r1 + 4));
+                        if (tj * 6 + 2 < w) _r2 = combine4x2_ps(_mm_load_ps(r0 + 8), _mm_load_ps(r1 + 8));
+                        if (tj * 6 + 3 < w) _r3 = combine4x2_ps(_mm_load_ps(r0 + 12), _mm_load_ps(r1 + 12));
+                        if (tj * 6 + 4 < w) _r4 = combine4x2_ps(_mm_load_ps(r0 + 16), _mm_load_ps(r1 + 16));
+                        if (tj * 6 + 5 < w) _r5 = combine4x2_ps(_mm_load_ps(r0 + 20), _mm_load_ps(r1 + 20));
+                        if (tj * 6 + 6 < w) _r6 = combine4x2_ps(_mm_load_ps(r0 + 24), _mm_load_ps(r1 + 24));
+                        if (tj * 6 + 7 < w) _r7 = combine4x2_ps(_mm_load_ps(r0 + 28), _mm_load_ps(r1 + 28));
                     }
                     if (elempack == 1)
                     {
@@ -5582,10 +5571,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                         _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
                         _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
-                        if (tj * 6 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
-                        if (tj * 6 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
-                        if (tj * 6 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                        _r0 = combine4x2_ps(_t0, _t4);
+                        if (tj * 6 + 1 < w) _r1 = combine4x2_ps(_t1, _t5);
+                        if (tj * 6 + 2 < w) _r2 = combine4x2_ps(_t2, _t6);
+                        if (tj * 6 + 3 < w) _r3 = combine4x2_ps(_t3, _t7);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = _mm_loadu_ps(r0 + 4);
@@ -5600,10 +5589,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                             _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
                             _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
 
-                            _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
-                            if (tj * 6 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
-                            if (tj * 6 + 6 < w) _r6 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
-                            if (tj * 6 + 7 < w) _r7 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                            _r4 = combine4x2_ps(_t0, _t4);
+                            if (tj * 6 + 5 < w) _r5 = combine4x2_ps(_t1, _t5);
+                            if (tj * 6 + 6 < w) _r6 = combine4x2_ps(_t2, _t6);
+                            if (tj * 6 + 7 < w) _r7 = combine4x2_ps(_t3, _t7);
                         }
                     }
                 }
@@ -6247,7 +6236,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.cstep * out_elempack;
+    const size_t N = top_blob.cstep * out_elempack;
 
     const int w_tiles = (outw + 5) / 6;
 

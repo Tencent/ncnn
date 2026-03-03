@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_onnx.h"
 
@@ -460,32 +449,6 @@ const onnx::TensorProto& OnnxModelProxy::initializer(const std::string& name) co
     return model.graph().initializer(initializer_index);
 }
 
-FuseFunctionPass::~FuseFunctionPass()
-{
-}
-
-void FuseFunctionPass::write(Operator* /*op*/, const OnnxFunctionProxy& /*function*/) const
-{
-}
-
-static std::vector<const FuseFunctionPass*> g_global_pnnx_fuse_function_passes;
-
-const std::vector<const FuseFunctionPass*>& get_global_pnnx_fuse_function_passes()
-{
-    return g_global_pnnx_fuse_function_passes;
-}
-
-FuseFunctionPassRegister::FuseFunctionPassRegister(const FuseFunctionPass* _pass)
-    : pass(_pass)
-{
-    g_global_pnnx_fuse_function_passes.push_back(pass);
-}
-
-FuseFunctionPassRegister::~FuseFunctionPassRegister()
-{
-    delete pass;
-}
-
 } // namespace onnx2pnnx
 
 static bool string_starts_with(const std::string& s, const std::string& s2)
@@ -630,7 +593,140 @@ static void constant_unpooling(Graph& graph)
     }
 }
 
-void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
+static void shape_unpooling(Graph& graph)
+{
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "aten::size")
+                continue;
+
+            if (op->inputs.size() != 1)
+                continue;
+
+            Operand* op_out = op->outputs[0];
+            if (op_out->consumers.size() == 1)
+                continue;
+
+            matched = true;
+
+            // create shadow node for all consumers
+            for (size_t j = 1; j < op_out->consumers.size(); j++)
+            {
+                Operator* op1 = op_out->consumers[j];
+
+                Operator* op0 = graph.new_operator_before(op->type, op->name + "_pnnxshadow" + std::to_string(j), op1);
+                op0->inputnames = op->inputnames;
+                op0->params = op->params;
+                op0->attrs = op->attrs;
+
+                Operand* op0_out = graph.new_operand(op_out->name + "_pnnxshadow" + std::to_string(j));
+                op0_out->type = op_out->type;
+                op0_out->shape = op_out->shape;
+                op0_out->params = op_out->params;
+
+                op0->inputs.push_back(op->inputs[0]);
+                op->inputs[0]->consumers.push_back(op0);
+
+                op0_out->producer = op0;
+                op0->outputs.push_back(op0_out);
+
+                for (size_t k = 0; k < op1->inputs.size(); k++)
+                {
+                    if (op1->inputs[k] == op_out)
+                    {
+                        op1->inputs[k] = op0_out;
+                        break;
+                    }
+                }
+
+                op0_out->consumers.push_back(op1);
+            }
+
+            op_out->consumers.resize(1);
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
+static void eliminate_cat_before_reshape(Graph& graph)
+{
+    // prim::ListConstruct + aten::cat + Reshape  ->  prim::ListConstruct + Reshape
+
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "aten::cat")
+                continue;
+
+            Operand* op_in = op->inputs[0];
+            Operand* op_out = op->outputs[0];
+
+            bool cat_before_reshape = true;
+            for (auto x : op_out->consumers)
+            {
+                if (x->type != "Reshape")
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+                if (x->inputs.size() != 2)
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+                if (x->inputs[1] != op_out)
+                {
+                    cat_before_reshape = false;
+                    break;
+                }
+            }
+            if (!cat_before_reshape)
+                continue;
+
+            Operator* op_list = op_in->producer;
+            if (op_list->type != "prim::ListConstruct")
+                continue;
+
+            matched = true;
+
+            op_in->remove_consumer(op);
+            for (auto x : op_out->consumers)
+            {
+                op_in->consumers.push_back(x);
+                x->inputs[1] = op_in;
+            }
+
+            // drop cat
+            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), op_out));
+            delete op_out;
+
+            graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op));
+            delete op;
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
+void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& external_data, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
 
@@ -693,6 +789,16 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 sim_op_type = "aten::size";
             }
 
+            if (op_type == "Einsum")
+            {
+                sim_op_type = "aten::einsum";
+            }
+
+            if (op_type == "Sum")
+            {
+                sim_op_type = "aten::add";
+            }
+
             // unaryop
             if (op_type == "Abs") sim_op_type = "aten::abs";
             if (op_type == "Acos") sim_op_type = "aten::acos";
@@ -718,6 +824,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Sqrt") sim_op_type = "aten::sqrt";
             if (op_type == "Tan") sim_op_type = "aten::tan";
             if (op_type == "Tanh") sim_op_type = "aten::tanh";
+            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
+            if (op_type == "Not") sim_op_type = "aten::logical_not";
 
             // binaryop
             if (op_type == "Add") sim_op_type = "aten::add";
@@ -733,12 +841,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Greater") sim_op_type = "aten::gt";
             if (op_type == "GreaterOrEqual") sim_op_type = "aten::ge";
             if (op_type == "BitwiseAnd") sim_op_type = "aten::bitwise_and";
-            if (op_type == "BitwiseNot") sim_op_type = "aten::bitwise_not";
             if (op_type == "BitwiseOr") sim_op_type = "aten::bitwise_or";
             if (op_type == "BitwiseXor") sim_op_type = "aten::bitwise_xor";
-            if (op_type == "And") sim_op_type = "aten::__and__";
-            if (op_type == "Or") sim_op_type = "aten::__or__";
-            if (op_type == "Xor") sim_op_type = "aten::__xor__";
+            if (op_type == "And") sim_op_type = "aten::logical_and";
+            if (op_type == "Or") sim_op_type = "aten::logical_or";
+            if (op_type == "Xor") sim_op_type = "aten::logical_xor";
             if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
@@ -880,7 +987,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                             i64 = tensor.int64_data().at(0);
                         }
                         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                         op_const->params["value"] = (int)i64;
                     }
                     else if (tensor.data_type() == onnx::TensorProto::FLOAT)
@@ -966,7 +1075,9 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                         {
                             int64_t i64 = ai[k];
                             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                             expr += std::to_string(i64);
                             if (k != (int)ai.size() - 1)
                                 expr += ",";
@@ -992,7 +1103,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                     op_const_out->producer = op_const;
                     op_const->outputs.push_back(op_const_out);
 
-                    op_const->attrs["data"] = tensor;
+                    op_const->attrs["data"] = Attribute(tensor, external_data);
                 }
 
                 op_in = pnnx_graph.get_operand(input);
@@ -1027,18 +1138,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
         if (is_function_op)
         {
-            const onnx2pnnx::OnnxFunctionProxy function = modelproxy.function(node.op_type(), node.name());
-
-            for (const auto& ow : onnx2pnnx::get_global_pnnx_fuse_function_passes())
-            {
-                if (sim_op_type != ow->match_type_str())
-                    continue;
-
-                op->type = ow->type_str();
-                ow->write(op, function);
-
-                break;
-            }
+            fprintf(stderr, "function %s not handled\n", sim_op_type.c_str());
         }
         else if (is_aten_op)
         {
@@ -1092,6 +1192,57 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 op->outputs.clear();
                 op->outputs.push_back(op1_in);
             }
+
+            if (op_type == "Einsum")
+            {
+                // insert for einsum prim::ListConstruct
+                Operator* opm1 = pnnx_graph.new_operator_before("prim::ListConstruct", op->name + "_listconstruct", op);
+                Operand* opm1_out = pnnx_graph.new_operand(op->name + "_in");
+                opm1_out->producer = opm1;
+                opm1->outputs.push_back(opm1_out);
+                for (auto& x : op->inputs)
+                {
+                    opm1->inputs.push_back(x);
+                    x->remove_consumer(op);
+                    x->consumers.push_back(opm1);
+                }
+                opm1_out->consumers.push_back(op);
+                op->inputs.clear();
+                op->inputs.push_back(opm1_out);
+            }
+
+            if (op_type == "Sum")
+            {
+                // unroll sum
+                if (op->inputs.size() > 2)
+                {
+                    std::vector<Operand*> more_inputs(op->inputs.begin() + 2, op->inputs.end());
+                    op->inputs.resize(2);
+
+                    Operator* last_op = op;
+                    for (size_t j = 0; j < more_inputs.size(); j++)
+                    {
+                        Operand* x = more_inputs[j];
+
+                        Operator* op1 = pnnx_graph.new_operator_after("aten::add", op->name + "_sum" + std::to_string(j + 1), last_op);
+                        Operand* op1_in = pnnx_graph.new_operand(op->name + "_sum" + std::to_string(j));
+                        Operand* op1_out = last_op->outputs[0];
+                        op1_in->consumers.push_back(op1);
+                        op1_in->producer = last_op;
+                        last_op->outputs[0] = op1_in;
+                        op1_out->producer = op1;
+                        op1->inputs.push_back(op1_in);
+                        op1->inputs.push_back(x);
+                        x->consumers.clear();
+                        x->consumers.push_back(op1);
+                        op1->outputs.push_back(op1_out);
+
+                        last_op = op1;
+                    }
+
+                    op->name = op->name + "_sum0";
+                }
+            }
         }
         else if (is_prim_op)
         {
@@ -1125,6 +1276,10 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
     fuse_list_unpack(pnnx_graph);
 
     constant_unpooling(pnnx_graph);
+
+    shape_unpooling(pnnx_graph);
+
+    eliminate_cat_before_reshape(pnnx_graph);
 }
 
 } // namespace pnnx

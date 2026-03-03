@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_slice_indices.h"
 
@@ -188,18 +177,18 @@ void fuse_slice_indices(Graph& graph)
                         char tmp[32];
                         if (sop->params.at("start").type == 0)
                         {
-                            sprintf(tmp, "0");
+                            snprintf(tmp, 32, "0");
                         }
                         else
                         {
-                            sprintf(tmp, "%d", sop->params.at("start").i);
+                            snprintf(tmp, 32, "%d", sop->params.at("start").i);
                         }
                         starts_indexes.push_back(tmp);
                     }
                     else
                     {
                         char tmp[32];
-                        sprintf(tmp, "@%d", (int)op_starts->inputs.size());
+                        snprintf(tmp, 32, "@%d", (int)op_starts->inputs.size());
                         starts_indexes.push_back(tmp);
                         Operand* start = sop->named_input("start");
                         op_starts->inputs.push_back(start);
@@ -216,18 +205,18 @@ void fuse_slice_indices(Graph& graph)
                         char tmp[32];
                         if (sop->params.at("end").type == 0)
                         {
-                            sprintf(tmp, "%d", INT_MAX);
+                            snprintf(tmp, 32, "%d", INT_MAX);
                         }
                         else
                         {
-                            sprintf(tmp, "%d", sop->params.at("end").i);
+                            snprintf(tmp, 32, "%d", sop->params.at("end").i);
                         }
                         ends_indexes.push_back(tmp);
                     }
                     else
                     {
                         char tmp[32];
-                        sprintf(tmp, "@%d", (int)op_ends->inputs.size());
+                        snprintf(tmp, 32, "@%d", (int)op_ends->inputs.size());
                         ends_indexes.push_back(tmp);
                         Operand* end = sop->named_input("end");
                         op_ends->inputs.push_back(end);
@@ -244,18 +233,18 @@ void fuse_slice_indices(Graph& graph)
                         char tmp[32];
                         if (sop->params.at("step").type == 0)
                         {
-                            sprintf(tmp, "1");
+                            snprintf(tmp, 32, "1");
                         }
                         else
                         {
-                            sprintf(tmp, "%d", sop->params.at("step").i);
+                            snprintf(tmp, 32, "%d", sop->params.at("step").i);
                         }
                         steps_indexes.push_back(tmp);
                     }
                     else
                     {
                         char tmp[32];
-                        sprintf(tmp, "@%d", (int)op_steps->inputs.size());
+                        snprintf(tmp, 32, "@%d", (int)op_steps->inputs.size());
                         steps_indexes.push_back(tmp);
                         Operand* step = sop->named_input("step");
                         op_steps->inputs.push_back(step);
@@ -270,7 +259,7 @@ void fuse_slice_indices(Graph& graph)
                     else
                     {
                         char tmp[32];
-                        sprintf(tmp, "%d", INT_MAX);
+                        snprintf(tmp, 32, "%d", INT_MAX);
                         selects_indexes.push_back(tmp);
                     }
                 }
@@ -312,18 +301,18 @@ void fuse_slice_indices(Graph& graph)
                         char tmp[32];
                         if (sop->params.at("index").type == 0)
                         {
-                            sprintf(tmp, "0");
+                            snprintf(tmp, 32, "0");
                         }
                         else
                         {
-                            sprintf(tmp, "%d", sop->params.at("index").i);
+                            snprintf(tmp, 32, "%d", sop->params.at("index").i);
                         }
                         selects_indexes.push_back(tmp);
                     }
                     else
                     {
                         char tmp[32];
-                        sprintf(tmp, "@%d", (int)op_selects->inputs.size());
+                        snprintf(tmp, 32, "@%d", (int)op_selects->inputs.size());
                         selects_indexes.push_back(tmp);
                         Operand* index = sop->named_input("index");
                         op_selects->inputs.push_back(index);
@@ -361,18 +350,18 @@ void fuse_slice_indices(Graph& graph)
                     char tmp[32];
                     if (op->params.at("start").type == 0)
                     {
-                        sprintf(tmp, "0");
+                        snprintf(tmp, 32, "0");
                     }
                     else
                     {
-                        sprintf(tmp, "%d", op->params.at("start").i);
+                        snprintf(tmp, 32, "%d", op->params.at("start").i);
                     }
                     starts_indexes.push_back(tmp);
                 }
                 else
                 {
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_starts->inputs.size());
+                    snprintf(tmp, 32, "@%d", (int)op_starts->inputs.size());
                     starts_indexes.push_back(tmp);
                     Operand* start = op->named_input("start");
                     op_starts->inputs.push_back(start);
@@ -389,18 +378,18 @@ void fuse_slice_indices(Graph& graph)
                     char tmp[32];
                     if (op->params.at("end").type == 0)
                     {
-                        sprintf(tmp, "%d", INT_MAX);
+                        snprintf(tmp, 32, "%d", INT_MAX);
                     }
                     else
                     {
-                        sprintf(tmp, "%d", op->params.at("end").i);
+                        snprintf(tmp, 32, "%d", op->params.at("end").i);
                     }
                     ends_indexes.push_back(tmp);
                 }
                 else
                 {
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_ends->inputs.size());
+                    snprintf(tmp, 32, "@%d", (int)op_ends->inputs.size());
                     ends_indexes.push_back(tmp);
                     Operand* end = op->named_input("end");
                     op_ends->inputs.push_back(end);
@@ -417,18 +406,18 @@ void fuse_slice_indices(Graph& graph)
                     char tmp[32];
                     if (op->params.at("step").type == 0)
                     {
-                        sprintf(tmp, "1");
+                        snprintf(tmp, 32, "1");
                     }
                     else
                     {
-                        sprintf(tmp, "%d", op->params.at("step").i);
+                        snprintf(tmp, 32, "%d", op->params.at("step").i);
                     }
                     steps_indexes.push_back(tmp);
                 }
                 else
                 {
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_steps->inputs.size());
+                    snprintf(tmp, 32, "@%d", (int)op_steps->inputs.size());
                     steps_indexes.push_back(tmp);
                     Operand* step = op->named_input("step");
                     op_steps->inputs.push_back(step);
@@ -443,7 +432,7 @@ void fuse_slice_indices(Graph& graph)
                 else if (op->has_param("index"))
                 {
                     char tmp[32];
-                    sprintf(tmp, "%d", INT_MAX);
+                    snprintf(tmp, 32, "%d", INT_MAX);
                     selects_indexes.push_back(tmp);
                 }
             }
@@ -485,18 +474,18 @@ void fuse_slice_indices(Graph& graph)
                     char tmp[32];
                     if (op->params.at("index").type == 0)
                     {
-                        sprintf(tmp, "0");
+                        snprintf(tmp, 32, "0");
                     }
                     else
                     {
-                        sprintf(tmp, "%d", op->params.at("index").i);
+                        snprintf(tmp, 32, "%d", op->params.at("index").i);
                     }
                     selects_indexes.push_back(tmp);
                 }
                 else
                 {
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_selects->inputs.size());
+                    snprintf(tmp, 32, "@%d", (int)op_selects->inputs.size());
                     selects_indexes.push_back(tmp);
                     Operand* index = op->named_input("index");
                     op_selects->inputs.push_back(index);

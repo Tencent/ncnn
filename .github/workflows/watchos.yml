@@ -26,7 +26,7 @@ concurrency:
   group: watchos-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_16.4.0.app/Contents/Developer
   WATCHOS_DEPLOYMENT_TARGET: '6.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
@@ -47,7 +47,6 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DPERL_EXECUTABLE=/usr/local/bin/perl \
         -DLIBOMP_ENABLE_SHARED=OFF \
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
@@ -65,14 +64,14 @@ jobs:
         -DOpenMP_libomp_LIBRARY="libomp.a" \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: openmp-install
-        key: openmp-watchos-install-20240402
+        key: openmp-watchos-install-20251004
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |

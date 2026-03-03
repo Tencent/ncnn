@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "innerproduct_riscv.h"
 
@@ -431,7 +420,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p * packn;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                     if (bias_term)
                     {
@@ -468,7 +457,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_tm + num_input * p;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                    vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                     if (bias_term)
                     {
@@ -561,7 +550,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             const size_t vl = __riscv_vsetvl_e16m1(packn);
-            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias_term)
             {

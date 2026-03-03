@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_LAYER_H
 #define NCNN_LAYER_H
@@ -74,15 +63,18 @@ public:
     // accept int8
     bool support_int8_storage;
 
-    // shader image storage
-    bool support_image_storage;
-
     // shader tensor storage
     bool support_tensor_storage;
 
-    bool support_reserved_00;
+    // vulkan accept input blob with packed storage
+    bool support_vulkan_packing;
 
-    bool support_reserved_0;
+    // accept input blob with any elempack
+    bool support_any_packing;
+
+    // vulkan accept input blob with any elempack
+    bool support_vulkan_any_packing;
+
     bool support_reserved_1;
     bool support_reserved_2;
     bool support_reserved_3;
@@ -118,20 +110,10 @@ public:
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
-    // implement inference
-    // return 0 if success
-    virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
     // implement inplace inference
     // return 0 if success
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-
-    // implement inplace inference
-    // return 0 if success
-    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
-    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     // assigned immediately after creating this layer

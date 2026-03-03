@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
@@ -105,7 +94,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 
                 sum = activation_ss(sum, activation_type, activation_params);
 
-                outptr[j] = sum;
+                outptr[j] = (__fp16)sum;
             }
 
             outptr += outw;
@@ -143,14 +132,14 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
         {
             for (int j = 0; j < outw; j++)
             {
-                __fp16 sum = 0.f;
+                __fp16 sum = (__fp16)0.f;
 
                 if (bias_data_ptr)
                 {
                     sum = bias_data_ptr[p];
                 }
 
-                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * channels * p * packn;
 
@@ -194,9 +183,9 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
 
                 sum = __riscv_vfmv_f_s_f16m1_f16(__riscv_vfredusum_vs_f16m1_f16m1(_sum, __riscv_vfmv_s_f_f16m1(sum, vl), vl));
 
-                sum = activation_ss(sum, activation_type, activation_params);
+                sum = (__fp16)activation_ss(sum, activation_type, activation_params);
 
-                outptr[j] = sum;
+                outptr[j] = (__fp16)sum;
             }
 
             outptr += outw;

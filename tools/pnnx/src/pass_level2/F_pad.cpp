@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -474,10 +463,76 @@ pnnx.Output             output      1 0 out
     {
         F_pad_onnx::write(op, captured_params);
 
-        op->params["value"] = captured_params.at("value");
+        const std::string& mode = captured_params.at("mode").s;
+        if (mode == "constant")
+        {
+            op->params["value"] = captured_params.at("value");
+        }
+        else
+        {
+            op->params["value"] = Parameter();
+        }
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_onnx_1, 110)
+
+class F_pad_tnn : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+tnn.PadV2               op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pad";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int ndim = captured_params.at("op_0.arg0").i;
+
+        std::vector<int> pads(ndim * 2);
+        for (int i = 0; i < ndim; i++)
+        {
+            pads[(ndim - 1 - i) * 2] = captured_params.at("op_0.arg" + std::to_string(i + 1)).i;
+        }
+        for (int i = 0; i < ndim; i++)
+        {
+            pads[(ndim - 1 - i) * 2 + 1] = captured_params.at("op_0.arg" + std::to_string(ndim + i + 1)).i;
+        }
+
+        // strip zero pads for higher dims
+        // (3,3,0,0,0,0) to (3,3)
+        for (int i = ndim - 1; i >= 0; i--)
+        {
+            if (pads[i * 2] == 0 && pads[i * 2 + 1] == 0)
+                pads.resize(i * 2);
+        }
+
+        op->params["pad"] = pads;
+
+        const int type = captured_params.at("op_0.arg" + std::to_string(ndim * 2 + 1)).i;
+        if (type == 0)
+        {
+            op->params["mode"] = "constant";
+            op->params["value"] = captured_params.at("op_0.arg" + std::to_string(ndim * 2 + 2));
+        }
+        if (type == 1)
+        {
+            op->params["mode"] = "reflect";
+            op->params["value"] = Parameter();
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_tnn, 110)
 
 } // namespace pnnx

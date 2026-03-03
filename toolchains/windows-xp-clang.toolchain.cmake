@@ -1,0 +1,33 @@
+# Windows XP Clang Toolchain
+# Supports building ncnn for Windows XP using Clang with MinGW libraries
+# Contributors: @Sugar-Baby and @AtomAlpaca
+
+set(CMAKE_SYSTEM_NAME Windows)
+
+if(DEFINED ENV{MINGW32_ROOT_PATH})
+    file(TO_CMAKE_PATH $ENV{MINGW32_ROOT_PATH} MINGW32_ROOT_PATH)
+else()
+    message(FATAL_ERROR "MINGW32_ROOT_PATH env must be defined")
+endif()
+
+set(CMAKE_C_COMPILER "clang.exe")
+set(CMAKE_CXX_COMPILER "clang++.exe")
+set(CMAKE_AR "$ENV{MINGW32_ROOT_PATH}/bin/ar.exe" CACHE FILEPATH "Archiver")
+set(CMAKE_RANLIB "$ENV{MINGW32_ROOT_PATH}/bin/ranlib.exe" CACHE FILEPATH "Ranlib")
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=i686-pc-windows-gnu -D_WIN32_WINNT=0x0501 -static --sysroot=${MINGW32_ROOT_PATH} -D__STRICT_ANSI__")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --target=i686-pc-windows-gnu -D_WIN32_WINNT=0x0501 -static --sysroot=${MINGW32_ROOT_PATH} -D__STRICT_ANSI__")
+
+# cache flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
+
+set(STATIC_LINK_FLAGS "-static")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${STATIC_LINK_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${STATIC_LINK_FLAGS}")

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
@@ -362,6 +351,7 @@ static int test_gemm_int8_fp16s(int M, int N, int K, float alpha, int transA, in
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = true;
     opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
     opt.use_bf16_storage = false;
 
     float epsilon = 0.001;
@@ -391,23 +381,23 @@ static int test_gemm_0(int M, int N, int K)
 
            || test_gemm_int8(M, N, K, 1.2f, 0, 1, 0, 0, 1, 1, 0)
            || test_gemm_int8(M, N, K, 1.3f, 1, 1, 0, 0, 1, 1, 1)
-           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 1, 0)
-           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 1, 1)
+           || test_gemm_int8(M, N, K, 1.4f, 0, 0, 0, 0, 1, 0, 0)
+           || test_gemm_int8(M, N, K, 1.5f, 1, 0, 0, 0, 1, 0, 1)
 
-           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 0, 0, 0)
-           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 0, 0, 0)
-           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 0, 0, 1)
-           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, -1.2f, 0, 1, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -1.3f, 1, 1, 0, 1, 1, 1, 0)
+           || test_gemm_int8(M, N, K, -1.4f, 0, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -1.5f, 1, 0, 0, 1, 1, 1, 1)
 
-           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 1, 0, 1)
-           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 1, 0, 1)
-           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 0, 1, 0)
-           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 0, 1, 0)
+           || test_gemm_int8(M, N, K, -2.0f, 0, 1, 0, 1, 0, 1, 1)
+           || test_gemm_int8(M, N, K, -3.0f, 1, 1, 0, 1, 0, 1, 1)
+           || test_gemm_int8(M, N, K, -4.0f, 0, 0, 0, 1, 1, 0, 0)
+           || test_gemm_int8(M, N, K, -5.0f, 0, 1, 0, 1, 1, 0, 0)
 
-           || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 1, 1, 1)
-           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 1, 1, 0)
-           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 1, 1, 1)
+           || test_gemm_int8(M, N, K, -2.1f, 0, 1, 0, 1, 0, 0, 0)
+           || test_gemm_int8(M, N, K, -3.1f, 1, 1, 0, 1, 0, 0, 1)
+           || test_gemm_int8(M, N, K, -4.1f, 0, 0, 0, 1, 0, 1, 0)
+           || test_gemm_int8(M, N, K, -5.1f, 1, 0, 0, 1, 0, 1, 1)
 
            || test_gemm_int8_fp16s(M, N, K, 1.f, 0, 1, 0, 0, 0, 0, 0)
            || test_gemm_int8_fp16s(M, N, K, 1.f, 1, 0, 0, 1, 0, 0, 0);

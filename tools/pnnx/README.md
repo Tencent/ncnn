@@ -498,7 +498,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
-|nn.Hardshrink              | :heavy_check_mark: |
+|nn.Hardshrink              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
@@ -545,6 +545,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ReplicationPad1d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad2d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad3d        | :heavy_check_mark: |
+|nn.RMSNorm                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.RNN                     | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.RNNBase                 |   |
 |nn.RNNCell                 |   |
@@ -556,7 +557,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Softmax2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
-|nn.Softshrink              | :heavy_check_mark: |
+|nn.Softshrink              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softsign                | :heavy_check_mark: |
 |nn.SyncBatchNorm           |   |
 |nn.Tanh                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -602,7 +603,6 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.dropout2d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.dropout3d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu                      | :heavy_check_mark: | :heavy_check_mark: |
-|F.elu_                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
@@ -614,16 +614,14 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.grid_sample              | :heavy_check_mark: | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
-|F.hardshrink               | :heavy_check_mark: |
+|F.hardshrink               | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardsigmoid              | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardswish                | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardtanh                 | :heavy_check_mark: | :heavy_check_mark: |
-|F.hardtanh_                | :heavy_check_mark: | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: | :heavy_check_mark: |
 |F.interpolate              | :heavy_check_mark: | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.leaky_relu               | :heavy_check_mark: | :heavy_check_mark: |
-|F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: | :heavy_check_mark: |
@@ -646,10 +644,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.pixel_unshuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |F.prelu                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.relu_                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
+|F.rms_norm                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
-|F.rrelu_                   | :heavy_check_mark: |
 |F.scaled_dot_product_attention | :heavy_check_mark: |                |
 |F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.sigmoid                  | :heavy_check_mark: | :heavy_check_mark: |
@@ -657,13 +654,98 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.softmax                  | :heavy_check_mark: | :heavy_check_mark: |
 |F.softmin                  | :heavy_check_mark: |
 |F.softplus                 | :heavy_check_mark: |
-|F.softshrink               | :heavy_check_mark: |
+|F.softshrink               | :heavy_check_mark: | :heavy_check_mark: |
 |F.softsign                 | :heavy_check_mark: |
 |F.tanh                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
-|F.threshold_               | :heavy_check_mark: |
 |F.unfold                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_nearest         | :heavy_check_mark: | :heavy_check_mark: |
+
+# Supported ONNX operator status
+
+| onnx        | Is Supported | Export to ncnn | Note |
+|---------------------------|----|---|---|
+|Abs                        | :heavy_check_mark: | :heavy_check_mark: |
+|Acos                       | :heavy_check_mark: | :heavy_check_mark: |
+|Add                        | :heavy_check_mark: | :heavy_check_mark: |
+|Asin                       | :heavy_check_mark: | :heavy_check_mark: |
+|Atan                       | :heavy_check_mark: | :heavy_check_mark: |
+|AveragePool                | :heavy_check_mark: | :heavy_check_mark: |
+|BatchNormalization         | :heavy_check_mark: | :heavy_check_mark: | only training_mode=0 |
+|Ceil                       | :heavy_check_mark: | :heavy_check_mark: |
+|Celu                       | :heavy_check_mark: | :heavy_check_mark: |
+|Clip                       | :heavy_check_mark: | :heavy_check_mark: |
+|Concat                     | :heavy_check_mark: | :heavy_check_mark: |
+|Constant                   | :heavy_check_mark: | :heavy_check_mark: |
+|Conv                       | :heavy_check_mark: | :heavy_check_mark: |
+|ConvTranspose              | :heavy_check_mark: | :heavy_check_mark: | no auto_pad=SAME |
+|Cos                        | :heavy_check_mark: | :heavy_check_mark: |
+|DepthToSpace               | :heavy_check_mark: | :heavy_check_mark: | only mode='CRD' |
+|Div                        | :heavy_check_mark: | :heavy_check_mark: |
+|Dropout                    | :heavy_check_mark: | :heavy_check_mark: |
+|Elu                        | :heavy_check_mark: | :heavy_check_mark: |
+|Erf                        |  |
+|Exp                        | :heavy_check_mark: | :heavy_check_mark: |
+|Flatten                    | :heavy_check_mark: | :heavy_check_mark: |
+|Floor                      | :heavy_check_mark: | :heavy_check_mark: |
+|GRU                        | :heavy_check_mark: | :heavy_check_mark: | with post squeeze/transpose+reshape |
+|Gelu                       | :heavy_check_mark: | :heavy_check_mark: |
+|Gemm                       | :heavy_check_mark: | :heavy_check_mark: |
+|GlobalAveragePool          | :heavy_check_mark: | :heavy_check_mark: |
+|GlobalMaxPool              | :heavy_check_mark: | :heavy_check_mark: |
+|GroupNormalization         | :heavy_check_mark: | :heavy_check_mark: |
+|HardSigmoid                | :heavy_check_mark: | :heavy_check_mark: |
+|HardSwish                  | :heavy_check_mark: | :heavy_check_mark: |
+|InstanceNormalization      | :heavy_check_mark: | :heavy_check_mark: |
+|LRN                        | :heavy_check_mark: | :heavy_check_mark: |
+|LSTM                       | :heavy_check_mark: | :heavy_check_mark: | with post squeeze/transpose+reshape |
+|LayerNormalization         | :heavy_check_mark: | :heavy_check_mark: |
+|LeakyRelu                  | :heavy_check_mark: | :heavy_check_mark: |
+|Log                        | :heavy_check_mark: | :heavy_check_mark: |
+|LogSoftmax                 | :heavy_check_mark: | :heavy_check_mark: |
+|MatMul                     | :heavy_check_mark: | :heavy_check_mark: |
+|Max                        | :heavy_check_mark: | :heavy_check_mark: |
+|MaxPool                    | :heavy_check_mark: | :heavy_check_mark: |
+|Min                        | :heavy_check_mark: | :heavy_check_mark: |
+|Mish                       | :heavy_check_mark: | :heavy_check_mark: |
+|Mul                        | :heavy_check_mark: | :heavy_check_mark: |
+|Neg                        | :heavy_check_mark: | :heavy_check_mark: |
+|PRelu                      | :heavy_check_mark: | :heavy_check_mark: |
+|Pad                        | :heavy_check_mark: | :heavy_check_mark: |
+|Pow                        | :heavy_check_mark: | :heavy_check_mark: |
+|RNN                        | :heavy_check_mark: | :heavy_check_mark: | with post squeeze/transpose+reshape |
+|Reciprocal                 | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceL1                   | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceL2                   | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceLogSum               | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceLogSumExp            | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceMax                  | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceMean                 | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceMin                  | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceProd                 | :heavy_check_mark: | :heavy_check_mark: | unroll axes |
+|ReduceSum                  | :heavy_check_mark: | :heavy_check_mark: |
+|ReduceSumSquare            | :heavy_check_mark: | :heavy_check_mark: |
+|Relu                       | :heavy_check_mark: | :heavy_check_mark: |
+|Reshape                    | :heavy_check_mark: | :heavy_check_mark: |
+|Resize                     | :heavy_check_mark: | :heavy_check_mark: |
+|RMSNormalization           | :heavy_check_mark: | :heavy_check_mark: |
+|Selu                       | :heavy_check_mark: | :heavy_check_mark: |
+|Shrink                     | :heavy_check_mark: | :heavy_check_mark: | only bias==0/lambda |
+|Sigmoid                    | :heavy_check_mark: | :heavy_check_mark: |
+|Sin                        | :heavy_check_mark: | :heavy_check_mark: |
+|Slice                      | :heavy_check_mark: | :heavy_check_mark: |
+|Softmax                    | :heavy_check_mark: | :heavy_check_mark: |
+|Softplus                   | :heavy_check_mark: | :heavy_check_mark: |
+|Split                      | :heavy_check_mark: | :heavy_check_mark: |
+|Sqrt                       | :heavy_check_mark: | :heavy_check_mark: |
+|Squeeze                    | :heavy_check_mark: | :heavy_check_mark: |
+|Sub                        | :heavy_check_mark: | :heavy_check_mark: |
+|Sum                        | :heavy_check_mark: | :heavy_check_mark: |
+|Tan                        | :heavy_check_mark: | :heavy_check_mark: |
+|Tanh                       | :heavy_check_mark: | :heavy_check_mark: |
+|Transpose                  | :heavy_check_mark: | :heavy_check_mark: |
+|Unsqueeze                  | :heavy_check_mark: | :heavy_check_mark: | unroll axes |
+|Upsample                   |  |
