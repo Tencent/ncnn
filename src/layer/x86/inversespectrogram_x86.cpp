@@ -4,6 +4,21 @@
 
 #include "gemm.h"
 
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
+#include "x86_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
 
 InverseSpectrogram_x86::InverseSpectrogram_x86()
@@ -210,7 +225,7 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
         inputs.push_back(B);
 
         std::vector<Mat> outputs;
-        outputs.emplace_back();
+        outputs.push_back(Mat());
 
         Option opt_g = opt;
         opt_g.use_packing_layout = false;
@@ -227,7 +242,7 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
         inputs.push_back(B);
 
         std::vector<Mat> outputs;
-        outputs.emplace_back();
+        outputs.push_back(Mat());
 
         Option opt_g = opt;
         opt_g.use_packing_layout = false;
@@ -279,7 +294,116 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
     // square window norm
     if (returns == 0)
     {
-        for (int i = 0; i < outsize; i++)
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < outsize; i += 16)
+        {
+            __m512 wss = _mm512_loadu_ps((const float*)window_sumsquare + i);
+            __mmask16 mask = _mm512_cmp_ps_mask(wss, _mm512_setzero_ps(), _MM_CMPINT_NE);
+            if (mask)
+            {
+                __m512 inv_wss = _mm512_div_ps(_mm512_set1_ps(1.0f), wss);
+                
+                float re_buf[16], im_buf[16];
+                for (int k = 0; k < 16; k++)
+                {
+                    re_buf[k] = top_blob.row(i + k)[0];
+                    im_buf[k] = top_blob.row(i + k)[1];
+                }
+                
+                __m512 re_vals = _mm512_loadu_ps(re_buf);
+                __m512 im_vals = _mm512_loadu_ps(im_buf);
+                
+                re_vals = _mm512_mul_ps(re_vals, inv_wss);
+                im_vals = _mm512_mul_ps(im_vals, inv_wss);
+                
+                _mm512_storeu_ps(re_buf, re_vals);
+                _mm512_storeu_ps(im_buf, im_vals);
+                
+                for (int k = 0; k < 16; k++)
+                {
+                    if (((const float*)window_sumsquare)[i + k] != 0.f)
+                    {
+                        top_blob.row(i + k)[0] = re_buf[k];
+                        top_blob.row(i + k)[1] = im_buf[k];
+                    }
+                }
+            }
+        }
+#endif // __AVX512F__
+        for (; i + 7 < outsize; i += 8)
+        {
+            __m256 wss = _mm256_loadu_ps((const float*)window_sumsquare + i);
+            __m256 mask = _mm256_cmp_ps(wss, _mm256_setzero_ps(), _MM_CMPINT_NE);
+            if (_mm256_movemask_ps(mask))
+            {
+                __m256 inv_wss = _mm256_div_ps(_mm256_set1_ps(1.0f), wss);
+                
+                float re_buf[8], im_buf[8];
+                for (int k = 0; k < 8; k++)
+                {
+                    re_buf[k] = top_blob.row(i + k)[0];
+                    im_buf[k] = top_blob.row(i + k)[1];
+                }
+                
+                __m256 re_vals = _mm256_loadu_ps(re_buf);
+                __m256 im_vals = _mm256_loadu_ps(im_buf);
+                
+                re_vals = _mm256_mul_ps(re_vals, inv_wss);
+                im_vals = _mm256_mul_ps(im_vals, inv_wss);
+                
+                _mm256_storeu_ps(re_buf, re_vals);
+                _mm256_storeu_ps(im_buf, im_vals);
+                
+                for (int k = 0; k < 8; k++)
+                {
+                    if (((const float*)window_sumsquare)[i + k] != 0.f)
+                    {
+                        top_blob.row(i + k)[0] = re_buf[k];
+                        top_blob.row(i + k)[1] = im_buf[k];
+                    }
+                }
+            }
+        }
+#endif // __AVX__
+        for (; i + 3 < outsize; i += 4)
+        {
+            __m128 wss = _mm_loadu_ps((const float*)window_sumsquare + i);
+            __m128 mask = _mm_cmpneq_ps(wss, _mm_setzero_ps());
+            if (_mm_movemask_ps(mask))
+            {
+                __m128 inv_wss = _mm_div_ps(_mm_set1_ps(1.0f), wss);
+                
+                float re_buf[4], im_buf[4];
+                for (int k = 0; k < 4; k++)
+                {
+                    re_buf[k] = top_blob.row(i + k)[0];
+                    im_buf[k] = top_blob.row(i + k)[1];
+                }
+                
+                __m128 re_vals = _mm_loadu_ps(re_buf);
+                __m128 im_vals = _mm_loadu_ps(im_buf);
+                
+                re_vals = _mm_mul_ps(re_vals, inv_wss);
+                im_vals = _mm_mul_ps(im_vals, inv_wss);
+                
+                _mm_storeu_ps(re_buf, re_vals);
+                _mm_storeu_ps(im_buf, im_vals);
+                
+                for (int k = 0; k < 4; k++)
+                {
+                    if (((const float*)window_sumsquare)[i + k] != 0.f)
+                    {
+                        top_blob.row(i + k)[0] = re_buf[k];
+                        top_blob.row(i + k)[1] = im_buf[k];
+                    }
+                }
+            }
+        }
+#endif // __SSE2__
+        for (; i < outsize; i++)
         {
             if (window_sumsquare[i] != 0.f)
             {
@@ -290,7 +414,50 @@ int InverseSpectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const
     }
     else
     {
-        for (int i = 0; i < outsize; i++)
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < outsize; i += 16)
+        {
+            __m512 wss = _mm512_loadu_ps((const float*)window_sumsquare + i);
+            __mmask16 mask = _mm512_cmp_ps_mask(wss, _mm512_setzero_ps(), _MM_CMPINT_NE);
+            if (mask)
+            {
+                __m512 inv_wss = _mm512_div_ps(_mm512_set1_ps(1.0f), wss);
+                __m512 out_vals = _mm512_loadu_ps((const float*)top_blob + i);
+                out_vals = _mm512_mul_ps(out_vals, inv_wss);
+                _mm512_storeu_ps((float*)top_blob + i, out_vals);
+            }
+        }
+#endif // __AVX512F__
+        for (; i + 7 < outsize; i += 8)
+        {
+            __m256 wss = _mm256_loadu_ps((const float*)window_sumsquare + i);
+            __m256 mask = _mm256_cmp_ps(wss, _mm256_setzero_ps(), _MM_CMPINT_NE);
+            if (_mm256_movemask_ps(mask))
+            {
+                __m256 inv_wss = _mm256_div_ps(_mm256_set1_ps(1.0f), wss);
+                __m256 out_vals = _mm256_loadu_ps((const float*)top_blob + i);
+                out_vals = _mm256_mul_ps(out_vals, inv_wss);
+                _mm256_storeu_ps((float*)top_blob + i, out_vals);
+            }
+        }
+#endif // __AVX__
+        for (; i + 3 < outsize; i += 4)
+        {
+            __m128 wss = _mm_loadu_ps((const float*)window_sumsquare + i);
+            __m128 mask = _mm_cmpneq_ps(wss, _mm_setzero_ps());
+            if (_mm_movemask_ps(mask))
+            {
+                __m128 inv_wss = _mm_div_ps(_mm_set1_ps(1.0f), wss);
+                __m128 out_vals = _mm_loadu_ps((const float*)top_blob + i);
+                out_vals = _mm_mul_ps(out_vals, inv_wss);
+                _mm_storeu_ps((float*)top_blob + i, out_vals);
+            }
+        }
+#endif // __SSE2__
+        for (; i < outsize; i++)
         {
             if (window_sumsquare[i] != 0.f)
                 top_blob[i] /= window_sumsquare[i];

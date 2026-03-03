@@ -5,6 +5,21 @@
 #include "unfold.h"
 #include "gemm.h"
 
+#if __SSE2__
+#include <emmintrin.h>
+#include "sse_mathfun.h"
+#if __AVX__
+#include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+
+#include "x86_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
 
 Spectrogram_x86::Spectrogram_x86()
@@ -177,7 +192,7 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         inputs.push_back(cols);
 
         std::vector<Mat> outputs;
-        outputs.emplace_back();
+        outputs.push_back(Mat());
 
         Option opt_g = opt;
         opt_g.use_packing_layout = false;
@@ -207,28 +222,217 @@ int Spectrogram_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (power == 1) // magnitude sqrt(re * re + im * im);
         {
-            // copy
-            for (int i = 0; i < frames; i++)
+            // copy with simd optimization
+            int total = frames * n_freq;
+            int i = 0;
+
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+            for (; i + 15 < total; i += 16)
             {
-                for (int j = 0; j < n_freq; j++)
+                __m512 re_vals = _mm512_setzero_ps();
+                __m512 im_vals = _mm512_setzero_ps();
+                
+                // gather real and imaginary parts
+                // process 16 elements at a time
+                float re_buf[16], im_buf[16];
+                for (int k = 0; k < 16; k++)
                 {
-                    float re = y[j * frames + i];
-                    float im = y[(j + n_freq) * frames + i];
-                    top_blob.row<float>(j)[i] = sqrtf(re * re + im * im);
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
                 }
+                re_vals = _mm512_loadu_ps(re_buf);
+                im_vals = _mm512_loadu_ps(im_buf);
+                
+                __m512 sq = _mm512_add_ps(_mm512_mul_ps(re_vals, re_vals), _mm512_mul_ps(im_vals, im_vals));
+                __m512 mag = _mm512_sqrt_ps(sq);
+                
+                float out_buf[16];
+                _mm512_storeu_ps(out_buf, mag);
+                
+                for (int k = 0; k < 16; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __AVX512F__
+            for (; i + 7 < total; i += 8)
+            {
+                __m256 re_vals = _mm256_setzero_ps();
+                __m256 im_vals = _mm256_setzero_ps();
+                
+                float re_buf[8], im_buf[8];
+                for (int k = 0; k < 8; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
+                }
+                re_vals = _mm256_loadu_ps(re_buf);
+                im_vals = _mm256_loadu_ps(im_buf);
+                
+                __m256 sq = _mm256_add_ps(_mm256_mul_ps(re_vals, re_vals), _mm256_mul_ps(im_vals, im_vals));
+                __m256 mag = _mm256_sqrt_ps(sq);
+                
+                float out_buf[8];
+                _mm256_storeu_ps(out_buf, mag);
+                
+                for (int k = 0; k < 8; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __AVX__
+            for (; i + 3 < total; i += 4)
+            {
+                __m128 re_vals = _mm_setzero_ps();
+                __m128 im_vals = _mm_setzero_ps();
+                
+                float re_buf[4], im_buf[4];
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
+                }
+                re_vals = _mm_loadu_ps(re_buf);
+                im_vals = _mm_loadu_ps(im_buf);
+                
+                __m128 sq = _mm_add_ps(_mm_mul_ps(re_vals, re_vals), _mm_mul_ps(im_vals, im_vals));
+                __m128 mag = _mm_sqrt_ps(sq);
+                
+                float out_buf[4];
+                _mm_storeu_ps(out_buf, mag);
+                
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __SSE2__
+            for (; i < total; i++)
+            {
+                int idx_i = i % frames;
+                int idx_j = i / frames;
+                float re = y[idx_j * frames + idx_i];
+                float im = y[(idx_j + n_freq) * frames + idx_i];
+                top_blob.row<float>(idx_j)[idx_i] = sqrtf(re * re + im * im);
             }
         }
         else if (power == 2) // power re * re + im * im;
         {
-            // copy
-            for (int i = 0; i < frames; i++)
+            // copy with simd optimization
+            int total = frames * n_freq;
+            int i = 0;
+
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+            for (; i + 15 < total; i += 16)
             {
-                for (int j = 0; j < n_freq; j++)
+                __m512 re_vals = _mm512_setzero_ps();
+                __m512 im_vals = _mm512_setzero_ps();
+                
+                float re_buf[16], im_buf[16];
+                for (int k = 0; k < 16; k++)
                 {
-                    float re = y[j * frames + i];
-                    float im = y[(j + n_freq) * frames + i];
-                    top_blob.row<float>(j)[i] = re * re + im * im;
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
                 }
+                re_vals = _mm512_loadu_ps(re_buf);
+                im_vals = _mm512_loadu_ps(im_buf);
+                
+                __m512 sq = _mm512_add_ps(_mm512_mul_ps(re_vals, re_vals), _mm512_mul_ps(im_vals, im_vals));
+                
+                float out_buf[16];
+                _mm512_storeu_ps(out_buf, sq);
+                
+                for (int k = 0; k < 16; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __AVX512F__
+            for (; i + 7 < total; i += 8)
+            {
+                __m256 re_vals = _mm256_setzero_ps();
+                __m256 im_vals = _mm256_setzero_ps();
+                
+                float re_buf[8], im_buf[8];
+                for (int k = 0; k < 8; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
+                }
+                re_vals = _mm256_loadu_ps(re_buf);
+                im_vals = _mm256_loadu_ps(im_buf);
+                
+                __m256 sq = _mm256_add_ps(_mm256_mul_ps(re_vals, re_vals), _mm256_mul_ps(im_vals, im_vals));
+                
+                float out_buf[8];
+                _mm256_storeu_ps(out_buf, sq);
+                
+                for (int k = 0; k < 8; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __AVX__
+            for (; i + 3 < total; i += 4)
+            {
+                __m128 re_vals = _mm_setzero_ps();
+                __m128 im_vals = _mm_setzero_ps();
+                
+                float re_buf[4], im_buf[4];
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    re_buf[k] = y[idx_j * frames + idx_i];
+                    im_buf[k] = y[(idx_j + n_freq) * frames + idx_i];
+                }
+                re_vals = _mm_loadu_ps(re_buf);
+                im_vals = _mm_loadu_ps(im_buf);
+                
+                __m128 sq = _mm_add_ps(_mm_mul_ps(re_vals, re_vals), _mm_mul_ps(im_vals, im_vals));
+                
+                float out_buf[4];
+                _mm_storeu_ps(out_buf, sq);
+                
+                for (int k = 0; k < 4; k++)
+                {
+                    int idx_i = (i + k) % frames;
+                    int idx_j = (i + k) / frames;
+                    top_blob.row<float>(idx_j)[idx_i] = out_buf[k];
+                }
+            }
+#endif // __SSE2__
+            for (; i < total; i++)
+            {
+                int idx_i = i % frames;
+                int idx_j = i / frames;
+                float re = y[idx_j * frames + idx_i];
+                float im = y[(idx_j + n_freq) * frames + idx_i];
+                top_blob.row<float>(idx_j)[idx_i] = re * re + im * im;
             }
         }
     }
