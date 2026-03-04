@@ -48,10 +48,24 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     if (constantA)
     {
         A_data_packed = transA ? A_data.reshape(constantM, constantK) : A_data.reshape(constantK, constantM);
+
+        if (A_data_packed.h % 4 == 0)
+        {
+            Mat tmp;
+            convert_packing(A_data_packed, tmp, 4, opt);
+            A_data_packed = tmp;
+        }
     }
     if (constantB)
     {
         B_data_packed = transB ? B_data.reshape(constantK, constantN) : B_data.reshape(constantN, constantK);
+
+        if (B_data_packed.h % 4 == 0)
+        {
+            Mat tmp;
+            convert_packing(B_data_packed, tmp, 4, opt);
+            B_data_packed = tmp;
+        }
     }
     if (constantC)
     {
@@ -99,7 +113,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-        std::vector<vk_specialization_type> specializations(15 + 9);
+        std::vector<vk_specialization_type> specializations(17 + 9);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -115,16 +129,19 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[12].i = output_elempack;
         specializations[13].i = output_elemtype;
         specializations[14].i = output_transpose;
+        specializations[15].i = A_data_packed.elempack;
+        specializations[16].i = B_data_packed.elempack;
 
-        specializations[15].u32 = coopmat_M;
-        specializations[16].u32 = coopmat_N;
-        specializations[17].u32 = coopmat_K;
-        specializations[18].u32 = coopmat_subgroup_size;
-        specializations[19].u32 = UNROLL_SG_M;
-        specializations[20].u32 = UNROLL_SG_N;
-        specializations[21].u32 = UNROLL_SG_K;
-        specializations[22].u32 = UNROLL_WG_M;
-        specializations[23].u32 = UNROLL_WG_N;
+        specializations[17 + 0].u32 = coopmat_M;
+        specializations[17 + 1].u32 = coopmat_N;
+        specializations[17 + 2].u32 = coopmat_K;
+        specializations[17 + 3].u32 = coopmat_subgroup_size;
+        specializations[17 + 4].u32 = UNROLL_SG_M;
+        specializations[17 + 5].u32 = UNROLL_SG_N;
+        specializations[17 + 6].u32 = UNROLL_SG_K;
+        specializations[17 + 7].u32 = UNROLL_WG_M;
+        specializations[17 + 8].u32 = UNROLL_WG_N;
+
 
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
