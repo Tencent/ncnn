@@ -606,24 +606,24 @@ _RVV_FLOAT32_FMOD_OP(4, 8)
 _RVV_FLOAT32_FMOD_OP(8, 4)
 
 /* round to nearest, ties to even (banker's rounding) */
-#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                                \
-    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)                         \
-    {                                                                                                    \
-        vfloat32m##LMUL##_t absx = __riscv_vfsgnjx_vv_f32m##LMUL(x, x, vl);                              \
-        vfloat32m##LMUL##_t half = __riscv_vfmv_v_f_f32m##LMUL(0.5f, vl);                                \
-        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(absx, vl);                                 \
-        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                 \
-        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(absx, xf, vl);                            \
-        vbool##MLEN##_t diff_gt_half = __riscv_vmfgt_vv_f32m##LMUL##_b##MLEN(diff, half, vl);            \
-        vbool##MLEN##_t diff_eq_half = __riscv_vmfeq_vv_f32m##LMUL##_b##MLEN(diff, half, vl);            \
-        vint32m##LMUL##_t one_i = __riscv_vmv_v_x_i32m##LMUL(1, vl);                                     \
-        vint32m##LMUL##_t xi_and_1 = __riscv_vand_vv_i32m##LMUL(xi, one_i, vl);                          \
-        vbool##MLEN##_t is_odd = __riscv_vmsne_vx_i32m##LMUL##_b##MLEN(xi_and_1, 0, vl);                 \
-        vbool##MLEN##_t round_up = __riscv_vmor_mm_b##MLEN(diff_gt_half,                                 \
-                                                          __riscv_vmand_mm_b##MLEN(diff_eq_half, is_odd, vl), vl); \
-        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                  \
-        vfloat32m##LMUL##_t rounded = __riscv_vfadd_vv_f32m##LMUL##_mu(round_up, xf, xf, one, vl);        \
-        return __riscv_vfsgnj_vv_f32m##LMUL(rounded, x, vl);                                             \
+#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                                           \
+    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)                                    \
+    {                                                                                                               \
+        vfloat32m##LMUL##_t absx = __riscv_vfsgnjx_vv_f32m##LMUL(x, x, vl);                                         \
+        vfloat32m##LMUL##_t half = __riscv_vfmv_v_f_f32m##LMUL(0.5f, vl);                                           \
+        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(absx, vl);                                            \
+        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                            \
+        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(absx, xf, vl);                                       \
+        vbool##MLEN##_t diff_gt_half = __riscv_vmfgt_vv_f32m##LMUL##_b##MLEN(diff, half, vl);                       \
+        vbool##MLEN##_t diff_eq_half = __riscv_vmfeq_vv_f32m##LMUL##_b##MLEN(diff, half, vl);                       \
+        vint32m##LMUL##_t one_i = __riscv_vmv_v_x_i32m##LMUL(1, vl);                                                \
+        vint32m##LMUL##_t xi_and_1 = __riscv_vand_vv_i32m##LMUL(xi, one_i, vl);                                     \
+        vbool##MLEN##_t is_odd = __riscv_vmsne_vx_i32m##LMUL##_b##MLEN(xi_and_1, 0, vl);                            \
+        vbool##MLEN##_t round_up = __riscv_vmor_mm_b##MLEN(diff_gt_half,                                            \
+                                                           __riscv_vmand_mm_b##MLEN(diff_eq_half, is_odd, vl), vl); \
+        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                             \
+        vfloat32m##LMUL##_t rounded = __riscv_vfadd_vv_f32m##LMUL##_mu(round_up, xf, xf, one, vl);                  \
+        return __riscv_vfsgnj_vv_f32m##LMUL(rounded, x, vl);                                                        \
     }
 
 _RVV_FLOAT32_ROUND_OP(1, 32)
