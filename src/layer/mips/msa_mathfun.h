@@ -278,7 +278,6 @@ static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
 
 static inline v4f32 round_ps(v4f32 x)
 {
-    // round to nearest, ties to even
     v4f32 half = (v4f32)__msa_fill_w(c_0p5.i);
     v4f32 one = (v4f32)__msa_fill_w(c_1.i);
     v4i32 sign_mask = __msa_fclt_w(x, (v4f32)__msa_fill_w(0));
@@ -286,8 +285,12 @@ static inline v4f32 round_ps(v4f32 x)
     v4i32 xi = __msa_ftrunc_s_w(abs_x);
     v4f32 xf = __msa_ffint_s_w(xi);
     v4f32 diff = __msa_fsub_w(abs_x, xf);
-    v4i32 need_round_up = __msa_fcle_w(half, diff);
-    v4f32 rounded = __msa_fadd_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)need_round_up));
+    v4i32 diff_gt_half = __msa_fclt_w(half, diff);
+    v4i32 diff_eq_half = __msa_fceq_w(diff, half);
+    v4i32 xi_and_1 = (v4i32)__msa_and_v((v16u8)xi, (v16u8)__msa_fill_w(1));
+    v4i32 is_odd = __msa_ceqi_w(xi_and_1, 1);
+    v4i32 round_up = (v4i32)__msa_or_v((v16u8)diff_gt_half, __msa_and_v((v16u8)diff_eq_half, (v16u8)is_odd));
+    v4f32 rounded = __msa_fadd_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)round_up));
     return (v4f32)__msa_bsel_v((v16u8)sign_mask, (v16u8)rounded, (v16u8)__msa_bnegi_w((v4u32)rounded, 31));
 }
 

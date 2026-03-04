@@ -432,10 +432,15 @@ static inline float32x4_t round_ps(const float32x4_t& x)
     float32x4_t one = vdupq_n_f32(1.0f);
     uint32x4_t sign_mask = vcltq_f32(x, vdupq_n_f32(0));
     float32x4_t abs_x = vabsq_f32(x);
-    float32x4_t truncated = vcvtq_f32_s32(vcvtq_s32_f32(abs_x));
+    int32x4_t xi = vcvtq_s32_f32(abs_x);
+    float32x4_t truncated = vcvtq_f32_s32(xi);
     float32x4_t diff = vsubq_f32(abs_x, truncated);
-    uint32x4_t need_round_up = vcgeq_f32(diff, half);
-    float32x4_t rounded = vaddq_f32(truncated, vreinterpretq_f32_u32(vandq_u32(need_round_up, vreinterpretq_u32_f32(one))));
+    uint32x4_t diff_gt_half = vcgtq_f32(diff, half);
+    uint32x4_t diff_eq_half = vceqq_f32(diff, half);
+    int32x4_t xi_and_1 = vandq_s32(xi, vdupq_n_s32(1));
+    uint32x4_t is_odd = vcgtq_s32(xi_and_1, vdupq_n_s32(0));
+    uint32x4_t round_up = vorrq_u32(diff_gt_half, vandq_u32(diff_eq_half, is_odd));
+    float32x4_t rounded = vaddq_f32(truncated, vreinterpretq_f32_u32(vandq_u32(round_up, vreinterpretq_u32_f32(one))));
     return vbslq_f32(sign_mask, vnegq_f32(rounded), rounded);
 #endif
 }

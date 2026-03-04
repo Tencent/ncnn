@@ -1,4 +1,4 @@
-// Copyright 2026 futz12 <pchar.cn>
+// Copyright 2020 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
