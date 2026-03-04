@@ -826,6 +826,166 @@ struct binary_op_rfmod
 #endif // __SSE2__
 };
 
+struct binary_op_logaddexp
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        float max_xy = std::max(x, y);
+        float min_xy = std::min(x, y);
+        return (float)(max_xy + log1pf(expf(min_xy - max_xy)));
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return logaddexp_ps(x, y);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return logaddexp256_ps(x, y);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return logaddexp512_ps(x, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_rlogaddexp
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        float max_xy = std::max(y, x);
+        float min_xy = std::min(y, x);
+        return (float)(max_xy + log1pf(expf(min_xy - max_xy)));
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return logaddexp_ps(y, x);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return logaddexp256_ps(y, x);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return logaddexp512_ps(y, x);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_floor_divide
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        return (float)floorf(x / y);
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return floor_divide_ps(x, y);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return floor_divide256_ps(x, y);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return floor_divide512_ps(x, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_rfloor_divide
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        return (float)floorf(y / x);
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return floor_divide_ps(y, x);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return floor_divide256_ps(y, x);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return floor_divide512_ps(y, x);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_remainder
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        return (float)remainderf(x, y);
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return remainder_ps(x, y);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return remainder256_ps(x, y);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return remainder512_ps(x, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_rremainder
+{
+    NCNN_FORCEINLINE float func(const float& x, const float& y) const
+    {
+        return (float)remainderf(y, x);
+    }
+#if __SSE2__
+    NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return remainder_ps(y, x);
+    }
+#if __AVX__
+    NCNN_FORCEINLINE __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return remainder256_ps(y, x);
+    }
+#if __AVX512F__
+    NCNN_FORCEINLINE __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return remainder512_ps(y, x);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace BinaryOp_x86_functor
 
 static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp, int op_type)
@@ -846,6 +1006,12 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector<binary_op_ratan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector<binary_op_fmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector<binary_op_rfmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_vector<binary_op_logaddexp>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RLOGADDEXP) return binary_op_vector<binary_op_rlogaddexp>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_vector<binary_op_floor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_vector<binary_op_rfloor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector<binary_op_remainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RREMAINDER) return binary_op_vector<binary_op_rremainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
@@ -991,12 +1157,18 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
+    if (op_type == BinaryOp::Operation_LOGADDEXP) return BinaryOp::Operation_RLOGADDEXP;
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
 
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
+    if (op_type == BinaryOp::Operation_RLOGADDEXP) return BinaryOp::Operation_LOGADDEXP;
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
 
     return op_type;
 }

@@ -441,4 +441,102 @@ _RVV_FLOAT16_FMOD_OP(2, 8)
 _RVV_FLOAT16_FMOD_OP(4, 4)
 _RVV_FLOAT16_FMOD_OP(8, 2)
 
+/* round to nearest, ties to even */
+#if __riscv_xtheadvector
+#define _RVV_FLOAT16_ROUND_OP(LMUL, MLEN)                                                                \
+    static inline vfloat16m##LMUL##_t round_ps(vfloat16m##LMUL##_t x, size_t vl)                         \
+    {                                                                                                    \
+        vfloat16m##LMUL##_t absx = __riscv_vfsgnjx_vv_f16m##LMUL(x, x, vl);                              \
+        vfloat16m##LMUL##_t half = __riscv_vfmv_v_f_f16m##LMUL((__fp16)0.5f, vl);                        \
+        vint16m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i16m##LMUL(absx, vl);                                 \
+        vfloat16m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f16m##LMUL(xi, vl);                                 \
+        vfloat16m##LMUL##_t diff = __riscv_vfsub_vv_f16m##LMUL(absx, xf, vl);                            \
+        vbool##MLEN##_t need_round_up = __riscv_vmfge_vv_f16m##LMUL##_b##MLEN(diff, half, vl);           \
+        vfloat16m##LMUL##_t one = __riscv_vfmv_v_f_f16m##LMUL((__fp16)1.f, vl);                          \
+        vfloat16m##LMUL##_t rounded = __riscv_vfadd_vv_f16m##LMUL##_mu(need_round_up, xf, xf, one, vl);  \
+        vbool##MLEN##_t negative = __riscv_vmflt_vf_f16m##LMUL##_b##MLEN(x, (__fp16)0.f, vl);            \
+        return __riscv_vfsgnj_vv_f16m##LMUL(rounded, x, vl);                                             \
+    }
+#else
+#define _RVV_FLOAT16_ROUND_OP(LMUL, MLEN)                                                                \
+    static inline vfloat16m##LMUL##_t round_ps(vfloat16m##LMUL##_t x, size_t vl)                         \
+    {                                                                                                    \
+        return __riscv_vfcvt_f_x_v_f16m##LMUL(__riscv_vfcvt_rmm_x_f_v_i16m##LMUL(x, vl), vl);            \
+    }
+#endif
+
+_RVV_FLOAT16_ROUND_OP(1, 16)
+_RVV_FLOAT16_ROUND_OP(2, 8)
+_RVV_FLOAT16_ROUND_OP(4, 4)
+_RVV_FLOAT16_ROUND_OP(8, 2)
+
+/* logaddexp(a,b) = max(a,b) + log1p(exp(min(a,b) - max(a,b))) */
+#define _RVV_FLOAT16_LOGADDEXP_OP(LMUL, MLEN)                                                              \
+    static inline vfloat16m##LMUL##_t logaddexp_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                       \
+        vfloat16m##LMUL##_t max_xy = __riscv_vfmax_vv_f16m##LMUL(a, b, vl);                                 \
+        vfloat16m##LMUL##_t min_xy = __riscv_vfmin_vv_f16m##LMUL(a, b, vl);                                 \
+        vfloat16m##LMUL##_t diff = __riscv_vfsub_vv_f16m##LMUL(min_xy, max_xy, vl);                         \
+        vfloat16m##LMUL##_t exp_diff = exp_ps(diff, vl);                                                    \
+        vfloat16m##LMUL##_t one = __riscv_vfmv_v_f_f16m##LMUL((__fp16)1.f, vl);                             \
+        vfloat16m##LMUL##_t one_plus_exp = __riscv_vfadd_vv_f16m##LMUL(one, exp_diff, vl);                  \
+        vfloat16m##LMUL##_t log_result = log_ps(one_plus_exp, vl);                                          \
+        return __riscv_vfadd_vv_f16m##LMUL(max_xy, log_result, vl);                                         \
+    }
+
+_RVV_FLOAT16_LOGADDEXP_OP(1, 16)
+_RVV_FLOAT16_LOGADDEXP_OP(2, 8)
+_RVV_FLOAT16_LOGADDEXP_OP(4, 4)
+_RVV_FLOAT16_LOGADDEXP_OP(8, 2)
+
+/* floor_divide(a,b) = floor(a/b) */
+#if __riscv_xtheadvector
+#define _RVV_FLOAT16_FLOOR_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t floor_ps(vfloat16m##LMUL##_t x, size_t vl)                        \
+    {                                                                                                   \
+        vint16m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i16m##LMUL(x, vl);                                   \
+        vfloat16m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f16m##LMUL(xi, vl);                                \
+        vbool##MLEN##_t need_adjust = __riscv_vmfgt_vv_f16m##LMUL##_b##MLEN(xf, x, vl);                 \
+        vfloat16m##LMUL##_t one = __riscv_vfmv_v_f_f16m##LMUL((__fp16)1.f, vl);                         \
+        return __riscv_vfsub_vv_f16m##LMUL##_mu(need_adjust, xf, xf, one, vl);                          \
+    }
+#else
+#define _RVV_FLOAT16_FLOOR_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t floor_ps(vfloat16m##LMUL##_t x, size_t vl)                        \
+    {                                                                                                   \
+        return __riscv_vfcvt_f_x_v_f16m##LMUL(__riscv_vfcvt_rdn_x_f_v_i16m##LMUL(x, vl), vl);           \
+    }
+#endif
+
+_RVV_FLOAT16_FLOOR_OP(1, 16)
+_RVV_FLOAT16_FLOOR_OP(2, 8)
+_RVV_FLOAT16_FLOOR_OP(4, 4)
+_RVV_FLOAT16_FLOOR_OP(8, 2)
+
+#define _RVV_FLOAT16_FLOOR_DIVIDE_OP(LMUL, MLEN)                                                          \
+    static inline vfloat16m##LMUL##_t floor_divide_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                     \
+        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                    \
+        return floor_ps(q, vl);                                                                           \
+    }
+
+_RVV_FLOAT16_FLOOR_DIVIDE_OP(1, 16)
+_RVV_FLOAT16_FLOOR_DIVIDE_OP(2, 8)
+_RVV_FLOAT16_FLOOR_DIVIDE_OP(4, 4)
+_RVV_FLOAT16_FLOOR_DIVIDE_OP(8, 2)
+
+/* remainder(a,b) = a - round(a/b) * b */
+#define _RVV_FLOAT16_REMAINDER_OP(LMUL, MLEN)                                                           \
+    static inline vfloat16m##LMUL##_t remainder_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                   \
+        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                  \
+        vfloat16m##LMUL##_t rq = round_ps(q, vl);                                                       \
+        return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(rq, b, vl), vl);              \
+    }
+
+_RVV_FLOAT16_REMAINDER_OP(1, 16)
+_RVV_FLOAT16_REMAINDER_OP(2, 8)
+_RVV_FLOAT16_REMAINDER_OP(4, 4)
+_RVV_FLOAT16_REMAINDER_OP(8, 2)
+
 #endif // RVV_MATHFUN_FP16S_H

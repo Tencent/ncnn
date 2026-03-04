@@ -1180,4 +1180,49 @@ static NCNN_FORCEINLINE __m128 fmod_ps(const __m128& x, const __m128& y)
     return _mm_sub_ps(x, _mm_mul_ps(tq, y));
 }
 
+static NCNN_FORCEINLINE __m128 round_ps(const __m128& x)
+{
+#if __SSE4_1__
+    return _mm_round_ps(x, _MM_FROUND_NINT);
+#endif // __SSE4_1__
+
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_half = _mm_set_ps1(0.5f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+    __m128 truncated = _mm_cvtepi32_ps(_mm_cvttps_epi32(absolute));
+    __m128 diff = _mm_sub_ps(absolute, truncated);
+    __m128 need_round_up = _mm_cmpge_ps(diff, magic_half);
+    __m128 rounded = _mm_add_ps(truncated, _mm_and_ps(need_round_up, magic_one));
+    return _mm_or_ps(rounded, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 logaddexp_ps(const __m128& x, const __m128& y)
+{
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 max_xy = _mm_max_ps(x, y);
+    __m128 min_xy = _mm_min_ps(x, y);
+    __m128 diff = _mm_sub_ps(min_xy, max_xy);
+    __m128 exp_diff = exp_ps(diff);
+    __m128 one_plus_exp = _mm_add_ps(magic_one, exp_diff);
+    __m128 log_result = log_ps(one_plus_exp);
+    return _mm_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    return floor_ps(q);
+}
+
+static NCNN_FORCEINLINE __m128 remainder_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 rq = round_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(rq, y));
+}
+
 #endif // SSE_MATHFUN_H

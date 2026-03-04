@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 14
+#define OP_TYPE_MAX 20
 
 static int op_type = 0;
 
@@ -29,6 +29,56 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
         else
         {
             // rfmod(a, b) = fmod(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
+        }
+    }
+    else if (op_type == 16 || op_type == 17)
+    {
+        // value must be non-zero for floor_divide/rfloor_divide
+        a = a.clone();
+        b = b.clone();
+
+        if (op_type == 16)
+        {
+            // floor_divide(a, b) -> b must be non-zero
+            for (int i = 0; i < b.total(); i++)
+            {
+                if (b[i] == 0.f)
+                    b[i] = 0.001f;
+            }
+        }
+        else
+        {
+            // rfloor_divide(a, b) = floor_divide(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
+        }
+    }
+    else if (op_type == 18 || op_type == 19)
+    {
+        // value must be non-zero for remainder/rremainder
+        a = a.clone();
+        b = b.clone();
+
+        if (op_type == 18)
+        {
+            // remainder(a, b) -> b must be non-zero
+            for (int i = 0; i < b.total(); i++)
+            {
+                if (b[i] == 0.f)
+                    b[i] = 0.001f;
+            }
+        }
+        else
+        {
+            // rremainder(a, b) = remainder(b, a) -> a must be non-zero
             for (int i = 0; i < a.total(); i++)
             {
                 if (a[i] == 0.f)
@@ -74,6 +124,46 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
         else
         {
             // rfmod(a, b) = fmod(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
+        }
+    }
+    else if (op_type == 16 || op_type == 17)
+    {
+        // value must be non-zero for floor_divide/rfloor_divide
+        a = a.clone();
+        if (op_type == 16)
+        {
+            // floor_divide(a, b) -> b must be non-zero
+            if (b == 0.f)
+                b = 0.001f;
+        }
+        else
+        {
+            // rfloor_divide(a, b) = floor_divide(b, a) -> a must be non-zero
+            for (int i = 0; i < a.total(); i++)
+            {
+                if (a[i] == 0.f)
+                    a[i] = 0.001f;
+            }
+        }
+    }
+    else if (op_type == 18 || op_type == 19)
+    {
+        // value must be non-zero for remainder/rremainder
+        a = a.clone();
+        if (op_type == 18)
+        {
+            // remainder(a, b) -> b must be non-zero
+            if (b == 0.f)
+                b = 0.001f;
+        }
+        else
+        {
+            // rremainder(a, b) = remainder(b, a) -> a must be non-zero
             for (int i = 0; i < a.total(); i++)
             {
                 if (a[i] == 0.f)
@@ -374,7 +464,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 12; op_type < 14; op_type++)
+    for (op_type = 12; op_type < 20; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()

@@ -867,4 +867,35 @@ static NCNN_FORCEINLINE __m512 fmod512_ps(const __m512& x, const __m512& y)
     return _mm512_sub_ps(x, _mm512_mul_ps(tq, y));
 }
 
+static NCNN_FORCEINLINE __m512 round512_ps(const __m512& x)
+{
+    return _mm512_roundscale_ps(x, _MM_FROUND_NINT);
+}
+
+static NCNN_FORCEINLINE __m512 logaddexp512_ps(const __m512& x, const __m512& y)
+{
+    const __m512 magic_one = _mm512_set1_ps(1.0f);
+
+    __m512 max_xy = _mm512_max_ps(x, y);
+    __m512 min_xy = _mm512_min_ps(x, y);
+    __m512 diff = _mm512_sub_ps(min_xy, max_xy);
+    __m512 exp_diff = exp512_ps(diff);
+    __m512 one_plus_exp = _mm512_add_ps(magic_one, exp_diff);
+    __m512 log_result = log512_ps(one_plus_exp);
+    return _mm512_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    return _mm512_roundscale_ps(q, _MM_FROUND_TO_NEG_INF);
+}
+
+static NCNN_FORCEINLINE __m512 remainder512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    __m512 rq = round512_ps(q);
+    return _mm512_sub_ps(x, _mm512_mul_ps(rq, y));
+}
+
 #endif // AVX512_MATHFUN_H

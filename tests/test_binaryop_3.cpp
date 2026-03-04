@@ -1,9 +1,9 @@
-// Copyright 2020 Tencent
+// Copyright 2026 futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 14
+#define OP_TYPE_MAX 20
 
 static int op_type = 0;
 
