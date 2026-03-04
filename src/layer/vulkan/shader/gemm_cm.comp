@@ -3138,21 +3138,21 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
 #else
 #if NCNN_bf16_storage || NCNN_bf16_packed
-                coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                    coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
-                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                    coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #endif
-                coopMatStore(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+                    coopMatStore(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatStoreNV(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, false);
+                    coopMatStoreNV(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, false);
 #else
-                fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
-                coopMatStoreNV(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, false);
+                    fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
+                    coopMatStoreNV(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, false);
 #endif
 #endif
                 }
@@ -3160,21 +3160,21 @@ void main()
                 {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
 #else
 #if NCNN_bf16_storage || NCNN_bf16_packed
-                coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                    coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
-                coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
+                    coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #endif
-                coopMatStore(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
+                    coopMatStore(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
 #endif
 #elif ncnn_VK_NV_cooperative_matrix
 #if NCNN_fp16_arithmetic
-                coopMatStoreNV(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, true);
+                    coopMatStoreNV(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, true);
 #else
-                fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
-                coopMatStoreNV(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, true);
+                    fcoopmatNV<16, gl_ScopeSubgroup, M, N> sum_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, M, N>(sum[zn][zm]);
+                    coopMatStoreNV(sum_fp16, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, true);
 #endif
 #endif
                 }
