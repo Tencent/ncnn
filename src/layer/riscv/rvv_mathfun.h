@@ -607,25 +607,25 @@ _RVV_FLOAT32_FMOD_OP(8, 4)
 
 /* round to nearest, ties to even */
 #if __riscv_xtheadvector
-#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                                \
-    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)                         \
-    {                                                                                                    \
-        vfloat32m##LMUL##_t absx = __riscv_vfsgnjx_vv_f32m##LMUL(x, x, vl);                              \
-        vfloat32m##LMUL##_t half = __riscv_vfmv_v_f_f32m##LMUL(0.5f, vl);                                \
-        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(absx, vl);                                 \
-        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                 \
-        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(absx, xf, vl);                            \
-        vbool##MLEN##_t need_round_up = __riscv_vmfge_vv_f32m##LMUL##_b##MLEN(diff, half, vl);           \
-        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                  \
-        vfloat32m##LMUL##_t rounded = __riscv_vfadd_vv_f32m##LMUL##_mu(need_round_up, xf, xf, one, vl);  \
-        vbool##MLEN##_t negative = __riscv_vmflt_vf_f32m##LMUL##_b##MLEN(x, 0.f, vl);                    \
-        return __riscv_vfsgnj_vv_f32m##LMUL(rounded, x, vl);                                             \
+#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                               \
+    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)                        \
+    {                                                                                                   \
+        vfloat32m##LMUL##_t absx = __riscv_vfsgnjx_vv_f32m##LMUL(x, x, vl);                             \
+        vfloat32m##LMUL##_t half = __riscv_vfmv_v_f_f32m##LMUL(0.5f, vl);                               \
+        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(absx, vl);                                \
+        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                \
+        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(absx, xf, vl);                           \
+        vbool##MLEN##_t need_round_up = __riscv_vmfge_vv_f32m##LMUL##_b##MLEN(diff, half, vl);          \
+        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                 \
+        vfloat32m##LMUL##_t rounded = __riscv_vfadd_vv_f32m##LMUL##_mu(need_round_up, xf, xf, one, vl); \
+        vbool##MLEN##_t negative = __riscv_vmflt_vf_f32m##LMUL##_b##MLEN(x, 0.f, vl);                   \
+        return __riscv_vfsgnj_vv_f32m##LMUL(rounded, x, vl);                                            \
     }
 #else
-#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                                \
-    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)                         \
-    {                                                                                                    \
-        return __riscv_vfcvt_f_x_v_f32m##LMUL(__riscv_vfcvt_rmm_x_f_v_i32m##LMUL(x, vl), vl);            \
+#define _RVV_FLOAT32_ROUND_OP(LMUL, MLEN)                                                     \
+    static inline vfloat32m##LMUL##_t round_ps(vfloat32m##LMUL##_t x, size_t vl)              \
+    {                                                                                         \
+        return __riscv_vfcvt_f_x_v_f32m##LMUL(__riscv_vfcvt_rmm_x_f_v_i32m##LMUL(x, vl), vl); \
     }
 #endif
 
@@ -635,17 +635,17 @@ _RVV_FLOAT32_ROUND_OP(4, 8)
 _RVV_FLOAT32_ROUND_OP(8, 4)
 
 /* logaddexp(a,b) = max(a,b) + log1p(exp(min(a,b) - max(a,b))) */
-#define _RVV_FLOAT32_LOGADDEXP_OP(LMUL, MLEN)                                                                \
-    static inline vfloat32m##LMUL##_t logaddexp_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl)  \
-    {                                                                                                        \
-        vfloat32m##LMUL##_t max_xy = __riscv_vfmax_vv_f32m##LMUL(a, b, vl);                                  \
-        vfloat32m##LMUL##_t min_xy = __riscv_vfmin_vv_f32m##LMUL(a, b, vl);                                  \
-        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(min_xy, max_xy, vl);                          \
-        vfloat32m##LMUL##_t exp_diff = exp_ps(diff, vl);                                                     \
-        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                      \
-        vfloat32m##LMUL##_t one_plus_exp = __riscv_vfadd_vv_f32m##LMUL(one, exp_diff, vl);                   \
-        vfloat32m##LMUL##_t log_result = log_ps(one_plus_exp, vl);                                           \
-        return __riscv_vfadd_vv_f32m##LMUL(max_xy, log_result, vl);                                          \
+#define _RVV_FLOAT32_LOGADDEXP_OP(LMUL, MLEN)                                                               \
+    static inline vfloat32m##LMUL##_t logaddexp_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
+    {                                                                                                       \
+        vfloat32m##LMUL##_t max_xy = __riscv_vfmax_vv_f32m##LMUL(a, b, vl);                                 \
+        vfloat32m##LMUL##_t min_xy = __riscv_vfmin_vv_f32m##LMUL(a, b, vl);                                 \
+        vfloat32m##LMUL##_t diff = __riscv_vfsub_vv_f32m##LMUL(min_xy, max_xy, vl);                         \
+        vfloat32m##LMUL##_t exp_diff = exp_ps(diff, vl);                                                    \
+        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                     \
+        vfloat32m##LMUL##_t one_plus_exp = __riscv_vfadd_vv_f32m##LMUL(one, exp_diff, vl);                  \
+        vfloat32m##LMUL##_t log_result = log_ps(one_plus_exp, vl);                                          \
+        return __riscv_vfadd_vv_f32m##LMUL(max_xy, log_result, vl);                                         \
     }
 
 _RVV_FLOAT32_LOGADDEXP_OP(1, 32)
@@ -655,20 +655,20 @@ _RVV_FLOAT32_LOGADDEXP_OP(8, 4)
 
 /* floor_divide(a,b) = floor(a/b) */
 #if __riscv_xtheadvector
-#define _RVV_FLOAT32_FLOOR_OP(LMUL, MLEN)                                                               \
-    static inline vfloat32m##LMUL##_t floor_ps(vfloat32m##LMUL##_t x, size_t vl)                        \
-    {                                                                                                   \
-        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(x, vl);                                   \
-        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                \
-        vbool##MLEN##_t need_adjust = __riscv_vmfgt_vv_f32m##LMUL##_b##MLEN(xf, x, vl);                 \
-        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                                 \
-        return __riscv_vfsub_vv_f32m##LMUL##_mu(need_adjust, xf, xf, one, vl);                          \
+#define _RVV_FLOAT32_FLOOR_OP(LMUL, MLEN)                                               \
+    static inline vfloat32m##LMUL##_t floor_ps(vfloat32m##LMUL##_t x, size_t vl)        \
+    {                                                                                   \
+        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(x, vl);                   \
+        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                \
+        vbool##MLEN##_t need_adjust = __riscv_vmfgt_vv_f32m##LMUL##_b##MLEN(xf, x, vl); \
+        vfloat32m##LMUL##_t one = __riscv_vfmv_v_f_f32m##LMUL(1.f, vl);                 \
+        return __riscv_vfsub_vv_f32m##LMUL##_mu(need_adjust, xf, xf, one, vl);          \
     }
 #else
-#define _RVV_FLOAT32_FLOOR_OP(LMUL, MLEN)                                                               \
-    static inline vfloat32m##LMUL##_t floor_ps(vfloat32m##LMUL##_t x, size_t vl)                        \
-    {                                                                                                   \
-        return __riscv_vfcvt_f_x_v_f32m##LMUL(__riscv_vfcvt_rdn_x_f_v_i32m##LMUL(x, vl), vl);           \
+#define _RVV_FLOAT32_FLOOR_OP(LMUL, MLEN)                                                     \
+    static inline vfloat32m##LMUL##_t floor_ps(vfloat32m##LMUL##_t x, size_t vl)              \
+    {                                                                                         \
+        return __riscv_vfcvt_f_x_v_f32m##LMUL(__riscv_vfcvt_rdn_x_f_v_i32m##LMUL(x, vl), vl); \
     }
 #endif
 
@@ -677,11 +677,11 @@ _RVV_FLOAT32_FLOOR_OP(2, 16)
 _RVV_FLOAT32_FLOOR_OP(4, 8)
 _RVV_FLOAT32_FLOOR_OP(8, 4)
 
-#define _RVV_FLOAT32_FLOOR_DIVIDE_OP(LMUL, MLEN)                                                        \
+#define _RVV_FLOAT32_FLOOR_DIVIDE_OP(LMUL, MLEN)                                                               \
     static inline vfloat32m##LMUL##_t floor_divide_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
-    {                                                                                                   \
-        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                  \
-        return floor_ps(q, vl);                                                                         \
+    {                                                                                                          \
+        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                         \
+        return floor_ps(q, vl);                                                                                \
     }
 
 _RVV_FLOAT32_FLOOR_DIVIDE_OP(1, 32)
@@ -690,12 +690,12 @@ _RVV_FLOAT32_FLOOR_DIVIDE_OP(4, 8)
 _RVV_FLOAT32_FLOOR_DIVIDE_OP(8, 4)
 
 /* remainder(a,b) = a - round(a/b) * b */
-#define _RVV_FLOAT32_REMAINDER_OP(LMUL, MLEN)                                                           \
+#define _RVV_FLOAT32_REMAINDER_OP(LMUL, MLEN)                                                               \
     static inline vfloat32m##LMUL##_t remainder_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
-    {                                                                                                   \
-        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                  \
-        vfloat32m##LMUL##_t rq = round_ps(q, vl);                                                       \
-        return __riscv_vfsub_vv_f32m##LMUL(a, __riscv_vfmul_vv_f32m##LMUL(rq, b, vl), vl);              \
+    {                                                                                                       \
+        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                      \
+        vfloat32m##LMUL##_t rq = round_ps(q, vl);                                                           \
+        return __riscv_vfsub_vv_f32m##LMUL(a, __riscv_vfmul_vv_f32m##LMUL(rq, b, vl), vl);                  \
     }
 
 _RVV_FLOAT32_REMAINDER_OP(1, 32)
