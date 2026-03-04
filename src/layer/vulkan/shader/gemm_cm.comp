@@ -50,7 +50,7 @@ layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_blob { uvec2 A_blob_data[]; };
 layout(binding = 2) readonly buffer B_blob { uvec2 B_blob_data[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
-layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) writeonly buffer top_blob_4 { uvec2 top_blob_data_4[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -3248,11 +3248,7 @@ void main()
 
                         const uint gi = gm * p.outhstep + gn;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
-                        buffer_st4(top_blob_data_4, gi, afpvec4(unpackBFloat2x16(v.r), unpackBFloat2x16(v.g)));
-#else
-                        buffer_st4(top_blob_data_4, gi, afpvec4(unpackHalf2x16(v.r), unpackHalf2x16(v.g)));
-#endif
+                        top_blob_data_4[gi] = v;
                     }
                 }
             }
@@ -3360,11 +3356,7 @@ void main()
 
                         const uint gi = gn * p.outhstep + gm;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
-                        buffer_st4(top_blob_data_4, gi, afpvec4(unpackBFloat2x16(v.r), unpackBFloat2x16(v.g)));
-#else
-                        buffer_st4(top_blob_data_4, gi, afpvec4(unpackHalf2x16(v.r), unpackHalf2x16(v.g)));
-#endif
+                        top_blob_data_4[gi] = v;
                     }
                 }
             }
