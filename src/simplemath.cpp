@@ -131,6 +131,33 @@ float fmodf(float x, float y)
     return (x < 0) ? -m : m;
 }
 
+float remainderf(float x, float y)
+{
+    if (y == 0.0f)
+    {
+        return x;
+    }
+    float q = x / y;
+    float rq;
+    float absq = fabsf(q);
+    float intpart = floorf(absq);
+    float fracpart = absq - intpart;
+    if (fracpart > 0.5f)
+    {
+        intpart += 1.0f;
+    }
+    else if (fracpart == 0.5f)
+    {
+        int n = (int)intpart;
+        if (n % 2 != 0)
+        {
+            intpart += 1.0f;
+        }
+    }
+    rq = (q >= 0) ? intpart : -intpart;
+    return x - rq * y;
+}
+
 /*
 * ====================================================
 * trigonometric functions
