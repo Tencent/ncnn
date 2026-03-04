@@ -113,7 +113,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-        std::vector<vk_specialization_type> specializations(17 + 9);
+        int outh = output_transpose ? constantN : constantM;
+        int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
+
+        std::vector<vk_specialization_type> specializations(18 + 9);
         specializations[0].f = alpha;
         specializations[1].f = beta;
         specializations[2].i = transA;
@@ -131,16 +134,17 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[14].i = output_transpose;
         specializations[15].i = A_data_packed.elempack;
         specializations[16].i = B_data_packed.elempack;
+        specializations[17].i = output_elempack ? output_elempack : out_elempack;
 
-        specializations[17 + 0].u32 = coopmat_M;
-        specializations[17 + 1].u32 = coopmat_N;
-        specializations[17 + 2].u32 = coopmat_K;
-        specializations[17 + 3].u32 = coopmat_subgroup_size;
-        specializations[17 + 4].u32 = UNROLL_SG_M;
-        specializations[17 + 5].u32 = UNROLL_SG_N;
-        specializations[17 + 6].u32 = UNROLL_SG_K;
-        specializations[17 + 7].u32 = UNROLL_WG_M;
-        specializations[17 + 8].u32 = UNROLL_WG_N;
+        specializations[18 + 0].u32 = coopmat_M;
+        specializations[18 + 1].u32 = coopmat_N;
+        specializations[18 + 2].u32 = coopmat_K;
+        specializations[18 + 3].u32 = coopmat_subgroup_size;
+        specializations[18 + 4].u32 = UNROLL_SG_M;
+        specializations[18 + 5].u32 = UNROLL_SG_N;
+        specializations[18 + 6].u32 = UNROLL_SG_K;
+        specializations[18 + 7].u32 = UNROLL_WG_M;
+        specializations[18 + 8].u32 = UNROLL_WG_N;
 
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
@@ -448,9 +452,9 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         constants[7].i = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
         constants[8].i = top_blob.dims;
         constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
-        constants[10].i = out_elempack;
-        constants[11].i = A_elempack;
-        constants[12].i = B_elempack;
+        constants[10].i = A_elempack;
+        constants[11].i = B_elempack;
+        constants[12].i = out_elempack;
 
         const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
         const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);

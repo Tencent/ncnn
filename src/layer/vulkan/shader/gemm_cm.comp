@@ -33,16 +33,17 @@ layout(constant_id = 13) const int output_elemtype = 0;
 layout(constant_id = 14) const int output_transpose = 0;
 layout(constant_id = 15) const int A_elempack = 0;
 layout(constant_id = 16) const int B_elempack = 0;
+layout(constant_id = 17) const int out_elempack = 0;
 
-layout(constant_id = 17 + 0) const uint M = 1;
-layout(constant_id = 17 + 1) const uint N = 1;
-layout(constant_id = 17 + 2) const uint K = 1;
-layout(constant_id = 17 + 3) const uint subgroup_size = 32;
-layout(constant_id = 17 + 4) const uint UNROLL_SG_M = 2;
-layout(constant_id = 17 + 5) const uint UNROLL_SG_N = 2;
-layout(constant_id = 17 + 6) const uint UNROLL_SG_K = 2;
-layout(constant_id = 17 + 7) const uint UNROLL_WG_M = 2;
-layout(constant_id = 17 + 8) const uint UNROLL_WG_N = 2;
+layout(constant_id = 18 + 0) const uint M = 1;
+layout(constant_id = 18 + 1) const uint N = 1;
+layout(constant_id = 18 + 2) const uint K = 1;
+layout(constant_id = 18 + 3) const uint subgroup_size = 32;
+layout(constant_id = 18 + 4) const uint UNROLL_SG_M = 2;
+layout(constant_id = 18 + 5) const uint UNROLL_SG_N = 2;
+layout(constant_id = 18 + 6) const uint UNROLL_SG_K = 2;
+layout(constant_id = 18 + 7) const uint UNROLL_WG_M = 2;
+layout(constant_id = 18 + 8) const uint UNROLL_WG_N = 2;
 
 // TODO psc more
 
@@ -64,9 +65,9 @@ layout(push_constant) uniform parameter
     int B_hstep;
     int outdims;
     int outhstep;
-    int out_elempack;
     int A_elempack;
     int B_elempack;
+    int out_elempack;
 } p;
 
 const uint Md4 = M / 4;
@@ -3085,7 +3086,7 @@ void main()
         {
             if (output_transpose == 0)
             {
-                if (p.out_elempack == 4)
+                if (psc(out_elempack) == 4)
                 {
                     // out_elempack=4: ColumnMajor, stride Md4 (NO PAD)
 #if ncnn_VK_KHR_cooperative_matrix
@@ -3134,7 +3135,7 @@ void main()
             }
             else
             {
-                if (p.out_elempack == 4)
+                if (psc(out_elempack) == 4)
                 {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
@@ -3221,7 +3222,7 @@ void main()
         //   |      |   |
         //   v      +---+
 
-        if (p.out_elempack == 4)
+        if (psc(out_elempack) == 4)
         {
             // ColumnMajor (no PAD): tmp_o[base + n * Md4 + m4], each uvec2 = sfpvec4 of 4 consecutive M values
             const uint Md4_N_USGM_USGN = Md4 * N * UNROLL_SG_M * UNROLL_SG_N;
@@ -3330,7 +3331,7 @@ void main()
         //   |      |   |
         //   v      +---+
 
-        if (p.out_elempack == 4)
+        if (psc(out_elempack) == 4)
         {
             const uint Nd4_M_USGM_USGN = Nd4 * M * UNROLL_SG_M * UNROLL_SG_N;
             const uint Nd4_M_USGM_USGN_d_subgroupsize = (Nd4_M_USGM_USGN + subgroup_size - 1) / subgroup_size;
