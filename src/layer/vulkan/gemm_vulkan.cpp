@@ -142,7 +142,6 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[17 + 7].u32 = UNROLL_WG_M;
         specializations[17 + 8].u32 = UNROLL_WG_N;
 
-
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
