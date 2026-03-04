@@ -19,7 +19,9 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    int with_scalar;
+    int with_scalar_a;
+    float a;
+    int with_scalar_b;
     float b;
 };
 

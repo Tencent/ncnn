@@ -45,8 +45,10 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         float value = captured_params.at("value").type == 3 ? captured_params.at("value").f : (float)captured_params.at("value").i;
-        op->params["0"] = 1;
-        op->params["1"] = value;
+        op->params["0"] = 0;
+        op->params["1"] = 0.f;
+        op->params["2"] = 1;
+        op->params["3"] = value;
     }
 };
 

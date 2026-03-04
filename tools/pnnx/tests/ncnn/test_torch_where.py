@@ -13,7 +13,10 @@ class Model(nn.Module):
         out0 = torch.where(x > 0.5, y, z)
         out1 = torch.where(x > 0.3, y, y)
         out2 = torch.where(z > 0.5, y, z)
-        return out0, out1, out2
+        out3 = torch.where(x > 0.5, 1.0, z)
+        out4 = torch.where(x > 0.5, y, 0.0)
+        out5 = torch.where(x > 0.5, 1.0, 0.0)
+        return out0, out1, out2, out3, out4, out5
 
 def test():
     net = Model()
@@ -22,7 +25,7 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(3, 16)
     y = torch.rand(3, 16)
-    z = torch.rand(5, 9, 3)
+    z = torch.rand(3, 16)
 
     a = net(x, y, z)
 
@@ -32,7 +35,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_where.pt inputshape=[3,16],[3,16],[5,9,3]")
+    os.system("../../build/src/pnnx.exe test_torch_where.pt inputshape=[3,16],[3,16],[3,16]")
 
     # ncnn inference
     import test_torch_where_ncnn
