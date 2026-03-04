@@ -40,7 +40,7 @@ static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Optio
     {
         const float* ptr = a;
         const float* ptr1 = b;
-        int* outptr = (int*)c.data;
+        signed char* outptr = (signed char*)c.data;
 
         const int ainc = a.w > 1 ? 1 : 0;
         const int binc = b.w > 1 ? 1 : 0;
@@ -60,7 +60,7 @@ static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Optio
         {
             const float* ptr = a.row(std::min(y, a.h - 1));
             const float* ptr1 = b.row(std::min(y, b.h - 1));
-            int* outptr = (int*)c.row(y);
+            signed char* outptr = (signed char*)c.row(y);
 
             const int ainc = a.w > 1 ? 1 : 0;
             const int binc = b.w > 1 ? 1 : 0;
@@ -79,7 +79,7 @@ static void compare_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Optio
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            int* outptr = (int*)c.channel(q);
+            signed char* outptr = (signed char*)c.channel(q);
 
             const int ainc = a.w > 1 ? 1 : 0;
             const int binc = b.w > 1 ? 1 : 0;
@@ -117,7 +117,7 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
     for (int q = 0; q < channels; q++)
     {
         const float* ptr = a.channel(q);
-        int* outptr = (int*)c.channel(q);
+        signed char* outptr = (signed char*)c.channel(q);
 
         for (int i = 0; i < size; i++)
         {
@@ -128,42 +128,42 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
 
 struct compare_op_lt
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x < y ? 1 : 0;
     }
 };
 struct compare_op_gt
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x > y ? 1 : 0;
     }
 };
 struct compare_op_le
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x <= y ? 1 : 0;
     }
 };
 struct compare_op_ge
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x >= y ? 1 : 0;
     }
 };
 struct compare_op_eq
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x == y ? 1 : 0;
     }
 };
 struct compare_op_ne
 {
-    int operator()(const float& x, const float& y) const
+    signed char operator()(const float& x, const float& y) const
     {
         return x != y ? 1 : 0;
     }
@@ -191,10 +191,10 @@ static void compare_op_scalar(const Mat& a, float b, Mat& c, int op_type, const 
 
 int CompareOp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.dims == 1) top_blob.create(bottom_blob.w, (size_t)4u, 1, opt.blob_allocator);
-    if (bottom_blob.dims == 2) top_blob.create(bottom_blob.w, bottom_blob.h, (size_t)4u, 1, opt.blob_allocator);
-    if (bottom_blob.dims == 3) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.c, (size_t)4u, 1, opt.blob_allocator);
-    if (bottom_blob.dims == 4) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.d, bottom_blob.c, (size_t)4u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 1) top_blob.create(bottom_blob.w, (size_t)1u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 2) top_blob.create(bottom_blob.w, bottom_blob.h, (size_t)1u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 3) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.c, (size_t)1u, 1, opt.blob_allocator);
+    if (bottom_blob.dims == 4) top_blob.create(bottom_blob.w, bottom_blob.h, bottom_blob.d, bottom_blob.c, (size_t)1u, 1, opt.blob_allocator);
 
     if (top_blob.empty())
         return -100;
@@ -210,10 +210,10 @@ int CompareOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         const Mat& A = bottom_blobs[0];
         Mat& top_blob = top_blobs[0];
 
-        if (A.dims == 1) top_blob.create(A.w, (size_t)4u, 1, opt.blob_allocator);
-        if (A.dims == 2) top_blob.create(A.w, A.h, (size_t)4u, 1, opt.blob_allocator);
-        if (A.dims == 3) top_blob.create(A.w, A.h, A.c, (size_t)4u, 1, opt.blob_allocator);
-        if (A.dims == 4) top_blob.create(A.w, A.h, A.d, A.c, (size_t)4u, 1, opt.blob_allocator);
+        if (A.dims == 1) top_blob.create(A.w, (size_t)1u, 1, opt.blob_allocator);
+        if (A.dims == 2) top_blob.create(A.w, A.h, (size_t)1u, 1, opt.blob_allocator);
+        if (A.dims == 3) top_blob.create(A.w, A.h, A.c, (size_t)1u, 1, opt.blob_allocator);
+        if (A.dims == 4) top_blob.create(A.w, A.h, A.d, A.c, (size_t)1u, 1, opt.blob_allocator);
 
         if (top_blob.empty())
             return -100;
@@ -297,10 +297,10 @@ int CompareOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int outc = std::max(A2.c, B2.c);
 
     Mat& top_blob = top_blobs[0];
-    if (outdims == 1) top_blob.create(outw, (size_t)4u, 1, opt.blob_allocator);
-    if (outdims == 2) top_blob.create(outw, outh, (size_t)4u, 1, opt.blob_allocator);
-    if (outdims == 3) top_blob.create(outw, outh, outc, (size_t)4u, 1, opt.blob_allocator);
-    if (outdims == 4) top_blob.create(outw, outh, outd, outc, (size_t)4u, 1, opt.blob_allocator);
+    if (outdims == 1) top_blob.create(outw, (size_t)1u, 1, opt.blob_allocator);
+    if (outdims == 2) top_blob.create(outw, outh, (size_t)1u, 1, opt.blob_allocator);
+    if (outdims == 3) top_blob.create(outw, outh, outc, (size_t)1u, 1, opt.blob_allocator);
+    if (outdims == 4) top_blob.create(outw, outh, outd, outc, (size_t)1u, 1, opt.blob_allocator);
 
     if (top_blob.empty())
         return -100;
