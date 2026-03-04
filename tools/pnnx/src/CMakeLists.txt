@@ -607,6 +607,10 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_ge.cpp
     pass_ncnn/torch_gt.cpp
     pass_ncnn/torch_le.cpp
+    pass_ncnn/torch_logical_and.cpp
+    pass_ncnn/torch_logical_not.cpp
+    pass_ncnn/torch_logical_or.cpp
+    pass_ncnn/torch_logical_xor.cpp
     pass_ncnn/torch_lt.cpp
     pass_ncnn/torch_ne.cpp
     pass_ncnn/torch_istft.cpp
