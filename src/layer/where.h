@@ -19,6 +19,8 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
+    int with_scalar;
+    float b;
 };
 
 } // namespace ncnn

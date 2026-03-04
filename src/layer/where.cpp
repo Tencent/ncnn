@@ -13,7 +13,92 @@ Where::Where()
 
 int Where::load_param(const ParamDict& pd)
 {
+    with_scalar = pd.get(0, 0);
+    b = pd.get(1, 0.f);
+
+    if (with_scalar != 0)
+    {
+        one_blob_only = false;
+    }
+
     return 0;
+}
+
+static void where_broadcast_scalar_b(const Mat& cond, const Mat& a, float b, Mat& c, const Option& opt)
+{
+    const int dims = c.dims;
+    const int w = c.w;
+    const int h = c.h;
+    const int d = c.d;
+    const int channels = c.c;
+
+    if (dims == 1)
+    {
+        const signed char* cond_ptr = (const signed char*)cond;
+        const float* a_ptr = (const float*)a;
+        float* outptr = (float*)c.data;
+
+        const int cond_inc = cond.w > 1 ? 1 : 0;
+        const int a_inc = a.w > 1 ? 1 : 0;
+
+        for (int x = 0; x < w; x++)
+        {
+            outptr[x] = *cond_ptr != 0 ? b : *a_ptr;
+            cond_ptr += cond_inc;
+            a_ptr += a_inc;
+        }
+    }
+
+    if (dims == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y++)
+        {
+            const signed char* cond_ptr = (const signed char*)cond.row(std::min(y, cond.h - 1));
+            const float* a_ptr = (const float*)a.row(std::min(y, a.h - 1));
+            float* outptr = (float*)c.row(y);
+
+            const int cond_inc = cond.w > 1 ? 1 : 0;
+            const int a_inc = a.w > 1 ? 1 : 0;
+
+            for (int x = 0; x < w; x++)
+            {
+                outptr[x] = *cond_ptr != 0 ? b : *a_ptr;
+                cond_ptr += cond_inc;
+                a_ptr += a_inc;
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* outptr = (float*)c.channel(q);
+
+            const int cond_inc = cond.w > 1 ? 1 : 0;
+            const int a_inc = a.w > 1 ? 1 : 0;
+
+            for (int z = 0; z < d; z++)
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    const signed char* cond_ptr = (const signed char*)cond.channel(std::min(q, cond.c - 1)).depth(std::min(z, cond.d - 1)).row(std::min(y, cond.h - 1));
+                    const float* a_ptr = (const float*)a.channel(std::min(q, a.c - 1)).depth(std::min(z, a.d - 1)).row(std::min(y, a.h - 1));
+
+                    for (int x = 0; x < w; x++)
+                    {
+                        outptr[x] = *cond_ptr != 0 ? b : *a_ptr;
+                        cond_ptr += cond_inc;
+                        a_ptr += a_inc;
+                    }
+
+                    outptr += w;
+                }
+            }
+        }
+    }
 }
 
 static void where_broadcast(const Mat& cond, const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -106,26 +191,33 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 {
     const Mat& cond = bottom_blobs[0];
     const Mat& A = bottom_blobs[1];
-    const Mat& B = bottom_blobs[2];
 
-    const int outdims = std::max(std::max(cond.dims, A.dims), B.dims);
+    int outdims;
+    if (with_scalar)
+    {
+        outdims = std::max(cond.dims, A.dims);
+    }
+    else
+    {
+        const Mat& B = bottom_blobs[2];
+        outdims = std::max(std::max(cond.dims, A.dims), B.dims);
+    }
 
     Mat cond2 = cond;
     Mat A2 = A;
-    Mat B2 = B;
 
     if (cond.dims < outdims)
     {
         if (outdims == 2)
         {
-            if (cond.w == A.h || cond.w == B.h)
+            if (cond.w == A.h)
                 cond2 = cond.reshape(1, cond.w);
             else
                 cond2 = cond.reshape(cond.w, 1);
         }
         if (outdims == 3 && cond.dims == 1)
         {
-            if (cond.w == A.c || cond.w == B.c)
+            if (cond.w == A.c)
                 cond2 = cond.reshape(1, 1, cond.w);
             else
                 cond2 = cond.reshape(cond.w, 1, 1);
@@ -134,7 +226,7 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             cond2 = cond.reshape(1, cond.w, cond.h);
         if (outdims == 4 && cond.dims == 1)
         {
-            if (cond.w == A.c || cond.w == B.c)
+            if (cond.w == A.c)
                 cond2 = cond.reshape(1, 1, 1, cond.w);
             else
                 cond2 = cond.reshape(cond.w, 1, 1, 1);
@@ -149,14 +241,14 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     {
         if (outdims == 2)
         {
-            if (A.w == cond.h || A.w == B.h)
+            if (A.w == cond.h)
                 A2 = A.reshape(1, A.w);
             else
                 A2 = A.reshape(A.w, 1);
         }
         if (outdims == 3 && A.dims == 1)
         {
-            if (A.w == cond.c || A.w == B.c)
+            if (A.w == cond.c)
                 A2 = A.reshape(1, 1, A.w);
             else
                 A2 = A.reshape(A.w, 1, 1);
@@ -165,7 +257,7 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             A2 = A.reshape(1, A.w, A.h);
         if (outdims == 4 && A.dims == 1)
         {
-            if (A.w == cond.c || A.w == B.c)
+            if (A.w == cond.c)
                 A2 = A.reshape(1, 1, 1, A.w);
             else
                 A2 = A.reshape(A.w, 1, 1, 1);
@@ -176,41 +268,59 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             A2 = A.reshape(1, A.w, A.h, A.c);
     }
 
-    if (B.dims < outdims)
+    Mat B2;
+    if (!with_scalar)
     {
-        if (outdims == 2)
+        const Mat& B = bottom_blobs[2];
+        B2 = B;
+
+        if (B.dims < outdims)
         {
-            if (B.w == cond.h || B.w == A.h)
-                B2 = B.reshape(1, B.w);
-            else
-                B2 = B.reshape(B.w, 1);
+            if (outdims == 2)
+            {
+                if (B.w == cond.h || B.w == A.h)
+                    B2 = B.reshape(1, B.w);
+                else
+                    B2 = B.reshape(B.w, 1);
+            }
+            if (outdims == 3 && B.dims == 1)
+            {
+                if (B.w == cond.c || B.w == A.c)
+                    B2 = B.reshape(1, 1, B.w);
+                else
+                    B2 = B.reshape(B.w, 1, 1);
+            }
+            if (outdims == 3 && B.dims == 2)
+                B2 = B.reshape(1, B.w, B.h);
+            if (outdims == 4 && B.dims == 1)
+            {
+                if (B.w == cond.c || B.w == A.c)
+                    B2 = B.reshape(1, 1, 1, B.w);
+                else
+                    B2 = B.reshape(B.w, 1, 1, 1);
+            }
+            if (outdims == 4 && B.dims == 2)
+                B2 = B.reshape(1, 1, B.w, B.h);
+            if (outdims == 4 && B.dims == 3)
+                B2 = B.reshape(1, B.w, B.h, B.c);
         }
-        if (outdims == 3 && B.dims == 1)
-        {
-            if (B.w == cond.c || B.w == A.c)
-                B2 = B.reshape(1, 1, B.w);
-            else
-                B2 = B.reshape(B.w, 1, 1);
-        }
-        if (outdims == 3 && B.dims == 2)
-            B2 = B.reshape(1, B.w, B.h);
-        if (outdims == 4 && B.dims == 1)
-        {
-            if (B.w == cond.c || B.w == A.c)
-                B2 = B.reshape(1, 1, 1, B.w);
-            else
-                B2 = B.reshape(B.w, 1, 1, 1);
-        }
-        if (outdims == 4 && B.dims == 2)
-            B2 = B.reshape(1, 1, B.w, B.h);
-        if (outdims == 4 && B.dims == 3)
-            B2 = B.reshape(1, B.w, B.h, B.c);
     }
 
-    const int outw = std::max(std::max(cond2.w, A2.w), B2.w);
-    const int outh = std::max(std::max(cond2.h, A2.h), B2.h);
-    const int outd = std::max(std::max(cond2.d, A2.d), B2.d);
-    const int outc = std::max(std::max(cond2.c, A2.c), B2.c);
+    int outw, outh, outd, outc;
+    if (with_scalar)
+    {
+        outw = std::max(cond2.w, A2.w);
+        outh = std::max(cond2.h, A2.h);
+        outd = std::max(cond2.d, A2.d);
+        outc = std::max(cond2.c, A2.c);
+    }
+    else
+    {
+        outw = std::max(std::max(cond2.w, A2.w), B2.w);
+        outh = std::max(std::max(cond2.h, A2.h), B2.h);
+        outd = std::max(std::max(cond2.d, A2.d), B2.d);
+        outc = std::max(std::max(cond2.c, A2.c), B2.c);
+    }
 
     Mat& top_blob = top_blobs[0];
     if (outdims == 1) top_blob.create(outw, (size_t)4u, opt.blob_allocator);
@@ -221,7 +331,14 @@ int Where::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     if (top_blob.empty())
         return -100;
 
-    where_broadcast(cond2, A2, B2, top_blob, opt);
+    if (with_scalar)
+    {
+        where_broadcast_scalar_b(cond2, A2, b, top_blob, opt);
+    }
+    else
+    {
+        where_broadcast(cond2, A2, B2, top_blob, opt);
+    }
 
     return 0;
 }
