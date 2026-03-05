@@ -494,6 +494,12 @@ void main()
                             if (gk < psc(GK))
                             {
                                 v = A_blob_data[gm * p.A_hstep + gk];
+
+                                const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                                uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
+                                uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                v = v & packed_mask;
                             }
 
                             prefetch_tmp_a[q] = v;
@@ -620,7 +626,7 @@ void main()
                             {
                                 v = A_blob_data[gk * p.A_hstep + gm];
 
-                                uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                                const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
                                 uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                 uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
 
@@ -752,6 +758,12 @@ void main()
                             if (gn < psc(GN))
                             {
                                 v = B_blob_data[gk * p.B_hstep + gn];
+
+                                const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                                uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                v = v & packed_mask;
                             }
 
                             prefetch_tmp_b[q] = v;
@@ -876,6 +888,12 @@ void main()
                             if (gk < psc(GK))
                             {
                                 v = B_blob_data[gn * p.B_hstep + gk];
+
+                                const uvec4 gn4 = gn * 4 + uvec4(0, 1, 2, 3);
+                                uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
+                                uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                v = v & packed_mask;
                             }
 
                             prefetch_tmp_b[q] = v;
@@ -1130,6 +1148,12 @@ void main()
                                 if (gk < psc(GK))
                                 {
                                     v = A_blob_data[gm * p.A_hstep + gk];
+
+                                    const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                                    uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
+                                    uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                    v = v & packed_mask;
                                 }
 
                                 prefetch_tmp_a[q] = v;
@@ -1256,7 +1280,7 @@ void main()
                                 {
                                     v = A_blob_data[gk * p.A_hstep + gm];
 
-                                    uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                                    const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
                                     uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                                     uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
 
@@ -1387,6 +1411,12 @@ void main()
                                 if (gn < psc(GN))
                                 {
                                     v = B_blob_data[gk * p.B_hstep + gn];
+
+                                    const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                                    uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                                    uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                    v = v & packed_mask;
                                 }
 
                                 prefetch_tmp_b[q] = v;
@@ -1511,6 +1541,12 @@ void main()
                                 if (gk < psc(GK))
                                 {
                                     v = B_blob_data[gn * p.B_hstep + gk];
+
+                                    const uvec4 gn4 = gn * 4 + uvec4(0, 1, 2, 3);
+                                    uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
+                                    uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                                    v = v & packed_mask;
                                 }
 
                                 prefetch_tmp_b[q] = v;
@@ -1989,6 +2025,12 @@ void main()
                         if (gk < psc(GK))
                         {
                             v = A_blob_data[gm * p.A_hstep + gk];
+
+                            const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_a[(((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * K + i) * Md4p + j] = v;
@@ -2115,7 +2157,7 @@ void main()
                         {
                             v = A_blob_data[gk * p.A_hstep + gm];
 
-                            uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                            const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
                             uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                             uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
 
@@ -2246,6 +2288,12 @@ void main()
                         if (gn < psc(GN))
                         {
                             v = B_blob_data[gk * p.B_hstep + gn];
+
+                            const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_b[(((sgni * UNROLL_SG_K + zk) * UNROLL_SG_N + zn) * N + i) * Kd4p + j] = v;
@@ -2370,6 +2418,12 @@ void main()
                         if (gk < psc(GK))
                         {
                             v = B_blob_data[gn * p.B_hstep + gk];
+
+                            const uvec4 gn4 = gn * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_b[(((sgni * UNROLL_SG_K + zk) * UNROLL_SG_N + zn) * K + j) * Nd4p + i] = v;
@@ -2608,6 +2662,12 @@ void main()
                         if (gk < psc(GK))
                         {
                             v = A_blob_data[gm * p.A_hstep + gk];
+
+                            const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gm4, uvec4(psc(GM)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_a[((sgmi * UNROLL_SG_M + zm) * K + i) * Md4p + j] = v;
@@ -2722,7 +2782,7 @@ void main()
                         {
                             v = A_blob_data[gk * p.A_hstep + gm];
 
-                            uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                            const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
                             uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
                             uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
 
@@ -2841,6 +2901,12 @@ void main()
                         if (gn < psc(GN))
                         {
                             v = B_blob_data[gk * p.B_hstep + gn];
+
+                            const uvec4 gk4 = gk * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gk4, uvec4(psc(GK)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_b[((sgni * UNROLL_SG_N + zn) * N + i) * Kd4p + j] = v;
@@ -2953,6 +3019,12 @@ void main()
                         if (gk < psc(GK))
                         {
                             v = B_blob_data[gn * p.B_hstep + gk];
+
+                            const uvec4 gn4 = gn * 4 + uvec4(0, 1, 2, 3);
+                            uvec4 mask4 = uvec4(lessThan(gn4, uvec4(psc(GN)))) * 0xFFFFu;
+                            uvec2 packed_mask = uvec2(mask4.x | (mask4.y << 16), mask4.z | (mask4.w << 16));
+
+                            v = v & packed_mask;
                         }
 
                         tmp_b[((sgni * UNROLL_SG_N + zn) * K + j) * Nd4p + i] = v;
