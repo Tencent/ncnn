@@ -3165,7 +3165,6 @@ void main()
             {
                 if (psc(out_elempack) == 4)
                 {
-                    // out_elempack=4: ColumnMajor, stride Md4 (NO PAD)
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
                     coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Md4p * N), Md4p, gl_CooperativeMatrixLayoutColumnMajor);
@@ -3188,7 +3187,6 @@ void main()
                 }
                 else
                 {
-                    // out_elempack=1: RowMajor, stride Nd4p
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_fp16_arithmetic
                     coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd4p * M), Nd4p, gl_CooperativeMatrixLayoutRowMajor);
@@ -3265,43 +3263,8 @@ void main()
     // store top_blob
     if (output_transpose == 0)
     {
-        //          +-N-+
-        //          M   |
-        //          +SG_UM
-        //          |   |
-        //       ^  +---+
-        //       |  |   |
-        //     SG_UN+- -+
-        //       |  |   |
-        //     ^ v  +---+
-        //     |    |   |
-        //     |    +- -+
-        //     |    |   |
-        //   WG_UM  +- -+
-        //     |    |   |
-        //     |    +- -+
-        //     |    |   |
-        //   ^ v    +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   |      +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        // WG_UN    +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   |      +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   v      +---+
-
         if (psc(out_elempack) == 4)
         {
-            // ColumnMajor (no PAD): tmp_o[base + n * Md4 + m4], each uvec2 = sfpvec4 of 4 consecutive M values
             const uint Md4_N_USGM_USGN = Md4 * N * UNROLL_SG_M * UNROLL_SG_N;
             const uint Md4_N_USGM_USGN_d_subgroupsize = (Md4_N_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Md4_N_USGM_USGN_d_subgroupsize; q++)
@@ -3333,6 +3296,40 @@ void main()
         }
         else
         {
+            //          +-N-+
+            //          M   |
+            //          +SG_UM
+            //          |   |
+            //       ^  +---+
+            //       |  |   |
+            //     SG_UN+- -+
+            //       |  |   |
+            //     ^ v  +---+
+            //     |    |   |
+            //     |    +- -+
+            //     |    |   |
+            //   WG_UM  +- -+
+            //     |    |   |
+            //     |    +- -+
+            //     |    |   |
+            //   ^ v    +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   |      +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            // WG_UN    +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   |      +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   v      +---+
+
             const uint Nd4_M_USGM_USGN = Nd4 * M * UNROLL_SG_M * UNROLL_SG_N;
             const uint Nd4_M_USGM_USGN_d_subgroupsize = (Nd4_M_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Nd4_M_USGM_USGN_d_subgroupsize; q++)
@@ -3374,40 +3371,6 @@ void main()
     }
     else
     {
-        //          +-M-+
-        //          N   |
-        //          +SG_UM
-        //          |   |
-        //       ^  +---+
-        //       |  |   |
-        //     SG_UN+- -+
-        //       |  |   |
-        //     ^ v  +---+
-        //     |    |   |
-        //     |    +- -+
-        //     |    |   |
-        //   WG_UM  +- -+
-        //     |    |   |
-        //     |    +- -+
-        //     |    |   |
-        //   ^ v    +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   |      +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        // WG_UN    +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   |      +---+
-        //   |      |   |
-        //   |      +- -+
-        //   |      |   |
-        //   v      +---+
-
         if (psc(out_elempack) == 4)
         {
             const uint Nd4_M_USGM_USGN = Nd4 * M * UNROLL_SG_M * UNROLL_SG_N;
@@ -3441,6 +3404,40 @@ void main()
         }
         else
         {
+            //          +-M-+
+            //          N   |
+            //          +SG_UM
+            //          |   |
+            //       ^  +---+
+            //       |  |   |
+            //     SG_UN+- -+
+            //       |  |   |
+            //     ^ v  +---+
+            //     |    |   |
+            //     |    +- -+
+            //     |    |   |
+            //   WG_UM  +- -+
+            //     |    |   |
+            //     |    +- -+
+            //     |    |   |
+            //   ^ v    +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   |      +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            // WG_UN    +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   |      +---+
+            //   |      |   |
+            //   |      +- -+
+            //   |      |   |
+            //   v      +---+
+
             const uint Md4_N_USGM_USGN = Md4 * N * UNROLL_SG_M * UNROLL_SG_N;
             const uint Md4_N_USGM_USGN_d_subgroupsize = (Md4_N_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Md4_N_USGM_USGN_d_subgroupsize; q++)
