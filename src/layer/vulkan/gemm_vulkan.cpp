@@ -49,23 +49,23 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     {
         A_data_packed = transA ? A_data.reshape(constantM, constantK) : A_data.reshape(constantK, constantM);
 
-        if (A_data_packed.h % 4 == 0)
-        {
-            Mat tmp;
-            convert_packing(A_data_packed, tmp, 4, opt);
-            A_data_packed = tmp;
-        }
+        // if (A_data_packed.h % 4 == 0)
+        // {
+        //     Mat tmp;
+        //     convert_packing(A_data_packed, tmp, 4, opt);
+        //     A_data_packed = tmp;
+        // }
     }
     if (constantB)
     {
         B_data_packed = transB ? B_data.reshape(constantK, constantN) : B_data.reshape(constantN, constantK);
 
-        if (B_data_packed.h % 4 == 0)
-        {
-            Mat tmp;
-            convert_packing(B_data_packed, tmp, 4, opt);
-            B_data_packed = tmp;
-        }
+        // if (B_data_packed.h % 4 == 0)
+        // {
+        //     Mat tmp;
+        //     convert_packing(B_data_packed, tmp, 4, opt);
+        //     B_data_packed = tmp;
+        // }
     }
     if (constantC)
     {
@@ -112,6 +112,173 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
         UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
         UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+        if (constantB == 1)
+        {
+            //        +-N-+
+            //        K   |
+            //        +SG_UN
+            //        |   |
+            //     ^  +---+
+            //     |  |   |
+            //   SG_UK+- -+
+            //     |  |   |
+            //   ^ v  +---+
+            //   |    |   |
+            //   |    +- -+
+            //   |    |   |
+            // WG_UN  +---+
+            //   |    |   |
+            //   |    +- -+
+            //   |    |   |
+            //   v    +---+
+
+            //      +-N-+
+            //      K   |
+            //      +SG_UN
+            //      |   |
+            //   ^  +---+
+            //   |  |   |
+            // WG_UN+- -+
+            //   |  |   |
+            //   v  +---+
+
+            const int blocks_n = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int kk = (K + coopmat_K - 1) / coopmat_K;
+
+            B_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
+
+            if (transB == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bn = 0; bn < blocks_n; bn++)
+                {
+                    float* p = B_data_packed.row(bn);
+
+                    int k = 0;
+                    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                            if (gni < N && gki < K)
+                                            {
+                                                *p++ = B_data[gni * K + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (; k < kk; k++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            {
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = k * coopmat_K + i;
+
+                                        if (gni < N && gki < K)
+                                        {
+                                            *p++ = B_data[gni * K + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bn = 0; bn < blocks_n; bn++)
+                {
+                    float* p = B_data_packed.row(bn);
+
+                    int k = 0;
+                    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                            if (gni < N && gki < K)
+                                            {
+                                                *p++ = B_data[gki * N + gni];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (; k < kk; k++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            {
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = k * coopmat_K + i;
+
+                                        if (gni < N && gki < K)
+                                        {
+                                            *p++ = B_data[gki * N + gni];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         int outh = output_transpose ? constantN : constantM;
         int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
