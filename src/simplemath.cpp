@@ -532,7 +532,7 @@ float log1pf(float x)
     }
     if (x < -1.0f)
     {
-        return -INFINITY;
+        return (x - x) / (x - x); // NaN
     }
     if (x == -1.0f)
     {

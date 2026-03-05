@@ -1192,10 +1192,15 @@ static NCNN_FORCEINLINE __m128 round_ps(const __m128& x)
 
     __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
     __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
-    __m128 truncated = _mm_cvtepi32_ps(_mm_cvttps_epi32(absolute));
+    __m128i xi = _mm_cvttps_epi32(absolute);
+    __m128 truncated = _mm_cvtepi32_ps(xi);
     __m128 diff = _mm_sub_ps(absolute, truncated);
-    __m128 need_round_up = _mm_cmpge_ps(diff, magic_half);
-    __m128 rounded = _mm_add_ps(truncated, _mm_and_ps(need_round_up, magic_one));
+    __m128 diff_gt_half = _mm_cmpgt_ps(diff, magic_half);
+    __m128 diff_eq_half = _mm_cmpeq_ps(diff, magic_half);
+    __m128i xi_and_1 = _mm_and_si128(xi, _mm_set1_epi32(1));
+    __m128i is_odd = _mm_cmpeq_epi32(xi_and_1, _mm_set1_epi32(1));
+    __m128 round_up = _mm_or_ps(diff_gt_half, _mm_and_ps(diff_eq_half, _mm_castsi128_ps(is_odd)));
+    __m128 rounded = _mm_add_ps(truncated, _mm_and_ps(round_up, magic_one));
     return _mm_or_ps(rounded, negative_mask);
 }
 
