@@ -48,24 +48,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     if (constantA)
     {
         A_data_packed = transA ? A_data.reshape(constantM, constantK) : A_data.reshape(constantK, constantM);
-
-        // if (A_data_packed.h % 4 == 0)
-        // {
-        //     Mat tmp;
-        //     convert_packing(A_data_packed, tmp, 4, opt);
-        //     A_data_packed = tmp;
-        // }
     }
     if (constantB)
     {
         B_data_packed = transB ? B_data.reshape(constantK, constantN) : B_data.reshape(constantN, constantK);
-
-        // if (B_data_packed.h % 4 == 0)
-        // {
-        //     Mat tmp;
-        //     convert_packing(B_data_packed, tmp, 4, opt);
-        //     B_data_packed = tmp;
-        // }
     }
     if (constantC)
     {
