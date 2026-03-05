@@ -38,7 +38,6 @@ layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 5) readonly buffer A_blob_4 { sfpvec4 A_blob_data_4[]; };
 layout(binding = 6) readonly buffer B_blob_4 { sfpvec4 B_blob_data_4[]; };
-layout(binding = 7) readonly buffer B_blob_1 { sfp B_blob_data_1[]; };
 
 layout(push_constant) uniform parameter
 {

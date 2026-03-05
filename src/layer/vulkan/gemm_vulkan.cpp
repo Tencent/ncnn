@@ -323,13 +323,8 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
-    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
-
-    VkMat A;
-    VkMat B;
-    A = A0;
-    B = B0;
+    const VkMat& A = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;
@@ -468,15 +463,12 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     }
     else
     {
-        std::vector<VkMat> bindings(8);
+        std::vector<VkMat> bindings(5);
         bindings[0] = top_blob;
         bindings[1] = A;
         bindings[2] = B;
         bindings[3] = C;
         bindings[4] = top_blob;
-        bindings[5] = A;
-        bindings[6] = B;
-        bindings[7] = B;
 
         std::vector<vk_constant_type> constants(13);
         constants[0].i = M;
@@ -503,6 +495,10 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         }
         else if (use_subgroup_ops)
         {
+            bindings.resize(7);
+            bindings[5] = A;
+            bindings[6] = B;
+
             const int subgroup_size = vkdev->info.subgroup_size();
 
             const int blocks_x = (M + (UNROLL_SG_M * 4 - 1)) / (UNROLL_SG_M * 4);
