@@ -75,7 +75,12 @@ const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 
 // avoid bank conflict
+#if ncnn_VK_KHR_cooperative_matrix
 #define PAD 1
+#elif ncnn_VK_NV_cooperative_matrix
+// fixme: pad causes incorrect result on old driver
+#define PAD 0
+#endif
 
 const uint Md4p = Md4 + PAD;
 const uint Nd4p = Nd4 + PAD;
