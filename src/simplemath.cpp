@@ -524,6 +524,28 @@ float log10f(float x)
     return logf(x) / ln10;
 }
 
+float log1pf(float x)
+{
+    if (x == 0.0f)
+    {
+        return x;
+    }
+    if (x < -1.0f)
+    {
+        return -INFINITY;
+    }
+    if (x == -1.0f)
+    {
+        return -INFINITY;
+    }
+    float u = 1.0f + x;
+    if (u == 1.0f)
+    {
+        return x;
+    }
+    return logf(u) * (x / (u - 1.0f));
+}
+
 /*
 * ====================================================
 * probability functions

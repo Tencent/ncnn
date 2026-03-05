@@ -68,6 +68,7 @@ NCNN_EXPORT float frexp(float, int*);
 NCNN_EXPORT float logf(float);
 NCNN_EXPORT float log(float);
 NCNN_EXPORT float log10f(float);
+NCNN_EXPORT float log1pf(float);
 
 /*
 * ====================================================
