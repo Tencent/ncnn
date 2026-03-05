@@ -5,7 +5,7 @@
 
 static int op_type = 0;
 
-static int test_logical(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
+static int test_logical(const ncnn::Mat& _a, const ncnn::Mat& _b)
 {
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
@@ -17,125 +17,166 @@ static int test_logical(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
 
     std::vector<ncnn::Mat> weights(0);
 
+    int typeindex = ncnn::layer_to_index("Logical");
+    if (typeindex == -1)
+    {
+        fprintf(stderr, "layer_to_index Logical failed\n");
+        return -1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer_cpu(typeindex);
+    if (!op)
+    {
+        fprintf(stderr, "create_layer_cpu Logical failed\n");
+        return -1;
+    }
+
+    op->load_param(pd);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    op->create_pipeline(opt);
+
     std::vector<ncnn::Mat> ab(2);
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer("Logical", pd, weights, ab, 1, 0.001, flag);
+    std::vector<ncnn::Mat> c(1);
+    int ret = op->forward(ab, c, opt);
     if (ret != 0)
     {
-        fprintf(stderr, "test_logical failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
+        fprintf(stderr, "forward failed ret=%d a.dims=%d b.dims=%d op_type=%d\n", ret, a.dims, b.dims, op_type);
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
     }
 
-    return ret;
+    op->destroy_pipeline(opt);
+    delete op;
+
+    return 0;
 }
 
-static int test_logical(const ncnn::Mat& _a, int b, int flag)
+static int test_logical_scalar(const ncnn::Mat& _a, signed char scalar)
 {
     ncnn::Mat a = _a;
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
     pd.set(1, 1);
-    pd.set(2, b);
+    pd.set(2, scalar);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Logical", pd, weights, a, 0.001, flag);
-    if (ret != 0)
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::layer_to_index("Logical"));
+    if (!op)
     {
-        fprintf(stderr, "test_logical failed a.dims=%d a=(%d %d %d %d) b=%d op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
+        fprintf(stderr, "create_layer_cpu Logical failed\n");
+        return -1;
     }
 
-    return ret;
-}
+    op->load_param(pd);
 
-static int test_logical_0()
-{
-    return 0
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    op->create_pipeline(opt);
+
+    ncnn::Mat c;
+    int ret = op->forward(a, c, opt);
+    if (ret != 0)
+    {
+        fprintf(stderr, "forward failed ret=%d\n", ret);
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    return 0;
 }
 
 static int test_logical_1()
 {
+    ncnn::Mat a = RandomBoolMat(16);
+    ncnn::Mat b = RandomBoolMat(16);
+
     return 0
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0);
+           || test_logical(a, b)
+           || test_logical_scalar(a, 0)
+           || test_logical_scalar(a, 1);
 }
 
 static int test_logical_2()
 {
+    ncnn::Mat a = RandomBoolMat(16, 16);
+    ncnn::Mat b = RandomBoolMat(16, 16);
+
     return 0
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0);
+           || test_logical(a, b)
+           || test_logical_scalar(a, 0)
+           || test_logical_scalar(a, 1);
 }
 
 static int test_logical_3()
 {
+    ncnn::Mat a = RandomBoolMat(8, 8, 8);
+    ncnn::Mat b = RandomBoolMat(8, 8, 8);
+
     return 0
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0);
+           || test_logical(a, b)
+           || test_logical_scalar(a, 0)
+           || test_logical_scalar(a, 1);
 }
 
-static int test_logical_scalar()
+static int test_logical_4()
 {
+    ncnn::Mat a = RandomBoolMat(4, 4, 4, 4);
+    ncnn::Mat b = RandomBoolMat(4, 4, 4, 4);
+
     return 0
-           || test_logical(RandomBoolMat(4, 3, 2), 0, 0)
-           || test_logical(RandomBoolMat(4, 3, 2), 1, 0)
-           || test_logical(RandomBoolMat(4, 3, 2), 0, 0)
-           || test_logical(RandomBoolMat(4, 3, 2), 1, 0);
+           || test_logical(a, b)
+           || test_logical_scalar(a, 0)
+           || test_logical_scalar(a, 1);
 }
 
 static int test_logical_broadcast()
 {
-    return 0
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 1, 1), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(1, 3, 1), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(1, 1, 2), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(1, 1, 1), 0)
-           || test_logical(RandomBoolMat(4, 3, 2), RandomBoolMat(4, 3, 2), 0);
+    ncnn::Mat a = RandomBoolMat(4, 8, 8);
+    ncnn::Mat b = RandomBoolMat(1, 8, 8);
+
+    int ret = test_logical(a, b);
+    if (ret != 0)
+        return ret;
+
+    a = RandomBoolMat(4, 8, 8);
+    b = RandomBoolMat(4, 1, 8);
+    ret = test_logical(a, b);
+    if (ret != 0)
+        return ret;
+
+    a = RandomBoolMat(4, 8, 8);
+    b = RandomBoolMat(4, 8, 1);
+    return test_logical(a, b);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    op_type = 0;
-    printf("test_logical NOT\n");
-    if (test_logical_scalar() != 0)
-        return -1;
+    for (op_type = 0; op_type < 4; op_type++)
+    {
+        int ret = 0
+                  || test_logical_1()
+                  || test_logical_2()
+                  || test_logical_3()
+                  || test_logical_4()
+                  || test_logical_broadcast();
 
-    op_type = 1;
-    printf("test_logical AND\n");
-    if (test_logical_1() != 0)
-        return -1;
-    if (test_logical_scalar() != 0)
-        return -1;
-    if (test_logical_broadcast() != 0)
-        return -1;
-
-    op_type = 2;
-    printf("test_logical OR\n");
-    if (test_logical_2() != 0)
-        return -1;
-    if (test_logical_scalar() != 0)
-        return -1;
-    if (test_logical_broadcast() != 0)
-        return -1;
-
-    op_type = 3;
-    printf("test_logical XOR\n");
-    if (test_logical_3() != 0)
-        return -1;
-    if (test_logical_scalar() != 0)
-        return -1;
-    if (test_logical_broadcast() != 0)
-        return -1;
+        if (ret != 0)
+            return ret;
+    }
 
     return 0;
 }

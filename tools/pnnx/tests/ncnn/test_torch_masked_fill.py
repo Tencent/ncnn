@@ -31,7 +31,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../build/src/pnnx.exe test_torch_masked_fill.pt inputshape=[1,10]")
+    os.system("../../src/pnnx test_torch_masked_fill.pt inputshape=[1,10]")
 
     # ncnn inference
     import test_torch_masked_fill_ncnn

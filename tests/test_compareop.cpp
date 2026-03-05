@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
@@ -102,15 +102,9 @@ static int test_compareop_1()
     ncnn::Mat a = RandomMat(16);
     ncnn::Mat b = RandomMat(16);
 
-    int ret = test_compareop(a, b);
-    if (ret != 0)
-        return ret;
-
-    ret = test_compareop_scalar(a, 0.5f);
-    if (ret != 0)
-        return ret;
-
-    return 0;
+    return 0
+           || test_compareop(a, b)
+           || test_compareop_scalar(a, 0.5f);
 }
 
 static int test_compareop_2()
@@ -118,15 +112,9 @@ static int test_compareop_2()
     ncnn::Mat a = RandomMat(16, 16);
     ncnn::Mat b = RandomMat(16, 16);
 
-    int ret = test_compareop(a, b);
-    if (ret != 0)
-        return ret;
-
-    ret = test_compareop_scalar(a, 0.5f);
-    if (ret != 0)
-        return ret;
-
-    return 0;
+    return 0
+           || test_compareop(a, b)
+           || test_compareop_scalar(a, 0.5f);
 }
 
 static int test_compareop_3()
@@ -134,15 +122,9 @@ static int test_compareop_3()
     ncnn::Mat a = RandomMat(8, 8, 8);
     ncnn::Mat b = RandomMat(8, 8, 8);
 
-    int ret = test_compareop(a, b);
-    if (ret != 0)
-        return ret;
-
-    ret = test_compareop_scalar(a, 0.5f);
-    if (ret != 0)
-        return ret;
-
-    return 0;
+    return 0
+           || test_compareop(a, b)
+           || test_compareop_scalar(a, 0.5f);
 }
 
 static int test_compareop_4()
@@ -150,15 +132,9 @@ static int test_compareop_4()
     ncnn::Mat a = RandomMat(4, 4, 4, 4);
     ncnn::Mat b = RandomMat(4, 4, 4, 4);
 
-    int ret = test_compareop(a, b);
-    if (ret != 0)
-        return ret;
-
-    ret = test_compareop_scalar(a, 0.5f);
-    if (ret != 0)
-        return ret;
-
-    return 0;
+    return 0
+           || test_compareop(a, b)
+           || test_compareop_scalar(a, 0.5f);
 }
 
 int main()
@@ -174,13 +150,8 @@ int main()
                   || test_compareop_4();
 
         if (ret != 0)
-        {
-            fprintf(stderr, "test_compareop failed op_type=%d\n", op_type);
             return ret;
-        }
     }
-
-    fprintf(stderr, "test_compareop passed all tests\n");
 
     return 0;
 }

@@ -97,20 +97,10 @@ int main()
 {
     SRAND(7767517);
 
-    int ret = 0
-              || test_where_1()
-              || test_where_2()
-              || test_where_3()
-              || test_where_4()
-              || test_where_broadcast();
-
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_where failed\n");
-        return ret;
-    }
-
-    fprintf(stderr, "test_where passed all tests\n");
-
-    return 0;
+    return 0
+           || test_where_1()
+           || test_where_2()
+           || test_where_3()
+           || test_where_4()
+           || test_where_broadcast();
 }

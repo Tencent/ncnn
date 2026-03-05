@@ -34,7 +34,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../build/src/pnnx.exe test_torch_logical.pt inputshape=[3,16],[3,16]")
+    os.system("../../src/pnnx test_torch_logical.pt inputshape=[3,16],[3,16]")
 
     # ncnn inference
     import test_torch_logical_ncnn
