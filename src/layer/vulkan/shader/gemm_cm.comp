@@ -377,7 +377,23 @@ void main()
             const uint ki = 0;
 
             // load A
-            if (transA == 0)
+            if (constantA == 1)
+            {
+                const uint Kd4_M_USGM = Kd4 * M * UNROLL_SG_M;
+                const uint Kd4_M_USGM_USGK = Kd4_M_USGM * UNROLL_SG_K;
+                const uint A_offset = (wgmi * kk * UNROLL_WG_M + sgmi * UNROLL_SG_K) * Kd4_M_USGM;
+                const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+                [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
+                {
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                    if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                    {
+                        prefetch_tmp_a[q] = A_blob_data[A_offset + siq];
+                    }
+                }
+            }
+            else if (transA == 0)
             {
                 if (psc(A_elempack) == 1)
                 {
@@ -915,7 +931,28 @@ void main()
             // copy prefetch to shared memory
             {
                 // load A
-                if (transA == 0)
+                if (constantA == 1)
+                {
+                    const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
+                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+                    [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
+                    {
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                        if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                        {
+                            const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
+                            const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
+                            const uint zm = zmij / (Kd4 * M);
+                            const uint ij = zmij % (Kd4 * M);
+                            const uint j = ij / Kd4;
+                            const uint i = ij % Kd4;
+
+                            tmp_a[(((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = prefetch_tmp_a[q];
+                        }
+                    }
+                }
+                else if (transA == 0)
                 {
                     const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
                     const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
@@ -1055,7 +1092,23 @@ void main()
                 const uint ki = k * K;
 
                 // load A
-                if (transA == 0)
+                if (constantA == 1)
+                {
+                    const uint Kd4_M_USGM = Kd4 * M * UNROLL_SG_M;
+                    const uint Kd4_M_USGM_USGK = Kd4_M_USGM * UNROLL_SG_K;
+                    const uint A_offset = (wgmi * kk * UNROLL_WG_M + k * UNROLL_WG_M + sgmi * UNROLL_SG_K) * Kd4_M_USGM;
+                    const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+                    [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
+                    {
+                        const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                        if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                        {
+                            prefetch_tmp_a[q] = A_blob_data[A_offset + siq];
+                        }
+                    }
+                }
+                else if (transA == 0)
                 {
                     if (psc(A_elempack) == 1)
                     {
@@ -1600,7 +1653,15 @@ void main()
             {
                 [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 {
-                    if (transA == 0)
+                    if (constantA == 1)
+                    {
+#if ncnn_VK_KHR_cooperative_matrix
+                        coopMatLoad(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                        coopMatLoadNV(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+#endif
+                    }
+                    else if (transA == 0)
                     {
                         if (psc(A_elempack) == 4)
                         {
@@ -1709,7 +1770,28 @@ void main()
 
         // the last copy prefetch to shared memory
         {
-            if (transA == 0)
+            if (constantA == 1)
+            {
+                const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
+                const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+                [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
+                {
+                    const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                    if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                    {
+                        const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
+                        const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
+                        const uint zm = zmij / (Kd4 * M);
+                        const uint ij = zmij % (Kd4 * M);
+                        const uint j = ij / Kd4;
+                        const uint i = ij % Kd4;
+
+                        tmp_a[(((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = prefetch_tmp_a[q];
+                    }
+                }
+            }
+            else if (transA == 0)
             {
                 const uint Kd4_M_USGM_USGK = Kd4 * M * UNROLL_SG_M * UNROLL_SG_K;
                 const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
@@ -1861,7 +1943,15 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                if (transA == 0)
+                if (constantA == 1)
+                {
+#if ncnn_VK_KHR_cooperative_matrix
+                    coopMatLoad(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                    coopMatLoadNV(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+#endif
+                }
+                else if (transA == 0)
                 {
                     if (psc(A_elempack) == 4)
                     {
@@ -1972,7 +2062,30 @@ void main()
         const uint ki = 0;
 
         // load A
-        if (transA == 0)
+        if (constantA == 1)
+        {
+            const uint Kd4_M_USGM = Kd4 * M * UNROLL_SG_M;
+            const uint Kd4_M_USGM_USGK = Kd4_M_USGM * UNROLL_SG_K;
+            const uint A_offset = (wgmi * kk * UNROLL_WG_M + sgmi * UNROLL_SG_K) * Kd4_M_USGM;
+            const uint Kd4_M_USGM_USGK_d_subgroupsize = (Kd4_M_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+            [[unroll]] for (uint q = 0; q < Kd4_M_USGM_USGK_d_subgroupsize; q++)
+            {
+                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                if (Kd4_M_USGM_USGK % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM_USGK)
+                {
+                    const uint zk = siq / (Kd4 * M * UNROLL_SG_M);
+                    const uint zmij = siq % (Kd4 * M * UNROLL_SG_M);
+                    const uint zm = zmij / (Kd4 * M);
+                    const uint ij = zmij % (Kd4 * M);
+                    const uint j = ij / Kd4;
+                    const uint i = ij % Kd4;
+
+                    tmp_a[(((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = A_blob_data[A_offset + siq];
+                }
+            }
+        }
+        else if (transA == 0)
         {
             if (psc(A_elempack) == 1)
             {
@@ -2525,7 +2638,15 @@ void main()
         {
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                if (transA == 0)
+                if (constantA == 1)
+                {
+#if ncnn_VK_KHR_cooperative_matrix
+                    coopMatLoad(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                    coopMatLoadNV(A[zm], tmp_a, ((sgmi * UNROLL_SG_K + zk) * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+#endif
+                }
+                else if (transA == 0)
                 {
                     if (psc(A_elempack) == 4)
                     {
@@ -2639,7 +2760,27 @@ void main()
         barrier();
 
         // load A
-        if (transA == 0)
+        if (constantA == 1)
+        {
+            const uint Kd4_M_USGM = Kd4 * M * UNROLL_SG_M;
+            const uint A_offset = ((wgmi * kk + k) * UNROLL_WG_M + sgmi) * Kd4_M_USGM;
+            const uint Kd4_M_USGM_d_subgroupsize = (Kd4_M_USGM + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
+            [[unroll]] for (uint q = 0; q < Kd4_M_USGM_d_subgroupsize; q++)
+            {
+                const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
+
+                if (Kd4_M_USGM % (subgroup_size * UNROLL_WG_N) == 0 || siq < Kd4_M_USGM)
+                {
+                    const uint zm = siq / (Kd4 * M);
+                    const uint ij = siq % (Kd4 * M);
+                    const uint j = ij / Kd4;
+                    const uint i = ij % Kd4;
+
+                    tmp_a[((sgmi * UNROLL_SG_M + zm) * M + j) * Kd4p + i] = A_blob_data[A_offset + siq];
+                }
+            }
+        }
+        else if (transA == 0)
         {
             if (psc(A_elempack) == 1)
             {
@@ -3151,7 +3292,15 @@ void main()
 
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            if (transA == 0)
+            if (constantA == 1)
+            {
+#if ncnn_VK_KHR_cooperative_matrix
+                coopMatLoad(A[zm], tmp_a, (sgmi * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+                coopMatLoadNV(A[zm], tmp_a, (sgmi * UNROLL_SG_M + zm) * (Kd4p * M), Kd4p, false);
+#endif
+            }
+            else if (transA == 0)
             {
                 if (psc(A_elempack) == 4)
                 {
