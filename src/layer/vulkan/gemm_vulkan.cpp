@@ -643,8 +643,20 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& A = constantA ? A_data_gpu : bottom_blobs[0];
-    const VkMat& B = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    VkMat A = A0;
+    VkMat B = B0;
+
+    if (constantA && !vkdev->is_device_local(A0.data->memory_type_index))
+    {
+        cmd.record_clone(A0, A, opt);
+    }
+    if (constantB && !vkdev->is_device_local(B0.data->memory_type_index))
+    {
+        cmd.record_clone(B0, B, opt);
+    }
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;
