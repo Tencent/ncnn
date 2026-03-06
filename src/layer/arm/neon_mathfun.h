@@ -407,8 +407,12 @@ static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
 static inline float32x4_t trunc_ps(const float32x4_t& x)
 {
     // truncate toward zero
+#if __aarch64__
+    return vrndq_f32(x);
+#else
     int32x4_t xi = vcvtq_s32_f32(x);
     return vcvtq_f32_s32(xi);
+#endif
 }
 
 static inline float32x4_t fmod_ps(const float32x4_t& x, const float32x4_t& y)
