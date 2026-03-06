@@ -798,6 +798,8 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
         vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
 
+    block->memory_type_index = buffer_memory_type_index;
+
     d->buffer_blocks.push_back(block);
 
     // return sub buffer
@@ -1615,6 +1617,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     {
         vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
+
+    block->memory_type_index = buffer_memory_type_index;
 
     d->buffer_blocks.push_back(block);
 
