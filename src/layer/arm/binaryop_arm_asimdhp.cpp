@@ -402,7 +402,6 @@ MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2f(y, x), vcvt_f16_f32(atan2_p
 MAKE_FUNCTION(binary_op_fmod_fp16s, (__fp16)fmodf((float)x, (float)y), fmod_f16(x, y), fmodq_f16(x, y))
 MAKE_FUNCTION(binary_op_rfmod_fp16s, (__fp16)fmodf((float)y, (float)x), fmod_f16(y, x), fmodq_f16(y, x))
 MAKE_FUNCTION(binary_op_logaddexp_fp16s, (__fp16)(std::max((float)x, (float)y) + log1pf(expf(std::min((float)x, (float)y) - std::max((float)x, (float)y)))), logaddexp_f16(x, y), logaddexpq_f16(x, y))
-MAKE_FUNCTION(binary_op_rlogaddexp_fp16s, (__fp16)(std::max((float)y, (float)x) + log1pf(expf(std::min((float)y, (float)x) - std::max((float)y, (float)x)))), logaddexp_f16(y, x), logaddexpq_f16(y, x))
 MAKE_FUNCTION(binary_op_floor_divide_fp16s, (__fp16)floorf((float)x / (float)y), floor_divide_f16(x, y), floor_divideq_f16(x, y))
 MAKE_FUNCTION(binary_op_rfloor_divide_fp16s, (__fp16)floorf((float)y / (float)x), floor_divide_f16(y, x), floor_divideq_f16(y, x))
 MAKE_FUNCTION(binary_op_remainder_fp16s, (__fp16)remainderf((float)x, (float)y), remainder_f16(x, y), remainderq_f16(x, y))
@@ -433,7 +432,6 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
     if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector_fp16s<binary_op_fmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector_fp16s<binary_op_rfmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_vector_fp16s<binary_op_logaddexp_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return binary_op_vector_fp16s<binary_op_rlogaddexp_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_vector_fp16s<binary_op_floor_divide_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_vector_fp16s<binary_op_rfloor_divide_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector_fp16s<binary_op_remainder_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
@@ -583,7 +581,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
-    if (op_type == BinaryOp::Operation_LOGADDEXP) return BinaryOp::Operation_RLOGADDEXP;
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
 
@@ -592,7 +589,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return BinaryOp::Operation_LOGADDEXP;
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
 

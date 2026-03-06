@@ -38,11 +38,10 @@ public:
         Operation_FMOD = 12,
         Operation_RFMOD = 13,
         Operation_LOGADDEXP = 14,
-        Operation_RLOGADDEXP = 15,
-        Operation_FLOOR_DIVIDE = 16,
-        Operation_RFLOOR_DIVIDE = 17,
-        Operation_REMAINDER = 18,
-        Operation_RREMAINDER = 19
+        Operation_FLOOR_DIVIDE = 15,
+        Operation_RFLOOR_DIVIDE = 16,
+        Operation_REMAINDER = 17,
+        Operation_RREMAINDER = 18
     };
 
 public:

@@ -206,9 +206,9 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "logaddexp") op_binary->params["0"] = 14;
             if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
-            if (t == "floor_divide") op_binary->params["0"] = 16;
+            if (t == "floor_divide") op_binary->params["0"] = 15;
             if (t == "fmod") op_binary->params["0"] = 12;
-            if (t == "remainder") op_binary->params["0"] = 18;
+            if (t == "remainder") op_binary->params["0"] = 17;
             if (t == "pow") op_binary->params["0"] = 6;
             if (t == "atan2") op_binary->params["0"] = 10;
 
@@ -219,9 +219,9 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 if (t == "pow") op_binary->params["0"] = 9;
                 if (t == "atan2") op_binary->params["0"] = 11;
                 if (t == "fmod") op_binary->params["0"] = 13;
-                if (t == "logaddexp") op_binary->params["0"] = 15;
-                if (t == "floor_divide") op_binary->params["0"] = 17;
-                if (t == "remainder") op_binary->params["0"] = 19;
+                if (t == "logaddexp") op_binary->params["0"] = 14;
+                if (t == "floor_divide") op_binary->params["0"] = 16;
+                if (t == "remainder") op_binary->params["0"] = 18;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
                 op_binary_inb->consumers.push_back(op_binary);

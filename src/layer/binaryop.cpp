@@ -268,16 +268,6 @@ struct binary_op_rfmod
     }
 };
 
-struct binary_op_rlogaddexp
-{
-    float operator()(const float& x, const float& y) const
-    {
-        float max_xy = std::max(y, x);
-        float min_xy = std::min(y, x);
-        return (float)(max_xy + log1pf(expf(min_xy - max_xy)));
-    }
-};
-
 struct binary_op_rfloor_divide
 {
     float operator()(const float& x, const float& y) const
@@ -311,7 +301,6 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
     if (op_type == BinaryOp::Operation_FMOD) return binary_op_broadcast<binary_op_fmod>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RFMOD) return binary_op_broadcast<binary_op_fmod>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_broadcast<binary_op_logaddexp>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return binary_op_broadcast<binary_op_logaddexp>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_broadcast<binary_op_floor_divide>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_broadcast<binary_op_floor_divide>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_broadcast<binary_op_remainder>(a, b, c, opt);
@@ -337,7 +326,6 @@ static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type,
     if (op_type == BinaryOp::Operation_FMOD) return binary_op_scalar_inplace<binary_op_fmod>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RFMOD) return binary_op_scalar_inplace<binary_op_rfmod>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_scalar_inplace<binary_op_logaddexp>(bottom_top_blob, b, opt);
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return binary_op_scalar_inplace<binary_op_rlogaddexp>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_scalar_inplace<binary_op_floor_divide>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_scalar_inplace<binary_op_rfloor_divide>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_scalar_inplace<binary_op_remainder>(bottom_top_blob, b, opt);

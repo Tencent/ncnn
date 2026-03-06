@@ -304,7 +304,6 @@ MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x))
 MAKE_FUNCTION(binary_op_fmod, (float)fmodf(x, y), fmod_ps(x, y))
 MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x))
 MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y))
-MAKE_FUNCTION(binary_op_rlogaddexp, (float)(std::max(y, x) + log1pf(expf(std::min(y, x) - std::max(y, x)))), logaddexp_ps(y, x))
 MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y))
 MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x))
 MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y))
@@ -335,7 +334,6 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
     if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector<binary_op_fmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector<binary_op_rfmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_vector<binary_op_logaddexp>(ptr, ptr1, outptr, aw, bw, ap, bp);
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return binary_op_vector<binary_op_rlogaddexp>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_vector<binary_op_floor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_vector<binary_op_rfloor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector<binary_op_remainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
@@ -485,7 +483,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
-    if (op_type == BinaryOp::Operation_LOGADDEXP) return BinaryOp::Operation_RLOGADDEXP;
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
 
@@ -494,7 +491,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return BinaryOp::Operation_LOGADDEXP;
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
     return op_type;

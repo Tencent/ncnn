@@ -30,7 +30,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
-    if (op_type == BinaryOp::Operation_LOGADDEXP) return BinaryOp::Operation_RLOGADDEXP;
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
 
@@ -39,7 +38,6 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
-    if (op_type == BinaryOp::Operation_RLOGADDEXP) return BinaryOp::Operation_LOGADDEXP;
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
     if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
     return op_type;
