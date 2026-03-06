@@ -418,7 +418,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         const Pipeline* pipeline = elempack == 4 ? pipeline_deconvolutiondepthwise_pack4 : pipeline_deconvolutiondepthwise;
 
         // record
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
@@ -553,7 +553,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         pipeline = pipeline_deconvolutiondepthwise_group_pack4to1;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
 
     // packing
     if (out_elempack_g < out_elempack)

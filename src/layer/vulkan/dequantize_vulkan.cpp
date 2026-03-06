@@ -179,7 +179,7 @@ int Dequantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_dequantize_pack4 : pipeline_dequantize;
 
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }

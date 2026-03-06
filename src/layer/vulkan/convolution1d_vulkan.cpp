@@ -265,7 +265,7 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     dispatcher.h = (outh_pack4 + 1) / 2;
     dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher);
 
     return 0;
 }

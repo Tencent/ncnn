@@ -99,7 +99,7 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_deepcopy_pack4 : pipeline_deepcopy;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

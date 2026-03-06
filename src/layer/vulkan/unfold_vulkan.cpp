@@ -204,7 +204,7 @@ int Unfold_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     if (!pipeline)
         return -1;
 
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }

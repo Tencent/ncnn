@@ -230,7 +230,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 pipeline = pipeline_concat_pack4to1[b % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w * bottom_blob.elempack / elempack;
         }
@@ -315,7 +315,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 pipeline = pipeline_concat_pack4to1[b % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             hoffset += bottom_blob.h * bottom_blob.elempack / elempack;
         }
@@ -375,7 +375,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w;
         }
@@ -455,7 +455,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 pipeline = pipeline_concat_pack4to1[b % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             coffset += bottom_blob.c * bottom_blob.elempack / elempack;
         }
@@ -516,7 +516,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             hoffset += bottom_blob.h;
         }
@@ -571,7 +571,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w;
         }
@@ -651,7 +651,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 pipeline = pipeline_concat_pack4to1[b % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             coffset += bottom_blob.c * bottom_blob.elempack / elempack;
         }
@@ -712,7 +712,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             doffset += bottom_blob.d;
         }
@@ -767,7 +767,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             hoffset += bottom_blob.h;
         }
@@ -822,7 +822,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_concat_pack4[b % 2] : pipeline_concat[b % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
             woffset += bottom_blob.w;
         }

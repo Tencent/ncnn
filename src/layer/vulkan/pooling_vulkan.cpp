@@ -387,7 +387,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             dispatcher.h = 1;
             dispatcher.c = bottom_blob.c;
 
-            cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
         // reduce more
@@ -418,7 +418,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             dispatcher.h = 1;
             dispatcher.c = reduced_blob2.c;
 
-            cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
             reduced_blob = reduced_blob2;
         }
@@ -446,7 +446,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             dispatcher.h = 1;
             dispatcher.c = top_blob.w;
 
-            cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
         return 0;
@@ -485,7 +485,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_adaptive_pack4 : pipeline_pooling_adaptive;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
         return 0;
     }
@@ -620,7 +620,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_pooling_pack4 : pipeline_pooling;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

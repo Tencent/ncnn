@@ -347,7 +347,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         dispatcher.h = c;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher, opt);
+        cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher);
     }
     if (elempack < out_elempack)
     {
@@ -387,7 +387,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         if (elempack == 1 && out_elempack == 4)
         {
-            cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher);
         }
     }
     if (elempack > out_elempack)
@@ -428,7 +428,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         if (elempack == 4 && out_elempack == 1)
         {
-            cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher);
         }
     }
 

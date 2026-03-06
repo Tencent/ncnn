@@ -40,7 +40,7 @@ int Dropout_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     if (scale == 1.f)
     {
@@ -59,7 +59,7 @@ int Dropout_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     dispatcher.w = n;
     dispatcher.h = 1;
     dispatcher.c = 1;
-    cmd.record_pipeline(pipeline_dropout, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline_dropout, bindings, constants, dispatcher);
 
     return 0;
 }

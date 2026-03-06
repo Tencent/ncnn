@@ -305,7 +305,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
 
-        cmd.record_pipeline(pipeline, bindings, constants, max_workspace, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
     // exp( v - max )
@@ -330,7 +330,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_exp_sub_max_pack4 : pipeline_softmax_exp_sub_max;
 
-        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     // reduce sum
@@ -355,7 +355,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
 
-        cmd.record_pipeline(pipeline, bindings, constants, sum_workspace, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
     // div sum
@@ -380,7 +380,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_div_sum_pack4 : pipeline_softmax_div_sum;
 
-        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;

@@ -476,7 +476,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
             const Pipeline* pipeline = pipeline_sdpa_fa[MAX_OUT_CHUNKS - 1];
 
-            cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
         else
         {
@@ -516,7 +516,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
             const Pipeline* pipeline = pipeline_sdpa_fa[MAX_OUT_CHUNKS - 1];
 
-            cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
         }
 
         if (kv_cache)
@@ -568,7 +568,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.h = 1;
             dispatcher.c = B;
 
-            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
         }
         else
         {
@@ -577,7 +577,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.h = (M + 3) / 4;
             dispatcher.c = B;
 
-            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_sdpa_qk_cross, bindings, constants, dispatcher);
         }
     }
 
@@ -643,7 +643,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.h = 1;
             dispatcher.c = B;
 
-            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
         }
         else
         {
@@ -652,7 +652,7 @@ int SDPA_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.h = (M + 3) / 4;
             dispatcher.c = B;
 
-            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_sdpa_qkv_cross, bindings, constants, dispatcher);
         }
     }
 

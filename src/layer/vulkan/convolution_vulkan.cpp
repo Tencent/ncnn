@@ -1731,7 +1731,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.h = block_y;
                 dispatcher.c = channels;
 
-                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_input, bindings, constants, dispatcher, opt);
+                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_input, bindings, constants, dispatcher);
             }
 
             // gemm
@@ -1761,7 +1761,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.h = 1;
                     dispatcher.c = 36;
 
-                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher, opt);
+                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
                 }
                 else
                 {
@@ -1780,7 +1780,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.h = num_output / out_elempack;
                     dispatcher.c = 36;
 
-                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher, opt);
+                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
                 }
             }
 
@@ -1808,7 +1808,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.h = block_y;
                 dispatcher.c = top_blob.c;
 
-                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_output, bindings, constants, dispatcher, opt);
+                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_output, bindings, constants, dispatcher);
             }
         }
         else
@@ -1841,7 +1841,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.h = block_y;
                 dispatcher.c = channels;
 
-                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher, opt);
+                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
             }
 
             // gemm
@@ -1871,7 +1871,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.h = 1;
                     dispatcher.c = 16;
 
-                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher, opt);
+                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
                 }
                 else
                 {
@@ -1890,7 +1890,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                     dispatcher.h = num_output / out_elempack;
                     dispatcher.c = 16;
 
-                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher, opt);
+                    cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
                 }
             }
 
@@ -1918,7 +1918,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 dispatcher.h = block_y;
                 dispatcher.c = top_blob.c;
 
-                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_output, bindings, constants, dispatcher, opt);
+                cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_output, bindings, constants, dispatcher);
             }
         }
 
@@ -1955,7 +1955,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             dispatcher.h = 1;
             dispatcher.c = 1;
 
-            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
         }
         else
         {
@@ -1987,7 +1987,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             dispatcher.h = num_output_packed / 4;
             dispatcher.c = 1;
 
-            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
         }
 
         return 0;
@@ -2019,7 +2019,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             dispatcher.h = 1;
             dispatcher.c = 1;
 
-            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
         }
         else
         {
@@ -2055,7 +2055,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             dispatcher.h = outc_pack4;
             dispatcher.c = 1;
 
-            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher, opt);
+            cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
         }
 
         return 0;
@@ -2096,7 +2096,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     dispatcher.h = (top_blob.h + 1) / 2;
     dispatcher.c = (outc_pack4 + 1) / 2;
 
-    cmd.record_pipeline(pipeline_convolution, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline_convolution, bindings, constants, dispatcher);
 
     return 0;
 }

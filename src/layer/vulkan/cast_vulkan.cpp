@@ -189,7 +189,7 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_cast_pack4 : pipeline_cast;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

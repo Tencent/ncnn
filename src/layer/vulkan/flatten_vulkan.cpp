@@ -151,7 +151,7 @@ int Flatten_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         pipeline = pipeline_flatten_pack1to4;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }

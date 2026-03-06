@@ -475,7 +475,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             pipeline = pipeline_multiheadattention_qk_cross_pack4;
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
         if (MB_elempack > M_elempack)
         {
@@ -602,7 +602,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             pipeline = pipeline_multiheadattention_qkv_cross_pack4;
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
         if (NB_elempack > N_elempack)
         {

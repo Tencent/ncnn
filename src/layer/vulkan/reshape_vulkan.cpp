@@ -319,19 +319,19 @@ int Reshape_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     if (elempack == 1 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_reshape, bindings, constants, top_blob, opt);
+        cmd.record_pipeline(pipeline_reshape, bindings, constants, top_blob);
     }
     else if (elempack == 4 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_reshape_pack4, bindings, constants, top_blob, opt);
+        cmd.record_pipeline(pipeline_reshape_pack4, bindings, constants, top_blob);
     }
     else if (elempack == 1 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_reshape_pack1to4, bindings, constants, top_blob, opt);
+        cmd.record_pipeline(pipeline_reshape_pack1to4, bindings, constants, top_blob);
     }
     else if (elempack == 4 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_reshape_pack4to1, bindings, constants, bottom_blob, opt);
+        cmd.record_pipeline(pipeline_reshape_pack4to1, bindings, constants, bottom_blob);
     }
 
     return 0;

@@ -251,7 +251,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 pipeline = pipeline_slice_pack1to4[i % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             woffset += top_blob.w * top_blob.elempack / out_elempack;
         }
@@ -352,7 +352,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 pipeline = pipeline_slice_pack1to4[i % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             hoffset += top_blob.h * top_blob.elempack / out_elempack;
         }
@@ -426,7 +426,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             woffset += top_blob.w;
         }
@@ -528,7 +528,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 pipeline = pipeline_slice_pack1to4[i % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             coffset += top_blob.c * top_blob.elempack / out_elempack;
         }
@@ -603,7 +603,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             hoffset += top_blob.h;
         }
@@ -678,7 +678,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             woffset += top_blob.w;
         }
@@ -780,7 +780,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 pipeline = pipeline_slice_pack1to4[i % 2];
             }
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             coffset += top_blob.c * top_blob.elempack / out_elempack;
         }
@@ -855,7 +855,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             doffset += top_blob.d;
         }
@@ -930,7 +930,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             hoffset += top_blob.h;
         }
@@ -1005,7 +1005,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_slice_pack4[i % 2] : pipeline_slice[i % 2];
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
             woffset += top_blob.w;
         }

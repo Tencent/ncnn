@@ -39,7 +39,7 @@ int Erf_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int Erf_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+int Erf_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
@@ -53,7 +53,7 @@ int Erf_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     dispatcher.w = n;
     dispatcher.h = 1;
     dispatcher.c = 1;
-    cmd.record_pipeline(pipeline_erf, bindings, constants, dispatcher, opt);
+    cmd.record_pipeline(pipeline_erf, bindings, constants, dispatcher);
 
     return 0;
 }

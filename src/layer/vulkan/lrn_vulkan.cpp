@@ -209,7 +209,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
             pipeline = pipeline_lrn_square_pad;
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, square_workspace, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
     }
 
     // norm
@@ -241,7 +241,7 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
             pipeline = pipeline_lrn_norm;
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;
