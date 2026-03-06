@@ -134,7 +134,7 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
         pipeline = pipeline_reorg_pack1to4;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
     return 0;
 }

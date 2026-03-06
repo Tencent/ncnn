@@ -268,7 +268,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
         return 0;
     }
@@ -312,7 +312,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
         }
 
         if (resize_type == 3) // bicubic
@@ -341,7 +341,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
                 }
 
                 // record
-                cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
+                cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha, opt);
             }
 
             std::vector<VkMat> bindings(6);
@@ -366,7 +366,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
 
-            cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+            cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
         }
 
         return 0;
@@ -410,7 +410,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_interp_pack4 : pipeline_interp;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
     }
     else if (resize_type == 3) // bicubic
     {
@@ -438,7 +438,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             }
 
             // record
-            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha, opt);
         }
 
         VkMat beta(outh, (size_t)(elemsize / elempack * 4), 4, opt.workspace_vkallocator);
@@ -465,7 +465,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             }
 
             // record
-            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
+            cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta, opt);
         }
 
         std::vector<VkMat> bindings(6);
@@ -490,7 +490,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_interp_bicubic_pack4 : pipeline_interp_bicubic;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
     }
 
     return 0;

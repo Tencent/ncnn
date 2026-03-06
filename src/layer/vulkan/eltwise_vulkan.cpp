@@ -73,7 +73,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     dispatcher.w = n;
     dispatcher.h = 1;
     dispatcher.c = 1;
-    cmd.record_pipeline(pipeline_eltwise[1], bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline_eltwise[1], bindings, constants, dispatcher, opt);
 
     for (size_t b = 2; b < bottom_blobs.size(); b++)
     {
@@ -87,7 +87,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[1].f = 1.f;
         constants[2].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        cmd.record_pipeline(pipeline_eltwise[b % 2], bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_eltwise[b % 2], bindings, constants, dispatcher, opt);
     }
 
     return 0;

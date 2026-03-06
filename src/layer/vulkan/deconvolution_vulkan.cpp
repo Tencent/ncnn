@@ -642,7 +642,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 dispatcher.h = 1;
                 dispatcher.c = 1;
 
-                cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
+                cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher, opt);
             }
             else
             {
@@ -669,7 +669,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 dispatcher.h = top_blob_col.c;
                 dispatcher.c = 1;
 
-                cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
+                cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher, opt);
             }
         }
 
@@ -699,7 +699,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             constants[4].i = top_blob_bordered.h;
             constants[5].i = top_blob_bordered.cstep;
 
-            cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
+            cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered, opt);
         }
     }
     else
@@ -745,7 +745,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         dispatcher.h = (top_blob_bordered.h + 1) / 2;
         dispatcher.c = (outc_pack4 + 1) / 2;
 
-        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, dispatcher, opt);
     }
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)

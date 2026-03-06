@@ -39,7 +39,7 @@ int Mish_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int Mish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int Mish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     const size_t n = bottom_top_blob.total() * bottom_top_blob.elempack / 4;
 
@@ -53,7 +53,7 @@ int Mish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     dispatcher.w = n;
     dispatcher.h = 1;
     dispatcher.c = 1;
-    cmd.record_pipeline(pipeline_mish, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline_mish, bindings, constants, dispatcher, opt);
 
     return 0;
 }

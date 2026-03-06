@@ -104,7 +104,7 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_shufflechannel_pack4 : pipeline_shufflechannel;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
     return 0;
 }

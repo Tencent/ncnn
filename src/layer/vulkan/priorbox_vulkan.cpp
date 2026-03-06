@@ -174,7 +174,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         dispatcher.h = w;
         dispatcher.c = h;
 
-        cmd.record_pipeline(pipeline_priorbox_mxnet, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_priorbox_mxnet, bindings, constants, dispatcher, opt);
 
         return 0;
     }
@@ -231,7 +231,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     dispatcher.h = w;
     dispatcher.c = h;
 
-    cmd.record_pipeline(pipeline_priorbox, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline_priorbox, bindings, constants, dispatcher, opt);
 
     return 0;
 }

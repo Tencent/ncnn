@@ -100,7 +100,7 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_top_blob.elempack;
 
@@ -118,7 +118,7 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_batchnorm_pack4 : pipeline_batchnorm;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
 
     return 0;
 }

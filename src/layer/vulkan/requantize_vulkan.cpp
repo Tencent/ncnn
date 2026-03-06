@@ -189,7 +189,7 @@ int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_requantize_pack4 : pipeline_requantize;
 
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
 
     return 0;
 }

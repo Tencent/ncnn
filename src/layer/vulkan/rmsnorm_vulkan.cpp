@@ -206,7 +206,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
         const Pipeline* pipe_sq = elempack == 4 ? pipeline_rmsnorm_square_pack4 : pipeline_rmsnorm_square;
 
-        cmd.record_pipeline(pipe_sq, bindings, constants, square_workspace);
+        cmd.record_pipeline(pipe_sq, bindings, constants, square_workspace, opt);
     }
 
     // 2) reduce sum4 (square) -> ... -> mean
@@ -237,7 +237,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
             dispatcher.c = channels;
             const Pipeline* p_reduce = elempack == 4 ? pipeline_rmsnorm_reduce_sum4_fp16_to_fp32_pack4
                                        : pipeline_rmsnorm_reduce_sum4_fp16_to_fp32;
-            cmd.record_pipeline(p_reduce, bindings, constants, dispatcher);
+            cmd.record_pipeline(p_reduce, bindings, constants, dispatcher, opt);
         }
         int pb = 1;
         while (sqsum_workspace.w > 1)
@@ -268,7 +268,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
             dispatcher.c = channels;
             const Pipeline* p_iter = elempack == 4 ? pipeline_rmsnorm_reduce_sum4_fp32_pack4[pb % 2]
                                      : pipeline_rmsnorm_reduce_sum4_fp32[pb % 2];
-            cmd.record_pipeline(p_iter, bindings, constants, dispatcher);
+            cmd.record_pipeline(p_iter, bindings, constants, dispatcher, opt);
             pb++;
             sqsum_workspace = sqsum_reduced;
         }
@@ -290,7 +290,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
             dispatcher.h = num_groups_per_channel;
             dispatcher.c = channels;
             const Pipeline* p_mean = elempack == 4 ? pipeline_rmsnorm_reduce_mean_pack4 : pipeline_rmsnorm_reduce_mean;
-            cmd.record_pipeline(p_mean, bindings, constants, dispatcher);
+            cmd.record_pipeline(p_mean, bindings, constants, dispatcher, opt);
         }
     }
 
@@ -310,7 +310,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         dispatcher.h = num_groups_per_channel;
         dispatcher.c = channels;
         const Pipeline* p_coeffs = elempack == 4 ? pipeline_rmsnorm_coeffs_pack4 : pipeline_rmsnorm_coeffs;
-        cmd.record_pipeline(p_coeffs, bindings, constants, dispatcher);
+        cmd.record_pipeline(p_coeffs, bindings, constants, dispatcher, opt);
     }
 
     // 4) norm: v = v * a; (affine? v *= gamma)
@@ -332,7 +332,7 @@ int RMSNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         dispatcher.w = w;
         dispatcher.h = h;
         dispatcher.c = channels;
-        cmd.record_pipeline(p_norm, bindings, constants, dispatcher);
+        cmd.record_pipeline(p_norm, bindings, constants, dispatcher, opt);
     }
     return 0;
 }

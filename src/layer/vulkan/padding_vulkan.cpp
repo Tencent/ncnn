@@ -337,7 +337,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         const Pipeline* pipeline = out_elempack == 4 ? pipeline_padding_3d_pack4 : pipeline_padding_3d;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
         return 0;
     }
@@ -375,7 +375,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         pipeline = pipeline_padding_pack4to1;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
     return 0;
 }
@@ -533,7 +533,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         const Pipeline* pipeline = out_elempack == 4 ? pipeline_padding_3d_pack4 : pipeline_padding_3d;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
         return 0;
     }
@@ -571,7 +571,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         pipeline = pipeline_padding_pack4to1;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
     return 0;
 }

@@ -458,7 +458,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_convolutiondepthwise_pack4 : pipeline_convolutiondepthwise;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
         return 0;
     }
@@ -524,7 +524,7 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         pipeline = pipeline_convolutiondepthwise_group_pack4to1;
     }
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked);
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob_unpacked, opt);
 
     // packing
     if (out_elempack_g < out_elempack)

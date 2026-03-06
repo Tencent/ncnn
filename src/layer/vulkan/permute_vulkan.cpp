@@ -452,19 +452,19 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (elempack == 1 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_permute, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_permute, bindings, constants, top_blob, opt);
     }
     else if (elempack == 4 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_permute_pack4, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_permute_pack4, bindings, constants, top_blob, opt);
     }
     else if (elempack == 1 && out_elempack == 4)
     {
-        cmd.record_pipeline(pipeline_permute_pack1to4, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_permute_pack1to4, bindings, constants, top_blob, opt);
     }
     else if (elempack == 4 && out_elempack == 1)
     {
-        cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob);
+        cmd.record_pipeline(pipeline_permute_pack4to1, bindings, constants, bottom_blob, opt);
     }
 
     return 0;

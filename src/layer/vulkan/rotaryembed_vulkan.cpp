@@ -124,7 +124,7 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_rotaryembed_pack4 : pipeline_rotaryembed;
 
-    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
 
     return 0;
 }

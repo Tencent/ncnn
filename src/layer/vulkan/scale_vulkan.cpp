@@ -151,7 +151,7 @@ int Scale_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& /*opt*/) const
+int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
 {
     VkMat& bottom_top_blob = bottom_top_blobs[0];
     const VkMat& scale_blob = bottom_top_blobs[1];
@@ -172,7 +172,7 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_scale_pack4 : pipeline_scale;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
 
     return 0;
 }

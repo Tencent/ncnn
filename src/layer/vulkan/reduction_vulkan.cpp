@@ -193,7 +193,7 @@ int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompu
     dispatcher.h = out_total;
     dispatcher.c = 1;
 
-    cmd.record_pipeline(pipeline_reduction, bindings, constants, dispatcher);
+    cmd.record_pipeline(pipeline_reduction, bindings, constants, dispatcher, opt);
     return 0;
 }
 

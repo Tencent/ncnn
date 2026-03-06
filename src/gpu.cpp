@@ -4308,6 +4308,16 @@ bool VulkanDevice::is_coherent(uint32_t memory_type_index) const
     return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 }
 
+bool VulkanDevice::is_device_local(uint32_t memory_type_index) const
+{
+    if (memory_type_index >= info.physicalDeviceMemoryProperties().memoryTypeCount)
+        return false;
+
+    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties().memoryTypes[memory_type_index];
+
+    return memoryType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+}
+
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
     if (queue_family_index != info.compute_queue_family_index() && queue_family_index != info.transfer_queue_family_index())

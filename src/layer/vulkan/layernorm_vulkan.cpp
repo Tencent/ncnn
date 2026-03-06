@@ -229,7 +229,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         const Pipeline* pipeline_reduce_sum4 = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32;
 
-        cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher, opt);
 
         int pb = 1;
         while (sum_workspace.w > 1)
@@ -256,7 +256,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             dispatcher.w = reduced_w;
 
             const Pipeline* pipeline_reduce_iter = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
-            cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher);
+            cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher, opt);
             pb++;
             sum_workspace = sum_workspace_reduced;
         }
@@ -274,7 +274,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         dispatcher.w = 1;
         const Pipeline* pipeline_reduce_mean = elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
-        cmd.record_pipeline(pipeline_reduce_mean, mean_bindings, mean_constants, dispatcher);
+        cmd.record_pipeline(pipeline_reduce_mean, mean_bindings, mean_constants, dispatcher, opt);
     }
 
     VkMat var_workspace(num_groups_total, 4u * elempack, elempack, opt.workspace_vkallocator);
@@ -293,7 +293,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             sq_constants[3].i = cstep;
 
             const Pipeline* pipeline_sub_mean_square = elempack == 4 ? pipeline_layernorm_sub_mean_square_pack4 : pipeline_layernorm_sub_mean_square;
-            cmd.record_pipeline(pipeline_sub_mean_square, sq_bindings, sq_constants, square_workspace);
+            cmd.record_pipeline(pipeline_sub_mean_square, sq_bindings, sq_constants, square_workspace, opt);
         }
 
         // Reduce sum of squares
@@ -322,7 +322,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         const Pipeline* pipeline_reduce_sum4 = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_layernorm_reduce_sum4_fp16_to_fp32;
 
-        cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_reduce_sum4, bindings, constants, dispatcher, opt);
 
         int pb = 1;
         while (sqsum_workspace.w > 1)
@@ -348,7 +348,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             dispatcher.w = reduced_w;
 
             const Pipeline* pipeline_reduce_iter = elempack == 4 ? pipeline_layernorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_layernorm_reduce_sum4_fp32[pb % 2];
-            cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher);
+            cmd.record_pipeline(pipeline_reduce_iter, bindings_iter, constants_iter, dispatcher, opt);
             pb++;
             sqsum_workspace = sum_workspace_reduced;
         }
@@ -366,7 +366,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.w = 1;
 
         const Pipeline* pipeline_reduce_mean = elempack == 4 ? pipeline_layernorm_reduce_mean_pack4 : pipeline_layernorm_reduce_mean;
-        cmd.record_pipeline(pipeline_reduce_mean, var_bindings, var_constants, dispatcher);
+        cmd.record_pipeline(pipeline_reduce_mean, var_bindings, var_constants, dispatcher, opt);
     }
 
     // coeffs a and b ---
@@ -388,7 +388,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher_coeffs.c = channels;
 
         const Pipeline* pipeline_coeffs = elempack == 4 ? pipeline_layernorm_coeffs_pack4 : pipeline_layernorm_coeffs;
-        cmd.record_pipeline(pipeline_coeffs, coeff_bindings, coeff_constants, dispatcher_coeffs);
+        cmd.record_pipeline(pipeline_coeffs, coeff_bindings, coeff_constants, dispatcher_coeffs, opt);
     }
 
     // apply norm
@@ -412,7 +412,7 @@ int LayerNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         dispatcher.h = h;
         dispatcher.c = channels;
 
-        cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, dispatcher);
+        cmd.record_pipeline(pipeline_norm, norm_bindings, norm_constants, dispatcher, opt);
     }
 
     return 0;

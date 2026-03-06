@@ -361,7 +361,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
 
         const Pipeline* pipeline = top_blob.elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
 
         return 0;
     }
@@ -423,7 +423,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
             pipeline = pipeline_binaryop_broadcast_pack1to4[ri];
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
     }
     else
     {
@@ -477,13 +477,13 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
             pipeline = pipeline_binaryop_broadcast_pack1to4[0];
         }
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob, opt);
     }
 
     return 0;
 }
 
-int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
 {
     int elempack = bottom_top_blob.elempack;
 
@@ -501,7 +501,7 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
 
     const Pipeline* pipeline = elempack == 4 ? pipeline_binaryop_pack4 : pipeline_binaryop;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob, opt);
 
     return 0;
 }

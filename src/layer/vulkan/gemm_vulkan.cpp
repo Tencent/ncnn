@@ -779,7 +779,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         dispatcher.h = 1;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher, opt);
     }
     else
     {
@@ -811,7 +811,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.w = (N + 3) / 4;
             dispatcher.h = (M + 3) / 4;
             dispatcher.c = 1;
-            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher, opt);
         }
         else if (use_subgroup_ops)
         {
@@ -828,7 +828,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.w = (blocks_x * blocks_y) * subgroup_size;
             dispatcher.h = 1;
             dispatcher.c = 1;
-            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher, opt);
         }
         else
         {
@@ -836,7 +836,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             dispatcher.w = (N + 3) / 4;
             dispatcher.h = (M + 3) / 4;
             dispatcher.c = 1;
-            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+            cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher, opt);
         }
     }
 

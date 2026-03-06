@@ -369,7 +369,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         dispatcher.h = top_blob_unpacked.h;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher, opt);
 
         // packing
         if (elempack > 1)
@@ -411,7 +411,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
             constants[1].i = top_blob_sum8.w;
             constants[2].i = top_blob_sum8.h;
 
-            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
+            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8, opt);
         }
 
         // reduce sum8
@@ -430,7 +430,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
             constants[1].i = top_blob_sum8.h;
             constants[2].i = top_blob.w;
 
-            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
+            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob, opt);
         }
     }
     else
@@ -457,7 +457,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
 
-        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob, opt);
     }
 
     return 0;

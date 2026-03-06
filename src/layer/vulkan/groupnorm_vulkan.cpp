@@ -396,7 +396,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
                 const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp16_to_fp32_pack4 : pipeline_groupnorm_reduce_sum4_fp16_to_fp32;
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace, opt);
             }
         }
 
@@ -426,7 +426,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
                 const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
 
-                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced);
+                cmd.record_pipeline(pipeline, bindings, constants, sum_workspace_reduced, opt);
 
                 pb++;
             }
@@ -451,7 +451,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
 
-            cmd.record_pipeline(pipeline, bindings, constants, mean_workspace);
+            cmd.record_pipeline(pipeline, bindings, constants, mean_workspace, opt);
         }
     }
 
@@ -500,7 +500,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_sub_mean_square_pack4 : pipeline_groupnorm_sub_mean_square;
 
-            cmd.record_pipeline(pipeline, bindings, constants, square_workspace);
+            cmd.record_pipeline(pipeline, bindings, constants, square_workspace, opt);
         }
 
         // reduce square
@@ -534,7 +534,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
                 const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_sum4_fp32_pack4[pb % 2] : pipeline_groupnorm_reduce_sum4_fp32[pb % 2];
 
-                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced, opt);
 
                 pb++;
             }
@@ -559,7 +559,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
             const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_reduce_mean_pack4 : pipeline_groupnorm_reduce_mean;
 
-            cmd.record_pipeline(pipeline, bindings, constants, var_workspace);
+            cmd.record_pipeline(pipeline, bindings, constants, var_workspace, opt);
         }
     }
 
@@ -579,7 +579,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_groupnorm_coeffs_pack4 : pipeline_groupnorm_coeffs;
 
-        cmd.record_pipeline(pipeline, bindings, constants, coeffs_workspace);
+        cmd.record_pipeline(pipeline, bindings, constants, coeffs_workspace, opt);
     }
 
     // norm
@@ -621,7 +621,7 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             dispatcher.h = 1;
             dispatcher.c = c_virtual;
         }
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher, opt);
     }
 
     return 0;

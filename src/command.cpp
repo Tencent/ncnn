@@ -33,6 +33,8 @@ public:
     std::vector<Mat> download_post_mats_fp16;
     std::vector<Mat> download_post_mats;
 
+    std::vector<VkMat> device_local_copies;
+
     std::vector<VkImageMemory*> image_blocks_to_destroy;
 
     // the good-old path for device without VK_KHR_push_descriptor
@@ -1236,35 +1238,59 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
     d->image_blocks_to_destroy.push_back(src.data);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher, const Option& opt)
 {
-    record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher);
+    record_pipeline(pipeline, bindings, std::vector<VkImageMat>(), constants, dispatcher, opt);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkImageMat>& bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher, const Option& opt)
 {
-    record_pipeline(pipeline, std::vector<VkMat>(), bindings, constants, dispatcher);
+    record_pipeline(pipeline, std::vector<VkMat>(), bindings, constants, dispatcher, opt);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
-{
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
-
-    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
-}
-
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher, const Option& opt)
 {
     Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
 
-    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
+    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat, opt);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher, const Option& opt)
+{
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
+
+    record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat, opt);
+}
+
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher, const Option& opt)
 {
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
-    const int buffer_binding_count = (int)buffer_bindings.size();
+    // auto-clone non-device-local buffer bindings to device-local memory
+    std::vector<VkMat> actual_buffer_bindings = buffer_bindings;
+    if (opt.blob_vkallocator)
+    {
+        for (size_t i = 0; i < actual_buffer_bindings.size(); i++)
+        {
+            const VkMat& binding = actual_buffer_bindings[i];
+            if (binding.empty())
+                continue;
+            if (!binding.allocator)
+                continue;
+            if (vkdev->is_device_local(binding.allocator->buffer_memory_type_index))
+                continue;
+
+            VkMat tmp;
+            record_clone(binding, tmp, opt);
+            if (tmp.empty())
+                continue;
+
+            actual_buffer_bindings[i] = tmp;
+            d->device_local_copies.push_back(tmp);
+        }
+    }
+
+    const int buffer_binding_count = (int)actual_buffer_bindings.size();
     const int image_binding_count = (int)image_bindings.size();
     const int constant_count = (int)constants.size();
 
@@ -1289,7 +1315,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (binding_type == 1)
         {
-            const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
+            const VkMat& binding = actual_buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : actual_buffer_bindings[buffer_index];
             buffer_index++;
 
             //             NCNN_LOGE("binding #%d buffer = %d %d %d %d @ %lu %d = %p +%ld ~%ld", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.buffer(), binding.buffer_offset(), binding.buffer_capacity());
@@ -1372,7 +1398,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
                 if (binding_type == 1)
                 {
-                    const VkMat& binding = buffer_bindings[descriptorBufferInfo_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[descriptorBufferInfo_index];
+                    const VkMat& binding = actual_buffer_bindings[descriptorBufferInfo_index].empty() ? vkdev->get_dummy_buffer() : actual_buffer_bindings[descriptorBufferInfo_index];
                     descriptorBufferInfo_index++;
 
                     VkDescriptorBufferInfo descriptorBufferInfo;
@@ -2032,6 +2058,8 @@ int VkCompute::reset()
     d->download_post_buffers.clear();
     d->download_post_mats_fp16.clear();
     d->download_post_mats.clear();
+
+    d->device_local_copies.clear();
 
     for (size_t i = 0; i < d->image_blocks_to_destroy.size(); i++)
     {
