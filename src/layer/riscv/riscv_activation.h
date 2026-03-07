@@ -58,12 +58,12 @@
             if (fast_gelu)                                                                                                                                                    \
             {                                                                                                                                                                 \
                 vfloat##SEW##m##LMUL##_t _arg = __riscv_vfmul_vf_f##SEW##m##LMUL(                                                                                             \
-                                                    __riscv_vfmul_vv_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(_v, _v, vl), _v, vl), (STYPE)0.044715f, vl);            \
+                    __riscv_vfmul_vv_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(_v, _v, vl), _v, vl), (STYPE)0.044715f, vl);                                            \
                 _arg = __riscv_vfadd_vv_f##SEW##m##LMUL(_v, _arg, vl);                                                                                                        \
                 _arg = __riscv_vfmul_vf_f##SEW##m##LMUL(_arg, (STYPE)0.79788452f, vl);                                                                                        \
                 vfloat##SEW##m##LMUL##_t _tanharg = tanh_ps(_arg, vl);                                                                                                        \
                 _v = __riscv_vfmul_vf_f##SEW##m##LMUL(                                                                                                                        \
-                         __riscv_vfmul_vv_f##SEW##m##LMUL(_v, __riscv_vfadd_vf_f##SEW##m##LMUL(_tanharg, (STYPE)1.f, vl), vl), (STYPE).5f, vl);                               \
+                    __riscv_vfmul_vv_f##SEW##m##LMUL(_v, __riscv_vfadd_vf_f##SEW##m##LMUL(_tanharg, (STYPE)1.f, vl), vl), (STYPE).5f, vl);                                    \
             }                                                                                                                                                                 \
             else                                                                                                                                                              \
             {                                                                                                                                                                 \

@@ -405,42 +405,42 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
 
 #define c_erf_threshold_f16 0.927734375f
 
-#define _RVV_FLOAT16_ERF_OP(LMUL, MLEN)                                                                \
-    static inline vfloat16m##LMUL##_t erf_ps(vfloat16m##LMUL##_t a, size_t vl)                         \
-    {                                                                                                  \
-        vfloat16m##LMUL##_t t = __riscv_vfsgnj_vf_f16m##LMUL(a, (__fp16)1.f, vl);                       \
-        vfloat16m##LMUL##_t s = __riscv_vfmul_vv_f16m##LMUL(a, a, vl);                                  \
-                                                                                                       \
-        vbool##MLEN##_t large_mask = __riscv_vmfgt_vf_f16m##LMUL##_b##MLEN(t, (__fp16)c_erf_threshold_f16, vl); \
-                                                                                                       \
-        vfloat16m##LMUL##_t r_large, r_small;                                                          \
-                                                                                                       \
-        {                                                                                              \
-            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)3.83197126e-4f, (__fp16)-1.72853470e-5f, t, vl); \
-            vfloat16m##LMUL##_t u = __riscv_vfmadd_vf_f16m##LMUL((__fp16)2.42546219e-2f, (__fp16)-3.88396438e-3f, t, vl); \
-            r_large = __riscv_vfmadd_vv_f16m##LMUL(u, r_large, s, vl);                                 \
-            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-1.06777877e-1f, r_large, t, vl);            \
-            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-6.34846687e-1f, r_large, t, vl);            \
-            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-1.28717512e-1f, r_large, t, vl);            \
-            vfloat16m##LMUL##_t neg_t = __riscv_vfsgnj_vf_f16m##LMUL(t, (__fp16)-1.f, vl);              \
-            r_large = __riscv_vfmadd_vv_f16m##LMUL(neg_t, r_large, t, vl);                              \
-            r_large = __riscv_vfsub_vf_f16m##LMUL((__fp16)1.f, exp_ps(r_large, vl), vl);                \
-            vuint16m##LMUL##_t sign_mask = __riscv_vmv_v_x_u16m##LMUL(0x8000, vl);                      \
-            vuint16m##LMUL##_t a_sign = __riscv_vand_vv_u16m##LMUL(__riscv_vreinterpret_v_f16m##LMUL##_u16m##LMUL(a), sign_mask, vl); \
+#define _RVV_FLOAT16_ERF_OP(LMUL, MLEN)                                                                                                                               \
+    static inline vfloat16m##LMUL##_t erf_ps(vfloat16m##LMUL##_t a, size_t vl)                                                                                        \
+    {                                                                                                                                                                 \
+        vfloat16m##LMUL##_t t = __riscv_vfsgnj_vf_f16m##LMUL(a, (__fp16)1.f, vl);                                                                                     \
+        vfloat16m##LMUL##_t s = __riscv_vfmul_vv_f16m##LMUL(a, a, vl);                                                                                                \
+                                                                                                                                                                      \
+        vbool##MLEN##_t large_mask = __riscv_vmfgt_vf_f16m##LMUL##_b##MLEN(t, (__fp16)c_erf_threshold_f16, vl);                                                       \
+                                                                                                                                                                      \
+        vfloat16m##LMUL##_t r_large, r_small;                                                                                                                         \
+                                                                                                                                                                      \
+        {                                                                                                                                                             \
+            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)3.83197126e-4f, (__fp16)-1.72853470e-5f, t, vl);                                                           \
+            vfloat16m##LMUL##_t u = __riscv_vfmadd_vf_f16m##LMUL((__fp16)2.42546219e-2f, (__fp16)-3.88396438e-3f, t, vl);                                             \
+            r_large = __riscv_vfmadd_vv_f16m##LMUL(u, r_large, s, vl);                                                                                                \
+            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-1.06777877e-1f, r_large, t, vl);                                                                          \
+            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-6.34846687e-1f, r_large, t, vl);                                                                          \
+            r_large = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-1.28717512e-1f, r_large, t, vl);                                                                          \
+            vfloat16m##LMUL##_t neg_t = __riscv_vfsgnj_vf_f16m##LMUL(t, (__fp16)-1.f, vl);                                                                            \
+            r_large = __riscv_vfmadd_vv_f16m##LMUL(neg_t, r_large, t, vl);                                                                                            \
+            r_large = __riscv_vfsub_vf_f16m##LMUL((__fp16)1.f, exp_ps(r_large, vl), vl);                                                                              \
+            vuint16m##LMUL##_t sign_mask = __riscv_vmv_v_x_u16m##LMUL(0x8000, vl);                                                                                    \
+            vuint16m##LMUL##_t a_sign = __riscv_vand_vv_u16m##LMUL(__riscv_vreinterpret_v_f16m##LMUL##_u16m##LMUL(a), sign_mask, vl);                                 \
             r_large = __riscv_vreinterpret_v_u16m##LMUL##_f16m##LMUL(__riscv_vor_vv_u16m##LMUL(__riscv_vreinterpret_v_f16m##LMUL##_u16m##LMUL(r_large), a_sign, vl)); \
-        }                                                                                              \
-                                                                                                       \
-        {                                                                                              \
-            r_small = __riscv_vfmv_v_f_f16m##LMUL((__fp16)-5.96761703e-4f, vl);                         \
-            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)4.99119423e-3f, r_small, s, vl);             \
-            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-2.67681349e-2f, r_small, s, vl);            \
-            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)1.12819925e-1f, r_small, s, vl);             \
-            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-3.76125336e-1f, r_small, s, vl);            \
-            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)1.28379166e-1f, r_small, s, vl);             \
-            r_small = __riscv_vfmadd_vv_f16m##LMUL(a, r_small, a, vl);                                  \
-        }                                                                                              \
-                                                                                                       \
-        return __riscv_vmerge_vvm_f16m##LMUL(r_small, r_large, large_mask, vl);                         \
+        }                                                                                                                                                             \
+                                                                                                                                                                      \
+        {                                                                                                                                                             \
+            r_small = __riscv_vfmv_v_f_f16m##LMUL((__fp16)-5.96761703e-4f, vl);                                                                                       \
+            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)4.99119423e-3f, r_small, s, vl);                                                                           \
+            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-2.67681349e-2f, r_small, s, vl);                                                                          \
+            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)1.12819925e-1f, r_small, s, vl);                                                                           \
+            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)-3.76125336e-1f, r_small, s, vl);                                                                          \
+            r_small = __riscv_vfmadd_vf_f16m##LMUL((__fp16)1.28379166e-1f, r_small, s, vl);                                                                           \
+            r_small = __riscv_vfmadd_vv_f16m##LMUL(a, r_small, a, vl);                                                                                                \
+        }                                                                                                                                                             \
+                                                                                                                                                                      \
+        return __riscv_vmerge_vvm_f16m##LMUL(r_small, r_large, large_mask, vl);                                                                                       \
     }
 
 _RVV_FLOAT16_ERF_OP(1, 16)

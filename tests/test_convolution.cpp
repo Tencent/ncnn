@@ -138,12 +138,13 @@ static int test_convolution_0()
                 activation_params.create(2);
                 activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
                 activation_params[1] = RandomFloat(0, 1);
-            } else
+            }
+            else
             {
                 activation_params.create(1);
-                activation_params.row<int>(0)[0] = RandomInt(0,1); // fast==1
+                activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
             }
-            
+
             int ret = 0
                       || test_convolution(9, 7, 1, 1, k, d, s, p, 1, j, activation_params)
                       || test_convolution(9, 7, 4, 13, k, d, s, p, 0, j, activation_params)

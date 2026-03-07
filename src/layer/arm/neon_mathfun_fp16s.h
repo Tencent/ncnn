@@ -604,19 +604,19 @@ static inline float16x8_t tanh_ps_f16(float16x8_t x)
 #define c_erf_threshold 0.927734375f
 
 #define c_erf_a0 -1.72853470e-5f
-#define c_erf_a1  3.83197126e-4f
+#define c_erf_a1 3.83197126e-4f
 #define c_erf_a2 -3.88396438e-3f
-#define c_erf_a3  2.42546219e-2f
+#define c_erf_a3 2.42546219e-2f
 #define c_erf_a4 -1.06777877e-1f
 #define c_erf_a5 -6.34846687e-1f
 #define c_erf_a6 -1.28717512e-1f
 
 #define c_erf_b0 -5.96761703e-4f
-#define c_erf_b1  4.99119423e-3f
+#define c_erf_b1 4.99119423e-3f
 #define c_erf_b2 -2.67681349e-2f
-#define c_erf_b3  1.12819925e-1f
+#define c_erf_b3 1.12819925e-1f
 #define c_erf_b4 -3.76125336e-1f
-#define c_erf_b5  1.28379166e-1f
+#define c_erf_b5 1.28379166e-1f
 
 static inline float16x4_t erf_ps_f16(float16x4_t x)
 {
