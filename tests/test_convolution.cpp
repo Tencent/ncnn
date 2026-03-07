@@ -93,7 +93,11 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         ret = test_layer_opt("Convolution", pd, weights, opt, a, epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+            if (activation_type != 7)
+                fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+            else
+                fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0]);
+
             return ret;
         }
     }
