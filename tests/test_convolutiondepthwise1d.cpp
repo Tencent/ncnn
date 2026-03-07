@@ -23,7 +23,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     {
         activation_params.create(2);
         activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-        activation_params[1] = RandomFloat(0, 1);                                                // beta
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
     }
     else
     {
@@ -146,7 +146,7 @@ static int test_convolutiondepthwise1d_dynamic(int w, int h, int outh, int kerne
     {
         activation_params.create(2);
         activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-        activation_params[1] = RandomFloat(0, 1);                                                // beta
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
     }
     else
     {
