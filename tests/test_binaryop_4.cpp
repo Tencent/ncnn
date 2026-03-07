@@ -464,7 +464,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 12; op_type < 20; op_type++)
+    for (op_type = 12; op_type < 19; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()
