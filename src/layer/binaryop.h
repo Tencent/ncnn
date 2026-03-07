@@ -34,7 +34,14 @@ public:
         Operation_RDIV = 8,
         Operation_RPOW = 9,
         Operation_ATAN2 = 10,
-        Operation_RATAN2 = 11
+        Operation_RATAN2 = 11,
+        Operation_FMOD = 12,
+        Operation_RFMOD = 13,
+        Operation_LOGADDEXP = 14,
+        Operation_FLOOR_DIVIDE = 15,
+        Operation_RFLOOR_DIVIDE = 16,
+        Operation_REMAINDER = 17,
+        Operation_RREMAINDER = 18
     };
 
 public:
