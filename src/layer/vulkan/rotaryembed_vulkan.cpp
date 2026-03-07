@@ -21,32 +21,20 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-        elemsize = elempack * 2u;
-    else
-        elemsize = elempack * 4u;
-
-    Mat shape_packed;
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
     std::vector<vk_specialization_type> specializations(1 + 4);
     specializations[0].i = interleaved;
-    specializations[1 + 0].i = shape_packed.w;
-    specializations[1 + 1].i = shape_packed.h;
-    specializations[1 + 2].i = shape_packed.c;
-    specializations[1 + 3].i = (int)shape_packed.cstep;
+    specializations[1 + 0].i = shape.w;
+    specializations[1 + 1].i = shape.h;
+    specializations[1 + 2].i = shape.c;
+    specializations[1 + 3].i = (int)shape.cstep;
 
     Mat local_size_xyz;
-    if (shape_packed.dims == 3)
+    if (shape.dims == 3)
     {
-        const int halfdim = shape_packed.w / 2;
+        const int halfdim = shape.w / 2;
         local_size_xyz.w = std::min(64, std::max(1, halfdim));
-        local_size_xyz.h = std::min(4, std::max(1, shape_packed.h));
-        local_size_xyz.c = std::min(4, std::max(1, shape_packed.c));
+        local_size_xyz.h = std::min(4, std::max(1, shape.h));
+        local_size_xyz.c = std::min(4, std::max(1, shape.c));
     }
     else
     {
@@ -56,7 +44,7 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
+    if (shape.dims == 0 || shape.elempack == 1)
     {
         pipeline_rotaryembed = new Pipeline(vkdev);
         pipeline_rotaryembed->set_optimal_local_size_xyz(local_size_xyz);
@@ -64,7 +52,7 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4)
+    if (shape.dims == 0 || shape.elempack == 4)
     {
         pipeline_rotaryembed_pack4 = new Pipeline(vkdev);
         pipeline_rotaryembed_pack4->set_optimal_local_size_xyz(local_size_xyz);

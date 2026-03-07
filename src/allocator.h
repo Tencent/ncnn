@@ -221,6 +221,8 @@ public:
     VkDeviceMemory memory;
     void* mapped_ptr;
 
+    uint32_t memory_type_index;
+
     // buffer state, modified by command functions internally
     mutable VkAccessFlags access_flags;
     mutable VkPipelineStageFlags stage_flags;
@@ -243,6 +245,8 @@ public:
 
     VkDeviceMemory memory;
     void* mapped_ptr;
+
+    uint32_t memory_type_index;
 
     // the base offset assigned by allocator
     size_t bind_offset;
