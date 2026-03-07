@@ -1,7 +1,7 @@
-// Copyright 2021 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "fuse_convolutiondepthwise_activation.h"
+#include "fuse_convolution3d_activation.h"
 
 #include "pass_level2.h"
 
@@ -11,7 +11,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class fuse_convolutiondepthwise_relu_pass : public GraphRewriterPass
+class fuse_convolution3d_relu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -19,7 +19,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 ReLU                    op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -27,12 +27,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwrelu";
+        return "conv3drelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -78,7 +78,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_clip_pass : public GraphRewriterPass
+class fuse_convolution3d_clip_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -86,7 +86,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 Clip                    op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -94,12 +94,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwclip";
+        return "conv3dclip";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -143,7 +143,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_sigmoid_pass : public GraphRewriterPass
+class fuse_convolution3d_sigmoid_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -151,7 +151,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 Sigmoid                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -159,12 +159,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwsigmoid";
+        return "conv3dsigmoid";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -196,7 +196,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_mish_pass : public GraphRewriterPass
+class fuse_convolution3d_mish_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -204,7 +204,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 Mish                    op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -212,12 +212,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwmish";
+        return "conv3dmish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -249,7 +249,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_hardswish_pass : public GraphRewriterPass
+class fuse_convolution3d_hardswish_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -257,7 +257,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.Hardswish            op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -265,12 +265,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwhardswish";
+        return "conv3dhardswish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -303,7 +303,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_hardswish_f_pass : public GraphRewriterPass
+class fuse_convolution3d_hardswish_f_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -311,7 +311,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 F.hardswish             op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -319,12 +319,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwhardswish";
+        return "conv3dhardswish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -357,7 +357,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_leakyrelu_pass : public GraphRewriterPass
+class fuse_convolution3d_leakyrelu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -365,7 +365,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.LeakyReLU            op_1        1 1 a out negative_slope=%negative_slope
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -373,12 +373,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwleakyrelu";
+        return "conv3dleakyrelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -421,7 +421,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_gelu_pass : public GraphRewriterPass
+class fuse_convolution3d_gelu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -429,7 +429,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.GELU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -437,12 +437,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwgelu";
+        return "conv3dgelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -471,11 +471,11 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["9"] = 7;
-        op->params["10"] = Parameter{0};
+        op->params["10"] = Parameter{0}; // fast_gelu = 0
     }
 };
 
-class fuse_convolutiondepthwise_gelu_tanh_pass : public GraphRewriterPass
+class fuse_convolution3d_gelu_tanh_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -483,7 +483,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.GELU                 op_1        1 1 a out approximate=%approximate
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -491,18 +491,19 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwgelu";
+        return "conv3dgelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.find("op_0.9") != captured_params.end())
             return false;
+        // only match approximate="tanh"
         if (captured_params.find("approximate") != captured_params.end())
         {
             const Parameter& approximate = captured_params.at("approximate");
@@ -533,11 +534,11 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["9"] = 7;
-        op->params["10"] = Parameter{1};
+        op->params["10"] = Parameter{1}; // fast_gelu = 1
     }
 };
 
-class fuse_convolutiondepthwise_silu_pass : public GraphRewriterPass
+class fuse_convolution3d_silu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -545,7 +546,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.SiLU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -553,12 +554,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwsilu";
+        return "conv3dsilu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -590,7 +591,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_elu_pass : public GraphRewriterPass
+class fuse_convolution3d_elu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -598,7 +599,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.ELU                  op_1        1 1 a out alpha=%alpha
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -606,12 +607,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwelu";
+        return "conv3delu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -644,7 +645,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_convolutiondepthwise_selu_pass : public GraphRewriterPass
+class fuse_convolution3d_selu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -652,7 +653,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-ConvolutionDepthWise    op_0        1 1 input a %*=%*
+Convolution3D           op_0        1 1 input a %*=%*
 nn.SELU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -660,12 +661,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "ConvolutionDepthWise";
+        return "Convolution3D";
     }
 
     const char* name_str() const
     {
-        return "convdwselu";
+        return "conv3dselu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -697,20 +698,20 @@ pnnx.Output             output      1 0 out
     }
 };
 
-void fuse_convolutiondepthwise_activation(Graph& graph)
+void fuse_convolution3d_activation(Graph& graph)
 {
-    fuse_convolutiondepthwise_relu_pass a;
-    fuse_convolutiondepthwise_clip_pass b;
-    fuse_convolutiondepthwise_sigmoid_pass c;
-    fuse_convolutiondepthwise_mish_pass d;
-    fuse_convolutiondepthwise_hardswish_pass e;
-    fuse_convolutiondepthwise_hardswish_f_pass f;
-    fuse_convolutiondepthwise_leakyrelu_pass g;
-    fuse_convolutiondepthwise_gelu_pass h;
-    fuse_convolutiondepthwise_gelu_tanh_pass h2;
-    fuse_convolutiondepthwise_silu_pass i;
-    fuse_convolutiondepthwise_elu_pass j;
-    fuse_convolutiondepthwise_selu_pass k;
+    fuse_convolution3d_relu_pass a;
+    fuse_convolution3d_clip_pass b;
+    fuse_convolution3d_sigmoid_pass c;
+    fuse_convolution3d_mish_pass d;
+    fuse_convolution3d_hardswish_pass e;
+    fuse_convolution3d_hardswish_f_pass f;
+    fuse_convolution3d_leakyrelu_pass g;
+    fuse_convolution3d_gelu_pass h;
+    fuse_convolution3d_gelu_tanh_pass h2;
+    fuse_convolution3d_silu_pass i;
+    fuse_convolution3d_elu_pass j;
+    fuse_convolution3d_selu_pass k;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);

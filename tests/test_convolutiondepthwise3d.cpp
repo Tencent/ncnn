@@ -17,10 +17,19 @@ static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, in
     pd.set(6, outch / group * c / group * kernel * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
+    ncnn::Mat activation_params;
+    if (activation_type != 7)
+    {
+        activation_params.create(2);
+        activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+        activation_params[1] = RandomFloat(0, 1);                                                // beta
+    }
+    else
+    {
+        activation_params.create(1);
+        activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+    }
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -31,7 +40,10 @@ static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, in
     int ret = test_layer("ConvolutionDepthWise3D", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
+        if (activation_type != 7)
+            fprintf(stderr, "test_convolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
+        else
+            fprintf(stderr, "test_convolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%d]\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params.row<int>(0)[0]);
     }
 
     return ret;

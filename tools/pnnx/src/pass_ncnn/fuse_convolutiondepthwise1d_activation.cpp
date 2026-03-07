@@ -249,18 +249,483 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_convolutiondepthwise1d_hardswish_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.Hardswish            op_1        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dhardswish";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 6;
+        op->params["10"] = Parameter{1.f / 6, 0.5f};
+    }
+};
+
+class fuse_convolutiondepthwise1d_hardswish_f_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+F.hardswish             op_1        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dhardswish";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 6;
+        op->params["10"] = Parameter{1.f / 6, 0.5f};
+    }
+};
+
+class fuse_convolutiondepthwise1d_leakyrelu_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.LeakyReLU            op_1        1 1 a out negative_slope=%negative_slope
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dleakyrelu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        float negative_slope = 0.01f;
+        if (captured_params.at("negative_slope").type == 2)
+        {
+            negative_slope = (float)captured_params.at("negative_slope").i;
+        }
+        if (captured_params.at("negative_slope").type == 3)
+        {
+            negative_slope = captured_params.at("negative_slope").f;
+        }
+
+        op->params["9"] = 2;
+        op->params["10"] = Parameter{negative_slope};
+    }
+};
+
+class fuse_convolutiondepthwise1d_gelu_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.GELU                 op_1        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dgelu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 7;
+        op->params["10"] = Parameter{0}; // fast_gelu = 0
+    }
+};
+
+class fuse_convolutiondepthwise1d_gelu_tanh_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.GELU                 op_1        1 1 a out approximate=%approximate
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dgelu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.9") != captured_params.end())
+            return false;
+        // only match approximate="tanh"
+        if (captured_params.find("approximate") != captured_params.end())
+        {
+            const Parameter& approximate = captured_params.at("approximate");
+            if (approximate.type == 4 && approximate.s == "tanh")
+                return true;
+        }
+        return false;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 7;
+        op->params["10"] = Parameter{1}; // fast_gelu = 1
+    }
+};
+
+class fuse_convolutiondepthwise1d_silu_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.SiLU                 op_1        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dsilu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 8;
+    }
+};
+
+class fuse_convolutiondepthwise1d_elu_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.ELU                  op_1        1 1 a out alpha=%alpha
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1delu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 9;
+        op->params["10"] = captured_params.at("alpha");
+    }
+};
+
+class fuse_convolutiondepthwise1d_selu_pass : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+ConvolutionDepthWise1D  op_0        1 1 input a %*=%*
+nn.SELU                 op_1        1 1 a out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "ConvolutionDepthWise1D";
+    }
+
+    const char* name_str() const
+    {
+        return "convdw1dselu";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.find("op_0.9") == captured_params.end();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        for (const auto& p : captured_params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
+
+            if (pkey.substr(0, 5) == "op_0.")
+                op->params[pkey.substr(5)] = pp;
+        }
+
+        for (const auto& a : captured_attrs)
+        {
+            const std::string& akey = a.first;
+            const Attribute& ap = a.second;
+
+            if (akey.substr(0, 5) == "op_0.")
+                op->attrs[akey.substr(5)] = ap;
+        }
+
+        op->params["9"] = 10;
+    }
+};
+
 void fuse_convolutiondepthwise1d_activation(Graph& graph)
 {
     fuse_convolutiondepthwise1d_relu_pass a;
     fuse_convolutiondepthwise1d_clip_pass b;
     fuse_convolutiondepthwise1d_sigmoid_pass c;
     fuse_convolutiondepthwise1d_mish_pass d;
+    fuse_convolutiondepthwise1d_hardswish_pass e;
+    fuse_convolutiondepthwise1d_hardswish_f_pass f;
+    fuse_convolutiondepthwise1d_leakyrelu_pass g;
+    fuse_convolutiondepthwise1d_gelu_pass h;
+    fuse_convolutiondepthwise1d_gelu_tanh_pass h2;
+    fuse_convolutiondepthwise1d_silu_pass i;
+    fuse_convolutiondepthwise1d_elu_pass j;
+    fuse_convolutiondepthwise1d_selu_pass k;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
+    pnnx_graph_rewrite(graph, &e, opindex);
+    pnnx_graph_rewrite(graph, &f, opindex);
+    pnnx_graph_rewrite(graph, &g, opindex);
+    pnnx_graph_rewrite(graph, &h, opindex);
+    pnnx_graph_rewrite(graph, &h2, opindex);
+    pnnx_graph_rewrite(graph, &i, opindex);
+    pnnx_graph_rewrite(graph, &j, opindex);
+    pnnx_graph_rewrite(graph, &k, opindex);
 }
 
 } // namespace ncnn
