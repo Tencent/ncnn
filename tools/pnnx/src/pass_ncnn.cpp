@@ -41,6 +41,7 @@
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise1d_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise3d_activation.h"
+#include "pass_ncnn/fuse_deformableconv2d_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
 #include "pass_ncnn/fuse_padding_convolution.h"
 #include "pass_ncnn/fuse_padding_convolutiondepthwise.h"
@@ -150,6 +151,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_deconvolutiondepthwise1d_activation(g);
     ncnn::fuse_deconvolutiondepthwise3d_activation(g);
+    ncnn::fuse_deformableconv2d_activation(g);
     ncnn::fuse_innerproduct_activation(g);
 
     attribute_pooling(g);
