@@ -44,6 +44,34 @@ static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
     return _mm_mul_ps(b, inputs);
 }
 
+static NCNN_FORCEINLINE __m128 gelu_sse(__m128 inputs, int fast_gelu)
+{
+    if (fast_gelu)
+    {
+        const __m128 _half = _mm_set1_ps(0.5f);
+        const __m128 _one = _mm_set1_ps(1.f);
+        const __m128 _fast1c = _mm_set1_ps(0.79788452f);
+        const __m128 _fast2c = _mm_set1_ps(0.044715f);
+        __m128 _cube = _mm_mul_ps(inputs, inputs);
+        _cube = _mm_mul_ps(inputs, _cube);
+        __m128 _blob = _mm_mul_ps(_fast2c, _cube);
+        _blob = _mm_add_ps(inputs, _blob);
+        _blob = _mm_mul_ps(_fast1c, _blob);
+        _blob = tanh_ps(_blob);
+        _blob = _mm_add_ps(_one, _blob);
+        return _mm_mul_ps(_half, _mm_mul_ps(_blob, inputs));
+    }
+    else
+    {
+        const __m128 _half = _mm_set1_ps(0.5f);
+        const __m128 _one = _mm_set1_ps(1.f);
+        const __m128 _inv_sqrt2 = _mm_set1_ps(0.70710678f);
+        __m128 _erf = erf_ps(_mm_mul_ps(inputs, _inv_sqrt2));
+        __m128 _blob = _mm_add_ps(_one, _erf);
+        return _mm_mul_ps(_half, _mm_mul_ps(_blob, inputs));
+    }
+}
+
 static NCNN_FORCEINLINE __m128 lrelu_sse(__m128 inputs, float slope)
 {
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
@@ -102,6 +130,30 @@ static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, co
         __m128 _a = _mm_set1_ps(activation_params[0]);
         __m128 _b = _mm_set1_ps(activation_params[1]);
         return hardswish_sse(_v, _a, _b);
+    }
+    case 7:
+    {
+        // GELU
+        int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_sse(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // SiLU/Swish
+        return swish_sse(_v);
+    }
+    case 9:
+    {
+        // ELU
+        __m128 alpha = _mm_set1_ps(activation_params[0]);
+        return elu_sse(_v, alpha);
+    }
+    case 10:
+    {
+        // SELU
+        const __m128 alpha = _mm_set1_ps(1.6732632423543772848170429916717f);
+        const __m128 lambda = _mm_set1_ps(1.0507009873554804934193349852946f);
+        return _mm_mul_ps(lambda, elu_sse(_v, alpha));
     }
     }
 
@@ -170,6 +222,34 @@ static NCNN_FORCEINLINE __m256 elu_avx(__m256 inputs, __m256 alphas)
     return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
+static NCNN_FORCEINLINE __m256 gelu_avx(__m256 inputs, int fast_gelu)
+{
+    if (fast_gelu)
+    {
+        const __m256 _half = _mm256_set1_ps(0.5f);
+        const __m256 _one = _mm256_set1_ps(1.f);
+        const __m256 _fast1c = _mm256_set1_ps(0.79788452f);
+        const __m256 _fast2c = _mm256_set1_ps(0.044715f);
+        __m256 _cube = _mm256_mul_ps(inputs, inputs);
+        _cube = _mm256_mul_ps(inputs, _cube);
+        __m256 _blob = _mm256_mul_ps(_fast2c, _cube);
+        _blob = _mm256_add_ps(inputs, _blob);
+        _blob = _mm256_mul_ps(_fast1c, _blob);
+        _blob = tanh256_ps(_blob);
+        _blob = _mm256_add_ps(_one, _blob);
+        return _mm256_mul_ps(_half, _mm256_mul_ps(_blob, inputs));
+    }
+    else
+    {
+        const __m256 _half = _mm256_set1_ps(0.5f);
+        const __m256 _one = _mm256_set1_ps(1.f);
+        const __m256 _inv_sqrt2 = _mm256_set1_ps(0.70710678f);
+        __m256 _erf = erf256_ps(_mm256_mul_ps(inputs, _inv_sqrt2));
+        __m256 _blob = _mm256_add_ps(_one, _erf);
+        return _mm256_mul_ps(_half, _mm256_mul_ps(_blob, inputs));
+    }
+}
+
 static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
@@ -206,6 +286,30 @@ static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, co
         __m256 _a = _mm256_set1_ps(activation_params[0]);
         __m256 _b = _mm256_set1_ps(activation_params[1]);
         return hardswish_avx(_v, _a, _b);
+    }
+    case 7:
+    {
+        // GELU
+        int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_avx(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // SiLU/Swish
+        return swish_avx(_v);
+    }
+    case 9:
+    {
+        // ELU
+        __m256 alpha = _mm256_set1_ps(activation_params[0]);
+        return elu_avx(_v, alpha);
+    }
+    case 10:
+    {
+        // SELU
+        const __m256 alpha = _mm256_set1_ps(1.6732632423543772848170429916717f);
+        const __m256 lambda = _mm256_set1_ps(1.0507009873554804934193349852946f);
+        return _mm256_mul_ps(lambda, elu_avx(_v, alpha));
     }
     }
 
@@ -261,6 +365,34 @@ static NCNN_FORCEINLINE __m512 elu_avx512(__m512 inputs, __m512 alphas)
     return _mm512_add_ps(pos, _mm512_mul_ps(alphas, neg));
 }
 
+static NCNN_FORCEINLINE __m512 gelu_avx512(__m512 inputs, int fast_gelu)
+{
+    if (fast_gelu)
+    {
+        const __m512 _half = _mm512_set1_ps(0.5f);
+        const __m512 _one = _mm512_set1_ps(1.f);
+        const __m512 _fast1c = _mm512_set1_ps(0.79788452f);
+        const __m512 _fast2c = _mm512_set1_ps(0.044715f);
+        __m512 _cube = _mm512_mul_ps(inputs, inputs);
+        _cube = _mm512_mul_ps(inputs, _cube);
+        __m512 _blob = _mm512_mul_ps(_fast2c, _cube);
+        _blob = _mm512_add_ps(inputs, _blob);
+        _blob = _mm512_mul_ps(_fast1c, _blob);
+        _blob = tanh512_ps(_blob);
+        _blob = _mm512_add_ps(_one, _blob);
+        return _mm512_mul_ps(_half, _mm512_mul_ps(_blob, inputs));
+    }
+    else
+    {
+        const __m512 _half = _mm512_set1_ps(0.5f);
+        const __m512 _one = _mm512_set1_ps(1.f);
+        const __m512 _inv_sqrt2 = _mm512_set1_ps(0.70710678f);
+        __m512 _erf = erf512_ps(_mm512_mul_ps(inputs, _inv_sqrt2));
+        __m512 _blob = _mm512_add_ps(_one, _erf);
+        return _mm512_mul_ps(_half, _mm512_mul_ps(_blob, inputs));
+    }
+}
+
 static NCNN_FORCEINLINE __m512 prelu_avx512(__m512 inputs, __m512 alphas)
 {
     __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
@@ -304,6 +436,30 @@ static NCNN_FORCEINLINE __m512 activation_avx512(__m512 _v, int activation_type,
         __m512 _a = _mm512_set1_ps(activation_params[0]);
         __m512 _b = _mm512_set1_ps(activation_params[1]);
         return hardswish_avx512(_v, _a, _b);
+    }
+    case 7:
+    {
+        // GELU
+        int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_avx512(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // SiLU/Swish
+        return swish_avx512(_v);
+    }
+    case 9:
+    {
+        // ELU
+        __m512 alpha = _mm512_set1_ps(activation_params[0]);
+        return elu_avx512(_v, alpha);
+    }
+    case 10:
+    {
+        // SELU
+        const __m512 alpha = _mm512_set1_ps(1.6732632423543772848170429916717f);
+        const __m512 lambda = _mm512_set1_ps(1.0507009873554804934193349852946f);
+        return _mm512_mul_ps(lambda, elu_avx512(_v, alpha));
     }
     }
 

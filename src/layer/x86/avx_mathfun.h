@@ -341,6 +341,54 @@ static NCNN_FORCEINLINE __m256 tanh256_ps(const __m256& x)
     return dst;
 }
 
+_PS256_CONST(erf_threshold, 0.927734375f);
+
+_PS256_CONST(erf_c0, -1.72853470e-5f);
+_PS256_CONST(erf_c1, 3.83197126e-4f);
+_PS256_CONST(erf_c2, -3.88396438e-3f);
+_PS256_CONST(erf_c3, 2.42546219e-2f);
+_PS256_CONST(erf_c4, -1.06777877e-1f);
+_PS256_CONST(erf_c5, -6.34846687e-1f);
+_PS256_CONST(erf_c6, -1.28717512e-1f);
+
+_PS256_CONST(erf_p0, -5.96761703e-4f);
+_PS256_CONST(erf_p1, 4.99119423e-3f);
+_PS256_CONST(erf_p2, -2.67681349e-2f);
+_PS256_CONST(erf_p3, 1.12819925e-1f);
+_PS256_CONST(erf_p4, -3.76125336e-1f);
+_PS256_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m256 erf256_ps(const __m256& a)
+{
+    __m256 t = _mm256_and_ps(a, *(__m256*)_ps256_inv_sign_mask);
+    __m256 s = _mm256_mul_ps(a, a);
+
+    __m256 mask = _mm256_cmp_ps(t, *(__m256*)_ps256_erf_threshold, _CMP_GT_OQ);
+
+    __m256 r_large = _mm256_comp_fmadd_ps(*(__m256*)_ps256_erf_c0, t, *(__m256*)_ps256_erf_c1);
+    __m256 u = _mm256_comp_fmadd_ps(*(__m256*)_ps256_erf_c2, t, *(__m256*)_ps256_erf_c3);
+    r_large = _mm256_comp_fmadd_ps(r_large, s, u);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c4);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c5);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, *(__m256*)_ps256_erf_c6);
+    r_large = _mm256_comp_fmadd_ps(r_large, t, _mm256_sub_ps(_mm256_setzero_ps(), t));
+    r_large = _mm256_sub_ps(*(__m256*)_ps256_1, exp256_ps(r_large));
+
+    __m256 sign_mask = _mm256_and_ps(a, *(__m256*)_ps256_sign_mask);
+    r_large = _mm256_xor_ps(r_large, sign_mask);
+
+    __m256 r_small = *(__m256*)_ps256_erf_p0;
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p1);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p2);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p3);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p4);
+    r_small = _mm256_comp_fmadd_ps(r_small, s, *(__m256*)_ps256_erf_p5);
+    r_small = _mm256_comp_fmadd_ps(r_small, a, a);
+
+    __m256 r = _mm256_or_ps(_mm256_and_ps(mask, r_large), _mm256_andnot_ps(mask, r_small));
+    return r;
+}
+
 _PS256_CONST(minus_cephes_DP1, -0.78515625f);
 _PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
