@@ -29,7 +29,7 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
     {
         activation_params.create(2);
         activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-        activation_params[1] = RandomFloat(0, 1);                                                // beta
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
     }
     else
     {
