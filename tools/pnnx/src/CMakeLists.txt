@@ -445,7 +445,11 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_convolutiondepthwise1d_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise3d_activation.cpp
     pass_ncnn/fuse_deconvolution_activation.cpp
+    pass_ncnn/fuse_deconvolution1d_activation.cpp
+    pass_ncnn/fuse_deconvolution3d_activation.cpp
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
+    pass_ncnn/fuse_deconvolutiondepthwise1d_activation.cpp
+    pass_ncnn/fuse_deconvolutiondepthwise3d_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
     pass_ncnn/fuse_padding_convolution.cpp
     pass_ncnn/fuse_padding_convolutiondepthwise.cpp

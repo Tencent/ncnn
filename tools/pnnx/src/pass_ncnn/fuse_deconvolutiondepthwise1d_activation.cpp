@@ -1,7 +1,7 @@
-// Copyright 2021 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "fuse_deconvolution_activation.h"
+#include "fuse_deconvolutiondepthwise1d_activation.h"
 
 #include "pass_level2.h"
 
@@ -11,7 +11,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class fuse_deconvolution_relu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_relu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -19,7 +19,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 ReLU                    op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -27,12 +27,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvrelu";
+        return "deconvdw1drelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -78,7 +78,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_clip_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_clip_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -86,7 +86,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 Clip                    op_1        1 1 a out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -94,12 +94,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvclip";
+        return "deconvdw1dclip";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -143,7 +143,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_sigmoid_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_sigmoid_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -151,7 +151,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 Sigmoid                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -159,12 +159,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvsigmoid";
+        return "deconvdw1dsigmoid";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -196,7 +196,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_mish_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_mish_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -204,7 +204,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 Mish                    op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -212,12 +212,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvmish";
+        return "deconvdw1dmish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -249,7 +249,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_hardswish_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_hardswish_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -257,7 +257,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.Hardswish            op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -265,12 +265,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvhardswish";
+        return "deconvdw1dhardswish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -303,7 +303,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_hardswish_f_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_hardswish_f_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -311,7 +311,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 F.hardswish             op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -319,12 +319,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvhardswish";
+        return "deconvdw1dhardswish";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -357,7 +357,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_leakyrelu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_leakyrelu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -365,7 +365,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.LeakyReLU            op_1        1 1 a out negative_slope=%negative_slope
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -373,12 +373,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvleakyrelu";
+        return "deconvdw1dleakyrelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -421,7 +421,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_gelu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_gelu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -429,7 +429,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.GELU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -437,12 +437,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvgelu";
+        return "deconvdw1dgelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -475,7 +475,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_gelu_tanh_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_gelu_tanh_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -483,7 +483,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.GELU                 op_1        1 1 a out approximate=%approximate
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -491,12 +491,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvgelu";
+        return "deconvdw1dgelu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -537,7 +537,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_silu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_silu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -545,7 +545,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.SiLU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -553,12 +553,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvsilu";
+        return "deconvdw1dsilu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -590,7 +590,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_elu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_elu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -598,7 +598,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.ELU                  op_1        1 1 a out alpha=%alpha
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -606,12 +606,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvelu";
+        return "deconvdw1delu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -644,7 +644,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-class fuse_deconvolution_selu_pass : public GraphRewriterPass
+class fuse_deconvolutiondepthwise1d_selu_pass : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -652,7 +652,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-Deconvolution           op_0        1 1 input a %*=%*
+DeconvolutionDepthWise1D op_0       1 1 input a %*=%*
 nn.SELU                 op_1        1 1 a out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -660,12 +660,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Deconvolution";
+        return "DeconvolutionDepthWise1D";
     }
 
     const char* name_str() const
     {
-        return "deconvselu";
+        return "deconvdw1dselu";
     }
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
@@ -697,20 +697,20 @@ pnnx.Output             output      1 0 out
     }
 };
 
-void fuse_deconvolution_activation(Graph& graph)
+void fuse_deconvolutiondepthwise1d_activation(Graph& graph)
 {
-    fuse_deconvolution_relu_pass a;
-    fuse_deconvolution_clip_pass b;
-    fuse_deconvolution_sigmoid_pass c;
-    fuse_deconvolution_mish_pass d;
-    fuse_deconvolution_hardswish_pass e;
-    fuse_deconvolution_hardswish_f_pass f;
-    fuse_deconvolution_leakyrelu_pass g;
-    fuse_deconvolution_gelu_pass h;
-    fuse_deconvolution_gelu_tanh_pass h2;
-    fuse_deconvolution_silu_pass i;
-    fuse_deconvolution_elu_pass j;
-    fuse_deconvolution_selu_pass k;
+    fuse_deconvolutiondepthwise1d_relu_pass a;
+    fuse_deconvolutiondepthwise1d_clip_pass b;
+    fuse_deconvolutiondepthwise1d_sigmoid_pass c;
+    fuse_deconvolutiondepthwise1d_mish_pass d;
+    fuse_deconvolutiondepthwise1d_hardswish_pass e;
+    fuse_deconvolutiondepthwise1d_hardswish_f_pass f;
+    fuse_deconvolutiondepthwise1d_leakyrelu_pass g;
+    fuse_deconvolutiondepthwise1d_gelu_pass h;
+    fuse_deconvolutiondepthwise1d_gelu_tanh_pass h2;
+    fuse_deconvolutiondepthwise1d_silu_pass i;
+    fuse_deconvolutiondepthwise1d_elu_pass j;
+    fuse_deconvolutiondepthwise1d_selu_pass k;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
