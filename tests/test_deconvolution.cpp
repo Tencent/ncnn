@@ -27,7 +27,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     {
         activation_params.create(2);
         activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-        activation_params[1] = RandomFloat(0, 1);                                                // beta
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
     }
     else
     {
@@ -221,7 +221,7 @@ static int test_deconvolution_dynamic(int w, int h, int c, int outch, int kernel
     {
         activation_params.create(2);
         activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-        activation_params[1] = RandomFloat(0, 1);                                                // beta
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
     }
     else
     {
