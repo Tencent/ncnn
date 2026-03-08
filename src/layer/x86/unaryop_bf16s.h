@@ -38,7 +38,7 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
             _mm256_mask_storeu_epi16(ptr, _mask, float2bfloat_avx512(_p));
             i += remain;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
@@ -54,7 +54,7 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
             ptr += 4;
         }
 #endif // __AVX512F__
-#else // __AVX__
+#else  // __AVX__
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));

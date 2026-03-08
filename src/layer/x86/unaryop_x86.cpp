@@ -100,7 +100,6 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
-
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     using namespace UnaryOp_x86_functor;
@@ -269,4 +268,3 @@ int UnaryOp_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
 } // namespace ncnn
 #endif // NCNN_BF16
-
