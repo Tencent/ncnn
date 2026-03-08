@@ -570,11 +570,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-} // namespace ncnn
-
 #if NCNN_BF16
-namespace ncnn {
-
 int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     const int dims = bottom_top_blob.dims;
@@ -628,6 +624,7 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
-#endif // NCNN_BF16
+
