@@ -403,6 +403,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
+#elif NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
@@ -458,6 +470,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             {
 #if NCNN_ARM82
                 if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    any_elempack = 8;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     any_elempack = 4;
                 else if (elemcount % 4 == 0)
                     any_elempack = 1;
