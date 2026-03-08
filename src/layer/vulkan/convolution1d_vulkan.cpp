@@ -171,9 +171,9 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
         specializations[4].i = elempack;
         specializations[5].i = out_elempack;
-        specializations[6 + 0].i = 0;  // w
-        specializations[6 + 1].i = 0;  // h
-        specializations[6 + 2].i = 0;  // outw
+        specializations[6 + 0].i = 0; // w
+        specializations[6 + 1].i = 0; // h
+        specializations[6 + 2].i = 0; // outw
         specializations[6 + 3].i = outh_pack4;
         specializations[6 + 4].i = num_output;
         specializations[6 + 5].i = num_input_packed;

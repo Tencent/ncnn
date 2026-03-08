@@ -90,7 +90,7 @@ void main()
 
     const int num_input_packed_vk = psc(num_input_packed);
     const int num_input_pack4 = num_input_packed_vk / 4;
-    const int num_input_vk = psc(h);  // Actual number of input channels
+    const int num_input_vk = psc(h); // Actual number of input channels
 
     for (int y = 0; y < num_input_pack4; y++)
     {
