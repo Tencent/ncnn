@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 12
+#define OP_TYPE_MAX 19
 
 static int op_type = 0;
 
@@ -370,7 +370,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 9; op_type < OP_TYPE_MAX; op_type++)
+    for (op_type = 9; op_type < 12; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()

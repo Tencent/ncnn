@@ -315,4 +315,65 @@ static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
     return (v4f32)__msa_ld_w(tmpx, 0);
 }
 
+static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
+{
+    // fmod(a,b) = a - trunc(a/b)*b   (trunc toward 0)
+    v4f32 q = __msa_fdiv_w(a, b);
+    v4i32 qi = __msa_ftrunc_s_w(q); // trunc toward zero (independent of RM)
+    v4f32 qf = __msa_ffint_s_w(qi);
+    return __msa_fsub_w(a, __msa_fmul_w(qf, b));
+}
+
+static inline v4f32 round_ps(v4f32 x)
+{
+    v4f32 half = (v4f32)__msa_fill_w(c_0p5.i);
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    v4i32 sign_mask = __msa_fclt_w(x, (v4f32)__msa_fill_w(0));
+    v4f32 abs_x = (v4f32)__msa_bclri_w((v4u32)x, 31);
+    v4i32 xi = __msa_ftrunc_s_w(abs_x);
+    v4f32 xf = __msa_ffint_s_w(xi);
+    v4f32 diff = __msa_fsub_w(abs_x, xf);
+    v4i32 diff_gt_half = __msa_fclt_w(half, diff);
+    v4i32 diff_eq_half = __msa_fceq_w(diff, half);
+    v4i32 xi_and_1 = (v4i32)__msa_and_v((v16u8)xi, (v16u8)__msa_fill_w(1));
+    v4i32 is_odd = __msa_ceqi_w(xi_and_1, 1);
+    v4i32 round_up = (v4i32)__msa_or_v((v16u8)diff_gt_half, __msa_and_v((v16u8)diff_eq_half, (v16u8)is_odd));
+    v4f32 rounded = __msa_fadd_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)round_up));
+    return (v4f32)__msa_bsel_v((v16u8)sign_mask, (v16u8)rounded, (v16u8)__msa_bnegi_w((v4u32)rounded, 31));
+}
+
+static inline v4f32 logaddexp_ps(v4f32 a, v4f32 b)
+{
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    v4f32 max_xy = __msa_fmax_w(a, b);
+    v4f32 min_xy = __msa_fmin_w(a, b);
+    v4f32 diff = __msa_fsub_w(min_xy, max_xy);
+    v4f32 exp_diff = exp_ps(diff);
+    v4f32 one_plus_exp = __msa_fadd_w(one, exp_diff);
+    v4f32 log_result = log_ps(one_plus_exp);
+    return __msa_fadd_w(max_xy, log_result);
+}
+
+static inline v4f32 floor_ps(v4f32 x)
+{
+    v4i32 xi = __msa_ftrunc_s_w(x);
+    v4f32 xf = __msa_ffint_s_w(xi);
+    v4i32 need_adjust = __msa_fclt_w(x, xf);
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    return __msa_fsub_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)need_adjust));
+}
+
+static inline v4f32 floor_divide_ps(v4f32 a, v4f32 b)
+{
+    v4f32 q = __msa_fdiv_w(a, b);
+    return floor_ps(q);
+}
+
+static inline v4f32 remainder_ps(v4f32 a, v4f32 b)
+{
+    v4f32 q = __msa_fdiv_w(a, b);
+    v4f32 rq = round_ps(q);
+    return __msa_fsub_w(a, __msa_fmul_w(rq, b));
+}
+
 #endif // MSA_MATHFUN_H

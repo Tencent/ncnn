@@ -1214,4 +1214,68 @@ static NCNN_FORCEINLINE __m128 abs_ps(const __m128& x)
     return _mm_and_ps(abs_mask, x);
 }
 
+static NCNN_FORCEINLINE __m128 trunc_ps(const __m128& x)
+{
+    // truncate toward zero
+    __m128i xi = _mm_cvttps_epi32(x);
+    return _mm_cvtepi32_ps(xi);
+}
+
+static NCNN_FORCEINLINE __m128 fmod_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 tq = trunc_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(tq, y));
+}
+
+static NCNN_FORCEINLINE __m128 round_ps(const __m128& x)
+{
+#if __SSE4_1__
+    return _mm_round_ps(x, _MM_FROUND_NINT);
+#endif // __SSE4_1__
+
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_half = _mm_set_ps1(0.5f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+    __m128i xi = _mm_cvttps_epi32(absolute);
+    __m128 truncated = _mm_cvtepi32_ps(xi);
+    __m128 diff = _mm_sub_ps(absolute, truncated);
+    __m128 diff_gt_half = _mm_cmpgt_ps(diff, magic_half);
+    __m128 diff_eq_half = _mm_cmpeq_ps(diff, magic_half);
+    __m128i xi_and_1 = _mm_and_si128(xi, _mm_set1_epi32(1));
+    __m128i is_odd = _mm_cmpeq_epi32(xi_and_1, _mm_set1_epi32(1));
+    __m128 round_up = _mm_or_ps(diff_gt_half, _mm_and_ps(diff_eq_half, _mm_castsi128_ps(is_odd)));
+    __m128 rounded = _mm_add_ps(truncated, _mm_and_ps(round_up, magic_one));
+    return _mm_or_ps(rounded, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 logaddexp_ps(const __m128& x, const __m128& y)
+{
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 max_xy = _mm_max_ps(x, y);
+    __m128 min_xy = _mm_min_ps(x, y);
+    __m128 diff = _mm_sub_ps(min_xy, max_xy);
+    __m128 exp_diff = exp_ps(diff);
+    __m128 one_plus_exp = _mm_add_ps(magic_one, exp_diff);
+    __m128 log_result = log_ps(one_plus_exp);
+    return _mm_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    return floor_ps(q);
+}
+
+static NCNN_FORCEINLINE __m128 remainder_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 rq = round_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(rq, y));
+}
+
 #endif // SSE_MATHFUN_H
