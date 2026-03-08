@@ -627,4 +627,3 @@ int LayerNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 #endif // NCNN_BF16
 
 } // namespace ncnn
-
