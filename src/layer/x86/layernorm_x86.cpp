@@ -13,9 +13,6 @@
 #include "x86_usability.h"
 #include "cpu.h"
 
-#if NCNN_BF16
-#endif
-
 namespace ncnn {
 
 #if NCNN_BF16
