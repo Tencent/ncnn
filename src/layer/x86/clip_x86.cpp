@@ -10,6 +10,10 @@
 #endif // __AVX__
 #endif // __SSE2__
 
+#include "x86_usability.h"
+
+#include "cpu.h"
+
 namespace ncnn {
 
 Clip_x86::Clip_x86()
@@ -18,10 +22,18 @@ Clip_x86::Clip_x86()
     support_packing = true;
     support_any_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
     const int d = bottom_top_blob.d;
@@ -95,3 +107,16 @@ int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 } //namespace ncnn
+
+#if NCNN_BF16
+namespace ncnn {
+
+#include "clip_bf16s.h"
+
+int Clip_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return clip_bf16s(bottom_top_blob, min, max, opt);
+}
+
+} // namespace ncnn
+#endif // NCNN_BF16
