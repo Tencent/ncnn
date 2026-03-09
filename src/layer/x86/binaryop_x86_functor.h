@@ -500,4 +500,3 @@ struct binary_op_rremainder
 #endif // __AVX__
 #endif // __SSE2__
 };
-

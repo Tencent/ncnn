@@ -347,4 +347,3 @@ static void binary_op_vector_bf16s(const unsigned short* ptr, const unsigned sho
             return binary_op_vector_broadcast_pb_a_bf16s<Op>(ptr, ptr1, outptr, w, elempack);
     }
 }
-
