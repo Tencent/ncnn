@@ -26,6 +26,16 @@
 
 namespace ncnn {
 
+namespace UnaryOp_x86_functor {
+
+#include "unaryop_functor.h"
+
+} // namespace UnaryOp_x86_functor
+
+#if NCNN_BF16
+#include "unaryop_bf16s.h"
+#endif
+
 UnaryOp_x86::UnaryOp_x86()
 {
 #if __SSE2__
@@ -102,12 +112,12 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    using namespace UnaryOp_x86_functor;
-
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
+
+    using namespace UnaryOp_x86_functor;
     if (op_type == Operation_ABS)
         return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
 
@@ -182,73 +192,78 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-} // namespace ncnn
-
 #if NCNN_BF16
-namespace ncnn {
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+int unaryop_bf16s_sse_avx512bf16(Mat& bottom_top_blob, int op_type, const Option& opt);
+#endif
 
-#include "unaryop_bf16s.h"
-
-int UnaryOp_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+static int unaryop_bf16s_sse(Mat& bottom_top_blob, int op_type, const Option& opt)
 {
-    using namespace UnaryOp_x86_functor;
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        return unaryop_bf16s_sse_avx512bf16(bottom_top_blob, op_type, opt);
+    }
+#endif
 
-    if (op_type == Operation_ABS)
+    using namespace UnaryOp_x86_functor;
+    if (op_type == UnaryOp::Operation_ABS)
         return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
 
-    if (op_type == Operation_NEG)
+    if (op_type == UnaryOp::Operation_NEG)
         return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
 
-    if (op_type == Operation_FLOOR)
+    if (op_type == UnaryOp::Operation_FLOOR)
         return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
 
-    if (op_type == Operation_CEIL)
+    if (op_type == UnaryOp::Operation_CEIL)
         return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
 
-    if (op_type == Operation_SQUARE)
+    if (op_type == UnaryOp::Operation_SQUARE)
         return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
 
-    if (op_type == Operation_SQRT)
+    if (op_type == UnaryOp::Operation_SQRT)
         return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
 
-    if (op_type == Operation_RSQRT)
+    if (op_type == UnaryOp::Operation_RSQRT)
         return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
 
-    if (op_type == Operation_EXP)
+    if (op_type == UnaryOp::Operation_EXP)
         return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
 
-    if (op_type == Operation_LOG)
+    if (op_type == UnaryOp::Operation_LOG)
         return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
 
-    if (op_type == Operation_SIN)
+    if (op_type == UnaryOp::Operation_SIN)
         return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
 
-    if (op_type == Operation_COS)
+    if (op_type == UnaryOp::Operation_COS)
         return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
 
-    if (op_type == Operation_TAN)
+    if (op_type == UnaryOp::Operation_TAN)
         return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
 
-    if (op_type == Operation_ASIN)
+    if (op_type == UnaryOp::Operation_ASIN)
         return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
 
-    if (op_type == Operation_ACOS)
+    if (op_type == UnaryOp::Operation_ACOS)
         return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
 
-    if (op_type == Operation_ATAN)
+    if (op_type == UnaryOp::Operation_ATAN)
         return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
 
-    if (op_type == Operation_RECIPROCAL)
+    if (op_type == UnaryOp::Operation_RECIPROCAL)
         return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
 
-    if (op_type == Operation_TANH)
+    if (op_type == UnaryOp::Operation_TANH)
         return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
 
-    if (op_type == Operation_LOG10)
+    if (op_type == UnaryOp::Operation_LOG10)
         return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
 
-    if (op_type == Operation_ROUND)
+    if (op_type == UnaryOp::Operation_ROUND)
     {
+        // round to nearest even
 #ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
@@ -260,11 +275,16 @@ int UnaryOp_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         return ret;
     }
 
-    if (op_type == Operation_TRUNC)
+    if (op_type == UnaryOp::Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }
 
-} // namespace ncnn
+int UnaryOp_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return unaryop_bf16s_sse(bottom_top_blob, op_type, opt);
+}
 #endif // NCNN_BF16
+
+} // namespace ncnn

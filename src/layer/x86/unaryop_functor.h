@@ -1,28 +1,5 @@
-// Copyright 2022 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
-
-#ifndef LAYER_UNARYOP_FUNCTOR_H
-#define LAYER_UNARYOP_FUNCTOR_H
-
-#if __SSE2__
-#include <emmintrin.h>
-#include "sse_mathfun.h"
-#if __SSE4_1__
-#include <smmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#include "avx_mathfun.h"
-#if __AVX512F__
-#include "avx512_mathfun.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE4_1__
-#endif // __SSE2__
-
-#include "x86_usability.h"
-#include "x86_activation.h"
-
-namespace UnaryOp_x86_functor {
 
 struct unary_op_abs
 {
@@ -555,11 +532,3 @@ struct unary_op_trunc
 #endif // __AVX__
 #endif // __SSE2__
 };
-
-} // namespace UnaryOp_x86_functor
-
-namespace UnaryOp_x86_avx_functor = UnaryOp_x86_functor;
-namespace UnaryOp_x86_fma_functor = UnaryOp_x86_functor;
-namespace UnaryOp_x86_avx512_functor = UnaryOp_x86_functor;
-
-#endif // LAYER_UNARYOP_FUNCTOR_H

@@ -6,8 +6,6 @@
 
 #include "unaryop.h"
 
-#include "unaryop_functor.h"
-
 namespace ncnn {
 
 class UnaryOp_x86 : public UnaryOp
