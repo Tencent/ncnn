@@ -58,14 +58,11 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __SSE2__
-    __m128i _b1_128i = (elempack == 4) ? _mm_loadl_epi64((const __m128i*)ptr1) : _mm_set1_epi16((short)*ptr1);
-    __m128 _b_128 = bfloat2float_sse(_b1_128i);
+    __m128 _b_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1)) : _mm_set1_ps(bfloat16_to_float32((short)*ptr1));
 #if __AVX__
-    __m128i _b2_128i = (elempack == 8) ? _mm_loadu_si128((const __m128i*)ptr1) : _mm_set1_epi16((short)*ptr1);
-    __m256 _b_256 = bfloat2float_avx(_b2_128i);
+    __m256 _b_256 = (elempack == 8) ? bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1)) : combine4x2_ps(_b_128, _b_128);
 #if __AVX512F__
-    __m256i _b3_256i = (elempack == 16) ? _mm256_loadu_si256((const __m256i*)ptr1) : _mm256_set1_epi16((short)*ptr1);
-    __m512 _b_512 = bfloat2float_avx512(_b3_256i);
+    __m512 _b_512 = (elempack == 16) ? bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1)) : combine8x2_ps(_b_256, _b_256);
     for (; i + 15 < size; i += 16)
     {
         __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
@@ -108,14 +105,11 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __SSE2__
-    __m128i _a1_128i = (elempack == 4) ? _mm_loadl_epi64((const __m128i*)ptr) : _mm_set1_epi16((short)*ptr);
-    __m128 _a_128 = bfloat2float_sse(_a1_128i);
+    __m128 _a_128 = (elempack == 4) ? bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr)) : _mm_set1_ps(bfloat16_to_float32((short)*ptr));
 #if __AVX__
-    __m128i _a2_128i = (elempack == 8) ? _mm_loadu_si128((const __m128i*)ptr) : _mm_set1_epi16((short)*ptr);
-    __m256 _a_256 = bfloat2float_avx(_a2_128i);
+    __m256 _a_256 = (elempack == 8) ? bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr)) : combine4x2_ps(_a_128, _a_128);
 #if __AVX512F__
-    __m256i _a3_256i = (elempack == 16) ? _mm256_loadu_si256((const __m256i*)ptr) : _mm256_set1_epi16((short)*ptr);
-    __m512 _a_512 = bfloat2float_avx512(_a3_256i);
+    __m512 _a_512 = (elempack == 16) ? bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr)) : combine8x2_ps(_a_256, _a_256);
     for (; i + 15 < size; i += 16)
     {
         __m512 _b = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
