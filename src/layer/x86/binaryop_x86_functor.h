@@ -1,10 +1,6 @@
-// Copyright 2024 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-// This file is #include'd inside a named namespace in:
-//   - binaryop_x86.cpp               (namespace BinaryOp_x86_functor)
-//   - binaryop_x86_avx512bf16.cpp    (namespace BinaryOp_x86_functor)
-// Do NOT add a namespace here.
 struct binary_op_add
 {
     NCNN_FORCEINLINE float func(const float& x, const float& y) const

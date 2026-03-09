@@ -1,15 +1,5 @@
-// Copyright 2024 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
-
-// This header is #include'd inside namespace ncnn { }
-// It must NOT include mat.h or binaryop.h directly.
-// All required symbols (bfloat2float_*, float2bfloat_*, BinaryOp_x86_functor::*,
-// float32_to_bfloat16, bfloat16_to_float32, BinaryOp::Operation_*) are
-// already visible from the enclosing translation unit.
-
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void binary_op_vector_bf16s_avx512bf16(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type);
-#endif
 
 template<typename Op>
 static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int size)
