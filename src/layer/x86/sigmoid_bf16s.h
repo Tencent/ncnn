@@ -37,7 +37,7 @@ static int sigmoid_bf16s(Mat& a, const Option& opt)
             _mm256_mask_storeu_epi16(ptr, _mask, float2bfloat_avx512(_p));
             i += remain;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         __m256 _one_avx = _mm256_set1_ps(1.f);
         __m256 _zero_avx = _mm256_setzero_ps();
         for (; i + 7 < size; i += 8)
@@ -57,7 +57,7 @@ static int sigmoid_bf16s(Mat& a, const Option& opt)
             ptr += 4;
         }
 #endif // __AVX512F__
-#else // __AVX__
+#else  // __AVX__
         __m128 _one = _mm_set1_ps(1.f);
         __m128 _zero = _mm_setzero_ps();
         for (; i + 3 < size; i += 4)

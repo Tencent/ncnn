@@ -39,7 +39,7 @@ static int clip_bf16s(Mat& a, float min, float max, const Option& opt)
             _mm256_mask_storeu_epi16(ptr, _mask, float2bfloat_avx512(_p));
             i += remain;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         __m256 _min_avx = _mm256_set1_ps(min);
         __m256 _max_avx = _mm256_set1_ps(max);
         for (; i + 7 < size; i += 8)
@@ -61,7 +61,7 @@ static int clip_bf16s(Mat& a, float min, float max, const Option& opt)
             ptr += 4;
         }
 #endif // __AVX512F__
-#else // __AVX__
+#else  // __AVX__
         __m128 _min = _mm_set1_ps(min);
         __m128 _max = _mm_set1_ps(max);
         for (; i + 3 < size; i += 4)

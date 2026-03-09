@@ -38,7 +38,7 @@ static int relu_bf16s(Mat& a, float slope, const Option& opt)
                 _mm256_mask_storeu_epi16(ptr, _mask, float2bfloat_avx512(_p));
                 i += remain;
             }
-#else // __AVX512F__
+#else  // __AVX512F__
             __m256 _zero_avx = _mm256_setzero_ps();
             for (; i + 7 < size; i += 8)
             {
@@ -56,7 +56,7 @@ static int relu_bf16s(Mat& a, float slope, const Option& opt)
                 ptr += 4;
             }
 #endif // __AVX512F__
-#else // __AVX__
+#else  // __AVX__
             __m128 _zero = _mm_setzero_ps();
             for (; i + 3 < size; i += 4)
             {
@@ -107,7 +107,7 @@ static int relu_bf16s(Mat& a, float slope, const Option& opt)
                 _mm256_mask_storeu_epi16(ptr, _mask, float2bfloat_avx512(_p));
                 i += remain;
             }
-#else // __AVX512F__
+#else  // __AVX512F__
             __m256 _zero_avx = _mm256_setzero_ps();
             __m256 _slope_avx = _mm256_set1_ps(slope);
             for (; i + 7 < size; i += 8)
@@ -131,7 +131,7 @@ static int relu_bf16s(Mat& a, float slope, const Option& opt)
                 ptr += 4;
             }
 #endif // __AVX512F__
-#else // __AVX__
+#else  // __AVX__
             __m128 _zero = _mm_setzero_ps();
             __m128 _slope = _mm_set1_ps(slope);
             for (; i + 3 < size; i += 4)
