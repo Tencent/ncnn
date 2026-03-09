@@ -23,12 +23,12 @@ namespace ncnn {
 
 namespace BinaryOp_x86_functor {
 
-#include "binaryop_x86_functor.h"
+#include "binaryop_functor.h"
 
 } // namespace BinaryOp_x86_functor
 
 #if NCNN_BF16
-#include "binaryop_x86_bf16s.h"
+#include "binaryop_bf16s.h"
 #endif
 
 BinaryOp_x86::BinaryOp_x86()

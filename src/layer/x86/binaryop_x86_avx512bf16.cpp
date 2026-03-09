@@ -21,11 +21,11 @@ namespace ncnn {
 
 namespace BinaryOp_x86_functor {
 
-#include "binaryop_x86_functor.h"
+#include "binaryop_functor.h"
 
 } // namespace BinaryOp_x86_functor
 
-#include "binaryop_x86_bf16s.h"
+#include "binaryop_bf16s.h"
 
 void binary_op_vector_bf16s_avx512bf16(const unsigned short* ptr, const unsigned short* ptr1, unsigned short* outptr, int aw, int bw, int ap, int bp, int op_type)
 {
