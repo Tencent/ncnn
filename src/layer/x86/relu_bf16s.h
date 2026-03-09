@@ -1,8 +1,20 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static int relu_bf16s(Mat& a, float slope, const Option& opt)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+void relu_bf16s_avx512bf16(Mat& a, float slope, const Option& opt);
+#endif
+
+static void relu_bf16s(Mat& a, float slope, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        relu_bf16s_avx512bf16(a, slope, opt);
+        return;
+    }
+#endif
+
     int w = a.w;
     int h = a.h;
     int d = a.d;
@@ -154,6 +166,4 @@ static int relu_bf16s(Mat& a, float slope, const Option& opt)
             }
         }
     }
-
-    return 0;
 }

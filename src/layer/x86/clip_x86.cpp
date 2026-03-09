@@ -16,6 +16,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "clip_bf16s.h"
+#endif
+
 Clip_x86::Clip_x86()
 {
 #if __SSE2__
@@ -106,17 +110,13 @@ int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-} //namespace ncnn
-
 #if NCNN_BF16
-namespace ncnn {
-
-#include "clip_bf16s.h"
-
 int Clip_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    return clip_bf16s(bottom_top_blob, min, max, opt);
+    clip_bf16s(bottom_top_blob, min, max, opt);
+
+    return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
-#endif // NCNN_BF16

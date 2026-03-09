@@ -24,9 +24,9 @@ namespace ncnn {
 
 #include "sigmoid_bf16s.h"
 
-int Sigmoid_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+void sigmoid_bf16s_avx512bf16(Mat& a, const Option& opt)
 {
-    return sigmoid_bf16s(bottom_top_blob, opt);
+    sigmoid_bf16s(a, opt);
 }
 
 } // namespace ncnn

@@ -12,9 +12,9 @@ namespace ncnn {
 
 #include "relu_bf16s.h"
 
-int ReLU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+void relu_bf16s_avx512bf16(Mat& a, float slope, const Option& opt)
 {
-    return relu_bf16s(bottom_top_blob, slope, opt);
+    relu_bf16s(a, slope, opt);
 }
 
 } // namespace ncnn

@@ -21,6 +21,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "sigmoid_bf16s.h"
+#endif
+
 Sigmoid_x86::Sigmoid_x86()
 {
 #if __SSE2__
@@ -102,17 +106,14 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-} // namespace ncnn
-
 #if NCNN_BF16
-namespace ncnn {
-
-#include "sigmoid_bf16s.h"
-
 int Sigmoid_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    return sigmoid_bf16s(bottom_top_blob, opt);
+    sigmoid_bf16s(bottom_top_blob, opt);
+
+    return 0;
 }
 
-} // namespace ncnn
 #endif // NCNN_BF16
+
+} // namespace ncnn

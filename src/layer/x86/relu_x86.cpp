@@ -16,6 +16,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "relu_bf16s.h"
+#endif
+
 ReLU_x86::ReLU_x86()
 {
 #if __SSE2__
@@ -222,17 +226,13 @@ int ReLU_x86::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-} //namespace ncnn
-
 #if NCNN_BF16
-namespace ncnn {
-
-#include "relu_bf16s.h"
-
 int ReLU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    return relu_bf16s(bottom_top_blob, slope, opt);
+    relu_bf16s(bottom_top_blob, slope, opt);
+
+    return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
-#endif // NCNN_BF16

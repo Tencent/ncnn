@@ -12,9 +12,9 @@ namespace ncnn {
 
 #include "clip_bf16s.h"
 
-int Clip_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+void clip_bf16s_avx512bf16(Mat& a, float min, float max, const Option& opt)
 {
-    return clip_bf16s(bottom_top_blob, min, max, opt);
+    clip_bf16s(a, min, max, opt);
 }
 
 } // namespace ncnn
