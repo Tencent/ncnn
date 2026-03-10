@@ -25,7 +25,7 @@ env:
   TORCHVISION_VERSION: 0.25.0
   PROTOBUF_VERSION: 21.12
   ONNXRUNTIME_VERSION: 1.24.3
-  CACHE_DATE: 20260306
+  CACHE_DATE: 20260309
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
 jobs:
@@ -94,21 +94,21 @@ jobs:
 
     - name: cache-libtorch
       id: cache-libtorch
-      uses: actions/cache@v5
+      uses: actions/cache@v4
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-torchvision
       id: cache-torchvision
-      uses: actions/cache@v5
+      uses: actions/cache@v4
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: cache-onnxruntime
       id: cache-onnxruntime
-      uses: actions/cache@v5
+      uses: actions/cache@v4
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
