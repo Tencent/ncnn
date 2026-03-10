@@ -35,8 +35,7 @@ static inline v4f32 gelu_ps(v4f32 _v, int fast_gelu)
         v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f);
         v4f32 _cube = __msa_fmul_w(_v, _v);
         _cube = __msa_fmul_w(_v, _cube);
-        v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
-        _blob = __msa_fadd_w(_v, _blob);
+        v4f32 _blob = __msa_fmadd_w(_v, _fast2c, _cube);
         _blob = __msa_fmul_w(_fast1c, _blob);
         _blob = tanh_ps(_blob);
         _blob = __msa_fadd_w(_one, _blob);
