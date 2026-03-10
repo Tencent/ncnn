@@ -5,6 +5,7 @@
 
 #include "cpu.h"
 
+#include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
