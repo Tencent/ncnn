@@ -637,8 +637,7 @@ static inline float16x4_t erf_ps_f16(float16x4_t x)
         r_large = vfma_f16(vneg_f16(t), r_large, t);
         r_large = vsub_f16(vdup_n_f16(1.f), exp_ps_f16(r_large));
         uint16x4_t sign_mask = vdup_n_u16(0x8000);
-        r_large = vbsl_f16(sign_mask, vreinterpret_u16_f16(x), vreinterpret_u16_f16(r_large));
-        r_large = vreinterpret_f16_u16(r_large);
+        r_large = vbsl_f16(sign_mask, x, r_large);
     }
 
     {
@@ -673,8 +672,7 @@ static inline float16x8_t erf_ps_f16(float16x8_t x)
         r_large = vfmaq_f16(vnegq_f16(t), r_large, t);
         r_large = vsubq_f16(vdupq_n_f16(1.f), exp_ps_f16(r_large));
         uint16x8_t sign_mask = vdupq_n_u16(0x8000);
-        r_large = vbslq_f16(sign_mask, vreinterpretq_u16_f16(x), vreinterpretq_u16_f16(r_large));
-        r_large = vreinterpretq_f16_u16(r_large);
+        r_large = vbslq_f16(sign_mask, x, r_large);
     }
 
     {

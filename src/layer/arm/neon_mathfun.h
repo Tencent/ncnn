@@ -515,7 +515,7 @@ static inline float32x4_t erf_ps(float32x4_t a)
         r_large = VFMAQ_F32(vdupq_n_f32(-1.28717512e-1f), r_large, t);
         r_large = VFMAQ_F32(vnegq_f32(t), r_large, t);
         r_large = vsubq_f32(vdupq_n_f32(1.0f), exp_ps(r_large));
-        float32x4_t sign_mask = vdupq_n_u32(0x80000000u);
+        uint32x4_t sign_mask = vdupq_n_u32(0x80000000u);
         r_large = vreinterpretq_f32_u32(vbslq_u32(sign_mask, vreinterpretq_u32_f32(a), vreinterpretq_u32_f32(r_large)));
     }
 

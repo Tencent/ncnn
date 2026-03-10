@@ -189,9 +189,9 @@ int Erf_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(reinterpret_cast<const float16_t*>(ptr)));
                 _p = erf_ps(_p);
-                vst1_f16(ptr, vcvt_f16_f32(_p));
+                vst1_f16(reinterpret_cast<float16_t*>(ptr), vcvt_f16_f32(_p));
                 ptr += 4;
             }
         }
@@ -205,12 +205,10 @@ int Erf_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
         unsigned short* ptr = bottom_top_blob.channel(q);
 
         for (int i = 0; i < size; i++)
-        {
-            float v = (float)vcvtah_f16_f32(*ptr);
-            v = erff(v);
-            *ptr = vcvtah_f32_f16(v);
-            ptr++;
-        }
+            {
+                *ptr = (__fp16)erff((float)*ptr);
+                ptr++;
+            }
     }
 
     return 0;
@@ -234,12 +232,12 @@ int Erf_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
 
             for (int i = 0; i < size; i++)
             {
-                float16x8_t _p = vld1q_f16(ptr);
+                float16x8_t _p = vld1q_f16(reinterpret_cast<const float16_t*>(ptr));
                 float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
                 float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
                 _p0 = erf_ps(_p0);
                 _p1 = erf_ps(_p1);
-                vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1)));
+                vst1q_f16(reinterpret_cast<float16_t*>(ptr), vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1)));
                 ptr += 8;
             }
         }
@@ -256,9 +254,9 @@ int Erf_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(reinterpret_cast<const float16_t*>(ptr)));
                 _p = erf_ps(_p);
-                vst1_f16(ptr, vcvt_f16_f32(_p));
+                vst1_f16(reinterpret_cast<float16_t*>(ptr), vcvt_f16_f32(_p));
                 ptr += 4;
             }
         }
