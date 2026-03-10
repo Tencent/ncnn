@@ -416,10 +416,10 @@ _RVV_FLOAT16_ATAN2_OP(8, 2)
         vfloat16m##LMUL##_t r_large, r_small;                                                                                                                         \
                                                                                                                                                                       \
         {                                                                                                                                                             \
-            r_large = __riscv_vfmv_v_f_f16m##LMUL((__fp16)3.83197126e-4f, vl);                                                                                          \
-            r_large = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-1.72853470e-5f, r_large, vl);                                                                           \
-            vfloat16m##LMUL##_t u = __riscv_vfmv_v_f_f16m##LMUL((__fp16)2.42546219e-2f, vl);                                                                            \
-            u = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-3.88396438e-3f, u, vl);                                                                                        \
+            r_large = __riscv_vfmv_v_f_f16m##LMUL((__fp16)3.83197126e-4f, vl);                                                                                        \
+            r_large = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-1.72853470e-5f, r_large, vl);                                                                          \
+            vfloat16m##LMUL##_t u = __riscv_vfmv_v_f_f16m##LMUL((__fp16)2.42546219e-2f, vl);                                                                          \
+            u = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-3.88396438e-3f, u, vl);                                                                                      \
             r_large = __riscv_vfmadd_vv_f16m##LMUL(u, r_large, s, vl);                                                                                                \
             r_large = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-1.06777877e-1f, r_large, vl);                                                                          \
             r_large = __riscv_vfmadd_vf_f16m##LMUL(t, (__fp16)-6.34846687e-1f, r_large, vl);                                                                          \

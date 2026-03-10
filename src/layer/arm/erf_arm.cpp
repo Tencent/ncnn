@@ -205,10 +205,10 @@ int Erf_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
         unsigned short* ptr = bottom_top_blob.channel(q);
 
         for (int i = 0; i < size; i++)
-            {
-                *ptr = (__fp16)erff((float)*ptr);
-                ptr++;
-            }
+        {
+            *ptr = (__fp16)erff((float)*ptr);
+            ptr++;
+        }
     }
 
     return 0;
