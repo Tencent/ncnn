@@ -22,6 +22,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "softmax_bf16s.h"
+#endif
+
 #if __SSE2__
 static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(const __m128& x)
 {
@@ -56,6 +60,9 @@ Softmax_x86::Softmax_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void softmax(float* _ptr, int elemcount, int elempack)
@@ -1678,6 +1685,11 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     const int elempack = bottom_top_blob.elempack;
     const int positive_axis = axis < 0 ? dims + axis : axis;
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     if (dims == 1) // positive_axis == 0
     {
         float* ptr = bottom_top_blob;
@@ -1832,5 +1844,101 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int dims = bottom_top_blob.dims;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+
+    // create fp32 workspace with same shape
+    Mat bottom_top_blob_fp32;
+    if (dims == 1)
+    {
+        bottom_top_blob_fp32.create(w, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    }
+    else if (dims == 2)
+    {
+        bottom_top_blob_fp32.create(w, h, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    }
+    else if (dims == 3)
+    {
+        bottom_top_blob_fp32.create(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    }
+    else // if (dims == 4)
+    {
+        bottom_top_blob_fp32.create(w, h, d, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    }
+    if (bottom_top_blob_fp32.empty())
+        return -100;
+
+    // convert bf16 to fp32
+    if (dims == 1)
+    {
+        const int size = w * elempack;
+        const unsigned short* src = bottom_top_blob;
+        float* dst = bottom_top_blob_fp32;
+        softmax_bf16s_to_fp32(src, dst, size);
+    }
+    else if (dims == 2)
+    {
+        for (int i = 0; i < h; i++)
+        {
+            const unsigned short* src = bottom_top_blob.row<unsigned short>(i);
+            float* dst = bottom_top_blob_fp32.row(i);
+            softmax_bf16s_to_fp32(src, dst, w * elempack);
+        }
+    }
+    else
+    {
+        const int chsize = w * h * d * elempack;
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* src = bottom_top_blob.channel(q);
+            float* dst = bottom_top_blob_fp32.channel(q);
+            softmax_bf16s_to_fp32(src, dst, chsize);
+        }
+    }
+
+    // run fp32 softmax
+    int ret = forward_inplace(bottom_top_blob_fp32, opt);
+    if (ret != 0)
+        return ret;
+
+    // convert fp32 back to bf16
+    if (dims == 1)
+    {
+        const int size = w * elempack;
+        const float* src = bottom_top_blob_fp32;
+        unsigned short* dst = bottom_top_blob;
+        softmax_fp32_to_bf16s(src, dst, size);
+    }
+    else if (dims == 2)
+    {
+        for (int i = 0; i < h; i++)
+        {
+            const float* src = bottom_top_blob_fp32.row(i);
+            unsigned short* dst = bottom_top_blob.row<unsigned short>(i);
+            softmax_fp32_to_bf16s(src, dst, w * elempack);
+        }
+    }
+    else
+    {
+        const int chsize = w * h * d * elempack;
+        for (int q = 0; q < channels; q++)
+        {
+            const float* src = bottom_top_blob_fp32.channel(q);
+            unsigned short* dst = bottom_top_blob.channel(q);
+            softmax_fp32_to_bf16s(src, dst, chsize);
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -10,14 +10,22 @@
 #endif // __AVX__
 #endif // __SSE2__
 #include "x86_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "batchnorm_bf16s.h"
+#endif
 
 BatchNorm_x86::BatchNorm_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -28,6 +36,11 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int d = bottom_top_blob.d;
     int c = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     if (dims == 1)
     {
@@ -208,5 +221,107 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+
+#if NCNN_BF16
+int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int dims = bottom_top_blob.dims;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int c = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+
+    if (dims == 1)
+    {
+        unsigned short* ptr = bottom_top_blob;
+        const float* aptr = a_data;
+        const float* bptr = b_data;
+
+        const int size = w * elempack;
+
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+            __m512 _a = _mm512_loadu_ps(aptr);
+            __m512 _b = _mm512_loadu_ps(bptr);
+            _p = _mm512_fmadd_ps(_p, _b, _a);
+            _mm256_storeu_si256((__m256i*)ptr, float2bfloat_avx512(_p));
+            ptr += 16;
+            aptr += 16;
+            bptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+            __m256 _a = _mm256_loadu_ps(aptr);
+            __m256 _b = _mm256_loadu_ps(bptr);
+            _p = _mm256_comp_fmadd_ps(_p, _b, _a);
+            _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(_p));
+            ptr += 8;
+            aptr += 8;
+            bptr += 8;
+        }
+#endif // __AVX__
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+            __m128 _a = _mm_loadu_ps(aptr);
+            __m128 _b = _mm_loadu_ps(bptr);
+            _p = _mm_comp_fmadd_ps(_p, _b, _a);
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_p, _p));
+            ptr += 4;
+            aptr += 4;
+            bptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
+        {
+            *ptr = float32_to_bfloat16(*bptr * bfloat16_to_float32(*ptr) + *aptr);
+            ptr++;
+            aptr++;
+            bptr++;
+        }
+    }
+
+    if (dims == 2)
+    {
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            const float* aptr = (const float*)a_data + i * elempack;
+            const float* bptr = (const float*)b_data + i * elempack;
+
+            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        const int size = w * h * d * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            const float* aptr = (const float*)a_data + q * elempack;
+            const float* bptr = (const float*)b_data + q * elempack;
+
+            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
