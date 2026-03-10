@@ -27,17 +27,17 @@ InstanceNorm_x86::InstanceNorm_x86()
 
 int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int c = bottom_top_blob.c;
     int size = w * h;
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
-        return forward_inplace_bf16s(bottom_top_blob, opt);
-#endif
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < c; q++)
