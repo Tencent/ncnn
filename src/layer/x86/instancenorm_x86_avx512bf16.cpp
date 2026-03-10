@@ -1,0 +1,17 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "cpu.h"
+#include "mat.h"
+#include "x86_usability.h"
+
+namespace ncnn {
+
+#include "instancenorm_bf16s.h"
+
+void instancenorm_bf16s_sse_avx512bf16(unsigned short* ptr, int size, float a, float b)
+{
+    instancenorm_bf16s_sse(ptr, size, a, b);
+}
+
+} // namespace ncnn
