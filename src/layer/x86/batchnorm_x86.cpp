@@ -222,7 +222,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-
 #if NCNN_BF16
 int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
