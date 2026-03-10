@@ -346,14 +346,14 @@ static void groupnorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 
 int GroupNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    const int dims = bottom_top_blob.dims;
-    const int elempack = bottom_top_blob.elempack;
-    const int channels_g = channels / group;
-
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
+
+    const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+    const int channels_g = channels / group;
 
     int g_elempack = 1;
 #if __SSE2__
