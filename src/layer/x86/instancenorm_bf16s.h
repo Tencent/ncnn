@@ -3,6 +3,7 @@
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 void instancenorm_bf16s_sse_avx512bf16(unsigned short* ptr, int size, float a, float b);
+void instancenorm_bf16s_compute_mean_var_avx512bf16(const unsigned short* ptr, int size, float& mean, float& var);
 #endif
 
 static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float b)
@@ -58,6 +59,14 @@ static void instancenorm_bf16s_sse(unsigned short* ptr, int size, float a, float
 
 static void instancenorm_bf16s_compute_mean_var(const unsigned short* ptr, int size, float& mean, float& var)
 {
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        instancenorm_bf16s_compute_mean_var_avx512bf16(ptr, size, mean, var);
+        return;
+    }
+#endif
+
     float sum = 0.f;
     float sqsum = 0.f;
 
