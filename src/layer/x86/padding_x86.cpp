@@ -520,22 +520,21 @@ int Padding_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     }
     else
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
-    {
-        pad_value_bf16_fp16 = value_bf16;
-    }
-    else
+        if (opt.use_bf16_storage)
+        {
+            pad_value_bf16_fp16 = value_bf16;
+        }
+        else
 #endif
-    {
-        pad_value_bf16_fp16 = 0;
-    }
+        {
+            pad_value_bf16_fp16 = 0;
+        }
 
-    const Mat& per_channel_pad_data_bf16_fp16 =
-        (support_fp16_storage && opt.use_fp16_storage) ? per_channel_pad_data_fp16 :
+    const Mat& per_channel_pad_data_bf16_fp16 = (support_fp16_storage && opt.use_fp16_storage) ? per_channel_pad_data_fp16 :
 #if NCNN_BF16
-        opt.use_bf16_storage ? per_channel_pad_data_bf16 :
+            opt.use_bf16_storage ? per_channel_pad_data_bf16 :
 #endif
-        Mat();
+            Mat();
 
 #if __SSE2__
 #if __AVX__
