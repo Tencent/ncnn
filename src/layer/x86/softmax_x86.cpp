@@ -1677,6 +1677,11 @@ static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int
 
 int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
@@ -1684,11 +1689,6 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     const int channels = bottom_top_blob.c;
     const int elempack = bottom_top_blob.elempack;
     const int positive_axis = axis < 0 ? dims + axis : axis;
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
-        return forward_inplace_bf16s(bottom_top_blob, opt);
-#endif
 
     if (dims == 1) // positive_axis == 0
     {

@@ -31,16 +31,16 @@ PReLU_x86::PReLU_x86()
 
 int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     int dims = bottom_top_blob.dims;
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
-        return forward_inplace_bf16s(bottom_top_blob, opt);
-#endif
 
     if (dims == 1)
     {

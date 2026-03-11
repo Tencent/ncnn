@@ -33,6 +33,11 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blobs, opt);
+#endif
+
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
     const int d = bottom_top_blob.d;
@@ -43,11 +48,6 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
     const float* scale = scale_blob;
     const float* bias = bias_data;
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
-        return forward_inplace_bf16s(bottom_top_blobs, opt);
-#endif
 
     if (dims == 1)
     {
