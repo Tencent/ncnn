@@ -240,7 +240,7 @@ int main(int argc, char** argv)
                 bottom_reference[blob_name] = refidx;
 
                 char splitsuffix[256];
-                sprintf(splitsuffix, "_splitncnn_%d", refidx);
+                snprintf(splitsuffix, 256, "_splitncnn_%d", refidx);
                 blob_name = blob_name + splitsuffix;
             }
 
@@ -1127,7 +1127,7 @@ int main(int argc, char** argv)
                 if (refcount > 1)
                 {
                     char splitname[256];
-                    sprintf(splitname, "splitncnn_%d", internal_split);
+                    snprintf(splitname, 256, "splitncnn_%d", internal_split);
                     fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
                     fprintf(pp, " %s", blob_name.c_str());
 
@@ -1152,7 +1152,7 @@ int main(int argc, char** argv)
                     if (refcount > 1)
                     {
                         char splitname[256];
-                        sprintf(splitname, "splitncnn_%d", internal_split);
+                        snprintf(splitname, 256, "splitncnn_%d", internal_split);
                         fprintf(pp, "%-16s %-16s %d %d", "Split", splitname, 1, refcount);
                         fprintf(pp, " %s", blob_name.c_str());
 
