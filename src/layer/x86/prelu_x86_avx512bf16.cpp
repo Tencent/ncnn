@@ -14,4 +14,9 @@ void prelu_bf16s_sse_avx512bf16(unsigned short* ptr, const float* slope, int siz
     prelu_bf16s_sse(ptr, slope, size, elempack);
 }
 
+void prelu_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* slope, int size)
+{
+    prelu_bf16s_per_element_sse(ptr, slope, size);
+}
+
 } // namespace ncnn

@@ -3,6 +3,7 @@
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 void prelu_bf16s_sse_avx512bf16(unsigned short* ptr, const float* slope, int size, int elempack);
+void prelu_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* slope, int size);
 #endif
 
 static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, int elempack)
@@ -69,5 +70,66 @@ static void prelu_bf16s_sse(unsigned short* ptr, const float* slope, int size, i
             v *= s;
         *ptr = float32_to_bfloat16(v);
         ptr++;
+    }
+}
+
+static void prelu_bf16s_per_element_sse(unsigned short* ptr, const float* slope, int size)
+{
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        prelu_bf16s_per_element_sse_avx512bf16(ptr, slope, size);
+        return;
+    }
+#endif
+
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    {
+        __m512 _zero_avx512 = _mm512_setzero_ps();
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)(ptr + i)));
+            __m512 _slope = _mm512_loadu_ps(slope + i);
+            __mmask16 _mask = _mm512_cmp_ps_mask(_p, _zero_avx512, _CMP_LT_OQ);
+            __m512 _ps = _mm512_mul_ps(_p, _slope);
+            _p = _mm512_mask_mov_ps(_p, _mask, _ps);
+            _mm256_storeu_si256((__m256i*)(ptr + i), float2bfloat_avx512(_p));
+        }
+    }
+#endif // __AVX512F__
+    {
+        __m256 _zero_avx = _mm256_setzero_ps();
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
+            __m256 _slope = _mm256_loadu_ps(slope + i);
+            __m256 _ps = _mm256_mul_ps(_p, _slope);
+            _p = _mm256_blendv_ps(_p, _ps, _mm256_cmp_ps(_p, _zero_avx, _CMP_LT_OQ));
+            _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
+        }
+    }
+#endif // __AVX__
+    {
+        __m128 _zero = _mm_setzero_ps();
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
+            __m128 _slope = _mm_loadu_ps(slope + i);
+            __m128 _ps = _mm_mul_ps(_p, _slope);
+            __m128 _mask = _mm_cmplt_ps(_p, _zero);
+            _p = _mm_or_ps(_mm_andnot_ps(_mask, _p), _mm_and_ps(_mask, _ps));
+            _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
+        }
+    }
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        float v = bfloat16_to_float32(ptr[i]);
+        if (v < 0.f)
+            v *= slope[i];
+        ptr[i] = float32_to_bfloat16(v);
     }
 }
