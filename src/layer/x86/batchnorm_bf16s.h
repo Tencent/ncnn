@@ -3,7 +3,7 @@
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 void batchnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size, int elempack);
-void batchnorm_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size);
+void batchnorm_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size, int num_threads);
 #endif
 
 static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
@@ -67,48 +67,62 @@ static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float
     }
 }
 
-static void batchnorm_bf16s_per_element_sse(unsigned short* ptr, const float* a, const float* b, int size)
+static void batchnorm_bf16s_per_element_sse(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        batchnorm_bf16s_per_element_sse_avx512bf16(ptr, a, b, size);
+        batchnorm_bf16s_per_element_sse_avx512bf16(ptr, a, b, size, num_threads);
         return;
     }
 #endif
 
-    int i = 0;
+    int nn_size = 0;
+    int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; i + 15 < size; i += 16)
+    nn_size = (size - remain_size_start) / 16;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 16;
         __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)(ptr + i)));
         __m512 _a = _mm512_loadu_ps(a + i);
         __m512 _b = _mm512_loadu_ps(b + i);
         _p = _mm512_fmadd_ps(_p, _b, _a);
         _mm256_storeu_si256((__m256i*)(ptr + i), float2bfloat_avx512(_p));
     }
+    remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-    for (; i + 7 < size; i += 8)
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 8;
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
         __m256 _a = _mm256_loadu_ps(a + i);
         __m256 _b = _mm256_loadu_ps(b + i);
         _p = _mm256_comp_fmadd_ps(_p, _b, _a);
         _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
     }
+    remain_size_start += nn_size * 8;
 #endif // __AVX__
-    for (; i + 3 < size; i += 4)
+    nn_size = (size - remain_size_start) / 4;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 4;
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _a = _mm_loadu_ps(a + i);
         __m128 _b = _mm_loadu_ps(b + i);
         _p = _mm_comp_fmadd_ps(_p, _b, _a);
         _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
     }
+    remain_size_start += nn_size * 4;
 #endif // __SSE2__
-    for (; i < size; i++)
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = remain_size_start; i < size; i++)
     {
         ptr[i] = float32_to_bfloat16(b[i] * bfloat16_to_float32(ptr[i]) + a[i]);
     }

@@ -50,52 +50,51 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         const int size = w * elempack;
 
-        int i = 0;
+        int nn_size = 0;
+        int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        for (; i + 15 < size; i += 16)
+        nn_size = (size - remain_size_start) / 16;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            __m512 _p512 = _mm512_loadu_ps(ptr);
-            __m512 _a512 = _mm512_loadu_ps(aptr);
-            __m512 _b512 = _mm512_loadu_ps(bptr);
-            _p512 = _mm512_fmadd_ps(_p512, _b512, _a512);
-            _mm512_storeu_ps(ptr, _p512);
-            ptr += 16;
-            aptr += 16;
-            bptr += 16;
+            int i = remain_size_start + ii * 16;
+            __m512 _p512 = _mm512_loadu_ps(ptr + i);
+            __m512 _a512 = _mm512_loadu_ps(aptr + i);
+            __m512 _b512 = _mm512_loadu_ps(bptr + i);
+            _mm512_storeu_ps(ptr + i, _mm512_fmadd_ps(_p512, _b512, _a512));
         }
+        remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-        for (; i + 7 < size; i += 8)
+        nn_size = (size - remain_size_start) / 8;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            __m256 _p256 = _mm256_loadu_ps(ptr);
-            __m256 _a256 = _mm256_loadu_ps(aptr);
-            __m256 _b256 = _mm256_loadu_ps(bptr);
-            _p256 = _mm256_comp_fmadd_ps(_p256, _b256, _a256);
-            _mm256_storeu_ps(ptr, _p256);
-            ptr += 8;
-            aptr += 8;
-            bptr += 8;
+            int i = remain_size_start + ii * 8;
+            __m256 _p256 = _mm256_loadu_ps(ptr + i);
+            __m256 _a256 = _mm256_loadu_ps(aptr + i);
+            __m256 _b256 = _mm256_loadu_ps(bptr + i);
+            _mm256_storeu_ps(ptr + i, _mm256_comp_fmadd_ps(_p256, _b256, _a256));
         }
+        remain_size_start += nn_size * 8;
 #endif // __AVX__
-        for (; i + 3 < size; i += 4)
+        nn_size = (size - remain_size_start) / 4;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            __m128 _p128 = _mm_loadu_ps(ptr);
-            __m128 _a128 = _mm_loadu_ps(aptr);
-            __m128 _b128 = _mm_loadu_ps(bptr);
-            _p128 = _mm_comp_fmadd_ps(_p128, _b128, _a128);
-            _mm_storeu_ps(ptr, _p128);
-            ptr += 4;
-            aptr += 4;
-            bptr += 4;
+            int i = remain_size_start + ii * 4;
+            __m128 _p128 = _mm_loadu_ps(ptr + i);
+            __m128 _a128 = _mm_loadu_ps(aptr + i);
+            __m128 _b128 = _mm_loadu_ps(bptr + i);
+            _mm_storeu_ps(ptr + i, _mm_comp_fmadd_ps(_p128, _b128, _a128));
         }
-#endif // __SSE__
-        for (; i < size; i++)
+        remain_size_start += nn_size * 4;
+#endif // __SSE2__
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = remain_size_start; i < size; i++)
         {
-            *ptr = *bptr * *ptr + *aptr;
-            ptr++;
-            aptr++;
-            bptr++;
+            ptr[i] = bptr[i] * ptr[i] + aptr[i];
         }
     }
 
@@ -240,7 +239,7 @@ int BatchNorm_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
         const int size = w * elempack;
 
-        batchnorm_bf16s_per_element_sse(ptr, aptr, bptr, size);
+        batchnorm_bf16s_per_element_sse(ptr, aptr, bptr, size, opt.num_threads);
     }
 
     if (dims == 2)

@@ -14,9 +14,9 @@ void batchnorm_bf16s_sse_avx512bf16(unsigned short* ptr, const float* a, const f
     batchnorm_bf16s_sse(ptr, a, b, size, elempack);
 }
 
-void batchnorm_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size)
+void batchnorm_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
 {
-    batchnorm_bf16s_per_element_sse(ptr, a, b, size);
+    batchnorm_bf16s_per_element_sse(ptr, a, b, size, num_threads);
 }
 
 } // namespace ncnn
