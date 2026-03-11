@@ -24,11 +24,6 @@ int Packing_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
     const int local_size_x = vkdev->info.subgroup_size();
 
     bool use_int8_shader = cast_type_from == 4 || cast_type_to == 4;
@@ -37,7 +32,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
     specializations[0].i = cast_type_from;
     specializations[1].i = cast_type_to;
 
-    if (shape.dims == 0 || elempack == out_elempack)
+    if (shape.dims == 0 || shape.elempack == out_elempack)
     {
         size_t n = 0;
         size_t c = 0;
@@ -88,7 +83,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             pipeline_packing->create(LayerShaderType::packing, opt, specializations);
         }
     }
-    if (shape.dims == 0 || elempack < out_elempack)
+    if (shape.dims == 0 || shape.elempack < out_elempack)
     {
         size_t n = 0;
         size_t c = 0;
@@ -112,7 +107,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             stride = shape.cstep;
         }
 
-        if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
+        if (shape.dims == 0 || (shape.elempack == 1 && out_elempack == 4))
         {
             // pack1to4
             specializations[2 + 0].u32 = n;
@@ -131,7 +126,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             }
         }
     }
-    if (shape.dims == 0 || elempack > out_elempack)
+    if (shape.dims == 0 || shape.elempack > out_elempack)
     {
         size_t n = 0;
         size_t c = 0;
@@ -155,7 +150,7 @@ int Packing_vulkan::create_pipeline(const Option& opt)
             stride = out_shape.cstep;
         }
 
-        if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
+        if (shape.dims == 0 || (shape.elempack == 4 && out_elempack == 1))
         {
             // pack4to1
             specializations[2 + 0].u32 = n;
@@ -232,7 +227,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     size_t out_elemsize;
     if (cast_type_to == 0)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             out_elemsize = out_elempack * 2u;
         }
@@ -245,7 +240,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         out_elemsize = out_elempack * 4u;
     }
-    else if (cast_type_to == 2)
+    else if (cast_type_to == 2 || cast_type_to == 5)
     {
         out_elemsize = out_elempack * 2u;
     }

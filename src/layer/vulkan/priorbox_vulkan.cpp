@@ -27,7 +27,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
+    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
     {
         elemsize = elempack * 2u;
     }
@@ -148,7 +148,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         int elempack = 4;
 
         size_t elemsize = elempack * 4u;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
+        if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
         {
             elemsize = elempack * 2u;
         }
@@ -202,7 +202,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     size_t elemsize = 4u;
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage || opt.use_bf16_storage)
     {
         elemsize = 2u;
     }

@@ -3,11 +3,10 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer square_blob { vec4 square_blob_data[]; };
-layout (binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
+layout(binding = 0) readonly buffer square_blob { vec4 square_blob_data[]; };
+layout(binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
 
-
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;

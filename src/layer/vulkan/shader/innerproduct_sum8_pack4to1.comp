@@ -4,16 +4,16 @@
 #version 450
 
 #define shape_constant_id_offset 0
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
 
-layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outh = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
 

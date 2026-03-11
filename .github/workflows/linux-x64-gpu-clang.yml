@@ -14,6 +14,7 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -28,6 +29,7 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+    - 'glslang'
 concurrency:
   group: linux-x64-gpu-clang-${{ github.ref }}
   cancel-in-progress: true

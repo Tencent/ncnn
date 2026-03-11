@@ -4,26 +4,26 @@
 #version 450
 
 #define shape_constant_id_offset 0
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 2) readonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
-layout (binding = 3) readonly buffer xofs_blob { int xofs_blob_data[]; };
-layout (binding = 4) readonly buffer beta_blob { sfpvec4 beta_blob_data[]; };
-layout (binding = 5) readonly buffer yofs_blob { int yofs_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) readonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
+layout(binding = 3) readonly buffer xofs_blob { int xofs_blob_data[]; };
+layout(binding = 4) readonly buffer beta_blob { sfpvec4 beta_blob_data[]; };
+layout(binding = 5) readonly buffer yofs_blob { int yofs_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -102,8 +102,7 @@ void main()
         a0, a1, a2, a3,
         b0, b1, b2, b3,
         c0, c1, c2, c3,
-        d0, d1, d2, d3
-    );
+        d0, d1, d2, d3);
 
     afpvec4 alpha = buffer_ld4(alpha_blob_data, gx);
 

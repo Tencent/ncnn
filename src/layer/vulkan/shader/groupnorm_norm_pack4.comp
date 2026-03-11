@@ -1,0 +1,44 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#define shape_constant_id_offset 0
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+        return;
+
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+
+    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+
+    afpvec4 a = buffer_ld4(coeffs_blob_data, gz * 2);
+    afpvec4 b = buffer_ld4(coeffs_blob_data, gz * 2 + 1);
+
+    v = v * a + b;
+
+    buffer_st4(bottom_top_blob_data, gi, v);
+}

@@ -3,21 +3,21 @@
 
 #version 450
 
-layout (constant_id = 0) const int clip = 0;
-layout (constant_id = 1) const float offset = 0;
-layout (constant_id = 2) const int num_sizes = 0;
-layout (constant_id = 3) const int num_ratios = 0;
-layout (constant_id = 4) const int num_prior = 0;
+layout(constant_id = 0) const int clip = 0;
+layout(constant_id = 1) const float offset = 0;
+layout(constant_id = 2) const int num_sizes = 0;
+layout(constant_id = 3) const int num_ratios = 0;
+layout(constant_id = 4) const int num_prior = 0;
 
 #define shape_constant_id_offset 5
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
-layout (binding = 2) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
+layout(binding = 2) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;

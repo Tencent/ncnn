@@ -3,30 +3,30 @@
 
 #version 450
 
-layout (constant_id = 0) const int stride = 0;
-layout (constant_id = 1) const int mode = 0;
+layout(constant_id = 0) const int stride = 0;
+layout(constant_id = 1) const int mode = 0;
 
 #define shape_constant_id_offset 2
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-#if NCNN_fp16_packed
-layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
+#if NCNN_fp16_packed || NCNN_bf16_packed
+layout(binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
-layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int dims;
     int w;
@@ -69,7 +69,7 @@ void main()
 
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
     ivec4 v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
     ivec4 lane2 = z4 % 2;
 

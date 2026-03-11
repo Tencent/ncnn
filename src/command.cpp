@@ -61,6 +61,7 @@ public:
 
             TYPE_post_download,
             TYPE_post_cast_float16_to_float32,
+            TYPE_post_cast_bfloat16_to_float32,
         };
 
         int type;
@@ -168,10 +169,18 @@ public:
                 uint32_t download_post_mat_offset;
                 int num_threads;
             } post_cast_float16_to_float32;
+            struct
+            {
+                uint32_t download_post_mat_bf16_offset;
+                uint32_t download_post_mat_offset;
+                int num_threads;
+            } post_cast_bfloat16_to_float32;
         };
     };
 
     std::vector<record> delayed_records;
+
+    uint64_t pending_dispatch_total;
 
 #if NCNN_BENCHMARK
     uint32_t query_count;
@@ -185,6 +194,8 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     compute_command_pool = 0;
     compute_command_buffer = 0;
     compute_command_fence = 0;
+
+    pending_dispatch_total = 0;
 
 #if NCNN_BENCHMARK
     query_count = 0;
@@ -352,7 +363,11 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     if (src.elemsize == src.elempack * 4u)
     {
         // cpu cast to fp16 (discrete gpu)
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
+        if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
+        {
+            ncnn::cast_float32_to_bfloat16(src, src_fp16, opt);
+        }
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
@@ -406,7 +421,9 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     int cast_type_to = 0;
     if (vkdev->info.type() != 0)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+            cast_type_to = 5;
+        else if (opt.use_fp16_storage || opt.use_fp16_packed)
             cast_type_to = 2;
         else
             cast_type_to = 1;
@@ -513,7 +530,29 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
-        if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
+        if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
+        {
+            int dims = dst_fp16.dims;
+            if (dims == 1)
+                dst.create(dst_fp16.w, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 2)
+                dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 3)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+
+            d->download_post_mats.push_back(dst);
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32;
+            r.command_buffer = 0;
+            r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset = d->download_post_mats_fp16.size() - 1;
+            r.post_cast_bfloat16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_bfloat16_to_float32.num_threads = opt.num_threads;
+            d->delayed_records.push_back(r);
+        }
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
             int dims = dst_fp16.dims;
             if (dims == 1)
@@ -1533,6 +1572,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             r.dispatch.group_count_z = group_count_z;
             d->delayed_records.push_back(r);
         }
+
+        d->pending_dispatch_total += group_count_x * group_count_y * group_count_z;
     }
 }
 
@@ -1875,6 +1916,7 @@ int VkCompute::submit_and_wait()
 #endif // NCNN_BENCHMARK
             case VkComputePrivate::record::TYPE_post_download:
             case VkComputePrivate::record::TYPE_post_cast_float16_to_float32:
+            case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
             default:
                 break;
             }
@@ -1940,7 +1982,7 @@ int VkCompute::submit_and_wait()
             const VkMat& src = d->download_post_buffers[r.post_download.download_post_buffer_mat_offset];
             Mat& dst = d->download_post_mats_fp16[r.post_download.download_post_mat_fp16_offset];
 
-            //             NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
+            // NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
             src.allocator->invalidate(src.data);
             memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
@@ -1948,7 +1990,7 @@ int VkCompute::submit_and_wait()
         }
         case VkComputePrivate::record::TYPE_post_cast_float16_to_float32:
         {
-            //             NCNN_LOGE("post_cast_float16_to_float32");
+            // NCNN_LOGE("post_cast_float16_to_float32");
 
             const Mat& src = d->download_post_mats_fp16[r.post_cast_float16_to_float32.download_post_mat_fp16_offset];
             Mat& dst = d->download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
@@ -1959,12 +2001,27 @@ int VkCompute::submit_and_wait()
             ncnn::cast_float16_to_float32(src, dst, opt);
             break;
         }
+        case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
+        {
+            // NCNN_LOGE("post_cast_bfloat16_to_float32");
+
+            const Mat& src = d->download_post_mats_fp16[r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset];
+            Mat& dst = d->download_post_mats[r.post_cast_bfloat16_to_float32.download_post_mat_offset];
+
+            Option opt;
+            opt.num_threads = r.post_cast_bfloat16_to_float32.num_threads;
+            opt.blob_allocator = dst.allocator;
+            ncnn::cast_bfloat16_to_float32(src, dst, opt);
+            break;
+        }
         default:
             break;
         }
     }
 
     d->delayed_records.clear();
+
+    d->pending_dispatch_total = 0;
 
     return 0;
 }
@@ -2009,6 +2066,8 @@ int VkCompute::reset()
 
     d->delayed_records.clear();
 
+    d->pending_dispatch_total = 0;
+
     // reset command buffer and fence
     {
         VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
@@ -2038,6 +2097,11 @@ int VkCompute::reset()
     }
 
     return 0;
+}
+
+uint64_t VkCompute::pending_dispatch_total() const
+{
+    return d->pending_dispatch_total;
 }
 
 #if NCNN_BENCHMARK
@@ -2239,6 +2303,8 @@ public:
 
     const VulkanDevice* vkdev;
 
+    uint64_t pending_upload_total;
+
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
 
@@ -2256,6 +2322,8 @@ public:
 VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
+    pending_upload_total = 0;
+
     compute_command_pool = 0;
     transfer_command_pool = 0;
 
@@ -2490,7 +2558,16 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     // NOTE keep the hack here ?
     if (src.elembits() == 32)
     {
-        if (opt.use_fp16_storage || opt.use_fp16_packed)
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+        {
+            Mat src_bf16;
+            cast_float32_to_bfloat16(src, src_bf16, opt);
+
+            record_upload(src_bf16, dst, opt, flatten);
+
+            return;
+        }
+        else if (opt.use_fp16_storage || opt.use_fp16_packed)
         {
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16, opt);
@@ -2510,6 +2587,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     {
         return;
     }
+
+    d->pending_upload_total += dst.total() * dst.elemsize;
 
     if (dst.allocator->mappable)
     {
@@ -2785,7 +2864,63 @@ int VkTransfer::submit_and_wait()
         }
     }
 
+    d->pending_upload_total = 0;
+
     return 0;
+}
+
+int VkTransfer::reset()
+{
+    d->upload_staging_buffers.clear();
+
+    d->pending_upload_total = 0;
+
+    // reset command buffer and fence
+    {
+        VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
+            return -1;
+        }
+    }
+    {
+        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->compute_command_fence);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkResetFences failed %d", ret);
+            return -1;
+        }
+    }
+
+    if (!vkdev->info.unified_compute_transfer_queue())
+    {
+        {
+            VkResult ret = vkResetCommandBuffer(d->upload_command_buffer, 0);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
+                return -1;
+            }
+        }
+        {
+            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkResetFences failed %d", ret);
+                return -1;
+            }
+        }
+    }
+
+    d->begin_command_buffer();
+
+    return 0;
+}
+
+uint64_t VkTransfer::pending_upload_total() const
+{
+    return d->pending_upload_total;
 }
 
 } // namespace ncnn
