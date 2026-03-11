@@ -14,9 +14,14 @@ void prelu_bf16s_sse_avx512bf16(unsigned short* ptr, const float* slope, int siz
     prelu_bf16s_sse(ptr, slope, size, elempack);
 }
 
-void prelu_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* slope, int size)
+void prelu_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* slope, int size, int num_threads)
 {
-    prelu_bf16s_per_element_sse(ptr, slope, size);
+    prelu_bf16s_per_element_sse(ptr, slope, size, num_threads);
+}
+
+void prelu_bf16s_single_slope_sse_avx512bf16(unsigned short* ptr, float slope, int size, int num_threads)
+{
+    prelu_bf16s_single_slope_sse(ptr, slope, size, num_threads);
 }
 
 } // namespace ncnn

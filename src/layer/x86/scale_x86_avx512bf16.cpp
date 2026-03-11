@@ -19,14 +19,14 @@ void scale_bf16s_no_bias_sse_avx512bf16(unsigned short* ptr, const float* scale,
     scale_bf16s_no_bias_sse(ptr, scale, size, elempack);
 }
 
-void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size)
+void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
 {
-    scale_bf16s_per_element_sse(ptr, scale, bias, size);
+    scale_bf16s_per_element_sse(ptr, scale, bias, size, num_threads);
 }
 
-void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size)
+void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads)
 {
-    scale_bf16s_no_bias_per_element_sse(ptr, scale, size);
+    scale_bf16s_no_bias_per_element_sse(ptr, scale, size, num_threads);
 }
 
 } // namespace ncnn

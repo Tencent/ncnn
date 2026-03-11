@@ -397,83 +397,11 @@ int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const O
 
         if (bias_term)
         {
-            int nn_size = 0;
-            int remain_size_start = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-            nn_size = (size - remain_size_start) / 16;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 16;
-                scale_bf16s_per_element_sse(ptr + i, scale + i, bias + i, 16);
-            }
-            remain_size_start += nn_size * 16;
-#endif // __AVX512F__
-            nn_size = (size - remain_size_start) / 8;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 8;
-                scale_bf16s_per_element_sse(ptr + i, scale + i, bias + i, 8);
-            }
-            remain_size_start += nn_size * 8;
-#endif // __AVX__
-            nn_size = (size - remain_size_start) / 4;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 4;
-                scale_bf16s_per_element_sse(ptr + i, scale + i, bias + i, 4);
-            }
-            remain_size_start += nn_size * 4;
-#endif // __SSE2__
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = remain_size_start; i < size; i++)
-            {
-                ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * scale[i] + bias[i]);
-            }
+            scale_bf16s_per_element_sse(ptr, scale, bias, size, opt.num_threads);
         }
         else
         {
-            int nn_size = 0;
-            int remain_size_start = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-            nn_size = (size - remain_size_start) / 16;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 16;
-                scale_bf16s_no_bias_per_element_sse(ptr + i, scale + i, 16);
-            }
-            remain_size_start += nn_size * 16;
-#endif // __AVX512F__
-            nn_size = (size - remain_size_start) / 8;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 8;
-                scale_bf16s_no_bias_per_element_sse(ptr + i, scale + i, 8);
-            }
-            remain_size_start += nn_size * 8;
-#endif // __AVX__
-            nn_size = (size - remain_size_start) / 4;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int ii = 0; ii < nn_size; ii++)
-            {
-                int i = remain_size_start + ii * 4;
-                scale_bf16s_no_bias_per_element_sse(ptr + i, scale + i, 4);
-            }
-            remain_size_start += nn_size * 4;
-#endif // __SSE2__
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = remain_size_start; i < size; i++)
-            {
-                ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * scale[i]);
-            }
+            scale_bf16s_no_bias_per_element_sse(ptr, scale, size, opt.num_threads);
         }
     }
 

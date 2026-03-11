@@ -4,8 +4,8 @@
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 void scale_bf16s_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack);
 void scale_bf16s_no_bias_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int elempack);
-void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size);
-void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size);
+void scale_bf16s_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads);
+void scale_bf16s_no_bias_per_element_sse_avx512bf16(unsigned short* ptr, const float* scale, int size, int num_threads);
 #endif
 
 static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
@@ -124,92 +124,120 @@ static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int
     }
 }
 
-static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale, const float* bias, int size)
+static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_per_element_sse_avx512bf16(ptr, scale, bias, size);
+        scale_bf16s_per_element_sse_avx512bf16(ptr, scale, bias, size, num_threads);
         return;
     }
 #endif
 
-    int i = 0;
+    int nn_size = 0;
+    int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; i + 15 < size; i += 16)
+    nn_size = (size - remain_size_start) / 16;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 16;
         __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)(ptr + i)));
         __m512 _s = _mm512_loadu_ps(scale + i);
         __m512 _bias = _mm512_loadu_ps(bias + i);
         _p = _mm512_fmadd_ps(_p, _s, _bias);
         _mm256_storeu_si256((__m256i*)(ptr + i), float2bfloat_avx512(_p));
     }
+    remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-    for (; i + 7 < size; i += 8)
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 8;
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
         __m256 _s = _mm256_loadu_ps(scale + i);
         __m256 _bias = _mm256_loadu_ps(bias + i);
         _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
         _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
     }
+    remain_size_start += nn_size * 8;
 #endif // __AVX__
-    for (; i + 3 < size; i += 4)
+    nn_size = (size - remain_size_start) / 4;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 4;
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _s = _mm_loadu_ps(scale + i);
         __m128 _bias = _mm_loadu_ps(bias + i);
         _p = _mm_comp_fmadd_ps(_p, _s, _bias);
         _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
     }
+    remain_size_start += nn_size * 4;
 #endif // __SSE2__
-    for (; i < size; i++)
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = remain_size_start; i < size; i++)
     {
         ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * scale[i] + bias[i]);
     }
 }
 
-static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float* scale, int size)
+static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float* scale, int size, int num_threads)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        scale_bf16s_no_bias_per_element_sse_avx512bf16(ptr, scale, size);
+        scale_bf16s_no_bias_per_element_sse_avx512bf16(ptr, scale, size, num_threads);
         return;
     }
 #endif
 
-    int i = 0;
+    int nn_size = 0;
+    int remain_size_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; i + 15 < size; i += 16)
+    nn_size = (size - remain_size_start) / 16;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 16;
         __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)(ptr + i)));
         __m512 _s = _mm512_loadu_ps(scale + i);
         _p = _mm512_mul_ps(_p, _s);
         _mm256_storeu_si256((__m256i*)(ptr + i), float2bfloat_avx512(_p));
     }
+    remain_size_start += nn_size * 16;
 #endif // __AVX512F__
-    for (; i + 7 < size; i += 8)
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 8;
         __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + i)));
         __m256 _s = _mm256_loadu_ps(scale + i);
         _p = _mm256_mul_ps(_p, _s);
         _mm_storeu_si128((__m128i*)(ptr + i), float2bfloat_avx(_p));
     }
+    remain_size_start += nn_size * 8;
 #endif // __AVX__
-    for (; i + 3 < size; i += 4)
+    nn_size = (size - remain_size_start) / 4;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
     {
+        int i = remain_size_start + ii * 4;
         __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + i)));
         __m128 _s = _mm_loadu_ps(scale + i);
         _p = _mm_mul_ps(_p, _s);
         _mm_storel_epi64((__m128i*)(ptr + i), float2bfloat_sse(_p, _p));
     }
+    remain_size_start += nn_size * 4;
 #endif // __SSE2__
-    for (; i < size; i++)
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = remain_size_start; i < size; i++)
     {
         ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * scale[i]);
     }
