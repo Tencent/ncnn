@@ -26,35 +26,6 @@ namespace ncnn {
 #include "softmax_bf16s.h"
 #endif
 
-#if __SSE2__
-static NCNN_FORCEINLINE __m128 _mm_rcp_nr_ps(const __m128& x)
-{
-    __m128 y = _mm_rcp_ps(x);                               // approx
-    __m128 t = _mm_comp_fnmadd_ps(x, y, _mm_set1_ps(2.0f)); // (2 - x*y)
-    y = _mm_mul_ps(y, t);
-    return y; // 1 NR step
-}
-#endif
-
-#if __AVX__
-static NCNN_FORCEINLINE __m256 _mm256_rcp_nr_ps(const __m256& x)
-{
-    __m256 y = _mm256_rcp_ps(x);
-    __m256 t = _mm256_comp_fnmadd_ps(x, y, _mm256_set1_ps(2.0f));
-    y = _mm256_mul_ps(y, t);
-    return y;
-}
-#endif
-
-#if __AVX512F__
-static NCNN_FORCEINLINE __m512 _mm512_rcp_nr_ps(const __m512& x)
-{
-    __m512 y = _mm512_rcp14_ps(x);
-    __m512 t = _mm512_fnmadd_ps(x, y, _mm512_set1_ps(2.0f));
-    return _mm512_mul_ps(y, t);
-}
-#endif
-
 Softmax_x86::Softmax_x86()
 {
 #if __SSE2__
@@ -1854,86 +1825,157 @@ int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int elempack = bottom_top_blob.elempack;
+    const int positive_axis = axis < 0 ? dims + axis : axis;
 
-    // create fp32 workspace with same shape
-    Mat bottom_top_blob_fp32;
-    if (dims == 1)
+    if (dims == 1) // positive_axis == 0
     {
-        bottom_top_blob_fp32.create(w, (size_t)4u * elempack, elempack, opt.workspace_allocator);
-    }
-    else if (dims == 2)
-    {
-        bottom_top_blob_fp32.create(w, h, (size_t)4u * elempack, elempack, opt.workspace_allocator);
-    }
-    else if (dims == 3)
-    {
-        bottom_top_blob_fp32.create(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
-    }
-    else // if (dims == 4)
-    {
-        bottom_top_blob_fp32.create(w, h, d, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
-    }
-    if (bottom_top_blob_fp32.empty())
-        return -100;
+        unsigned short* ptr = bottom_top_blob;
 
-    // convert bf16 to fp32
-    if (dims == 1)
-    {
         const int size = w * elempack;
-        const unsigned short* src = bottom_top_blob;
-        float* dst = bottom_top_blob_fp32;
-        softmax_bf16s_to_fp32(src, dst, size);
+
+        softmax_bf16s_sse(ptr, size, 1);
     }
-    else if (dims == 2)
+
+    if (dims == 2 && positive_axis == 0)
     {
+        const int size = w;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
+        const size_t stride = (size_t)w * elempack;
+
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        const int nn_size = (size + sizen - 1) / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen;
+
+            unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
+
+            softmax_bf16s_sse_dispatch(ptr, h, elempack, stride, size1, maxptr, sumptr);
+        }
+    }
+
+    if (dims == 2 && positive_axis == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
-            const unsigned short* src = bottom_top_blob.row<unsigned short>(i);
-            float* dst = bottom_top_blob_fp32.row(i);
-            softmax_bf16s_to_fp32(src, dst, w * elempack);
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+
+            softmax_bf16s_sse(ptr, w, elempack);
         }
     }
-    else
+
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
-        const int chsize = w * h * d * elempack;
-        for (int q = 0; q < channels; q++)
+        const int size = w * h * d;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
+        const size_t stride = bottom_top_blob.cstep * elempack;
+
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        const int nn_size = (size + sizen - 1) / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            const unsigned short* src = bottom_top_blob.channel(q);
-            float* dst = bottom_top_blob_fp32.channel(q);
-            softmax_bf16s_to_fp32(src, dst, chsize);
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen;
+
+            unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
+
+            softmax_bf16s_sse_dispatch(ptr, channels, elempack, stride, size1, maxptr, sumptr);
         }
     }
 
-    // run fp32 softmax
-    int ret = forward_inplace(bottom_top_blob_fp32, opt);
-    if (ret != 0)
-        return ret;
-
-    // convert fp32 back to bf16
-    if (dims == 1)
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
     {
         const int size = w * elempack;
-        const float* src = bottom_top_blob_fp32;
-        unsigned short* dst = bottom_top_blob;
-        softmax_fp32_to_bf16s(src, dst, size);
-    }
-    else if (dims == 2)
-    {
-        for (int i = 0; i < h; i++)
-        {
-            const float* src = bottom_top_blob_fp32.row(i);
-            unsigned short* dst = bottom_top_blob.row<unsigned short>(i);
-            softmax_fp32_to_bf16s(src, dst, w * elempack);
-        }
-    }
-    else
-    {
-        const int chsize = w * h * d * elempack;
+
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const float* src = bottom_top_blob_fp32.channel(q);
-            unsigned short* dst = bottom_top_blob.channel(q);
-            softmax_fp32_to_bf16s(src, dst, chsize);
+            for (int i = 0; i < d; i++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q).depth(i);
+
+                float* maxsumptr = maxsum.channel(get_omp_thread_num());
+                float* maxptr = maxsumptr;
+                float* sumptr = maxptr + size;
+
+                softmax_bf16s_sse_dispatch(ptr, h, 1, size, size, maxptr, sumptr);
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                softmax_bf16s_sse(ptr, w, elempack);
+                ptr += w * elempack;
+            }
+        }
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        const int size = w * h * elempack;
+
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + size;
+
+            softmax_bf16s_sse_dispatch(ptr, d, 1, size, size, maxptr, sumptr);
+        }
+    }
+
+    if (dims == 4 && positive_axis == 3)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < d; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    softmax_bf16s_sse(ptr, w, elempack);
+                    ptr += w * elempack;
+                }
+            }
         }
     }
 
