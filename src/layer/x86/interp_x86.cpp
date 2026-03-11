@@ -435,20 +435,18 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 resize_bilinear_image_pack16(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __AVX512F__
             if (elempack == 8)
             {
                 resize_bilinear_image_pack8(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __AVX__
             if (elempack == 4)
             {
                 resize_bilinear_image_pack4(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __SSE2__
+            if (elempack == 1)
             {
                 resize_bilinear_image(src, dst, alpha, xofs, beta, yofs);
             }
@@ -483,20 +481,18 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 resize_bicubic_image_pack16(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __AVX512F__
             if (elempack == 8)
             {
                 resize_bicubic_image_pack8(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __AVX__
             if (elempack == 4)
             {
                 resize_bicubic_image_pack4(src, dst, alpha, xofs, beta, yofs);
             }
-            else
 #endif // __SSE2__
+            if (elempack == 1)
             {
                 resize_bicubic_image(src, dst, alpha, xofs, beta, yofs);
             }
