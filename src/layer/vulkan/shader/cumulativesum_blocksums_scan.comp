@@ -3,10 +3,10 @@
 
 #version 450
 
-layout (binding = 0) readonly buffer blocksums_blob { sfp blocksums_data[]; };
-layout (binding = 1) writeonly buffer blockoffsets_blob { sfp blockoffsets_data[]; };
+layout(binding = 0) readonly buffer blocksums_blob { sfp blocksums_data[]; };
+layout(binding = 1) writeonly buffer blockoffsets_blob { sfp blockoffsets_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int blocks_per_line;
     int linecount;
