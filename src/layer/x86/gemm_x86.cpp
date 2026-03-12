@@ -8826,11 +8826,16 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 broadcast_type_C = 4;
             }
 
-            // C is bf16, cast to fp32
-            if (C.elembits() == 16)
+            // cast to fp32
             {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
                 Mat C_fp32;
-                cast_bfloat16_to_float32(C, C_fp32, opt);
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+
                 C = C_fp32;
             }
 
