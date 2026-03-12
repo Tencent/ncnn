@@ -792,9 +792,8 @@ static void transpose_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, int max_ii
                 __m128i _a = _mm_loadl_epi64((const __m128i*)p0);
                 __m128i _b = _mm_loadl_epi64((const __m128i*)(p0 + 4));
                 __m128i _tmp0 = _mm_unpacklo_epi16(_a, _b);
-                __m128i _tmp1 = _mm_unpackhi_epi16(_a, _b);
                 _mm_store_ps(pp, bfloat2float_sse(_tmp0));
-                _mm_store_ps(pp + 4, bfloat2float_sse(_tmp1));
+                _mm_store_ps(pp + 4, bfloat2float_sse(_mm_unpackhi_epi64(_tmp0, _tmp0)));
                 pp += 8;
                 p0 += A_hstep * 4;
             }
@@ -2027,9 +2026,8 @@ static void transpose_pack_B_tile_bf16s(const Mat& B, Mat& BT, int j, int max_jj
                 __m128i _a = _mm_loadl_epi64((const __m128i*)p0);
                 __m128i _b = _mm_loadl_epi64((const __m128i*)(p0 + 4));
                 __m128i _tmp0 = _mm_unpacklo_epi16(_a, _b);
-                __m128i _tmp1 = _mm_unpackhi_epi16(_a, _b);
                 _mm_store_ps(pp, bfloat2float_sse(_tmp0));
-                _mm_store_ps(pp + 4, bfloat2float_sse(_tmp1));
+                _mm_store_ps(pp + 4, bfloat2float_sse(_mm_unpackhi_epi64(_tmp0, _tmp0)));
                 pp += 8;
                 p0 += B_hstep * 4;
             }
