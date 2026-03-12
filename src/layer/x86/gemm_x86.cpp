@@ -7365,23 +7365,12 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 #endif
 
+    const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];
+    int elembits = bottom_blob.elembits();
+
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
-    {
-        bool use_bf16 = false;
-        if (constantA && constantB)
-        {
-            // both constant, rely on opt flag
-            use_bf16 = true;
-        }
-        else
-        {
-            // check first dynamic input blob
-            use_bf16 = bottom_blobs[0].elembits() == 16;
-        }
-        if (use_bf16)
-            return forward_bf16s(bottom_blobs, top_blobs, opt);
-    }
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
     int M;
