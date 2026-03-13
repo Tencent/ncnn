@@ -131,7 +131,42 @@ static int test_deconvolution_0()
             return -1;
     }
 
+    // tier coverage for small outch and various elempack
     return 0
+           || test_deconvolution(5, 4, 7, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(6, 7, 2, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 3, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(8, 6, 8, 2, 3, 2, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(8, 4, 8, 15, 1, 1, 2, 0, 0, 0, 1, 0, 0)
+           // kernel transform num_input < 4 paths
+           || test_deconvolution(4, 5, 1, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 2, 7, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 2, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 5, 2, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 1, 5, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           // elempack==1 large inch for inner tier cascading
+           || test_deconvolution(3, 3, 14, 2, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(3, 3, 14, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           // avx512 tier coverage
+           || test_deconvolution(5, 4, 1, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 8, 16, 3, 1, 2, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 5, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 24, 8, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 20, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 5, 17, 8, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 7, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 24, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 20, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 17, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 24, 2, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 17, 2, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 20, 2, 3, 1, 2, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 7, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 16, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 24, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution(5, 4, 20, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution(4, 3, 17, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0)
            || test_deconvolution(7, 5, 24, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
            || test_deconvolution(7, 5, 32, 24, 4, 2, 2, 2, 1, 0, 0, 0, 0)
            || test_deconvolution(7, 5, 28, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
@@ -223,7 +258,42 @@ static int test_deconvolution_1()
             return -1;
     }
 
-    return 0;
+    // tier coverage for small outch and various elempack
+    return 0
+           || test_deconvolution_dynamic(5, 4, 7, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(6, 7, 2, 3, 2, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 3, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(8, 6, 8, 2, 3, 2, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(8, 4, 8, 15, 1, 1, 2, 0, 0, 0, 1, 0, 0)
+           // kernel transform num_input < 4 paths
+           || test_deconvolution_dynamic(4, 5, 1, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 2, 7, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 2, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 5, 2, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 1, 5, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           // elempack==1 large inch for inner tier cascading
+           || test_deconvolution_dynamic(3, 3, 14, 2, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(3, 3, 14, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           // avx512 tier coverage
+           || test_deconvolution_dynamic(5, 4, 1, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 2, 16, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 8, 16, 3, 1, 2, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 5, 16, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 24, 8, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 20, 8, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 5, 17, 8, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 7, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 24, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 20, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 17, 5, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 24, 2, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 17, 2, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 20, 2, 3, 1, 2, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 7, 1, 3, 1, 1, 1, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 16, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 24, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(5, 4, 20, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+           || test_deconvolution_dynamic(4, 3, 17, 1, 3, 1, 1, 1, 1, 0, 0, 0, 0);
 }
 
 int main()

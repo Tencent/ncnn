@@ -20,41 +20,27 @@ Concat_vulkan::Concat_vulkan()
     pipeline_concat_pack4to1[1] = 0;
 }
 
-int Concat_vulkan::create_pipeline(const Option& _opt)
+int Concat_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
     int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
-
     int elempack = 1;
     if (positive_axis == 0)
     {
-        if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-        if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-        if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+        elempack = shape.elempack;
 
         for (size_t b = 1; b < bottom_shapes.size(); b++)
         {
             const Mat& shape1 = bottom_shapes[b];
 
-            int elempack1 = 1;
-            if (shape1.dims == 1) elempack1 = shape1.w % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 2) elempack1 = shape1.h % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 3 || shape1.dims == 4) elempack1 = shape1.c % 4 == 0 ? 4 : 1;
-
-            elempack = std::min(elempack, elempack1);
+            elempack = std::min(elempack, shape1.elempack);
         }
     }
     else
     {
-        elempack = out_elempack;
+        elempack = out_shape.elempack;
     }
 
     size_t elemsize;
