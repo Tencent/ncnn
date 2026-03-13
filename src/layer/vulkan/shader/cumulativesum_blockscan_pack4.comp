@@ -150,4 +150,3 @@ void main()
         buffer_st4(block_sums_data, block_sum_idx, afpvec4(sdata[last_idx]));
     }
 }
-

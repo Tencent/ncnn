@@ -136,4 +136,3 @@ void main()
         buffer_st4(bottom_top_blob_data, idx, val);
     }
 }
-

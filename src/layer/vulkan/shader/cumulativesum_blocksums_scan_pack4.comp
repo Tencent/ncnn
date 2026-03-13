@@ -54,4 +54,3 @@ void main()
         buffer_st4(top_blob_data, idx, afpvec4(sdata[tid]));
     }
 }
-
