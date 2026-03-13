@@ -3,33 +3,14 @@
 
 #version 450
 
-layout(constant_id = 0) const int axis = 0;
-
-#define shape_constant_id_offset 1
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
-
 layout(binding = 0) buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout(binding = 1) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
-    int dims;
-    int w;
-    int h;
-    int d;
-    int c;
-    int cstep;
     int scan_size;
-    int num_blocks;
     int scan_stride;
     int base_stride;
-    int inner_size;
-    int axis;
 } p;
 
 shared vec4 sdata[256];

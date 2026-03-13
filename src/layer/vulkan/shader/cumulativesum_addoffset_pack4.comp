@@ -10,8 +10,7 @@ layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
-layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout(binding = 1) buffer block_sums { sfpvec4 block_sums_data[]; };
@@ -22,24 +21,20 @@ layout(push_constant) uniform parameter
     int w;
     int h;
     int d;
-    int c;
     int cstep;
     int scan_size;
     int num_blocks;
     int scan_stride;
-    int base_stride;
-    int inner_size;
     int axis;
 } p;
 
 int get_base_offset(int base_idx)
 {
-    int pw = p.w;
-    int ph = p.h;
-    int pd = p.d;
-    int pc = p.c;
-    int pcstep = p.cstep;
-    int pdims = p.dims;
+    int pw = psc(w);
+    int ph = psc(h);
+    int pd = psc(d);
+    int pcstep = psc(cstep);
+    int pdims = psc(dims);
     int paxis = p.axis;
 
     if (pdims == 1)

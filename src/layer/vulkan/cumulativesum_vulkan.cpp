@@ -11,6 +11,7 @@ CumulativeSum_vulkan::CumulativeSum_vulkan()
 {
     support_vulkan = true;
     support_vulkan_packing = true;
+    support_any_packing = true;
 
     pipeline_cumulativesum_blockscan = 0;
     pipeline_cumulativesum_blocksums_scan = 0;
@@ -25,14 +26,13 @@ int CumulativeSum_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    std::vector<vk_specialization_type> specializations(1 + 6);
+    std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = axis;
     specializations[1 + 0].i = shape.dims;
     specializations[1 + 1].i = shape.w;
     specializations[1 + 2].i = shape.h;
     specializations[1 + 3].i = shape.d;
-    specializations[1 + 4].i = shape.c;
-    specializations[1 + 5].i = shape.cstep;
+    specializations[1 + 4].i = shape.cstep;
 
     {
         pipeline_cumulativesum_blockscan = new Pipeline(vkdev);
@@ -43,6 +43,7 @@ int CumulativeSum_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_cumulativesum_blocksums_scan = new Pipeline(vkdev);
         pipeline_cumulativesum_blocksums_scan->set_local_size_xyz(256, 1, 1);
+        std::vector<vk_specialization_type> specializations;
         pipeline_cumulativesum_blocksums_scan->create(LayerShaderType::cumulativesum_blocksums_scan, opt, specializations);
     }
 
@@ -61,6 +62,7 @@ int CumulativeSum_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_cumulativesum_blocksums_scan_pack4 = new Pipeline(vkdev);
         pipeline_cumulativesum_blocksums_scan_pack4->set_local_size_xyz(256, 1, 1);
+        std::vector<vk_specialization_type> specializations;
         pipeline_cumulativesum_blocksums_scan_pack4->create(LayerShaderType::cumulativesum_blocksums_scan_pack4, opt, specializations);
     }
 
@@ -215,19 +217,16 @@ int CumulativeSum_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd
         bindings[0] = bottom_top_blob;
         bindings[1] = block_sums;
 
-        std::vector<vk_constant_type> constants(12);
+        std::vector<vk_constant_type> constants(9);
         constants[0].i = dims;
         constants[1].i = w;
         constants[2].i = h;
         constants[3].i = d;
-        constants[4].i = channels;
-        constants[5].i = bottom_top_blob.cstep;
-        constants[6].i = scan_size;
-        constants[7].i = num_blocks;
-        constants[8].i = scan_stride;
-        constants[9].i = 0;
-        constants[10].i = 0;
-        constants[11].i = positive_axis;
+        constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = scan_size;
+        constants[6].i = num_blocks;
+        constants[7].i = scan_stride;
+        constants[8].i = positive_axis;
 
         VkMat dispatcher;
         dispatcher.w = num_blocks * BLOCK_SIZE;
@@ -246,19 +245,10 @@ int CumulativeSum_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd
             bindings[0] = block_sums;
             bindings[1] = block_sums_scanned;
 
-            std::vector<vk_constant_type> constants(12);
-            constants[0].i = dims;
-            constants[1].i = w;
-            constants[2].i = h;
-            constants[3].i = d;
-            constants[4].i = channels;
-            constants[5].i = bottom_top_blob.cstep;
-            constants[6].i = num_blocks;
-            constants[7].i = (num_blocks + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            constants[8].i = 1;
-            constants[9].i = num_blocks;
-            constants[10].i = 0;
-            constants[11].i = 0;
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = num_blocks;
+            constants[1].i = 1;
+            constants[2].i = num_blocks;
 
             VkMat dispatcher;
             dispatcher.w = ((num_blocks + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
@@ -272,19 +262,16 @@ int CumulativeSum_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd
             bindings[0] = bottom_top_blob;
             bindings[1] = block_sums_scanned;
 
-            std::vector<vk_constant_type> constants(12);
+            std::vector<vk_constant_type> constants(9);
             constants[0].i = dims;
             constants[1].i = w;
             constants[2].i = h;
             constants[3].i = d;
-            constants[4].i = channels;
-            constants[5].i = bottom_top_blob.cstep;
-            constants[6].i = scan_size;
-            constants[7].i = num_blocks;
-            constants[8].i = scan_stride;
-            constants[9].i = 0;
-            constants[10].i = 0;
-            constants[11].i = positive_axis;
+            constants[4].i = bottom_top_blob.cstep;
+            constants[5].i = scan_size;
+            constants[6].i = num_blocks;
+            constants[7].i = scan_stride;
+            constants[8].i = positive_axis;
 
             VkMat dispatcher;
             dispatcher.w = num_blocks * BLOCK_SIZE;
