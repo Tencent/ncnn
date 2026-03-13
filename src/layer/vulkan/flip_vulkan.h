@@ -21,6 +21,7 @@ public:
 
 public:
     Pipeline* pipeline_flip;
+    Pipeline* pipeline_flip_pack4;
 };
 
 } // namespace ncnn

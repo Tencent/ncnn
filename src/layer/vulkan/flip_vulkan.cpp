@@ -10,10 +10,11 @@ namespace ncnn {
 Flip_vulkan::Flip_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = false;
-    support_any_packing = false;
+    support_vulkan_packing = true;
+    support_any_packing = true;
 
     pipeline_flip = 0;
+    pipeline_flip_pack4 = 0;
 }
 
 int Flip_vulkan::create_pipeline(const Option& _opt)
@@ -23,78 +24,59 @@ int Flip_vulkan::create_pipeline(const Option& _opt)
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    // pack1 only
-    const int elempack = 1;
-    const int out_elempack = 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
     std::vector<vk_specialization_type> specializations(12);
-    specializations[0].i = shape_packed.dims;
-    specializations[1].i = shape_packed.w;
-    specializations[2].i = shape_packed.h;
-    specializations[3].i = shape_packed.d;
-    specializations[4].i = shape_packed.c;
-    specializations[5].i = shape_packed.cstep;
-    specializations[6].i = out_shape_packed.dims;
-    specializations[7].i = out_shape_packed.w;
-    specializations[8].i = out_shape_packed.h;
-    specializations[9].i = out_shape_packed.d;
-    specializations[10].i = out_shape_packed.c;
-    specializations[11].i = out_shape_packed.cstep;
+    specializations[0].i = shape.dims;
+    specializations[1].i = shape.w;
+    specializations[2].i = shape.h;
+    specializations[3].i = shape.d;
+    specializations[4].i = shape.c;
+    specializations[5].i = shape.cstep;
+    specializations[6].i = out_shape.dims;
+    specializations[7].i = out_shape.w;
+    specializations[8].i = out_shape.h;
+    specializations[9].i = out_shape.d;
+    specializations[10].i = out_shape.c;
+    specializations[11].i = out_shape.cstep;
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims == 1)
+    if (out_shape.dims == 1)
     {
-        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.w = std::min(64, out_shape.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 2)
+    if (out_shape.dims == 2)
     {
-        local_size_xyz.w = std::min(8, out_shape_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_packed.h);
+        local_size_xyz.w = std::min(8, out_shape.w);
+        local_size_xyz.h = std::min(8, out_shape.h);
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 3)
+    if (out_shape.dims == 3)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
-    if (out_shape_packed.dims == 4)
+    if (out_shape.dims == 4)
     {
-        local_size_xyz.w = std::min(4, out_shape_packed.w);
-        local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
+        local_size_xyz.w = std::min(4, out_shape.w);
+        local_size_xyz.h = std::min(4, out_shape.h * out_shape.d);
+        local_size_xyz.c = std::min(4, out_shape.c);
     }
 
-    pipeline_flip = new Pipeline(vkdev);
-    pipeline_flip->set_optimal_local_size_xyz(local_size_xyz);
-    pipeline_flip->create(LayerShaderType::flip, opt, specializations);
+    // pack1
+    {
+        pipeline_flip = new Pipeline(vkdev);
+        pipeline_flip->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_flip->create(LayerShaderType::flip, opt, specializations);
+    }
+
+    // pack4
+    {
+        pipeline_flip_pack4 = new Pipeline(vkdev);
+        pipeline_flip_pack4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_flip_pack4->create(LayerShaderType::flip_pack4, opt, specializations);
+    }
 
     return 0;
 }
@@ -103,6 +85,9 @@ int Flip_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_flip;
     pipeline_flip = 0;
+
+    delete pipeline_flip_pack4;
+    pipeline_flip_pack4 = 0;
 
     return 0;
 }
@@ -123,6 +108,7 @@ int Flip_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     const int d = bottom.d;
     const int channels = bottom.c;
     const size_t elemsize = bottom.elemsize;
+    const int elempack = bottom.elempack;
 
     // compute flip flags exactly like cpu version
     int axes_flag[4] = {0};
@@ -170,13 +156,13 @@ int Flip_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     // output same shape
     if (dims == 1)
-        top_blob.create(w, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, elemsize, elempack, opt.blob_vkallocator);
     else if (dims == 2)
-        top_blob.create(w, h, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, elemsize, elempack, opt.blob_vkallocator);
     else if (dims == 3)
-        top_blob.create(w, h, channels, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
     else
-        top_blob.create(w, h, d, channels, elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(w, h, d, channels, elemsize, elempack, opt.blob_vkallocator);
 
     if (top_blob.empty())
         return -100;
@@ -204,33 +190,14 @@ int Flip_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     constants[14].i = flip_d;
     constants[15].i = flip_c;
 
-    VkMat dispatcher;
-    if (dims == 1)
+    if (elempack == 1)
     {
-        dispatcher.w = top_blob.w;
-        dispatcher.h = 1;
-        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_flip, bindings, constants, top_blob);
     }
-    else if (dims == 2)
+    else if (elempack == 4)
     {
-        dispatcher.w = top_blob.w;
-        dispatcher.h = top_blob.h;
-        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_flip_pack4, bindings, constants, top_blob);
     }
-    else if (dims == 3)
-    {
-        dispatcher.w = top_blob.w;
-        dispatcher.h = top_blob.h;
-        dispatcher.c = top_blob.c;
-    }
-    else
-    {
-        dispatcher.w = top_blob.w;
-        dispatcher.h = top_blob.h * top_blob.d;
-        dispatcher.c = top_blob.c;
-    }
-
-    cmd.record_pipeline(pipeline_flip, bindings, constants, dispatcher);
 
     return 0;
 }
