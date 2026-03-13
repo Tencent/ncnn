@@ -87,25 +87,7 @@ static void resize_bilinear_image_pack16(const Mat& src, Mat& dst, float* alpha,
         prev_sy1 = sy;
 
         // vresize
-        __m512 _b0 = _mm512_set1_ps(beta[0]);
-        __m512 _b1 = _mm512_set1_ps(beta[1]);
-
-        float* rows0p = rows0;
-        float* rows1p = rows1;
-        float* Dp = dst.row(dy);
-
-        for (int dx = 0; dx < w; dx++)
-        {
-            __m512 _rows0 = _mm512_load_ps(rows0p);
-            __m512 _rows1 = _mm512_load_ps(rows1p);
-            __m512 _Dp = _mm512_mul_ps(_rows0, _b0);
-            _Dp = _mm512_fmadd_ps(_rows1, _b1, _Dp);
-            _mm512_store_ps(Dp, _Dp);
-
-            Dp += 16;
-            rows0p += 16;
-            rows1p += 16;
-        }
+        vresize_bilinear(rows0, rows1, dst.row(dy), w * 16, beta[0], beta[1]);
 
         beta += 2;
     }
