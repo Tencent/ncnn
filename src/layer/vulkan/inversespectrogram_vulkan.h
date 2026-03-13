@@ -30,7 +30,9 @@ public:
     VkMat window2_data_gpu;
 
     Pipeline* pipeline_inversespectrogram_build_b;
+    Pipeline* pipeline_inversespectrogram_build_b_pack4;
     Pipeline* pipeline_inversespectrogram_ola;
+    Pipeline* pipeline_inversespectrogram_ola_pack4;
 };
 
 } // namespace ncnn

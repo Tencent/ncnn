@@ -11,14 +11,17 @@ namespace ncnn {
 InverseSpectrogram_vulkan::InverseSpectrogram_vulkan()
 {
     support_vulkan = true;
-    support_vulkan_packing = false;
-    support_any_packing = false;
+    support_vulkan_packing = true;
+    support_vulkan_any_packing = true;
+    support_any_packing = true;
 
     gemm_real = 0;
     gemm_imag = 0;
 
     pipeline_inversespectrogram_build_b = 0;
+    pipeline_inversespectrogram_build_b_pack4 = 0;
     pipeline_inversespectrogram_ola = 0;
+    pipeline_inversespectrogram_ola_pack4 = 0;
 }
 
 int InverseSpectrogram_vulkan::create_pipeline(const Option& opt)
@@ -115,9 +118,17 @@ int InverseSpectrogram_vulkan::create_pipeline(const Option& opt)
     pipeline_inversespectrogram_build_b->set_local_size_xyz(8, 8, 1);
     pipeline_inversespectrogram_build_b->create(LayerShaderType::inversespectrogram_build_b, opt, std::vector<vk_specialization_type>());
 
+    pipeline_inversespectrogram_build_b_pack4 = new Pipeline(vkdev);
+    pipeline_inversespectrogram_build_b_pack4->set_local_size_xyz(8, 8, 1);
+    pipeline_inversespectrogram_build_b_pack4->create(LayerShaderType::inversespectrogram_build_b_pack4, opt, std::vector<vk_specialization_type>());
+
     pipeline_inversespectrogram_ola = new Pipeline(vkdev);
     pipeline_inversespectrogram_ola->set_local_size_xyz(256, 1, 1);
     pipeline_inversespectrogram_ola->create(LayerShaderType::inversespectrogram_ola, opt, std::vector<vk_specialization_type>());
+
+    pipeline_inversespectrogram_ola_pack4 = new Pipeline(vkdev);
+    pipeline_inversespectrogram_ola_pack4->set_local_size_xyz(64, 1, 1);
+    pipeline_inversespectrogram_ola_pack4->create(LayerShaderType::inversespectrogram_ola_pack4, opt, std::vector<vk_specialization_type>());
 
     if (opt.lightmode)
     {
@@ -146,8 +157,14 @@ int InverseSpectrogram_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_inversespectrogram_build_b;
     pipeline_inversespectrogram_build_b = 0;
 
+    delete pipeline_inversespectrogram_build_b_pack4;
+    pipeline_inversespectrogram_build_b_pack4 = 0;
+
     delete pipeline_inversespectrogram_ola;
     pipeline_inversespectrogram_ola = 0;
+
+    delete pipeline_inversespectrogram_ola_pack4;
+    pipeline_inversespectrogram_ola_pack4 = 0;
 
     window2_data.release();
     window2_data_gpu.release();
@@ -171,7 +188,7 @@ int InverseSpectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int InverseSpectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     const int frames = bottom_blob.h;
-    const int freqs = bottom_blob.c;
+    const int freqs = bottom_blob.c * bottom_blob.elempack;
 
     const int freqs_onesided = n_fft / 2 + 1;
     const int onesided = (freqs == freqs_onesided) ? 1 : 0;
@@ -185,11 +202,37 @@ int InverseSpectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob
 
     const int K = 2 * n_fft;
 
+    const int out_elempack = (opt.use_packing_layout && (outsize % 4 == 0)) ? 4 : 1;
+    const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
+    const size_t out_elemsize = scalar_elemsize * out_elempack;
+
     VkMat B;
-    B.create(K, frames, bottom_blob.elemsize, 1, opt.workspace_vkallocator);
+    B.create(K, frames, scalar_elemsize, 1, opt.workspace_vkallocator);
     if (B.empty())
         return -100;
 
+    if (bottom_blob.elempack == 4)
+    {
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = B;
+
+        std::vector<vk_constant_type> constants(6);
+        constants[0].i = frames;
+        constants[1].i = freqs;
+        constants[2].i = freqs / 4;
+        constants[3].i = n_fft;
+        constants[4].i = (int)bottom_blob.cstep;
+        constants[5].i = onesided;
+
+        VkMat dispatcher;
+        dispatcher.w = n_fft;
+        dispatcher.h = frames;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_inversespectrogram_build_b_pack4, bindings, constants, dispatcher);
+    }
+    else
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = bottom_blob;
@@ -246,17 +289,43 @@ int InverseSpectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob
 
     if (returns == 0)
     {
-        top_blob.create(2, outsize, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(2, outsize / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
     else
     {
-        top_blob.create(outsize, bottom_blob.elemsize, 1, opt.blob_vkallocator);
+        top_blob.create(outsize / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
 
+    if (out_elempack == 4)
+    {
+        std::vector<VkMat> bindings(4);
+        bindings[0] = yre;
+        bindings[1] = yim;
+        bindings[2] = window2_data_gpu;
+        bindings[3] = top_blob;
+
+        std::vector<vk_constant_type> constants(8);
+        constants[0].i = frames;
+        constants[1].i = n_fft;
+        constants[2].i = hoplen;
+        constants[3].i = outsize;
+        constants[4].i = outsize / 4;
+        constants[5].i = center;
+        constants[6].i = returns;
+        constants[7].i = yre.w;
+
+        VkMat dispatcher;
+        dispatcher.w = outsize / 4;
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_inversespectrogram_ola_pack4, bindings, constants, dispatcher);
+    }
+    else
     {
         std::vector<VkMat> bindings(4);
         bindings[0] = yre;
