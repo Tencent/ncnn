@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024-2026 Tencent
+// Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
