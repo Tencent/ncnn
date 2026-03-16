@@ -8,7 +8,7 @@
 
 namespace ncnn {
 
-class Requantize_vulkan : virtual public Requantize
+class Requantize_vulkan : public Requantize
 {
 public:
     Requantize_vulkan();

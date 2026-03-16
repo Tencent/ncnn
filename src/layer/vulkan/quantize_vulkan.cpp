@@ -23,33 +23,13 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
-    int elempack = 0;
-    if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    const size_t out_elemsize = elempack * 1u;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+    const size_t out_elemsize = shape.elempack * 1u; // int8
 
     Mat out_shape_packed;
-    if (dims == 1) out_shape_packed = Mat(out_shape.w / elempack, (void*)0, out_elemsize, elempack);
-    if (dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / elempack, (void*)0, out_elemsize, elempack);
-    if (dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / elempack, (void*)0, out_elemsize, elempack);
-    if (dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / elempack, (void*)0, out_elemsize, elempack);
+    if (dims == 1) out_shape_packed = Mat(out_shape.w, (void*)0, out_elemsize, shape.elempack);
+    if (dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h, (void*)0, out_elemsize, shape.elempack);
+    if (dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c, (void*)0, out_elemsize, shape.elempack);
+    if (dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c, (void*)0, out_elemsize, shape.elempack);
 
     size_t c = 0;
     size_t in_stride = 0;
@@ -57,19 +37,19 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
     if (dims == 1)
     {
         c = 1;
-        in_stride = shape_packed.w;
+        in_stride = shape.w;
         out_stride = out_shape_packed.w;
     }
     if (dims == 2)
     {
-        c = shape_packed.h;
-        in_stride = shape_packed.w;
+        c = shape.h;
+        in_stride = shape.w;
         out_stride = out_shape_packed.w;
     }
     if (dims == 3 || dims == 4)
     {
-        c = shape_packed.c;
-        in_stride = shape_packed.cstep;
+        c = shape.c;
+        in_stride = shape.cstep;
         out_stride = out_shape_packed.cstep;
     }
 
@@ -83,7 +63,7 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
     const int local_size_x = vkdev->info.subgroup_size();
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
+    if (shape.dims == 0 || shape.elempack == 1)
     {
         pipeline_quantize = new Pipeline(vkdev);
         pipeline_quantize->set_optimal_local_size_xyz(local_size_x, 1, 1);
@@ -91,7 +71,7 @@ int Quantize_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4)
+    if (shape.dims == 0 || shape.elempack == 4)
     {
         pipeline_quantize_pack4 = new Pipeline(vkdev);
         pipeline_quantize_pack4->set_optimal_local_size_xyz(local_size_x, 1, 1);

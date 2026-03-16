@@ -19,7 +19,7 @@ def test():
     a = net(x)
 
     # export onnx
-    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.11'):
         torch.onnx.export(net, (x,), "test_swin_t.onnx", dynamo=False)
     else:
         torch.onnx.export(net, (x,), "test_swin_t.onnx")

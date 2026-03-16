@@ -404,6 +404,95 @@ static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
     return vld1q_f32(tmpx);
 }
 
+static inline float32x4_t trunc_ps(const float32x4_t& x)
+{
+    // truncate toward zero
+#if __aarch64__
+    return vrndq_f32(x);
+#else
+    int32x4_t xi = vcvtq_s32_f32(x);
+    return vcvtq_f32_s32(xi);
+#endif
+}
+
+static inline float32x4_t fmod_ps(const float32x4_t& x, const float32x4_t& y)
+{
+    // fmod(x,y) = x - trunc(x/y) * y
+#if __aarch64__
+    float32x4_t q = vdivq_f32(x, y);
+#else
+    float32x4_t q = div_ps(x, y);
+#endif
+    float32x4_t tq = trunc_ps(q);
+    return vsubq_f32(x, vmulq_f32(tq, y));
+}
+
+static inline float32x4_t round_ps(const float32x4_t& x)
+{
+#if __aarch64__
+    return vrndnq_f32(x);
+#else
+    float32x4_t half = vdupq_n_f32(0.5f);
+    float32x4_t one = vdupq_n_f32(1.0f);
+    uint32x4_t sign_mask = vcltq_f32(x, vdupq_n_f32(0));
+    float32x4_t abs_x = vabsq_f32(x);
+    int32x4_t xi = vcvtq_s32_f32(abs_x);
+    float32x4_t truncated = vcvtq_f32_s32(xi);
+    float32x4_t diff = vsubq_f32(abs_x, truncated);
+    uint32x4_t diff_gt_half = vcgtq_f32(diff, half);
+    uint32x4_t diff_eq_half = vceqq_f32(diff, half);
+    int32x4_t xi_and_1 = vandq_s32(xi, vdupq_n_s32(1));
+    uint32x4_t is_odd = vcgtq_s32(xi_and_1, vdupq_n_s32(0));
+    uint32x4_t round_up = vorrq_u32(diff_gt_half, vandq_u32(diff_eq_half, is_odd));
+    float32x4_t rounded = vaddq_f32(truncated, vreinterpretq_f32_u32(vandq_u32(round_up, vreinterpretq_u32_f32(one))));
+    return vbslq_f32(sign_mask, vnegq_f32(rounded), rounded);
+#endif
+}
+
+static inline float32x4_t logaddexp_ps(const float32x4_t& x, const float32x4_t& y)
+{
+    float32x4_t max_xy = vmaxq_f32(x, y);
+    float32x4_t min_xy = vminq_f32(x, y);
+    float32x4_t diff = vsubq_f32(min_xy, max_xy);
+    float32x4_t exp_diff = exp_ps(diff);
+    float32x4_t one_plus_exp = vaddq_f32(vdupq_n_f32(1.0f), exp_diff);
+    float32x4_t log_result = log_ps(one_plus_exp);
+    return vaddq_f32(max_xy, log_result);
+}
+
+static inline float32x4_t floor_ps(const float32x4_t& x)
+{
+#if __aarch64__
+    return vrndmq_f32(x);
+#else
+    float32x4_t truncated = vcvtq_f32_s32(vcvtq_s32_f32(x));
+    uint32x4_t need_adjust = vcltq_f32(x, truncated);
+    float32x4_t adjusted = vsubq_f32(truncated, vdupq_n_f32(1.0f));
+    return vbslq_f32(need_adjust, adjusted, truncated);
+#endif
+}
+
+static inline float32x4_t floor_divide_ps(const float32x4_t& x, const float32x4_t& y)
+{
+#if __aarch64__
+    float32x4_t q = vdivq_f32(x, y);
+#else
+    float32x4_t q = div_ps(x, y);
+#endif
+    return floor_ps(q);
+}
+
+static inline float32x4_t remainder_ps(const float32x4_t& x, const float32x4_t& y)
+{
+#if __aarch64__
+    float32x4_t q = vdivq_f32(x, y);
+#else
+    float32x4_t q = div_ps(x, y);
+#endif
+    float32x4_t rq = round_ps(q);
+    return vsubq_f32(x, vmulq_f32(rq, y));
+}
+
 #include "neon_mathfun_tanh.h"
 
 // Clean up macros
