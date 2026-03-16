@@ -13017,7 +13017,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __m512i _pA = _mm512_loadu_si512((const __m512i*)pA);
                 __m512i _pB0 = _mm512_castpd_si512(_mm512_set1_pd(((const double*)pB)[0]));
-                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CDAB);
+                __m512i _pB1 = _mm512_alignr_epi8(_pB0, _pB0, 4);
                 _sum0 = _mm512_dpbusd_epi32(_sum0, _pB0, _pA);
                 _sum1 = _mm512_dpbusd_epi32(_sum1, _pB1, _pA);
                 pA += 64;
@@ -13043,7 +13043,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                 // 0101 0101 0101 0101
                 // 1010 1010 1010 1010
-                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CDAB);
+                __m512i _pB1 = _mm512_alignr_epi8(_pB0, _pB0, 4);
 
                 _sum0 = _mm512_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
                 _sum1 = _mm512_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
@@ -13599,7 +13599,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
                 __m256i _pB0 = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pB));
-                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 1, 0, 1));
+                __m256i _pB1 = _mm256_alignr_epi8(_pB0, _pB0, 4);
 #if __AVXVNNIINT8__
                 _sum0 = _mm256_dpbssd_epi32(_sum0, _pB0, _pA);
                 _sum1 = _mm256_dpbssd_epi32(_sum1, _pB1, _pA);
@@ -13636,7 +13636,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                 // 0101 0101
                 // 1010 1010
-                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 1, 0, 1));
+                __m256i _pB1 = _mm256_alignr_epi8(_pB0, _pB0, 4);
 
                 _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA0, _pB0);
                 _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA0, _pB1);
@@ -14332,7 +14332,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
                 __m128i _pB0 = _mm_castpd_si128(_mm_load1_pd((const double*)pB));
-                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m128i _pB1 = _mm_alignr_epi8(_pB0, _pB0, 4);
 #if __AVXVNNIINT8__
                 _sum0 = _mm_dpbssd_epi32(_sum0, _pB0, _pA);
                 _sum1 = _mm_dpbssd_epi32(_sum1, _pB1, _pA);
@@ -14370,7 +14370,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                 // 0101
                 // 1010
+#if __SSSE3__
+                __m128i _pB1 = _mm_alignr_epi8(_pB0, _pB0, 4);
+#else
                 __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+#endif
 
                 _sum0 = _mm_comp_dpwssd_epi32(_sum0, _pA, _pB0);
                 _sum1 = _mm_comp_dpwssd_epi32(_sum1, _pA, _pB1);
@@ -14666,7 +14670,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m256i _pA00 = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pA));
-                __m256i _pA11 = _mm256_shuffle_epi32(_pA00, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pA11 = _mm256_alignr_epi8(_pA00, _pA00, 4);
                 __m256i _pB01 = _mm256_loadu_si256((const __m256i*)pB);
 #if __AVXVNNIINT8__
                 _sum0 = _mm256_dpbssd_epi32(_sum0, _pB01, _pA00);
@@ -14682,7 +14686,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             if (max_kk >= 4)
             {
                 __m256i _w_shift00 = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pA));
-                __m256i _w_shift11 = _mm256_shuffle_epi32(_w_shift00, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _w_shift11 = _mm256_alignr_epi8(_w_shift00, _w_shift00, 4);
                 _sum0 = _mm256_sub_epi32(_sum0, _w_shift00);
                 _sum1 = _mm256_sub_epi32(_sum1, _w_shift11);
                 pA += 8;
@@ -14698,7 +14702,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __m256i _pA00 = _mm256_cvtepi8_epi16(_pA);
                 __m256i _pB01 = _mm256_cvtepi8_epi16(_pB);
 
-                __m256i _pA11 = _mm256_shuffle_epi32(_pA00, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pA11 = _mm256_alignr_epi8(_pA00, _pA00, 4);
 
                 _sum0 = _mm256_comp_dpwssd_epi32(_sum0, _pA00, _pB01);
                 _sum1 = _mm256_comp_dpwssd_epi32(_sum1, _pA11, _pB01);
@@ -14716,7 +14720,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 // 0101
                 // 1010
                 __m128i _pA0 = _pA;
+#if __SSSE3__
+                __m128i _pA1 = _mm_alignr_epi8(_pA, _pA, 4);
+#else
                 __m128i _pA1 = _mm_shuffle_epi32(_pA, _MM_SHUFFLE(2, 3, 0, 1));
+#endif
 
                 // 0123
                 // 4567
