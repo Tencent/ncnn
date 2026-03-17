@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias)
+static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias, int activation_type, ncnn::Mat activation_params)
 {
     ncnn::Mat a = RandomMat(w, h);
 
@@ -15,11 +15,6 @@ static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, 
     pd.set(4, pad);      // pad_w
     pd.set(5, bias);     // bias_term
     pd.set(6, outh * h * kernel);
-
-    int activation_type = RAND() % 6; // 0 1 2 3 4 5
-    ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -31,7 +26,10 @@ static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, 
     int ret = test_layer("Convolution1D", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        if (activation_type != 7)
+            fprintf(stderr, "test_convolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        else
+            fprintf(stderr, "test_convolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0]);
     }
 
     return ret;
@@ -67,66 +65,103 @@ static int test_convolution1d_0()
         const int b0 = i % 2;
         const int b1 = 1 - b0;
 
+        for (int j = 0; j < 11; j++)
+        {
+            ncnn::Mat activation_params;
+            if (j != 7)
+            {
+                activation_params.create(2);
+                activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+                activation_params[1] = RandomFloat(0, 1);
+            }
+            else
+            {
+                activation_params.create(1);
+                activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+            }
+
+            int ret = 0
+                      || test_convolution1d(9, 1, 1, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 1, 3, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 1, 7, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 1, 15, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 1, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 3, 1, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 3, 3, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 3, 7, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 3, 15, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 3, 31, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 7, 1, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 7, 3, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 7, 7, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 7, 15, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 7, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 15, 1, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 15, 3, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 15, 7, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 15, 15, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 15, 31, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 31, 1, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 31, 3, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(9, 31, 7, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(9, 31, 15, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 28, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 31, 28, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 28, 28, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 24, 28, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 24, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 28, 24, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 31, 24, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 24, 24, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 28, 48, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 31, 48, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 24, 48, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 48, 28, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 48, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 48, 24, k, d, s, p, b1, j, activation_params)
+                      || test_convolution1d(25, 31, 31, k, d, s, p, b0, j, activation_params)
+                      || test_convolution1d(25, 48, 48, k, d, s, p, b1, j, activation_params);
+
+            if (ret != 0)
+                return -1;
+        }
+    }
+
+    for (int j = 0; j < 11; j++)
+    {
+        ncnn::Mat activation_params;
+        if (j != 7)
+        {
+            activation_params.create(2);
+            activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+            activation_params[1] = RandomFloat(0, 1);
+        }
+        else
+        {
+            activation_params.create(1);
+            activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+        }
+
         int ret = 0
-                  || test_convolution1d(9, 1, 1, k, d, s, p, b0)
-                  || test_convolution1d(9, 1, 3, k, d, s, p, b1)
-                  || test_convolution1d(9, 1, 7, k, d, s, p, b0)
-                  || test_convolution1d(9, 1, 15, k, d, s, p, b1)
-                  || test_convolution1d(9, 1, 31, k, d, s, p, b0)
-                  || test_convolution1d(9, 3, 1, k, d, s, p, b1)
-                  || test_convolution1d(9, 3, 3, k, d, s, p, b0)
-                  || test_convolution1d(9, 3, 7, k, d, s, p, b1)
-                  || test_convolution1d(9, 3, 15, k, d, s, p, b0)
-                  || test_convolution1d(9, 3, 31, k, d, s, p, b1)
-                  || test_convolution1d(9, 7, 1, k, d, s, p, b0)
-                  || test_convolution1d(9, 7, 3, k, d, s, p, b1)
-                  || test_convolution1d(9, 7, 7, k, d, s, p, b0)
-                  || test_convolution1d(9, 7, 15, k, d, s, p, b1)
-                  || test_convolution1d(9, 7, 31, k, d, s, p, b0)
-                  || test_convolution1d(9, 15, 1, k, d, s, p, b1)
-                  || test_convolution1d(9, 15, 3, k, d, s, p, b0)
-                  || test_convolution1d(9, 15, 7, k, d, s, p, b1)
-                  || test_convolution1d(9, 15, 15, k, d, s, p, b0)
-                  || test_convolution1d(9, 15, 31, k, d, s, p, b1)
-                  || test_convolution1d(9, 31, 1, k, d, s, p, b0)
-                  || test_convolution1d(9, 31, 3, k, d, s, p, b1)
-                  || test_convolution1d(9, 31, 7, k, d, s, p, b0)
-                  || test_convolution1d(9, 31, 15, k, d, s, p, b1)
-                  || test_convolution1d(25, 28, 31, k, d, s, p, b0)
-                  || test_convolution1d(25, 31, 28, k, d, s, p, b1)
-                  || test_convolution1d(25, 28, 28, k, d, s, p, b0)
-                  || test_convolution1d(25, 24, 28, k, d, s, p, b1)
-                  || test_convolution1d(25, 24, 31, k, d, s, p, b0)
-                  || test_convolution1d(25, 28, 24, k, d, s, p, b1)
-                  || test_convolution1d(25, 31, 24, k, d, s, p, b0)
-                  || test_convolution1d(25, 24, 24, k, d, s, p, b1)
-                  || test_convolution1d(25, 28, 48, k, d, s, p, b0)
-                  || test_convolution1d(25, 31, 48, k, d, s, p, b1)
-                  || test_convolution1d(25, 24, 48, k, d, s, p, b0)
-                  || test_convolution1d(25, 48, 28, k, d, s, p, b1)
-                  || test_convolution1d(25, 48, 31, k, d, s, p, b0)
-                  || test_convolution1d(25, 48, 24, k, d, s, p, b1)
-                  || test_convolution1d(25, 31, 31, k, d, s, p, b0)
-                  || test_convolution1d(25, 48, 48, k, d, s, p, b1);
+                  || test_convolution1d(7, 1, 4, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(14, 1, 4, 3, 1, 2, 1, 1, j, activation_params)
+                  || test_convolution1d(15, 4, 4, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(15, 8, 8, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(11, 8, 16, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(13, 16, 24, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(8, 16, 24, 3, 1, 1, 1, 0, j, activation_params)
+                  || test_convolution1d(4, 16, 24, 3, 1, 1, 1, 1, j, activation_params)
+                  || test_convolution1d(4, 16, 24, 3, 1, 1, 1, 0, j, activation_params)
+                  || test_convolution1d(6, 64, 64, 3, 1, 2, 0, 1, j, activation_params);
 
         if (ret != 0)
             return -1;
     }
 
-    return 0
-           || test_convolution1d(7, 1, 4, 3, 1, 1, 1, 1)
-           || test_convolution1d(14, 1, 4, 3, 1, 2, 1, 1)
-           || test_convolution1d(15, 4, 4, 3, 1, 1, 1, 1)
-           || test_convolution1d(15, 8, 8, 3, 1, 1, 1, 1)
-           || test_convolution1d(11, 8, 16, 3, 1, 1, 1, 1)
-           || test_convolution1d(13, 16, 24, 3, 1, 1, 1, 1)
-           || test_convolution1d(8, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution1d(4, 16, 24, 3, 1, 1, 1, 1)
-           || test_convolution1d(4, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution1d(6, 64, 64, 3, 1, 2, 0, 1);
+    return 0;
 }
 
-static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias)
+static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias, int activation_type, ncnn::Mat activation_params)
 {
     ncnn::Mat a = RandomMat(w, h);
 
@@ -139,11 +174,6 @@ static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int di
     pd.set(5, bias);
     pd.set(6, 0);
     pd.set(19, 1); // dynamic weight
-
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -158,7 +188,10 @@ static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int di
     int ret = test_layer("Convolution1D", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolution1d_dynamic failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        if (activation_type != 7)
+            fprintf(stderr, "test_convolution1d_dynamic failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        else
+            fprintf(stderr, "test_convolution1d_dynamic failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0]);
     }
 
     return ret;
@@ -183,20 +216,36 @@ static int test_convolution1d_1()
         const int s = kdsp[i][2];
         const int p = kdsp[i][3];
 
-        int ret = 0
-                  || test_convolution1d_dynamic(11, 1, 1, k, d, s, p, 1)
-                  || test_convolution1d_dynamic(11, 4, 13, k, d, s, p, 0)
-                  || test_convolution1d_dynamic(11, 13, 4, k, d, s, p, 1)
-                  || test_convolution1d_dynamic(11, 12, 12, k, d, s, p, 0)
-                  || test_convolution1d_dynamic(11, 8, 12, k, d, s, p, 1)
-                  || test_convolution1d_dynamic(11, 8, 13, k, d, s, p, 0)
-                  || test_convolution1d_dynamic(11, 13, 8, k, d, s, p, 1)
-                  || test_convolution1d_dynamic(11, 12, 16, k, d, s, p, 0)
-                  || test_convolution1d_dynamic(11, 15, 15, k, d, s, p, 0)
-                  || test_convolution1d_dynamic(11, 16, 16, k, d, s, p, 0);
+        for (int j = 0; j < 11; j++)
+        {
+            ncnn::Mat activation_params;
+            if (j != 7)
+            {
+                activation_params.create(2);
+                activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+                activation_params[1] = RandomFloat(0, 1);
+            }
+            else
+            {
+                activation_params.create(1);
+                activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+            }
 
-        if (ret != 0)
-            return -1;
+            int ret = 0
+                      || test_convolution1d_dynamic(11, 1, 1, k, d, s, p, 1, j, activation_params)
+                      || test_convolution1d_dynamic(11, 4, 13, k, d, s, p, 0, j, activation_params)
+                      || test_convolution1d_dynamic(11, 13, 4, k, d, s, p, 1, j, activation_params)
+                      || test_convolution1d_dynamic(11, 12, 12, k, d, s, p, 0, j, activation_params)
+                      || test_convolution1d_dynamic(11, 8, 12, k, d, s, p, 1, j, activation_params)
+                      || test_convolution1d_dynamic(11, 8, 13, k, d, s, p, 0, j, activation_params)
+                      || test_convolution1d_dynamic(11, 13, 8, k, d, s, p, 1, j, activation_params)
+                      || test_convolution1d_dynamic(11, 12, 16, k, d, s, p, 0, j, activation_params)
+                      || test_convolution1d_dynamic(11, 15, 15, k, d, s, p, 0, j, activation_params)
+                      || test_convolution1d_dynamic(11, 16, 16, k, d, s, p, 0, j, activation_params);
+
+            if (ret != 0)
+                return -1;
+        }
     }
 
     return 0;

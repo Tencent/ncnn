@@ -22,10 +22,19 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     pd.set(6, outch / group * c / group * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
-    ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
+    ncnn::Mat activation_params;
+    if (activation_type != 7)
+    {
+        activation_params.create(2);
+        activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
+    }
+    else
+    {
+        activation_params.create(1);
+        activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+    }
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -41,7 +50,10 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     int ret = test_layer("DeconvolutionDepthWise", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        if (activation_type != 7)
+            fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        else
+            fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%d] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params.row<int>(0)[0], output_pad_right, output_pad_bottom, output_w, output_h);
     }
 
     return ret;

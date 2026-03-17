@@ -10,6 +10,21 @@
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"
 
+static inline __m128 swish_ps(__m128 _v)
+{
+    return __lsx_vfmul_s(_v, sigmoid_ps(_v));
+}
+
+static inline __m128 elu_ps(__m128 _v, __m128 _alpha)
+{
+    __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+    __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+    __m128 _pos = __lsx_vfmax_s(_v, _zero);
+    __m128 _neg = __lsx_vfmin_s(_v, _zero);
+    _neg = __lsx_vfsub_s(exp_ps(_neg), _one);
+    return __lsx_vfadd_s(_pos, __lsx_vfmul_s(_alpha, _neg));
+}
+
 static inline __m128 activation_ps(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -50,6 +65,50 @@ static inline __m128 activation_ps(__m128 _v, int activation_type, const ncnn::M
         _outp = __lsx_vfmax_s(_outp, _zero);
         _outp = __lsx_vfmin_s(_outp, _one);
         _v = __lsx_vfmul_s(_outp, _v);
+    }
+    else if (activation_type == 7)
+    {
+        int fast_gelu = activation_params.row<int>(0)[0];
+        if (fast_gelu)
+        {
+            __m128 _half = (__m128)__lsx_vreplfr2vr_s(0.5f);
+            __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+            __m128 _fast1c = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
+            __m128 _fast2c = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+            __m128 _cube = __lsx_vfmul_s(_v, _v);
+            _cube = __lsx_vfmul_s(_v, _cube);
+            __m128 _blob = __lsx_vfmul_s(_fast2c, _cube);
+            _blob = __lsx_vfadd_s(_v, _blob);
+            _blob = __lsx_vfmul_s(_fast1c, _blob);
+            _blob = tanh_ps(_blob);
+            _blob = __lsx_vfadd_s(_one, _blob);
+            _v = __lsx_vfmul_s(_half, __lsx_vfmul_s(_blob, _v));
+        }
+        else
+        {
+            __m128 _half = (__m128)__lsx_vreplfr2vr_s(0.5f);
+            __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+            __m128 _inv_sqrt2 = (__m128)__lsx_vreplfr2vr_s(0.70710678f);
+            __m128 _erf_arg = __lsx_vfmul_s(_v, _inv_sqrt2);
+            __m128 _erf_result = erf_ps(_erf_arg);
+            __m128 _blob = __lsx_vfadd_s(_one, _erf_result);
+            _v = __lsx_vfmul_s(_half, __lsx_vfmul_s(_blob, _v));
+        }
+    }
+    else if (activation_type == 8)
+    {
+        _v = swish_ps(_v);
+    }
+    else if (activation_type == 9)
+    {
+        __m128 _alpha = (__m128)__lsx_vreplfr2vr_s(activation_params[0]);
+        _v = elu_ps(_v, _alpha);
+    }
+    else if (activation_type == 10)
+    {
+        __m128 _alpha = (__m128)__lsx_vreplfr2vr_s(1.67326324f);
+        __m128 _lambda = (__m128)__lsx_vreplfr2vr_s(1.050700987f);
+        _v = __lsx_vfmul_s(_lambda, elu_ps(_v, _alpha));
     }
 
     return _v;

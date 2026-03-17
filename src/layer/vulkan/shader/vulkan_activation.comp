@@ -39,6 +39,33 @@ afp activation_afp(afp v, int activation_type, float activation_param_0, float a
         const afp beta = afp(activation_param_1);
         v = v * clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
     }
+    if (activation_type == 7)
+    {
+        // GELU: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+#if NCNN_moltenvk
+        v = afp(0.5f) * v * (afp(1.0f) + afp(tanh(float(afp(0.79788452f) * (v + afp(0.044715f) * v * v * v)))));
+#else
+        v = afp(0.5f) * v * (afp(1.0f) + tanh(afp(0.79788452f) * (v + afp(0.044715f) * v * v * v)));
+#endif
+    }
+    if (activation_type == 8)
+    {
+        // SiLU/Swish: y = x / (1 + exp(-x))
+        v = v / (afp(1.f) + exp(-v));
+    }
+    if (activation_type == 9)
+    {
+        // ELU: y = x if x >= 0 else alpha * (exp(x) - 1)
+        const afp alpha = afp(activation_param_0);
+        v = v >= afp(0.f) ? v : alpha * (exp(v) - afp(1.f));
+    }
+    if (activation_type == 10)
+    {
+        // SELU: y = lambda * x if x >= 0 else lambda * alpha * (exp(x) - 1)
+        const afp alpha = afp(1.67326324f);
+        const afp lambda = afp(1.050700987f);
+        v = v >= afp(0.f) ? lambda * v : lambda * alpha * (exp(v) - afp(1.f));
+    }
 
     return v;
 }
@@ -77,6 +104,33 @@ afpvec4 activation_afpvec4(afpvec4 v, int activation_type, float activation_para
         const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);
         v = v * clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
+    if (activation_type == 7)
+    {
+        // GELU: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+#if NCNN_moltenvk
+        v = afpvec4(0.5f) * v * (afpvec4(1.0f) + afpvec4(tanh(vec4(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)))));
+#else
+        v = afpvec4(0.5f) * v * (afpvec4(1.0f) + tanh(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)));
+#endif
+    }
+    if (activation_type == 8)
+    {
+        // SiLU/Swish: y = x / (1 + exp(-x))
+        v = v / (afp(1.f) + exp(-v));
+    }
+    if (activation_type == 9)
+    {
+        // ELU: y = x if x >= 0 else alpha * (exp(x) - 1)
+        const afp alpha = afp(activation_param_0);
+        v = mix(v, afpvec4(alpha) * (exp(v) - afpvec4(1.f)), lessThan(v, afpvec4(0.f)));
+    }
+    if (activation_type == 10)
+    {
+        // SELU: y = lambda * x if x >= 0 else lambda * alpha * (exp(x) - 1)
+        const afp alpha = afp(1.67326324f);
+        const afp lambda = afp(1.050700987f);
+        v = mix(afpvec4(lambda) * v, afpvec4(lambda * alpha) * (exp(v) - afpvec4(1.f)), lessThan(v, afpvec4(0.f)));
     }
 
     return v;

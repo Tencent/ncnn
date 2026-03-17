@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_convolution_oom(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
+static int test_convolution_oom(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int activation_type, ncnn::Mat activation_params)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -15,11 +15,6 @@ static int test_convolution_oom(int w, int h, int c, int outch, int kernel, int 
     pd.set(4, pad);
     pd.set(5, bias);
     pd.set(6, outch * c * kernel * kernel);
-
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -31,7 +26,10 @@ static int test_convolution_oom(int w, int h, int c, int outch, int kernel, int 
     int ret = test_layer_oom("Convolution", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolution_oom failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        if (activation_type != 7)
+            fprintf(stderr, "test_convolution_oom failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        else
+            fprintf(stderr, "test_convolution_oom failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0]);
         return ret;
     }
 
@@ -40,13 +38,34 @@ static int test_convolution_oom(int w, int h, int c, int outch, int kernel, int 
 
 static int test_convolution_0()
 {
-    return 0
-           || test_convolution_oom(9, 7, 31, 63, 1, 1, 1, 0, 1)
-           || test_convolution_oom(9, 7, 31, 63, 3, 1, 1, 1, 1);
+    for (int j = 0; j < 11; j++)
+    {
+        ncnn::Mat activation_params;
+        if (j != 7)
+        {
+            activation_params.create(2);
+            activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+            activation_params[1] = RandomFloat(0, 1);
+        }
+        else
+        {
+            activation_params.create(1);
+            activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+        }
+
+        int ret = 0
+                  || test_convolution_oom(9, 7, 31, 63, 1, 1, 1, 0, 1, j, activation_params)
+                  || test_convolution_oom(9, 7, 31, 63, 3, 1, 1, 1, 1, j, activation_params);
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
 }
 
 #if NCNN_INT8
-static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
+static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int activation_type, ncnn::Mat activation_params, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -59,11 +78,6 @@ static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel,
     pd.set(5, bias);
     pd.set(6, outch * c * kernel * kernel);
     pd.set(8, requant ? 101 : 1); // int8_scale_term
-
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -99,7 +113,10 @@ static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel,
     int ret = test_layer_oom("Convolution", pd, weights, a, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolution_oom_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+        if (activation_type != 7)
+            fprintf(stderr, "test_convolution_oom_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+        else
+            fprintf(stderr, "test_convolution_oom_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%d]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params.row<int>(0)[0]);
         return ret;
     }
 
@@ -108,16 +125,58 @@ static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel,
 
 static int test_convolution_1()
 {
-    return 0
-           || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1)
-           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1);
+    for (int j = 0; j < 11; j++)
+    {
+        ncnn::Mat activation_params;
+        if (j != 7)
+        {
+            activation_params.create(2);
+            activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+            activation_params[1] = RandomFloat(0, 1);
+        }
+        else
+        {
+            activation_params.create(1);
+            activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+        }
+
+        int ret = 0
+                  || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1, j, activation_params)
+                  || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1, j, activation_params);
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
 }
 
 static int test_convolution_2()
 {
-    return 0
-           || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1, true)
-           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1, true);
+    for (int j = 0; j < 11; j++)
+    {
+        ncnn::Mat activation_params;
+        if (j != 7)
+        {
+            activation_params.create(2);
+            activation_params[0] = (j == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+            activation_params[1] = RandomFloat(0, 1);
+        }
+        else
+        {
+            activation_params.create(1);
+            activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+        }
+
+        int ret = 0
+                  || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1, j, activation_params, true)
+                  || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1, j, activation_params, true);
+
+        if (ret != 0)
+            return -1;
+    }
+
+    return 0;
 }
 #endif // NCNN_INT8
 

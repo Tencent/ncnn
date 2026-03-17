@@ -601,6 +601,93 @@ static inline float16x8_t tanh_ps_f16(float16x8_t x)
     return y;
 }
 
+#define c_erf_threshold 0.927734375f
+
+#define c_erf_a0 -1.72853470e-5f
+#define c_erf_a1 3.83197126e-4f
+#define c_erf_a2 -3.88396438e-3f
+#define c_erf_a3 2.42546219e-2f
+#define c_erf_a4 -1.06777877e-1f
+#define c_erf_a5 -6.34846687e-1f
+#define c_erf_a6 -1.28717512e-1f
+
+#define c_erf_b0 -5.96761703e-4f
+#define c_erf_b1 4.99119423e-3f
+#define c_erf_b2 -2.67681349e-2f
+#define c_erf_b3 1.12819925e-1f
+#define c_erf_b4 -3.76125336e-1f
+#define c_erf_b5 1.28379166e-1f
+
+static inline float16x4_t erf_ps_f16(float16x4_t x)
+{
+    float16x4_t t = vabs_f16(x);
+    float16x4_t s = vmul_f16(x, x);
+
+    uint16x4_t branch_mask = vcgt_f16(t, vdup_n_f16(c_erf_threshold));
+
+    float16x4_t r_large, r_small;
+
+    {
+        r_large = vfma_f16(vdup_n_f16(c_erf_a1), t, vdup_n_f16(c_erf_a0));
+        float16x4_t u = vfma_f16(vdup_n_f16(c_erf_a3), t, vdup_n_f16(c_erf_a2));
+        r_large = vfma_f16(u, r_large, s);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a4), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a5), r_large, t);
+        r_large = vfma_f16(vdup_n_f16(c_erf_a6), r_large, t);
+        r_large = vfma_f16(vneg_f16(t), r_large, t);
+        r_large = vsub_f16(vdup_n_f16(1.f), exp_ps_f16(r_large));
+        uint16x4_t sign_mask = vdup_n_u16(0x8000);
+        r_large = vbsl_f16(sign_mask, x, r_large);
+    }
+
+    {
+        r_small = vdup_n_f16(c_erf_b0);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b1), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b2), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b3), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b4), r_small, s);
+        r_small = vfma_f16(vdup_n_f16(c_erf_b5), r_small, s);
+        r_small = vfma_f16(x, r_small, x);
+    }
+
+    return vbsl_f16(branch_mask, r_large, r_small);
+}
+
+static inline float16x8_t erf_ps_f16(float16x8_t x)
+{
+    float16x8_t t = vabsq_f16(x);
+    float16x8_t s = vmulq_f16(x, x);
+
+    uint16x8_t branch_mask = vcgtq_f16(t, vdupq_n_f16(c_erf_threshold));
+
+    float16x8_t r_large, r_small;
+
+    {
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a1), t, vdupq_n_f16(c_erf_a0));
+        float16x8_t u = vfmaq_f16(vdupq_n_f16(c_erf_a3), t, vdupq_n_f16(c_erf_a2));
+        r_large = vfmaq_f16(u, r_large, s);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a4), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a5), r_large, t);
+        r_large = vfmaq_f16(vdupq_n_f16(c_erf_a6), r_large, t);
+        r_large = vfmaq_f16(vnegq_f16(t), r_large, t);
+        r_large = vsubq_f16(vdupq_n_f16(1.f), exp_ps_f16(r_large));
+        uint16x8_t sign_mask = vdupq_n_u16(0x8000);
+        r_large = vbslq_f16(sign_mask, x, r_large);
+    }
+
+    {
+        r_small = vdupq_n_f16(c_erf_b0);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b1), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b2), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b3), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b4), r_small, s);
+        r_small = vfmaq_f16(vdupq_n_f16(c_erf_b5), r_small, s);
+        r_small = vfmaq_f16(x, r_small, x);
+    }
+
+    return vbslq_f16(branch_mask, r_large, r_small);
+}
+
 static inline float16x4_t sigmoid_ps_f16(float16x4_t _v)
 {
     float16x4_t _one = vdup_n_f16(1.f);

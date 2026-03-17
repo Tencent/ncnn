@@ -10,6 +10,48 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 
+static inline v4f32 swish_ps(v4f32 _v)
+{
+    return __msa_fmul_w(_v, sigmoid_ps(_v));
+}
+
+static inline v4f32 elu_ps(v4f32 _v, v4f32 _alpha)
+{
+    v4f32 _zero = (v4f32)__msa_fill_w(0);
+    v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+    v4f32 _pos = __msa_fmax_w(_v, _zero);
+    v4f32 _neg = __msa_fmin_w(_v, _zero);
+    _neg = __msa_fsub_w(exp_ps(_neg), _one);
+    return __msa_fadd_w(_pos, __msa_fmul_w(_alpha, _neg));
+}
+
+static inline v4f32 gelu_ps(v4f32 _v, int fast_gelu)
+{
+    if (fast_gelu)
+    {
+        v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
+        v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f);
+        v4f32 _cube = __msa_fmul_w(_v, _v);
+        _cube = __msa_fmul_w(_v, _cube);
+        v4f32 _blob = __msa_fmadd_w(_v, _fast2c, _cube);
+        _blob = __msa_fmul_w(_fast1c, _blob);
+        _blob = tanh_ps(_blob);
+        _blob = __msa_fadd_w(_one, _blob);
+        return __msa_fmul_w(_half, __msa_fmul_w(_blob, _v));
+    }
+    else
+    {
+        v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+        v4f32 _erf = erf_ps(__msa_fmul_w(_v, _inv_sqrt2));
+        v4f32 _blob = __msa_fadd_w(_one, _erf);
+        return __msa_fmul_w(_half, __msa_fmul_w(_blob, _v));
+    }
+}
+
 static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -50,6 +92,26 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
         _outp = __msa_fmax_w(_outp, _zero);
         _outp = __msa_fmin_w(_outp, _one);
         _v = __msa_fmul_w(_outp, _v);
+    }
+    else if (activation_type == 7)
+    {
+        int fast_gelu = activation_params.row<int>(0)[0];
+        _v = gelu_ps(_v, fast_gelu);
+    }
+    else if (activation_type == 8)
+    {
+        _v = swish_ps(_v);
+    }
+    else if (activation_type == 9)
+    {
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        _v = elu_ps(_v, _alpha);
+    }
+    else if (activation_type == 10)
+    {
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(1.67326324f);
+        v4f32 _lambda = (v4f32)__msa_fill_w_f32(1.050700987f);
+        _v = __msa_fmul_w(_lambda, elu_ps(_v, _alpha));
     }
 
     return _v;

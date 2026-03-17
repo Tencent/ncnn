@@ -21,10 +21,19 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     pd.set(5, bias);
     pd.set(6, outch * c * kernel * kernel);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
-    ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
+    ncnn::Mat activation_params;
+    if (activation_type != 7)
+    {
+        activation_params.create(2);
+        activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
+    }
+    else
+    {
+        activation_params.create(1);
+        activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+    }
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -40,7 +49,11 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     int ret = test_layer("Deconvolution", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        if (activation_type != 7)
+            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        else
+            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0], output_pad_right, output_pad_bottom, output_w, output_h);
+
         return ret;
     }
 
@@ -59,7 +72,11 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
         if (ret != 0)
         {
-            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+            if (activation_type != 7)
+                fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+            else
+                fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0], output_pad_right, output_pad_bottom, output_w, output_h);
+
             return ret;
         }
     }
@@ -79,7 +96,11 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
         if (ret != 0)
         {
-            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+            if (activation_type != 7)
+                fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+            else
+                fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0], output_pad_right, output_pad_bottom, output_w, output_h);
+
             return ret;
         }
     }
@@ -194,10 +215,19 @@ static int test_deconvolution_dynamic(int w, int h, int c, int outch, int kernel
     pd.set(6, 0);
     pd.set(28, 1); // dynamic weight
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    ncnn::Mat activation_params(2);
-    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);                                               // beta
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
+    ncnn::Mat activation_params;
+    if (activation_type != 7)
+    {
+        activation_params.create(2);
+        activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+        activation_params[1] = RandomFloat(0, 1);                                               // beta
+    }
+    else
+    {
+        activation_params.create(1);
+        activation_params.row<int>(0)[0] = RandomInt(0, 1); // fast==1
+    }
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -217,7 +247,10 @@ static int test_deconvolution_dynamic(int w, int h, int c, int outch, int kernel
     int ret = test_layer("Deconvolution", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolution_dynamic failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        if (activation_type != 7)
+            fprintf(stderr, "test_deconvolution_dynamic failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        else
+            fprintf(stderr, "test_deconvolution_dynamic failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%d] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params.row<int>(0)[0], output_pad_right, output_pad_bottom, output_w, output_h);
     }
 
     return ret;
