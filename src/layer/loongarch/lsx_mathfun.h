@@ -626,6 +626,54 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     return final_result;
 }
 
+_LOONGARCH_FLOAT_CONST(c_erf_threshold, 0.927734375f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c0, -1.72853470e-5f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c1, 3.83197126e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c2, -3.88396438e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c3, 2.42546219e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c4, -1.06777877e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c5, -6.34846687e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c6, -1.28717512e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c0, -5.96761703e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c1, 4.99119423e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c2, -2.67681349e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c3, 1.12819925e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c4, -3.76125336e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c5, 1.28379166e-1f);
+
+static inline __m128 erf_ps(__m128 a)
+{
+    __m128 t = (__m128)__lsx_vbitclri_w((__m128i)a, 31);
+    __m128 s = __lsx_vfmul_s(a, a);
+
+    __m128i hi_mask = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_erf_threshold.i), t);
+
+    __m128 r_hi = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c0.i), (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c1.i));
+    __m128 u = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c2.i), (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c3.i));
+    r_hi = __lsx_vfmadd_s(r_hi, s, u);
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c4.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c5.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c6.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_0.i), t));
+    r_hi = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_1.i), exp_ps(r_hi));
+
+    __m128 r_lo = (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c0.i);
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c1.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c2.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c3.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c4.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c5.i));
+    r_lo = __lsx_vfmadd_s(r_lo, a, a);
+
+    __m128 r = (__m128)__lsx_vbitsel_v((__m128i)r_lo, (__m128i)r_hi, hi_mask);
+
+    __m128i sign_mask = __lsx_vreplgr2vr_w(0x80000000);
+    __m128i sign_a = __lsx_vand_v((__m128i)a, sign_mask);
+    r = (__m128)__lsx_vor_v((__m128i)r, sign_a);
+
+    return r;
+}
+
 static inline __m128 fmod_ps(__m128 a, __m128 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
