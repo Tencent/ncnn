@@ -393,6 +393,24 @@ _RVV_FLOAT32_SIGMOID_OP(8, 4)
  * is preserved.
  * ====================================================
  */
+// Coefficients for approximation to erf
+#define c_erf_threshold 0.927734375f // 475/512
+// Large branch (t > 0.927734375f)
+#define c_erf_c0 -1.72853470e-5f
+#define c_erf_c1 3.83197126e-4f
+#define c_erf_c2 -3.88396438e-3f
+#define c_erf_c3 2.42546219e-2f
+#define c_erf_c4 -1.06777877e-1f
+#define c_erf_c5 -6.34846687e-1f
+#define c_erf_c6 -1.28717512e-1f
+// Small branch (t <= 0.927734375f)
+#define c_erf_s0 -5.96761703e-4f
+#define c_erf_s1 4.99119423e-3f
+#define c_erf_s2 -2.67681349e-2f
+#define c_erf_s3 1.12819925e-1f
+#define c_erf_s4 -3.76125336e-1f
+#define c_erf_s5 1.28379166e-1f
+
 #define c_erfc_erx_f 8.4506291151e-01f /* 0x3f58560b */
 // Coefficients for approximation to  erf on [00.84375]
 #define c_erfc_efx  1.2837916613e-01f /* 0x3e0375d4 */
@@ -480,6 +498,48 @@ _RVV_FLOAT32_FMA_HELPER(8)
 _RVV_FLOAT32_FMA_HELPER(4)
 _RVV_FLOAT32_FMA_HELPER(2)
 _RVV_FLOAT32_FMA_HELPER(1)
+
+#define _RVV_FLOAT32_ERF_OP(LMUL, MLEN)                                                                                                                                                                                                           \
+    static inline vfloat32m##LMUL##_t erf_ps(vfloat32m##LMUL##_t x, size_t vl)                                                                                                                                                                    \
+    {                                                                                                                                                                                                                                             \
+        vfloat32m##LMUL##_t t = __riscv_vfsgnjx_vv_f32m##LMUL(x, x, vl);                                                                                                                                                                          \
+        vfloat32m##LMUL##_t s = __riscv_vfmul_vv_f32m##LMUL(x, x, vl);                                                                                                                                                                            \
+                                                                                                                                                                                                                                                  \
+        vfloat32m##LMUL##_t r;                                                                                                                                                                                                                    \
+        vbool##MLEN##_t large_mask = __riscv_vmfgt_vf_f32m##LMUL##_b##MLEN(t, c_erf_threshold, vl);                                                                                                                                               \
+                                                                                                                                                                                                                                                  \
+        vfloat32m##LMUL##_t r_large;                                                                                                                                                                                                              \
+        r_large = __riscv_vfmv_v_f_f32m##LMUL(c_erf_c1, vl);                                                                                                                                                                                      \
+        r_large = __riscv_vfmadd_vf_f32m##LMUL(t, c_erf_c0, r_large, vl);                                                                                                                                                                         \
+        vfloat32m##LMUL##_t u = __riscv_vfmv_v_f_f32m##LMUL(c_erf_c3, vl);                                                                                                                                                                        \
+        u = __riscv_vfmadd_vf_f32m##LMUL(t, c_erf_c2, u, vl);                                                                                                                                                                                     \
+        r_large = __riscv_vfmadd_vv_f32m##LMUL(r_large, s, u, vl);                                                                                                                                                                                \
+        r_large = __riscv_vfmadd_vv_f32m##LMUL(r_large, t, __riscv_vfmv_v_f_f32m##LMUL(c_erf_c4, vl), vl);                                                                                                                                        \
+        r_large = __riscv_vfmadd_vv_f32m##LMUL(r_large, t, __riscv_vfmv_v_f_f32m##LMUL(c_erf_c5, vl), vl);                                                                                                                                        \
+        r_large = __riscv_vfmadd_vv_f32m##LMUL(r_large, t, __riscv_vfmv_v_f_f32m##LMUL(c_erf_c6, vl), vl);                                                                                                                                        \
+        r_large = __riscv_vfmadd_vv_f32m##LMUL(r_large, t, __riscv_vfneg_v_f32m##LMUL(t, vl), vl);                                                                                                                                                \
+        r_large = __riscv_vfsub_vf_f32m##LMUL(exp_ps(r_large, vl), 1.0f, vl);                                                                                                                                                                     \
+        vfloat32m##LMUL##_t sign_x = __riscv_vreinterpret_v_u32m##LMUL##_f32m##LMUL(__riscv_vand_vx_u32m##LMUL(__riscv_vreinterpret_v_f32m##LMUL##_u32m##LMUL(x), 0x80000000, vl));                                                               \
+        r_large = __riscv_vreinterpret_v_u32m##LMUL##_f32m##LMUL(__riscv_vor_vv_u32m##LMUL(__riscv_vreinterpret_v_f32m##LMUL##_u32m##LMUL(__riscv_vfabs_v_f32m##LMUL(r_large, vl)), __riscv_vreinterpret_v_f32m##LMUL##_u32m##LMUL(sign_x), vl)); \
+                                                                                                                                                                                                                                                  \
+        vfloat32m##LMUL##_t r_small;                                                                                                                                                                                                              \
+        r_small = __riscv_vfmv_v_f_f32m##LMUL(c_erf_s0, vl);                                                                                                                                                                                      \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, s, __riscv_vfmv_v_f_f32m##LMUL(c_erf_s1, vl), vl);                                                                                                                                        \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, s, __riscv_vfmv_v_f_f32m##LMUL(c_erf_s2, vl), vl);                                                                                                                                        \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, s, __riscv_vfmv_v_f_f32m##LMUL(c_erf_s3, vl), vl);                                                                                                                                        \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, s, __riscv_vfmv_v_f_f32m##LMUL(c_erf_s4, vl), vl);                                                                                                                                        \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, s, __riscv_vfmv_v_f_f32m##LMUL(c_erf_s5, vl), vl);                                                                                                                                        \
+        r_small = __riscv_vfmadd_vv_f32m##LMUL(r_small, x, x, vl);                                                                                                                                                                                \
+                                                                                                                                                                                                                                                  \
+        r = __riscv_vmerge_vvm_f32m##LMUL(r_small, r_large, large_mask, vl);                                                                                                                                                                      \
+                                                                                                                                                                                                                                                  \
+        return r;                                                                                                                                                                                                                                 \
+    }
+
+_RVV_FLOAT32_ERF_OP(1, 32)
+_RVV_FLOAT32_ERF_OP(2, 16)
+_RVV_FLOAT32_ERF_OP(4, 8)
+_RVV_FLOAT32_ERF_OP(8, 4)
 
 #define _RVV_FLOAT32_ERFC_OP(LMUL, MLEN)                                                                                                                                                                                                                                                                                                                                                                   \
     static inline vfloat32m##LMUL##_t erfc_ps(vfloat32m##LMUL##_t x, size_t vl)                                                                                                                                                                                                                                                                                                                            \
