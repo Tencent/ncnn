@@ -10,6 +10,16 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 
+static inline v4f32 elu_ps(v4f32 inputs, v4f32 alphas)
+{
+    v4f32 _zero = (v4f32)__msa_fill_w(0);
+    v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+    v4f32 _pos = __msa_fmax_w(inputs, _zero);
+    v4f32 _neg = __msa_fmin_w(inputs, _zero);
+    _neg = __msa_fsub_w(exp_ps(_neg), _one);
+    return __msa_fadd_w(_pos, __msa_fmul_w(alphas, _neg));
+}
+
 static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
