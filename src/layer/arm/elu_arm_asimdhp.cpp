@@ -314,7 +314,7 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
         {
             __fp16 v = ptr[0];
             if (v < (__fp16)0.f)
-                ptr[0] = (__fp16)alpha * (expf((float)v) - 1.f);
+                ptr[0] = (__fp16)(alpha * (expf((float)v) - 1.f));
 
             ptr += 1;
         }
