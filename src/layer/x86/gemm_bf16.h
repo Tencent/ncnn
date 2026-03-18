@@ -4902,11 +4902,14 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             int max_kk_e2 = (max_kk + 1) / 2 * 2;
             for (; kk < max_kk_e2; kk += 2)
             {
-                __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
-                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[0]));
-                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[1]));
-                _sum2 = _mm_dpbf16_ps(_sum2, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[2]));
-                _sum3 = _mm_dpbf16_ps(_sum3, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[3]));
+                __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
+                __m128i _pB0 = _mm_loadu_si128((const __m128i*)pB);
+                __m128i _pA1 = _mm_alignr_epi8(_pA0, _pA0, 8);
+                __m128i _pB1 = _mm_alignr_epi8(_pB0, _pB0, 4);
+                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA0, (__m128bh)_pB0);
+                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA0, (__m128bh)_pB1);
+                _sum2 = _mm_dpbf16_ps(_sum2, (__m128bh)_pA1, (__m128bh)_pB0);
+                _sum3 = _mm_dpbf16_ps(_sum3, (__m128bh)_pA1, (__m128bh)_pB1);
                 pA += 8;
                 pB += 8;
             }
@@ -4954,8 +4957,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             for (; kk < max_kk_e2; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
-                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[0]));
-                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[1]));
+                __m128i _pB0 = _mm_castpd_si128(_mm_load1_pd((const double*)pB));
+                __m128i _pB1 = _mm_alignr_epi8(_pB0, _pB0, 4);
+                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_pB0);
+                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA, (__m128bh)_pB1);
                 pA += 8;
                 pB += 4;
             }
@@ -8053,8 +8058,25 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _f3 = _mm_load_ps(pp + 12);
             pp += 16;
 
+#if __AVX512BF16__
+            // deshuffle from the shuffle-based 4x4 dpbf16_ps kernel
+            {
+                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
+                _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
+                __m128 _tmp0 = _mm_unpacklo_ps(_f0, _f3);
+                __m128 _tmp1 = _mm_unpackhi_ps(_f0, _f3);
+                __m128 _tmp2 = _mm_unpacklo_ps(_f2, _f1);
+                __m128 _tmp3 = _mm_unpackhi_ps(_f2, _f1);
+                _f0 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
+                _f1 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp0), _mm_castps_pd(_tmp2)));
+                _f2 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
+                _f3 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(_tmp3), _mm_castps_pd(_tmp1)));
+                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
+                _f3 = _mm_shuffle_ps(_f3, _f3, _MM_SHUFFLE(2, 1, 0, 3));
+            }
+#endif // __AVX512BF16__
+
             // 4x4: broadcast-based gemm, output is in column order (no shuffle)
-            // _f0 = column 0 = [a0*b0, a1*b0, a2*b0, a3*b0] summed over k
 
             if (broadcast_type_C == 3)
             {
@@ -8134,64 +8156,82 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            // 4x2: no shuffle (uses broadcast)
-            for (int t = 0; t < 2; t++)
+            __m128 _f0 = _mm_load_ps(pp);
+            __m128 _f1 = _mm_load_ps(pp + 4);
+            pp += 8;
+
+#if __AVX512BF16__
+            // deshuffle from the shuffle-based 4x2 dpbf16_ps kernel
             {
-                __m128 _f = _mm_load_ps(pp);
-                pp += 4;
-
-                if (broadcast_type_C == 3)
-                {
-                    if (c_elempack == 4)
-                    {
-                        _f = _mm_add_ps(_f, _mm_loadu_ps(pC + t * 4));
-                    }
-                    else // c_elempack == 1
-                    {
-                        __m128 _cc = _mm_setr_ps(pC[t], pC[c_hstep + t], pC[c_hstep * 2 + t], pC[c_hstep * 3 + t]);
-                        _f = _mm_add_ps(_f, _cc);
-                    }
-                }
-                else if (broadcast_type_C == 4)
-                {
-                    _f = _mm_add_ps(_f, _mm_set1_ps(pC[t]));
-                }
-                else
-                {
-                    _f = _mm_add_ps(_f, _c0_sse);
-                }
-
-                if (alpha != 1.f)
-                {
-                    _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
-                }
-
-                if (output_transpose)
-                {
-                    _mm_storel_epi64((__m128i*)(p0 + out_hstep * t), float2bfloat_sse(_f, _mm_setzero_ps()));
-                }
-                else
-                {
-                    for (int s = 0; s < 4; s++)
-                    {
-                        *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + t)) = float32_to_bfloat16(((const float*)&_f)[s]);
-                    }
-                }
+                __m128 _tmp0 = _mm_shuffle_ps(_f0, _f0, _MM_SHUFFLE(3, 1, 2, 0));
+                __m128 _tmp1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(0, 2, 3, 1));
+                _f0 = _mm_unpacklo_ps(_tmp0, _tmp1);
+                _f1 = _mm_unpackhi_ps(_tmp0, _tmp1);
+                _f1 = _mm_shuffle_ps(_f1, _f1, _MM_SHUFFLE(2, 1, 0, 3));
             }
+#endif // __AVX512BF16__
+
             if (broadcast_type_C == 3)
             {
                 if (c_elempack == 4)
+                {
+                    __m128 _cc0 = _mm_loadu_ps(pC);
+                    __m128 _cc1 = _mm_loadu_ps(pC + 4);
+                    _f0 = _mm_add_ps(_f0, _cc0);
+                    _f1 = _mm_add_ps(_f1, _cc1);
                     pC += 8;
-                else
+                }
+                else // c_elempack == 1
+                {
+                    __m128 _cc0 = _mm_setr_ps(pC[0], pC[c_hstep], pC[c_hstep * 2], pC[c_hstep * 3]);
+                    __m128 _cc1 = _mm_setr_ps(pC[1], pC[c_hstep + 1], pC[c_hstep * 2 + 1], pC[c_hstep * 3 + 1]);
+                    _f0 = _mm_add_ps(_f0, _cc0);
+                    _f1 = _mm_add_ps(_f1, _cc1);
                     pC += 2;
+                }
             }
-            if (broadcast_type_C == 4)
+            else if (broadcast_type_C == 4)
             {
+                _f0 = _mm_add_ps(_f0, _mm_set1_ps(pC[0]));
+                _f1 = _mm_add_ps(_f1, _mm_set1_ps(pC[1]));
                 pC += 2;
             }
+            else
+            {
+                _f0 = _mm_add_ps(_f0, _c0_sse);
+                _f1 = _mm_add_ps(_f1, _c0_sse);
+            }
+
+            if (alpha != 1.f)
+            {
+                __m128 _alpha = _mm_set1_ps(alpha);
+                _f0 = _mm_mul_ps(_f0, _alpha);
+                _f1 = _mm_mul_ps(_f1, _alpha);
+            }
+
             if (output_transpose)
             {
+                _mm_storel_epi64((__m128i*)p0, float2bfloat_sse(_f0, _mm_setzero_ps()));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep), float2bfloat_sse(_f1, _mm_setzero_ps()));
                 p0 += 2 * out_hstep;
+            }
+            else
+            {
+#if __AVX512BF16__
+                unsigned short* p1 = (unsigned short*)top_blob + (i + ii) * out_hstep + (j + jj);
+                __m128i _bf = float2bfloat_sse(_f0, _f1);
+                __m128i _lo = _mm_unpacklo_epi16(_bf, _mm_srli_si128(_bf, 8));
+                *((int*)(p1)) = _mm_extract_epi32(_lo, 0);
+                *((int*)(p1 + out_hstep)) = _mm_extract_epi32(_lo, 1);
+                *((int*)(p1 + out_hstep * 2)) = _mm_extract_epi32(_lo, 2);
+                *((int*)(p1 + out_hstep * 3)) = _mm_extract_epi32(_lo, 3);
+#else  // __AVX512BF16__
+                for (int s = 0; s < 4; s++)
+                {
+                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj)) = float32_to_bfloat16(((const float*)&_f0)[s]);
+                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + 1)) = float32_to_bfloat16(((const float*)&_f1)[s]);
+                }
+#endif // __AVX512BF16__
             }
         }
         for (; jj < max_jj; jj++)
