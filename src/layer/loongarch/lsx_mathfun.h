@@ -735,4 +735,14 @@ static inline __m128 remainder_ps(__m128 a, __m128 b)
     return __lsx_vfsub_s(a, __lsx_vfmul_s(rq, b));
 }
 
+static inline __m128 elu_ps(__m128 _v, __m128 _alpha)
+{
+    __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+    __m128 _one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+    __m128 _pos = __lsx_vfmax_s(_v, _zero);
+    __m128 _neg = __lsx_vfmin_s(_v, _zero);
+    _neg = __lsx_vfsub_s(exp_ps(_neg), _one);
+    return __lsx_vfadd_s(_pos, __lsx_vfmul_s(_alpha, _neg));
+}
+
 #endif // LSX_MATHFUN_H
