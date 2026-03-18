@@ -48,7 +48,7 @@ int SELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             vfloat16m4_t _nps = __riscv_vfncvt_f_f_w_f16m4(_nps_f32, vl);
 
             // Merge results
-            _p = __riscv_vmerge_vvm_f16m4(_nps, _p, _lower, vl);
+            _p = __riscv_vmerge_vvm_f16m4(_p, _nps, _lower, vl);
 
             __riscv_vse16_v_f16m4(ptr, _p, vl);
             ptr += vl;

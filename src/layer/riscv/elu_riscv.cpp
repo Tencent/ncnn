@@ -60,7 +60,7 @@ int ELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             vfloat32m8_t _exp_v = exp_ps(_p, vl);
             _exp_v = __riscv_vfsub_vf_f32m8(_exp_v, 1.f, vl);
             _exp_v = __riscv_vfmul_vf_f32m8(_exp_v, alpha, vl);
-            _p = __riscv_vmerge_vvm_f32m8(_exp_v, _p, _lower, vl);
+            _p = __riscv_vmerge_vvm_f32m8(_p, _exp_v, _lower, vl);
 
             __riscv_vse32_v_f32m8(ptr, _p, vl);
             ptr += vl;

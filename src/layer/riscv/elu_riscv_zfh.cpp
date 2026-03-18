@@ -40,7 +40,7 @@ int ELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             _exp_v = __riscv_vfmul_vf_f32m8(_exp_v, alpha, vl);
             vfloat16m4_t _exp_v_f16 = __riscv_vfncvt_f_f_w_f16m4(_exp_v, vl);
 
-            _p = __riscv_vmerge_vvm_f16m4(_exp_v_f16, _p, _lower, vl);
+            _p = __riscv_vmerge_vvm_f16m4(_p, _exp_v_f16, _lower, vl);
 
             __riscv_vse16_v_f16m4(ptr, _p, vl);
             ptr += vl;
