@@ -3956,11 +3956,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 16;
         }
 
-#if __AVX512BF16__
         pAT += max_kk * 16;
-#else
-        pAT += max_kk * 16;
-#endif
     }
 #endif // __AVX512F__
     for (; ii + 7 < max_ii; ii += 8)
@@ -4306,11 +4302,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 8;
         }
 
-#if __AVX512BF16__
         pAT += max_kk * 8;
-#else
-        pAT += max_kk * 8;
-#endif
     }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
@@ -4583,11 +4575,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 4;
         }
 
-#if __AVX512BF16__
         pAT += max_kk * 4;
-#else
-        pAT += max_kk * 4;
-#endif
     }
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
@@ -4840,11 +4828,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 2;
         }
 
-#if __AVX512BF16__
         pAT += max_kk * 2;
-#else
-        pAT += max_kk * 2;
-#endif
     }
     for (; ii < max_ii; ii++)
     {
@@ -5044,11 +5028,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 1;
         }
 
-#if __AVX512BF16__
         pAT += max_kk * 1;
-#else
-        pAT += max_kk * 1;
-#endif
     }
 }
 
@@ -5098,9 +5078,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
         {
             p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
-
-        __m512 _descale = _mm512_set1_ps(1.f);
-        (void)_descale;
 
         __m512 _c0 = _mm512_setzero_ps();
         if (pC)
@@ -6171,8 +6148,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), float2bfloat_avx512(_f7));
                 p0 += 16;
             }
-#else  // __AVX512BF16__ \
-// 8x16: pp has 16 columns, each column is 8 floats (column-major from gemm)
+#else  // __AVX512BF16__
+
+            // 8x16: pp has 16 columns, each column is 8 floats (column-major from gemm)
             for (int t = 0; t < 16; t++)
             {
                 for (int s = 0; s < 8; s++)
@@ -6993,8 +6971,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
                 p0 += 16;
             }
-#else  // __AVX512BF16__ \
-// 4x16: pp has 16 columns, each column is 4 floats
+#else  // __AVX512BF16__
+
+            // 4x16: pp has 16 columns, each column is 4 floats
             for (int t = 0; t < 16; t++)
             {
                 for (int s = 0; s < 4; s++)
@@ -7238,8 +7217,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
                 p0 += 8;
             }
-#else  // __AVX512BF16__ \
-// 4x8: pp has 8 columns, each column is 4 floats
+#else  // __AVX512BF16__
+
+            // 4x8: pp has 8 columns, each column is 4 floats
             for (int t = 0; t < 8; t++)
             {
                 for (int s = 0; s < 4; s++)
