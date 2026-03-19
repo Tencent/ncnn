@@ -72,22 +72,38 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
-                pp[16] = p1[0]; pp[17] = 0;
-                pp[18] = p1[1]; pp[19] = 0;
-                pp[20] = p1[2]; pp[21] = 0;
-                pp[22] = p1[3]; pp[23] = 0;
-                pp[24] = p1[4]; pp[25] = 0;
-                pp[26] = p1[5]; pp[27] = 0;
-                pp[28] = p1[6]; pp[29] = 0;
-                pp[30] = p1[7]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
+                pp[16] = p1[0];
+                pp[17] = 0;
+                pp[18] = p1[1];
+                pp[19] = 0;
+                pp[20] = p1[2];
+                pp[21] = 0;
+                pp[22] = p1[3];
+                pp[23] = 0;
+                pp[24] = p1[4];
+                pp[25] = 0;
+                pp[26] = p1[5];
+                pp[27] = 0;
+                pp[28] = p1[6];
+                pp[29] = 0;
+                pp[30] = p1[7];
+                pp[31] = 0;
                 pp += 32;
                 p0 += 8;
                 p1 += 8;
@@ -123,22 +139,38 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p1[0]; pp[9] = 0;
-                pp[10] = p1[1]; pp[11] = 0;
-                pp[12] = p1[2]; pp[13] = 0;
-                pp[14] = p1[3]; pp[15] = 0;
-                pp[16] = p2[0]; pp[17] = 0;
-                pp[18] = p2[1]; pp[19] = 0;
-                pp[20] = p2[2]; pp[21] = 0;
-                pp[22] = p2[3]; pp[23] = 0;
-                pp[24] = p3[0]; pp[25] = 0;
-                pp[26] = p3[1]; pp[27] = 0;
-                pp[28] = p3[2]; pp[29] = 0;
-                pp[30] = p3[3]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p1[0];
+                pp[9] = 0;
+                pp[10] = p1[1];
+                pp[11] = 0;
+                pp[12] = p1[2];
+                pp[13] = 0;
+                pp[14] = p1[3];
+                pp[15] = 0;
+                pp[16] = p2[0];
+                pp[17] = 0;
+                pp[18] = p2[1];
+                pp[19] = 0;
+                pp[20] = p2[2];
+                pp[21] = 0;
+                pp[22] = p2[3];
+                pp[23] = 0;
+                pp[24] = p3[0];
+                pp[25] = 0;
+                pp[26] = p3[1];
+                pp[27] = 0;
+                pp[28] = p3[2];
+                pp[29] = 0;
+                pp[30] = p3[3];
+                pp[31] = 0;
                 pp += 32;
                 p0 += 4;
                 p1 += 4;
@@ -168,22 +200,38 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
-                pp[8] = p4[0]; pp[9] = p4[1];
-                pp[10] = p5[0]; pp[11] = p5[1];
-                pp[12] = p6[0]; pp[13] = p6[1];
-                pp[14] = p7[0]; pp[15] = p7[1];
-                pp[16] = p8[0]; pp[17] = p8[1];
-                pp[18] = p9[0]; pp[19] = p9[1];
-                pp[20] = pa[0]; pp[21] = pa[1];
-                pp[22] = pb[0]; pp[23] = pb[1];
-                pp[24] = pc[0]; pp[25] = pc[1];
-                pp[26] = pd[0]; pp[27] = pd[1];
-                pp[28] = pe[0]; pp[29] = pe[1];
-                pp[30] = pf[0]; pp[31] = pf[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
+                pp[8] = p4[0];
+                pp[9] = p4[1];
+                pp[10] = p5[0];
+                pp[11] = p5[1];
+                pp[12] = p6[0];
+                pp[13] = p6[1];
+                pp[14] = p7[0];
+                pp[15] = p7[1];
+                pp[16] = p8[0];
+                pp[17] = p8[1];
+                pp[18] = p9[0];
+                pp[19] = p9[1];
+                pp[20] = pa[0];
+                pp[21] = pa[1];
+                pp[22] = pb[0];
+                pp[23] = pb[1];
+                pp[24] = pc[0];
+                pp[25] = pc[1];
+                pp[26] = pd[0];
+                pp[27] = pd[1];
+                pp[28] = pe[0];
+                pp[29] = pe[1];
+                pp[30] = pf[0];
+                pp[31] = pf[1];
                 pp += 32;
                 p0 += 2;
                 p1 += 2;
@@ -204,22 +252,38 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
-                pp[8] = p4[0]; pp[9] = 0;
-                pp[10] = p5[0]; pp[11] = 0;
-                pp[12] = p6[0]; pp[13] = 0;
-                pp[14] = p7[0]; pp[15] = 0;
-                pp[16] = p8[0]; pp[17] = 0;
-                pp[18] = p9[0]; pp[19] = 0;
-                pp[20] = pa[0]; pp[21] = 0;
-                pp[22] = pb[0]; pp[23] = 0;
-                pp[24] = pc[0]; pp[25] = 0;
-                pp[26] = pd[0]; pp[27] = 0;
-                pp[28] = pe[0]; pp[29] = 0;
-                pp[30] = pf[0]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
+                pp[8] = p4[0];
+                pp[9] = 0;
+                pp[10] = p5[0];
+                pp[11] = 0;
+                pp[12] = p6[0];
+                pp[13] = 0;
+                pp[14] = p7[0];
+                pp[15] = 0;
+                pp[16] = p8[0];
+                pp[17] = 0;
+                pp[18] = p9[0];
+                pp[19] = 0;
+                pp[20] = pa[0];
+                pp[21] = 0;
+                pp[22] = pb[0];
+                pp[23] = 0;
+                pp[24] = pc[0];
+                pp[25] = 0;
+                pp[26] = pd[0];
+                pp[27] = 0;
+                pp[28] = pe[0];
+                pp[29] = 0;
+                pp[30] = pf[0];
+                pp[31] = 0;
                 pp += 32;
                 p0++;
                 p1++;
@@ -419,14 +483,22 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
                 pp += 16;
                 p0 += 8;
             }
@@ -451,14 +523,22 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p1[0]; pp[9] = 0;
-                pp[10] = p1[1]; pp[11] = 0;
-                pp[12] = p1[2]; pp[13] = 0;
-                pp[14] = p1[3]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p1[0];
+                pp[9] = 0;
+                pp[10] = p1[1];
+                pp[11] = 0;
+                pp[12] = p1[2];
+                pp[13] = 0;
+                pp[14] = p1[3];
+                pp[15] = 0;
                 pp += 16;
                 p0 += 4;
                 p1 += 4;
@@ -478,14 +558,22 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
-                pp[8] = p4[0]; pp[9] = p4[1];
-                pp[10] = p5[0]; pp[11] = p5[1];
-                pp[12] = p6[0]; pp[13] = p6[1];
-                pp[14] = p7[0]; pp[15] = p7[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
+                pp[8] = p4[0];
+                pp[9] = p4[1];
+                pp[10] = p5[0];
+                pp[11] = p5[1];
+                pp[12] = p6[0];
+                pp[13] = p6[1];
+                pp[14] = p7[0];
+                pp[15] = p7[1];
                 pp += 16;
                 p0 += 2;
                 p1 += 2;
@@ -498,14 +586,22 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
-                pp[8] = p4[0]; pp[9] = 0;
-                pp[10] = p5[0]; pp[11] = 0;
-                pp[12] = p6[0]; pp[13] = 0;
-                pp[14] = p7[0]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
+                pp[8] = p4[0];
+                pp[9] = 0;
+                pp[10] = p5[0];
+                pp[11] = 0;
+                pp[12] = p6[0];
+                pp[13] = 0;
+                pp[14] = p7[0];
+                pp[15] = 0;
                 pp += 16;
                 p0++;
                 p1++;
@@ -628,10 +724,14 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
                 pp += 8;
                 p0 += 4;
             }
@@ -646,10 +746,14 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
                 pp += 8;
                 p0 += 2;
                 p1 += 2;
@@ -658,10 +762,14 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
                 pp += 8;
                 p0++;
                 p1++;
@@ -732,16 +840,20 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         int kk = 0;
         for (; kk + 1 < max_kk; kk += 2)
         {
-            pp[0] = p0[0]; pp[1] = p0[1];
-            pp[2] = p1[0]; pp[3] = p1[1];
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p1[0];
+            pp[3] = p1[1];
             pp += 4;
             p0 += 2;
             p1 += 2;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = p0[0]; pp[1] = 0;
-            pp[2] = p1[0]; pp[3] = 0;
+            pp[0] = p0[0];
+            pp[1] = 0;
+            pp[2] = p1[0];
+            pp[3] = 0;
             pp += 4;
             p0++;
             p1++;
@@ -951,43 +1063,75 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[A_hstep];
-                pp[2] = p0[1]; pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[A_hstep + 3];
-                pp[8] = p0[4]; pp[9] = p0[A_hstep + 4];
-                pp[10] = p0[5]; pp[11] = p0[A_hstep + 5];
-                pp[12] = p0[6]; pp[13] = p0[A_hstep + 6];
-                pp[14] = p0[7]; pp[15] = p0[A_hstep + 7];
-                pp[16] = p0[8]; pp[17] = p0[A_hstep + 8];
-                pp[18] = p0[9]; pp[19] = p0[A_hstep + 9];
-                pp[20] = p0[10]; pp[21] = p0[A_hstep + 10];
-                pp[22] = p0[11]; pp[23] = p0[A_hstep + 11];
-                pp[24] = p0[12]; pp[25] = p0[A_hstep + 12];
-                pp[26] = p0[13]; pp[27] = p0[A_hstep + 13];
-                pp[28] = p0[14]; pp[29] = p0[A_hstep + 14];
-                pp[30] = p0[15]; pp[31] = p0[A_hstep + 15];
+                pp[0] = p0[0];
+                pp[1] = p0[A_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[A_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[A_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[A_hstep + 3];
+                pp[8] = p0[4];
+                pp[9] = p0[A_hstep + 4];
+                pp[10] = p0[5];
+                pp[11] = p0[A_hstep + 5];
+                pp[12] = p0[6];
+                pp[13] = p0[A_hstep + 6];
+                pp[14] = p0[7];
+                pp[15] = p0[A_hstep + 7];
+                pp[16] = p0[8];
+                pp[17] = p0[A_hstep + 8];
+                pp[18] = p0[9];
+                pp[19] = p0[A_hstep + 9];
+                pp[20] = p0[10];
+                pp[21] = p0[A_hstep + 10];
+                pp[22] = p0[11];
+                pp[23] = p0[A_hstep + 11];
+                pp[24] = p0[12];
+                pp[25] = p0[A_hstep + 12];
+                pp[26] = p0[13];
+                pp[27] = p0[A_hstep + 13];
+                pp[28] = p0[14];
+                pp[29] = p0[A_hstep + 14];
+                pp[30] = p0[15];
+                pp[31] = p0[A_hstep + 15];
                 pp += 32;
                 p0 += A_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
-                pp[16] = p0[8]; pp[17] = 0;
-                pp[18] = p0[9]; pp[19] = 0;
-                pp[20] = p0[10]; pp[21] = 0;
-                pp[22] = p0[11]; pp[23] = 0;
-                pp[24] = p0[12]; pp[25] = 0;
-                pp[26] = p0[13]; pp[27] = 0;
-                pp[28] = p0[14]; pp[29] = 0;
-                pp[30] = p0[15]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
+                pp[16] = p0[8];
+                pp[17] = 0;
+                pp[18] = p0[9];
+                pp[19] = 0;
+                pp[20] = p0[10];
+                pp[21] = 0;
+                pp[22] = p0[11];
+                pp[23] = 0;
+                pp[24] = p0[12];
+                pp[25] = 0;
+                pp[26] = p0[13];
+                pp[27] = 0;
+                pp[28] = p0[14];
+                pp[29] = 0;
+                pp[30] = p0[15];
+                pp[31] = 0;
                 pp += 32;
                 p0 += A_hstep;
             }
@@ -1245,27 +1389,43 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[A_hstep];
-                pp[2] = p0[1]; pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[A_hstep + 3];
-                pp[8] = p0[4]; pp[9] = p0[A_hstep + 4];
-                pp[10] = p0[5]; pp[11] = p0[A_hstep + 5];
-                pp[12] = p0[6]; pp[13] = p0[A_hstep + 6];
-                pp[14] = p0[7]; pp[15] = p0[A_hstep + 7];
+                pp[0] = p0[0];
+                pp[1] = p0[A_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[A_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[A_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[A_hstep + 3];
+                pp[8] = p0[4];
+                pp[9] = p0[A_hstep + 4];
+                pp[10] = p0[5];
+                pp[11] = p0[A_hstep + 5];
+                pp[12] = p0[6];
+                pp[13] = p0[A_hstep + 6];
+                pp[14] = p0[7];
+                pp[15] = p0[A_hstep + 7];
                 pp += 16;
                 p0 += A_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
                 pp += 16;
                 p0 += A_hstep;
             }
@@ -1439,32 +1599,48 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // elempack=4: p0[0..3] = k0..k3 for m_i, p0[4..7] = k0..k3 for m_i+1, etc.
-                pp[0] = p0[0]; pp[1] = p0[1];    // k0|k1 for m_i
-                pp[2] = p0[4]; pp[3] = p0[5];    // k0|k1 for m_i+1
-                pp[4] = p0[8]; pp[5] = p0[9];    // k0|k1 for m_i+2
-                pp[6] = p0[12]; pp[7] = p0[13];  // k0|k1 for m_i+3
-                pp[8] = p0[2]; pp[9] = p0[3];    // k2|k3 for m_i
-                pp[10] = p0[6]; pp[11] = p0[7];  // k2|k3 for m_i+1
-                pp[12] = p0[10]; pp[13] = p0[11]; // k2|k3 for m_i+2
-                pp[14] = p0[14]; pp[15] = p0[15]; // k2|k3 for m_i+3
+                pp[0] = p0[0];
+                pp[1] = p0[1]; // k0|k1 for m_i
+                pp[2] = p0[4];
+                pp[3] = p0[5]; // k0|k1 for m_i+1
+                pp[4] = p0[8];
+                pp[5] = p0[9]; // k0|k1 for m_i+2
+                pp[6] = p0[12];
+                pp[7] = p0[13]; // k0|k1 for m_i+3
+                pp[8] = p0[2];
+                pp[9] = p0[3]; // k2|k3 for m_i
+                pp[10] = p0[6];
+                pp[11] = p0[7]; // k2|k3 for m_i+1
+                pp[12] = p0[10];
+                pp[13] = p0[11]; // k2|k3 for m_i+2
+                pp[14] = p0[14];
+                pp[15] = p0[15]; // k2|k3 for m_i+3
                 pp += 16;
                 p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
-                pp[4] = p0[8]; pp[5] = p0[9];
-                pp[6] = p0[12]; pp[7] = p0[13];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
+                pp[4] = p0[8];
+                pp[5] = p0[9];
+                pp[6] = p0[12];
+                pp[7] = p0[13];
                 pp += 8;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[4]; pp[3] = 0;
-                pp[4] = p0[8]; pp[5] = 0;
-                pp[6] = p0[12]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[4];
+                pp[3] = 0;
+                pp[4] = p0[8];
+                pp[5] = 0;
+                pp[6] = p0[12];
+                pp[7] = 0;
                 pp += 8;
                 p0++;
             }
@@ -1476,19 +1652,27 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[A_hstep];
-                pp[2] = p0[1]; pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[A_hstep + 3];
+                pp[0] = p0[0];
+                pp[1] = p0[A_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[A_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[A_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[A_hstep + 3];
                 pp += 8;
                 p0 += A_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
                 pp += 8;
                 p0 += A_hstep;
             }
@@ -1623,24 +1807,32 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
-                pp[4] = p0[2]; pp[5] = p0[3];
-                pp[6] = p0[6]; pp[7] = p0[7];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
+                pp[4] = p0[2];
+                pp[5] = p0[3];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
                 pp += 8;
                 p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
                 pp += 4;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[4]; pp[3] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[4];
+                pp[3] = 0;
                 pp += 4;
                 p0++;
             }
@@ -1652,20 +1844,24 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[A_hstep];
-                pp[2] = p0[1]; pp[3] = p0[A_hstep + 1];
+                pp[0] = p0[0];
+                pp[1] = p0[A_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[A_hstep + 1];
                 pp += 4;
                 p0 += A_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
                 pp += 4;
                 p0 += A_hstep;
             }
         }
-#else  // __AVX512BF16__
+#else // __AVX512BF16__
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -1798,20 +1994,24 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[2]; pp[3] = p0[3];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
                 pp += 4;
                 p0 += A_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
                 pp += 2;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
                 pp += 2;
                 p0++;
             }
@@ -1836,7 +2036,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 p0 += A_hstep;
             }
         }
-#else  // __AVX512BF16__
+#else // __AVX512BF16__
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -1982,22 +2182,38 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
-                pp[16] = p1[0]; pp[17] = 0;
-                pp[18] = p1[1]; pp[19] = 0;
-                pp[20] = p1[2]; pp[21] = 0;
-                pp[22] = p1[3]; pp[23] = 0;
-                pp[24] = p1[4]; pp[25] = 0;
-                pp[26] = p1[5]; pp[27] = 0;
-                pp[28] = p1[6]; pp[29] = 0;
-                pp[30] = p1[7]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
+                pp[16] = p1[0];
+                pp[17] = 0;
+                pp[18] = p1[1];
+                pp[19] = 0;
+                pp[20] = p1[2];
+                pp[21] = 0;
+                pp[22] = p1[3];
+                pp[23] = 0;
+                pp[24] = p1[4];
+                pp[25] = 0;
+                pp[26] = p1[5];
+                pp[27] = 0;
+                pp[28] = p1[6];
+                pp[29] = 0;
+                pp[30] = p1[7];
+                pp[31] = 0;
                 pp += 32;
                 p0 += 8;
                 p1 += 8;
@@ -2033,22 +2249,38 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p1[0]; pp[9] = 0;
-                pp[10] = p1[1]; pp[11] = 0;
-                pp[12] = p1[2]; pp[13] = 0;
-                pp[14] = p1[3]; pp[15] = 0;
-                pp[16] = p2[0]; pp[17] = 0;
-                pp[18] = p2[1]; pp[19] = 0;
-                pp[20] = p2[2]; pp[21] = 0;
-                pp[22] = p2[3]; pp[23] = 0;
-                pp[24] = p3[0]; pp[25] = 0;
-                pp[26] = p3[1]; pp[27] = 0;
-                pp[28] = p3[2]; pp[29] = 0;
-                pp[30] = p3[3]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p1[0];
+                pp[9] = 0;
+                pp[10] = p1[1];
+                pp[11] = 0;
+                pp[12] = p1[2];
+                pp[13] = 0;
+                pp[14] = p1[3];
+                pp[15] = 0;
+                pp[16] = p2[0];
+                pp[17] = 0;
+                pp[18] = p2[1];
+                pp[19] = 0;
+                pp[20] = p2[2];
+                pp[21] = 0;
+                pp[22] = p2[3];
+                pp[23] = 0;
+                pp[24] = p3[0];
+                pp[25] = 0;
+                pp[26] = p3[1];
+                pp[27] = 0;
+                pp[28] = p3[2];
+                pp[29] = 0;
+                pp[30] = p3[3];
+                pp[31] = 0;
                 pp += 32;
                 p0 += 4;
                 p1 += 4;
@@ -2078,51 +2310,107 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
-                pp[8] = p4[0]; pp[9] = p4[1];
-                pp[10] = p5[0]; pp[11] = p5[1];
-                pp[12] = p6[0]; pp[13] = p6[1];
-                pp[14] = p7[0]; pp[15] = p7[1];
-                pp[16] = p8[0]; pp[17] = p8[1];
-                pp[18] = p9[0]; pp[19] = p9[1];
-                pp[20] = pa[0]; pp[21] = pa[1];
-                pp[22] = pb[0]; pp[23] = pb[1];
-                pp[24] = pc[0]; pp[25] = pc[1];
-                pp[26] = pd[0]; pp[27] = pd[1];
-                pp[28] = pe[0]; pp[29] = pe[1];
-                pp[30] = pf[0]; pp[31] = pf[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
+                pp[8] = p4[0];
+                pp[9] = p4[1];
+                pp[10] = p5[0];
+                pp[11] = p5[1];
+                pp[12] = p6[0];
+                pp[13] = p6[1];
+                pp[14] = p7[0];
+                pp[15] = p7[1];
+                pp[16] = p8[0];
+                pp[17] = p8[1];
+                pp[18] = p9[0];
+                pp[19] = p9[1];
+                pp[20] = pa[0];
+                pp[21] = pa[1];
+                pp[22] = pb[0];
+                pp[23] = pb[1];
+                pp[24] = pc[0];
+                pp[25] = pc[1];
+                pp[26] = pd[0];
+                pp[27] = pd[1];
+                pp[28] = pe[0];
+                pp[29] = pe[1];
+                pp[30] = pf[0];
+                pp[31] = pf[1];
                 pp += 32;
-                p0 += 2; p1 += 2; p2 += 2; p3 += 2;
-                p4 += 2; p5 += 2; p6 += 2; p7 += 2;
-                p8 += 2; p9 += 2; pa += 2; pb += 2;
-                pc += 2; pd += 2; pe += 2; pf += 2;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
+                p8 += 2;
+                p9 += 2;
+                pa += 2;
+                pb += 2;
+                pc += 2;
+                pd += 2;
+                pe += 2;
+                pf += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
-                pp[8] = p4[0]; pp[9] = 0;
-                pp[10] = p5[0]; pp[11] = 0;
-                pp[12] = p6[0]; pp[13] = 0;
-                pp[14] = p7[0]; pp[15] = 0;
-                pp[16] = p8[0]; pp[17] = 0;
-                pp[18] = p9[0]; pp[19] = 0;
-                pp[20] = pa[0]; pp[21] = 0;
-                pp[22] = pb[0]; pp[23] = 0;
-                pp[24] = pc[0]; pp[25] = 0;
-                pp[26] = pd[0]; pp[27] = 0;
-                pp[28] = pe[0]; pp[29] = 0;
-                pp[30] = pf[0]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
+                pp[8] = p4[0];
+                pp[9] = 0;
+                pp[10] = p5[0];
+                pp[11] = 0;
+                pp[12] = p6[0];
+                pp[13] = 0;
+                pp[14] = p7[0];
+                pp[15] = 0;
+                pp[16] = p8[0];
+                pp[17] = 0;
+                pp[18] = p9[0];
+                pp[19] = 0;
+                pp[20] = pa[0];
+                pp[21] = 0;
+                pp[22] = pb[0];
+                pp[23] = 0;
+                pp[24] = pc[0];
+                pp[25] = 0;
+                pp[26] = pd[0];
+                pp[27] = 0;
+                pp[28] = pe[0];
+                pp[29] = 0;
+                pp[30] = pf[0];
+                pp[31] = 0;
                 pp += 32;
-                p0++; p1++; p2++; p3++;
-                p4++; p5++; p6++; p7++;
-                p8++; p9++; pa++; pb++;
-                pc++; pd++; pe++; pf++;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+                p8++;
+                p9++;
+                pa++;
+                pb++;
+                pc++;
+                pd++;
+                pe++;
+                pf++;
             }
         }
 #else  // __AVX512BF16__
@@ -2306,14 +2594,22 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
                 pp += 16;
                 p0 += 8;
             }
@@ -2338,14 +2634,22 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p1[0]; pp[9] = 0;
-                pp[10] = p1[1]; pp[11] = 0;
-                pp[12] = p1[2]; pp[13] = 0;
-                pp[14] = p1[3]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p1[0];
+                pp[9] = 0;
+                pp[10] = p1[1];
+                pp[11] = 0;
+                pp[12] = p1[2];
+                pp[13] = 0;
+                pp[14] = p1[3];
+                pp[15] = 0;
                 pp += 16;
                 p0 += 4;
                 p1 += 4;
@@ -2365,31 +2669,59 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
-                pp[8] = p4[0]; pp[9] = p4[1];
-                pp[10] = p5[0]; pp[11] = p5[1];
-                pp[12] = p6[0]; pp[13] = p6[1];
-                pp[14] = p7[0]; pp[15] = p7[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
+                pp[8] = p4[0];
+                pp[9] = p4[1];
+                pp[10] = p5[0];
+                pp[11] = p5[1];
+                pp[12] = p6[0];
+                pp[13] = p6[1];
+                pp[14] = p7[0];
+                pp[15] = p7[1];
                 pp += 16;
-                p0 += 2; p1 += 2; p2 += 2; p3 += 2;
-                p4 += 2; p5 += 2; p6 += 2; p7 += 2;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
+                p4 += 2;
+                p5 += 2;
+                p6 += 2;
+                p7 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
-                pp[8] = p4[0]; pp[9] = 0;
-                pp[10] = p5[0]; pp[11] = 0;
-                pp[12] = p6[0]; pp[13] = 0;
-                pp[14] = p7[0]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
+                pp[8] = p4[0];
+                pp[9] = 0;
+                pp[10] = p5[0];
+                pp[11] = 0;
+                pp[12] = p6[0];
+                pp[13] = 0;
+                pp[14] = p7[0];
+                pp[15] = 0;
                 pp += 16;
-                p0++; p1++; p2++; p3++;
-                p4++; p5++; p6++; p7++;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
             }
         }
 #else  // __AVX512BF16__
@@ -2503,10 +2835,14 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
                 pp += 8;
                 p0 += 4;
             }
@@ -2521,21 +2857,35 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p1[0]; pp[3] = p1[1];
-                pp[4] = p2[0]; pp[5] = p2[1];
-                pp[6] = p3[0]; pp[7] = p3[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p1[0];
+                pp[3] = p1[1];
+                pp[4] = p2[0];
+                pp[5] = p2[1];
+                pp[6] = p3[0];
+                pp[7] = p3[1];
                 pp += 8;
-                p0 += 2; p1 += 2; p2 += 2; p3 += 2;
+                p0 += 2;
+                p1 += 2;
+                p2 += 2;
+                p3 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p1[0]; pp[3] = 0;
-                pp[4] = p2[0]; pp[5] = 0;
-                pp[6] = p3[0]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p1[0];
+                pp[3] = 0;
+                pp[4] = p2[0];
+                pp[5] = 0;
+                pp[6] = p3[0];
+                pp[7] = 0;
                 pp += 8;
-                p0++; p1++; p2++; p3++;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
             }
         }
 #else  // __AVX512BF16__
@@ -2601,16 +2951,20 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         int kk = 0;
         for (; kk + 1 < max_kk; kk += 2)
         {
-            pp[0] = p0[0]; pp[1] = p0[1];
-            pp[2] = p1[0]; pp[3] = p1[1];
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p1[0];
+            pp[3] = p1[1];
             pp += 4;
             p0 += 2;
             p1 += 2;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = p0[0]; pp[1] = 0;
-            pp[2] = p1[0]; pp[3] = 0;
+            pp[0] = p0[0];
+            pp[1] = 0;
+            pp[2] = p1[0];
+            pp[3] = 0;
             pp += 4;
             p0++;
             p1++;
@@ -2817,43 +3171,75 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[B_hstep];
-                pp[2] = p0[1]; pp[3] = p0[B_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[B_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[B_hstep + 3];
-                pp[8] = p0[4]; pp[9] = p0[B_hstep + 4];
-                pp[10] = p0[5]; pp[11] = p0[B_hstep + 5];
-                pp[12] = p0[6]; pp[13] = p0[B_hstep + 6];
-                pp[14] = p0[7]; pp[15] = p0[B_hstep + 7];
-                pp[16] = p0[8]; pp[17] = p0[B_hstep + 8];
-                pp[18] = p0[9]; pp[19] = p0[B_hstep + 9];
-                pp[20] = p0[10]; pp[21] = p0[B_hstep + 10];
-                pp[22] = p0[11]; pp[23] = p0[B_hstep + 11];
-                pp[24] = p0[12]; pp[25] = p0[B_hstep + 12];
-                pp[26] = p0[13]; pp[27] = p0[B_hstep + 13];
-                pp[28] = p0[14]; pp[29] = p0[B_hstep + 14];
-                pp[30] = p0[15]; pp[31] = p0[B_hstep + 15];
+                pp[0] = p0[0];
+                pp[1] = p0[B_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[B_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[B_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[B_hstep + 3];
+                pp[8] = p0[4];
+                pp[9] = p0[B_hstep + 4];
+                pp[10] = p0[5];
+                pp[11] = p0[B_hstep + 5];
+                pp[12] = p0[6];
+                pp[13] = p0[B_hstep + 6];
+                pp[14] = p0[7];
+                pp[15] = p0[B_hstep + 7];
+                pp[16] = p0[8];
+                pp[17] = p0[B_hstep + 8];
+                pp[18] = p0[9];
+                pp[19] = p0[B_hstep + 9];
+                pp[20] = p0[10];
+                pp[21] = p0[B_hstep + 10];
+                pp[22] = p0[11];
+                pp[23] = p0[B_hstep + 11];
+                pp[24] = p0[12];
+                pp[25] = p0[B_hstep + 12];
+                pp[26] = p0[13];
+                pp[27] = p0[B_hstep + 13];
+                pp[28] = p0[14];
+                pp[29] = p0[B_hstep + 14];
+                pp[30] = p0[15];
+                pp[31] = p0[B_hstep + 15];
                 pp += 32;
                 p0 += B_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
-                pp[16] = p0[8]; pp[17] = 0;
-                pp[18] = p0[9]; pp[19] = 0;
-                pp[20] = p0[10]; pp[21] = 0;
-                pp[22] = p0[11]; pp[23] = 0;
-                pp[24] = p0[12]; pp[25] = 0;
-                pp[26] = p0[13]; pp[27] = 0;
-                pp[28] = p0[14]; pp[29] = 0;
-                pp[30] = p0[15]; pp[31] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
+                pp[16] = p0[8];
+                pp[17] = 0;
+                pp[18] = p0[9];
+                pp[19] = 0;
+                pp[20] = p0[10];
+                pp[21] = 0;
+                pp[22] = p0[11];
+                pp[23] = 0;
+                pp[24] = p0[12];
+                pp[25] = 0;
+                pp[26] = p0[13];
+                pp[27] = 0;
+                pp[28] = p0[14];
+                pp[29] = 0;
+                pp[30] = p0[15];
+                pp[31] = 0;
                 pp += 32;
                 p0 += B_hstep;
             }
@@ -3153,27 +3539,43 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[B_hstep];
-                pp[2] = p0[1]; pp[3] = p0[B_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[B_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[B_hstep + 3];
-                pp[8] = p0[4]; pp[9] = p0[B_hstep + 4];
-                pp[10] = p0[5]; pp[11] = p0[B_hstep + 5];
-                pp[12] = p0[6]; pp[13] = p0[B_hstep + 6];
-                pp[14] = p0[7]; pp[15] = p0[B_hstep + 7];
+                pp[0] = p0[0];
+                pp[1] = p0[B_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[B_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[B_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[B_hstep + 3];
+                pp[8] = p0[4];
+                pp[9] = p0[B_hstep + 4];
+                pp[10] = p0[5];
+                pp[11] = p0[B_hstep + 5];
+                pp[12] = p0[6];
+                pp[13] = p0[B_hstep + 6];
+                pp[14] = p0[7];
+                pp[15] = p0[B_hstep + 7];
                 pp += 16;
                 p0 += B_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
-                pp[8] = p0[4]; pp[9] = 0;
-                pp[10] = p0[5]; pp[11] = 0;
-                pp[12] = p0[6]; pp[13] = 0;
-                pp[14] = p0[7]; pp[15] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
+                pp[8] = p0[4];
+                pp[9] = 0;
+                pp[10] = p0[5];
+                pp[11] = 0;
+                pp[12] = p0[6];
+                pp[13] = 0;
+                pp[14] = p0[7];
+                pp[15] = 0;
                 pp += 16;
                 p0 += B_hstep;
             }
@@ -3360,32 +3762,48 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // elempack=4: p0[0..3] = k0..k3 for n0, p0[4..7] = k0..k3 for n1, etc.
-                pp[0] = p0[0]; pp[1] = p0[1];    // k0|k1 for n0
-                pp[2] = p0[4]; pp[3] = p0[5];    // k0|k1 for n1
-                pp[4] = p0[8]; pp[5] = p0[9];    // k0|k1 for n2
-                pp[6] = p0[12]; pp[7] = p0[13];  // k0|k1 for n3
-                pp[8] = p0[2]; pp[9] = p0[3];    // k2|k3 for n0
-                pp[10] = p0[6]; pp[11] = p0[7];  // k2|k3 for n1
-                pp[12] = p0[10]; pp[13] = p0[11]; // k2|k3 for n2
-                pp[14] = p0[14]; pp[15] = p0[15]; // k2|k3 for n3
+                pp[0] = p0[0];
+                pp[1] = p0[1]; // k0|k1 for n0
+                pp[2] = p0[4];
+                pp[3] = p0[5]; // k0|k1 for n1
+                pp[4] = p0[8];
+                pp[5] = p0[9]; // k0|k1 for n2
+                pp[6] = p0[12];
+                pp[7] = p0[13]; // k0|k1 for n3
+                pp[8] = p0[2];
+                pp[9] = p0[3]; // k2|k3 for n0
+                pp[10] = p0[6];
+                pp[11] = p0[7]; // k2|k3 for n1
+                pp[12] = p0[10];
+                pp[13] = p0[11]; // k2|k3 for n2
+                pp[14] = p0[14];
+                pp[15] = p0[15]; // k2|k3 for n3
                 pp += 16;
                 p0 += B_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
-                pp[4] = p0[8]; pp[5] = p0[9];
-                pp[6] = p0[12]; pp[7] = p0[13];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
+                pp[4] = p0[8];
+                pp[5] = p0[9];
+                pp[6] = p0[12];
+                pp[7] = p0[13];
                 pp += 8;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[4]; pp[3] = 0;
-                pp[4] = p0[8]; pp[5] = 0;
-                pp[6] = p0[12]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[4];
+                pp[3] = 0;
+                pp[4] = p0[8];
+                pp[5] = 0;
+                pp[6] = p0[12];
+                pp[7] = 0;
                 pp += 8;
                 p0++;
             }
@@ -3396,19 +3814,27 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[B_hstep];
-                pp[2] = p0[1]; pp[3] = p0[B_hstep + 1];
-                pp[4] = p0[2]; pp[5] = p0[B_hstep + 2];
-                pp[6] = p0[3]; pp[7] = p0[B_hstep + 3];
+                pp[0] = p0[0];
+                pp[1] = p0[B_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[B_hstep + 1];
+                pp[4] = p0[2];
+                pp[5] = p0[B_hstep + 2];
+                pp[6] = p0[3];
+                pp[7] = p0[B_hstep + 3];
                 pp += 8;
                 p0 += B_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
-                pp[4] = p0[2]; pp[5] = 0;
-                pp[6] = p0[3]; pp[7] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
+                pp[4] = p0[2];
+                pp[5] = 0;
+                pp[6] = p0[3];
+                pp[7] = 0;
                 pp += 8;
                 p0 += B_hstep;
             }
@@ -3546,24 +3972,32 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
-                pp[4] = p0[2]; pp[5] = p0[3];
-                pp[6] = p0[6]; pp[7] = p0[7];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
+                pp[4] = p0[2];
+                pp[5] = p0[3];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
                 pp += 8;
                 p0 += B_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[4]; pp[3] = p0[5];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[4];
+                pp[3] = p0[5];
                 pp += 4;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[4]; pp[3] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[4];
+                pp[3] = 0;
                 pp += 4;
                 p0++;
             }
@@ -3575,20 +4009,24 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[B_hstep];
-                pp[2] = p0[1]; pp[3] = p0[B_hstep + 1];
+                pp[0] = p0[0];
+                pp[1] = p0[B_hstep];
+                pp[2] = p0[1];
+                pp[3] = p0[B_hstep + 1];
                 pp += 4;
                 p0 += B_hstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
-                pp[2] = p0[1]; pp[3] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
+                pp[2] = p0[1];
+                pp[3] = 0;
                 pp += 4;
                 p0 += B_hstep;
             }
         }
-#else  // __AVX512BF16__
+#else // __AVX512BF16__
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -3633,10 +4071,14 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0]; pp[1] = p0[4];
-                pp[2] = p0[1]; pp[3] = p0[5];
-                pp[4] = p0[2]; pp[5] = p0[6];
-                pp[6] = p0[3]; pp[7] = p0[7];
+                pp[0] = p0[0];
+                pp[1] = p0[4];
+                pp[2] = p0[1];
+                pp[3] = p0[5];
+                pp[4] = p0[2];
+                pp[5] = p0[6];
+                pp[6] = p0[3];
+                pp[7] = p0[7];
                 pp += 8;
                 p0 += B_hstep * 4;
             }
@@ -3729,20 +4171,24 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
-                pp[2] = p0[2]; pp[3] = p0[3];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
                 pp += 4;
                 p0 += B_hstep * 4;
             }
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0]; pp[1] = p0[1];
+                pp[0] = p0[0];
+                pp[1] = p0[1];
                 pp += 2;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0]; pp[1] = 0;
+                pp[0] = p0[0];
+                pp[1] = 0;
                 pp += 2;
                 p0++;
             }
@@ -3767,7 +4213,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 p0 += B_hstep;
             }
         }
-#else  // __AVX512BF16__
+#else // __AVX512BF16__
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -3960,7 +4406,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 32;
                 pB += 32;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
@@ -4086,7 +4532,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 32;
                 pB += 16;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
@@ -4166,7 +4612,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 32;
                 pB += 8;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
@@ -4226,7 +4672,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 32;
                 pB += 4;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
@@ -4273,7 +4719,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 32;
                 pB += 2;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
@@ -4374,7 +4820,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 16;
                 pB += 32;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pAA = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -4462,7 +4908,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 16;
                 pB += 16;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -4535,7 +4981,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 16;
                 pB += 8;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -4590,7 +5036,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 16;
                 pB += 4;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -4633,7 +5079,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 16;
                 pB += 2;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
@@ -4702,7 +5148,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             _mm512_storeu_ps(outptr + 16, _sum1);
             _mm512_storeu_ps(outptr + 32, _sum2);
             _mm512_storeu_ps(outptr + 48, _sum3);
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             __m512 _sum0 = _mm512_setzero_ps();
             __m512 _sum1 = _mm512_setzero_ps();
             __m512 _sum2 = _mm512_setzero_ps();
@@ -4785,7 +5231,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             _mm256_store_ps(outptr + 8, _sum1);
             _mm256_store_ps(outptr + 16, _sum2);
             _mm256_store_ps(outptr + 24, _sum3);
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             __m256 _sum0 = _mm256_setzero_ps();
             __m256 _sum1 = _mm256_setzero_ps();
             __m256 _sum2 = _mm256_setzero_ps();
@@ -4862,7 +5308,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 8;
                 pB += 8;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
@@ -4916,7 +5362,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 8;
                 pB += 4;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
@@ -4958,7 +5404,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 pA += 8;
                 pB += 2;
             }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
@@ -6109,7 +6555,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storel_epi64((__m128i*)(p1 + out_hstep * 13), _mm_srli_si128(_bf6, 8));
                 _mm_storel_epi64((__m128i*)(p1 + out_hstep * 14), _bf7);
                 _mm_storel_epi64((__m128i*)(p1 + out_hstep * 15), _mm_srli_si128(_bf7, 8));
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
                 float tmp[64];
                 _mm512_storeu_ps(tmp, _f0);
                 _mm512_storeu_ps(tmp + 16, _f1);
@@ -6199,7 +6645,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     *((int*)(p1 + (base + 2) * out_hstep)) = _mm_extract_epi32(_lo, 2);
                     *((int*)(p1 + (base + 3) * out_hstep)) = _mm_extract_epi32(_lo, 3);
                 }
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
                 float tmp[32];
                 _mm512_storeu_ps(tmp, _f0);
                 _mm512_storeu_ps(tmp + 16, _f1);
@@ -6579,8 +7025,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), float2bfloat_avx512(_f7));
                 p0 += 16;
             }
-#else  // __AVX512BF16__
-            // 8x16: pp has 16 columns, each column is 8 floats (column-major from gemm)
+#else  // __AVX512BF16__ \
+// 8x16: pp has 16 columns, each column is 8 floats (column-major from gemm)
             for (int t = 0; t < 16; t++)
             {
                 for (int s = 0; s < 8; s++)
@@ -7401,8 +7847,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
                 p0 += 16;
             }
-#else // __AVX512BF16__
-            // 4x16: pp has 16 columns, each column is 4 floats
+#else  // __AVX512BF16__ \
+// 4x16: pp has 16 columns, each column is 4 floats
             for (int t = 0; t < 16; t++)
             {
                 for (int s = 0; s < 4; s++)
@@ -7646,8 +8092,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
                 p0 += 8;
             }
-#else // __AVX512BF16__
-            // 4x8: pp has 8 columns, each column is 4 floats
+#else  // __AVX512BF16__ \
+// 4x8: pp has 8 columns, each column is 4 floats
             for (int t = 0; t < 8; t++)
             {
                 for (int s = 0; s < 4; s++)
