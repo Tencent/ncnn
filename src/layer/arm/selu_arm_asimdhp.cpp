@@ -200,7 +200,11 @@ int SELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             _p_f32 = vmulq_f32(_p_f32, _alphaxlambda_f32);
 
             float16x4_t _nps = vcvt_f16_f32(_p_f32);
+#if defined(_MSC_VER) && !defined(__clang__)
+            float16x4_t _pps = vmul_f16(_p, vdup_n_f16((__fp16)lambda));
+#else
             float16x4_t _pps = vmul_n_f16(_p, (__fp16)lambda);
+#endif
             _p = vbsl_f16(_lemask, _nps, _pps);
 
             vst1_f16(ptr, _p);
