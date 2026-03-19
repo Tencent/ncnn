@@ -190,21 +190,19 @@ int SELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
 
             float32x4_t _p_f32 = vcvt_f32_f16(_p);
-            _p_f32 = exp_ps(_p_f32);
+            float32x4_t _exp_p = exp_ps(_p_f32);
 
             float32x4_t _one_f32 = vdupq_n_f32(1.f);
             float32x4_t _alphaxlambda_f32 = vdupq_n_f32(alphaxlambda);
             float32x4_t _lambda_f32 = vdupq_n_f32(lambda);
 
-            _p_f32 = vsubq_f32(_p_f32, _one_f32);
-            _p_f32 = vmulq_f32(_p_f32, _alphaxlambda_f32);
+            _exp_p = vsubq_f32(_exp_p, _one_f32);
+            _exp_p = vmulq_f32(_exp_p, _alphaxlambda_f32);
 
-            float16x4_t _nps = vcvt_f16_f32(_p_f32);
-#if defined(_MSC_VER) && !defined(__clang__)
-            float16x4_t _pps = vmul_f16(_p, vdup_n_f16((__fp16)lambda));
-#else
-            float16x4_t _pps = vmul_n_f16(_p, (__fp16)lambda);
-#endif
+            float32x4_t _pps_f32 = vmulq_f32(_p_f32, _lambda_f32);
+
+            float16x4_t _nps = vcvt_f16_f32(_exp_p);
+            float16x4_t _pps = vcvt_f16_f32(_pps_f32);
             _p = vbsl_f16(_lemask, _nps, _pps);
 
             vst1_f16(ptr, _p);
