@@ -888,7 +888,8 @@ static inline __m128 erfc_ps(__m128 x)
     __m128i z_i = __lsx_vand_v((__m128i)absx, __lsx_vreplgr2vr_w(0xfffff000));
     __m128 z = (__m128)z_i;
 
-    __m128 r = exp_ps(__lsx_vfmadd_s(__lsx_vfneg_s(z), z, (__m128)__lsx_vreplgr2vr_w(0xbf100000)));
+    __m128 neg_z = (__m128)__lsx_vxor_v((__m128i)z, __lsx_vreplgr2vr_w(0x80000000));
+    __m128 r = exp_ps(__lsx_vfmadd_s(neg_z, z, (__m128)__lsx_vreplgr2vr_w(0xbf100000)));
     __m128 tmp = __lsx_vfmadd_s(__lsx_vfsub_s(z, absx), __lsx_vfadd_s(z, absx), q);
     r = __lsx_vfmul_s(r, exp_ps(tmp));
     r = __lsx_vfdiv_s(r, absx);
@@ -907,7 +908,7 @@ static inline __m128 erfc_ps(__m128 x)
     ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_ge_0_84375);
 
     __m128i mask_x_lt_m6 = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0xc0c00000));
-    ret = (__m128)__lsx_vbitsel_v((__m128i)ret, two, mask_x_lt_m6);
+    ret = (__m128)__lsx_vbitsel_v((__m128i)ret, (__m128i)two, mask_x_lt_m6);
 
     __m128i mask_nan = __lsx_vfcmp_cne_s(x, x);
     ret = (__m128)__lsx_vbitsel_v((__m128i)ret, (__m128i)x, mask_nan);
