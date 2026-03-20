@@ -26,16 +26,16 @@ ELU_riscv::ELU_riscv()
 
 int ELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if C906
+    // FIXME -O3 leads illegal instruction
+    return ELU::forward_inplace(bottom_top_blob, opt);
+#endif
+
     int elembits = bottom_top_blob.elembits();
 
 #if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
-#endif
-
-#if C906
-    // FIXME -O3 leads illegal instruction
-    return ELU::forward_inplace(bottom_top_blob, opt);
 #endif
 
     int w = bottom_top_blob.w;

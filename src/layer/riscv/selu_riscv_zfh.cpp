@@ -34,10 +34,6 @@ int SELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             size_t vl = __riscv_vsetvl_e16m4(n);
             vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
             vbool4_t _lower = __riscv_vmflt_vf_f16m4_b4(_p, (__fp16)0.f, vl);
-            vbool4_t _higher = __riscv_vmnot_m_b4(_lower, vl);
-
-            // Positive part: x * lambda
-            _p = __riscv_vfmul_vf_f16m4_mu(_higher, _p, _p, (__fp16)lambda, vl);
 
             // Negative part: (exp(x) - 1) * alphaxlambda
             // Convert to float32 for exp calculation
@@ -46,6 +42,9 @@ int SELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             _nps_f32 = __riscv_vfsub_vf_f32m8(_nps_f32, 1.f, vl);
             _nps_f32 = __riscv_vfmul_vf_f32m8(_nps_f32, alphaxlambda, vl);
             vfloat16m4_t _nps = __riscv_vfncvt_f_f_w_f16m4(_nps_f32, vl);
+
+            // Positive part: x * lambda
+            _p = __riscv_vfmul_vf_f16m4(_p, (__fp16)lambda, vl);
 
             // Merge results
             _p = __riscv_vmerge_vvm_f16m4(_p, _nps, _lower, vl);
