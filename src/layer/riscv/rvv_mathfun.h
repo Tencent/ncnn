@@ -106,6 +106,58 @@ _RVV_FLOAT32_LOG_OP(8, 4)
 #define c_cephes_exp_p4 1.6666665459E-1
 #define c_cephes_exp_p5 5.0000001201E-1
 
+#if __riscv_xtheadvector
+#define _RVV_FLOAT32_EXP_OP(LMUL, MLEN)                                                                   \
+    static inline vfloat32m##LMUL##_t exp_ps(vfloat32m##LMUL##_t x, size_t vl)                            \
+    {                                                                                                     \
+        vfloat32m##LMUL##_t tmp, fx;                                                                      \
+                                                                                                          \
+        x = __riscv_vfmin_vf_f32m##LMUL(x, c_exp_hi, vl);                                                 \
+        x = __riscv_vfmax_vf_f32m##LMUL(x, c_exp_lo, vl);                                                 \
+                                                                                                          \
+        /* express exp(x) as exp(g + n*log(2)) */                                                         \
+        fx = __riscv_vfmacc_vf_f32m##LMUL(__riscv_vfmv_v_f_f32m##LMUL(0.5f, vl), c_cephes_LOG2EF, x, vl); \
+                                                                                                          \
+        /* perform a floorf for XTheadVector */                                                           \
+        /* floorx = xi - (xi > x) */                                                                      \
+        vint32m##LMUL##_t xi = __riscv_vfcvt_x_f_v_i32m##LMUL(fx, vl);                                    \
+        vfloat32m##LMUL##_t xf = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                  \
+        vbool##MLEN##_t _floormask = __riscv_vmfgt_vv_f32m##LMUL##_b##MLEN(xf, fx, vl);                   \
+        xi = __riscv_vsub_vx_i32m##LMUL##_mu(_floormask, xi, xi, 1, vl);                                  \
+        fx = __riscv_vfcvt_f_x_v_f32m##LMUL(xi, vl);                                                      \
+                                                                                                          \
+        tmp = __riscv_vfmul_vf_f32m##LMUL(fx, c_cephes_exp_C1, vl);                                       \
+        vfloat32m##LMUL##_t z = __riscv_vfmul_vf_f32m##LMUL(fx, c_cephes_exp_C2, vl);                     \
+        x = __riscv_vfsub_vv_f32m##LMUL(x, tmp, vl);                                                      \
+        x = __riscv_vfsub_vv_f32m##LMUL(x, z, vl);                                                        \
+                                                                                                          \
+        vfloat32m##LMUL##_t y = __riscv_vfmul_vf_f32m##LMUL(x, c_cephes_exp_p0, vl);                      \
+        z = __riscv_vfmul_vv_f32m##LMUL(x, x, vl);                                                        \
+                                                                                                          \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, c_cephes_exp_p1, vl);                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, x, vl);                                                        \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, c_cephes_exp_p2, vl);                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, x, vl);                                                        \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, c_cephes_exp_p3, vl);                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, x, vl);                                                        \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, c_cephes_exp_p4, vl);                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, x, vl);                                                        \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, c_cephes_exp_p5, vl);                                          \
+                                                                                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, z, vl);                                                        \
+        y = __riscv_vfadd_vv_f32m##LMUL(y, x, vl);                                                        \
+        y = __riscv_vfadd_vf_f32m##LMUL(y, 1.f, vl);                                                      \
+                                                                                                          \
+        /* build 2^n */                                                                                   \
+        vint32m##LMUL##_t mm = __riscv_vfcvt_x_f_v_i32m##LMUL(fx, vl);                                    \
+        mm = __riscv_vadd_vx_i32m##LMUL(mm, 0x7f, vl);                                                    \
+        mm = __riscv_vsll_vx_i32m##LMUL(mm, 23, vl);                                                      \
+        vfloat32m##LMUL##_t pow2n = __riscv_vreinterpret_v_i32m##LMUL##_f32m##LMUL(mm);                   \
+                                                                                                          \
+        y = __riscv_vfmul_vv_f32m##LMUL(y, pow2n, vl);                                                    \
+        return y;                                                                                         \
+    }
+#else
 #define _RVV_FLOAT32_EXP_OP(LMUL, MLEN)                                                                   \
     static inline vfloat32m##LMUL##_t exp_ps(vfloat32m##LMUL##_t x, size_t vl)                            \
     {                                                                                                     \
@@ -155,6 +207,7 @@ _RVV_FLOAT32_LOG_OP(8, 4)
         y = __riscv_vfmul_vv_f32m##LMUL(y, pow2n, vl);                                                    \
         return y;                                                                                         \
     }
+#endif
 
 _RVV_FLOAT32_EXP_OP(1, 32)
 _RVV_FLOAT32_EXP_OP(2, 16)
