@@ -2700,21 +2700,12 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
 
-                __m512i _pA0i = _mm512_castps_si512(_pA0);
-                __m512i _pA1i = _mm512_alignr_epi8(_pA0i, _pA0i, 8);
-                __m512i _pA2i = _mm512_shuffle_i32x4(_pA0i, _pA0i, _MM_SHUFFLE(2, 3, 0, 1));
-                __m512i _pA3i = _mm512_alignr_epi8(_pA2i, _pA2i, 8);
-                __m512 _pA1 = _mm512_castsi512_ps(_pA1i);
-                __m512 _pA2 = _mm512_castsi512_ps(_pA2i);
-                __m512 _pA3 = _mm512_castsi512_ps(_pA3i);
-
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512i _pB1i = _mm512_alignr_epi8(_pB0i, _pB0i, 4);
-                __m512i _pB2i = _mm512_shuffle_i32x4(_pB0i, _pB0i, _MM_SHUFFLE(1, 0, 3, 2));
-                __m512i _pB3i = _mm512_alignr_epi8(_pB2i, _pB2i, 4);
-                __m512 _pB1 = _mm512_castsi512_ps(_pB1i);
-                __m512 _pB2 = _mm512_castsi512_ps(_pB2i);
-                __m512 _pB3 = _mm512_castsi512_ps(_pB3i);
+                __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                __m512 _pA2 = _mm512_shuffle_f32x4(_pA0, _pA0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m512 _pB2 = _mm512_shuffle_f32x4(_pB0, _pB0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pA3 = _mm512_permute_ps(_pA2, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB3 = _mm512_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -2814,14 +2805,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m256 _pBB = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pB));
                 __m512 _pB0 = _mm512_castsi512_ps(combine8x2_epi32(_mm256_castps_si256(_pBB), _mm256_castps_si256(_pBB)));
 
-                __m512i _pA0i = _mm512_castps_si512(_pA0);
-                __m512 _pA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
-                __m512i _pB2i = _mm512_permutex_epi64(_pB0i, _MM_SHUFFLE(1, 0, 3, 2));
-                __m512 _pB2 = _mm512_castsi512_ps(_pB2i);
-                __m512 _pB3 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB2i, _pB2i, 4));
+                __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                __m512 _pB2 = _mm512_castsi512_ps(_mm512_permutex_epi64(_mm512_castps_si512(_pB0), _MM_SHUFFLE(1, 0, 3, 2)));
+                __m512 _pB3 = _mm512_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -2885,11 +2872,8 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128 _pBs = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
                 __m512 _pB0 = _mm512_castsi512_ps(_mm512_broadcast_i32x4(_mm_castps_si128(_pBs)));
 
-                __m512i _pA0i = _mm512_castps_si512(_pA0);
-                __m512 _pA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
+                __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -2938,8 +2922,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128i _pBbf = _mm_cvtsi32_si128(*(const int*)pB);
                 __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pBbf));
                 __m512 _pB0 = _mm512_castsi512_ps(_mm512_castpd_si512(_mm512_set1_pd(((const double*)&_pBs)[0])));
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3051,14 +3034,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m512 _pA0 = _mm512_castsi512_ps(combine8x2_epi32(_mm256_castps_si256(_pAA), _mm256_castps_si256(_pAA)));
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
 
-                __m512i _pA0i = _mm512_castps_si512(_pA0);
-                __m512 _pA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
-                __m512i _pB2i = _mm512_permutex_epi64(_pB0i, _MM_SHUFFLE(1, 0, 3, 2));
-                __m512 _pB2 = _mm512_castsi512_ps(_pB2i);
-                __m512 _pB3 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB2i, _pB2i, 4));
+                __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                __m512 _pB2 = _mm512_castsi512_ps(_mm512_permutex_epi64(_mm512_castps_si512(_pB0), _MM_SHUFFLE(1, 0, 3, 2)));
+                __m512 _pB3 = _mm512_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3352,11 +3331,8 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m512 _pA0 = _mm512_castsi512_ps(_mm512_broadcast_i32x4(_mm_castps_si128(_pAs)));
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
 
-                __m512i _pA0i = _mm512_castps_si512(_pA0);
-                __m512 _pA1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
+                __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3520,8 +3496,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
                 __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _mm_cvtsi32_si128(*(const int*)pB)));
                 __m128 _pB0 = _mm_castsi128_ps(_mm_castpd_si128(_mm_load1_pd((const double*)&_pBs)));
-                __m128i _pB0i = _mm_castps_si128(_pB0);
-                __m128 _pB1 = _mm_castsi128_ps(_mm_alignr_epi8(_pB0i, _pB0i, 4));
+                __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
                 _sum1 = _mm_comp_fmadd_ps(_pA, _pB1, _sum1);
@@ -3612,8 +3587,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128 _pAs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pAbf));
                 __m512 _pA0 = _mm512_castsi512_ps(_mm512_castpd_si512(_mm512_set1_pd(((const double*)&_pAs)[0])));
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
-                __m512i _pB0i = _mm512_castps_si512(_pB0);
-                __m512 _pB1 = _mm512_castsi512_ps(_mm512_alignr_epi8(_pB0i, _pB0i, 4));
+                __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm512_fmadd_ps(_pA0, _pB1, _sum1);
