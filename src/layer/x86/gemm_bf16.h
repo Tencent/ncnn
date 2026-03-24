@@ -565,10 +565,10 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m512i p2_lo = _mm512_permutex2var_epi32(_r0, id2, _r1);
                 __m512i p3_lo = _mm512_permutex2var_epi32(_r0, id3, _r1);
 
-                __m512i p0_hi = _mm512_permutex2var_epi32(_r2, id0, _rv3);
-                __m512i p1_hi = _mm512_permutex2var_epi32(_r2, id1, _rv3);
-                __m512i p2_hi = _mm512_permutex2var_epi32(_r2, id2, _rv3);
-                __m512i p3_hi = _mm512_permutex2var_epi32(_r2, id3, _rv3);
+                __m512i p0_hi = _mm512_permutex2var_epi32(_r2, id0, _r3);
+                __m512i p1_hi = _mm512_permutex2var_epi32(_r2, id1, _r3);
+                __m512i p2_hi = _mm512_permutex2var_epi32(_r2, id2, _r3);
+                __m512i p3_hi = _mm512_permutex2var_epi32(_r2, id3, _r3);
 
                 __m512i cp0 = _mm512_inserti64x4(p0_lo, _mm512_castsi512_si256(p0_hi), 1);
                 __m512i cp1 = _mm512_inserti64x4(p1_lo, _mm512_castsi512_si256(p1_hi), 1);
@@ -3330,7 +3330,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
 #else
                 __m128 _pA = _mm_set1_ps(bfloat16_to_float32(pA[0]));
-                __m128 _pB = _mm_loadu_si128((const __m128i*)pB);
+                __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
                 __m128i _zero = _mm_setzero_si128();
                 __m128 _pB0 = _mm_castsi128_ps(_mm_unpacklo_epi16(_zero, _pB));
                 __m128 _pB1 = _mm_castsi128_ps(_mm_unpackhi_epi16(_zero, _pB));
@@ -6015,8 +6015,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
             if (output_transpose)
             {
-                // _fi = column i = [r0ci, r1ci, r2ci, r3ci]
-                // store as 8 rows of 4 bf16
                 __m128i _bf01 = float2bfloat_sse(_f0, _f1);
                 __m128i _bf23 = float2bfloat_sse(_f2, _f3);
                 __m128i _bf45 = float2bfloat_sse(_f4, _f5);
@@ -6029,17 +6027,16 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep * 5), _mm_srli_si128(_bf45, 8));
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep * 6), _bf67);
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep * 7), _mm_srli_si128(_bf67, 8));
-                p0 += 8 * out_hstep;
+                p0 += out_hstep * 8;
             }
             else
             {
-                // transpose columns to rows
                 _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
                 _MM_TRANSPOSE4_PS(_f4, _f5, _f6, _f7);
-                __m128i _bf0 = float2bfloat_avx(_mm256_insertf128_ps(_mm256_castps128_ps256(_f0), _f4, 1));
-                __m128i _bf1 = float2bfloat_avx(_mm256_insertf128_ps(_mm256_castps128_ps256(_f1), _f5, 1));
-                __m128i _bf2 = float2bfloat_avx(_mm256_insertf128_ps(_mm256_castps128_ps256(_f2), _f6, 1));
-                __m128i _bf3 = float2bfloat_avx(_mm256_insertf128_ps(_mm256_castps128_ps256(_f3), _f7, 1));
+                __m128i _bf0 = float2bfloat_sse(_f0, _f4);
+                __m128i _bf1 = float2bfloat_sse(_f1, _f5);
+                __m128i _bf2 = float2bfloat_sse(_f2, _f6);
+                __m128i _bf3 = float2bfloat_sse(_f3, _f7);
                 _mm_storeu_si128((__m128i*)p0, _bf0);
                 _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
                 _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
