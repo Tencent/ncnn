@@ -3677,7 +3677,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA1, _pB0, _sum1);
-#else // __AVX__
+#else  // __AVX__
                 __m128 _pA0 = bfloat2float_sse(_pA);
                 __m128 _pA1 = _mm_shuffle_ps(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
                 __m128 _pB0 = bfloat2float_sse(_pB);
