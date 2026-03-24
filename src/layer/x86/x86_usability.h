@@ -483,6 +483,20 @@ static NCNN_FORCEINLINE __m128i _mm_comp_dpwssd_epi32(const __m128i& src, const 
 }
 
 #if __AVX__
+static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
+{
+    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
+}
+
+static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i& b)
+{
+#if __AVX2__
+    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
+#else
+    return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
+#endif
+}
+
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return a * b + c
@@ -917,20 +931,6 @@ static NCNN_FORCEINLINE __m128 HorizontalSums(__m256& v0, __m256& v1, __m256& v2
 
     return _mm_add_ps(_mm256_extractf128_ps(s0123, 1),
                       _mm256_castps256_ps128(s0123));
-}
-
-static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
-{
-    return _mm256_insertf128_ps(_mm256_castps128_ps256(a), b, 1);
-}
-
-static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i& b)
-{
-#if __AVX2__
-    return _mm256_inserti128_si256(_mm256_castsi128_si256(a), b, 1);
-#else
-    return _mm256_insertf128_si256(_mm256_castsi128_si256(a), b, 1);
-#endif
 }
 
 static NCNN_FORCEINLINE float _mm256_reduce_add_ps(const __m256& x)
