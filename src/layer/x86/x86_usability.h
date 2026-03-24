@@ -414,7 +414,7 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
     __m128i _a = _mm_castps_si128(v);
 #if __SSE4_1__
     _a = _mm_srli_epi32(_a, 16);
-    __m128i _v = _mm_packus_epi32(_a, _mm_setzero_ps());
+    __m128i _v = _mm_packus_epi32(_a, _mm_setzero_si128());
 #else
     _a = _mm_shufflelo_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
     _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
