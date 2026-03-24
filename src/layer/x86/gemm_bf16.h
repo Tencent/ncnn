@@ -6267,7 +6267,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep), float2bfloat_sse(_f1));
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep * 2), float2bfloat_sse(_f2));
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep * 3), float2bfloat_sse(_f3));
-                p0 += 4 * out_hstep;
+                p0 += out_hstep * 4;
             }
             else
             {
@@ -6355,21 +6355,28 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f1 = _mm_mul_ps(_f1, _alpha);
             }
 
+            __m128i _bf01 = float2bfloat_sse(_f0, _f1);
+
             if (output_transpose)
             {
-                _mm_storel_epi64((__m128i*)p0, float2bfloat_sse(_f0));
-                _mm_storel_epi64((__m128i*)(p0 + out_hstep), float2bfloat_sse(_f1));
-                p0 += 2 * out_hstep;
+                _mm_storel_epi64((__m128i*)p0, _bf01);
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep), _mm_srli_si128(_bf01, 8));
+                p0 += out_hstep * 2;
             }
             else
             {
-                unsigned short* p1 = (unsigned short*)top_blob + (i + ii) * out_hstep + (j + jj);
-                __m128i _bf = float2bfloat_sse(_f0, _f1);
-                __m128i _lo = _mm_unpacklo_epi16(_bf, _mm_srli_si128(_bf, 8));
-                *((int*)(p1)) = _mm_extract_epi32(_lo, 0);
-                *((int*)(p1 + out_hstep)) = _mm_extract_epi32(_lo, 1);
-                *((int*)(p1 + out_hstep * 2)) = _mm_extract_epi32(_lo, 2);
-                *((int*)(p1 + out_hstep * 3)) = _mm_extract_epi32(_lo, 3);
+                unsigned short sum0[4];
+                _mm_storeu_si128((__m128i*)sum0, _bf01);
+
+                p0[0] = sum0[0];
+                p0[1] = sum0[4];
+                p0[out_hstep] = sum0[1];
+                p0[out_hstep + 1] = sum0[5];
+                p0[out_hstep * 2] = sum0[2];
+                p0[out_hstep * 2 + 1] = sum0[6];
+                p0[out_hstep * 3] = sum0[3];
+                p0[out_hstep * 3 + 1] = sum0[7];
+                p0 += 2;
             }
         }
         for (; jj < max_jj; jj++)
@@ -6414,17 +6421,23 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
             }
 
+            __m128i _bf = float2bfloat_sse(_f);
+
             if (output_transpose)
             {
-                _mm_storel_epi64((__m128i*)p0, float2bfloat_sse(_f));
+                _mm_storel_epi64((__m128i*)p0, _bf);
                 p0 += out_hstep;
             }
             else
             {
-                for (int s = 0; s < 4; s++)
-                {
-                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj)) = float32_to_bfloat16(((const float*)&_f)[s]);
-                }
+                unsigned short sum0[4];
+                _mm_storel_epi64((__m128i*)sum0, _bf);
+
+                p0[0] = sum0[0];
+                p0[out_hstep] = sum0[1];
+                p0[out_hstep * 2] = sum0[2];
+                p0[out_hstep * 3] = sum0[3];
+                p0++;
             }
         }
     }
