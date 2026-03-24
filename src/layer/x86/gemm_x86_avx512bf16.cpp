@@ -43,9 +43,9 @@ void gemm_transB_packed_tile_bf16_avx512bf16(const Mat& AT_tile, const Mat& BT_t
     gemm_transB_packed_tile_bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
 }
 
-void unpack_output_tile_fp32_to_bf16_avx512bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, int output_transpose)
+void unpack_output_tile_fp32_to_bf16_avx512bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
 {
-    unpack_output_tile_fp32_to_bf16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+    unpack_output_tile_fp32_to_bf16(topT, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
 }
 
 void get_optimal_tile_mnk_bf16_avx512bf16(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
