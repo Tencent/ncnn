@@ -406,6 +406,24 @@ static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v0, const __m128&
     return _v;
 }
 
+static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
+{
+#if __AVX512BF16__
+    __m128i _v = (__m128i)_mm_cvtneps_pbh(v);
+#else
+    __m128i _a = _mm_castps_si128(v);
+#if __SSE4_1__
+    _a = _mm_srli_epi32(_a, 16);
+    __m128i _v = _mm_packus_epi32(_a, _mm_setzero_ps());
+#else
+    _a = _mm_shufflelo_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    _a = _mm_shufflehi_epi16(_a, _MM_SHUFFLE(2, 0, 3, 1));
+    __m128i _v = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_a), _mm_setzero_ps(), _MM_SHUFFLE(2, 0, 2, 0)));
+#endif
+#endif
+    return _v;
+}
+
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
 #if __FMA__
@@ -841,6 +859,27 @@ static NCNN_FORCEINLINE void transpose8x2_epi32(__m256i& _r0, __m256i& _r1)
 
     _r0 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
     _r1 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+}
+
+static NCNN_FORCEINLINE void transpose16x2_epi16(__m256i& _r0, __m256i& _r1)
+{
+#if __AVX2__
+    __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
+    __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
+    _r0 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+    _r1 = _mm256_permute2f128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+#else
+    __m128i _r0l = _mm256_extractf128_si256(_r0, 0);
+    __m128i _r0h = _mm256_extractf128_si256(_r0, 1);
+    __m128i _r1l = _mm256_extractf128_si256(_r1, 0);
+    __m128i _r1h = _mm256_extractf128_si256(_r1, 1);
+    __m128i _t0l = _mm_unpacklo_epi16(_r0l, _r1l);
+    __m128i _t0h = _mm_unpackhi_epi16(_r0l, _r1l);
+    __m128i _t1l = _mm_unpacklo_epi16(_r0h, _r1h);
+    __m128i _t1h = _mm_unpackhi_epi16(_r0h, _r1h);
+    _r0 = combine4x2_epi32(_t0l, _t0h);
+    _r1 = combine4x2_epi32(_t1l, _t1h);
+#endif
 }
 
 static NCNN_FORCEINLINE __m256 HorizontalSums(__m256& v0, __m256& v1, __m256& v2, __m256& v3, __m256& v4, __m256& v5, __m256& v6, __m256& v7)

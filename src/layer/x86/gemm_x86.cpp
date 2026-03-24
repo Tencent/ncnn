@@ -35,7 +35,7 @@ void transpose_pack_A_tile_bf16_avx512bf16(const Mat& A, Mat& AT, int i, int max
 void pack_B_tile_bf16_avx512bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
 void transpose_pack_B_tile_bf16_avx512bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
 void gemm_transB_packed_tile_bf16_avx512bf16(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
-void unpack_output_tile_fp32_to_bf16_avx512bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, int output_transpose);
+void unpack_output_tile_fp32_to_bf16_avx512bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose);
 void get_optimal_tile_mnk_bf16_avx512bf16(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT);
 #endif
 #endif
@@ -8547,7 +8547,7 @@ int Gemm_x86::create_pipeline_bf16s(const Option& opt)
     return 0;
 }
 
-static int gemm_AT_x86_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_x86_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
@@ -8616,14 +8616,14 @@ static int gemm_AT_x86_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
                 gemm_transB_packed_tile_bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
             }
 
-            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
         }
     }
 
     return 0;
 }
 
-static int gemm_BT_x86_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_BT_x86_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
@@ -8681,14 +8681,14 @@ static int gemm_BT_x86_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
                 gemm_transB_packed_tile_bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
             }
 
-            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
         }
     }
 
     return 0;
 }
 
-static int gemm_AT_BT_x86_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_BT_x86_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_bf16(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
@@ -8722,14 +8722,14 @@ static int gemm_AT_BT_x86_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
                 gemm_transB_packed_tile_bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
             }
 
-            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
         }
     }
 
     return 0;
 }
 
-static int gemm_x86_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_x86_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -8820,7 +8820,7 @@ static int gemm_x86_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
                     gemm_transB_packed_tile_bf16_avx512bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
                 }
 
-                unpack_output_tile_fp32_to_bf16_avx512bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+                unpack_output_tile_fp32_to_bf16_avx512bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
             }
         }
 
@@ -8910,7 +8910,7 @@ static int gemm_x86_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
                 gemm_transB_packed_tile_bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
             }
 
-            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, output_transpose);
+            unpack_output_tile_fp32_to_bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
         }
     }
 
@@ -9011,23 +9011,6 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                 C = C_fp32;
             }
-
-            // pre-multiply C with beta
-            if (beta != 1.f)
-            {
-                Mat C2;
-                C2.create_like(C, opt.workspace_allocator);
-                if (C2.empty())
-                    return -100;
-
-                const int size = C.total() * C.elempack;
-                for (int i = 0; i < size; i++)
-                {
-                    C2[i] = C[i] * beta;
-                }
-
-                C = C2;
-            }
         }
     }
 
@@ -9062,23 +9045,23 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_x86_bf16s(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_BT_x86_bf16s(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_x86_bf16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_x86_bf16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_x86_bf16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_BT_x86_bf16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_x86_bf16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_x86_bf16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
 
     return ret;
