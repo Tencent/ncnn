@@ -200,7 +200,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         {
 #if __AVX2__
             __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(A_hstep));
-#else
+#endif
             const unsigned short* p1 = p0 + A_hstep * 1;
             const unsigned short* p2 = p0 + A_hstep * 2;
             const unsigned short* p3 = p0 + A_hstep * 3;
@@ -208,7 +208,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p5 = p0 + A_hstep * 5;
             const unsigned short* p6 = p0 + A_hstep * 6;
             const unsigned short* p7 = p0 + A_hstep * 7;
-#endif
 
             int kk = 0;
 #if __AVX512BF16__
@@ -1238,7 +1237,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         {
 #if __AVX2__
             __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(B_hstep));
-#else
+#endif
             const unsigned short* p1 = p0 + B_hstep * 1;
             const unsigned short* p2 = p0 + B_hstep * 2;
             const unsigned short* p3 = p0 + B_hstep * 3;
@@ -1246,7 +1245,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             const unsigned short* p5 = p0 + B_hstep * 5;
             const unsigned short* p6 = p0 + B_hstep * 6;
             const unsigned short* p7 = p0 + B_hstep * 7;
-#endif
 
             int kk = 0;
 #if __AVX512BF16__
@@ -3930,47 +3928,64 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _ff = _mm512_mul_ps(_ff, _alpha);
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+            __m256i _bf1 = float2bfloat_avx512(_f1);
+            __m256i _bf2 = float2bfloat_avx512(_f2);
+            __m256i _bf3 = float2bfloat_avx512(_f3);
+            __m256i _bf4 = float2bfloat_avx512(_f4);
+            __m256i _bf5 = float2bfloat_avx512(_f5);
+            __m256i _bf6 = float2bfloat_avx512(_f6);
+            __m256i _bf7 = float2bfloat_avx512(_f7);
+            __m256i _bf8 = float2bfloat_avx512(_f8);
+            __m256i _bf9 = float2bfloat_avx512(_f9);
+            __m256i _bfa = float2bfloat_avx512(_fa);
+            __m256i _bfb = float2bfloat_avx512(_fb);
+            __m256i _bfc = float2bfloat_avx512(_fc);
+            __m256i _bfd = float2bfloat_avx512(_fd);
+            __m256i _bfe = float2bfloat_avx512(_fe);
+            __m256i _bff = float2bfloat_avx512(_ff);
+
             // store bf16
             if (output_transpose)
             {
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), float2bfloat_avx512(_f1));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), float2bfloat_avx512(_f2));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), float2bfloat_avx512(_f4));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), float2bfloat_avx512(_f5));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), float2bfloat_avx512(_f6));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), float2bfloat_avx512(_f7));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 8), float2bfloat_avx512(_f8));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 9), float2bfloat_avx512(_f9));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 10), float2bfloat_avx512(_fa));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 11), float2bfloat_avx512(_fb));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 12), float2bfloat_avx512(_fc));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 13), float2bfloat_avx512(_fd));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 14), float2bfloat_avx512(_fe));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 15), float2bfloat_avx512(_ff));
-                p0 += 16 * out_hstep;
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), _bf2);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), _bf3);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), _bf4);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), _bf5);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), _bf6);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), _bf7);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 8), _bf8);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 9), _bf9);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 10), _bfa);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 11), _bfb);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 12), _bfc);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 13), _bfd);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 14), _bfe);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 15), _bff);
+                p0 += out_hstep * 16;
             }
             else
             {
-                transpose16x16_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7, _f8, _f9, _fa, _fb, _fc, _fd, _fe, _ff);
+                transpose16x16_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7, _bf8, _bf9, _bfa, _bfb, _bfc, _bfd, _bfe, _bff);
 
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), float2bfloat_avx512(_f1));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), float2bfloat_avx512(_f2));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), float2bfloat_avx512(_f4));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), float2bfloat_avx512(_f5));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), float2bfloat_avx512(_f6));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), float2bfloat_avx512(_f7));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 8), float2bfloat_avx512(_f8));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 9), float2bfloat_avx512(_f9));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 10), float2bfloat_avx512(_fa));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 11), float2bfloat_avx512(_fb));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 12), float2bfloat_avx512(_fc));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 13), float2bfloat_avx512(_fd));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 14), float2bfloat_avx512(_fe));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 15), float2bfloat_avx512(_ff));
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), _bf2);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), _bf3);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), _bf4);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), _bf5);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), _bf6);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), _bf7);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 8), _bf8);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 9), _bf9);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 10), _bfa);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 11), _bfb);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 12), _bfc);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 13), _bfd);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 14), _bfe);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 15), _bff);
                 p0 += 16;
             }
         }
@@ -4225,37 +4240,47 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f7 = _mm512_mul_ps(_f7, _alpha);
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+            __m256i _bf1 = float2bfloat_avx512(_f1);
+            __m256i _bf2 = float2bfloat_avx512(_f2);
+            __m256i _bf3 = float2bfloat_avx512(_f3);
+            __m256i _bf4 = float2bfloat_avx512(_f4);
+            __m256i _bf5 = float2bfloat_avx512(_f5);
+            __m256i _bf6 = float2bfloat_avx512(_f6);
+            __m256i _bf7 = float2bfloat_avx512(_f7);
+
             if (output_transpose)
             {
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), float2bfloat_avx512(_f1));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), float2bfloat_avx512(_f2));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), float2bfloat_avx512(_f4));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), float2bfloat_avx512(_f5));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), float2bfloat_avx512(_f6));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), float2bfloat_avx512(_f7));
-                p0 += 8 * out_hstep;
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), _bf2);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), _bf3);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 4), _bf4);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 5), _bf5);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 6), _bf6);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 7), _bf7);
+                p0 += out_hstep * 8;
             }
             else
             {
-                // _f0.._f7 are columns (16 rows each), store as rows
-                float tmp[128];
-                _mm512_storeu_ps(tmp, _f0);
-                _mm512_storeu_ps(tmp + 16, _f1);
-                _mm512_storeu_ps(tmp + 32, _f2);
-                _mm512_storeu_ps(tmp + 48, _f3);
-                _mm512_storeu_ps(tmp + 64, _f4);
-                _mm512_storeu_ps(tmp + 80, _f5);
-                _mm512_storeu_ps(tmp + 96, _f6);
-                _mm512_storeu_ps(tmp + 112, _f7);
-                for (int s = 0; s < 16; s++)
-                {
-                    for (int t = 0; t < 8; t++)
-                    {
-                        *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + t)) = float32_to_bfloat16(tmp[t * 16 + s]);
-                    }
-                }
+                transpose16x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+                _mm_storeu_si128((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _mm256_extractf128_si256(_bf0, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _mm256_extractf128_si256(_bf1, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _mm256_extractf128_si256(_bf1, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _mm256_extractf128_si256(_bf2, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _mm256_extractf128_si256(_bf2, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _mm256_extractf128_si256(_bf3, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _mm256_extractf128_si256(_bf3, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 8), _mm256_extractf128_si256(_bf4, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 9), _mm256_extractf128_si256(_bf4, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 10), _mm256_extractf128_si256(_bf5, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 11), _mm256_extractf128_si256(_bf5, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 12), _mm256_extractf128_si256(_bf6, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 13), _mm256_extractf128_si256(_bf6, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 14), _mm256_extractf128_si256(_bf7, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 15), _mm256_extractf128_si256(_bf7, 1));
+                p0 += 8;
             }
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
@@ -4282,7 +4307,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f1 = _mm512_permute_ps(_f1, _MM_SHUFFLE(2, 1, 0, 3));
                 _f3 = _mm512_permute_ps(_f3, _MM_SHUFFLE(2, 1, 0, 3));
             }
-            // now _f0.._f3 are columns: _fi = [r0ci r1ci r2ci r3ci | r4ci ... | r8ci ... | rcCi ...]
 
             if (pC)
             {
@@ -4411,28 +4435,40 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f3 = _mm512_mul_ps(_f3, _alpha);
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+            __m256i _bf1 = float2bfloat_avx512(_f1);
+            __m256i _bf2 = float2bfloat_avx512(_f2);
+            __m256i _bf3 = float2bfloat_avx512(_f3);
+
             if (output_transpose)
             {
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), float2bfloat_avx512(_f1));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), float2bfloat_avx512(_f2));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), float2bfloat_avx512(_f3));
-                p0 += 4 * out_hstep;
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 2), _bf2);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep * 3), _bf3);
+                p0 += out_hstep * 4;
             }
             else
             {
-                float tmp[64];
-                _mm512_storeu_ps(tmp, _f0);
-                _mm512_storeu_ps(tmp + 16, _f1);
-                _mm512_storeu_ps(tmp + 32, _f2);
-                _mm512_storeu_ps(tmp + 48, _f3);
-                for (int s = 0; s < 16; s++)
-                {
-                    for (int t = 0; t < 4; t++)
-                    {
-                        *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + t)) = float32_to_bfloat16(tmp[t * 16 + s]);
-                    }
-                }
+                transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
+
+                _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
+                _mm_storeh_pd((double*)(p0 + out_hstep), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 2), _mm256_extractf128_si256(_bf0, 1));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 3), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _mm256_extractf128_si256(_bf1, 0));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 5), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 6), _mm256_extractf128_si256(_bf1, 1));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 7), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8), _mm256_extractf128_si256(_bf2, 0));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 9), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 10), _mm256_extractf128_si256(_bf2, 1));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 11), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 12), _mm256_extractf128_si256(_bf3, 0));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 13), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                _mm_storel_epi64((__m128i*)(p0 + out_hstep * 14), _mm256_extractf128_si256(_bf3, 1));
+                _mm_storeh_pd((double*)(p0 + out_hstep * 15), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
+                p0 += 4;
             }
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -4529,29 +4565,26 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f1 = _mm512_mul_ps(_f1, _alpha);
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+            __m256i _bf1 = float2bfloat_avx512(_f1);
+
             if (output_transpose)
             {
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
-                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), float2bfloat_avx512(_f1));
-                p0 += 2 * out_hstep;
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
+                _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
+                p0 += out_hstep * 2;
             }
             else
             {
-                float tmp[32];
-                _mm512_storeu_ps(tmp, _f0);
-                _mm512_storeu_ps(tmp + 16, _f1);
-                for (int s = 0; s < 16; s++)
-                {
-                    for (int t = 0; t < 2; t++)
-                    {
-                        *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + t)) = float32_to_bfloat16(tmp[t * 16 + s]);
-                    }
-                }
+                transpose16x2_epi16(_bf0, _bf1);
+                __m512i _bf01 = combine8x2_epi32(_bf0, _bf1);
+                __m512i _vindex = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(out_hstep));
+                _mm512_i32scatter_epi32(p0, _vindex, _bf01, sizeof(unsigned short));
+                p0 += 2;
             }
         }
         for (; jj < max_jj; jj++)
         {
-            // 16x1: no deshuffle needed
             __m512 _f0 = _mm512_load_ps(pp);
             pp += 16;
 
@@ -4609,18 +4642,35 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f0 = _mm512_mul_ps(_f0, _mm512_set1_ps(alpha));
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+
             if (output_transpose)
             {
-                _mm256_storeu_si256((__m256i*)p0, float2bfloat_avx512(_f0));
+                _mm256_storeu_si256((__m256i*)p0, _bf0);
                 p0 += out_hstep;
             }
             else
             {
-                for (int s = 0; s < 16; s++)
-                {
-                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj)) = float32_to_bfloat16(((const float*)&_f0)[s]);
-                }
-                p0 += out_hstep * 16;
+                unsigned short tmp[16];
+                _mm256_storeu_si256((__m256i*)tmp, _bf0);
+
+                p0[0] = tmp[0];
+                p0[out_hstep] = tmp[1];
+                p0[out_hstep * 2] = tmp[2];
+                p0[out_hstep * 3] = tmp[3];
+                p0[out_hstep * 4] = tmp[4];
+                p0[out_hstep * 5] = tmp[5];
+                p0[out_hstep * 6] = tmp[6];
+                p0[out_hstep * 7] = tmp[7];
+                p0[out_hstep * 8] = tmp[8];
+                p0[out_hstep * 9] = tmp[9];
+                p0[out_hstep * 10] = tmp[10];
+                p0[out_hstep * 11] = tmp[11];
+                p0[out_hstep * 12] = tmp[12];
+                p0[out_hstep * 13] = tmp[13];
+                p0[out_hstep * 14] = tmp[14];
+                p0[out_hstep * 15] = tmp[15];
+                p0++;
             }
         }
     }
@@ -4954,28 +5004,34 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f7 = _mm512_mul_ps(_f7, _alpha);
             }
 
+            __m256i _bf0 = float2bfloat_avx512(_f0);
+            __m256i _bf1 = float2bfloat_avx512(_f1);
+            __m256i _bf2 = float2bfloat_avx512(_f2);
+            __m256i _bf3 = float2bfloat_avx512(_f3);
+            __m256i _bf4 = float2bfloat_avx512(_f4);
+            __m256i _bf5 = float2bfloat_avx512(_f5);
+            __m256i _bf6 = float2bfloat_avx512(_f6);
+            __m256i _bf7 = float2bfloat_avx512(_f7);
+
             if (output_transpose)
             {
-                // Deshuffled layout in each __m512:
-                // _f0: 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
-                // Extract low/high 256-bit halves to get 4-wide columns
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_mm512_extractf32x8_ps(_f0, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep), float2bfloat_avx(_mm512_extractf32x8_ps(_f1, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), float2bfloat_avx(_mm512_extractf32x8_ps(_f2, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), float2bfloat_avx(_mm512_extractf32x8_ps(_f3, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), float2bfloat_avx(_mm512_extractf32x8_ps(_f4, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), float2bfloat_avx(_mm512_extractf32x8_ps(_f5, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), float2bfloat_avx(_mm512_extractf32x8_ps(_f6, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), float2bfloat_avx(_mm512_extractf32x8_ps(_f7, 0)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 8), float2bfloat_avx(_mm512_extractf32x8_ps(_f0, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 9), float2bfloat_avx(_mm512_extractf32x8_ps(_f1, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 10), float2bfloat_avx(_mm512_extractf32x8_ps(_f2, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 11), float2bfloat_avx(_mm512_extractf32x8_ps(_f3, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 12), float2bfloat_avx(_mm512_extractf32x8_ps(_f4, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 13), float2bfloat_avx(_mm512_extractf32x8_ps(_f5, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 14), float2bfloat_avx(_mm512_extractf32x8_ps(_f6, 1)));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 15), float2bfloat_avx(_mm512_extractf32x8_ps(_f7, 1)));
-                p0 += 16 * out_hstep;
+                _mm_storeu_si128((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _mm256_extractf128_si256(_bf1, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _mm256_extractf128_si256(_bf2, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _mm256_extractf128_si256(_bf3, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _mm256_extractf128_si256(_bf4, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _mm256_extractf128_si256(_bf5, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _mm256_extractf128_si256(_bf6, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _mm256_extractf128_si256(_bf7, 0));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 8), _mm256_extractf128_si256(_bf0, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 9), _mm256_extractf128_si256(_bf1, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 10), _mm256_extractf128_si256(_bf2, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 11), _mm256_extractf128_si256(_bf3, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 12), _mm256_extractf128_si256(_bf4, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 13), _mm256_extractf128_si256(_bf5, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 14), _mm256_extractf128_si256(_bf6, 1));
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 15), _mm256_extractf128_si256(_bf7, 1));
+                p0 += out_hstep * 16;
             }
             else
             {
@@ -5244,32 +5300,39 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f7 = _mm256_mul_ps(_f7, _alpha);
             }
 
-            // After deshuffle, _f0.._f7 are columns: _fi = [row0_coli, row1_coli, ..., row7_coli]
+            __m128i _bf0 = float2bfloat_avx(_f0);
+            __m128i _bf1 = float2bfloat_avx(_f1);
+            __m128i _bf2 = float2bfloat_avx(_f2);
+            __m128i _bf3 = float2bfloat_avx(_f3);
+            __m128i _bf4 = float2bfloat_avx(_f4);
+            __m128i _bf5 = float2bfloat_avx(_f5);
+            __m128i _bf6 = float2bfloat_avx(_f6);
+            __m128i _bf7 = float2bfloat_avx(_f7);
+
             if (output_transpose)
             {
-                // For transpose output, each column vector stores directly as a row
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_f0));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep), float2bfloat_avx(_f1));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), float2bfloat_avx(_f2));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), float2bfloat_avx(_f3));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), float2bfloat_avx(_f4));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), float2bfloat_avx(_f5));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), float2bfloat_avx(_f6));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), float2bfloat_avx(_f7));
-                p0 += 8 * out_hstep;
+                _mm_storeu_si128((__m128i*)p0, _bf0);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _bf4);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _bf5);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _bf6);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _bf7);
+                p0 += out_hstep * 8;
             }
             else
             {
-                // Transpose columns to rows, then store
-                transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_f0));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep), float2bfloat_avx(_f1));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), float2bfloat_avx(_f2));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), float2bfloat_avx(_f3));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), float2bfloat_avx(_f4));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), float2bfloat_avx(_f5));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), float2bfloat_avx(_f6));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), float2bfloat_avx(_f7));
+                transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+
+                _mm_storeu_si128((__m128i*)p0, _bf0);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 4), _bf4);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 5), _bf5);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 6), _bf6);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 7), _bf7);
                 p0 += 8;
             }
         }
@@ -5405,16 +5468,33 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f3 = _mm256_mul_ps(_f3, _alpha);
             }
 
+            __m128i _bf0 = float2bfloat_avx(_f0);
+            __m128i _bf1 = float2bfloat_avx(_f1);
+            __m128i _bf2 = float2bfloat_avx(_f2);
+            __m128i _bf3 = float2bfloat_avx(_f3);
+
             if (output_transpose)
             {
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_f0));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep), float2bfloat_avx(_f1));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), float2bfloat_avx(_f2));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), float2bfloat_avx(_f3));
-                p0 += 4 * out_hstep;
+                _mm_storeu_si128((__m128i*)p0, _bf0);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 2), _bf2);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep * 3), _bf3);
+                p0 += out_hstep * 4;
             }
             else
             {
+                // transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                //
+                // _mm_storel_epi64((__m128i*)p0, _bf0);
+                // _mm_storeu_pd((double*)(p0 + out_hstep), _mm_castsi128_pd(_bf0));
+                // _mm_storel_epi64((__m128i*)(p0 + out_hstep * 2), _bf1);
+                // _mm_storeu_pd((double*)(p0 + out_hstep * 3), _mm_castsi128_pd(_bf1));
+                // _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _bf2);
+                // _mm_storeu_pd((double*)(p0 + out_hstep * 5), _mm_castsi128_pd(_bf2));
+                // _mm_storel_epi64((__m128i*)(p0 + out_hstep * 6), _bf3);
+                // _mm_storeu_pd((double*)(p0 + out_hstep * 7), _mm_castsi128_pd(_bf3));
+                // p0 += 4;
+
                 float tmp[32];
                 _mm256_storeu_ps(tmp, _f0);
                 _mm256_storeu_ps(tmp + 8, _f1);
@@ -5427,6 +5507,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + t)) = float32_to_bfloat16(tmp[t * 8 + s]);
                     }
                 }
+
+                p0 += 4;
             }
         }
         for (; jj + 1 < max_jj; jj += 2)
@@ -5514,19 +5596,39 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f1 = _mm256_mul_ps(_f1, _alpha);
             }
 
+            __m128i _bf0 = float2bfloat_avx(_f0);
+            __m128i _bf1 = float2bfloat_avx(_f1);
+
             if (output_transpose)
             {
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_f0));
-                _mm_storeu_si128((__m128i*)(p0 + out_hstep), float2bfloat_avx(_f1));
-                p0 += 2 * out_hstep;
+                _mm_storeu_si128((__m128i*)p0, _bf0);
+                _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
+                p0 += out_hstep * 2;
             }
             else
             {
-                for (int s = 0; s < 8; s++)
-                {
-                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj)) = float32_to_bfloat16(((const float*)&_f0)[s]);
-                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj + 1)) = float32_to_bfloat16(((const float*)&_f1)[s]);
-                }
+                unsigned short sum0[8];
+                unsigned short sum1[8];
+                _mm_storeu_si128((__m128i*)sum0, _bf0);
+                _mm_storeu_si128((__m128i*)sum1, _bf1);
+
+                p0[0] = sum0[0];
+                p0[1] = sum1[0];
+                p0[out_hstep] = sum0[1];
+                p0[out_hstep + 1] = sum1[1];
+                p0[out_hstep * 2] = sum0[2];
+                p0[out_hstep * 2 + 1] = sum1[2];
+                p0[out_hstep * 3] = sum0[3];
+                p0[out_hstep * 3 + 1] = sum1[3];
+                p0[out_hstep * 4] = sum0[4];
+                p0[out_hstep * 4 + 1] = sum1[4];
+                p0[out_hstep * 5] = sum0[5];
+                p0[out_hstep * 5 + 1] = sum1[5];
+                p0[out_hstep * 6] = sum0[6];
+                p0[out_hstep * 6 + 1] = sum1[6];
+                p0[out_hstep * 7] = sum0[7];
+                p0[out_hstep * 7 + 1] = sum1[7];
+                p0 += 2;
             }
         }
         for (; jj < max_jj; jj++)
@@ -5583,17 +5685,27 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f = _mm256_mul_ps(_f, _mm256_set1_ps(alpha));
             }
 
+            __m128i _bf = float2bfloat_avx(_f);
+
             if (output_transpose)
             {
-                _mm_storeu_si128((__m128i*)p0, float2bfloat_avx(_f));
+                _mm_storeu_si128((__m128i*)p0, _bf);
                 p0 += out_hstep;
             }
             else
             {
-                for (int s = 0; s < 8; s++)
-                {
-                    *((unsigned short*)top_blob + (i + ii + s) * out_hstep + (j + jj)) = float32_to_bfloat16(((const float*)&_f)[s]);
-                }
+                unsigned short sum0[8];
+                _mm_storeu_si128((__m128i*)sum0, _bf);
+
+                p0[0] = sum0[0];
+                p0[out_hstep] = sum0[1];
+                p0[out_hstep * 2] = sum0[2];
+                p0[out_hstep * 3] = sum0[3];
+                p0[out_hstep * 4] = sum0[4];
+                p0[out_hstep * 5] = sum0[5];
+                p0[out_hstep * 6] = sum0[6];
+                p0[out_hstep * 7] = sum0[7];
+                p0++;
             }
         }
     }
