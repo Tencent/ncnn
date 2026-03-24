@@ -592,207 +592,224 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
     {
-#if __AVX512BF16__
+        const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
+
         if (elempack == 16)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 16;
-
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
-                for (int p = 0; p < 8; p++)
-                {
-                    for (int m = 0; m < 16; m++)
-                    {
-                        pp[m * 2] = p0[m * 16 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 16 + p * 2 + 1];
-                    }
-                    pp += 32;
-                }
+                __m512i _r0 = _mm512_loadu_si512((const __m512i*)p0);
+                __m512i _r1 = _mm512_loadu_si512((const __m512i*)(p0 + 32));
+                __m512i _r2 = _mm512_loadu_si512((const __m512i*)(p0 + 64));
+                __m512i _r3 = _mm512_loadu_si512((const __m512i*)(p0 + 96));
+                __m512i _r4 = _mm512_loadu_si512((const __m512i*)(p0 + 128));
+                __m512i _r5 = _mm512_loadu_si512((const __m512i*)(p0 + 160));
+                __m512i _r6 = _mm512_loadu_si512((const __m512i*)(p0 + 192));
+                __m512i _r7 = _mm512_loadu_si512((const __m512i*)(p0 + 224));
+
+                __m512i w0 = _mm512_shuffle_i64x2(_r0, _r1, 0x44);
+                __m512i w1 = _mm512_shuffle_i64x2(_r0, _r1, 0xEE);
+                __m512i w2 = _mm512_shuffle_i64x2(_r2, _r3, 0x44);
+                __m512i w3 = _mm512_shuffle_i64x2(_r2, _r3, 0xEE);
+                __m512i w4 = _mm512_shuffle_i64x2(_r4, _r5, 0x44);
+                __m512i w5 = _mm512_shuffle_i64x2(_r4, _r5, 0xEE);
+                __m512i w6 = _mm512_shuffle_i64x2(_r6, _r7, 0x44);
+                __m512i w7 = _mm512_shuffle_i64x2(_r6, _r7, 0xEE);
+
+                __m512i a0 = _mm512_unpacklo_epi32(w0, w1);
+                __m512i a1 = _mm512_unpackhi_epi32(w0, w1);
+                __m512i a2 = _mm512_unpacklo_epi32(w2, w3);
+                __m512i a3 = _mm512_unpackhi_epi32(w2, w3);
+                __m512i a4 = _mm512_unpacklo_epi32(w4, w5);
+                __m512i a5 = _mm512_unpackhi_epi32(w4, w5);
+                __m512i a6 = _mm512_unpacklo_epi32(w6, w7);
+                __m512i a7 = _mm512_unpackhi_epi32(w6, w7);
+
+                __m512i b0 = _mm512_unpacklo_epi64(a0, a2);
+                __m512i b1 = _mm512_unpackhi_epi64(a0, a2);
+                __m512i b2 = _mm512_unpacklo_epi64(a1, a3);
+                __m512i b3 = _mm512_unpackhi_epi64(a1, a3);
+                __m512i b4 = _mm512_unpacklo_epi64(a4, a6);
+                __m512i b5 = _mm512_unpackhi_epi64(a4, a6);
+                __m512i b6 = _mm512_unpacklo_epi64(a5, a7);
+                __m512i b7 = _mm512_unpackhi_epi64(a5, a7);
+
+#if __AVX512BF16__
+                __m512i idx_l = _mm512_set_epi32(27, 26, 19, 18, 25, 24, 17, 16, 11, 10, 3, 2, 9, 8, 1, 0);
+                __m512i idx_r = _mm512_set_epi32(31, 30, 23, 22, 29, 28, 21, 20, 15, 14, 7, 6, 13, 12, 5, 4);
+
+                __m512i _p0 = _mm512_permutex2var_epi32(b0, idx_l, b4);
+                __m512i _p1 = _mm512_permutex2var_epi32(b1, idx_l, b5);
+                __m512i _p2 = _mm512_permutex2var_epi32(b2, idx_l, b6);
+                __m512i _p3 = _mm512_permutex2var_epi32(b3, idx_l, b7);
+                __m512i _p4 = _mm512_permutex2var_epi32(b0, idx_r, b4);
+                __m512i _p5 = _mm512_permutex2var_epi32(b1, idx_r, b5);
+                __m512i _p6 = _mm512_permutex2var_epi32(b2, idx_r, b6);
+                __m512i _p7 = _mm512_permutex2var_epi32(b3, idx_r, b7);
+
+#else // __AVX512BF16__
+                __m512i c0 = _mm512_unpacklo_epi64(b0, b4);
+                __m512i c1 = _mm512_unpackhi_epi64(b0, b4);
+                __m512i c2 = _mm512_unpacklo_epi64(b1, b5);
+                __m512i c3 = _mm512_unpackhi_epi64(b1, b5);
+                __m512i c4 = _mm512_unpacklo_epi64(b2, b6);
+                __m512i c5 = _mm512_unpackhi_epi64(b2, b6);
+                __m512i c6 = _mm512_unpacklo_epi64(b3, b7);
+                __m512i c7 = _mm512_unpackhi_epi64(b3, b7);
+
+                __m512i idx_l = _mm512_set_epi32(27, 19, 26, 18, 25, 17, 24, 16, 11, 3, 10, 2, 9, 1, 8, 0);
+                __m512i idx_r = _mm512_set_epi32(31, 23, 30, 22, 29, 21, 28, 20, 15, 7, 14, 6, 13, 5, 12, 4);
+
+                __m512i _p0 = _mm512_permutex2var_epi32(c0, idx_l, c1);
+                __m512i _p1 = _mm512_permutex2var_epi32(c2, idx_l, c3);
+                __m512i _p2 = _mm512_permutex2var_epi32(c4, idx_l, c5);
+                __m512i _p3 = _mm512_permutex2var_epi32(c6, idx_l, c7);
+                __m512i _p4 = _mm512_permutex2var_epi32(c0, idx_r, c1);
+                __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_r, c3);
+                __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_r, c5);
+                __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_r, c7);
+
+#endif // __AVX512BF16__
+                _mm512_storeu_si512((__m512i*)pp, _p0);
+                _mm512_storeu_si512((__m512i*)(pp + 32), _p1);
+                _mm512_storeu_si512((__m512i*)(pp + 64), _p2);
+                _mm512_storeu_si512((__m512i*)(pp + 96), _p3);
+                _mm512_storeu_si512((__m512i*)(pp + 128), _p4);
+                _mm512_storeu_si512((__m512i*)(pp + 160), _p5);
+                _mm512_storeu_si512((__m512i*)(pp + 192), _p6);
+                _mm512_storeu_si512((__m512i*)(pp + 224), _p7);
+                pp += 256;
                 p0 += A_hstep * 16;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 16; m++)
-                {
-                    pp[m * 2] = p0[m * 16 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 16 + kk_offset + 1];
-                }
-                pp += 32;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 16; m++)
-                {
-                    pp[m] = p0[m * 16 + kk_offset];
-                }
-                pp += 16;
             }
         }
         if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
-
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                for (int p = 0; p < 4; p++)
-                {
-                    for (int m = 0; m < 8; m++)
-                    {
-                        pp[m * 2] = p0[m * 8 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 8 + p * 2 + 1];
-                    }
-                    const unsigned short* p1 = p0 + 8 * 8;
-                    for (int m = 0; m < 8; m++)
-                    {
-                        pp[16 + m * 2] = p1[m * 8 + p * 2];
-                        pp[16 + m * 2 + 1] = p1[m * 8 + p * 2 + 1];
-                    }
-                    pp += 32;
-                }
+                __m512i _r0 = _mm512_loadu_si512((const __m512i*)p0);
+                __m512i _r1 = _mm512_loadu_si512((const __m512i*)(p0 + 32));
+                __m512i _r2 = _mm512_loadu_si512((const __m512i*)(p0 + 64));
+                __m512i _r3 = _mm512_loadu_si512((const __m512i*)(p0 + 96));
+#if __AVX512BF16__
+                __m512i idx0 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 28, 24, 20, 16, 12, 8, 4, 0);
+                __m512i idx1 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 29, 25, 21, 17, 13, 9, 5, 1);
+                __m512i idx2 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 30, 26, 22, 18, 14, 10, 6, 2);
+                __m512i idx3 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 31, 27, 23, 19, 15, 11, 7, 3);
+
+                __m512i lo0 = _mm512_permutex2var_epi32(_r0, idx0, _r1);
+                __m512i lo1 = _mm512_permutex2var_epi32(_r0, idx1, _r1);
+                __m512i lo2 = _mm512_permutex2var_epi32(_r0, idx2, _r1);
+                __m512i lo3 = _mm512_permutex2var_epi32(_r0, idx3, _r1);
+
+                __m512i hi0 = _mm512_permutex2var_epi32(_r2, idx0, _r3);
+                __m512i hi1 = _mm512_permutex2var_epi32(_r2, idx1, _r3);
+                __m512i hi2 = _mm512_permutex2var_epi32(_r2, idx2, _r3);
+                __m512i hi3 = _mm512_permutex2var_epi32(_r2, idx3, _r3);
+
+                __m512i _p0 = _mm512_inserti64x4(lo0, _mm512_castsi512_si256(hi0), 1);
+                __m512i _p1 = _mm512_inserti64x4(lo1, _mm512_castsi512_si256(hi1), 1);
+                __m512i _p2 = _mm512_inserti64x4(lo2, _mm512_castsi512_si256(hi2), 1);
+                __m512i _p3 = _mm512_inserti64x4(lo3, _mm512_castsi512_si256(hi3), 1);
+#else  // __AVX512BF16__
+                __m512i id0 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 28, 24, 20, 16, 12, 8, 4, 0);
+                __m512i id1 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 29, 25, 21, 17, 13, 9, 5, 1);
+                __m512i id2 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 30, 26, 22, 18, 14, 10, 6, 2);
+                __m512i id3 = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 31, 27, 23, 19, 15, 11, 7, 3);
+
+                __m512i p0_lo = _mm512_permutex2var_epi32(_r0, id0, _r1);
+                __m512i p1_lo = _mm512_permutex2var_epi32(_r0, id1, _r1);
+                __m512i p2_lo = _mm512_permutex2var_epi32(_r0, id2, _r1);
+                __m512i p3_lo = _mm512_permutex2var_epi32(_r0, id3, _r1);
+
+                __m512i p0_hi = _mm512_permutex2var_epi32(_r2, id0, _rv3);
+                __m512i p1_hi = _mm512_permutex2var_epi32(_r2, id1, _rv3);
+                __m512i p2_hi = _mm512_permutex2var_epi32(_r2, id2, _rv3);
+                __m512i p3_hi = _mm512_permutex2var_epi32(_r2, id3, _rv3);
+
+                __m512i cp0 = _mm512_inserti64x4(p0_lo, _mm512_castsi512_si256(p0_hi), 1);
+                __m512i cp1 = _mm512_inserti64x4(p1_lo, _mm512_castsi512_si256(p1_hi), 1);
+                __m512i cp2 = _mm512_inserti64x4(p2_lo, _mm512_castsi512_si256(p2_hi), 1);
+                __m512i cp3 = _mm512_inserti64x4(p3_lo, _mm512_castsi512_si256(p3_hi), 1);
+
+                __m512i shuf = _mm512_set4_epi32(0x0f0e0b0a, 0x07060302, 0x0d0c0908, 0x05040100);
+                __m512i pq = _mm512_set_epi64(7, 5, 3, 1, 6, 4, 2, 0);
+
+                __m512i s0 = _mm512_shuffle_epi8(cp0, shuf);
+                __m512i s1 = _mm512_shuffle_epi8(cp1, shuf);
+                __m512i s2 = _mm512_shuffle_epi8(cp2, shuf);
+                __m512i s3 = _mm512_shuffle_epi8(cp3, shuf);
+
+                __m512i _p0 = _mm512_permutexvar_epi64(pq, s0);
+                __m512i _p1 = _mm512_permutexvar_epi64(pq, s1);
+                __m512i _p2 = _mm512_permutexvar_epi64(pq, s2);
+                __m512i _p3 = _mm512_permutexvar_epi64(pq, s3);
+#endif // __AVX512BF16__
+                _mm512_storeu_si512((__m512i*)pp, _p0);
+                _mm512_storeu_si512((__m512i*)(pp + 32), _p1);
+                _mm512_storeu_si512((__m512i*)(pp + 64), _p2);
+                _mm512_storeu_si512((__m512i*)(pp + 96), _p3);
+                pp += 128;
                 p0 += A_hstep * 8;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m * 2] = p0[m * 8 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 8 + kk_offset + 1];
-                }
-                const unsigned short* p1 = p0 + 8 * 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[16 + m * 2] = p1[m * 8 + kk_offset];
-                    pp[16 + m * 2 + 1] = p1[m * 8 + kk_offset + 1];
-                }
-                pp += 32;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m] = p0[m * 8 + kk_offset];
-                }
-                const unsigned short* p1 = p0 + 8 * 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[8 + m] = p1[m * 8 + kk_offset];
-                }
-                pp += 16;
             }
         }
         if (elempack == 4)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                for (int p = 0; p < 2; p++)
-                {
-                    for (int m = 0; m < 16; m++)
-                    {
-                        pp[m * 2] = p0[m * 4 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 4 + p * 2 + 1];
-                    }
-                    pp += 32;
-                }
+                __m512i _r0 = _mm512_loadu_si512((const __m512i*)p0);
+                __m512i _r1 = _mm512_loadu_si512((const __m512i*)(p0 + 32));
+#if __AVX512BF16__
+                __m512i idx_lo = _mm512_setr_epi32(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
+                __m512i idx_hi = _mm512_setr_epi32(1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31);
+                __m512i _p0 = _mm512_permutex2var_epi32(_r0, idx_lo, _r1);
+                __m512i _p1 = _mm512_permutex2var_epi32(_r0, idx_hi, _r1);
+#else  // __AVX512BF16__
+                __m512i idx_lo = _mm512_set_epi16(61, 57, 53, 49, 45, 41, 37, 33, 29, 25, 21, 17, 13, 9, 5, 1, 60, 56, 52, 48, 44, 40, 36, 32, 28, 24, 20, 16, 12, 8, 4, 0);
+                __m512i idx_hi = _mm512_set_epi16(63, 59, 55, 51, 47, 43, 39, 35, 31, 27, 23, 19, 15, 11, 7, 3, 62, 58, 54, 50, 46, 42, 38, 34, 30, 26, 22, 18, 14, 10, 6, 2);
+                __m512i _p0 = _mm512_permutex2var_epi16(_r0, idx_lo, _r1);
+                __m512i _p1 = _mm512_permutex2var_epi16(_r0, idx_hi, _r1);
+#endif // __AVX512BF16__
+                _mm512_storeu_si512((__m512i*)pp, _p0);
+                _mm512_storeu_si512((__m512i*)(pp + 32), _p1);
+                pp += 64;
                 p0 += A_hstep * 4;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 4;
-                for (int m = 0; m < 16; m++)
-                {
-                    pp[m * 2] = p0[m * 4 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 4 + kk_offset + 1];
-                }
-                pp += 32;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 4;
-                for (int m = 0; m < 16; m++)
-                {
-                    pp[m] = p0[m * 4 + kk_offset];
-                }
-                pp += 16;
             }
         }
         if (elempack == 1)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
-
             int kk = 0;
+#if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[A_hstep];
-                pp[2] = p0[1];
-                pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2];
-                pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3];
-                pp[7] = p0[A_hstep + 3];
-                pp[8] = p0[4];
-                pp[9] = p0[A_hstep + 4];
-                pp[10] = p0[5];
-                pp[11] = p0[A_hstep + 5];
-                pp[12] = p0[6];
-                pp[13] = p0[A_hstep + 6];
-                pp[14] = p0[7];
-                pp[15] = p0[A_hstep + 7];
-                pp[16] = p0[8];
-                pp[17] = p0[A_hstep + 8];
-                pp[18] = p0[9];
-                pp[19] = p0[A_hstep + 9];
-                pp[20] = p0[10];
-                pp[21] = p0[A_hstep + 10];
-                pp[22] = p0[11];
-                pp[23] = p0[A_hstep + 11];
-                pp[24] = p0[12];
-                pp[25] = p0[A_hstep + 12];
-                pp[26] = p0[13];
-                pp[27] = p0[A_hstep + 13];
-                pp[28] = p0[14];
-                pp[29] = p0[A_hstep + 14];
-                pp[30] = p0[15];
-                pp[31] = p0[A_hstep + 15];
+                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
+                __m256i _r1 = _mm256_loadu_si256((const __m256i*)(p0 + A_hstep));
+                transpose16x2_epi16(_r0, _r1);
+                _mm256_storeu_si256((__m256i*)pp, _r0);
+                _mm256_storeu_si256((__m256i*)(pp + 16), _r1);
                 pp += 32;
                 p0 += A_hstep * 2;
             }
+#endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
-                pp[8] = p0[8];
-                pp[9] = p0[9];
-                pp[10] = p0[10];
-                pp[11] = p0[11];
-                pp[12] = p0[12];
-                pp[13] = p0[13];
-                pp[14] = p0[14];
-                pp[15] = p0[15];
+                _mm256_storeu_si256((__m256i*)pp, _mm256_loadu_si256((const __m256i*)p0));
                 pp += 16;
                 p0 += A_hstep;
             }
         }
-#else  // __AVX512BF16__
+    }
+#endif // __AVX512F__
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
+
+#if __AVX__
+#if __AVX512F__
         if (elempack == 16)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 16;
-
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
@@ -804,15 +821,11 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m256i _r5 = _mm256_loadu_si256((const __m256i*)(p0 + 80));
                 __m256i _r6 = _mm256_loadu_si256((const __m256i*)(p0 + 96));
                 __m256i _r7 = _mm256_loadu_si256((const __m256i*)(p0 + 112));
-                __m256i _r8 = _mm256_loadu_si256((const __m256i*)(p0 + 128));
-                __m256i _r9 = _mm256_loadu_si256((const __m256i*)(p0 + 144));
-                __m256i _ra = _mm256_loadu_si256((const __m256i*)(p0 + 160));
-                __m256i _rb = _mm256_loadu_si256((const __m256i*)(p0 + 176));
-                __m256i _rc = _mm256_loadu_si256((const __m256i*)(p0 + 192));
-                __m256i _rd = _mm256_loadu_si256((const __m256i*)(p0 + 208));
-                __m256i _re = _mm256_loadu_si256((const __m256i*)(p0 + 224));
-                __m256i _rf = _mm256_loadu_si256((const __m256i*)(p0 + 240));
-                transpose16x16_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+#if __AVX512BF16__
+                transpose8x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+#else  // __AVX512BF16__
+                transpose16x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+#endif // __AVX512BF16__
                 _mm256_storeu_si256((__m256i*)pp, _r0);
                 _mm256_storeu_si256((__m256i*)(pp + 16), _r1);
                 _mm256_storeu_si256((__m256i*)(pp + 32), _r2);
@@ -821,273 +834,29 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 _mm256_storeu_si256((__m256i*)(pp + 80), _r5);
                 _mm256_storeu_si256((__m256i*)(pp + 96), _r6);
                 _mm256_storeu_si256((__m256i*)(pp + 112), _r7);
-                _mm256_storeu_si256((__m256i*)(pp + 128), _r8);
-                _mm256_storeu_si256((__m256i*)(pp + 144), _r9);
-                _mm256_storeu_si256((__m256i*)(pp + 160), _ra);
-                _mm256_storeu_si256((__m256i*)(pp + 176), _rb);
-                _mm256_storeu_si256((__m256i*)(pp + 192), _rc);
-                _mm256_storeu_si256((__m256i*)(pp + 208), _rd);
-                _mm256_storeu_si256((__m256i*)(pp + 224), _re);
-                _mm256_storeu_si256((__m256i*)(pp + 240), _rf);
-                pp += 256;
+                pp += 128;
                 p0 += A_hstep * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                _mm256_storeu_si256((__m256i*)pp, _mm256_loadu_si256((const __m256i*)p0));
-                pp += 16;
-                p0 += A_hstep;
-            }
         }
+#endif // __AVX512F__
         if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
-
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
                 __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
-                __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep));
-                __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep + 8));
-                __m128i _r4 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 2));
-                __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 2 + 8));
-                __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 3));
-                __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 3 + 8));
-                __m128i _r8 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 4));
-                __m128i _r9 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 4 + 8));
-                __m128i _ra = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 5));
-                __m128i _rb = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 5 + 8));
-                __m128i _rc = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 6));
-                __m128i _rd = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 6 + 8));
-                __m128i _re = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 7));
-                __m128i _rf = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 7 + 8));
-                transpose8x16_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-                _mm256_storeu_si256((__m256i*)pp, _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r1, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 16), _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _r3, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 32), _mm256_inserti128_si256(_mm256_castsi128_si256(_r4), _r5, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 48), _mm256_inserti128_si256(_mm256_castsi128_si256(_r6), _r7, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 64), _mm256_inserti128_si256(_mm256_castsi128_si256(_r8), _r9, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 80), _mm256_inserti128_si256(_mm256_castsi128_si256(_ra), _rb, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 96), _mm256_inserti128_si256(_mm256_castsi128_si256(_rc), _rd, 1));
-                _mm256_storeu_si256((__m256i*)(pp + 112), _mm256_inserti128_si256(_mm256_castsi128_si256(_re), _rf, 1));
-                pp += 128;
-                p0 += A_hstep * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
-                _mm_storeu_si128((__m128i*)(pp + 8), _mm_loadu_si128((const __m128i*)(p0 + 8)));
-                pp += 16;
-                p0 += A_hstep;
-            }
-        }
-        if (elempack == 4)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
-                _mm_storel_epi64((__m128i*)(pp + 4), _mm_loadl_epi64((const __m128i*)(p0 + 4)));
-                _mm_storel_epi64((__m128i*)(pp + 8), _mm_loadl_epi64((const __m128i*)(p0 + 8)));
-                _mm_storel_epi64((__m128i*)(pp + 12), _mm_loadl_epi64((const __m128i*)(p0 + 12)));
-                pp += 16;
-                p0 += A_hstep;
-            }
-        }
-        if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                _mm256_storeu_si256((__m256i*)pp, _mm256_loadu_si256((const __m256i*)p0));
-                pp += 16;
-                p0 += A_hstep;
-            }
-        }
-#endif // __AVX512BF16__
-    }
-#endif // __AVX512F__
-    for (; ii + 7 < max_ii; ii += 8)
-    {
+                __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + 16));
+                __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + 24));
+                __m128i _r4 = _mm_loadu_si128((const __m128i*)(p0 + 32));
+                __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + 40));
+                __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + 48));
+                __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + 56));
 #if __AVX512BF16__
-#if __AVX512F__
-        if (elempack == 16)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 16;
-
-            int kk = 0;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                for (int p = 0; p < 8; p++)
-                {
-                    for (int m = 0; m < 8; m++)
-                    {
-                        pp[m * 2] = p0[m * 16 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 16 + p * 2 + 1];
-                    }
-                    pp += 16;
-                }
-                p0 += A_hstep * 16;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m * 2] = p0[m * 16 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 16 + kk_offset + 1];
-                }
-                pp += 16;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m] = p0[m * 16 + kk_offset];
-                }
-                pp += 8;
-            }
-        }
-#endif // __AVX512F__
-        if (elempack == 8)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
-
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                for (int p = 0; p < 4; p++)
-                {
-                    for (int m = 0; m < 8; m++)
-                    {
-                        pp[m * 2] = p0[m * 8 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 8 + p * 2 + 1];
-                    }
-                    pp += 16;
-                }
-                p0 += A_hstep * 8;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m * 2] = p0[m * 8 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 8 + kk_offset + 1];
-                }
-                pp += 16;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m] = p0[m * 8 + kk_offset];
-                }
-                pp += 8;
-            }
-        }
-        if (elempack == 4)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                for (int p = 0; p < 2; p++)
-                {
-                    for (int m = 0; m < 8; m++)
-                    {
-                        pp[m * 2] = p0[m * 4 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 4 + p * 2 + 1];
-                    }
-                    pp += 16;
-                }
-                p0 += A_hstep * 4;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 4;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m * 2] = p0[m * 4 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 4 + kk_offset + 1];
-                }
-                pp += 16;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 4;
-                for (int m = 0; m < 8; m++)
-                {
-                    pp[m] = p0[m * 4 + kk_offset];
-                }
-                pp += 8;
-            }
-        }
-        if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[A_hstep];
-                pp[2] = p0[1];
-                pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2];
-                pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3];
-                pp[7] = p0[A_hstep + 3];
-                pp[8] = p0[4];
-                pp[9] = p0[A_hstep + 4];
-                pp[10] = p0[5];
-                pp[11] = p0[A_hstep + 5];
-                pp[12] = p0[6];
-                pp[13] = p0[A_hstep + 6];
-                pp[14] = p0[7];
-                pp[15] = p0[A_hstep + 7];
-                pp += 16;
-                p0 += A_hstep * 2;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
-                pp += 8;
-                p0 += A_hstep;
-            }
-        }
+                transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 #else  // __AVX512BF16__
-        if (elempack == 8)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
-
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
-                __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep));
-                __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 2));
-                __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 3));
-                __m128i _r4 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 4));
-                __m128i _r5 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 5));
-                __m128i _r6 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 6));
-                __m128i _r7 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep * 7));
                 transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+#endif // __AVX512BF16__
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 _mm_storeu_si128((__m128i*)(pp + 16), _r2);
@@ -1099,6 +868,68 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 pp += 64;
                 p0 += A_hstep * 8;
             }
+        }
+#endif // __AVX__
+        if (elempack == 4)
+        {
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
+                __m128i _r4 = _mm_loadl_epi64((const __m128i*)(p0 + 16));
+                __m128i _r5 = _mm_loadl_epi64((const __m128i*)(p0 + 20));
+                __m128i _r6 = _mm_loadl_epi64((const __m128i*)(p0 + 24));
+                __m128i _r7 = _mm_loadl_epi64((const __m128i*)(p0 + 28));
+#if __AVX512BF16__
+                __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
+                __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
+                __m128i _t2 = _mm_unpacklo_epi32(_r4, _r5);
+                __m128i _t3 = _mm_unpacklo_epi32(_r6, _r7);
+                __m128i _p0 = _mm_unpacklo_epi64(_t0, _t1);
+                __m128i _p1 = _mm_unpacklo_epi64(_t2, _t3);
+                __m128i _p2 = _mm_unpackhi_epi64(_t0, _t1);
+                __m128i _p3 = _mm_unpackhi_epi64(_t2, _t3);
+#else  // __AVX512BF16__
+                __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
+                __m128i _t2 = _mm_unpacklo_epi16(_r4, _r5);
+                __m128i _t3 = _mm_unpacklo_epi16(_r6, _r7);
+                _r0 = _mm_unpacklo_epi32(_t0, _t1);
+                _r1 = _mm_unpackhi_epi32(_t0, _t1);
+                _r2 = _mm_unpacklo_epi32(_t2, _t3);
+                _r3 = _mm_unpackhi_epi32(_t2, _t3);
+                __m128i _p0 = _mm_unpacklo_epi64(_r0, _r2);
+                __m128i _p1 = _mm_unpackhi_epi64(_r0, _r2);
+                __m128i _p2 = _mm_unpacklo_epi64(_r1, _r3);
+                __m128i _p3 = _mm_unpackhi_epi64(_r1, _r3);
+#endif // __AVX512BF16__
+                _mm_storeu_si128((__m128i*)pp, _p0);
+                _mm_storeu_si128((__m128i*)(pp + 8), _p1);
+                _mm_storeu_si128((__m128i*)(pp + 16), _p2);
+                _mm_storeu_si128((__m128i*)(pp + 24), _p3);
+                pp += 32;
+                p0 += A_hstep * 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            int kk = 0;
+#if __AVX512BF16__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + A_hstep));
+                __m128i _p0 = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _p1 = _mm_unpackhi_epi16(_r0, _r1);
+                _mm_storeu_si128((__m128i*)pp, _p0);
+                _mm_storeu_si128((__m128i*)(pp + 8), _p1);
+                pp += 16;
+                p0 += A_hstep * 2;
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
@@ -1106,229 +937,100 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 p0 += A_hstep;
             }
         }
-        if (elempack == 4)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                // 8 columns of 4 kk values each. Extract per-kk rows of 8.
-                // p0[0..3] = kk0..kk3 for ii+0
-                // p0[4..7] = kk0..kk3 for ii+1
-                // ...
-                // p0[28..31] = kk0..kk3 for ii+7
-                for (int m = 0; m < 4; m++)
-                {
-                    pp[0] = p0[m];
-                    pp[1] = p0[4 + m];
-                    pp[2] = p0[8 + m];
-                    pp[3] = p0[12 + m];
-                    pp[4] = p0[16 + m];
-                    pp[5] = p0[20 + m];
-                    pp[6] = p0[24 + m];
-                    pp[7] = p0[28 + m];
-                    pp += 8;
-                }
-                p0 += A_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp += 8;
-                p0++;
-            }
-        }
-#endif // __AVX512BF16__
     }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
-#if __AVX512BF16__
+        const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
+
+#if __AVX__
 #if __AVX512F__
         if (elempack == 16)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 16;
-
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
-                for (int p = 0; p < 8; p++)
-                {
-                    for (int m = 0; m < 4; m++)
-                    {
-                        pp[m * 2] = p0[m * 16 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 16 + p * 2 + 1];
-                    }
-                    pp += 8;
-                }
+                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
+                __m256i _r1 = _mm256_loadu_si256((const __m256i*)(p0 + 16));
+                __m256i _r2 = _mm256_loadu_si256((const __m256i*)(p0 + 32));
+                __m256i _r3 = _mm256_loadu_si256((const __m256i*)(p0 + 48));
+#if __AVX512BF16__
+                transpose8x4_epi32(_r0, _r1, _r2, _r3);
+#else  // __AVX512BF16__
+                transpose16x4_epi16(_r0, _r1, _r2, _r3);
+#endif // __AVX512BF16__
+                _mm256_storeu_si256((__m256i*)pp, _r0);
+                _mm256_storeu_si256((__m256i*)(pp + 16), _r1);
+                _mm256_storeu_si256((__m256i*)(pp + 32), _r2);
+                _mm256_storeu_si256((__m256i*)(pp + 48), _r3);
+                pp += 64;
                 p0 += A_hstep * 16;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 4; m++)
-                {
-                    pp[m * 2] = p0[m * 16 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 16 + kk_offset + 1];
-                }
-                pp += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 16;
-                for (int m = 0; m < 4; m++)
-                {
-                    pp[m] = p0[m * 16 + kk_offset];
-                }
-                pp += 4;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
-
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                for (int p = 0; p < 4; p++)
-                {
-                    for (int m = 0; m < 4; m++)
-                    {
-                        pp[m * 2] = p0[m * 8 + p * 2];
-                        pp[m * 2 + 1] = p0[m * 8 + p * 2 + 1];
-                    }
-                    pp += 8;
-                }
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
+                __m128i _r2 = _mm_loadu_si128((const __m128i*)(p0 + 16));
+                __m128i _r3 = _mm_loadu_si128((const __m128i*)(p0 + 24));
+#if __AVX512BF16__
+                transpose4x4_epi32(_r0, _r1, _r2, _r3);
+#else  // __AVX512BF16__
+                transpose8x4_epi16(_r0, _r1, _r2, _r3);
+#endif // __AVX512BF16__
+                _mm_storeu_si128((__m128i*)pp, _r0);
+                _mm_storeu_si128((__m128i*)(pp + 8), _r1);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r2);
+                _mm_storeu_si128((__m128i*)(pp + 24), _r3);
+                pp += 32;
                 p0 += A_hstep * 8;
             }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 4; m++)
-                {
-                    pp[m * 2] = p0[m * 8 + kk_offset];
-                    pp[m * 2 + 1] = p0[m * 8 + kk_offset + 1];
-                }
-                pp += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                int kk_offset = kk % 8;
-                for (int m = 0; m < 4; m++)
-                {
-                    pp[m] = p0[m * 8 + kk_offset];
-                }
-                pp += 4;
-            }
         }
+#endif // __AVX__
         if (elempack == 4)
         {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                // elempack=4: p0[0..3] = k0..k3 for m_i, p0[4..7] = k0..k3 for m_i+1, etc.
-                pp[0] = p0[0];
-                pp[1] = p0[1]; // k0|k1 for m_i
-                pp[2] = p0[4];
-                pp[3] = p0[5]; // k0|k1 for m_i+1
-                pp[4] = p0[8];
-                pp[5] = p0[9]; // k0|k1 for m_i+2
-                pp[6] = p0[12];
-                pp[7] = p0[13]; // k0|k1 for m_i+3
-                pp[8] = p0[2];
-                pp[9] = p0[3]; // k2|k3 for m_i
-                pp[10] = p0[6];
-                pp[11] = p0[7]; // k2|k3 for m_i+1
-                pp[12] = p0[10];
-                pp[13] = p0[11]; // k2|k3 for m_i+2
-                pp[14] = p0[14];
-                pp[15] = p0[15]; // k2|k3 for m_i+3
-                pp += 16;
-                p0 += A_hstep * 4;
-            }
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[4];
-                pp[3] = p0[5];
-                pp[4] = p0[8];
-                pp[5] = p0[9];
-                pp[6] = p0[12];
-                pp[7] = p0[13];
-                pp += 8;
-                p0 += 2;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
-        }
-        if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[A_hstep];
-                pp[2] = p0[1];
-                pp[3] = p0[A_hstep + 1];
-                pp[4] = p0[2];
-                pp[5] = p0[A_hstep + 2];
-                pp[6] = p0[3];
-                pp[7] = p0[A_hstep + 3];
-                pp += 8;
-                p0 += A_hstep * 2;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += A_hstep;
-            }
-        }
-#else  // __AVX512BF16__
-        if (elempack == 4)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
-
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
-                __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + A_hstep));
-                __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + A_hstep * 2));
-                __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + A_hstep * 3));
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
+#if __AVX512BF16__
+                __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
+                __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
+                _r0 = _mm_unpacklo_epi64(_t0, _t1);
+                _r1 = _mm_unpackhi_epi64(_t0, _t1);
+#else  // __AVX512BF16__
                 __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
                 __m128i _t1 = _mm_unpacklo_epi16(_r2, _r3);
                 _r0 = _mm_unpacklo_epi32(_t0, _t1);
                 _r1 = _mm_unpackhi_epi32(_t0, _t1);
+#endif // __AVX512BF16__
                 _mm_storeu_si128((__m128i*)pp, _r0);
                 _mm_storeu_si128((__m128i*)(pp + 8), _r1);
                 pp += 16;
                 p0 += A_hstep * 4;
             }
+        }
+        if (elempack == 1)
+        {
+            int kk = 0;
+#if __AVX512BF16__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _p1 = _mm_loadl_epi64((const __m128i*)(p0 + A_hstep));
+                __m128i _p = _mm_unpacklo_epi16(_p0, _p1);
+                _mm_storeu_si128((__m128i*)pp, _p);
+                pp += 8;
+                p0 += A_hstep * 2;
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
                 _mm_storel_epi64((__m128i*)pp, _mm_loadl_epi64((const __m128i*)p0));
@@ -1336,22 +1038,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 p0 += A_hstep;
             }
         }
-        if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += A_hstep;
-            }
-        }
-#endif // __AVX512BF16__
     }
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
