@@ -15,10 +15,10 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
     {
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
+
         if (elempack == 16)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 16;
-
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
@@ -40,10 +40,9 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p0 += 16;
             }
         }
-        else if (elempack == 8)
+        if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k * 8;
+            const unsigned short* p1 = p0 + A_hstep * 8;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -75,12 +74,11 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p1 += 8;
             }
         }
-        else if (elempack == 4)
+        if (elempack == 4)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k * 4;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 12) * A_hstep + k * 4;
+            const unsigned short* p1 = p0 + A_hstep * 4;
+            const unsigned short* p2 = p0 + A_hstep * 8;
+            const unsigned short* p3 = p0 + A_hstep * 12;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -118,179 +116,37 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p3 += 4;
             }
         }
-        else // elempack == 1
+        if (elempack == 1)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
-            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
-            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
-            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
-            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
-            const unsigned short* p8 = (const unsigned short*)A + (i + ii + 8) * A_hstep + k;
-            const unsigned short* p9 = (const unsigned short*)A + (i + ii + 9) * A_hstep + k;
-            const unsigned short* pa = (const unsigned short*)A + (i + ii + 10) * A_hstep + k;
-            const unsigned short* pb = (const unsigned short*)A + (i + ii + 11) * A_hstep + k;
-            const unsigned short* pc = (const unsigned short*)A + (i + ii + 12) * A_hstep + k;
-            const unsigned short* pd = (const unsigned short*)A + (i + ii + 13) * A_hstep + k;
-            const unsigned short* pe = (const unsigned short*)A + (i + ii + 14) * A_hstep + k;
-            const unsigned short* pf = (const unsigned short*)A + (i + ii + 15) * A_hstep + k;
+            __m512i _vindex = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(A_hstep));
 
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p1[0];
-                pp[3] = p1[1];
-                pp[4] = p2[0];
-                pp[5] = p2[1];
-                pp[6] = p3[0];
-                pp[7] = p3[1];
-                pp[8] = p4[0];
-                pp[9] = p4[1];
-                pp[10] = p5[0];
-                pp[11] = p5[1];
-                pp[12] = p6[0];
-                pp[13] = p6[1];
-                pp[14] = p7[0];
-                pp[15] = p7[1];
-                pp[16] = p8[0];
-                pp[17] = p8[1];
-                pp[18] = p9[0];
-                pp[19] = p9[1];
-                pp[20] = pa[0];
-                pp[21] = pa[1];
-                pp[22] = pb[0];
-                pp[23] = pb[1];
-                pp[24] = pc[0];
-                pp[25] = pc[1];
-                pp[26] = pd[0];
-                pp[27] = pd[1];
-                pp[28] = pe[0];
-                pp[29] = pe[1];
-                pp[30] = pf[0];
-                pp[31] = pf[1];
+                __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 2;
-                p1 += 2;
-                p2 += 2;
-                p3 += 2;
-                p4 += 2;
-                p5 += 2;
-                p6 += 2;
-                p7 += 2;
-                p8 += 2;
-                p9 += 2;
-                pa += 2;
-                pb += 2;
-                pc += 2;
-                pd += 2;
-                pe += 2;
-                pf += 2;
-            }
-#else  // __AVX512BF16__
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
-                __m256i _r1 = _mm256_loadu_si256((const __m256i*)p1);
-                __m256i _r2 = _mm256_loadu_si256((const __m256i*)p2);
-                __m256i _r3 = _mm256_loadu_si256((const __m256i*)p3);
-                __m256i _r4 = _mm256_loadu_si256((const __m256i*)p4);
-                __m256i _r5 = _mm256_loadu_si256((const __m256i*)p5);
-                __m256i _r6 = _mm256_loadu_si256((const __m256i*)p6);
-                __m256i _r7 = _mm256_loadu_si256((const __m256i*)p7);
-                __m256i _r8 = _mm256_loadu_si256((const __m256i*)p8);
-                __m256i _r9 = _mm256_loadu_si256((const __m256i*)p9);
-                __m256i _ra = _mm256_loadu_si256((const __m256i*)pa);
-                __m256i _rb = _mm256_loadu_si256((const __m256i*)pb);
-                __m256i _rc = _mm256_loadu_si256((const __m256i*)pc);
-                __m256i _rd = _mm256_loadu_si256((const __m256i*)pd);
-                __m256i _re = _mm256_loadu_si256((const __m256i*)pe);
-                __m256i _rf = _mm256_loadu_si256((const __m256i*)pf);
-                transpose16x16_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-                _mm256_storeu_si256((__m256i*)pp, _r0);
-                _mm256_storeu_si256((__m256i*)(pp + 16), _r1);
-                _mm256_storeu_si256((__m256i*)(pp + 32), _r2);
-                _mm256_storeu_si256((__m256i*)(pp + 48), _r3);
-                _mm256_storeu_si256((__m256i*)(pp + 64), _r4);
-                _mm256_storeu_si256((__m256i*)(pp + 80), _r5);
-                _mm256_storeu_si256((__m256i*)(pp + 96), _r6);
-                _mm256_storeu_si256((__m256i*)(pp + 112), _r7);
-                _mm256_storeu_si256((__m256i*)(pp + 128), _r8);
-                _mm256_storeu_si256((__m256i*)(pp + 144), _r9);
-                _mm256_storeu_si256((__m256i*)(pp + 160), _ra);
-                _mm256_storeu_si256((__m256i*)(pp + 176), _rb);
-                _mm256_storeu_si256((__m256i*)(pp + 192), _rc);
-                _mm256_storeu_si256((__m256i*)(pp + 208), _rd);
-                _mm256_storeu_si256((__m256i*)(pp + 224), _re);
-                _mm256_storeu_si256((__m256i*)(pp + 240), _rf);
-                pp += 256;
-                p0 += 16;
-                p1 += 16;
-                p2 += 16;
-                p3 += 16;
-                p4 += 16;
-                p5 += 16;
-                p6 += 16;
-                p7 += 16;
-                p8 += 16;
-                p9 += 16;
-                pa += 16;
-                pb += 16;
-                pc += 16;
-                pd += 16;
-                pe += 16;
-                pf += 16;
             }
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp[8] = p8[0];
-                pp[9] = p9[0];
-                pp[10] = pa[0];
-                pp[11] = pb[0];
-                pp[12] = pc[0];
-                pp[13] = pd[0];
-                pp[14] = pe[0];
-                pp[15] = pf[0];
+                __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
+                __m256i _p16 = _mm512_cvtepi32_epi16(_p);
+                _mm256_storeu_si256((__m256i*)pp, _p16);
                 pp += 16;
                 p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-                p8++;
-                p9++;
-                pa++;
-                pb++;
-                pc++;
-                pd++;
-                pe++;
-                pf++;
             }
         }
     }
 #endif // __AVX512F__
     for (; ii + 7 < max_ii; ii += 8)
     {
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
+
         if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
-
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
@@ -312,10 +168,9 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p0 += 8;
             }
         }
-        else if (elempack == 4)
+        if (elempack == 4)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
+            const unsigned short* p1 = p0 + A_hstep * 4;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -341,46 +196,28 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p1 += 4;
             }
         }
-        else // elempack == 1
+        if (elempack == 1)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
-            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
-            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
-            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
-            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
+#if __AVX2__
+            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(A_hstep));
+#else
+            const unsigned short* p1 = p0 + A_hstep * 1;
+            const unsigned short* p2 = p0 + A_hstep * 2;
+            const unsigned short* p3 = p0 + A_hstep * 3;
+            const unsigned short* p4 = p0 + A_hstep * 4;
+            const unsigned short* p5 = p0 + A_hstep * 5;
+            const unsigned short* p6 = p0 + A_hstep * 6;
+            const unsigned short* p7 = p0 + A_hstep * 7;
+#endif
 
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p1[0];
-                pp[3] = p1[1];
-                pp[4] = p2[0];
-                pp[5] = p2[1];
-                pp[6] = p3[0];
-                pp[7] = p3[1];
-                pp[8] = p4[0];
-                pp[9] = p4[1];
-                pp[10] = p5[0];
-                pp[11] = p5[1];
-                pp[12] = p6[0];
-                pp[13] = p6[1];
-                pp[14] = p7[0];
-                pp[15] = p7[1];
+                __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+                _mm256_storeu_si256((__m256i*)pp, _p);
                 pp += 16;
                 p0 += 2;
-                p1 += 2;
-                p2 += 2;
-                p3 += 2;
-                p4 += 2;
-                p5 += 2;
-                p6 += 2;
-                p7 += 2;
             }
 #else  // __AVX512BF16__
             for (; kk + 7 < max_kk; kk += 8)
@@ -415,6 +252,11 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
+#if __AVX2__
+                __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+                __m128i _p16 = _mm256_cvtepi32_epi16(_p);
+                _mm_storeu_si128((__m128i*)pp, _p16);
+#else
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -423,8 +265,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp[5] = p5[0];
                 pp[6] = p6[0];
                 pp[7] = p7[0];
-                pp += 8;
-                p0++;
                 p1++;
                 p2++;
                 p3++;
@@ -432,16 +272,19 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p5++;
                 p6++;
                 p7++;
+#endif
+                pp += 8;
+                p0++;
             }
         }
     }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * elempack;
+
         if (elempack == 4)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
-
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
@@ -462,12 +305,11 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 p0 += 4;
             }
         }
-        else // elempack == 1
+        if (elempack == 1)
         {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+            const unsigned short* p1 = p0 + A_hstep * 1;
+            const unsigned short* p2 = p0 + A_hstep * 2;
+            const unsigned short* p3 = p0 + A_hstep * 3;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -1312,114 +1154,25 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         if (elempack == 1)
         {
-            const unsigned short* p1 = p0 + B_hstep * 1;
-            const unsigned short* p2 = p0 + B_hstep * 2;
-            const unsigned short* p3 = p0 + B_hstep * 3;
-            const unsigned short* p4 = p0 + B_hstep * 4;
-            const unsigned short* p5 = p0 + B_hstep * 5;
-            const unsigned short* p6 = p0 + B_hstep * 6;
-            const unsigned short* p7 = p0 + B_hstep * 7;
-            const unsigned short* p8 = p0 + B_hstep * 8;
-            const unsigned short* p9 = p0 + B_hstep * 9;
-            const unsigned short* pa = p0 + B_hstep * 10;
-            const unsigned short* pb = p0 + B_hstep * 11;
-            const unsigned short* pc = p0 + B_hstep * 12;
-            const unsigned short* pd = p0 + B_hstep * 13;
-            const unsigned short* pe = p0 + B_hstep * 14;
-            const unsigned short* pf = p0 + B_hstep * 15;
+            __m512i _vindex = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15), _mm512_set1_epi32(B_hstep));
 
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                // TODO gather opt
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p1[0];
-                pp[3] = p1[1];
-                pp[4] = p2[0];
-                pp[5] = p2[1];
-                pp[6] = p3[0];
-                pp[7] = p3[1];
-                pp[8] = p4[0];
-                pp[9] = p4[1];
-                pp[10] = p5[0];
-                pp[11] = p5[1];
-                pp[12] = p6[0];
-                pp[13] = p6[1];
-                pp[14] = p7[0];
-                pp[15] = p7[1];
-                pp[16] = p8[0];
-                pp[17] = p8[1];
-                pp[18] = p9[0];
-                pp[19] = p9[1];
-                pp[20] = pa[0];
-                pp[21] = pa[1];
-                pp[22] = pb[0];
-                pp[23] = pb[1];
-                pp[24] = pc[0];
-                pp[25] = pc[1];
-                pp[26] = pd[0];
-                pp[27] = pd[1];
-                pp[28] = pe[0];
-                pp[29] = pe[1];
-                pp[30] = pf[0];
-                pp[31] = pf[1];
+                __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 2;
-                p1 += 2;
-                p2 += 2;
-                p3 += 2;
-                p4 += 2;
-                p5 += 2;
-                p6 += 2;
-                p7 += 2;
-                p8 += 2;
-                p9 += 2;
-                pa += 2;
-                pb += 2;
-                pc += 2;
-                pd += 2;
-                pe += 2;
-                pf += 2;
             }
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                // TODO gather opt
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp[8] = p8[0];
-                pp[9] = p9[0];
-                pp[10] = pa[0];
-                pp[11] = pb[0];
-                pp[12] = pc[0];
-                pp[13] = pd[0];
-                pp[14] = pe[0];
-                pp[15] = pf[0];
+                __m512i _p = _mm512_i32gather_epi32(_vindex, (const int*)p0, sizeof(unsigned short));
+                __m256i _p16 = _mm512_cvtepi32_epi16(_p);
+                _mm256_storeu_si256((__m256i*)pp, _p16);
                 pp += 16;
                 p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-                p8++;
-                p9++;
-                pa++;
-                pb++;
-                pc++;
-                pd++;
-                pe++;
-                pf++;
             }
         }
     }
@@ -1483,6 +1236,9 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         if (elempack == 1)
         {
+#if __AVX2__
+            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(B_hstep));
+#else
             const unsigned short* p1 = p0 + B_hstep * 1;
             const unsigned short* p2 = p0 + B_hstep * 2;
             const unsigned short* p3 = p0 + B_hstep * 3;
@@ -1490,41 +1246,25 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             const unsigned short* p5 = p0 + B_hstep * 5;
             const unsigned short* p6 = p0 + B_hstep * 6;
             const unsigned short* p7 = p0 + B_hstep * 7;
+#endif
 
             int kk = 0;
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                // TODO gather opt
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p1[0];
-                pp[3] = p1[1];
-                pp[4] = p2[0];
-                pp[5] = p2[1];
-                pp[6] = p3[0];
-                pp[7] = p3[1];
-                pp[8] = p4[0];
-                pp[9] = p4[1];
-                pp[10] = p5[0];
-                pp[11] = p5[1];
-                pp[12] = p6[0];
-                pp[13] = p6[1];
-                pp[14] = p7[0];
-                pp[15] = p7[1];
+                __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+                _mm256_storeu_si256((__m256i*)pp, _p);
                 pp += 16;
                 p0 += 2;
-                p1 += 2;
-                p2 += 2;
-                p3 += 2;
-                p4 += 2;
-                p5 += 2;
-                p6 += 2;
-                p7 += 2;
             }
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
+#if __AVX2__
+                __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
+                __m128i _p16 = _mm256_cvtepi32_epi16(_p);
+                _mm_storeu_si128((__m128i*)pp, _p16);
+#else
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -1533,8 +1273,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 pp[5] = p5[0];
                 pp[6] = p6[0];
                 pp[7] = p7[0];
-                pp += 8;
-                p0++;
                 p1++;
                 p2++;
                 p3++;
@@ -1542,6 +1280,9 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p5++;
                 p6++;
                 p7++;
+#endif
+                pp += 8;
+                p0++;
             }
         }
     }
