@@ -3205,14 +3205,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
                 __m256 _pB0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pB));
 
-                __m256i _pA0i = _mm256_castps_si256(_pA0);
-                __m256 _pA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m256i _pB0i = _mm256_castps_si256(_pB0);
-                __m256 _pB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pB0i, _pB0i, 4));
-                __m256i _pB2i = _mm256_permute4x64_epi64(_pB0i, _MM_SHUFFLE(1, 0, 3, 2));
-                __m256 _pB2 = _mm256_castsi256_ps(_pB2i);
-                __m256 _pB3 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pB2i, _pB2i, 4));
+                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB2 = _mm256_permute2f128_ps(_pB0, _pB0, _MM_SHUFFLE(0, 0, 0, 1));
+                __m256 _pB3 = _mm256_permute_ps(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3275,13 +3271,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
                 __m128 _pBs = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
-                __m256 _pB0 = _mm256_castsi256_ps(combine4x2_epi32(_mm_castps_si128(_pBs), _mm_castps_si128(_pBs)));
+                __m256 _pB0 = combine4x2_ps(_pBs, _pBs);
 
-                __m256i _pA0i = _mm256_castps_si256(_pA0);
-                __m256 _pA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m256i _pB0i = _mm256_castps_si256(_pB0);
-                __m256 _pB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pB0i, _pB0i, 4));
+                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3330,8 +3323,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128i _pBbf = _mm_cvtsi32_si128(*(const int*)pB);
                 __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pBbf));
                 __m256 _pB0 = _mm256_castsi256_ps(_mm256_castpd_si256(_mm256_broadcast_sd((const double*)&_pBs)));
-                __m256i _pB0i = _mm256_castps_si256(_pB0);
-                __m256 _pB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pB0i, _pB0i, 4));
+                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3491,11 +3483,8 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m256 _pA0 = _mm256_castsi256_ps(combine4x2_epi32(_mm_castps_si128(_pAs), _mm_castps_si128(_pAs)));
                 __m256 _pB0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pB));
 
-                __m256i _pA0i = _mm256_castps_si256(_pA0);
-                __m256 _pA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m256i _pB0i = _mm256_castps_si256(_pB0);
-                __m256 _pB1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_pB0i, _pB0i, 4));
+                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA1, _pB0, _sum1);
@@ -3551,11 +3540,8 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128 _pA0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
                 __m128 _pB0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
 
-                __m128i _pA0i = _mm_castps_si128(_pA0);
-                __m128 _pA1 = _mm_castsi128_ps(_mm_alignr_epi8(_pA0i, _pA0i, 8));
-
-                __m128i _pB0i = _mm_castps_si128(_pB0);
-                __m128 _pB1 = _mm_castsi128_ps(_mm_alignr_epi8(_pB0i, _pB0i, 4));
+                __m128 _pA1 = _mm_shuffle_ps(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
@@ -3772,18 +3758,14 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
 #if __AVX__
                 __m256 _pA0 = bfloat2float_avx(_pA);
-                __m256 _pA1 = _mm256_castsi256_ps(_mm256_alignr_epi8(_mm256_castps_si256(_pA0), _mm256_castps_si256(_pA0), 4));
+                __m256 _pA1 = _mm256_permute_ps(_pA0, _MM_SHUFFLE(0, 3, 2, 1));
                 __m256 _pB0 = bfloat2float_avx(_pB);
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_pA1, _pB0, _sum1);
 #else // __AVX__
                 __m128 _pA0 = bfloat2float_sse(_pA);
-#if __SSSE3__
-                __m128 _pA1 = _mm_castsi128_ps(_mm_alignr_epi8(_mm_castps_si128(_pA0), _mm_castps_si128(_pA0), 4));
-#else
-                __m128 _pA1 = _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(_pA0), _MM_SHUFFLE(2, 3, 0, 1)));
-#endif
+                __m128 _pA1 = _mm_shuffle_ps(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
                 __m128 _pB0 = bfloat2float_sse(_pB);
                 __m128 _pB1 = bfloat2float_sse(_mm_srli_si128(_pB, 8));
 
@@ -3841,16 +3823,11 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                __m128i _pAbf = _mm_cvtsi32_si128(*(const int*)pA);
-                __m128 _pAs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pAbf));
-                __m128 _pA0 = _mm_castsi128_ps(_mm_castpd_si128(_mm_load1_pd((const double*)&_pAs)));
+                __m128 _pA = bfloat2float_sse(_mm_castps_si128(_mm_load1_ps((const float*)pA)));
                 __m128 _pB0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
-                __m128i _pB0i = _mm_castps_si128(_pB0);
-                __m128 _pB1 = _mm_castsi128_ps(_mm_alignr_epi8(_pB0i, _pB0i, 4));
-
-                _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
-                _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
-
+                __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_pA, _pB1, _sum1);
                 pA += 2;
                 pB += 4;
             }
@@ -7135,6 +7112,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
         {
             __m512 _f0 = _mm512_loadu_ps(pp);
             __m512 _f1 = _mm512_loadu_ps(pp + 16);
+            pp += 32;
 
             // deshuffle from the shuffle-based 2x16 dpbf16_ps kernel
             {
@@ -7243,8 +7221,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)(p0 + out_hstep), _bf1);
                 p0 += 16;
             }
-
-            pp += 32;
         }
 #endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
@@ -7253,6 +7229,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _f1 = _mm_load_ps(pp + 4);
             __m128 _f2 = _mm_load_ps(pp + 8);
             __m128 _f3 = _mm_load_ps(pp + 12);
+            pp += 16;
 
             // 00 11 02 13
             // 04 15 06 17
@@ -7372,14 +7349,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storeu_si128((__m128i*)(p0 + out_hstep), _bf1);
                 p0 += 8;
             }
-
-            pp += 16;
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128 _f0 = _mm_loadu_ps(pp);
             __m128 _f1 = _mm_loadu_ps(pp + 4);
+            pp += 8;
 
             {
                 __m128 _tmp0 = _mm_unpacklo_ps(_f0, _f1);
@@ -7460,8 +7436,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storel_epi64((__m128i*)(p0 + out_hstep), _mm_srli_si128(_bf0, 8));
                 p0 += 4;
             }
-
-            pp += 8;
         }
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
@@ -7470,6 +7444,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             float f01 = pp[1];
             float f10 = pp[2];
             float f11 = pp[3];
+            pp += 4;
 
             if (pC)
             {
@@ -7532,13 +7507,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 p0[out_hstep + 1] = bf11;
                 p0 += 2;
             }
-
-            pp += 4;
         }
         for (; jj < max_jj; jj++)
         {
             float f0 = pp[0];
             float f1 = pp[1];
+            pp += 2;
 
             if (pC)
             {
@@ -7585,8 +7559,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 p0[out_hstep] = bf1;
                 p0++;
             }
-
-            pp += 2;
         }
     }
     for (; ii < max_ii; ii++)
@@ -7650,6 +7622,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
         for (; jj + 15 < max_jj; jj += 16)
         {
             __m512 _f0 = _mm512_loadu_ps(pp);
+            pp += 16;
 
             if (pC)
             {
@@ -7727,14 +7700,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm256_storeu_si256((__m256i*)p0, _bf0);
                 p0 += 16;
             }
-
-            pp += 16;
         }
 #endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _f0 = _mm_loadu_ps(pp);
             __m128 _f1 = _mm_loadu_ps(pp + 4);
+            pp += 8;
 
             if (pC)
             {
@@ -7804,13 +7776,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storeu_si128((__m128i*)p0, _bf0);
                 p0 += 8;
             }
-
-            pp += 8;
         }
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128 _f0 = _mm_loadu_ps(pp);
+            pp += 4;
 
             if (pC)
             {
@@ -7861,14 +7832,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _mm_storel_epi64((__m128i*)p0, _bf0);
                 p0 += 4;
             }
-
-            pp += 4;
         }
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
             float f0 = pp[0];
             float f1 = pp[1];
+            pp += 2;
 
             if (pC)
             {
@@ -7904,12 +7874,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 p0[1] = bf1;
                 p0 += 2;
             }
-
-            pp += 2;
         }
         for (; jj < max_jj; jj++)
         {
             float f0 = pp[0];
+            pp += 1;
 
             if (pC)
             {
@@ -7937,8 +7906,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 p0++;
             }
-
-            pp += 1;
         }
     }
 }
