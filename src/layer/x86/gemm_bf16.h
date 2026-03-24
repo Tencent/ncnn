@@ -2622,43 +2622,24 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-            __m512 _sum0;
-            __m512 _sum1;
-            __m512 _sum2;
-            __m512 _sum3;
-            __m512 _sum4;
-            __m512 _sum5;
-            __m512 _sum6;
-            __m512 _sum7;
-            __m512 _sum8;
-            __m512 _sum9;
-            __m512 _suma;
-            __m512 _sumb;
-            __m512 _sumc;
-            __m512 _sumd;
-            __m512 _sume;
-            __m512 _sumf;
+            __m512 _sum0 = _mm512_setzero_ps();
+            __m512 _sum1 = _mm512_setzero_ps();
+            __m512 _sum2 = _mm512_setzero_ps();
+            __m512 _sum3 = _mm512_setzero_ps();
+            __m512 _sum4 = _mm512_setzero_ps();
+            __m512 _sum5 = _mm512_setzero_ps();
+            __m512 _sum6 = _mm512_setzero_ps();
+            __m512 _sum7 = _mm512_setzero_ps();
+            __m512 _sum8 = _mm512_setzero_ps();
+            __m512 _sum9 = _mm512_setzero_ps();
+            __m512 _suma = _mm512_setzero_ps();
+            __m512 _sumb = _mm512_setzero_ps();
+            __m512 _sumc = _mm512_setzero_ps();
+            __m512 _sumd = _mm512_setzero_ps();
+            __m512 _sume = _mm512_setzero_ps();
+            __m512 _sumf = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-                _sum1 = _mm512_setzero_ps();
-                _sum2 = _mm512_setzero_ps();
-                _sum3 = _mm512_setzero_ps();
-                _sum4 = _mm512_setzero_ps();
-                _sum5 = _mm512_setzero_ps();
-                _sum6 = _mm512_setzero_ps();
-                _sum7 = _mm512_setzero_ps();
-                _sum8 = _mm512_setzero_ps();
-                _sum9 = _mm512_setzero_ps();
-                _suma = _mm512_setzero_ps();
-                _sumb = _mm512_setzero_ps();
-                _sumc = _mm512_setzero_ps();
-                _sumd = _mm512_setzero_ps();
-                _sume = _mm512_setzero_ps();
-                _sumf = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_load_ps(outptr);
                 _sum1 = _mm512_load_ps(outptr + 16);
@@ -2779,27 +2760,16 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-            __m512 _sum0;
-            __m512 _sum1;
-            __m512 _sum2;
-            __m512 _sum3;
-            __m512 _sum4;
-            __m512 _sum5;
-            __m512 _sum6;
-            __m512 _sum7;
+            __m512 _sum0 = _mm512_setzero_ps();
+            __m512 _sum1 = _mm512_setzero_ps();
+            __m512 _sum2 = _mm512_setzero_ps();
+            __m512 _sum3 = _mm512_setzero_ps();
+            __m512 _sum4 = _mm512_setzero_ps();
+            __m512 _sum5 = _mm512_setzero_ps();
+            __m512 _sum6 = _mm512_setzero_ps();
+            __m512 _sum7 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-                _sum1 = _mm512_setzero_ps();
-                _sum2 = _mm512_setzero_ps();
-                _sum3 = _mm512_setzero_ps();
-                _sum4 = _mm512_setzero_ps();
-                _sum5 = _mm512_setzero_ps();
-                _sum6 = _mm512_setzero_ps();
-                _sum7 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_load_ps(outptr);
                 _sum1 = _mm512_load_ps(outptr + 16);
@@ -2880,19 +2850,12 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-            __m512 _sum0;
-            __m512 _sum1;
-            __m512 _sum2;
-            __m512 _sum3;
+            __m512 _sum0 = _mm512_setzero_ps();
+            __m512 _sum1 = _mm512_setzero_ps();
+            __m512 _sum2 = _mm512_setzero_ps();
+            __m512 _sum3 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-                _sum1 = _mm512_setzero_ps();
-                _sum2 = _mm512_setzero_ps();
-                _sum3 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_load_ps(outptr);
                 _sum1 = _mm512_load_ps(outptr + 16);
@@ -2947,15 +2910,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-            __m512 _sum0;
-            __m512 _sum1;
+            __m512 _sum0 = _mm512_setzero_ps();
+            __m512 _sum1 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-                _sum1 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_load_ps(outptr);
                 _sum1 = _mm512_load_ps(outptr + 16);
@@ -2998,13 +2956,9 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-            __m512 _sum0;
+            __m512 _sum0 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_load_ps(outptr);
             }
@@ -3047,7 +3001,6 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         {
             const unsigned short* pA = pAT;
 
-#if __AVX512BF16__
             __m512 _sum0 = _mm512_setzero_ps();
             __m512 _sum1 = _mm512_setzero_ps();
             __m512 _sum2 = _mm512_setzero_ps();
@@ -3068,28 +3021,6 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
                 _sum6 = _mm512_load_ps(outptr + 96);
                 _sum7 = _mm512_load_ps(outptr + 112);
             }
-#else  // __AVX512BF16__
-            __m512 _sum0 = _mm512_setzero_ps();
-            __m512 _sum1 = _mm512_setzero_ps();
-            __m512 _sum2 = _mm512_setzero_ps();
-            __m512 _sum3 = _mm512_setzero_ps();
-            __m512 _sum4 = _mm512_setzero_ps();
-            __m512 _sum5 = _mm512_setzero_ps();
-            __m512 _sum6 = _mm512_setzero_ps();
-            __m512 _sum7 = _mm512_setzero_ps();
-
-            if (k != 0)
-            {
-                _sum0 = _mm512_load_ps(outptr);
-                _sum1 = _mm512_load_ps(outptr + 16);
-                _sum2 = _mm512_load_ps(outptr + 32);
-                _sum3 = _mm512_load_ps(outptr + 48);
-                _sum4 = _mm512_load_ps(outptr + 64);
-                _sum5 = _mm512_load_ps(outptr + 80);
-                _sum6 = _mm512_load_ps(outptr + 96);
-                _sum7 = _mm512_load_ps(outptr + 112);
-            }
-#endif // __AVX512BF16__
 
             int kk = 0;
 #if __AVX512BF16__
@@ -3652,15 +3583,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
-            __m512 _sum0;
-            __m512 _sum1;
+            __m512 _sum0 = _mm512_setzero_ps();
+            __m512 _sum1 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-                _sum1 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_loadu_ps(outptr);
                 _sum1 = _mm512_loadu_ps(outptr + 16);
@@ -3704,28 +3630,16 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         for (; jj + 7 < max_jj; jj += 8)
         {
 #if __AVX__
-            __m256 _sum0;
-            __m256 _sum1;
+            __m256 _sum0 = _mm256_setzero_ps();
+            __m256 _sum1 = _mm256_setzero_ps();
 #else
-            __m128 _sum0;
-            __m128 _sum1;
-            __m128 _sum2;
-            __m128 _sum3;
+            __m128 _sum0 = _mm_setzero_ps();
+            __m128 _sum1 = _mm_setzero_ps();
+            __m128 _sum2 = _mm_setzero_ps();
+            __m128 _sum3 = _mm_setzero_ps();
 #endif
 
-            if (k == 0)
-            {
-#if __AVX__
-                _sum0 = _mm256_setzero_ps();
-                _sum1 = _mm256_setzero_ps();
-#else
-                _sum0 = _mm_setzero_ps();
-                _sum1 = _mm_setzero_ps();
-                _sum2 = _mm_setzero_ps();
-                _sum3 = _mm_setzero_ps();
-#endif
-            }
-            else
+            if (k != 0)
             {
 #if __AVX__
                 _sum0 = _mm256_loadu_ps(outptr);
@@ -3793,15 +3707,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
-            __m128 _sum0;
-            __m128 _sum1;
+            __m128 _sum0 = _mm_setzero_ps();
+            __m128 _sum1 = _mm_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm_setzero_ps();
-                _sum1 = _mm_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm_loadu_ps(outptr);
                 _sum1 = _mm_loadu_ps(outptr + 4);
@@ -3839,19 +3748,12 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float sum00;
-            float sum01;
-            float sum10;
-            float sum11;
+            float sum00 = 0.f;
+            float sum01 = 0.f;
+            float sum10 = 0.f;
+            float sum11 = 0.f;
 
-            if (k == 0)
-            {
-                sum00 = 0.f;
-                sum01 = 0.f;
-                sum10 = 0.f;
-                sum11 = 0.f;
-            }
-            else
+            if (k != 0)
             {
                 sum00 = outptr[0];
                 sum01 = outptr[1];
@@ -3902,15 +3804,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         }
         for (; jj < max_jj; jj++)
         {
-            float sum0;
-            float sum1;
+            float sum0 = 0.f;
+            float sum1 = 0.f;
 
-            if (k == 0)
-            {
-                sum0 = 0.f;
-                sum1 = 0.f;
-            }
-            else
+            if (k != 0)
             {
                 sum0 = outptr[0];
                 sum1 = outptr[1];
@@ -3958,13 +3855,9 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
-            __m512 _sum0;
+            __m512 _sum0 = _mm512_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm512_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm512_loadu_ps(outptr);
             }
@@ -3999,22 +3892,13 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         for (; jj + 7 < max_jj; jj += 8)
         {
 #if __AVX__
-            __m256 _sum0;
+            __m256 _sum0 = _mm256_setzero_ps();
 #else
-            __m128 _sum0;
-            __m128 _sum1;
+            __m128 _sum0 = _mm_setzero_ps();
+            __m128 _sum1 = _mm_setzero_ps();
 #endif
 
-            if (k == 0)
-            {
-#if __AVX__
-                _sum0 = _mm256_setzero_ps();
-#else
-                _sum0 = _mm_setzero_ps();
-                _sum1 = _mm_setzero_ps();
-#endif
-            }
-            else
+            if (k != 0)
             {
 #if __AVX__
                 _sum0 = _mm256_loadu_ps(outptr);
@@ -4069,13 +3953,9 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
-            __m128 _sum0;
+            __m128 _sum0 = _mm_setzero_ps();
 
-            if (k == 0)
-            {
-                _sum0 = _mm_setzero_ps();
-            }
-            else
+            if (k != 0)
             {
                 _sum0 = _mm_loadu_ps(outptr);
             }
@@ -4109,15 +3989,10 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float sum0;
-            float sum1;
+            float sum0 = 0.f;
+            float sum1 = 0.f;
 
-            if (k == 0)
-            {
-                sum0 = 0.f;
-                sum1 = 0.f;
-            }
-            else
+            if (k != 0)
             {
                 sum0 = outptr[0];
                 sum1 = outptr[1];
