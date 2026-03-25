@@ -1,0 +1,52 @@
+# EditorConfig configuration for ncnn project
+# https://editorconfig.org
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# C/C++ source files
+[*.{c,cc,cpp,cxx,h,hpp,hxx}]
+indent_size = 4
+
+# CMake files
+[CMakeLists.txt]
+indent_size = 4
+
+[*.cmake]
+indent_size = 4
+
+# Python files
+[*.py]
+indent_size = 4
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab
+
+# Shell scripts
+[*.sh]
+indent_size = 4
+
+# Java files
+[*.java]
+indent_size = 4
+
+# Protobuf files
+[*.proto]
+indent_size = 2
