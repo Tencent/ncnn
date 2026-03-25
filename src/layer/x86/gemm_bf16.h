@@ -512,7 +512,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m512i _p5 = _mm512_permutex2var_epi32(b1, idx_r, b5);
                 __m512i _p6 = _mm512_permutex2var_epi32(b2, idx_r, b6);
                 __m512i _p7 = _mm512_permutex2var_epi32(b3, idx_r, b7);
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
                 __m512i a0 = _mm512_unpacklo_epi16(w0, w1);
                 __m512i a1 = _mm512_unpackhi_epi16(w0, w1);
                 __m512i a2 = _mm512_unpacklo_epi16(w2, w3);
@@ -540,17 +540,17 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 __m512i c6 = _mm512_unpacklo_epi64(b3, b7);
                 __m512i c7 = _mm512_unpackhi_epi64(b3, b7);
 
-                __m512i idx_lo = _mm512_set_epi32(27, 19, 26, 18, 25, 17, 24, 16, 11,  3, 10,  2,  9,  1,  8,  0);
-                __m512i idx_hi = _mm512_set_epi32(31, 23, 30, 22, 29, 21, 28, 20, 15,  7, 14,  6, 13,  5, 12,  4);
+                __m512i idx_lo = _mm512_set_epi32(27, 19, 26, 18, 25, 17, 24, 16, 11, 3, 10, 2, 9, 1, 8, 0);
+                __m512i idx_hi = _mm512_set_epi32(31, 23, 30, 22, 29, 21, 28, 20, 15, 7, 14, 6, 13, 5, 12, 4);
 
-                __m512i _p0 = _mm512_permutex2var_epi32(c0, idx_lo, c1);  // col 0,1
-                __m512i _p1 = _mm512_permutex2var_epi32(c2, idx_lo, c3);  // col 2,3
-                __m512i _p2 = _mm512_permutex2var_epi32(c4, idx_lo, c5);  // col 4,5
-                __m512i _p3 = _mm512_permutex2var_epi32(c6, idx_lo, c7);  // col 6,7
-                __m512i _p4 = _mm512_permutex2var_epi32(c0, idx_hi, c1);  // col 8,9
-                __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_hi, c3);  // col A,B
-                __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_hi, c5);  // col C,D
-                __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_hi, c7);  // col E,F
+                __m512i _p0 = _mm512_permutex2var_epi32(c0, idx_lo, c1); // col 0,1
+                __m512i _p1 = _mm512_permutex2var_epi32(c2, idx_lo, c3); // col 2,3
+                __m512i _p2 = _mm512_permutex2var_epi32(c4, idx_lo, c5); // col 4,5
+                __m512i _p3 = _mm512_permutex2var_epi32(c6, idx_lo, c7); // col 6,7
+                __m512i _p4 = _mm512_permutex2var_epi32(c0, idx_hi, c1); // col 8,9
+                __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_hi, c3); // col A,B
+                __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_hi, c5); // col C,D
+                __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_hi, c7); // col E,F
 #endif // __AVX512BF16__
 
                 _mm512_storeu_si512((__m512i*)pp, _p0);
@@ -1533,7 +1533,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i _p5 = _mm512_permutex2var_epi32(b1, idx_r, b5);
                 __m512i _p6 = _mm512_permutex2var_epi32(b2, idx_r, b6);
                 __m512i _p7 = _mm512_permutex2var_epi32(b3, idx_r, b7);
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
                 __m512i a0 = _mm512_unpacklo_epi16(w0, w1);
                 __m512i a1 = _mm512_unpackhi_epi16(w0, w1);
                 __m512i a2 = _mm512_unpacklo_epi16(w2, w3);
@@ -1561,17 +1561,17 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i c6 = _mm512_unpacklo_epi64(b3, b7);
                 __m512i c7 = _mm512_unpackhi_epi64(b3, b7);
 
-                __m512i idx_lo = _mm512_set_epi32(27, 19, 26, 18, 25, 17, 24, 16, 11,  3, 10,  2,  9,  1,  8,  0);
-                __m512i idx_hi = _mm512_set_epi32(31, 23, 30, 22, 29, 21, 28, 20, 15,  7, 14,  6, 13,  5, 12,  4);
+                __m512i idx_lo = _mm512_set_epi32(27, 19, 26, 18, 25, 17, 24, 16, 11, 3, 10, 2, 9, 1, 8, 0);
+                __m512i idx_hi = _mm512_set_epi32(31, 23, 30, 22, 29, 21, 28, 20, 15, 7, 14, 6, 13, 5, 12, 4);
 
-                __m512i _p0 = _mm512_permutex2var_epi32(c0, idx_lo, c1);  // col 0,1
-                __m512i _p1 = _mm512_permutex2var_epi32(c2, idx_lo, c3);  // col 2,3
-                __m512i _p2 = _mm512_permutex2var_epi32(c4, idx_lo, c5);  // col 4,5
-                __m512i _p3 = _mm512_permutex2var_epi32(c6, idx_lo, c7);  // col 6,7
-                __m512i _p4 = _mm512_permutex2var_epi32(c0, idx_hi, c1);  // col 8,9
-                __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_hi, c3);  // col A,B
-                __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_hi, c5);  // col C,D
-                __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_hi, c7);  // col E,F
+                __m512i _p0 = _mm512_permutex2var_epi32(c0, idx_lo, c1); // col 0,1
+                __m512i _p1 = _mm512_permutex2var_epi32(c2, idx_lo, c3); // col 2,3
+                __m512i _p2 = _mm512_permutex2var_epi32(c4, idx_lo, c5); // col 4,5
+                __m512i _p3 = _mm512_permutex2var_epi32(c6, idx_lo, c7); // col 6,7
+                __m512i _p4 = _mm512_permutex2var_epi32(c0, idx_hi, c1); // col 8,9
+                __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_hi, c3); // col A,B
+                __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_hi, c5); // col C,D
+                __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_hi, c7); // col E,F
 #endif // __AVX512BF16__
 
                 _mm512_storeu_si512((__m512i*)pp, _p0);
