@@ -6,6 +6,9 @@
 #if ncnn_subgroup_arithmetic
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_subgroup_extended_types_float16 : require
+#endif
 #endif
 
 layout(constant_id = 0) const int op = 0;
