@@ -1552,10 +1552,10 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i p2_lo = _mm512_permutex2var_epi32(_r0, id2, _r1);
                 __m512i p3_lo = _mm512_permutex2var_epi32(_r0, id3, _r1);
 
-                __m512i p0_hi = _mm512_permutex2var_epi32(_r2, id0, _rv3);
-                __m512i p1_hi = _mm512_permutex2var_epi32(_r2, id1, _rv3);
-                __m512i p2_hi = _mm512_permutex2var_epi32(_r2, id2, _rv3);
-                __m512i p3_hi = _mm512_permutex2var_epi32(_r2, id3, _rv3);
+                __m512i p0_hi = _mm512_permutex2var_epi32(_r2, id0, _r3);
+                __m512i p1_hi = _mm512_permutex2var_epi32(_r2, id1, _r3);
+                __m512i p2_hi = _mm512_permutex2var_epi32(_r2, id2, _r3);
+                __m512i p3_hi = _mm512_permutex2var_epi32(_r2, id3, _r3);
 
                 __m512i cp0 = _mm512_inserti64x4(p0_lo, _mm512_castsi512_si256(p0_hi), 1);
                 __m512i cp1 = _mm512_inserti64x4(p1_lo, _mm512_castsi512_si256(p1_hi), 1);
