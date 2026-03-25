@@ -19,7 +19,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
 #endif
 
-    NCNN_LOGE("pack_A_tile_bf16 %d %d %d %d", i, max_ii, k, max_kk);
+    // NCNN_LOGE("pack_A_tile_bf16 %d %d %d %d", i, max_ii, k, max_kk);
     const int elempack = A.elempack;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
@@ -445,7 +445,7 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     }
 #endif
 
-    NCNN_LOGE("transpose_pack_A_tile_bf16 %d %d %d %d", i, max_ii, k, max_kk);
+    // NCNN_LOGE("transpose_pack_A_tile_bf16 %d %d %d %d", i, max_ii, k, max_kk);
     const int elempack = A.elempack;
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
@@ -1084,7 +1084,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
 #endif
 
-    NCNN_LOGE("pack_B_tile_bf16 %d %d %d %d", j, max_jj, k, max_kk);
+    // NCNN_LOGE("pack_B_tile_bf16 %d %d %d %d", j, max_jj, k, max_kk);
     const int elempack = B.elempack;
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
@@ -1333,6 +1333,114 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
         }
     }
+#else  // defined(__x86_64__) || defined(_M_X64)
+#if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
+
+            unsigned short* pp1 = pp + max_kk * 4;
+            unsigned short* pp2 = pp + max_kk * 8;
+            unsigned short* pp3 = pp + max_kk * 12;
+
+            int kk = 0;
+#if __AVX512BF16__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _p1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
+                __m128i _p2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+                __m128i _p3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
+                __m128i _p4 = _mm_loadl_epi64((const __m128i*)(p0 + 16));
+                __m128i _p5 = _mm_loadl_epi64((const __m128i*)(p0 + 20));
+                __m128i _p6 = _mm_loadl_epi64((const __m128i*)(p0 + 24));
+                __m128i _p7 = _mm_loadl_epi64((const __m128i*)(p0 + 28));
+
+                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
+                __m128i _t1 = _mm_unpacklo_epi16(_p2, _p3);
+                __m128i _t2 = _mm_unpacklo_epi16(_p4, _p5);
+                __m128i _t3 = _mm_unpacklo_epi16(_p6, _p7);
+
+                _mm_storeu_si128((__m128i*)pp, _t0);
+                _mm_storeu_si128((__m128i*)pp1, _t1);
+                _mm_storeu_si128((__m128i*)pp2, _t2);
+                _mm_storeu_si128((__m128i*)pp3, _t3);
+
+                pp += 8;
+                pp1 += 8;
+                pp2 += 8;
+                pp3 += 8;
+                p0 += 32;
+            }
+#endif // __AVX512BF16__
+            for (; kk < max_kk; kk++)
+            {
+                __m128i _p0 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _p1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
+
+                _mm_storel_pd((double*)pp, _mm_castsi128_pd(_p0));
+                _mm_storeh_pd((double*)pp1, _mm_castsi128_pd(_p0));
+                _mm_storel_pd((double*)pp2, _mm_castsi128_pd(_p1));
+                _mm_storeh_pd((double*)pp3, _mm_castsi128_pd(_p1));
+
+                pp += 4;
+                pp1 += 4;
+                pp2 += 4;
+                pp3 += 4;
+                p0 += 16;
+            }
+
+            pp = pp3;
+        }
+    }
+#endif // __AVX512F__
+    if (elempack == 8)
+    {
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
+
+            unsigned short* pp1 = pp + max_kk * 4;
+
+            int kk = 0;
+#if __AVX512BF16__
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _p0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _p1 = _mm_loadl_epi64((const __m128i*)(p0 + 4));
+                __m128i _p2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+                __m128i _p3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
+
+                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
+                __m128i _t1 = _mm_unpacklo_epi16(_p2, _p3);
+
+                _mm_storeu_si128((__m128i*)pp, _t0);
+                _mm_storeu_si128((__m128i*)pp1, _t1);
+
+                pp += 8;
+                pp1 += 8;
+                p0 += 16;
+            }
+#endif // __AVX512BF16__
+            for (; kk < max_kk; kk++)
+            {
+                __m128i _p0 = _mm_loadu_si128((const __m128i*)p0);
+
+                _mm_storel_pd((double*)pp, _mm_castsi128_pd(_p0));
+                _mm_storeh_pd((double*)pp1, _mm_castsi128_pd(_p0));
+
+                pp += 4;
+                pp1 += 4;
+                p0 += 8;
+            }
+
+            pp = pp1;
+        }
+    }
+#endif // __AVX__
 #endif // defined(__x86_64__) || defined(_M_X64)
     for (; jj + 3 < max_jj; jj += 4)
     {
@@ -1466,7 +1574,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     }
 #endif
 
-    NCNN_LOGE("transpose_pack_B_tile_bf16 %d %d %d %d", j, max_jj, k, max_kk);
+    // NCNN_LOGE("transpose_pack_B_tile_bf16 %d %d %d %d", j, max_jj, k, max_kk);
     const int elempack = B.elempack;
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
@@ -2105,7 +2213,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
     }
 #endif
 
-    NCNN_LOGE("gemm_transB_packed_tile_bf16 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    // NCNN_LOGE("gemm_transB_packed_tile_bf16 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
     // actually we only depend the global k==0 condition
     (void)i;
     (void)j;
@@ -2253,7 +2361,6 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             _mm512_store_ps(outptr + 128 + 112, _sumf);
             outptr += 256;
         }
-#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
@@ -2340,6 +2447,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             _mm512_store_ps(outptr + 112, _sum7);
             outptr += 128;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             const unsigned short* pA = pAT;
@@ -2486,6 +2594,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
         const unsigned short* pB = pBT;
 
         int jj = 0;
+#if defined(__x86_64__) || defined(_M_X64)
 #if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
@@ -2650,6 +2759,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
             _mm256_store_ps(outptr + 56, _sum7);
             outptr += 64;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             const unsigned short* pA = pAT;
@@ -3602,10 +3712,7 @@ static void gemm_transB_packed_tile_bf16(const Mat& AT_tile, const Mat& BT_tile,
 
 static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose)
 {
-    NCNN_LOGE("unpack_output_tile_fp32_to_bf16 %d %d %d %d", i, max_ii, j, max_jj);
-    // topT contains fp32 accumulated results in column order from gemm_transB_packed_tile_bf16
-    // Each register is one column (16/8/4 rows), no deshuffling needed
-    // This function applies C bias, multiplies alpha, and stores as bf16
+    // NCNN_LOGE("unpack_output_tile_fp32_to_bf16 %d %d %d %d", i, max_ii, j, max_jj);
     const int out_elempack = top_blob.elempack;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
 
