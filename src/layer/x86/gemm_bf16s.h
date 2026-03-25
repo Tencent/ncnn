@@ -37,14 +37,12 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         {
             int kk = 0;
 #if __AVX512BF16__
+            __m512i _idx = _mm512_set_epi16(31,15, 30,14, 29,13, 28,12, 27,11, 26,10, 25, 9, 24, 8, 23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
-                __m256i _r1 = _mm256_loadu_si256((const __m256i*)(p0 + 16));
-                __m512i _r0_32 = _mm512_cvtepu16_epi32(_r0);
-                __m512i _r1_32 = _mm512_cvtepu16_epi32(_r1);
-                __m512i _paired = _mm512_or_si512(_r0_32, _mm512_slli_epi32(_r1_32, 16));
-                _mm512_storeu_si512((__m512i*)pp, _paired);
+                __m512i _p = _mm512_loadu_si512((const __m512i*)p0);
+                _p = _mm512_permutexvar_epi16(_idx, _p);
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 32;
             }
@@ -62,20 +60,14 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
             int kk = 0;
 #if __AVX512BF16__
+            __m512i _idx = _mm512_set_epi16(31,23, 30,22, 29,21, 28,20, 27,19, 26,18, 25,17, 24,16, 15, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2,  9, 1,  8, 0);
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m128i _a0 = _mm_loadu_si128((const __m128i*)p0);
-                __m128i _a1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
-                __m128i _b0 = _mm_loadu_si128((const __m128i*)p1);
-                __m128i _b1 = _mm_loadu_si128((const __m128i*)(p1 + 8));
-                __m256i _a0_32 = _mm256_cvtepu16_epi32(_a0);
-                __m256i _a1_32 = _mm256_cvtepu16_epi32(_a1);
-                __m256i _b0_32 = _mm256_cvtepu16_epi32(_b0);
-                __m256i _b1_32 = _mm256_cvtepu16_epi32(_b1);
-                __m256i _paired_lo = _mm256_or_si256(_a0_32, _mm256_slli_epi32(_a1_32, 16));
-                __m256i _paired_hi = _mm256_or_si256(_b0_32, _mm256_slli_epi32(_b1_32, 16));
-                _mm256_storeu_si256((__m256i*)pp, _paired_lo);
-                _mm256_storeu_si256((__m256i*)(pp + 16), _paired_hi);
+                __m256i _a = _mm256_loadu_si256((const __m256i*)p0);
+                __m256i _b = _mm256_loadu_si256((const __m256i*)p1);
+                __m512i _ab = combine8x2_epi32(_a, _b);
+                __m512i _p = _mm512_permutexvar_epi16(_idx, _ab);
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 16;
                 p1 += 16;
@@ -1102,16 +1094,12 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         {
             int kk = 0;
 #if __AVX512BF16__
+            __m512i _idx = _mm512_set_epi16(31,15, 30,14, 29,13, 28,12, 27,11, 26,10, 25, 9, 24, 8, 23, 7, 22, 6, 21, 5, 20, 4, 19, 3, 18, 2, 17, 1, 16, 0);
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
-                __m256i _r1 = _mm256_loadu_si256((const __m256i*)(p0 + 16));
-
-                // TODO transpose16x2_epi16
-                __m512i _r0_32 = _mm512_cvtepu16_epi32(_r0);
-                __m512i _r1_32 = _mm512_cvtepu16_epi32(_r1);
-                __m512i _paired = _mm512_or_si512(_r0_32, _mm512_slli_epi32(_r1_32, 16));
-                _mm512_storeu_si512((__m512i*)pp, _paired);
+                __m512i _p = _mm512_loadu_si512((const __m512i*)p0);
+                _p = _mm512_permutexvar_epi16(_idx, _p);
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 32;
             }
@@ -1129,21 +1117,14 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             int kk = 0;
 #if __AVX512BF16__
+            __m512i _idx = _mm512_set_epi16(31,23, 30,22, 29,21, 28,20, 27,19, 26,18, 25,17, 24,16, 15, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2,  9, 1,  8, 0);
             for (; kk + 1 < max_kk; kk += 2)
             {
-                // TODO avx opt
-                __m128i _a0 = _mm_loadu_si128((const __m128i*)p0);
-                __m128i _a1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
-                __m128i _b0 = _mm_loadu_si128((const __m128i*)p1);
-                __m128i _b1 = _mm_loadu_si128((const __m128i*)(p1 + 8));
-                __m256i _a0_32 = _mm256_cvtepu16_epi32(_a0);
-                __m256i _a1_32 = _mm256_cvtepu16_epi32(_a1);
-                __m256i _b0_32 = _mm256_cvtepu16_epi32(_b0);
-                __m256i _b1_32 = _mm256_cvtepu16_epi32(_b1);
-                __m256i _paired_lo = _mm256_or_si256(_a0_32, _mm256_slli_epi32(_a1_32, 16));
-                __m256i _paired_hi = _mm256_or_si256(_b0_32, _mm256_slli_epi32(_b1_32, 16));
-                _mm256_storeu_si256((__m256i*)pp, _paired_lo);
-                _mm256_storeu_si256((__m256i*)(pp + 16), _paired_hi);
+                __m256i _a = _mm256_loadu_si256((const __m256i*)p0);
+                __m256i _b = _mm256_loadu_si256((const __m256i*)p1);
+                __m512i _ab = combine8x2_epi32(_a, _b);
+                __m512i _p = _mm512_permutexvar_epi16(_idx, _ab);
+                _mm512_storeu_si512((__m512i*)pp, _p);
                 pp += 32;
                 p0 += 16;
                 p1 += 16;
@@ -2485,7 +2466,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
                 __m128 _pBs = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pB));
-                __m512 _pB0 = _mm512_castsi512_ps(_mm512_broadcast_i32x4(_mm_castps_si128(_pBs)));
+                __m512 _pB0 = _mm512_broadcast_f32x4(_pBs);
 
                 __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
                 __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
@@ -2534,9 +2515,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m512 _pA0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pA));
-                __m128i _pBbf = _mm_cvtsi32_si128(*(const int*)pB);
-                __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pBbf));
-                __m512 _pB0 = _mm512_castsi512_ps(_mm512_castpd_si512(_mm512_set1_pd(((const double*)&_pBs)[0])));
+                __m512 _pB0 = bfloat2float_avx512(_mm256_set1_ps(((const float*)pB)[0]));
                 __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm512_fmadd_ps(_pA0, _pB0, _sum0);
@@ -2847,9 +2826,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
-                __m128i _pBbf = _mm_cvtsi32_si128(*(const int*)pB);
-                __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pBbf));
-                __m256 _pB0 = _mm256_castsi256_ps(_mm256_castpd_si256(_mm256_broadcast_sd((const double*)&_pBs)));
+                __m256 _pB0 = bfloat2float_avx(_mm_load1_ps((const float*)pB));
                 __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
@@ -2945,7 +2922,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m128 _pAs = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
-                __m512 _pA0 = _mm512_castsi512_ps(_mm512_broadcast_i32x4(_mm_castps_si128(_pAs)));
+                __m512 _pA0 = _mm512_broadcast_f32x4(_pAs);
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
 
                 __m512 _pA1 = _mm512_permute_ps(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
@@ -3163,8 +3140,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
-                __m128 _pBs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _mm_cvtsi32_si128(*(const int*)pB)));
-                __m128 _pB0 = _mm_castsi128_ps(_mm_castpd_si128(_mm_load1_pd((const double*)&_pBs)));
+                __m128 _pB0 = bfloat2float_sse(_mm_load1_ps((const float*)pB));
                 __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
@@ -3252,9 +3228,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
-                __m128i _pAbf = _mm_cvtsi32_si128(*(const int*)pA);
-                __m128 _pAs = _mm_castsi128_ps(_mm_unpacklo_epi16(_mm_setzero_si128(), _pAbf));
-                __m512 _pA0 = _mm512_castsi512_ps(_mm512_castpd_si512(_mm512_set1_pd(((const double*)&_pAs)[0])));
+                __m512 _pA0 = bfloat2float_avx512(_mm256_set1_ps(((const float*)pA)[0]));
                 __m512 _pB0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)pB));
                 __m512 _pB1 = _mm512_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
