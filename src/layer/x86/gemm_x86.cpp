@@ -28,18 +28,6 @@ namespace ncnn {
 #include "gemm_bf16.h"
 #endif
 
-#if NCNN_BF16
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void pack_A_tile_bf16_avx512bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
-void transpose_pack_A_tile_bf16_avx512bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
-void pack_B_tile_bf16_avx512bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
-void transpose_pack_B_tile_bf16_avx512bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
-void gemm_transB_packed_tile_bf16_avx512bf16(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
-void unpack_output_tile_fp32_to_bf16_avx512bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose);
-void get_optimal_tile_mnk_bf16_avx512bf16(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT);
-#endif
-#endif
-
 Gemm_x86::Gemm_x86()
 {
 #if __SSE2__
@@ -8518,23 +8506,6 @@ int Gemm_x86::create_pipeline_bf16s(const Option& opt)
         }
 #endif // __SSE2__
 
-        // pre-multiply C with beta
-        if (beta != 1.f)
-        {
-            Mat C2;
-            C2.create_like(CT_data);
-            if (C2.empty())
-                return -100;
-
-            const int size = CT_data.total() * CT_data.elempack;
-            for (int i = 0; i < size; i++)
-            {
-                C2[i] = CT_data[i] * beta;
-            }
-
-            CT_data = C2;
-        }
-
         if (opt.lightmode)
             C_data.release();
     }
@@ -8734,99 +8705,6 @@ static int gemm_x86_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-    if (ncnn::cpu_support_x86_avx512_bf16())
-    {
-        int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_bf16_avx512bf16(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-        const int nn_M = (M + TILE_M - 1) / TILE_M;
-        const int nn_N = (N + TILE_N - 1) / TILE_N;
-        const int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        Mat BT(TILE_K * TILE_N, nn_K, nn_N, 2u, opt.workspace_allocator);
-        if (BT.empty())
-            return -100;
-
-        const int nn_NK = nn_N * nn_K;
-        #pragma omp parallel for num_threads(nT)
-        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
-        {
-            const int ppj = ppjk / nn_K;
-            const int ppk = ppjk % nn_K;
-
-            const int j = ppj * TILE_N;
-            const int k = ppk * TILE_K;
-
-            const int max_jj = std::min((N - j), TILE_N);
-            const int max_kk = std::min((K - k), TILE_K);
-
-            Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-            if (transB)
-            {
-                pack_B_tile_bf16_avx512bf16(B, BT_tile, j, max_jj, k, max_kk);
-            }
-            else
-            {
-                transpose_pack_B_tile_bf16_avx512bf16(B, BT_tile, j, max_jj, k, max_kk);
-            }
-        }
-
-        Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
-        if (topT.empty())
-            return -100;
-
-        Mat ATX(TILE_K * TILE_M, nn_K, nT, 2u, opt.workspace_allocator);
-        if (ATX.empty())
-            return -100;
-
-        #pragma omp parallel for num_threads(nT)
-        for (int ppi = 0; ppi < nn_M; ppi++)
-        {
-            const int i = ppi * TILE_M;
-
-            const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-            const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
-
-            const int max_ii = std::min((M - i), TILE_M);
-
-            Mat topT_tile = topT.channel(get_omp_thread_num());
-
-            for (int j = 0; j < N; j += TILE_N)
-            {
-                const int max_jj = std::min((N - j), TILE_N);
-
-                for (int k = 0; k < K; k += TILE_K)
-                {
-                    const int max_kk = std::min((K - k), TILE_K);
-
-                    Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-                    Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
-
-                    if (j == 0)
-                    {
-                        if (transA)
-                        {
-                            transpose_pack_A_tile_bf16_avx512bf16(A, AT_tile, i, max_ii, k, max_kk);
-                        }
-                        else
-                        {
-                            pack_A_tile_bf16_avx512bf16(A, AT_tile, i, max_ii, k, max_kk);
-                        }
-                    }
-
-                    gemm_transB_packed_tile_bf16_avx512bf16(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
-                }
-
-                unpack_output_tile_fp32_to_bf16_avx512bf16(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, alpha, beta, output_transpose);
-            }
-        }
-
-        return 0;
-    }
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX512BF16
 
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_bf16(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
