@@ -2826,7 +2826,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m256 _pA0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)pA));
-                __m256 _pB0 = bfloat2float_avx(_mm_load1_ps((const float*)pB));
+                __m256 _pB0 = bfloat2float_avx(_mm_castps_si128(_mm_load1_ps((const float*)pB)));
                 __m256 _pB1 = _mm256_permute_ps(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm256_comp_fmadd_ps(_pA0, _pB0, _sum0);
@@ -3140,7 +3140,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk++)
             {
                 __m128 _pA = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)pA));
-                __m128 _pB0 = bfloat2float_sse(_mm_load1_ps((const float*)pB));
+                __m128 _pB0 = bfloat2float_sse(_mm_castps_si128(_mm_load1_ps((const float*)pB)));
                 __m128 _pB1 = _mm_shuffle_ps(_pB0, _pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
