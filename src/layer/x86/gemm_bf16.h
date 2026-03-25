@@ -269,7 +269,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             {
 #if __AVX2__
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
-                __m128i _p16 = _mm256_cvtepi32_epi16(_p);
+                __m128i _p16 = _mm256_comp_cvtepi32_epi16(_p);
                 _mm_storeu_si128((__m128i*)pp, _p16);
 #else
                 pp[0] = p0[0];
@@ -1292,7 +1292,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             {
 #if __AVX2__
                 __m256i _p = _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(unsigned short));
-                __m128i _p16 = _mm256_cvtepi32_epi16(_p);
+                __m128i _p16 = _mm256_comp_cvtepi32_epi16(_p);
                 _mm_storeu_si128((__m128i*)pp, _p16);
 #else
                 pp[0] = p0[0];
@@ -1516,7 +1516,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i _p5 = _mm512_permutex2var_epi32(b1, idx_r, b5);
                 __m512i _p6 = _mm512_permutex2var_epi32(b2, idx_r, b6);
                 __m512i _p7 = _mm512_permutex2var_epi32(b3, idx_r, b7);
-
 #else // __AVX512BF16__
                 __m512i c0 = _mm512_unpacklo_epi64(b0, b4);
                 __m512i c1 = _mm512_unpackhi_epi64(b0, b4);
@@ -1538,8 +1537,8 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i _p5 = _mm512_permutex2var_epi32(c2, idx_r, c3);
                 __m512i _p6 = _mm512_permutex2var_epi32(c4, idx_r, c5);
                 __m512i _p7 = _mm512_permutex2var_epi32(c6, idx_r, c7);
-
 #endif // __AVX512BF16__
+
                 _mm512_storeu_si512((__m512i*)pp, _p0);
                 _mm512_storeu_si512((__m512i*)(pp + 32), _p1);
                 _mm512_storeu_si512((__m512i*)(pp + 64), _p2);
