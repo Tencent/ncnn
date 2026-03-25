@@ -1516,7 +1516,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 __m512i _p5 = _mm512_permutex2var_epi32(b1, idx_r, b5);
                 __m512i _p6 = _mm512_permutex2var_epi32(b2, idx_r, b6);
                 __m512i _p7 = _mm512_permutex2var_epi32(b3, idx_r, b7);
-#else // __AVX512BF16__
+#else  // __AVX512BF16__
                 __m512i c0 = _mm512_unpacklo_epi64(b0, b4);
                 __m512i c1 = _mm512_unpackhi_epi64(b0, b4);
                 __m512i c2 = _mm512_unpacklo_epi64(b1, b5);
