@@ -1333,7 +1333,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
         }
     }
-#else  // defined(__x86_64__) || defined(_M_X64)
+#else // defined(__x86_64__) || defined(_M_X64)
 #if __AVX__
 #if __AVX512F__
     if (elempack == 16)
