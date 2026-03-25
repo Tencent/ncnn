@@ -6593,7 +6593,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             }
             else
             {
-                unsigned short sum0[4];
+                unsigned short sum0[8];
                 _mm_storeu_si128((__m128i*)sum0, _bf01);
 
                 p0[0] = sum0[0];
