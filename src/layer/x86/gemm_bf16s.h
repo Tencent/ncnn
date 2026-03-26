@@ -3329,8 +3329,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (k != 0)
             {
-                _sum0 = _mm_loadu_ps(outptr);
-                _sum1 = _mm_loadu_ps(outptr + 4);
+                _sum0 = _mm_load_ps(outptr);
+                _sum1 = _mm_load_ps(outptr + 4);
             }
 
             const unsigned short* pA = pAT;
@@ -3358,8 +3358,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 pB += 4;
             }
 
-            _mm_storeu_ps(outptr, _sum0);
-            _mm_storeu_ps(outptr + 4, _sum1);
+            _mm_store_ps(outptr, _sum0);
+            _mm_store_ps(outptr + 4, _sum1);
             outptr += 8;
         }
 #endif // __SSE2__
