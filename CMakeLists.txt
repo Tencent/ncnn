@@ -589,11 +589,6 @@ else()
         check_cxx_source_compiles("#include <immintrin.h>\n__m512h test(__m512h s, __m512h a, __m512h b) { return _mm512_fmadd_ph(s, a, b); }\n__m512 test2(__m512 a) { return _mm512_cvtxph_ps(_mm512_cvtxps_ph(a)); }" NCNN_COMPILER_SUPPORT_X86_AVX512_FP16)
 
         unset(CMAKE_REQUIRED_FLAGS)
-
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "19.44.35223.0")
-            # msvc 19.44.35223.0 has broken avx512bf16 support
-            set(NCNN_COMPILER_SUPPORT_X86_AVX512_BF16 OFF)
-        endif()
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
         check_cxx_compiler_flag("-mrecip=none" NCNN_COMPILER_SUPPORT_X86_RECIP_NONE)
 
