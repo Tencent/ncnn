@@ -6987,8 +6987,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
-            __m128 _f0 = _mm_loadu_ps(pp);
-            __m128 _f1 = _mm_loadu_ps(pp + 4);
+            __m128 _f0 = _mm_load_ps(pp);
+            __m128 _f1 = _mm_load_ps(pp + 4);
             pp += 8;
 
             {
