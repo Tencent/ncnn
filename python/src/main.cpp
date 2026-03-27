@@ -807,11 +807,13 @@ PYBIND11_MODULE(ncnn, m)
     .value("PIXEL_GRAY", ncnn::Mat::PixelType::PIXEL_GRAY)
     .value("PIXEL_RGBA", ncnn::Mat::PixelType::PIXEL_RGBA)
     .value("PIXEL_BGRA", ncnn::Mat::PixelType::PIXEL_BGRA)
+    .value("PIXEL_HSL", ncnn::Mat::PixelType::PIXEL_HSL)
 
     .value("PIXEL_RGB2BGR", ncnn::Mat::PixelType::PIXEL_RGB2BGR)
     .value("PIXEL_RGB2GRAY", ncnn::Mat::PixelType::PIXEL_RGB2GRAY)
     .value("PIXEL_RGB2RGBA", ncnn::Mat::PixelType::PIXEL_RGB2RGBA)
     .value("PIXEL_RGB2BGRA", ncnn::Mat::PixelType::PIXEL_RGB2BGRA)
+    .value("PIXEL_RGB2HSL", ncnn::Mat::PixelType::PIXEL_RGB2HSL)
 
     .value("PIXEL_BGR2RGB", ncnn::Mat::PixelType::PIXEL_BGR2RGB)
     .value("PIXEL_BGR2GRAY", ncnn::Mat::PixelType::PIXEL_BGR2GRAY)
@@ -831,7 +833,9 @@ PYBIND11_MODULE(ncnn, m)
     .value("PIXEL_BGRA2RGB", ncnn::Mat::PixelType::PIXEL_BGRA2RGB)
     .value("PIXEL_BGRA2BGR", ncnn::Mat::PixelType::PIXEL_BGRA2BGR)
     .value("PIXEL_BGRA2GRAY", ncnn::Mat::PixelType::PIXEL_BGRA2GRAY)
-    .value("PIXEL_BGRA2RGBA", ncnn::Mat::PixelType::PIXEL_BGRA2RGBA);
+    .value("PIXEL_BGRA2RGBA", ncnn::Mat::PixelType::PIXEL_BGRA2RGBA)
+
+    .value("PIXEL_HSL2RGB", ncnn::Mat::PixelType::PIXEL_HSL2RGB);
 
     py::class_<Extractor>(m, "Extractor")
     .def("__enter__", [](Extractor& ex) -> Extractor& { return ex; })
