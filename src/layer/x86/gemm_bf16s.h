@@ -4223,7 +4223,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     transpose16x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
                     transpose16x8_epi16(_bf8, _bf9, _bfa, _bfb, _bfc, _bfd, _bfe, _bff);
 
-                    // after transpose: r[k].low128=[jj0..7 for ii_{2k}], r[k].high128=[jj0..7 for ii_{2k+1}]
                     _mm_storeu_si128((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeu_si128((__m128i*)(p0 + 8), _mm256_extractf128_si256(_bf0, 1));
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _mm256_extractf128_si256(_bf1, 0));
@@ -4264,10 +4263,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     transpose16x4_epi16(_bf8, _bf9, _bfa, _bfb);
                     transpose16x4_epi16(_bfc, _bfd, _bfe, _bff);
 
-                    // after transpose16x4: _bf0 = [jj0-3 for ii0 | jj0-3 for ii1 | jj0-3 for ii2 | jj0-3 for ii3]
-                    //                      _bf1 = [jj0-3 for ii4..ii7], _bf2 = [jj0-3 for ii8..ii11], _bf3 = [jj0-3 for ii12..ii15]
-                    //                      _bf4 = [jj4-7 for ii0..ii3], _bf5 = [jj4-7 for ii4..ii7], etc.
-                    // jj0-3 row
                     _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + 8), _mm256_extractf128_si256(_bf0, 1));
@@ -4284,7 +4279,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + 52), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + 56), _mm256_extractf128_si256(_bf3, 1));
                     _mm_storeh_pd((double*)(p0 + 60), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
-                    // jj4-7 row
+
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _mm256_extractf128_si256(_bf4, 0));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf4, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 8), _mm256_extractf128_si256(_bf4, 1));
@@ -4301,7 +4296,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 52), _mm_castsi128_pd(_mm256_extractf128_si256(_bf7, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 56), _mm256_extractf128_si256(_bf7, 1));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 60), _mm_castsi128_pd(_mm256_extractf128_si256(_bf7, 1)));
-                    // jj8-11 row
+
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8), _mm256_extractf128_si256(_bf8, 0));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf8, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8 + 8), _mm256_extractf128_si256(_bf8, 1));
@@ -4318,7 +4313,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 52), _mm_castsi128_pd(_mm256_extractf128_si256(_bfb, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8 + 56), _mm256_extractf128_si256(_bfb, 1));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 60), _mm_castsi128_pd(_mm256_extractf128_si256(_bfb, 1)));
-                    // jj12-15 row
+
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 12), _mm256_extractf128_si256(_bfc, 0));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 12 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bfc, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 12 + 8), _mm256_extractf128_si256(_bfc, 1));
@@ -4773,7 +4768,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     transpose16x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
 
-                    // after transpose: r[k].low128=[jj0..7 for ii_{2k}], r[k].high128=[jj0..7 for ii_{2k+1}]
                     _mm_storeu_si128((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeu_si128((__m128i*)(p0 + 8), _mm256_extractf128_si256(_bf0, 1));
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _mm256_extractf128_si256(_bf1, 0));
@@ -4796,7 +4790,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
                     transpose16x4_epi16(_bf4, _bf5, _bf6, _bf7);
 
-                    // jj0-3 row: _bf0=ii0-3, _bf1=ii4-7, _bf2=ii8-11, _bf3=ii12-15
                     _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _mm256_extractf128_si256(_bf0, 1));
@@ -4813,7 +4806,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + 4 * 13), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 14), _mm256_extractf128_si256(_bf3, 1));
                     _mm_storeh_pd((double*)(p0 + 4 * 15), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
-                    // jj4-7 row: _bf4=ii0-3, _bf5=ii4-7, _bf6=ii8-11, _bf7=ii12-15
+
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _mm256_extractf128_si256(_bf4, 0));
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf4, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 4 * 2), _mm256_extractf128_si256(_bf4, 1));
@@ -5100,7 +5093,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
 
-                    // All jj0-3: _bf0=ii0-3, _bf1=ii4-7, _bf2=ii8-11, _bf3=ii12-15
                     _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _mm256_extractf128_si256(_bf0, 1));
@@ -5811,9 +5803,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 8)
                 {
-                    // _bf_k is __m256i with 16 bf16: low128=[ii0..7] for jj=k, high128=[ii0..7] for jj=k+8
-                    // Need to transpose to [jj0..7 for ii=k]
-                    // Treat low halves as 8x8 block and high halves as another 8x8 block
                     __m128i _bf0l = _mm256_extractf128_si256(_bf0, 0);
                     __m128i _bf1l = _mm256_extractf128_si256(_bf1, 0);
                     __m128i _bf2l = _mm256_extractf128_si256(_bf2, 0);
@@ -5861,8 +5850,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     __m128i _bf7l = _mm256_extractf128_si256(_bf7, 0);
                     transpose8x4_epi16(_bf0l, _bf1l, _bf2l, _bf3l);
                     transpose8x4_epi16(_bf4l, _bf5l, _bf6l, _bf7l);
-                    // After transpose: _bf0l=[jj0..3 for ii0 | jj0..3 for ii1]
-                    // jj0..3 row
                     _mm_storel_epi64((__m128i*)p0, _bf0l);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0l));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf1l);
@@ -5871,7 +5858,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_bf2l));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 6), _bf3l);
                     _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_bf3l));
-                    // jj4..7 row
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _bf4l);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_bf4l));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 4 * 2), _bf5l);
@@ -5890,7 +5876,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     __m128i _bf7h = _mm256_extractf128_si256(_bf7, 1);
                     transpose8x4_epi16(_bf0h, _bf1h, _bf2h, _bf3h);
                     transpose8x4_epi16(_bf4h, _bf5h, _bf6h, _bf7h);
-                    // jj8..11 row
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8), _bf0h);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4), _mm_castsi128_pd(_bf0h));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8 + 4 * 2), _bf1h);
@@ -5899,7 +5884,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4 * 5), _mm_castsi128_pd(_bf2h));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8 + 4 * 6), _bf3h);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4 * 7), _mm_castsi128_pd(_bf3h));
-                    // jj12..15 row
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 12), _bf4h);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 12 + 4), _mm_castsi128_pd(_bf4h));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 12 + 4 * 2), _bf5h);
@@ -5934,8 +5918,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf_k low128=[ii0..7] for jj=k, high128=[ii0..7] for jj=k+8
-                    // Already packed for out_elempack==8: 8 ii values contiguous
                     _mm_storeu_si128((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storeu_si128((__m128i*)(p0 + 8), _mm256_extractf128_si256(_bf1, 0));
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _mm256_extractf128_si256(_bf2, 0));
@@ -5956,8 +5938,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 4)
                 {
-                    // low128 low64=[ii0..3] for jj=k, low128 high64=[ii4..7] for jj=k
-                    // high128 low64=[ii0..3] for jj=k+8, high128 high64=[ii4..7] for jj=k+8
                     _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
                     _mm_storel_epi64((__m128i*)(p0 + 4), _mm256_extractf128_si256(_bf1, 0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _mm256_extractf128_si256(_bf2, 0));
@@ -5994,8 +5974,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 1)
                 {
-                    // Transpose deshuffled 8x16 to row-major for non-transpose output
-                    // Same as int8 out_elempack==1 non-transpose store
                     __m512 _tmp0 = _mm512_unpacklo_ps(_f0, _f1);
                     __m512 _tmp1 = _mm512_unpacklo_ps(_f2, _f3);
                     __m512 _tmp2 = _mm512_unpacklo_ps(_f4, _f5);
@@ -6118,7 +6096,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f6 = _mm256_permute2f128_ps(_tmp6, _tmp2, _MM_SHUFFLE(0, 3, 0, 0));
                 _f7 = _mm256_permute2f128_ps(_tmp7, _tmp3, _MM_SHUFFLE(0, 3, 0, 0));
             }
-            // _f0..7 are now rows: _f0 = row0(8 cols), ..., _f7 = row7(8 cols)
 
             if (pC)
             {
@@ -6274,7 +6251,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 if (out_elempack == 8)
                 {
                     transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
-                    // After transpose: _bf_k = [jj0..jj7 for ii=k]
+
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _bf2);
@@ -6288,8 +6265,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
                     transpose8x4_epi16(_bf4, _bf5, _bf6, _bf7);
-                    // After transpose: _bf0=[jj0..3 for ii0 | jj0..3 for ii1]
-                    // jj0..3 row
+
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf1);
@@ -6298,7 +6274,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_bf2));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 6), _bf3);
                     _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_bf3));
-                    // jj4..7 row
+
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4), _bf4);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_bf4));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 4 * 2), _bf5);
@@ -6325,7 +6301,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf_k = __m128i with 8 bf16 = [ii0..ii7] for jj=k, already packed
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _bf2);
@@ -6338,7 +6313,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 4)
                 {
-                    // low64=[ii0..3] for jj=k, high64=[ii4..7] for jj=k
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf2);
@@ -6514,8 +6488,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf_k = [ii0..7] for jj=k, need to store 4 jj values for each ii
-                    // Store directly - each _bf has 8 ii values for one jj
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _bf2);
@@ -6524,7 +6496,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 if (out_elempack == 4)
                 {
                     transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
-                    // After: _bf0=[jj0..3 for ii0 | jj0..3 for ii1]
+
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf1);
@@ -6547,7 +6519,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf_k = [ii0..ii7] for jj=k, already packed
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                     _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _bf2);
@@ -6556,7 +6527,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 4)
                 {
-                    // low64=[ii0..3] for jj=k, high64=[ii4..7] for jj=k
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf2);
@@ -6675,14 +6645,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf0=[ii0..7] for jj0, _bf1=[ii0..7] for jj1
-                    // Need [jj0,jj1] for each ii group of 8 - but only 2 jj, store as-is
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                 }
                 if (out_elempack == 4)
                 {
-                    // _bf0=[ii0..7] for jj0: low64=[ii0..3], high64=[ii4..7]
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4), _mm_castsi128_pd(_bf0));
@@ -7070,26 +7037,20 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 4)
                 {
-                    // _bf_k layout: low128.low64=[ii0..3 jj=k], low128.high64=[ii0..3 jj=k+4],
-                    //               high128.low64=[ii0..3 jj=k+8], high128.high64=[ii0..3 jj=k+12]
-                    // 4 _bf regs: _bf0=jj{0,4,8,12}, _bf1=jj{1,5,9,13}, _bf2=jj{2,6,10,14}, _bf3=jj{3,7,11,15}
-                    // Need transpose to [jj0..3 for each ii], each stored at ii*4 offset
-                    // Use unpack on the low halves: pairs from _bf0/_bf1 and _bf2/_bf3
                     __m128i _bf0l = _mm256_extractf128_si256(_bf0, 0);
                     __m128i _bf1l = _mm256_extractf128_si256(_bf1, 0);
                     __m128i _bf2l = _mm256_extractf128_si256(_bf2, 0);
                     __m128i _bf3l = _mm256_extractf128_si256(_bf3, 0);
-                    // _bf0l = [ii0_j0 ii1_j0 ii2_j0 ii3_j0 | ii0_j4 ii1_j4 ii2_j4 ii3_j4]
-                    // _bf1l = [ii0_j1 ii1_j1 ii2_j1 ii3_j1 | ii0_j5 ii1_j5 ii2_j5 ii3_j5]
-                    __m128i _t0 = _mm_unpacklo_epi16(_bf0l, _bf1l);  // [ii0_j0 ii0_j1 ii1_j0 ii1_j1 ii2_j0 ii2_j1 ii3_j0 ii3_j1]
-                    __m128i _t1 = _mm_unpacklo_epi16(_bf2l, _bf3l);  // [ii0_j2 ii0_j3 ii1_j2 ii1_j3 ii2_j2 ii2_j3 ii3_j2 ii3_j3]
-                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);      // [ii0_j0 ii0_j1 ii0_j2 ii0_j3 ii1_j0 ii1_j1 ii1_j2 ii1_j3]
-                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);      // [ii2_j0..j3 ii3_j0..j3]
+
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf0l, _bf1l);
+                    __m128i _t1 = _mm_unpacklo_epi16(_bf2l, _bf3l);
+                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
                     _mm_storel_epi64((__m128i*)p0, _d0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_d0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _d1);
                     _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_d1));
-                    // jj4..7
+
                     __m128i _t2 = _mm_unpackhi_epi16(_bf0l, _bf1l);
                     __m128i _t3 = _mm_unpackhi_epi16(_bf2l, _bf3l);
                     __m128i _d2 = _mm_unpacklo_epi32(_t2, _t3);
@@ -7098,7 +7059,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4), _mm_castsi128_pd(_d2));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 4 + 4 * 2), _d3);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4 + 4 * 3), _mm_castsi128_pd(_d3));
-                    // jj8..15 from high halves
+
                     __m128i _bf0h = _mm256_extractf128_si256(_bf0, 1);
                     __m128i _bf1h = _mm256_extractf128_si256(_bf1, 1);
                     __m128i _bf2h = _mm256_extractf128_si256(_bf2, 1);
@@ -7111,6 +7072,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4), _mm_castsi128_pd(_d4));
                     _mm_storel_epi64((__m128i*)(p0 + out_hstep * 8 + 4 * 2), _d5);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 8 + 4 * 3), _mm_castsi128_pd(_d5));
+
                     __m128i _t6 = _mm_unpackhi_epi16(_bf0h, _bf1h);
                     __m128i _t7 = _mm_unpackhi_epi16(_bf2h, _bf3h);
                     __m128i _d6 = _mm_unpacklo_epi32(_t6, _t7);
@@ -7145,26 +7107,22 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf_k layout: low128.low64=[ii0..3] for jj=k, low128.high64=[ii0..3] for jj=k+4
-                    //               high128.low64=[ii0..3] for jj=k+8, high128.high64=[ii0..3] for jj=k+12
-                    // _bf0 has jj{0,4,8,12}, _bf1 has jj{1,5,9,13}, _bf2 has jj{2,6,10,14}, _bf3 has jj{3,7,11,15}
-                    // Store 4 bf16 per jj column, interleaving _bf0..3 for sequential jj
-                    _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));           // jj0
-                    _mm_storel_epi64((__m128i*)(p0 + 4), _mm256_extractf128_si256(_bf1, 0));     // jj1
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _mm256_extractf128_si256(_bf2, 0)); // jj2
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 3), _mm256_extractf128_si256(_bf3, 0)); // jj3
-                    _mm_storeh_pd((double*)(p0 + 4 * 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));  // jj4
-                    _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));  // jj5
-                    _mm_storeh_pd((double*)(p0 + 4 * 6), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));  // jj6
-                    _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));  // jj7
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 8), _mm256_extractf128_si256(_bf0, 1));                // jj8
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 9), _mm256_extractf128_si256(_bf1, 1));                // jj9
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 10), _mm256_extractf128_si256(_bf2, 1));               // jj10
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 11), _mm256_extractf128_si256(_bf3, 1));               // jj11
-                    _mm_storeh_pd((double*)(p0 + 4 * 12), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1))); // jj12
-                    _mm_storeh_pd((double*)(p0 + 4 * 13), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1))); // jj13
-                    _mm_storeh_pd((double*)(p0 + 4 * 14), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1))); // jj14
-                    _mm_storeh_pd((double*)(p0 + 4 * 15), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1))); // jj15
+                    _mm_storel_epi64((__m128i*)p0, _mm256_extractf128_si256(_bf0, 0));
+                    _mm_storel_epi64((__m128i*)(p0 + 4), _mm256_extractf128_si256(_bf1, 0));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _mm256_extractf128_si256(_bf2, 0));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 3), _mm256_extractf128_si256(_bf3, 0));
+                    _mm_storeh_pd((double*)(p0 + 4 * 4), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 6), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 8), _mm256_extractf128_si256(_bf0, 1));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 9), _mm256_extractf128_si256(_bf1, 1));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 10), _mm256_extractf128_si256(_bf2, 1));
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 11), _mm256_extractf128_si256(_bf3, 1));
+                    _mm_storeh_pd((double*)(p0 + 4 * 12), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 13), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 14), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                    _mm_storeh_pd((double*)(p0 + 4 * 15), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
                     p0 += 64;
                 }
                 if (out_elempack == 1)
@@ -7409,17 +7367,15 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // __AVX__
                 if (out_elempack == 4)
                 {
-                    // _bf04 = [ii0..3 jj0 | ii0..3 jj4], _bf15 = [ii0..3 jj1 | ii0..3 jj5], etc.
-                    // Need transpose to [jj0..3 for each ii]
-                    __m128i _t0 = _mm_unpacklo_epi16(_bf04, _bf15);  // [ii0_j0 ii0_j1 ii1_j0 ii1_j1 ii2_j0 ii2_j1 ii3_j0 ii3_j1]
-                    __m128i _t1 = _mm_unpacklo_epi16(_bf26, _bf37);  // [ii0_j2 ii0_j3 ii1_j2 ii1_j3 ii2_j2 ii2_j3 ii3_j2 ii3_j3]
-                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);      // [ii0_j0..j3 ii1_j0..j3]
-                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);      // [ii2_j0..j3 ii3_j0..j3]
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf04, _bf15);
+                    __m128i _t1 = _mm_unpacklo_epi16(_bf26, _bf37);
+                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
                     _mm_storel_epi64((__m128i*)p0, _d0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_d0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _d1);
                     _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_d1));
-                    // jj4..7
+
                     __m128i _t2 = _mm_unpackhi_epi16(_bf04, _bf15);
                     __m128i _t3 = _mm_unpackhi_epi16(_bf26, _bf37);
                     __m128i _d2 = _mm_unpacklo_epi32(_t2, _t3);
@@ -7446,16 +7402,14 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf04 low64=[ii0..3 jj0], high64=[ii0..3 jj4]
-                    // Store 4 bf16 per jj, interleaving for sequential jj
-                    _mm_storel_epi64((__m128i*)p0, _bf04);                                         // jj0
-                    _mm_storel_epi64((__m128i*)(p0 + 4), _bf15);                                   // jj1
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf26);                               // jj2
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 3), _bf37);                               // jj3
-                    _mm_storeh_pd((double*)(p0 + 4 * 4), _mm_castsi128_pd(_bf04));                 // jj4
-                    _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_bf15));                 // jj5
-                    _mm_storeh_pd((double*)(p0 + 4 * 6), _mm_castsi128_pd(_bf26));                 // jj6
-                    _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_bf37));                 // jj7
+                    _mm_storel_epi64((__m128i*)p0, _bf04);
+                    _mm_storel_epi64((__m128i*)(p0 + 4), _bf15);
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf26);
+                    _mm_storel_epi64((__m128i*)(p0 + 4 * 3), _bf37);
+                    _mm_storeh_pd((double*)(p0 + 4 * 4), _mm_castsi128_pd(_bf04));
+                    _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_bf15));
+                    _mm_storeh_pd((double*)(p0 + 4 * 6), _mm_castsi128_pd(_bf26));
+                    _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_bf37));
                     p0 += 32;
                 }
                 if (out_elempack == 1)
@@ -7591,12 +7545,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf02 = [ii0..3 jj0 | ii0..3 jj2], _bf13 = [ii0..3 jj1 | ii0..3 jj3]
-                    // Transpose to [jj0..3 for each ii]
-                    __m128i _t0 = _mm_unpacklo_epi16(_bf02, _bf13);  // [ii0_j0 ii0_j1 ii1_j0 ii1_j1 ii2_j0 ii2_j1 ii3_j0 ii3_j1]
-                    __m128i _t1 = _mm_unpackhi_epi16(_bf02, _bf13);  // [ii0_j2 ii0_j3 ii1_j2 ii1_j3 ii2_j2 ii2_j3 ii3_j2 ii3_j3]
-                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);      // [ii0_j0..j3 ii1_j0..j3]
-                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);      // [ii2_j0..j3 ii3_j0..j3]
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf02, _bf13);
+                    __m128i _t1 = _mm_unpackhi_epi16(_bf02, _bf13);
+                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
                     _mm_storel_epi64((__m128i*)p0, _d0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_d0));
                     _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _d1);
@@ -7615,12 +7567,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf02 low64=[ii0..3 jj0], high64=[ii0..3 jj2]
-                    // _bf13 low64=[ii0..3 jj1], high64=[ii0..3 jj3]
-                    _mm_storel_epi64((__m128i*)p0, _bf02);                                       // jj0
-                    _mm_storel_epi64((__m128i*)(p0 + 4), _bf13);                                 // jj1
-                    _mm_storeh_pd((double*)(p0 + 4 * 2), _mm_castsi128_pd(_bf02));               // jj2
-                    _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_bf13));               // jj3
+                    _mm_storel_epi64((__m128i*)p0, _bf02);
+                    _mm_storel_epi64((__m128i*)(p0 + 4), _bf13);
+                    _mm_storeh_pd((double*)(p0 + 4 * 2), _mm_castsi128_pd(_bf02));
+                    _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_bf13));
                     p0 += 16;
                 }
                 if (out_elempack == 1)
@@ -7807,10 +7757,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf = [ii0 ii1 ii2 ii3 ? ? ? ?] low64 has 4 bf16 for one jj
-                    // Need to scatter to p0 + ii*4 for each ii
                     unsigned short sum0[4];
                     _mm_storel_epi64((__m128i*)sum0, _bf);
+
                     p0[0] = sum0[0];
                     p0[4] = sum0[1];
                     p0[4 * 2] = sum0[2];
@@ -7826,7 +7775,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf low64 = [ii0..3] for this jj, already packed
                     _mm_storel_epi64((__m128i*)p0, _bf);
                     p0 += 4;
                 }
@@ -8146,14 +8094,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
-                    // _bf0=[jj0..3|jj4..7] for ii0, _bf1=[jj0..3|jj4..7] for ii1
                     _mm_storeu_si128((__m128i*)p0, _bf0);
                     _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
                 }
                 if (out_elempack == 4)
                 {
-                    // _bf0 low64=[jj0..3 ii0], high64=[jj4..7 ii0]
-                    // _bf1 low64=[jj0..3 ii1], high64=[jj4..7 ii1]
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storel_epi64((__m128i*)(p0 + 4), _bf1);
                     _mm_storeh_pd((double*)(p0 + out_hstep * 4), _mm_castsi128_pd(_bf0));
@@ -8260,7 +8205,6 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 4)
                 {
-                    // _bf0 = [jj0..3 for ii0 | jj0..3 for ii1]
                     _mm_storel_epi64((__m128i*)p0, _bf0);
                     _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0));
                 }
