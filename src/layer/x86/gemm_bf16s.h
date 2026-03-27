@@ -5089,6 +5089,56 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _mm256_extractf128_si256(_bf0, 0));
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _mm256_extractf128_si256(_bf0, 1));
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _mm256_extractf128_si256(_bf1, 0));
+                    _mm_storeh_pd((double*)(p1 + 80), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _mm256_extractf128_si256(_bf1, 1));
+                    _mm_storeh_pd((double*)(p1 + 112), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 128), _mm256_extractf128_si256(_bf2, 0));
+                    _mm_storeh_pd((double*)(p1 + 144), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 160), _mm256_extractf128_si256(_bf2, 1));
+                    _mm_storeh_pd((double*)(p1 + 176), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 192), _mm256_extractf128_si256(_bf3, 0));
+                    _mm_storeh_pd((double*)(p1 + 208), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 224), _mm256_extractf128_si256(_bf3, 1));
+                    _mm_storeh_pd((double*)(p1 + 240), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _mm256_extractf128_si256(_bf0, 0));
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _mm256_extractf128_si256(_bf0, 1));
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_mm256_extractf128_si256(_bf0, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _mm256_extractf128_si256(_bf1, 0));
+                    _mm_storeh_pd((double*)(p1 + 40), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 48), _mm256_extractf128_si256(_bf1, 1));
+                    _mm_storeh_pd((double*)(p1 + 56), _mm_castsi128_pd(_mm256_extractf128_si256(_bf1, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _mm256_extractf128_si256(_bf2, 0));
+                    _mm_storeh_pd((double*)(p1 + 72), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 80), _mm256_extractf128_si256(_bf2, 1));
+                    _mm_storeh_pd((double*)(p1 + 88), _mm_castsi128_pd(_mm256_extractf128_si256(_bf2, 1)));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _mm256_extractf128_si256(_bf3, 0));
+                    _mm_storeh_pd((double*)(p1 + 104), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 0)));
+                    _mm_storel_epi64((__m128i*)(p1 + 112), _mm256_extractf128_si256(_bf3, 1));
+                    _mm_storeh_pd((double*)(p1 + 120), _mm_castsi128_pd(_mm256_extractf128_si256(_bf3, 1)));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     transpose16x4_epi16(_bf0, _bf1, _bf2, _bf3);
@@ -6486,25 +6536,47 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_bf0));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _bf1);
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_bf1));
+                    _mm_storel_epi64((__m128i*)(p1 + 64), _bf2);
+                    _mm_storeh_pd((double*)(p1 + 80), _mm_castsi128_pd(_bf2));
+                    _mm_storel_epi64((__m128i*)(p1 + 96), _bf3);
+                    _mm_storeh_pd((double*)(p1 + 112), _mm_castsi128_pd(_bf3));
+                }
+#endif // __AVX512F__
                 if (out_elempack == 8)
                 {
-                    _mm_storeu_si128((__m128i*)p0, _bf0);
-                    _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
-                    _mm_storeu_si128((__m128i*)(p0 + 8 * 2), _bf2);
-                    _mm_storeu_si128((__m128i*)(p0 + 8 * 3), _bf3);
+                    transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_bf0));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _bf1);
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_bf1));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _bf2);
+                    _mm_storeh_pd((double*)(p1 + 40), _mm_castsi128_pd(_bf2));
+                    _mm_storel_epi64((__m128i*)(p1 + 48), _bf3);
+                    _mm_storeh_pd((double*)(p1 + 56), _mm_castsi128_pd(_bf3));
                 }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
-
-                    _mm_storel_epi64((__m128i*)p0, _bf0);
-                    _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0));
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _bf1);
-                    _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_bf1));
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 4), _bf2);
-                    _mm_storeh_pd((double*)(p0 + 4 * 5), _mm_castsi128_pd(_bf2));
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 6), _bf3);
-                    _mm_storeh_pd((double*)(p0 + 4 * 7), _mm_castsi128_pd(_bf3));
+                    _mm_storeu_si128((__m128i*)p0, _bf0);
+                    _mm_storeu_si128((__m128i*)(p0 + 8), _bf1);
+                    _mm_storeu_si128((__m128i*)(p0 + 16), _bf2);
+                    _mm_storeu_si128((__m128i*)(p0 + 24), _bf3);
                 }
                 if (out_elempack == 1)
                 {
@@ -7543,16 +7615,46 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf02, _bf13);
+                    __m128i _t1 = _mm_unpackhi_epi16(_bf02, _bf13);
+                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _d0);
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_d0));
+                    _mm_storel_epi64((__m128i*)(p1 + 32), _d1);
+                    _mm_storeh_pd((double*)(p1 + 48), _mm_castsi128_pd(_d1));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    __m128i _t0 = _mm_unpacklo_epi16(_bf02, _bf13);
+                    __m128i _t1 = _mm_unpackhi_epi16(_bf02, _bf13);
+                    __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
+                    __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _d0);
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_d0));
+                    _mm_storel_epi64((__m128i*)(p1 + 16), _d1);
+                    _mm_storeh_pd((double*)(p1 + 24), _mm_castsi128_pd(_d1));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
                     __m128i _t0 = _mm_unpacklo_epi16(_bf02, _bf13);
                     __m128i _t1 = _mm_unpackhi_epi16(_bf02, _bf13);
                     __m128i _d0 = _mm_unpacklo_epi32(_t0, _t1);
                     __m128i _d1 = _mm_unpackhi_epi32(_t0, _t1);
-                    _mm_storel_epi64((__m128i*)p0, _d0);
-                    _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_d0));
-                    _mm_storel_epi64((__m128i*)(p0 + 4 * 2), _d1);
-                    _mm_storeh_pd((double*)(p0 + 4 * 3), _mm_castsi128_pd(_d1));
+                    _mm_storeu_si128((__m128i*)p0, _d0);
+                    _mm_storeu_si128((__m128i*)(p0 + 8), _d1);
                 }
                 if (out_elempack == 1)
                 {
@@ -8203,10 +8305,29 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 
             if (output_transpose)
             {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                if (out_elempack == 16)
+                {
+                    const int jj_m16 = jj % 16;
+                    unsigned short* p1 = p0 - out_hstep * jj_m16 + jj_m16;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 16), _mm_castsi128_pd(_bf0));
+                }
+#endif // __AVX512F__
+                if (out_elempack == 8)
+                {
+                    const int jj_m8 = jj % 8;
+                    unsigned short* p1 = p0 - out_hstep * jj_m8 + jj_m8;
+                    _mm_storel_epi64((__m128i*)p1, _bf0);
+                    _mm_storeh_pd((double*)(p1 + 8), _mm_castsi128_pd(_bf0));
+                }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                 if (out_elempack == 4)
                 {
-                    _mm_storel_epi64((__m128i*)p0, _bf0);
-                    _mm_storeh_pd((double*)(p0 + 4), _mm_castsi128_pd(_bf0));
+                    _mm_storeu_si128((__m128i*)p0, _bf0);
                 }
                 if (out_elempack == 1)
                 {
@@ -8603,6 +8724,20 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 else
                 {
+#if !(defined(__x86_64__) || defined(_M_X64))
+#if __AVX__
+#if __AVX512F__
+                    if (out_elempack == 16)
+                    {
+                        _mm_storel_epi64((__m128i*)(p0 - (jj % 16) / 4 * out_hstep * 4 + (jj % 16) / 4 * 4), _bf0);
+                    }
+#endif // __AVX512F__
+                    if (out_elempack == 8)
+                    {
+                        _mm_storel_epi64((__m128i*)(p0 - (jj % 8) / 4 * out_hstep * 4 + (jj % 8) / 4 * 4), _bf0);
+                    }
+#endif // __AVX__
+#endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
                         _mm_storel_epi64((__m128i*)p0, _bf0);
