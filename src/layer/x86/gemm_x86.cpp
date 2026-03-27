@@ -8892,8 +8892,22 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         }
     }
 
-    // bf16 output, elempack=1 only for now
     int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+#if __AVX512F__
+        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif // __SSE2__
+    if (output_elempack)
+        out_elempack = output_elempack;
     size_t out_elemsize = 2u * out_elempack;
 
     Mat& top_blob = top_blobs[0];
