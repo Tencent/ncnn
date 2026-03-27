@@ -32,6 +32,8 @@ public:
     VkMat bias_data_gpu;
 
     Pipeline* pipeline_convolution1d;
+    Pipeline* pipeline_convolution1d_1x1s1d1;
+    Pipeline* pipeline_convolution1d_gemm;
 };
 
 } // namespace ncnn
