@@ -207,15 +207,8 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         if (elempack == 1)
         {
 #if __AVX2__
-            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(A_hstep));
+            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32((int)A_hstep));
 #endif
-            const unsigned short* p1 = p0 + A_hstep * 1;
-            const unsigned short* p2 = p0 + A_hstep * 2;
-            const unsigned short* p3 = p0 + A_hstep * 3;
-            const unsigned short* p4 = p0 + A_hstep * 4;
-            const unsigned short* p5 = p0 + A_hstep * 5;
-            const unsigned short* p6 = p0 + A_hstep * 6;
-            const unsigned short* p7 = p0 + A_hstep * 7;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -226,36 +219,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp += 16;
                 p0 += 2;
             }
-#else  // __AVX512BF16__
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
-                __m128i _r1 = _mm_loadu_si128((const __m128i*)p1);
-                __m128i _r2 = _mm_loadu_si128((const __m128i*)p2);
-                __m128i _r3 = _mm_loadu_si128((const __m128i*)p3);
-                __m128i _r4 = _mm_loadu_si128((const __m128i*)p4);
-                __m128i _r5 = _mm_loadu_si128((const __m128i*)p5);
-                __m128i _r6 = _mm_loadu_si128((const __m128i*)p6);
-                __m128i _r7 = _mm_loadu_si128((const __m128i*)p7);
-                transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm_storeu_si128((__m128i*)pp, _r0);
-                _mm_storeu_si128((__m128i*)(pp + 8), _r1);
-                _mm_storeu_si128((__m128i*)(pp + 16), _r2);
-                _mm_storeu_si128((__m128i*)(pp + 24), _r3);
-                _mm_storeu_si128((__m128i*)(pp + 32), _r4);
-                _mm_storeu_si128((__m128i*)(pp + 40), _r5);
-                _mm_storeu_si128((__m128i*)(pp + 48), _r6);
-                _mm_storeu_si128((__m128i*)(pp + 56), _r7);
-                pp += 64;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-                p4 += 8;
-                p5 += 8;
-                p6 += 8;
-                p7 += 8;
-            }
 #endif // __AVX512BF16__
             for (; kk < max_kk; kk++)
             {
@@ -265,20 +228,13 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 _mm_storeu_si128((__m128i*)pp, _p16);
 #else
                 pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
+                pp[1] = p0[A_hstep];
+                pp[2] = p0[A_hstep * 2];
+                pp[3] = p0[A_hstep * 3];
+                pp[4] = p0[A_hstep * 4];
+                pp[5] = p0[A_hstep * 5];
+                pp[6] = p0[A_hstep * 6];
+                pp[7] = p0[A_hstep * 7];
 #endif
                 pp += 8;
                 p0++;
@@ -1266,15 +1222,8 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         if (elempack == 1)
         {
 #if __AVX2__
-            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(B_hstep));
+            __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32((int)B_hstep));
 #endif
-            const unsigned short* p1 = p0 + B_hstep * 1;
-            const unsigned short* p2 = p0 + B_hstep * 2;
-            const unsigned short* p3 = p0 + B_hstep * 3;
-            const unsigned short* p4 = p0 + B_hstep * 4;
-            const unsigned short* p5 = p0 + B_hstep * 5;
-            const unsigned short* p6 = p0 + B_hstep * 6;
-            const unsigned short* p7 = p0 + B_hstep * 7;
 
             int kk = 0;
 #if __AVX512BF16__
@@ -1294,20 +1243,13 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 _mm_storeu_si128((__m128i*)pp, _p16);
 #else
                 pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
+                pp[1] = p0[B_hstep];
+                pp[2] = p0[B_hstep * 2];
+                pp[3] = p0[B_hstep * 3];
+                pp[4] = p0[B_hstep * 4];
+                pp[5] = p0[B_hstep * 5];
+                pp[6] = p0[B_hstep * 6];
+                pp[7] = p0[B_hstep * 7];
 #endif
                 pp += 8;
                 p0++;
@@ -6672,7 +6614,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     else // if (c_elempack == 1)
                     {
 #if __AVX2__
-                        __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(c_hstep));
+                        __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32((int)c_hstep));
                         _c0 = _mm256_i32gather_ps(pC, _vindex, sizeof(float));
                         _c1 = _mm256_i32gather_ps(pC + 1, _vindex, sizeof(float));
 #else
@@ -6809,7 +6751,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     else // if (c_elempack == 1)
                     {
 #if __AVX2__
-                        __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(c_hstep));
+                        __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32((int)c_hstep));
                         _c0 = _mm256_i32gather_ps(pC, _vindex, sizeof(float));
 #else
                         _c0 = _mm256_setr_ps(pC[0], pC[c_hstep], pC[c_hstep * 2], pC[c_hstep * 3], pC[c_hstep * 4], pC[c_hstep * 5], pC[c_hstep * 6], pC[c_hstep * 7]);
