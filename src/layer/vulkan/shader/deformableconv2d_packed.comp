@@ -1,0 +1,209 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int kernel_w = 1;
+layout(constant_id = 1) const int kernel_h = 1;
+layout(constant_id = 2) const int dilation_w = 1;
+layout(constant_id = 3) const int dilation_h = 1;
+layout(constant_id = 4) const int stride_w = 1;
+layout(constant_id = 5) const int stride_h = 1;
+layout(constant_id = 6) const int bias_term = 0;
+layout(constant_id = 7) const int has_mask = 0;
+layout(constant_id = 8) const int activation_type = 0;
+layout(constant_id = 9) const float activation_param_0 = 0;
+layout(constant_id = 10) const float activation_param_1 = 0;
+layout(constant_id = 11) const int elempack = 1;
+layout(constant_id = 12) const int out_elempack = 1;
+
+#define shape_constant_id_offset 13
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 10) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int offset_cstep = 0;
+layout(constant_id = shape_constant_id_offset + 12) const int mask_cstep = 0;
+
+// scalar view (for pack1 input/output access)
+layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
+layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
+
+// vec4 view (for pack4 input/output access, weight/bias always vec4)
+layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 4) readonly buffer offset_blob { sfp offset_data[]; };
+layout(binding = 5) readonly buffer mask_blob { sfp mask_data[]; };
+layout(binding = 6) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+layout(binding = 7) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+
+    int num_output;
+    int offset_cstep;
+    int mask_cstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+        return;
+
+    afpvec4 sum;
+
+    if (bias_term == 1)
+    {
+        sum = buffer_ld4(bias_data, gz);
+    }
+    else
+    {
+        sum = afpvec4(0.f);
+    }
+
+    int h_in = gy * stride_h;
+    int w_in = gx * stride_w;
+
+    const int maxk = kernel_w * kernel_h;
+
+    // weight layout: (maxk, c, outc_pack4), each element is 4*elempack floats
+    // when elempack=4: w_offset indexes mat4 (16 floats)
+    // when elempack=1: w_offset indexes vec4 (4 floats)
+    int w_offset = gz * psc(c) * maxk;
+
+    for (int z = 0; z < psc(c); z++)
+    {
+        int v_offset = z * psc(cstep);
+
+        for (int y = 0; y < kernel_h; y++)
+        {
+            for (int x = 0; x < kernel_w; x++)
+            {
+                int k_idx = y * kernel_w + x;
+
+                // offset tensor layout: [outw, outh, maxk*2]
+                // offset_h is at channel (k_idx * 2)
+                // offset_w is at channel (k_idx * 2 + 1)
+                int offset_h_idx = (k_idx * 2) * psc(offset_cstep) + gy * psc(outw) + gx;
+                int offset_w_idx = (k_idx * 2 + 1) * psc(offset_cstep) + gy * psc(outw) + gx;
+
+                float offset_h = float(buffer_ld1(offset_data, offset_h_idx));
+                float offset_w = float(buffer_ld1(offset_data, offset_w_idx));
+
+                float h_im = float(h_in) + float(y * dilation_h) + offset_h;
+                float w_im = float(w_in) + float(x * dilation_w) + offset_w;
+
+                float mask_val = 1.f;
+                if (has_mask == 1)
+                {
+                    // mask tensor layout: [outw, outh, maxk]
+                    int mask_idx = k_idx * psc(mask_cstep) + gy * psc(outw) + gx;
+                    mask_val = float(buffer_ld1(mask_data, mask_idx));
+                }
+
+                bool cond = h_im > -1.f && w_im > -1.f && h_im < float(psc(h)) && w_im < float(psc(w));
+
+                if (cond)
+                {
+                    int h_low = int(floor(h_im));
+                    int w_low = int(floor(w_im));
+                    int h_high = h_low + 1;
+                    int w_high = w_low + 1;
+
+                    float lh = h_im - float(h_low);
+                    float lw = w_im - float(w_low);
+                    float hh = 1.f - lh;
+                    float hw = 1.f - lw;
+
+                    bool v1_cond = (h_low >= 0 && w_low >= 0);
+                    bool v2_cond = (h_low >= 0 && w_high <= psc(w) - 1);
+                    bool v3_cond = (h_high <= psc(h) - 1 && w_low >= 0);
+                    bool v4_cond = (h_high <= psc(h) - 1 && w_high <= psc(w) - 1);
+
+                    if (elempack == 4)
+                    {
+                        afpvec4 v1 = v1_cond ? buffer_ld4(bottom_blob_data_4, v_offset + h_low * psc(w) + w_low) : afpvec4(0.f);
+                        afpvec4 v2 = v2_cond ? buffer_ld4(bottom_blob_data_4, v_offset + h_low * psc(w) + w_high) : afpvec4(0.f);
+                        afpvec4 v3 = v3_cond ? buffer_ld4(bottom_blob_data_4, v_offset + h_high * psc(w) + w_low) : afpvec4(0.f);
+                        afpvec4 v4 = v4_cond ? buffer_ld4(bottom_blob_data_4, v_offset + h_high * psc(w) + w_high) : afpvec4(0.f);
+
+                        afpvec4 sampled_val = v1 * (hh * hw) + v2 * (hh * lw) + v3 * (lh * hw) + v4 * (lh * lw);
+
+                        // weight is 4x4 mat, load from 4 consecutive vec4
+                        afpmat4 k = afpmat4(
+                            buffer_ld4(weight_data, w_offset * 4 + 0),
+                            buffer_ld4(weight_data, w_offset * 4 + 1),
+                            buffer_ld4(weight_data, w_offset * 4 + 2),
+                            buffer_ld4(weight_data, w_offset * 4 + 3));
+
+                        sum += sampled_val * afpvec4(mask_val) * k;
+                    }
+                    else
+                    {
+                        afp v1 = v1_cond ? buffer_ld1(bottom_blob_data_1, v_offset + h_low * psc(w) + w_low) : afp(0.f);
+                        afp v2 = v2_cond ? buffer_ld1(bottom_blob_data_1, v_offset + h_low * psc(w) + w_high) : afp(0.f);
+                        afp v3 = v3_cond ? buffer_ld1(bottom_blob_data_1, v_offset + h_high * psc(w) + w_low) : afp(0.f);
+                        afp v4 = v4_cond ? buffer_ld1(bottom_blob_data_1, v_offset + h_high * psc(w) + w_high) : afp(0.f);
+
+                        afp val = v1 * (hh * hw) + v2 * (hh * lw) + v3 * (lh * hw) + v4 * (lh * lw);
+
+                        // weight is vec4 (4 output channels per input channel)
+                        afpvec4 k = buffer_ld4(weight_data, w_offset);
+
+                        sum += val * afpvec4(mask_val) * k;
+                    }
+                }
+
+                w_offset += 1;
+            }
+        }
+    }
+
+    sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
+
+    if (out_elempack == 4)
+    {
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+        buffer_st4(top_blob_data_4, gi, sum);
+    }
+    else
+    {
+        const int channel_step = psc(outcstep) / 4;
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        const int base_ch = gz * 4;
+        const int nout = psc(num_output);
+
+        buffer_st1(top_blob_data_1, gi, sum.r);
+        if (base_ch + 1 < nout) buffer_st1(top_blob_data_1, gi + channel_step, sum.g);
+        if (base_ch + 2 < nout) buffer_st1(top_blob_data_1, gi + channel_step * 2, sum.b);
+        if (base_ch + 3 < nout) buffer_st1(top_blob_data_1, gi + channel_step * 3, sum.a);
+    }
+}
