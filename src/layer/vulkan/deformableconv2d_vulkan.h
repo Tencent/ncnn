@@ -31,6 +31,8 @@ public:
 
     Pipeline* pipeline_deformableconv2d_packed;
     Pipeline* pipeline_deformableconv2d_packed_mask;
+    Pipeline* pipeline_deformableconv2d_packed_gemm;
+    Pipeline* pipeline_deformableconv2d_packed_gemm_mask;
 };
 
 } // namespace ncnn

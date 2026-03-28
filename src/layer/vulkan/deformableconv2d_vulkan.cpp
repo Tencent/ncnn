@@ -17,6 +17,8 @@ DeformableConv2D_vulkan::DeformableConv2D_vulkan()
 
     pipeline_deformableconv2d_packed = 0;
     pipeline_deformableconv2d_packed_mask = 0;
+    pipeline_deformableconv2d_packed_gemm = 0;
+    pipeline_deformableconv2d_packed_gemm_mask = 0;
 }
 
 int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
@@ -184,6 +186,70 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
     pipeline_deformableconv2d_packed_mask->set_optimal_local_size_xyz(local_size_xyz);
     pipeline_deformableconv2d_packed_mask->create(LayerShaderType::deformableconv2d_packed, opt, specializations);
 
+    // gemm pipeline
+    if (opt.use_sgemm_convolution && num_input * maxk >= 8 && num_output >= 8)
+    {
+        const int num_input_packed = (num_input + 3) / 4 * 4;
+
+        std::vector<vk_specialization_type> specializations_gemm(13 + 12);
+        specializations_gemm[0].i = kernel_w;
+        specializations_gemm[1].i = kernel_h;
+        specializations_gemm[2].i = dilation_w;
+        specializations_gemm[3].i = dilation_h;
+        specializations_gemm[4].i = stride_w;
+        specializations_gemm[5].i = stride_h;
+        specializations_gemm[6].i = bias_term;
+        specializations_gemm[7].i = 0;  // has_mask = 0
+        specializations_gemm[8].i = activation_type;
+        specializations_gemm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations_gemm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations_gemm[11].i = elempack;
+        specializations_gemm[12].i = out_elempack;
+
+        specializations_gemm[13 + 0].i = shape_bordered.w;
+        specializations_gemm[13 + 1].i = shape_bordered.h;
+        specializations_gemm[13 + 2].i = num_input / elempack;  // c_iterations
+        specializations_gemm[13 + 3].i = shape_bordered.cstep;
+        specializations_gemm[13 + 4].i = out_shape.w;
+        specializations_gemm[13 + 5].i = out_shape.h;
+        specializations_gemm[13 + 6].i = out_shape.dims != 0 ? num_output_packed / 4 : 0;
+        specializations_gemm[13 + 7].i = outcstep_scalar;  // must use outcstep_scalar, not out_shape.cstep
+        specializations_gemm[13 + 8].i = num_output;
+        specializations_gemm[13 + 9].i = num_input;
+        specializations_gemm[13 + 10].i = 0;  // offset_cstep (runtime)
+        specializations_gemm[13 + 11].i = 0;  // mask_cstep (runtime)
+
+        Mat local_size_xyz_gemm(16, std::min(4, num_output_packed / 4), 1, (void*)0);
+        if (out_shape.dims != 0)
+        {
+            local_size_xyz_gemm.w = std::min(16, out_shape.w * out_shape.h);
+            local_size_xyz_gemm.h = std::min(4, num_output_packed / 4);
+        }
+
+        pipeline_deformableconv2d_packed_gemm = new Pipeline(vkdev);
+        if (opt.use_shader_local_memory)
+        {
+            pipeline_deformableconv2d_packed_gemm->set_local_size_xyz(8, 8, 1);
+        }
+        else
+        {
+            pipeline_deformableconv2d_packed_gemm->set_optimal_local_size_xyz(local_size_xyz_gemm);
+        }
+        pipeline_deformableconv2d_packed_gemm->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
+
+        specializations_gemm[7].i = 1;  // has_mask = 1
+        pipeline_deformableconv2d_packed_gemm_mask = new Pipeline(vkdev);
+        if (opt.use_shader_local_memory)
+        {
+            pipeline_deformableconv2d_packed_gemm_mask->set_local_size_xyz(8, 8, 1);
+        }
+        else
+        {
+            pipeline_deformableconv2d_packed_gemm_mask->set_optimal_local_size_xyz(local_size_xyz_gemm);
+        }
+        pipeline_deformableconv2d_packed_gemm_mask->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
+    }
+
     return 0;
 }
 
@@ -201,6 +267,12 @@ int DeformableConv2D_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_deformableconv2d_packed_mask;
     pipeline_deformableconv2d_packed_mask = 0;
+
+    delete pipeline_deformableconv2d_packed_gemm;
+    pipeline_deformableconv2d_packed_gemm = 0;
+
+    delete pipeline_deformableconv2d_packed_gemm_mask;
+    pipeline_deformableconv2d_packed_gemm_mask = 0;
 
     return 0;
 }
@@ -350,6 +422,49 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
     const int cstep_scalar = bottom_blob_bordered.cstep;
     const int outc_pack4 = num_output_packed / 4;
     const int outcstep_scalar = (out_elempack == 4) ? top_blob.cstep : (top_blob.cstep * 4);
+
+    const int maxk = kernel_w * kernel_h;
+
+    // gemm branch
+    if (opt.use_sgemm_convolution && channels * maxk >= 8 && num_output >= 8
+        && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask))
+    {
+        const int num_input_packed = (channels + 3) / 4 * 4;
+
+        std::vector<VkMat> bindings(8);
+        bindings[0] = bottom_blob_bordered;
+        bindings[1] = top_blob;
+        bindings[2] = bottom_blob_bordered;
+        bindings[3] = top_blob;
+        bindings[4] = offset;
+        bindings[5] = has_mask ? mask : VkMat();
+        bindings[6] = weight_data_gpu;
+        bindings[7] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(12);
+        constants[0].i = bottom_blob_bordered.w;
+        constants[1].i = bottom_blob_bordered.h;
+        constants[2].i = c_iterations;  // channels / elempack
+        constants[3].i = cstep_scalar;
+        constants[4].i = top_blob.w;
+        constants[5].i = top_blob.h;
+        constants[6].i = outc_pack4;
+        constants[7].i = outcstep_scalar;
+        constants[8].i = num_output;
+        constants[9].i = channels;
+        constants[10].i = offset.cstep;
+        constants[11].i = has_mask ? mask.cstep : 0;
+
+        VkMat dispatcher;
+        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+        dispatcher.h = outc_pack4;
+        dispatcher.c = 1;
+
+        Pipeline* pipeline = has_mask ? pipeline_deformableconv2d_packed_gemm_mask : pipeline_deformableconv2d_packed_gemm;
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+        return 0;
+    }
 
     std::vector<VkMat> bindings(8);
     bindings[0] = bottom_blob_bordered;
