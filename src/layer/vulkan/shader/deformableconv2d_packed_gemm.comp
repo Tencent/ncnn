@@ -191,10 +191,14 @@ void main()
                 sampled_val = sampled_val * afpvec4(mask_val);
             }
 
-            if (ly == 0) v0 = sampled_val;
-            else if (ly == 1) v1 = sampled_val;
-            else if (ly == 2) v2 = sampled_val;
-            else v3 = sampled_val;
+            if (ly == 0)
+                v0 = sampled_val;
+            else if (ly == 1)
+                v1 = sampled_val;
+            else if (ly == 2)
+                v2 = sampled_val;
+            else
+                v3 = sampled_val;
         }
 
         if (elempack == 4)
