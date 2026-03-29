@@ -1,4 +1,4 @@
-// Copyright 2026 Tencent
+// Copyright 2026 <pchar.cn> futz12
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_DEFORMABLECONV2D_VULKAN_H
