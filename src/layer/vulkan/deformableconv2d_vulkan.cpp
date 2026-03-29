@@ -326,7 +326,7 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
             specializations_cm[4].u32 = stride_w;
             specializations_cm[5].u32 = stride_h;
             specializations_cm[6].i = bias_term;
-            specializations_cm[7].i = 0;  // has_mask = 0
+            specializations_cm[7].i = 0; // has_mask = 0
             specializations_cm[8].i = activation_type;
             specializations_cm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations_cm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
@@ -349,15 +349,15 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
             specializations_cm[24 + 3].u32 = out_shape.w;
             specializations_cm[24 + 4].u32 = out_shape.h;
             specializations_cm[24 + 5].u32 = out_shape.dims != 0 ? out_shape.cstep : 0;
-            specializations_cm[24 + 6].u32 = 0;  // offset_cstep (runtime)
-            specializations_cm[24 + 7].u32 = 0;  // mask_cstep (runtime)
+            specializations_cm[24 + 6].u32 = 0; // offset_cstep (runtime)
+            specializations_cm[24 + 7].u32 = 0; // mask_cstep (runtime)
 
             pipeline_deformableconv2d_gemm_cm = new Pipeline(vkdev);
             pipeline_deformableconv2d_gemm_cm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_deformableconv2d_gemm_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_deformableconv2d_gemm_cm->create(LayerShaderType::deformableconv2d_gemm_cm, opt, specializations_cm);
 
-            specializations_cm[7].i = 1;  // has_mask = 1
+            specializations_cm[7].i = 1; // has_mask = 1
             pipeline_deformableconv2d_gemm_cm_mask = new Pipeline(vkdev);
             pipeline_deformableconv2d_gemm_cm_mask->set_subgroup_size(coopmat_subgroup_size);
             pipeline_deformableconv2d_gemm_cm_mask->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
@@ -375,7 +375,7 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
             specializations_gemm[4].i = stride_w;
             specializations_gemm[5].i = stride_h;
             specializations_gemm[6].i = bias_term;
-            specializations_gemm[7].i = 0;  // has_mask = 0
+            specializations_gemm[7].i = 0; // has_mask = 0
             specializations_gemm[8].i = activation_type;
             specializations_gemm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations_gemm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
@@ -384,16 +384,16 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
 
             specializations_gemm[13 + 0].i = shape_bordered.w;
             specializations_gemm[13 + 1].i = shape_bordered.h;
-            specializations_gemm[13 + 2].i = num_input / elempack;  // c_iterations
+            specializations_gemm[13 + 2].i = num_input / elempack; // c_iterations
             specializations_gemm[13 + 3].i = shape_bordered.cstep;
             specializations_gemm[13 + 4].i = out_shape.w;
             specializations_gemm[13 + 5].i = out_shape.h;
             specializations_gemm[13 + 6].i = out_shape.dims != 0 ? num_output_packed / 4 : 0;
-            specializations_gemm[13 + 7].i = outcstep_scalar;  // must use outcstep_scalar, not out_shape.cstep
+            specializations_gemm[13 + 7].i = outcstep_scalar; // must use outcstep_scalar, not out_shape.cstep
             specializations_gemm[13 + 8].i = num_output;
             specializations_gemm[13 + 9].i = num_input;
-            specializations_gemm[13 + 10].i = 0;  // offset_cstep (runtime)
-            specializations_gemm[13 + 11].i = 0;  // mask_cstep (runtime)
+            specializations_gemm[13 + 10].i = 0; // offset_cstep (runtime)
+            specializations_gemm[13 + 11].i = 0; // mask_cstep (runtime)
 
             Mat local_size_xyz_gemm(16, std::min(4, num_output_packed / 4), 1, (void*)0);
             if (out_shape.dims != 0)
@@ -413,7 +413,7 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
             }
             pipeline_deformableconv2d_packed_gemm->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
 
-            specializations_gemm[7].i = 1;  // has_mask = 1
+            specializations_gemm[7].i = 1; // has_mask = 1
             pipeline_deformableconv2d_packed_gemm_mask = new Pipeline(vkdev);
             if (opt.use_shader_local_memory)
             {
@@ -628,8 +628,8 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
 
     // gemm branch
     if (opt.use_sgemm_convolution && channels * maxk >= 8 && num_output >= 8
-        && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
-            || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
+            && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
+                || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
     {
         if (use_cooperative_matrix)
         {
@@ -681,7 +681,7 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
             std::vector<vk_constant_type> constants(12);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
-            constants[2].i = c_iterations;  // channels / elempack
+            constants[2].i = c_iterations; // channels / elempack
             constants[3].i = cstep_scalar;
             constants[4].i = top_blob.w;
             constants[5].i = top_blob.h;

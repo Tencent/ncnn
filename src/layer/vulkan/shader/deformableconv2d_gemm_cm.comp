@@ -362,10 +362,14 @@ void main()
                                     val = bilinear_interpolate(sz, h_im, w_im) * mask_val;
                                 }
 
-                                if (ly == 0) v.r = val;
-                                else if (ly == 1) v.g = val;
-                                else if (ly == 2) v.b = val;
-                                else v.a = val;
+                                if (ly == 0)
+                                    v.r = val;
+                                else if (ly == 1)
+                                    v.g = val;
+                                else if (ly == 2)
+                                    v.b = val;
+                                else
+                                    v.a = val;
                             }
 
                             prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
@@ -572,10 +576,14 @@ void main()
                                         val = bilinear_interpolate(sz, h_im, w_im) * mask_val;
                                     }
 
-                                    if (ly == 0) v.r = val;
-                                    else if (ly == 1) v.g = val;
-                                    else if (ly == 2) v.b = val;
-                                    else v.a = val;
+                                    if (ly == 0)
+                                        v.r = val;
+                                    else if (ly == 1)
+                                        v.g = val;
+                                    else if (ly == 2)
+                                        v.b = val;
+                                    else
+                                        v.a = val;
                                 }
 
                                 prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
@@ -884,10 +892,14 @@ void main()
                                 val = bilinear_interpolate(sz, h_im, w_im) * mask_val;
                             }
 
-                            if (ly == 0) v.r = val;
-                            else if (ly == 1) v.g = val;
-                            else if (ly == 2) v.b = val;
-                            else v.a = val;
+                            if (ly == 0)
+                                v.r = val;
+                            else if (ly == 1)
+                                v.g = val;
+                            else if (ly == 2)
+                                v.b = val;
+                            else
+                                v.a = val;
                         }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
@@ -1098,10 +1110,14 @@ void main()
                                 val = bilinear_interpolate(sz, h_im, w_im) * mask_val;
                             }
 
-                            if (ly == 0) v.r = val;
-                            else if (ly == 1) v.g = val;
-                            else if (ly == 2) v.b = val;
-                            else v.a = val;
+                            if (ly == 0)
+                                v.r = val;
+                            else if (ly == 1)
+                                v.g = val;
+                            else if (ly == 2)
+                                v.b = val;
+                            else
+                                v.a = val;
                         }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
