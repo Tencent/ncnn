@@ -19,6 +19,19 @@ DeformableConv2D_vulkan::DeformableConv2D_vulkan()
     pipeline_deformableconv2d_packed_mask = 0;
     pipeline_deformableconv2d_packed_gemm = 0;
     pipeline_deformableconv2d_packed_gemm_mask = 0;
+    pipeline_deformableconv2d_gemm_cm = 0;
+    pipeline_deformableconv2d_gemm_cm_mask = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
 }
 
 int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
@@ -189,65 +202,229 @@ int DeformableConv2D_vulkan::create_pipeline(const Option& opt)
     // gemm pipeline
     if (opt.use_sgemm_convolution && num_input * maxk >= 8 && num_output >= 8)
     {
-        const int num_input_packed = (num_input + 3) / 4 * 4;
+        // check cooperative matrix support
+        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
-        std::vector<vk_specialization_type> specializations_gemm(13 + 12);
-        specializations_gemm[0].i = kernel_w;
-        specializations_gemm[1].i = kernel_h;
-        specializations_gemm[2].i = dilation_w;
-        specializations_gemm[3].i = dilation_h;
-        specializations_gemm[4].i = stride_w;
-        specializations_gemm[5].i = stride_h;
-        specializations_gemm[6].i = bias_term;
-        specializations_gemm[7].i = 0;  // has_mask = 0
-        specializations_gemm[8].i = activation_type;
-        specializations_gemm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-        specializations_gemm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations_gemm[11].i = elempack;
-        specializations_gemm[12].i = out_elempack;
-
-        specializations_gemm[13 + 0].i = shape_bordered.w;
-        specializations_gemm[13 + 1].i = shape_bordered.h;
-        specializations_gemm[13 + 2].i = num_input / elempack;  // c_iterations
-        specializations_gemm[13 + 3].i = shape_bordered.cstep;
-        specializations_gemm[13 + 4].i = out_shape.w;
-        specializations_gemm[13 + 5].i = out_shape.h;
-        specializations_gemm[13 + 6].i = out_shape.dims != 0 ? num_output_packed / 4 : 0;
-        specializations_gemm[13 + 7].i = outcstep_scalar;  // must use outcstep_scalar, not out_shape.cstep
-        specializations_gemm[13 + 8].i = num_output;
-        specializations_gemm[13 + 9].i = num_input;
-        specializations_gemm[13 + 10].i = 0;  // offset_cstep (runtime)
-        specializations_gemm[13 + 11].i = 0;  // mask_cstep (runtime)
-
-        Mat local_size_xyz_gemm(16, std::min(4, num_output_packed / 4), 1, (void*)0);
-        if (out_shape.dims != 0)
+        if (use_cooperative_matrix)
         {
-            local_size_xyz_gemm.w = std::min(16, out_shape.w * out_shape.h);
-            local_size_xyz_gemm.h = std::min(4, num_output_packed / 4);
-        }
+            int size = 1024;
+            if (out_shape.dims != 0)
+            {
+                size = out_shape.w * out_shape.h;
+            }
 
-        pipeline_deformableconv2d_packed_gemm = new Pipeline(vkdev);
-        if (opt.use_shader_local_memory)
-        {
-            pipeline_deformableconv2d_packed_gemm->set_local_size_xyz(8, 8, 1);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+
+            UNROLL_SG_M = std::min((size + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((num_output + coopmat_N - 1) / coopmat_N, 2);
+            UNROLL_SG_K = std::min((num_input * maxk + coopmat_K - 1) / coopmat_K, 2);
+
+            UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+            // pack weight for cooperative matrix
+            {
+                Mat weight_data_r2;
+
+                if (elempack == 4)
+                {
+                    // from maxk-inch-outch to 4-maxk-inch/4-outch
+                    weight_data_r2.create(4 * maxk * (num_input / 4) * num_output);
+                    for (int i = 0; i < num_output; i++)
+                    {
+                        for (int j = 0; j < num_input / 4; j++)
+                        {
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                weight_data_r2[((i * (num_input / 4) + j) * maxk + k) * 4] = weight_data[(i * num_input + j * 4) * maxk + k];
+                                weight_data_r2[((i * (num_input / 4) + j) * maxk + k) * 4 + 1] = weight_data[(i * num_input + j * 4 + 1) * maxk + k];
+                                weight_data_r2[((i * (num_input / 4) + j) * maxk + k) * 4 + 2] = weight_data[(i * num_input + j * 4 + 2) * maxk + k];
+                                weight_data_r2[((i * (num_input / 4) + j) * maxk + k) * 4 + 3] = weight_data[(i * num_input + j * 4 + 3) * maxk + k];
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    weight_data_r2 = weight_data;
+                }
+
+                const int kk = (num_input * maxk + coopmat_K - 1) / coopmat_K;
+                const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+
+                weight_data_cm_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
+
+                for (int bn = 0; bn < blocks_n; bn++)
+                {
+                    float* p = weight_data_cm_packed.row(bn);
+
+                    int k = 0;
+                    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                            if (gni < num_output && gki < num_input * maxk)
+                                            {
+                                                *p++ = weight_data_r2[gni * num_input * maxk + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for (; k < kk; k++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            {
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = k * coopmat_K + i;
+
+                                        if (gni < num_output && gki < num_input * maxk)
+                                        {
+                                            *p++ = weight_data_r2[gni * num_input * maxk + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            std::vector<vk_specialization_type> specializations_cm(24 + 8);
+            specializations_cm[0].u32 = kernel_w;
+            specializations_cm[1].u32 = kernel_h;
+            specializations_cm[2].u32 = dilation_w;
+            specializations_cm[3].u32 = dilation_h;
+            specializations_cm[4].u32 = stride_w;
+            specializations_cm[5].u32 = stride_h;
+            specializations_cm[6].i = bias_term;
+            specializations_cm[7].i = 0;  // has_mask = 0
+            specializations_cm[8].i = activation_type;
+            specializations_cm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations_cm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations_cm[11].u32 = coopmat_M;
+            specializations_cm[12].u32 = coopmat_N;
+            specializations_cm[13].u32 = coopmat_K;
+            specializations_cm[14].u32 = coopmat_subgroup_size;
+            specializations_cm[15].u32 = UNROLL_SG_M;
+            specializations_cm[16].u32 = UNROLL_SG_N;
+            specializations_cm[17].u32 = UNROLL_SG_K;
+            specializations_cm[18].u32 = UNROLL_WG_M;
+            specializations_cm[19].u32 = UNROLL_WG_N;
+            specializations_cm[20].u32 = num_input;
+            specializations_cm[21].u32 = num_output;
+            specializations_cm[22].u32 = elempack;
+            specializations_cm[23].u32 = out_elempack;
+            specializations_cm[24 + 0].u32 = shape_bordered.w;
+            specializations_cm[24 + 1].u32 = shape_bordered.h;
+            specializations_cm[24 + 2].u32 = shape_bordered.cstep;
+            specializations_cm[24 + 3].u32 = out_shape.w;
+            specializations_cm[24 + 4].u32 = out_shape.h;
+            specializations_cm[24 + 5].u32 = out_shape.dims != 0 ? out_shape.cstep : 0;
+            specializations_cm[24 + 6].u32 = 0;  // offset_cstep (runtime)
+            specializations_cm[24 + 7].u32 = 0;  // mask_cstep (runtime)
+
+            pipeline_deformableconv2d_gemm_cm = new Pipeline(vkdev);
+            pipeline_deformableconv2d_gemm_cm->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_deformableconv2d_gemm_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_deformableconv2d_gemm_cm->create(LayerShaderType::deformableconv2d_gemm_cm, opt, specializations_cm);
+
+            specializations_cm[7].i = 1;  // has_mask = 1
+            pipeline_deformableconv2d_gemm_cm_mask = new Pipeline(vkdev);
+            pipeline_deformableconv2d_gemm_cm_mask->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_deformableconv2d_gemm_cm_mask->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_deformableconv2d_gemm_cm_mask->create(LayerShaderType::deformableconv2d_gemm_cm, opt, specializations_cm);
         }
         else
         {
-            pipeline_deformableconv2d_packed_gemm->set_optimal_local_size_xyz(local_size_xyz_gemm);
-        }
-        pipeline_deformableconv2d_packed_gemm->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
+            const int num_input_packed = (num_input + 3) / 4 * 4;
 
-        specializations_gemm[7].i = 1;  // has_mask = 1
-        pipeline_deformableconv2d_packed_gemm_mask = new Pipeline(vkdev);
-        if (opt.use_shader_local_memory)
-        {
-            pipeline_deformableconv2d_packed_gemm_mask->set_local_size_xyz(8, 8, 1);
+            std::vector<vk_specialization_type> specializations_gemm(13 + 12);
+            specializations_gemm[0].i = kernel_w;
+            specializations_gemm[1].i = kernel_h;
+            specializations_gemm[2].i = dilation_w;
+            specializations_gemm[3].i = dilation_h;
+            specializations_gemm[4].i = stride_w;
+            specializations_gemm[5].i = stride_h;
+            specializations_gemm[6].i = bias_term;
+            specializations_gemm[7].i = 0;  // has_mask = 0
+            specializations_gemm[8].i = activation_type;
+            specializations_gemm[9].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations_gemm[10].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations_gemm[11].i = elempack;
+            specializations_gemm[12].i = out_elempack;
+
+            specializations_gemm[13 + 0].i = shape_bordered.w;
+            specializations_gemm[13 + 1].i = shape_bordered.h;
+            specializations_gemm[13 + 2].i = num_input / elempack;  // c_iterations
+            specializations_gemm[13 + 3].i = shape_bordered.cstep;
+            specializations_gemm[13 + 4].i = out_shape.w;
+            specializations_gemm[13 + 5].i = out_shape.h;
+            specializations_gemm[13 + 6].i = out_shape.dims != 0 ? num_output_packed / 4 : 0;
+            specializations_gemm[13 + 7].i = outcstep_scalar;  // must use outcstep_scalar, not out_shape.cstep
+            specializations_gemm[13 + 8].i = num_output;
+            specializations_gemm[13 + 9].i = num_input;
+            specializations_gemm[13 + 10].i = 0;  // offset_cstep (runtime)
+            specializations_gemm[13 + 11].i = 0;  // mask_cstep (runtime)
+
+            Mat local_size_xyz_gemm(16, std::min(4, num_output_packed / 4), 1, (void*)0);
+            if (out_shape.dims != 0)
+            {
+                local_size_xyz_gemm.w = std::min(16, out_shape.w * out_shape.h);
+                local_size_xyz_gemm.h = std::min(4, num_output_packed / 4);
+            }
+
+            pipeline_deformableconv2d_packed_gemm = new Pipeline(vkdev);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_deformableconv2d_packed_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_deformableconv2d_packed_gemm->set_optimal_local_size_xyz(local_size_xyz_gemm);
+            }
+            pipeline_deformableconv2d_packed_gemm->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
+
+            specializations_gemm[7].i = 1;  // has_mask = 1
+            pipeline_deformableconv2d_packed_gemm_mask = new Pipeline(vkdev);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_deformableconv2d_packed_gemm_mask->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_deformableconv2d_packed_gemm_mask->set_optimal_local_size_xyz(local_size_xyz_gemm);
+            }
+            pipeline_deformableconv2d_packed_gemm_mask->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
         }
-        else
-        {
-            pipeline_deformableconv2d_packed_gemm_mask->set_optimal_local_size_xyz(local_size_xyz_gemm);
-        }
-        pipeline_deformableconv2d_packed_gemm_mask->create(LayerShaderType::deformableconv2d_packed_gemm, opt, specializations_gemm);
     }
 
     return 0;
@@ -274,6 +451,23 @@ int DeformableConv2D_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_deformableconv2d_packed_gemm_mask;
     pipeline_deformableconv2d_packed_gemm_mask = 0;
 
+    delete pipeline_deformableconv2d_gemm_cm;
+    pipeline_deformableconv2d_gemm_cm = 0;
+
+    delete pipeline_deformableconv2d_gemm_cm_mask;
+    pipeline_deformableconv2d_gemm_cm_mask = 0;
+
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
+
     return 0;
 }
 
@@ -287,6 +481,13 @@ int DeformableConv2D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     weight_data_packed.release();
+
+    if (use_cooperative_matrix)
+    {
+        cmd.record_upload(weight_data_cm_packed, weight_data_cm_gpu, opt);
+
+        weight_data_cm_packed.release();
+    }
 
     if (bias_term)
     {
@@ -427,43 +628,80 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
 
     // gemm branch
     if (opt.use_sgemm_convolution && channels * maxk >= 8 && num_output >= 8
-        && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask))
+        && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
+            || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
     {
-        const int num_input_packed = (channels + 3) / 4 * 4;
+        if (use_cooperative_matrix)
+        {
+            std::vector<VkMat> bindings(6);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = top_blob;
+            bindings[2] = offset;
+            bindings[3] = has_mask ? mask : VkMat();
+            bindings[4] = weight_data_cm_gpu;
+            bindings[5] = bias_data_gpu;
 
-        std::vector<VkMat> bindings(8);
-        bindings[0] = bottom_blob_bordered;
-        bindings[1] = top_blob;
-        bindings[2] = bottom_blob_bordered;
-        bindings[3] = top_blob;
-        bindings[4] = offset;
-        bindings[5] = has_mask ? mask : VkMat();
-        bindings[6] = weight_data_gpu;
-        bindings[7] = bias_data_gpu;
+            std::vector<vk_constant_type> constants(8);
+            constants[0].u32 = bottom_blob_bordered.w;
+            constants[1].u32 = bottom_blob_bordered.h;
+            constants[2].u32 = bottom_blob_bordered.cstep;
+            constants[3].u32 = top_blob.w;
+            constants[4].u32 = top_blob.h;
+            constants[5].u32 = top_blob.cstep;
+            constants[6].u32 = offset.cstep;
+            constants[7].u32 = has_mask ? mask.cstep : 0;
 
-        std::vector<vk_constant_type> constants(12);
-        constants[0].i = bottom_blob_bordered.w;
-        constants[1].i = bottom_blob_bordered.h;
-        constants[2].i = c_iterations;  // channels / elempack
-        constants[3].i = cstep_scalar;
-        constants[4].i = top_blob.w;
-        constants[5].i = top_blob.h;
-        constants[6].i = outc_pack4;
-        constants[7].i = outcstep_scalar;
-        constants[8].i = num_output;
-        constants[9].i = channels;
-        constants[10].i = offset.cstep;
-        constants[11].i = has_mask ? mask.cstep : 0;
+            const int blocks_x = (top_blob.w * top_blob.h + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+            const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
 
-        VkMat dispatcher;
-        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
-        dispatcher.h = outc_pack4;
-        dispatcher.c = 1;
+            VkMat dispatcher;
+            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+            dispatcher.h = 1;
+            dispatcher.c = 1;
 
-        Pipeline* pipeline = has_mask ? pipeline_deformableconv2d_packed_gemm_mask : pipeline_deformableconv2d_packed_gemm;
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+            Pipeline* pipeline = has_mask ? pipeline_deformableconv2d_gemm_cm_mask : pipeline_deformableconv2d_gemm_cm;
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
-        return 0;
+            return 0;
+        }
+        else
+        {
+            const int num_input_packed = (channels + 3) / 4 * 4;
+
+            std::vector<VkMat> bindings(8);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = top_blob;
+            bindings[2] = bottom_blob_bordered;
+            bindings[3] = top_blob;
+            bindings[4] = offset;
+            bindings[5] = has_mask ? mask : VkMat();
+            bindings[6] = weight_data_gpu;
+            bindings[7] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(12);
+            constants[0].i = bottom_blob_bordered.w;
+            constants[1].i = bottom_blob_bordered.h;
+            constants[2].i = c_iterations;  // channels / elempack
+            constants[3].i = cstep_scalar;
+            constants[4].i = top_blob.w;
+            constants[5].i = top_blob.h;
+            constants[6].i = outc_pack4;
+            constants[7].i = outcstep_scalar;
+            constants[8].i = num_output;
+            constants[9].i = channels;
+            constants[10].i = offset.cstep;
+            constants[11].i = has_mask ? mask.cstep : 0;
+
+            VkMat dispatcher;
+            dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+            dispatcher.h = outc_pack4;
+            dispatcher.c = 1;
+
+            Pipeline* pipeline = has_mask ? pipeline_deformableconv2d_packed_gemm_mask : pipeline_deformableconv2d_packed_gemm;
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+            return 0;
+        }
     }
 
     std::vector<VkMat> bindings(8);
