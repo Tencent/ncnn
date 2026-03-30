@@ -23,6 +23,8 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
     qk_softmax = 0;
 
     o_gemm = 0;
+
+    support_bf16_storage = true;
 }
 
 int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
@@ -31,9 +33,14 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         support_packing = false;
+        support_bf16_storage = false;
 
         opt.use_packing_layout = false; // TODO enable packing
     }
+
+    // All sub-layers operate in fp32 mode
+    Option opt_fp32 = opt;
+    opt_fp32.use_bf16_storage = false;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -42,7 +49,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         pd.set(1, 1);
         qk_softmax->load_param(pd);
         qk_softmax->load_model(ModelBinFromMatArray(0));
-        qk_softmax->create_pipeline(opt);
+        qk_softmax->create_pipeline(opt_fp32);
     }
 
     const int qdim = weight_data_size / embed_dim;
@@ -75,7 +82,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = q_weight_data_int8_scales;
 #endif
         q_gemm->load_model(ModelBinFromMatArray(weights));
-        q_gemm->create_pipeline(opt);
+        q_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -110,7 +117,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = k_weight_data_int8_scales;
 #endif
         k_gemm->load_model(ModelBinFromMatArray(weights));
-        k_gemm->create_pipeline(opt);
+        k_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -145,7 +152,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = v_weight_data_int8_scales;
 #endif
         v_gemm->load_model(ModelBinFromMatArray(weights));
-        v_gemm->create_pipeline(opt);
+        v_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -180,7 +187,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = out_weight_data_int8_scales;
 #endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
-        o_gemm->create_pipeline(opt);
+        o_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -208,7 +215,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
+        Option opt1 = opt_fp32;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
@@ -233,7 +240,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #endif
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
+        Option opt1 = opt_fp32;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
@@ -310,17 +317,91 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     int cached_xv_i = 0;
     resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
 
-    const Mat& q_blob = bottom_blobs[q_blob_i];
-    const Mat& k_blob = bottom_blobs[k_blob_i];
-    const Mat& v_blob = bottom_blobs[v_blob_i];
-    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
-    const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
-    const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
+    Mat q_blob = bottom_blobs[q_blob_i];
+    Mat k_blob = bottom_blobs[k_blob_i];
+    Mat v_blob = bottom_blobs[v_blob_i];
+    Mat attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : Mat();
+    Mat cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
+    Mat cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
     Option opt = _opt;
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
+    }
+
+    // cast bf16 inputs to fp32 at forward entry
+    const bool input_is_bf16 = opt.use_bf16_storage && q_blob.elembits() == 16;
+    if (input_is_bf16)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
+
+        Mat q_blob_fp32;
+        cast_bfloat16_to_float32(q_blob, q_blob_fp32, opt_cast);
+        if (q_blob_fp32.empty())
+            return -100;
+        q_blob = q_blob_fp32;
+
+        if (k_blob_i == q_blob_i)
+        {
+            k_blob = q_blob;
+        }
+        else
+        {
+            Mat k_blob_fp32;
+            cast_bfloat16_to_float32(k_blob, k_blob_fp32, opt_cast);
+            if (k_blob_fp32.empty())
+                return -100;
+            k_blob = k_blob_fp32;
+        }
+
+        if (v_blob_i == q_blob_i)
+        {
+            v_blob = q_blob;
+        }
+        else if (v_blob_i == k_blob_i)
+        {
+            v_blob = k_blob;
+        }
+        else
+        {
+            Mat v_blob_fp32;
+            cast_bfloat16_to_float32(v_blob, v_blob_fp32, opt_cast);
+            if (v_blob_fp32.empty())
+                return -100;
+            v_blob = v_blob_fp32;
+        }
+
+        if (attn_mask && !attn_mask_blob.empty())
+        {
+            Mat attn_mask_blob_fp32;
+            cast_bfloat16_to_float32(attn_mask_blob, attn_mask_blob_fp32, opt_cast);
+            if (attn_mask_blob_fp32.empty())
+                return -100;
+            attn_mask_blob = attn_mask_blob_fp32;
+        }
+
+        if (kv_cache && !cached_xk_blob.empty())
+        {
+            Mat cached_xk_blob_fp32;
+            cast_bfloat16_to_float32(cached_xk_blob, cached_xk_blob_fp32, opt_cast);
+            if (cached_xk_blob_fp32.empty())
+                return -100;
+            cached_xk_blob = cached_xk_blob_fp32;
+        }
+
+        if (kv_cache && !cached_xv_blob.empty())
+        {
+            Mat cached_xv_blob_fp32;
+            cast_bfloat16_to_float32(cached_xv_blob, cached_xv_blob_fp32, opt_cast);
+            if (cached_xv_blob_fp32.empty())
+                return -100;
+            cached_xv_blob = cached_xv_blob_fp32;
+        }
+
+        // everything runs in fp32 from here
+        opt.use_bf16_storage = false;
     }
 
     Mat attn_mask_blob_unpacked;
@@ -526,6 +607,31 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         // assert top_blobs.size() == 3
         top_blobs[1] = k_affine;
         top_blobs[2] = v_affine;
+    }
+
+    // cast fp32 outputs back to bf16 if original input was bf16
+    if (input_is_bf16)
+    {
+        Mat top0_bf16;
+        cast_float32_to_bfloat16(top_blobs[0], top0_bf16, _opt);
+        if (top0_bf16.empty())
+            return -100;
+        top_blobs[0] = top0_bf16;
+
+        if (kv_cache)
+        {
+            Mat k_bf16;
+            cast_float32_to_bfloat16(top_blobs[1], k_bf16, _opt);
+            if (k_bf16.empty())
+                return -100;
+            top_blobs[1] = k_bf16;
+
+            Mat v_bf16;
+            cast_float32_to_bfloat16(top_blobs[2], v_bf16, _opt);
+            if (v_bf16.empty())
+                return -100;
+            top_blobs[2] = v_bf16;
+        }
     }
 
     return 0;

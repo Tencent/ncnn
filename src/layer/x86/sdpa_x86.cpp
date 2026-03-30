@@ -12,6 +12,7 @@ SDPA_x86::SDPA_x86()
     qk_gemm = 0;
     qkv_gemm = 0;
     qk_softmax = 0;
+    support_bf16_storage = true;
 }
 
 int SDPA_x86::create_pipeline(const Option& _opt)
@@ -20,6 +21,7 @@ int SDPA_x86::create_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
+        support_bf16_storage = false;
     }
 
     {
@@ -148,10 +150,12 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
+    const size_t elemsize = query.elemsize;
+
     Mat key;
     if (past_seqlen > 0)
     {
-        key.create(embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (key.empty())
             return -100;
 
@@ -162,8 +166,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             const Mat cur_key_head = cur_key.channel(q);
             Mat key_head = key.channel(q);
 
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
+            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * elemsize);
         }
     }
     else
@@ -174,7 +178,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     Mat value;
     if (past_seqlen > 0)
     {
-        value.create(out_embed_dim, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (value.empty())
             return -100;
 
@@ -185,8 +189,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             const Mat cur_value_head = cur_value.channel(q);
             Mat value_head = value.channel(q);
 
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * elemsize);
         }
     }
     else
@@ -195,13 +199,13 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+    top_blob.create(out_embed_dim, src_seqlen, num_heads, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     const int num_heads_per_group = num_heads / num_group;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, elemsize, opt.workspace_allocator);
     if (qk_cross.empty())
         return -100;
 
