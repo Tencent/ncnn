@@ -8908,25 +8908,24 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __SSE2__
     if (output_elempack)
         out_elempack = output_elempack;
-    size_t out_elemsize = 2u * out_elempack;
+    size_t out_elemsize = (output_elemtype == 1 ? 4u : 2u) * out_elempack;
 
-    Mat top_blob_bf16;
-    Mat& top_blob_ref = (output_elemtype == 1) ? top_blob_bf16 : top_blobs[0];
+    Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob_ref.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob_ref.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob_ref.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob_ref.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
-    if (top_blob_ref.empty())
+    if (top_blob.empty())
         return -100;
 
     int _nT = nT ? nT : opt.num_threads;
@@ -8938,34 +8937,26 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_x86_bf16s(AT_data, BT_data, C, top_blob_ref, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, 0, opt);
+        ret = gemm_AT_BT_x86_bf16s(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_x86_bf16s(AT_data, B, C, top_blob_ref, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, 0, opt);
+        ret = gemm_AT_x86_bf16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_x86_bf16s(A, BT_data, C, top_blob_ref, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, 0, opt);
+        ret = gemm_BT_x86_bf16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_x86_bf16s(A, B, C, top_blob_ref, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, 0, opt);
+        ret = gemm_x86_bf16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
 
-    if (ret != 0)
-        return ret;
-
-    if (output_elemtype == 1)
-    {
-        cast_bfloat16_to_float32(top_blob_bf16, top_blobs[0], opt);
-    }
-
-    return 0;
+    return ret;
 }
 #endif // NCNN_BF16
 

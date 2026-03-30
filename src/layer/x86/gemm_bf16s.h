@@ -7185,6 +7185,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             {
                 if (out_elempack == 8)
                 {
+                    transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
 
                     _mm256_storeu_ps(p0f, _f0);
                     _mm256_storeu_ps(p0f + 8, _f1);
@@ -7197,6 +7198,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 4)
                 {
+                    transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
 
                     _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f0));
                     _mm_storeu_ps(p0f + 4, _mm256_extractf128_ps(_f0, 1));
@@ -7265,6 +7267,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 1)
                 {
+                    transpose8x8_ps(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
 
                     _mm256_storeu_ps(p0f, _f0);
                     _mm256_storeu_ps(p0f + out_hstep, _f1);
@@ -7600,15 +7603,19 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 1)
                 {
-
-                    _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f0));
-                    _mm_storeu_ps(p0f + out_hstep, _mm256_extractf128_ps(_f0, 1));
-                    _mm_storeu_ps(p0f + out_hstep * 2, _mm256_castps256_ps128(_f1));
-                    _mm_storeu_ps(p0f + out_hstep * 3, _mm256_extractf128_ps(_f1, 1));
-                    _mm_storeu_ps(p0f + out_hstep * 4, _mm256_castps256_ps128(_f2));
-                    _mm_storeu_ps(p0f + out_hstep * 5, _mm256_extractf128_ps(_f2, 1));
-                    _mm_storeu_ps(p0f + out_hstep * 6, _mm256_castps256_ps128(_f3));
-                    _mm_storeu_ps(p0f + out_hstep * 7, _mm256_extractf128_ps(_f3, 1));
+                    // transpose 8x4 (4 col vectors -> 8 row vectors)
+                    float tmp0[8], tmp1[8], tmp2[8], tmp3[8];
+                    _mm256_storeu_ps(tmp0, _f0);
+                    _mm256_storeu_ps(tmp1, _f1);
+                    _mm256_storeu_ps(tmp2, _f2);
+                    _mm256_storeu_ps(tmp3, _f3);
+                    for (int k = 0; k < 8; k++)
+                    {
+                        p0f[out_hstep * k] = tmp0[k];
+                        p0f[out_hstep * k + 1] = tmp1[k];
+                        p0f[out_hstep * k + 2] = tmp2[k];
+                        p0f[out_hstep * k + 3] = tmp3[k];
+                    }
                     p0f += 4;
                 }
             }
@@ -7988,6 +7995,57 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f = _mm256_mul_ps(_f, _mm256_set1_ps(alpha));
             }
 
+            if (output_elemtype == 1)
+            {
+            if (output_transpose)
+            {
+                if (out_elempack == 8)
+                {
+                    _mm256_storeu_ps(p0f, _f);
+                }
+                if (out_elempack == 4)
+                {
+                    _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f));
+                    _mm_storeu_ps(p0f + out_hstep * 4, _mm256_extractf128_ps(_f, 1));
+                }
+                if (out_elempack == 1)
+                {
+                    _mm256_storeu_ps(p0f, _f);
+                }
+                p0f += out_hstep;
+            }
+            else
+            {
+                if (out_elempack == 8)
+                {
+                    _mm256_storeu_ps(p0f, _f);
+                    p0f += 8;
+                }
+                if (out_elempack == 4)
+                {
+                    _mm_storeu_ps(p0f, _mm256_castps256_ps128(_f));
+                    _mm_storeu_ps(p0f + out_hstep * 4, _mm256_extractf128_ps(_f, 1));
+                    p0f += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    float sum0[8];
+                    _mm256_storeu_ps(sum0, _f);
+
+                    p0f[0] = sum0[0];
+                    p0f[out_hstep] = sum0[1];
+                    p0f[out_hstep * 2] = sum0[2];
+                    p0f[out_hstep * 3] = sum0[3];
+                    p0f[out_hstep * 4] = sum0[4];
+                    p0f[out_hstep * 5] = sum0[5];
+                    p0f[out_hstep * 6] = sum0[6];
+                    p0f[out_hstep * 7] = sum0[7];
+                    p0f++;
+                }
+            }
+            }
+            else
+            {
             __m128i _bf = float2bfloat_avx(_f);
 
             if (output_transpose)
@@ -8036,6 +8094,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     p0++;
                 }
             }
+            } // else output_elemtype
         }
     }
 #endif // __AVX__
@@ -9088,9 +9147,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (out_elempack == 1)
                 {
+                    _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
                     _mm_storeu_ps(p0f, _f0);
-                    _mm_storeu_ps(p0f + out_hstep, _f2);
-                    _mm_storeu_ps(p0f + out_hstep * 2, _f1);
+                    _mm_storeu_ps(p0f + out_hstep, _f1);
+                    _mm_storeu_ps(p0f + out_hstep * 2, _f2);
                     _mm_storeu_ps(p0f + out_hstep * 3, _f3);
                     p0f += 4;
                 }
@@ -9398,6 +9458,48 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 _f = _mm_mul_ps(_f, _mm_set1_ps(alpha));
             }
 
+            if (output_elemtype == 1)
+            {
+            if (output_transpose)
+            {
+                if (out_elempack == 4)
+                {
+                    float sum0[4];
+                    _mm_storeu_ps(sum0, _f);
+
+                    p0f[0] = sum0[0];
+                    p0f[4] = sum0[1];
+                    p0f[4 * 2] = sum0[2];
+                    p0f[4 * 3] = sum0[3];
+                }
+                if (out_elempack == 1)
+                {
+                    _mm_storeu_ps(p0f, _f);
+                }
+                p0f += out_hstep;
+            }
+            else
+            {
+                if (out_elempack == 4)
+                {
+                    _mm_storeu_ps(p0f, _f);
+                    p0f += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    float sum0[4];
+                    _mm_storeu_ps(sum0, _f);
+
+                    p0f[0] = sum0[0];
+                    p0f[out_hstep] = sum0[1];
+                    p0f[out_hstep * 2] = sum0[2];
+                    p0f[out_hstep * 3] = sum0[3];
+                    p0f++;
+                }
+            }
+            }
+            else
+            {
             __m128i _bf = float2bfloat_sse(_f);
 
             if (output_transpose)
@@ -9437,6 +9539,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     p0++;
                 }
             }
+            } // else output_elemtype
         }
     }
 #endif // __SSE2__
