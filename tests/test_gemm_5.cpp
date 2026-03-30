@@ -97,17 +97,16 @@ static int test_gemm_1(int M, int N, int K)
         max_elempack = 16;
     else if (ncnn::cpu_support_x86_avx())
         max_elempack = 8;
-    else if (elemcount % 4 == 0)
+    else
         max_elempack = 4;
 #elif NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
         max_elempack = 8;
-    else if (elemcount % 4 == 0)
+    else
         max_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
     const int packn = ncnn::cpu_riscv_vlenb() / 4;
-    if (elemcount % packn == 0)
-        max_elempack = packn;
+    max_elempack = packn;
 #endif
 
     const int elempacks[] = {1, 4, 8, 16};
