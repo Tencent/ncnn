@@ -185,7 +185,10 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = out_weight_data_int8_scales;
 #endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
-        o_gemm->create_pipeline(opt);
+        Option opt_fp32 = opt;
+        opt_fp32.use_bf16_packed = false;
+        opt_fp32.use_bf16_storage = false;
+        o_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -215,6 +218,8 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
@@ -241,6 +246,8 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
