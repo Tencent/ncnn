@@ -233,6 +233,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
+        pd.set(13, 1);                  // output_elemtype = fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
