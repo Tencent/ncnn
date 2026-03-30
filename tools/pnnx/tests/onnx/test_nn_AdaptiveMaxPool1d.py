@@ -28,7 +28,7 @@ def test():
     a0, a1 = net(x)
 
     # export onnx
-    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.11'):
         torch.onnx.export(net, (x,), "test_nn_AdaptiveMaxPool1d.onnx", dynamo=False)
     else:
         torch.onnx.export(net, (x,), "test_nn_AdaptiveMaxPool1d.onnx")

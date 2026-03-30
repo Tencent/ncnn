@@ -348,13 +348,15 @@ int ModelWriter::shape_inference()
 
         int w = input->w;
         int h = input->h;
+        int d = input->d;
         int c = input->c;
 
         int dims = 0;
-        if (w == 0 && h == 0 && c == 0) dims = 0;
-        if (w != 0 && h == 0 && c == 0) dims = 1;
-        if (w != 0 && h != 0 && c == 0) dims = 2;
-        if (w != 0 && h != 0 && c != 0) dims = 3;
+        if (w == 0 && h == 0 && d == 0 && c == 0) dims = 0;
+        if (w != 0 && h == 0 && d == 0 && c == 0) dims = 1;
+        if (w != 0 && h != 0 && d == 0 && c == 0) dims = 2;
+        if (w != 0 && h != 0 && d == 0 && c != 0) dims = 3;
+        if (w != 0 && h != 0 && d != 0 && c != 0) dims = 4;
 
         if (dims == 0)
         {
@@ -366,6 +368,7 @@ int ModelWriter::shape_inference()
         if (dims == 1) m.create(w);
         if (dims == 2) m.create(w, h);
         if (dims == 3) m.create(w, h, c);
+        if (dims == 4) m.create(w, h, d, c);
 
         ex.input(layer->tops[0], m);
     }
@@ -378,6 +381,7 @@ int ModelWriter::shape_inference()
         int dims = blob.shape.dims;
         int w = blob.shape.w;
         int h = blob.shape.h;
+        int d = blob.shape.d;
         int c = blob.shape.c;
 
         if (dims == 0)
@@ -387,6 +391,7 @@ int ModelWriter::shape_inference()
         if (dims == 1) m.create(w);
         if (dims == 2) m.create(w, h);
         if (dims == 3) m.create(w, h, c);
+        if (dims == 4) m.create(w, h, d, c);
 
         m.fill(0.f);
 
@@ -434,8 +439,6 @@ int ModelWriter::shape_inference()
             int top_blob_index = layer->tops[j];
 
             layer->top_shapes[j] = blobs[top_blob_index].shape;
-
-            //             fprintf(stderr, "%d %4d %4d %4d | %2d %s\n", blobs[top_blob_index].shape.dims, blobs[top_blob_index].shape.w, blobs[top_blob_index].shape.h, blobs[top_blob_index].shape.c, top_blob_index, blobs[top_blob_index].name.c_str());
         }
     }
 
@@ -475,13 +478,15 @@ int ModelWriter::estimate_memory_footprint()
 
         int w = input->w;
         int h = input->h;
+        int d = input->d;
         int c = input->c;
 
         int dims = 0;
-        if (w == 0 && h == 0 && c == 0) dims = 0;
-        if (w != 0 && h == 0 && c == 0) dims = 1;
-        if (w != 0 && h != 0 && c == 0) dims = 2;
-        if (w != 0 && h != 0 && c != 0) dims = 3;
+        if (w == 0 && h == 0 && d == 0 && c == 0) dims = 0;
+        if (w != 0 && h == 0 && d == 0 && c == 0) dims = 1;
+        if (w != 0 && h != 0 && d == 0 && c == 0) dims = 2;
+        if (w != 0 && h != 0 && d == 0 && c != 0) dims = 3;
+        if (w != 0 && h != 0 && d != 0 && c != 0) dims = 4;
 
         if (dims == 0)
         {
@@ -493,6 +498,7 @@ int ModelWriter::estimate_memory_footprint()
         if (dims == 1) m.create(w, 4u, &allocator);
         if (dims == 2) m.create(w, h, 4u, &allocator);
         if (dims == 3) m.create(w, h, c, 4u, &allocator);
+        if (dims == 4) m.create(w, h, d, c, 4u, &allocator);
 
         ex.input(layer->tops[0], m);
 
@@ -765,7 +771,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
         }
         if (shape_ready)
         {
-            fprintf(pp, " -23330=%zd", top_count * 4);
+            fprintf(pp, " -23330=%zd", top_count * 5);
             for (size_t j = 0; j < top_count; j++)
             {
                 int top_blob_index = layer->tops[j];
@@ -773,9 +779,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int dims = blobs[top_blob_index].shape.dims;
                 int w = blobs[top_blob_index].shape.w;
                 int h = blobs[top_blob_index].shape.h;
+                int d = blobs[top_blob_index].shape.d;
                 int c = blobs[top_blob_index].shape.c;
 
-                fprintf(pp, ",%d,%d,%d,%d", dims, w, h, c);
+                fprintf(pp, ",%d,%d,%d,%d,%d", dims, w, h, d, c);
             }
         }
 
