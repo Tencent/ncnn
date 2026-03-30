@@ -7249,6 +7249,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
+                        transpose8x4_ps(_f0, _f1, _f2, _f3);
                         const int jj_m16 = jj % 16;
                         float* p1f = p0f - out_hstep * jj_m16 + jj_m16;
                         _mm_storeu_ps(p1f, _mm256_castps256_ps128(_f0));
@@ -7263,6 +7264,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // __AVX512F__
                     if (out_elempack == 8)
                     {
+                        transpose8x4_ps(_f0, _f1, _f2, _f3);
                         const int jj_m8 = jj % 8;
                         float* p1f = p0f - out_hstep * jj_m8 + jj_m8;
                         _mm_storeu_ps(p1f, _mm256_castps256_ps128(_f0));
@@ -7278,6 +7280,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
+                        transpose8x4_ps(_f0, _f1, _f2, _f3);
                         _mm256_storeu_ps(p0f, _f0);
                         _mm256_storeu_ps(p0f + 8, _f1);
                         _mm256_storeu_ps(p0f + 16, _f2);
