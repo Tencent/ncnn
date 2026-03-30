@@ -673,6 +673,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
@@ -857,6 +858,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
@@ -1253,6 +1255,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
@@ -1413,6 +1416,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
