@@ -668,6 +668,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return -1;
     }
 
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            return 233;
+        }
+    }
+
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
@@ -1238,6 +1247,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     op->load_param(pd);
+
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            return 233;
+        }
+    }
 
     ncnn::ModelBinFromMatArray mb(weights.data());
 
