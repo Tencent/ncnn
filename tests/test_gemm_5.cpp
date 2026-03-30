@@ -5,8 +5,8 @@
 
 static int test_gemm(int M, int N, int K, int output_transpose, int output_N1M = 0)
 {
-    int ds = output_transpose ? N : M;
-    int output_elempack = ds % 4 == 0 ? 4 : 1;
+    // int ds = output_transpose ? N : M;
+    // int output_elempack = ds % 8 == 0 ? 8 : 1;
 
     ncnn::ParamDict pd;
     pd.set(0, 1.f); // alpha
@@ -21,7 +21,7 @@ static int test_gemm(int M, int N, int K, int output_transpose, int output_N1M =
     pd.set(9, K);
     pd.set(10, -1);
     pd.set(11, output_N1M);
-    pd.set(12, output_elempack);
+    // pd.set(12, output_elempack);
     pd.set(13, 1); // output_elemtype = fp32
     pd.set(14, output_transpose);
 
