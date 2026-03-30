@@ -8787,55 +8787,34 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #if __AVX512F__
                     if (out_elempack == 16)
                     {
+                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
                         const int jj_m16 = jj % 16;
                         float* p1f = p0f - out_hstep * jj_m16 + jj_m16;
-                        float tmp0[4], tmp1[4], tmp2[4], tmp3[4];
-                        _mm_storeu_ps(tmp0, _f0);
-                        _mm_storeu_ps(tmp1, _f1);
-                        _mm_storeu_ps(tmp2, _f2);
-                        _mm_storeu_ps(tmp3, _f3);
-                        for (int k = 0; k < 4; k++)
-                        {
-                            p1f[k * 16] = tmp0[k];
-                            p1f[k * 16 + 1] = tmp1[k];
-                            p1f[k * 16 + 2] = tmp2[k];
-                            p1f[k * 16 + 3] = tmp3[k];
-                        }
+                        _mm_store_ps(p1f, _f0);
+                        _mm_store_ps(p1f + 16, _f1);
+                        _mm_store_ps(p1f + 32, _f2);
+                        _mm_store_ps(p1f + 48, _f3);
                     }
 #endif // __AVX512F__
                     if (out_elempack == 8)
                     {
+                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
                         const int jj_m8 = jj % 8;
                         float* p1f = p0f - out_hstep * jj_m8 + jj_m8;
-                        float tmp0[4], tmp1[4], tmp2[4], tmp3[4];
-                        _mm_storeu_ps(tmp0, _f0);
-                        _mm_storeu_ps(tmp1, _f1);
-                        _mm_storeu_ps(tmp2, _f2);
-                        _mm_storeu_ps(tmp3, _f3);
-                        for (int k = 0; k < 4; k++)
-                        {
-                            p1f[k * 8] = tmp0[k];
-                            p1f[k * 8 + 1] = tmp1[k];
-                            p1f[k * 8 + 2] = tmp2[k];
-                            p1f[k * 8 + 3] = tmp3[k];
-                        }
+                        _mm_store_ps(p1f, _f0);
+                        _mm_store_ps(p1f + 8, _f1);
+                        _mm_store_ps(p1f + 16, _f2);
+                        _mm_store_ps(p1f + 24, _f3);
                     }
 #endif // __AVX__
 #endif // !(defined(__x86_64__) || defined(_M_X64))
                     if (out_elempack == 4)
                     {
-                        float tmp0[4], tmp1[4], tmp2[4], tmp3[4];
-                        _mm_storeu_ps(tmp0, _f0);
-                        _mm_storeu_ps(tmp1, _f1);
-                        _mm_storeu_ps(tmp2, _f2);
-                        _mm_storeu_ps(tmp3, _f3);
-                        for (int k = 0; k < 4; k++)
-                        {
-                            p0f[k * 4] = tmp0[k];
-                            p0f[k * 4 + 1] = tmp1[k];
-                            p0f[k * 4 + 2] = tmp2[k];
-                            p0f[k * 4 + 3] = tmp3[k];
-                        }
+                        _MM_TRANSPOSE4_PS(_f0, _f1, _f2, _f3);
+                        _mm_store_ps(p0f, _f0);
+                        _mm_store_ps(p0f + 4, _f1);
+                        _mm_store_ps(p0f + 8, _f2);
+                        _mm_store_ps(p0f + 12, _f3);
                     }
                     if (out_elempack == 1)
                     {
