@@ -13,6 +13,10 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
     support_packing = true;
 #endif // __SSE2__
 
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+
     q_gemm = 0;
     k_gemm = 0;
     v_gemm = 0;
@@ -23,8 +27,6 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
     qk_softmax = 0;
 
     o_gemm = 0;
-
-    support_bf16_storage = true;
 }
 
 int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
@@ -37,11 +39,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 
         opt.use_packing_layout = false; // TODO enable packing
     }
-
-    // bf16 is handled by cast to/from fp32 in forward
-    // sub-layers always run in fp32
-    Option opt_fp32 = opt;
-    opt_fp32.use_bf16_storage = false;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -188,7 +185,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = out_weight_data_int8_scales;
 #endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
-        o_gemm->create_pipeline(opt_fp32);
+        o_gemm->create_pipeline(opt);
 
         if (opt.lightmode)
         {
@@ -217,7 +214,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
@@ -243,7 +240,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
 #endif
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
@@ -499,6 +496,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     }
 
     Mat v_affine_fp32 = v_affine;
+#if NCNN_BF16
     if (opt.use_bf16_storage && v_affine.elembits() == 16)
     {
         // qkv_gemm need fp32 inputs
@@ -506,6 +504,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         if (v_affine_fp32.empty())
             return -100;
     }
+#endif
 
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())

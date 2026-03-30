@@ -819,20 +819,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->vkdev = vkdev;
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -942,12 +932,24 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
     op->create_pipeline(opt);
 
     if (!op->support_vulkan)
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 
@@ -1375,22 +1377,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->vkdev = vkdev;
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     opt.use_vulkan_compute = true;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -1493,12 +1485,24 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
     op->create_pipeline(opt);
 
     if (!op->support_vulkan)
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 
