@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void quantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt);
+int quantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt);
 #endif
 
 static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
@@ -250,8 +250,7 @@ static int quantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const M
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        quantize_forward_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, opt);
-        return 0;
+        return quantize_forward_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, opt);
     }
 #endif
 
