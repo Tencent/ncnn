@@ -238,8 +238,10 @@ int main()
             return ret;
     }
 
+    int fp32_min_elempack = 1;
     int fp32_max_elempack = 1;
 #if __SSE2__ || __ARM_NEON
+    fp32_min_elempack = 4;
     fp32_max_elempack = 4;
 #endif
 
@@ -302,7 +304,7 @@ int main()
             return ret;
     }
 
-    if (bf16_max_elempack >= 4)
+    if (bf16_max_elempack >= 4 && 4 % fp32_min_elempack == 0)
     {
         // bf16 output (output_elemtype=0) with out_elempack=4, output_transpose=1
         // to cover the bf16 store paths in unpack_output_tile_fp32_to_bf16
