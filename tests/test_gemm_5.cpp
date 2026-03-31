@@ -307,12 +307,12 @@ int main()
         // bf16 output (output_elemtype=0) with out_elempack=4, output_transpose=1
         // to cover the bf16 store paths in unpack_output_tile_fp32_to_bf16
         int ret = 0
-            || test_gemm_ep_bf16(4, 16, 4, 4, 1)
-            || test_gemm_ep_bf16(4, 8, 4, 4, 1)
-            || test_gemm_ep_bf16(2, 16, 4, 4, 1)
-            || test_gemm_ep_bf16(1, 16, 4, 4, 1)
-            || test_gemm_ep_bf16(3, 16, 4, 4, 1)
-            || test_gemm_ep_bf16(8, 16, 4, 4, 1);
+                  || test_gemm_ep_bf16(4, 16, 4, 4, 1)
+                  || test_gemm_ep_bf16(4, 8, 4, 4, 1)
+                  || test_gemm_ep_bf16(2, 16, 4, 4, 1)
+                  || test_gemm_ep_bf16(1, 16, 4, 4, 1)
+                  || test_gemm_ep_bf16(3, 16, 4, 4, 1)
+                  || test_gemm_ep_bf16(8, 16, 4, 4, 1);
         if (ret != 0)
             return ret;
     }
