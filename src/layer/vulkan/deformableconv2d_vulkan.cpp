@@ -629,8 +629,8 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
 
     // gemm branch
     if (opt.use_sgemm_convolution && channels * elempack * maxk >= 8 && num_output >= 8
-        && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
-            || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
+            && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
+                || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
     {
         if (use_cooperative_matrix)
         {
