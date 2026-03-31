@@ -481,6 +481,7 @@ int DeformableConv2D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
     weight_data_packed.release();
+    weight_data.release();
 
     if (use_cooperative_matrix)
     {
@@ -619,7 +620,7 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
         return -100;
 
     const int num_output_packed = (num_output + 3) / 4 * 4;
-    const int c_iterations = channels / elempack;
+    const int c_iterations = channels;
     const int cstep_scalar = bottom_blob_bordered.cstep;
     const int outc_pack4 = num_output_packed / 4;
     const int outcstep_scalar = (out_elempack == 4) ? top_blob.cstep : (top_blob.cstep * 4);
@@ -627,7 +628,7 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
     const int maxk = kernel_w * kernel_h;
 
     // gemm branch
-    if (opt.use_sgemm_convolution && channels * maxk >= 8 && num_output >= 8
+    if (opt.use_sgemm_convolution && channels * elempack * maxk >= 8 && num_output >= 8
         && (pipeline_deformableconv2d_packed_gemm || pipeline_deformableconv2d_packed_gemm_mask
             || pipeline_deformableconv2d_gemm_cm || pipeline_deformableconv2d_gemm_cm_mask))
     {
@@ -681,7 +682,7 @@ int DeformableConv2D_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std
             std::vector<vk_constant_type> constants(12);
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
-            constants[2].i = c_iterations;  // channels / elempack
+            constants[2].i = c_iterations;
             constants[3].i = cstep_scalar;
             constants[4].i = top_blob.w;
             constants[5].i = top_blob.h;
