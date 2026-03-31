@@ -342,6 +342,9 @@ int main(int argc, char** argv)
 
         g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
         g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
+#if NCNN_ENABLE_RENDERDOC_PROFILING
+        ncnn::start_renderdoc_capture();
+#endif // NCNN_ENABLE_RENDERDOC_PROFILING
     }
 #endif // NCNN_VULKAN
 
@@ -461,6 +464,9 @@ int main(int argc, char** argv)
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
+#if NCNN_ENABLE_RENDERDOC_PROFILING
+    ncnn::end_renderdoc_capture();
+#endif // NCNN_ENABLE_RENDERDOC_PROFILING
 #endif // NCNN_VULKAN
 
     return 0;
