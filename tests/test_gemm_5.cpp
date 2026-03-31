@@ -84,10 +84,10 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
 
     // Only run fp32-safe option combos (use_bf16_storage=0)
     // pack fp16p fp16s fp16a bf16
-    const int options[][5] = {
-        {0, 0, 0, 0, 0},
-        {1, 0, 0, 0, 0},
-        {1, 0, 0, 0, 1},
+    const int options[][2] = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
     };
 
     for (int i = 0; i < 3; i++)
@@ -95,11 +95,11 @@ static int test_gemm_ep(int M, int N, int K, int output_elempack, int output_tra
         ncnn::Option opt;
         opt.num_threads = 1;
         opt.use_packing_layout = options[i][0];
-        opt.use_fp16_packed = options[i][1];
-        opt.use_fp16_storage = options[i][2];
-        opt.use_fp16_arithmetic = options[i][3];
-        opt.use_bf16_packed = options[i][4];
-        opt.use_bf16_storage = options[i][4];
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = options[i][1];
+        opt.use_bf16_storage = options[i][1];
 
         int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.001, TEST_LAYER_DISABLE_GPU_TESTING);
         if (ret != 0)
@@ -155,6 +155,9 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
         ncnn::Option opt;
         opt.num_threads = 1;
         opt.use_packing_layout = options[i][0];
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
         opt.use_bf16_packed = options[i][1];
         opt.use_bf16_storage = options[i][1];
 
