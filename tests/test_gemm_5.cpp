@@ -175,22 +175,22 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
 static int test_gemm_1(int M, int N, int K)
 {
     int fp32_max_elempack = 1;
+#if __SSE2__ || __ARM_NEON
+    fp32_max_elempack = 4;
+#endif
+
+#if NCNN_AVX
+    if (ncnn::cpu_support_x86_avx())
+        fp32_max_elempack = 8;
 #if NCNN_AVX512
     if (ncnn::cpu_support_x86_avx512())
         fp32_max_elempack = 16;
-    else if (ncnn::cpu_support_x86_avx())
-        fp32_max_elempack = 8;
-    else
-        fp32_max_elempack = 4;
-#elif NCNN_AVX
-    if (ncnn::cpu_support_x86_avx())
-        fp32_max_elempack = 8;
-    else
-        fp32_max_elempack = 4;
-#elif __ARM_NEON
-    fp32_max_elempack = 4;
-#elif NCNN_RVV || NCNN_XTHEADVECTOR
-    fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
+#endif
+#endif
+
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
+        fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
 #endif
 
     int bf16_max_elempack = fp32_max_elempack;
