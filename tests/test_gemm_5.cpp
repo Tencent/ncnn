@@ -172,7 +172,7 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
     return 0;
 }
 
-static int test_gemm_1(int M, int N, int K, int fp32_max_elempack, int bf16_max_elempack)
+static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_elempack, int bf16_min_elempack, int bf16_max_elempack)
 {
     const int elempacks[] = {1, 4, 8, 16};
 
@@ -187,7 +187,7 @@ static int test_gemm_1(int M, int N, int K, int fp32_max_elempack, int bf16_max_
                 continue;
 
             // fp32 path
-            if (ep <= fp32_max_elempack)
+            if (ep <= fp32_max_elempack && ep % fp32_min_elempack == 0)
             {
                 for (int output_N1M = 0; output_N1M < 2; output_N1M++)
                 {
@@ -198,7 +198,7 @@ static int test_gemm_1(int M, int N, int K, int fp32_max_elempack, int bf16_max_
             }
 
             // bf16 path (only when bf16 supports larger elempack than fp32)
-            if (ep <= bf16_max_elempack && ep > fp32_max_elempack)
+            if (ep <= bf16_max_elempack && ep % fp32_min_elempack == 0 && ep > fp32_max_elempack)
             {
                 int ret = test_gemm_ep_bf16(M, N, K, ep, output_transpose);
                 if (ret != 0)
@@ -259,11 +259,12 @@ int main()
         fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
 #endif
 
+    int bf16_min_elempack = fp32_min_elempack;
     int bf16_max_elempack = fp32_max_elempack;
 
     for (int i = 0; i < 14; i++)
     {
-        int ret = test_gemm_1(mnk_scalar[i][0], mnk_scalar[i][1], mnk_scalar[i][2], fp32_max_elempack, bf16_max_elempack);
+        int ret = test_gemm_1(mnk_scalar[i][0], mnk_scalar[i][1], mnk_scalar[i][2], fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack);
         if (ret != 0)
             return ret;
     }
@@ -299,12 +300,12 @@ int main()
     int num_asym = sizeof(mnk_asym) / sizeof(mnk_asym[0]);
     for (int i = 0; i < num_asym; i++)
     {
-        int ret = test_gemm_1(mnk_asym[i][0], mnk_asym[i][1], mnk_asym[i][2], fp32_max_elempack, bf16_max_elempack);
+        int ret = test_gemm_1(mnk_asym[i][0], mnk_asym[i][1], mnk_asym[i][2], fp32_min_elempack, fp32_max_elempack, bf16_min_elempack, bf16_max_elempack);
         if (ret != 0)
             return ret;
     }
 
-    if (bf16_max_elempack >= 4 && 4 % fp32_min_elempack == 0)
+    if (bf16_max_elempack >= 4 && 4 % bf16_min_elempack == 0)
     {
         // bf16 output (output_elemtype=0) with out_elempack=4, output_transpose=1
         // to cover the bf16 store paths in unpack_output_tile_fp32_to_bf16
