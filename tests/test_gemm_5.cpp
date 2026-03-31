@@ -256,7 +256,10 @@ int main()
 
 #if NCNN_RVV || NCNN_XTHEADVECTOR
     if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
+    {
+        fp32_min_elempack = ncnn::cpu_riscv_vlenb() / 4;
         fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
+    }
 #endif
 
     int bf16_min_elempack = fp32_min_elempack;
