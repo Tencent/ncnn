@@ -109,7 +109,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_int8_inference && int8_scale_term)
     {
 #if NCNN_BF16
-        if (bottom_blob.elembits() == 16)
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
@@ -121,7 +121,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif
 
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
     {
         return forward_bf16s(bottom_blob, top_blob, opt);
     }
