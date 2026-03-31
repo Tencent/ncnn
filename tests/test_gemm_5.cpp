@@ -187,7 +187,7 @@ static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_
                 continue;
 
             // fp32 path
-            if (ep <= fp32_max_elempack && ep % fp32_min_elempack == 0)
+            if (ep == 1 || (ep <= fp32_max_elempack && ep % fp32_min_elempack == 0))
             {
                 for (int output_N1M = 0; output_N1M < 2; output_N1M++)
                 {
@@ -198,7 +198,7 @@ static int test_gemm_1(int M, int N, int K, int fp32_min_elempack, int fp32_max_
             }
 
             // bf16 path (only when bf16 supports larger elempack than fp32)
-            if (ep <= bf16_max_elempack && ep % fp32_min_elempack == 0 && ep > fp32_max_elempack)
+            if ((ep == 1 || (ep <= bf16_max_elempack && ep % fp32_min_elempack == 0)) && ep > fp32_max_elempack)
             {
                 int ret = test_gemm_ep_bf16(M, N, K, ep, output_transpose);
                 if (ret != 0)
