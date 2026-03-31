@@ -195,6 +195,8 @@ public:
     void set_workspace_vkallocator(VkAllocator* allocator);
 
     void set_staging_vkallocator(VkAllocator* allocator);
+#else
+    void set_vulkan_compute(bool enable);
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
