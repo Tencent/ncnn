@@ -172,29 +172,8 @@ static int test_gemm_ep_bf16(int M, int N, int K, int output_elempack, int outpu
     return 0;
 }
 
-static int test_gemm_1(int M, int N, int K)
+static int test_gemm_1(int M, int N, int K, int fp32_max_elempack, int bf16_max_elempack)
 {
-    int fp32_max_elempack = 1;
-#if __SSE2__ || __ARM_NEON
-    fp32_max_elempack = 4;
-#endif
-
-#if NCNN_AVX
-    if (ncnn::cpu_support_x86_avx())
-        fp32_max_elempack = 8;
-#if NCNN_AVX512
-    if (ncnn::cpu_support_x86_avx512())
-        fp32_max_elempack = 16;
-#endif
-#endif
-
-#if NCNN_RVV || NCNN_XTHEADVECTOR
-    if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
-        fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
-#endif
-
-    int bf16_max_elempack = fp32_max_elempack;
-
     const int elempacks[] = {1, 4, 8, 16};
 
     for (int ei = 0; ei < 4; ei++)
@@ -259,9 +238,30 @@ int main()
             return ret;
     }
 
+    int fp32_max_elempack = 1;
+#if __SSE2__ || __ARM_NEON
+    fp32_max_elempack = 4;
+#endif
+
+#if NCNN_AVX
+    if (ncnn::cpu_support_x86_avx())
+        fp32_max_elempack = 8;
+#if NCNN_AVX512
+    if (ncnn::cpu_support_x86_avx512())
+        fp32_max_elempack = 16;
+#endif
+#endif
+
+#if NCNN_RVV || NCNN_XTHEADVECTOR
+    if (ncnn::cpu_support_riscv_v() || ncnn::cpu_support_riscv_xtheadvector())
+        fp32_max_elempack = ncnn::cpu_riscv_vlenb() / 4;
+#endif
+
+    int bf16_max_elempack = fp32_max_elempack;
+
     for (int i = 0; i < 14; i++)
     {
-        int ret = test_gemm_1(mnk_scalar[i][0], mnk_scalar[i][1], mnk_scalar[i][2]);
+        int ret = test_gemm_1(mnk_scalar[i][0], mnk_scalar[i][1], mnk_scalar[i][2], fp32_max_elempack, bf16_max_elempack);
         if (ret != 0)
             return ret;
     }
@@ -297,18 +297,25 @@ int main()
     int num_asym = sizeof(mnk_asym) / sizeof(mnk_asym[0]);
     for (int i = 0; i < num_asym; i++)
     {
-        int ret = test_gemm_1(mnk_asym[i][0], mnk_asym[i][1], mnk_asym[i][2]);
+        int ret = test_gemm_1(mnk_asym[i][0], mnk_asym[i][1], mnk_asym[i][2], fp32_max_elempack, bf16_max_elempack);
         if (ret != 0)
             return ret;
     }
 
-    // bf16 output (output_elemtype=0) with out_elempack=4, output_transpose=1
-    // to cover the bf16 store paths in unpack_output_tile_fp32_to_bf16
-    return 0
-           || test_gemm_ep_bf16(4, 16, 4, 4, 1)
-           || test_gemm_ep_bf16(4, 8, 4, 4, 1)
-           || test_gemm_ep_bf16(2, 16, 4, 4, 1)
-           || test_gemm_ep_bf16(1, 16, 4, 4, 1)
-           || test_gemm_ep_bf16(3, 16, 4, 4, 1)
-           || test_gemm_ep_bf16(8, 16, 4, 4, 1);
+    if (bf16_max_elempack >= 4)
+    {
+        // bf16 output (output_elemtype=0) with out_elempack=4, output_transpose=1
+        // to cover the bf16 store paths in unpack_output_tile_fp32_to_bf16
+        int ret = 0
+            || test_gemm_ep_bf16(4, 16, 4, 4, 1)
+            || test_gemm_ep_bf16(4, 8, 4, 4, 1)
+            || test_gemm_ep_bf16(2, 16, 4, 4, 1)
+            || test_gemm_ep_bf16(1, 16, 4, 4, 1)
+            || test_gemm_ep_bf16(3, 16, 4, 4, 1)
+            || test_gemm_ep_bf16(8, 16, 4, 4, 1);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
 }
