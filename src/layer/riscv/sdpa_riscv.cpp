@@ -38,19 +38,19 @@ int SDPA_riscv::create_pipeline(const Option& opt)
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, 1.f);                 // alpha (will be set in forward)
-        pd.set(1, 0.f);                 // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, 1);                   // constantC (None)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, -1);                 // constant_broadcast_type_C
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
+        pd.set(0, 1.f); // alpha (will be set in forward)
+        pd.set(1, 0.f); // beta
+        pd.set(2, 0);   // transA (Q: Seq x Embed)
+        pd.set(3, 1);   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 1);   // constantC (None)
+        pd.set(7, 0);   // M
+        pd.set(8, 0);   // N
+        pd.set(9, 0);   // K
+        pd.set(10, -1); // constant_broadcast_type_C
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -142,7 +142,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     {
         // Fallback for packed data
         // TODO: Implement optimized RVV paths for group=2 with elempack=2,4,8, and group=4 with elempack=4
-        
+
         // Unpack input blobs
         std::vector<Mat> bottom_blobs_unpacked = bottom_blobs;
         Option opt_unpack = opt;
@@ -266,19 +266,19 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     {
         _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, _scale);              // alpha
-        pd.set(1, 0.f);                 // beta
-        pd.set(2, 0);                   // transA
-        pd.set(3, 1);                   // transB
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, 1);                   // constantC (None)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, -1);                 // constant_broadcast_type_C
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
+        pd.set(0, _scale); // alpha
+        pd.set(1, 0.f);    // beta
+        pd.set(2, 0);      // transA
+        pd.set(3, 1);      // transB
+        pd.set(4, 0);      // constantA
+        pd.set(5, 0);      // constantB
+        pd.set(6, 1);      // constantC (None)
+        pd.set(7, 0);      // M
+        pd.set(8, 0);      // N
+        pd.set(9, 0);      // K
+        pd.set(10, -1);    // constant_broadcast_type_C
+        pd.set(11, 0);     // output_N1M
+        pd.set(12, 1);     // output_elempack
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -318,7 +318,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 size_t vlmax = __riscv_vsetvlmax_e32m8();
                 vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
                 int l = 0;
-                for (; l < embed_dim; )
+                for (; l < embed_dim;)
                 {
                     size_t vl = __riscv_vsetvl_e32m8(embed_dim - l);
                     vfloat32m8_t _q = __riscv_vle32_v_f32m8(qptr + l, vl);
@@ -381,7 +381,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 size_t vlmax = __riscv_vsetvlmax_e32m8();
                 vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
                 int l = 0;
-                for (; l < dst_seqlen; )
+                for (; l < dst_seqlen;)
                 {
                     size_t vl = __riscv_vsetvl_e32m8(dst_seqlen - l);
                     vfloat32m8_t _qk = __riscv_vle32_v_f32m8(qkptr + l, vl);
@@ -419,4 +419,3 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
-
