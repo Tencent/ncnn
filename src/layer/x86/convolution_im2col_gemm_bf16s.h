@@ -3756,11 +3756,11 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 
 template<int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h>
 #if __AVX512F__
-void convolution_im2col_input_tile_avx512_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static void convolution_im2col_input_tile_avx512_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 #elif __AVX__
-void convolution_im2col_input_tile_avx_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static void convolution_im2col_input_tile_avx_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 #else
-void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 #endif
 {
     convolution_im2col_input_tile_impl_bf16s(bottom_blob, B, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
@@ -3980,7 +3980,7 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
+    // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d nT=%d", M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
     if (BT.empty())
