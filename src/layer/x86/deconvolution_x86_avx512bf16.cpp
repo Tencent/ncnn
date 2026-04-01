@@ -1,16 +1,8 @@
 // Copyright 2022 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "deconvolution_x86.h"
-
-#if __SSE2__
-#include <emmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#endif
-#endif // __SSE2__
-
-#include "x86_activation.h"
+#include "cpu.h"
+#include "mat.h"
 #include "x86_usability.h"
 
 namespace ncnn {

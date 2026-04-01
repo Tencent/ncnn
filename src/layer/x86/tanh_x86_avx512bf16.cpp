@@ -1,11 +1,9 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "tanh_x86.h"
-
-#include "x86_activation.h"
-
 #include "cpu.h"
+#include "mat.h"
+#include "x86_usability.h"
 
 namespace ncnn {
 
