@@ -4,7 +4,10 @@
 #include <float.h>
 
 #include "cpu.h"
+#include "layer.h"
+#include "layer_type.h"
 #include "mat.h"
+#include "x86_activation.h"
 #include "x86_usability.h"
 
 namespace ncnn {
