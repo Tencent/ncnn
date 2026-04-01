@@ -1,5 +1,4 @@
-
-// Copyright 2025 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_SDPA_RISCV_H
