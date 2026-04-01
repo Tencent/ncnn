@@ -524,10 +524,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (opt.use_int8_inference && int8_scale_term)
     {
 #if NCNN_BF16
-        if (bottom_blob.elembits() == 16)
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
         {
             Mat bottom_blob_fp32;
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
             return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
         }
 #endif
@@ -536,7 +539,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #endif
 
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
     {
         return forward_bf16s(bottom_blob, top_blob, opt);
     }
@@ -862,6 +865,8 @@ int Convolution_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         Mat weight_data_flattened_fp32;
         cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
         weight_data_flattened = weight_data_flattened_fp32;
+        if (weight_data_flattened.empty())
+            return -100;
     }
 #endif
 
@@ -884,6 +889,8 @@ int Convolution_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             Mat bias_data_flattened_fp32;
             cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
             bias_data_flattened = bias_data_flattened_fp32;
+            if (bias_data_flattened.empty())
+                return -100;
         }
 #endif
 
@@ -1139,6 +1146,9 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
             }
 #endif // __AVX__
         }
+
+        if (top_blob_int32.empty())
+            return -100;
     }
 #endif
 
@@ -1149,6 +1159,8 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     else
     {
         dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+        if (top_blob.empty())
+            return -100;
 
         if (activation)
         {
@@ -1252,25 +1264,6 @@ int Convolution_x86::create_pipeline_bf16s(const Option& opt)
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
-
-    int elempack = 1;
-    int out_elempack = 1;
-
-#if __SSE2__
-    if (opt.use_packing_layout)
-    {
-#if __AVX512F__
-        elempack = num_input % 16 == 0 ? 16 : num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-#elif __AVX__
-        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-#else
-        elempack = num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-#endif
-    }
-#endif // __SSE2__
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
 
