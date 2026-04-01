@@ -1,31 +1,28 @@
-// Copyright 2025 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "sdpa_riscv.h"
 
+#include "layer_type.h"
+
 #if __riscv_vector
 #include <riscv_vector.h>
 #endif
-
-#include "layer_type.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
 
 SDPA_riscv::SDPA_riscv()
 {
+    support_packing = true;
+
     qk_gemm = 0;
     qkv_gemm = 0;
     qk_softmax = 0;
 }
 
-int SDPA_riscv::create_pipeline(const Option& _opt)
+int SDPA_riscv::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-    if (int8_scale_term)
-    {
-        opt.use_packing_layout = false; // TODO enable packing
-    }
-
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
         ncnn::ParamDict pd;
@@ -37,22 +34,21 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
     }
 
     // Q * K^T
-    if (scale != 0.f)
     {
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, scale);               // alpha
-        pd.set(1, 1.f / scale);         // beta
+        pd.set(0, 1.f);                 // alpha (will be set in forward)
+        pd.set(1, 0.f);                 // beta
         pd.set(2, 0);                   // transA (Q: Seq x Embed)
         pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
+        pd.set(6, 1);                   // constantC (None)
         pd.set(7, 0);                   // M
         pd.set(8, 0);                   // N
         pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
+        pd.set(10, -1);                 // constant_broadcast_type_C
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
 #if NCNN_INT8
@@ -96,14 +92,8 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
     return 0;
 }
 
-int SDPA_riscv::destroy_pipeline(const Option& _opt)
+int SDPA_riscv::destroy_pipeline(const Option& opt)
 {
-    Option opt = _opt;
-    if (int8_scale_term)
-    {
-        opt.use_packing_layout = false; // TODO enable packing
-    }
-
     if (qk_softmax)
     {
         qk_softmax->destroy_pipeline(opt);
@@ -130,63 +120,8 @@ int SDPA_riscv::destroy_pipeline(const Option& _opt)
 
 int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    const Mat& query = bottom_blobs[0];
-    int elempack = query.elempack;
-
-    if (elempack > 1)
-    {
-        // fallback: unpack -> forward -> repack
-        Option opt = _opt;
-        opt.blob_allocator = _opt.workspace_allocator;
-
-        std::vector<Mat> unpacked_bottom_blobs(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            if (bottom_blobs[i].empty()) continue;
-
-            if (bottom_blobs[i].elempack == 1)
-            {
-                unpacked_bottom_blobs[i] = bottom_blobs[i];
-            }
-            else
-            {
-                ncnn::Layer* packing = ncnn::create_layer_cpu(ncnn::LayerType::Packing);
-                ncnn::ParamDict pd;
-                pd.set(0, 1); // out_elempack
-                packing->load_param(pd);
-                packing->forward(bottom_blobs[i], unpacked_bottom_blobs[i], opt);
-                delete packing;
-            }
-        }
-
-        std::vector<Mat> unpacked_top_blobs(top_blobs.size());
-
-        // call forward with elempack=1
-        int ret = forward(unpacked_bottom_blobs, unpacked_top_blobs, _opt);
-        if (ret != 0) return ret;
-
-        // repack outputs
-        for (size_t i = 0; i < top_blobs.size(); i++)
-        {
-            if (unpacked_top_blobs[i].empty()) continue;
-
-            ncnn::Layer* packing = ncnn::create_layer_cpu(ncnn::LayerType::Packing);
-            ncnn::ParamDict pd;
-            pd.set(0, elempack); // out_elempack
-            packing->load_param(pd);
-            packing->forward(unpacked_top_blobs[i], top_blobs[i], _opt); // use original allocator for output
-            delete packing;
-        }
-
-        return 0;
-    }
-
     Option opt = _opt;
-    if (int8_scale_term)
-    {
-        opt.use_packing_layout = false; // TODO enable packing
-    }
-
+    const Mat& query = bottom_blobs[0];
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
     const Mat& attn_mask_blob = attn_mask ? bottom_blobs[3] : Mat();
@@ -201,6 +136,63 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const int out_embed_dim = cur_value.w;
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
+    const int elempack = query.elempack;
+
+    if (elempack > 1)
+    {
+        // Fallback for packed data
+        // TODO: Implement optimized RVV paths for group=2 with elempack=2,4,8, and group=4 with elempack=4
+        
+        // Unpack input blobs
+        std::vector<Mat> bottom_blobs_unpacked = bottom_blobs;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+
+        Mat query_unpacked;
+        convert_packing(query, query_unpacked, 1, opt_unpack);
+        bottom_blobs_unpacked[0] = query_unpacked;
+
+        Mat cur_key_unpacked;
+        convert_packing(cur_key, cur_key_unpacked, 1, opt_unpack);
+        bottom_blobs_unpacked[1] = cur_key_unpacked;
+
+        Mat cur_value_unpacked;
+        convert_packing(cur_value, cur_value_unpacked, 1, opt_unpack);
+        bottom_blobs_unpacked[2] = cur_value_unpacked;
+
+        if (attn_mask)
+        {
+            Mat attn_mask_unpacked;
+            convert_packing(attn_mask_blob, attn_mask_unpacked, 1, opt_unpack);
+            bottom_blobs_unpacked[3] = attn_mask_unpacked;
+        }
+
+        if (kv_cache)
+        {
+            Mat past_key_unpacked;
+            convert_packing(past_key, past_key_unpacked, 1, opt_unpack);
+            bottom_blobs_unpacked[attn_mask ? 4 : 3] = past_key_unpacked;
+
+            Mat past_value_unpacked;
+            convert_packing(past_value, past_value_unpacked, 1, opt_unpack);
+            bottom_blobs_unpacked[attn_mask ? 5 : 4] = past_value_unpacked;
+        }
+
+        std::vector<Mat> top_blobs_unpacked(top_blobs.size());
+        int ret = SDPA::forward(bottom_blobs_unpacked, top_blobs_unpacked, opt);
+        if (ret != 0)
+            return ret;
+
+        // Repack output blobs
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            if (top_blobs_unpacked[i].empty())
+                continue;
+            convert_packing(top_blobs_unpacked[i], top_blobs[i], elempack, opt);
+        }
+
+        return 0;
+    }
 
     Mat key;
     if (past_seqlen > 0)
@@ -261,26 +253,30 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     std::vector<int> retqks(num_heads);
 
-    // Dynamic Scale Calculation and Beta Correction
-    Layer* _qk_gemm = qk_gemm;
-    if (scale == 0.f)
+    float _scale = scale;
+    if (_scale == 0.f)
     {
-        float _scale = 1.f / sqrt(embed_dim);
+        _scale = 1.f / sqrt(embed_dim);
+    }
 
+    // Create local Gemm if scale is dynamic or different from 1.f
+    Layer* _qk_gemm = qk_gemm;
+    bool local_gemm = false;
+    if (_scale != 1.f)
+    {
         _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-
         pd.set(0, _scale);              // alpha
-        pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(1, 0.f);                 // beta
+        pd.set(2, 0);                   // transA
+        pd.set(3, 1);                   // transB
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
+        pd.set(6, 1);                   // constantC (None)
         pd.set(7, 0);                   // M
         pd.set(8, 0);                   // N
         pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
+        pd.set(10, -1);                 // constant_broadcast_type_C
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
 #if NCNN_INT8
@@ -288,49 +284,62 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #endif
         _qk_gemm->load_param(pd);
         _qk_gemm->load_model(ModelBinFromMatArray(0));
-
         Option opt1 = opt;
         opt1.num_threads = 1;
         _qk_gemm->create_pipeline(opt1);
+        local_gemm = true;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         // 1. Q * K^T
-        std::vector<Mat> qk_bottom_blobs;
-        qk_bottom_blobs.push_back(query.channel(i));                     // Q: [Seq, Embed]
-        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group)); // K: [DstSeq, Embed]
+        const Mat q_head = query.channel(i);
+        const Mat k_head = key.channel(i / num_heads_per_group);
+        Mat score_head = qk_cross.channel(i);
 
-        if (attn_mask)
+        for (int j = 0; j < src_seqlen; j++)
         {
-            // Ensure mask is 2D for Gemm auto-broadcast detection
-            Mat maskm = attn_mask_blob;
-            if (maskm.dims == 3)
+            const float* qptr = q_head.row(j);
+            float* outptr = score_head.row(j);
+            const float* mptr_row = 0;
+            if (attn_mask)
             {
-                // If c > 1, pick i-th head mask. If c == 1, pick 0-th (broadcast)
-                maskm = maskm.channel(maskm.c > 1 ? i : 0);
+                const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(i) : attn_mask_blob;
+                mptr_row = maskm.row(j);
             }
-            qk_bottom_blobs.push_back(maskm);
+
+            for (int k = 0; k < dst_seqlen; k++)
+            {
+                const float* kptr = k_head.row(k);
+                float sum = 0.f;
+
+#if __riscv_vector
+                size_t vlmax = __riscv_vsetvlmax_e32m8();
+                vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
+                int l = 0;
+                for (; l < embed_dim; )
+                {
+                    size_t vl = __riscv_vsetvl_e32m8(embed_dim - l);
+                    vfloat32m8_t _q = __riscv_vle32_v_f32m8(qptr + l, vl);
+                    vfloat32m8_t _k = __riscv_vle32_v_f32m8(kptr + l, vl);
+                    _sum_v = __riscv_vfmacc_vv_f32m8(_sum_v, _q, _k, vl);
+                    l += vl;
+                }
+                vfloat32m1_t _sum_scalar = __riscv_vfmv_s_f_f32m1(0.0f, 1);
+                _sum_scalar = __riscv_vfredusum_vs_f32m8_f32m1(_sum_v, _sum_scalar, vlmax);
+                sum = __riscv_vfmv_f_s_f32m1_f32(_sum_scalar);
+#else
+                for (int l = 0; l < embed_dim; l++)
+                {
+                    sum += qptr[l] * kptr[l];
+                }
+#endif
+                outptr[k] = sum * _scale;
+                if (attn_mask)
+                    outptr[k] += mptr_row[k];
+            }
         }
-
-        std::vector<Mat> qk_top_blobs(1);
-        qk_top_blobs[0] = qk_cross.channel(i);
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        opt1.blob_allocator = qk_cross.allocator;
-        retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
-    }
-
-    if (scale == 0.f)
-    {
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->destroy_pipeline(opt1);
-
-        delete _qk_gemm;
-        _qk_gemm = 0;
     }
 
     for (int i = 0; i < num_heads; i++)
@@ -339,34 +348,66 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return retqks[i];
     }
 
+    if (local_gemm)
+    {
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        _qk_gemm->destroy_pipeline(opt1);
+        delete _qk_gemm;
+    }
+
     // 2. Softmax
     int retqk = qk_softmax->forward_inplace(qk_cross, opt);
     if (retqk != 0)
         return retqk;
 
     // 3. Attn * V
-    std::vector<int> retqkvs(num_heads);
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
-        std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);                    // Attn: [DstSeq, Seq]
-        qkv_bottom_blobs[1] = value.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
+        const Mat score_head = qk_cross.channel(i);
+        const Mat v_head = value.channel(i / num_heads_per_group);
+        Mat out_head = top_blob.channel(i);
 
-        std::vector<Mat> qkv_top_blobs(1);
-        qkv_top_blobs[0] = top_blob.channel(i); // Output
+        for (int j = 0; j < src_seqlen; j++)
+        {
+            const float* qkptr = score_head.row(j);
+            float* outptr = out_head.row(j);
 
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
+            for (int k = 0; k < out_embed_dim; k++)
+            {
+                float sum = 0.f;
+#if __riscv_vector
+                size_t vlmax = __riscv_vsetvlmax_e32m8();
+                vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
+                int l = 0;
+                for (; l < dst_seqlen; )
+                {
+                    size_t vl = __riscv_vsetvl_e32m8(dst_seqlen - l);
+                    vfloat32m8_t _qk = __riscv_vle32_v_f32m8(qkptr + l, vl);
+                    vfloat32m8_t _v = __riscv_vlse32_v_f32m8(v_head.row(l) + k, out_embed_dim * sizeof(float), vl);
+                    _sum_v = __riscv_vfmacc_vv_f32m8(_sum_v, _qk, _v, vl);
+                    l += vl;
+                }
+                vfloat32m1_t _sum_scalar = __riscv_vfmv_s_f_f32m1(0.0f, 1);
+                _sum_scalar = __riscv_vfredusum_vs_f32m8_f32m1(_sum_v, _sum_scalar, vlmax);
+                sum = __riscv_vfmv_f_s_f32m1_f32(_sum_scalar);
+#else
+                for (int l = 0; l < dst_seqlen; l++)
+                {
+                    sum += qkptr[l] * v_head.row(l)[k];
+                }
+#endif
+                outptr[k] = sum;
+            }
+        }
     }
 
-    for (int i = 0; i < num_heads; i++)
-    {
-        if (retqkvs[i] != 0)
-            return retqkvs[i];
-    }
+    // for (int i = 0; i < num_heads; i++)
+    // {
+    //     if (retqkvs[i] != 0)
+    //         return retqkvs[i];
+    // }
 
     if (kv_cache)
     {
@@ -378,3 +419,4 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
+
