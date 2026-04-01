@@ -1356,15 +1356,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
-                __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
-                __m256i _pB0 = combine4x2_epi32(_pB, _pB);
-                __m256i _pA1 = _mm256_alignr_epi8(_pA0, _pA0, 8);
-                __m256i _pB1 = _mm256_alignr_epi8(_pB0, _pB0, 4);
-                _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB0);
-                _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA0, (__m256bh)_pB1);
-                _sum2 = _mm256_dpbf16_ps(_sum2, (__m256bh)_pA1, (__m256bh)_pB0);
-                _sum3 = _mm256_dpbf16_ps(_sum3, (__m256bh)_pA1, (__m256bh)_pB1);
+                __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
+                _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA, (__m256bh)_mm256_set1_epi32(((const int*)pB)[0]));
+                _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA, (__m256bh)_mm256_set1_epi32(((const int*)pB)[1]));
+                _sum2 = _mm256_dpbf16_ps(_sum2, (__m256bh)_pA, (__m256bh)_mm256_set1_epi32(((const int*)pB)[2]));
+                _sum3 = _mm256_dpbf16_ps(_sum3, (__m256bh)_pA, (__m256bh)_mm256_set1_epi32(((const int*)pB)[3]));
                 pA += 16;
                 pB += 8;
             }
@@ -1716,14 +1712,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 #if __AVX512BF16__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
-                __m128i _pB0 = _mm_loadu_si128((const __m128i*)pB);
-                __m128i _pA1 = _mm_alignr_epi8(_pA0, _pA0, 8);
-                __m128i _pB1 = _mm_alignr_epi8(_pB0, _pB0, 4);
-                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA0, (__m128bh)_pB0);
-                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA0, (__m128bh)_pB1);
-                _sum2 = _mm_dpbf16_ps(_sum2, (__m128bh)_pA1, (__m128bh)_pB0);
-                _sum3 = _mm_dpbf16_ps(_sum3, (__m128bh)_pA1, (__m128bh)_pB1);
+                __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
+                _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[0]));
+                _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[1]));
+                _sum2 = _mm_dpbf16_ps(_sum2, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[2]));
+                _sum3 = _mm_dpbf16_ps(_sum3, (__m128bh)_pA, (__m128bh)_mm_set1_epi32(((const int*)pB)[3]));
                 pA += 8;
                 pB += 8;
             }
@@ -2782,10 +2775,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 #if __AVX512BF16__
                 __m128i _t0 = float2bfloat_sse(_r0);
                 __m128i _t1 = float2bfloat_sse(_r1);
-                _mm_storel_epi64((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
+                _mm_storeu_si128((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
                 __m128i _t2 = float2bfloat_sse(_r2);
                 __m128i _t3 = float2bfloat_sse(_r3);
-                _mm_storel_epi64((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
+                _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
 #else
 
                 _mm_storel_epi64((__m128i*)pp, float2bfloat_sse(_r0));
@@ -2808,7 +2801,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __m128i _r0 = _mm_loadl_epi64((const __m128i*)(p0));
                 __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + bottom_blob.cstep));
-                _mm_storel_epi64((__m128i*)pp, _mm_unpacklo_epi16(_r0, _r1));
+                _mm_storeu_si128((__m128i*)pp, _mm_unpacklo_epi16(_r0, _r1));
                 pp += 8;
                 p0 += bottom_blob.cstep * 2;
             }
@@ -2926,6 +2919,49 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
         if (dy0 == dy7)
         {
             int kk = 0;
+#if __AVX512BF16__
+            if (elempack == 1)
+            {
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    const Mat img0 = bottom_blob.channel(p0);
+                    int sx0 = stride_w * dx0 + dilation_w * v0;
+                    int sy0 = stride_h * dy0 + dilation_h * u0;
+                    const unsigned short* sptr0 = img0.row<const unsigned short>(sy0) + sx0;
+
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u1 = uv1 / kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    const Mat img1 = bottom_blob.channel(p1);
+                    int sx1 = stride_w * dx0 + dilation_w * v1;
+                    int sy1 = stride_h * dy0 + dilation_h * u1;
+                    const unsigned short* sptr1 = img1.row<const unsigned short>(sy1) + sx1;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr0[stride_w];
+                    pp[3] = sptr1[stride_w];
+                    pp[4] = sptr0[stride_w * 2];
+                    pp[5] = sptr1[stride_w * 2];
+                    pp[6] = sptr0[stride_w * 3];
+                    pp[7] = sptr1[stride_w * 3];
+                    pp[8] = sptr0[stride_w * 4];
+                    pp[9] = sptr1[stride_w * 4];
+                    pp[10] = sptr0[stride_w * 5];
+                    pp[11] = sptr1[stride_w * 5];
+                    pp[12] = sptr0[stride_w * 6];
+                    pp[13] = sptr1[stride_w * 6];
+                    pp[14] = sptr0[stride_w * 7];
+                    pp[15] = sptr1[stride_w * 7];
+                    pp += 16;
+                }
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -3101,6 +3137,43 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
         else
         {
             int kk = 0;
+#if __AVX512BF16__
+            if (elempack == 1)
+            {
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    const Mat img0 = bottom_blob.channel(p0);
+
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u1 = uv1 / kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    pp[0] = img0.row<const unsigned short>(stride_h * dy0 + dilation_h * u0)[stride_w * dx0 + dilation_w * v0];
+                    pp[1] = img1.row<const unsigned short>(stride_h * dy0 + dilation_h * u1)[stride_w * dx0 + dilation_w * v1];
+                    pp[2] = img0.row<const unsigned short>(stride_h * dy1 + dilation_h * u0)[stride_w * dx1 + dilation_w * v0];
+                    pp[3] = img1.row<const unsigned short>(stride_h * dy1 + dilation_h * u1)[stride_w * dx1 + dilation_w * v1];
+                    pp[4] = img0.row<const unsigned short>(stride_h * dy2 + dilation_h * u0)[stride_w * dx2 + dilation_w * v0];
+                    pp[5] = img1.row<const unsigned short>(stride_h * dy2 + dilation_h * u1)[stride_w * dx2 + dilation_w * v1];
+                    pp[6] = img0.row<const unsigned short>(stride_h * dy3 + dilation_h * u0)[stride_w * dx3 + dilation_w * v0];
+                    pp[7] = img1.row<const unsigned short>(stride_h * dy3 + dilation_h * u1)[stride_w * dx3 + dilation_w * v1];
+                    pp[8] = img0.row<const unsigned short>(stride_h * dy4 + dilation_h * u0)[stride_w * dx4 + dilation_w * v0];
+                    pp[9] = img1.row<const unsigned short>(stride_h * dy4 + dilation_h * u1)[stride_w * dx4 + dilation_w * v1];
+                    pp[10] = img0.row<const unsigned short>(stride_h * dy5 + dilation_h * u0)[stride_w * dx5 + dilation_w * v0];
+                    pp[11] = img1.row<const unsigned short>(stride_h * dy5 + dilation_h * u1)[stride_w * dx5 + dilation_w * v1];
+                    pp[12] = img0.row<const unsigned short>(stride_h * dy6 + dilation_h * u0)[stride_w * dx6 + dilation_w * v0];
+                    pp[13] = img1.row<const unsigned short>(stride_h * dy6 + dilation_h * u1)[stride_w * dx6 + dilation_w * v1];
+                    pp[14] = img0.row<const unsigned short>(stride_h * dy7 + dilation_h * u0)[stride_w * dx7 + dilation_w * v0];
+                    pp[15] = img1.row<const unsigned short>(stride_h * dy7 + dilation_h * u1)[stride_w * dx7 + dilation_w * v1];
+                    pp += 16;
+                }
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -3311,6 +3384,41 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
         if (dy0 == dy3)
         {
             int kk = 0;
+#if __AVX512BF16__
+            if (elempack == 1)
+            {
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    const Mat img0 = bottom_blob.channel(p0);
+                    int sx0 = stride_w * dx0 + dilation_w * v0;
+                    int sy0 = stride_h * dy0 + dilation_h * u0;
+                    const unsigned short* sptr0 = img0.row<const unsigned short>(sy0) + sx0;
+
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u1 = uv1 / kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    const Mat img1 = bottom_blob.channel(p1);
+                    int sx1 = stride_w * dx0 + dilation_w * v1;
+                    int sy1 = stride_h * dy0 + dilation_h * u1;
+                    const unsigned short* sptr1 = img1.row<const unsigned short>(sy1) + sx1;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr0[stride_w];
+                    pp[3] = sptr1[stride_w];
+                    pp[4] = sptr0[stride_w * 2];
+                    pp[5] = sptr1[stride_w * 2];
+                    pp[6] = sptr0[stride_w * 3];
+                    pp[7] = sptr1[stride_w * 3];
+                    pp += 8;
+                }
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -3409,10 +3517,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 #if __AVX512BF16__
                     __m128i _t0 = float2bfloat_sse(_r0);
                     __m128i _t1 = float2bfloat_sse(_r1);
-                    _mm_storel_epi64((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
+                    _mm_storeu_si128((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
                     __m128i _t2 = float2bfloat_sse(_r2);
                     __m128i _t3 = float2bfloat_sse(_r3);
-                    _mm_storel_epi64((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
+                    _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
 #else
 
                     _mm_storel_epi64((__m128i*)pp, float2bfloat_sse(_r0));
@@ -3435,6 +3543,35 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
         else
         {
             int kk = 0;
+#if __AVX512BF16__
+            if (elempack == 1)
+            {
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    const Mat img0 = bottom_blob.channel(p0);
+
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u1 = uv1 / kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    pp[0] = img0.row<const unsigned short>(stride_h * dy0 + dilation_h * u0)[stride_w * dx0 + dilation_w * v0];
+                    pp[1] = img1.row<const unsigned short>(stride_h * dy0 + dilation_h * u1)[stride_w * dx0 + dilation_w * v1];
+                    pp[2] = img0.row<const unsigned short>(stride_h * dy1 + dilation_h * u0)[stride_w * dx1 + dilation_w * v0];
+                    pp[3] = img1.row<const unsigned short>(stride_h * dy1 + dilation_h * u1)[stride_w * dx1 + dilation_w * v1];
+                    pp[4] = img0.row<const unsigned short>(stride_h * dy2 + dilation_h * u0)[stride_w * dx2 + dilation_w * v0];
+                    pp[5] = img1.row<const unsigned short>(stride_h * dy2 + dilation_h * u1)[stride_w * dx2 + dilation_w * v1];
+                    pp[6] = img0.row<const unsigned short>(stride_h * dy3 + dilation_h * u0)[stride_w * dx3 + dilation_w * v0];
+                    pp[7] = img1.row<const unsigned short>(stride_h * dy3 + dilation_h * u1)[stride_w * dx3 + dilation_w * v1];
+                    pp += 8;
+                }
+            }
+#endif // __AVX512BF16__
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -3542,10 +3679,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 #if __AVX512BF16__
                     __m128i _t0 = float2bfloat_sse(_r0);
                     __m128i _t1 = float2bfloat_sse(_r1);
-                    _mm_storel_epi64((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
+                    _mm_storeu_si128((__m128i*)(pp + 0), _mm_unpacklo_epi16(_t0, _t1));
                     __m128i _t2 = float2bfloat_sse(_r2);
                     __m128i _t3 = float2bfloat_sse(_r3);
-                    _mm_storel_epi64((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
+                    _mm_storeu_si128((__m128i*)(pp + 8), _mm_unpacklo_epi16(_t2, _t3));
 #else
 
                     _mm_storel_epi64((__m128i*)pp, float2bfloat_sse(_r0));
