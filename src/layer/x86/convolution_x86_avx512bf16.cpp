@@ -37,9 +37,9 @@ void convolution_im2col_gemm_transform_kernel_bf16s_avx512bf16(const Mat& kernel
     convolution_im2col_gemm_transform_kernel_bf16s(kernel, AT, inch, outch, kernel_w, kernel_h, opt);
 }
 
-void convolution_im2col_gemm_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt)
+int convolution_im2col_gemm_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, int nT, const Option& opt)
 {
-    convolution_im2col_gemm_bf16s(bottom_blob, top_blob, AT, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, opt);
+    return convolution_im2col_gemm_bf16s(bottom_blob, top_blob, AT, bias, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, nT, opt);
 }
 
 void conv3x3s1_winograd23_transform_input_tile_bf16s_avx512bf16(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
