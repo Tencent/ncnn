@@ -1,40 +1,20 @@
-// Copyright 2017 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "eltwise_x86.h"
-
-#if __SSE2__
-#include <emmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#endif // __AVX__
-#endif // __SSE2__
-#include "x86_usability.h"
-
-#include "cpu.h"
-
-namespace ncnn {
-
-#if NCNN_BF16
-#include "eltwise_bf16s.h"
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+void eltwise_bf16s_avx512bf16(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt);
 #endif
 
-Eltwise_x86::Eltwise_x86()
+static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)
 {
-#if __SSE2__
-    support_packing = true;
-#endif // __SSE2__
-#if NCNN_BF16
-    support_bf16_storage = true;
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        eltwise_bf16s_avx512bf16(bottom_blobs, top_blob, op_type, coeffs, opt);
+        return;
+    }
 #endif
-}
 
-int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
-        return forward_bf16s(bottom_blobs, top_blobs, opt);
-#endif
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -43,21 +23,16 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     int elempack = bottom_blob.elempack;
     int size = w * h * d * elempack;
 
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (op_type == Operation_PROD)
+    if (op_type == 0) // Operation_PROD
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const float* ptr = bottom_blob.channel(q);
-            const float* ptr1 = bottom_blob1.channel(q);
-            float* outptr = top_blob.channel(q);
+            const unsigned short* ptr = bottom_blob.channel(q);
+            const unsigned short* ptr1 = bottom_blob1.channel(q);
+            unsigned short* outptr = top_blob.channel(q);
 
             int i = 0;
 #if __SSE2__
@@ -65,10 +40,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
             for (; i + 15 < size; i += 16)
             {
-                __m512 _p = _mm512_loadu_ps(ptr);
-                __m512 _p1 = _mm512_loadu_ps(ptr1);
+                __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+                __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
                 _p = _mm512_mul_ps(_p, _p1);
-                _mm512_storeu_ps(outptr, _p);
+                _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                 ptr += 16;
                 ptr1 += 16;
@@ -77,10 +52,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = _mm256_loadu_ps(ptr);
-                __m256 _p1 = _mm256_loadu_ps(ptr1);
+                __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1));
                 _p = _mm256_mul_ps(_p, _p1);
-                _mm256_storeu_ps(outptr, _p);
+                _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                 ptr += 8;
                 ptr1 += 8;
@@ -89,10 +64,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = _mm_load_ps(ptr);
-                __m128 _p1 = _mm_load_ps(ptr1);
+                __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_mul_ps(_p, _p1);
-                _mm_store_ps(outptr, _p);
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -101,7 +76,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
             for (; i < size; i++)
             {
-                *outptr = *ptr * *ptr1;
+                *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * bfloat16_to_float32(*ptr1));
 
                 ptr++;
                 ptr1++;
@@ -115,8 +90,8 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob2.channel(q);
-                float* outptr = top_blob.channel(q);
+                const unsigned short* ptr = bottom_blob2.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
 #if __SSE2__
@@ -124,10 +99,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
                 for (; i + 15 < size; i += 16)
                 {
-                    __m512 _p = _mm512_loadu_ps(outptr);
-                    __m512 _p1 = _mm512_loadu_ps(ptr);
+                    __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)outptr));
+                    __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
                     _p = _mm512_mul_ps(_p, _p1);
-                    _mm512_storeu_ps(outptr, _p);
+                    _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                     ptr += 16;
                     outptr += 16;
@@ -135,10 +110,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = _mm256_loadu_ps(outptr);
-                    __m256 _p1 = _mm256_loadu_ps(ptr);
+                    __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)outptr));
+                    __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                     _p = _mm256_mul_ps(_p, _p1);
-                    _mm256_storeu_ps(outptr, _p);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                     ptr += 8;
                     outptr += 8;
@@ -146,10 +121,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = _mm_load_ps(outptr);
-                    __m128 _p1 = _mm_load_ps(ptr);
+                    __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
+                    __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_mul_ps(_p, _p1);
-                    _mm_store_ps(outptr, _p);
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                     ptr += 4;
                     outptr += 4;
@@ -157,7 +132,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                 for (; i < size; i++)
                 {
-                    *outptr *= *ptr;
+                    *outptr = float32_to_bfloat16(bfloat16_to_float32(*outptr) * bfloat16_to_float32(*ptr));
 
                     ptr++;
                     outptr++;
@@ -165,7 +140,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-    if (op_type == Operation_SUM)
+    if (op_type == 1) // Operation_SUM
     {
         if (coeffs.w == 0)
         {
@@ -174,9 +149,9 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                const float* ptr1 = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
 #if __SSE2__
@@ -184,10 +159,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
                 for (; i + 15 < size; i += 16)
                 {
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    __m512 _p1 = _mm512_loadu_ps(ptr1);
+                    __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+                    __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
                     _p = _mm512_add_ps(_p, _p1);
-                    _mm512_storeu_ps(outptr, _p);
+                    _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                     ptr += 16;
                     ptr1 += 16;
@@ -196,10 +171,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    __m256 _p1 = _mm256_loadu_ps(ptr1);
+                    __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                    __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1));
                     _p = _mm256_add_ps(_p, _p1);
-                    _mm256_storeu_ps(outptr, _p);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                     ptr += 8;
                     ptr1 += 8;
@@ -208,10 +183,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = _mm_load_ps(ptr);
-                    __m128 _p1 = _mm_load_ps(ptr1);
+                    __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                    __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                     _p = _mm_add_ps(_p, _p1);
-                    _mm_store_ps(outptr, _p);
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -220,7 +195,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                 for (; i < size; i++)
                 {
-                    *outptr = *ptr + *ptr1;
+                    *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) + bfloat16_to_float32(*ptr1));
 
                     ptr++;
                     ptr1++;
@@ -234,8 +209,8 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob2.channel(q);
-                    float* outptr = top_blob.channel(q);
+                    const unsigned short* ptr = bottom_blob2.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
 
                     int i = 0;
 #if __SSE2__
@@ -243,10 +218,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
                     for (; i + 15 < size; i += 16)
                     {
-                        __m512 _p = _mm512_loadu_ps(outptr);
-                        __m512 _p1 = _mm512_loadu_ps(ptr);
+                        __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)outptr));
+                        __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
                         _p = _mm512_add_ps(_p, _p1);
-                        _mm512_storeu_ps(outptr, _p);
+                        _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                         ptr += 16;
                         outptr += 16;
@@ -254,10 +229,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
                     for (; i + 7 < size; i += 8)
                     {
-                        __m256 _p = _mm256_loadu_ps(outptr);
-                        __m256 _p1 = _mm256_loadu_ps(ptr);
+                        __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)outptr));
+                        __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                         _p = _mm256_add_ps(_p, _p1);
-                        _mm256_storeu_ps(outptr, _p);
+                        _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                         ptr += 8;
                         outptr += 8;
@@ -265,10 +240,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p = _mm_load_ps(outptr);
-                        __m128 _p1 = _mm_load_ps(ptr);
+                        __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
+                        __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                         _p = _mm_add_ps(_p, _p1);
-                        _mm_store_ps(outptr, _p);
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                         ptr += 4;
                         outptr += 4;
@@ -276,7 +251,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                     for (; i < size; i++)
                     {
-                        *outptr += *ptr;
+                        *outptr = float32_to_bfloat16(bfloat16_to_float32(*outptr) + bfloat16_to_float32(*ptr));
 
                         ptr++;
                         outptr++;
@@ -291,9 +266,9 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
-                const float* ptr1 = bottom_blob1.channel(q);
-                float* outptr = top_blob.channel(q);
+                const unsigned short* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob1.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
 
                 const float coeff0 = coeffs[0];
                 const float coeff1 = coeffs[1];
@@ -306,11 +281,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 __m512 _coeff1_avx512 = _mm512_set1_ps(coeff1);
                 for (; i + 15 < size; i += 16)
                 {
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    __m512 _p1 = _mm512_loadu_ps(ptr1);
+                    __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+                    __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
                     _p = _mm512_mul_ps(_p, _coeff0_avx512);
                     _p = _mm512_fmadd_ps(_p1, _coeff1_avx512, _p);
-                    _mm512_storeu_ps(outptr, _p);
+                    _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                     ptr += 16;
                     ptr1 += 16;
@@ -321,11 +296,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 __m256 _coeff1_avx = _mm256_set1_ps(coeff1);
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    __m256 _p1 = _mm256_loadu_ps(ptr1);
+                    __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                    __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1));
                     _p = _mm256_mul_ps(_p, _coeff0_avx);
                     _p = _mm256_comp_fmadd_ps(_p1, _coeff1_avx, _p);
-                    _mm256_storeu_ps(outptr, _p);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                     ptr += 8;
                     ptr1 += 8;
@@ -336,12 +311,12 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 __m128 _coeff1 = _mm_set1_ps(coeff1);
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = _mm_load_ps(ptr);
-                    __m128 _p1 = _mm_load_ps(ptr1);
+                    __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                    __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                     _p = _mm_mul_ps(_p, _coeff0);
                     _p1 = _mm_mul_ps(_p1, _coeff1);
                     _p = _mm_add_ps(_p1, _p);
-                    _mm_store_ps(outptr, _p);
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -350,7 +325,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                 for (; i < size; i++)
                 {
-                    *outptr = *ptr * coeff0 + *ptr1 * coeff1;
+                    *outptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * coeff0 + bfloat16_to_float32(*ptr1) * coeff1);
 
                     ptr++;
                     ptr1++;
@@ -364,8 +339,8 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob2.channel(q);
-                    float* outptr = top_blob.channel(q);
+                    const unsigned short* ptr = bottom_blob2.channel(q);
+                    unsigned short* outptr = top_blob.channel(q);
 
                     const float coeff = coeffs[b];
 
@@ -376,10 +351,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     __m512 _coeff_avx512 = _mm512_set1_ps(coeff);
                     for (; i + 15 < size; i += 16)
                     {
-                        __m512 _p = _mm512_loadu_ps(outptr);
-                        __m512 _p1 = _mm512_loadu_ps(ptr);
+                        __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)outptr));
+                        __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
                         _p = _mm512_fmadd_ps(_p1, _coeff_avx512, _p);
-                        _mm512_storeu_ps(outptr, _p);
+                        _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                         ptr += 16;
                         outptr += 16;
@@ -388,10 +363,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     __m256 _coeff_avx = _mm256_set1_ps(coeff);
                     for (; i + 7 < size; i += 8)
                     {
-                        __m256 _p = _mm256_loadu_ps(outptr);
-                        __m256 _p1 = _mm256_loadu_ps(ptr);
+                        __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)outptr));
+                        __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                         _p = _mm256_comp_fmadd_ps(_p1, _coeff_avx, _p);
-                        _mm256_storeu_ps(outptr, _p);
+                        _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                         ptr += 8;
                         outptr += 8;
@@ -400,11 +375,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     __m128 _coeff = _mm_set1_ps(coeff);
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p1 = _mm_load_ps(ptr);
-                        __m128 _p = _mm_load_ps(outptr);
+                        __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                        __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
                         _p1 = _mm_mul_ps(_p1, _coeff);
                         _p = _mm_add_ps(_p1, _p);
-                        _mm_store_ps(outptr, _p);
+                        _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                         ptr += 4;
                         outptr += 4;
@@ -412,7 +387,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                     for (; i < size; i++)
                     {
-                        *outptr += *ptr * coeff;
+                        *outptr = float32_to_bfloat16(bfloat16_to_float32(*outptr) + bfloat16_to_float32(*ptr) * coeff);
 
                         ptr++;
                         outptr++;
@@ -421,16 +396,16 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-    if (op_type == Operation_MAX)
+    if (op_type == 2) // Operation_MAX
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const float* ptr = bottom_blob.channel(q);
-            const float* ptr1 = bottom_blob1.channel(q);
-            float* outptr = top_blob.channel(q);
+            const unsigned short* ptr = bottom_blob.channel(q);
+            const unsigned short* ptr1 = bottom_blob1.channel(q);
+            unsigned short* outptr = top_blob.channel(q);
 
             int i = 0;
 #if __SSE2__
@@ -438,10 +413,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
             for (; i + 15 < size; i += 16)
             {
-                __m512 _p = _mm512_loadu_ps(ptr);
-                __m512 _p1 = _mm512_loadu_ps(ptr1);
+                __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+                __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
                 _p = _mm512_max_ps(_p, _p1);
-                _mm512_storeu_ps(outptr, _p);
+                _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                 ptr += 16;
                 ptr1 += 16;
@@ -450,10 +425,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = _mm256_loadu_ps(ptr);
-                __m256 _p1 = _mm256_loadu_ps(ptr1);
+                __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1));
                 _p = _mm256_max_ps(_p, _p1);
-                _mm256_storeu_ps(outptr, _p);
+                _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                 ptr += 8;
                 ptr1 += 8;
@@ -462,10 +437,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = _mm_load_ps(ptr);
-                __m128 _p1 = _mm_load_ps(ptr1);
+                __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
                 _p = _mm_max_ps(_p, _p1);
-                _mm_store_ps(outptr, _p);
+                _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                 ptr += 4;
                 ptr1 += 4;
@@ -474,7 +449,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
             for (; i < size; i++)
             {
-                *outptr = std::max(*ptr, *ptr1);
+                *outptr = float32_to_bfloat16(std::max(bfloat16_to_float32(*ptr), bfloat16_to_float32(*ptr1)));
 
                 ptr++;
                 ptr1++;
@@ -488,8 +463,8 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob2.channel(q);
-                float* outptr = top_blob.channel(q);
+                const unsigned short* ptr = bottom_blob2.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
 #if __SSE2__
@@ -497,10 +472,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __AVX512F__
                 for (; i + 15 < size; i += 16)
                 {
-                    __m512 _p = _mm512_loadu_ps(outptr);
-                    __m512 _p1 = _mm512_loadu_ps(ptr);
+                    __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)outptr));
+                    __m512 _p1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
                     _p = _mm512_max_ps(_p, _p1);
-                    _mm512_storeu_ps(outptr, _p);
+                    _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(_p));
 
                     ptr += 16;
                     outptr += 16;
@@ -508,10 +483,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX512F__
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = _mm256_loadu_ps(outptr);
-                    __m256 _p1 = _mm256_loadu_ps(ptr);
+                    __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)outptr));
+                    __m256 _p1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
                     _p = _mm256_max_ps(_p, _p1);
-                    _mm256_storeu_ps(outptr, _p);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(_p));
 
                     ptr += 8;
                     outptr += 8;
@@ -519,10 +494,10 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __AVX__
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = _mm_load_ps(outptr);
-                    __m128 _p1 = _mm_load_ps(ptr);
+                    __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)outptr));
+                    __m128 _p1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
                     _p = _mm_max_ps(_p, _p1);
-                    _mm_store_ps(outptr, _p);
+                    _mm_storel_epi64((__m128i*)outptr, float2bfloat_sse(_p, _p));
 
                     ptr += 4;
                     outptr += 4;
@@ -530,7 +505,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #endif // __SSE2__
                 for (; i < size; i++)
                 {
-                    *outptr = std::max(*ptr, *outptr);
+                    *outptr = float32_to_bfloat16(std::max(bfloat16_to_float32(*ptr), bfloat16_to_float32(*outptr)));
 
                     ptr++;
                     outptr++;
@@ -538,25 +513,4 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
         }
     }
-
-    return 0;
 }
-
-#if NCNN_BF16
-int Eltwise_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    eltwise_bf16s(bottom_blobs, top_blob, op_type, coeffs, opt);
-
-    return 0;
-}
-
-#endif // NCNN_BF16
-
-} // namespace ncnn

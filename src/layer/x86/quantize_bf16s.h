@@ -1,41 +1,14 @@
-// Copyright 2021 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "quantize_x86.h"
-
-#if __SSE2__
-#include <emmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#endif // __AVX__
-#endif // __SSE2__
-
-#include "x86_usability.h"
-
-#include "cpu.h"
-
-namespace ncnn {
-
-#if NCNN_BF16
-#include "quantize_bf16s.h"
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+int quantize_forward_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt);
 #endif
 
-Quantize_x86::Quantize_x86()
-{
-#if __SSE2__
-    support_packing = true;
-#endif // __SSE2__
-#if NCNN_BF16
-    support_bf16_storage = true;
-#endif
-}
-
-static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
+static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
 {
     const int scale_data_size = scale_data.w;
     const int size = elemcount * elempack;
-
-    // NCNN_LOGE("quantize %d   %d %d", scale_data_size, elemcount, elempack);
 
     float scale = scale_data[0];
 #if __SSE2__
@@ -82,12 +55,12 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     for (; i + 15 < size; i += 16)
     {
 #if __AVX512F__
-        __m512 _v = _mm512_loadu_ps(ptr);
+        __m512 _v = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
         _v = _mm512_mul_ps(_v, _scale_avx512);
         _mm_storeu_si128((__m128i*)s8ptr, float2int8_avx512(_v));
 #else  // __AVX512F__
-        __m256 _v0 = _mm256_loadu_ps(ptr);
-        __m256 _v1 = _mm256_loadu_ps(ptr + 8);
+        __m256 _v0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+        __m256 _v1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + 8)));
         _v0 = _mm256_mul_ps(_v0, _scale_avx);
         _v1 = _mm256_mul_ps(_v1, _scale_avx);
         _mm_storeu_si128((__m128i*)s8ptr, float2int8_avx(_v0, _v1));
@@ -99,12 +72,12 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     for (; i + 7 < size; i += 8)
     {
 #if __AVX__
-        __m256 _v = _mm256_loadu_ps(ptr);
+        __m256 _v = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
         _v = _mm256_mul_ps(_v, _scale_avx);
         *(int64_t*)s8ptr = float2int8_avx(_v);
 #else  // __AVX__
-        __m128 _v0 = _mm_loadu_ps(ptr);
-        __m128 _v1 = _mm_loadu_ps(ptr + 4);
+        __m128 _v0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+        __m128 _v1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 4)));
         _v0 = _mm_mul_ps(_v0, _scale);
         _v1 = _mm_mul_ps(_v1, _scale);
         *(int64_t*)s8ptr = float2int8_sse(_v0, _v1);
@@ -114,7 +87,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     }
     for (; i + 3 < size; i += 4)
     {
-        __m128 _v = _mm_loadu_ps(ptr);
+        __m128 _v = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _v = _mm_mul_ps(_v, _scale);
         int32_t v = float2int8_sse(_v);
         s8ptr[0] = (v >> 0) & 0xff;
@@ -127,7 +100,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
 #endif // __SSE2__
     for (; i < size; i++)
     {
-        float v = *ptr * scale;
+        float v = bfloat16_to_float32(*ptr) * scale;
         *s8ptr = float2int8(v);
         ptr++;
         s8ptr++;
@@ -136,11 +109,9 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
 
 #if __SSE2__
 #if __AVX512F__
-static void quantize_pack16to8(const float* ptr, signed char* s8ptr0, signed char* s8ptr1, const Mat& scale_data, int elemcount)
+static void quantize_bf16_pack16to8(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, const Mat& scale_data, int elemcount)
 {
     const int scale_data_size = scale_data.w;
-
-    // NCNN_LOGE("quantize_pack16to8 %d   %d", scale_data_size, elemcount);
 
     float scale = scale_data[0];
     __m512 _scale = _mm512_set1_ps(scale);
@@ -152,7 +123,7 @@ static void quantize_pack16to8(const float* ptr, signed char* s8ptr0, signed cha
     int i = 0;
     for (; i < elemcount; i++)
     {
-        __m512 _v = _mm512_loadu_ps(ptr);
+        __m512 _v = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
         _v = _mm512_mul_ps(_v, _scale);
         __m128i v = float2int8_avx512(_v);
         _mm_storel_pd((double*)s8ptr0, _mm_castsi128_pd(v));
@@ -165,11 +136,9 @@ static void quantize_pack16to8(const float* ptr, signed char* s8ptr0, signed cha
 #endif // __AVX512F__
 
 #if !__AVX__
-static void quantize_pack4to8(const float* ptr0, const float* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
+static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
 {
     const int scale_data_size = scale_data.w;
-
-    // NCNN_LOGE("quantize_pack4to8 %d   %d", scale_data_size, elemcount);
 
     float scale = scale_data[0];
     __m128 _scale0 = _mm_set1_ps(scale);
@@ -183,10 +152,10 @@ static void quantize_pack4to8(const float* ptr0, const float* ptr1, signed char*
     int i = 0;
     for (; i + 1 < elemcount; i += 2)
     {
-        __m128 _v0 = _mm_loadu_ps(ptr0);
-        __m128 _v1 = _mm_loadu_ps(ptr1);
-        __m128 _v2 = _mm_loadu_ps(ptr0 + 4);
-        __m128 _v3 = _mm_loadu_ps(ptr1 + 4);
+        __m128 _v0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
+        __m128 _v1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
+        __m128 _v2 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr0 + 4)));
+        __m128 _v3 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr1 + 4)));
         _v0 = _mm_mul_ps(_v0, _scale0);
         _v1 = _mm_mul_ps(_v1, _scale1);
         _v2 = _mm_mul_ps(_v2, _scale0);
@@ -198,8 +167,8 @@ static void quantize_pack4to8(const float* ptr0, const float* ptr1, signed char*
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v0 = _mm_loadu_ps(ptr0);
-        __m128 _v1 = _mm_loadu_ps(ptr1);
+        __m128 _v0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
+        __m128 _v1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
         _v0 = _mm_mul_ps(_v0, _scale0);
         _v1 = _mm_mul_ps(_v1, _scale1);
         *(int64_t*)s8ptr = float2int8_sse(_v0, _v1);
@@ -210,11 +179,9 @@ static void quantize_pack4to8(const float* ptr0, const float* ptr1, signed char*
 }
 #endif // !__AVX__
 
-static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
+static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
 {
     const int scale_data_size = scale_data.w;
-
-    // NCNN_LOGE("quantize_pack4to1 %d   %d", scale_data_size, elemcount);
 
     float scale = scale_data[0];
     __m128 _scale = _mm_set1_ps(scale);
@@ -226,14 +193,14 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     int i = 0;
     for (; i + 7 < elemcount; i += 8)
     {
-        __m128 _v0 = _mm_loadu_ps(ptr);
-        __m128 _v1 = _mm_loadu_ps(ptr + 4);
-        __m128 _v2 = _mm_loadu_ps(ptr + 8);
-        __m128 _v3 = _mm_loadu_ps(ptr + 12);
-        __m128 _v4 = _mm_loadu_ps(ptr + 16);
-        __m128 _v5 = _mm_loadu_ps(ptr + 20);
-        __m128 _v6 = _mm_loadu_ps(ptr + 24);
-        __m128 _v7 = _mm_loadu_ps(ptr + 28);
+        __m128 _v0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+        __m128 _v1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 4)));
+        __m128 _v2 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 8)));
+        __m128 _v3 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 12)));
+        __m128 _v4 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 16)));
+        __m128 _v5 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 20)));
+        __m128 _v6 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 24)));
+        __m128 _v7 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 28)));
         _v0 = _mm_mul_ps(_v0, _scale);
         _v1 = _mm_mul_ps(_v1, _scale);
         _v2 = _mm_mul_ps(_v2, _scale);
@@ -262,7 +229,7 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v = _mm_loadu_ps(ptr);
+        __m128 _v = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
         _v = _mm_mul_ps(_v, _scale);
         int64_t v = float2int8_sse(_v, _v);
         s8ptr0[0] = (v >> 32) & 0xff;
@@ -278,11 +245,13 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
 }
 #endif // __SSE2__
 
-int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static int quantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt)
 {
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-        return forward_bf16s(bottom_blob, top_blob, opt);
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        return quantize_forward_bf16s_avx512bf16(bottom_blob, top_blob, scale_data, scale_data_size, opt);
+    }
 #endif
 
     const int dims = bottom_blob.dims;
@@ -315,14 +284,14 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             const int i = ii * wp;
 
-            const float* ptr = (const float*)bottom_blob + i * elempack;
+            const unsigned short* ptr = (const unsigned short*)bottom_blob + i * elempack;
             signed char* s8ptr = (signed char*)top_blob + i * elempack;
 
             // assert scale_data_size == 1
 
             const int size = std::min(w - i, wp) * elempack;
 
-            quantize(ptr, s8ptr, scale_data, size, 1);
+            quantize_bf16(ptr, s8ptr, scale_data, size, 1);
         }
     }
 
@@ -349,13 +318,13 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                const float* ptr = bottom_blob.row(i);
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
                 signed char* s8ptr0 = top_blob.row<signed char>(i * 2);
                 signed char* s8ptr1 = top_blob.row<signed char>(i * 2 + 1);
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_i, w);
+                quantize_bf16_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_i, w);
             }
         }
 #endif // __AVX512F__
@@ -365,13 +334,13 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
-                const float* ptr0 = bottom_blob.row(i * 2);
-                const float* ptr1 = bottom_blob.row(i * 2 + 1);
+                const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i * 2);
+                const unsigned short* ptr1 = bottom_blob.row<const unsigned short>(i * 2 + 1);
                 signed char* s8ptr = top_blob.row<signed char>(i);
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_i, w);
+                quantize_bf16_pack4to8(ptr0, ptr1, s8ptr, scale_data_i, w);
             }
         }
 #endif // !__AVX__
@@ -380,7 +349,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                const float* ptr = bottom_blob.row(i);
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
                 signed char* s8ptr0 = top_blob.row<signed char>(i * 4);
                 signed char* s8ptr1 = top_blob.row<signed char>(i * 4 + 1);
                 signed char* s8ptr2 = top_blob.row<signed char>(i * 4 + 2);
@@ -388,7 +357,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
+                quantize_bf16_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_i, w);
             }
         }
 #endif // __SSE2__
@@ -397,12 +366,12 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                const float* ptr = bottom_blob.row(i);
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
                 signed char* s8ptr = top_blob.row<signed char>(i);
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * elempack, elempack) : scale_data;
 
-                quantize(ptr, s8ptr, scale_data_i, w, elempack);
+                quantize_bf16(ptr, s8ptr, scale_data_i, w, elempack);
             }
         }
     }
@@ -430,13 +399,13 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr = bottom_blob.channel(q);
                 signed char* s8ptr0 = top_blob.channel(q * 2);
                 signed char* s8ptr1 = top_blob.channel(q * 2 + 1);
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_q, w * h);
+                quantize_bf16_pack16to8(ptr, s8ptr0, s8ptr1, scale_data_q, w * h);
             }
         }
 #endif // __AVX512F__
@@ -446,13 +415,13 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
-                const float* ptr0 = bottom_blob.channel(q * 2);
-                const float* ptr1 = bottom_blob.channel(q * 2 + 1);
+                const unsigned short* ptr0 = bottom_blob.channel(q * 2);
+                const unsigned short* ptr1 = bottom_blob.channel(q * 2 + 1);
                 signed char* s8ptr = top_blob.channel(q);
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_bf16_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h);
             }
         }
 #endif // !__AVX__
@@ -461,7 +430,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr = bottom_blob.channel(q);
                 signed char* s8ptr0 = top_blob.channel(q * 4);
                 signed char* s8ptr1 = top_blob.channel(q * 4 + 1);
                 signed char* s8ptr2 = top_blob.channel(q * 4 + 2);
@@ -469,7 +438,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h);
+                quantize_bf16_pack4to1(ptr, s8ptr0, s8ptr1, s8ptr2, s8ptr3, scale_data_q, w * h);
             }
         }
 #endif // __SSE2__
@@ -478,24 +447,15 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const unsigned short* ptr = bottom_blob.channel(q);
                 signed char* s8ptr = top_blob.channel(q);
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * elempack, elempack) : scale_data;
 
-                quantize(ptr, s8ptr, scale_data_q, w * h, elempack);
+                quantize_bf16(ptr, s8ptr, scale_data_q, w * h, elempack);
             }
         }
     }
 
     return 0;
 }
-
-#if NCNN_BF16
-int Quantize_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    return quantize_forward_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, opt);
-}
-#endif // NCNN_BF16
-
-} // namespace ncnn

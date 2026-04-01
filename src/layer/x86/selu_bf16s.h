@@ -1,71 +1,43 @@
-// Copyright 2023 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "selu_x86.h"
-
-#if __SSE2__
-#include <emmintrin.h>
-#include "sse_mathfun.h"
-#if __AVX__
-#include <immintrin.h>
-#include "avx_mathfun.h"
-#if __AVX512F__
-#include "avx512_mathfun.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-#include "x86_usability.h"
-
-#include "cpu.h"
-
-namespace ncnn {
-
-#if NCNN_BF16
-#include "selu_bf16s.h"
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+void selu_bf16s_avx512bf16(Mat& a, float alphaxlambda, float lambda, const Option& opt);
 #endif
 
-SELU_x86::SELU_x86()
+static void selu_bf16s(Mat& a, float alphaxlambda, float lambda, const Option& opt)
 {
-#if __SSE2__
-    support_packing = true;
-#endif // __SSE2__
-#if NCNN_BF16
-    support_bf16_storage = true;
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        selu_bf16s_avx512bf16(a, alphaxlambda, lambda, opt);
+        return;
+    }
 #endif
-}
 
-int SELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int elempack = bottom_top_blob.elempack;
-    int channels = bottom_top_blob.c;
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
     int size = w * h * d * elempack;
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
-        return forward_inplace_bf16s(bottom_top_blob, opt);
-#endif
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        float* ptr = bottom_top_blob.channel(q);
+        unsigned short* ptr = a.channel(q);
 
         int i = 0;
-
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
         __m512 _zero512 = _mm512_setzero_ps();
         __m512 _one512 = _mm512_set1_ps(1.f);
-        __m512 _alpha512 = _mm512_set1_ps(alpha);
+        __m512 _alpha512 = _mm512_set1_ps(alphaxlambda / lambda);
         __m512 _lambda512 = _mm512_set1_ps(lambda);
         for (; i + 15 < size; i += 16)
         {
-            __m512 _p = _mm512_loadu_ps(ptr);
+            __m512 _p = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
 
             __m512 _pos = _mm512_max_ps(_zero512, _p);
             __m512 _neg = _mm512_min_ps(_zero512, _p);
@@ -75,18 +47,18 @@ int SELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _blob = _mm512_mul_ps(_alpha512, _blob);
             _blob = _mm512_mul_ps(_lambda512, _mm512_add_ps(_pos, _blob));
 
-            _mm512_storeu_ps(ptr, _blob);
+            _mm256_storeu_si256((__m256i*)ptr, float2bfloat_avx512(_blob));
 
             ptr += 16;
         }
 #endif // __AVX512F__
         __m256 _zero256 = _mm256_setzero_ps();
         __m256 _one256 = _mm256_set1_ps(1.f);
-        __m256 _alpha256 = _mm256_set1_ps(alpha);
+        __m256 _alpha256 = _mm256_set1_ps(alphaxlambda / lambda);
         __m256 _lambda256 = _mm256_set1_ps(lambda);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = _mm256_loadu_ps(ptr);
+            __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
 
             __m256 _pos = _mm256_max_ps(_zero256, _p);
             __m256 _neg = _mm256_min_ps(_zero256, _p);
@@ -96,18 +68,18 @@ int SELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _blob = _mm256_mul_ps(_alpha256, _blob);
             _blob = _mm256_mul_ps(_lambda256, _mm256_add_ps(_pos, _blob));
 
-            _mm256_storeu_ps(ptr, _blob);
+            _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(_blob));
 
             ptr += 8;
         }
 #endif // __AVX__
         __m128 _zero128 = _mm_setzero_ps();
         __m128 _one128 = _mm_set1_ps(1.f);
-        __m128 _alpha128 = _mm_set1_ps(alpha);
+        __m128 _alpha128 = _mm_set1_ps(alphaxlambda / lambda);
         __m128 _lambda128 = _mm_set1_ps(lambda);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = _mm_loadu_ps(ptr);
+            __m128 _p = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
 
             __m128 _pos = _mm_max_ps(_zero128, _p);
             __m128 _neg = _mm_min_ps(_zero128, _p);
@@ -117,34 +89,20 @@ int SELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _blob = _mm_mul_ps(_alpha128, _blob);
             _blob = _mm_mul_ps(_lambda128, _mm_add_ps(_pos, _blob));
 
-            _mm_storeu_ps(ptr, _blob);
+            _mm_storel_epi64((__m128i*)ptr, float2bfloat_sse(_blob, _blob));
 
             ptr += 4;
         }
 #endif // __SSE2__
-        float alphaxlambda = alpha * lambda;
         for (; i < size; i++)
         {
-            // y = lambda * ( max(0, x) + min(0, alpha * (exp(x) - 1)) )
-            if (*ptr < 0)
-                *ptr = (expf(*ptr) - 1.f) * alphaxlambda;
+            float v = bfloat16_to_float32(*ptr);
+            if (v < 0)
+                v = (expf(v) - 1.f) * alphaxlambda;
             else
-                *ptr = *ptr * lambda;
+                v = v * lambda;
+            *ptr = float32_to_bfloat16(v);
             ptr++;
         }
     }
-
-    return 0;
 }
-
-#if NCNN_BF16
-int SELU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    float alphaxlambda = alpha * lambda;
-    selu_bf16s(bottom_top_blob, alphaxlambda, lambda, opt);
-
-    return 0;
-}
-#endif // NCNN_BF16
-
-} // namespace ncnn
