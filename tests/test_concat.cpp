@@ -307,6 +307,108 @@ static int test_concat_9()
     return 0;
 }
 
+// test_concat_10: verify non-concatenation axis dimension mismatch is rejected
+// The Concat layer should return an error when input blobs have different
+// dimensions on axes other than the concatenation axis.
+// We cannot use test_layer() here because the test framework does not handle
+// forward() returning an error gracefully (it ignores the return value in the
+// naive path, leading to crashes). Instead we create the layer directly and
+// check the forward() return value.
+static int test_concat_dim_check(const std::vector<ncnn::Mat>& a, int axis)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, axis); //axis
+
+    ncnn::Layer* op = ncnn::create_layer("Concat");
+    op->load_param(pd);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+
+    op->create_pipeline(opt);
+
+    std::vector<ncnn::Mat> b(1);
+    int ret = op->forward(a, b, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret == 0)
+    {
+        fprintf(stderr, "test_concat_dim_check should have failed a[0].dims=%d a[0]=(%d %d %d %d) a[1]=(%d %d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, a[1].w, a[1].h, a[1].d, a[1].c, axis);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_concat_10()
+{
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(14, 7);
+        as[1] = RandomMat(15, 7);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(10, 7);
+        as[1] = RandomMat(10, 8);
+        int ret = test_concat_dim_check(as, 1);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(14, 14, 3);
+        as[1] = RandomMat(15, 15, 4);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(14, 15, 6);
+        as[1] = RandomMat(15, 15, 4);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(15, 14, 6);
+        as[1] = RandomMat(15, 15, 4);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(7, 7, 2, 3);
+        as[1] = RandomMat(15, 15, 3, 4);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    {
+        std::vector<ncnn::Mat> as(2);
+        as[0] = RandomMat(14, 14, 8);
+        as[1] = RandomMat(15, 15, 8);
+        int ret = test_concat_dim_check(as, 0);
+        if (ret != 0)
+            return ret;
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -321,5 +423,6 @@ int main()
            || test_concat_6()
            || test_concat_7()
            || test_concat_8()
-           || test_concat_9();
+           || test_concat_9()
+           || test_concat_10();
 }

@@ -23,6 +23,39 @@ Concat_arm::Concat_arm()
 
 int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int dims = bottom_blobs[0].dims;
+    int positive_axis = axis < 0 ? dims + axis : axis;
+
+    for (size_t b = 1; b < bottom_blobs.size(); b++)
+    {
+        const Mat& bottom_blob = bottom_blobs[b];
+        if (bottom_blob.dims != dims)
+        {
+            NCNN_LOGE("Concat dims mismatch, blob 0 dims=%d but blob %d dims=%d", dims, (int)b, bottom_blob.dims);
+            return -1;
+        }
+        if (positive_axis != dims - 1 && bottom_blob.w != bottom_blobs[0].w)
+        {
+            NCNN_LOGE("Concat w mismatch, blob 0 w=%d but blob %d w=%d", bottom_blobs[0].w, (int)b, bottom_blob.w);
+            return -1;
+        }
+        if (dims >= 2 && positive_axis != dims - 2 && bottom_blob.h != bottom_blobs[0].h)
+        {
+            NCNN_LOGE("Concat h mismatch, blob 0 h=%d but blob %d h=%d", bottom_blobs[0].h, (int)b, bottom_blob.h);
+            return -1;
+        }
+        if (dims >= 4 && positive_axis != 1 && bottom_blob.d != bottom_blobs[0].d)
+        {
+            NCNN_LOGE("Concat d mismatch, blob 0 d=%d but blob %d d=%d", bottom_blobs[0].d, (int)b, bottom_blob.d);
+            return -1;
+        }
+        if (dims >= 2 && positive_axis != 0 && bottom_blob.c != bottom_blobs[0].c)
+        {
+            NCNN_LOGE("Concat c mismatch, blob 0 c=%d but blob %d c=%d", bottom_blobs[0].c, (int)b, bottom_blob.c);
+            return -1;
+        }
+    }
+
     int elembits = bottom_blobs[0].elembits();
 
 #if NCNN_ARM82
@@ -34,9 +67,6 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
-
-    int dims = bottom_blobs[0].dims;
-    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
