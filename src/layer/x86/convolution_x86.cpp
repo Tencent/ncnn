@@ -1317,13 +1317,23 @@ int Convolution_x86::create_pipeline_bf16s(const Option& opt)
             bool prefer_winograd23 = test_prefer_winograd23(num_input, num_output, w, h);
             bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
 
-            if (prefer_winograd23 && !opt.use_winograd23_convolution) { prefer_winograd23 = false; prefer_winograd43 = true; }
-            if (prefer_winograd63 && !opt.use_winograd63_convolution) { prefer_winograd63 = false; prefer_winograd43 = true; }
+            if (prefer_winograd23 && !opt.use_winograd23_convolution)
+            {
+                prefer_winograd23 = false;
+                prefer_winograd43 = true;
+            }
+            if (prefer_winograd63 && !opt.use_winograd63_convolution)
+            {
+                prefer_winograd63 = false;
+                prefer_winograd43 = true;
+            }
             if (prefer_winograd43 && !opt.use_winograd43_convolution)
             {
                 prefer_winograd43 = false;
-                if (opt.use_winograd63_convolution) prefer_winograd63 = true;
-                else prefer_winograd23 = true;
+                if (opt.use_winograd63_convolution)
+                    prefer_winograd63 = true;
+                else
+                    prefer_winograd23 = true;
             }
 
             if (prefer_winograd23)
@@ -1445,7 +1455,6 @@ int Convolution_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (top_blob.empty())
         return -100;
 
-
     const int num_input = channels * elempack;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
@@ -1456,13 +1465,23 @@ int Convolution_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         bool prefer_winograd23 = test_prefer_winograd23(num_input, num_output, w, h);
         bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
 
-        if (prefer_winograd23 && (!opt.use_winograd23_convolution || weight_winograd23_data.empty())) { prefer_winograd23 = false; prefer_winograd43 = true; }
-        if (prefer_winograd63 && (!opt.use_winograd63_convolution || weight_winograd63_data.empty())) { prefer_winograd63 = false; prefer_winograd43 = true; }
+        if (prefer_winograd23 && (!opt.use_winograd23_convolution || weight_winograd23_data.empty()))
+        {
+            prefer_winograd23 = false;
+            prefer_winograd43 = true;
+        }
+        if (prefer_winograd63 && (!opt.use_winograd63_convolution || weight_winograd63_data.empty()))
+        {
+            prefer_winograd63 = false;
+            prefer_winograd43 = true;
+        }
         if (prefer_winograd43 && (!opt.use_winograd43_convolution || weight_winograd43_data.empty()))
         {
             prefer_winograd43 = false;
-            if (opt.use_winograd63_convolution && !weight_winograd63_data.empty()) prefer_winograd63 = true;
-            else prefer_winograd23 = true;
+            if (opt.use_winograd63_convolution && !weight_winograd63_data.empty())
+                prefer_winograd63 = true;
+            else
+                prefer_winograd23 = true;
         }
 
         int _nT = nT ? nT : opt.num_threads;

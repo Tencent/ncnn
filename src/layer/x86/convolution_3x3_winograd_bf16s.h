@@ -1090,7 +1090,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 tmp10 = activation_ss(tmp10, activation_type, activation_params);
                 tmp11 = activation_ss(tmp11, activation_type, activation_params);
 
-
                 // if (out_elempack == 1)
                 {
                     unsigned short* outptr1 = outptr0 + N;
@@ -1152,7 +1151,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 float tmp1 = bias0 + r1 - r2 + r3;
                 tmp0 = activation_ss(tmp0, activation_type, activation_params);
                 tmp1 = activation_ss(tmp1, activation_type, activation_params);
-
 
                 // if (out_elempack == 1)
                 {
@@ -2866,7 +2864,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 tmp30 = activation_ss(tmp30, activation_type, activation_params);
                 tmp31 = activation_ss(tmp31, activation_type, activation_params);
 
-
                 // if (out_elempack == 1)
                 {
                     unsigned short* outptr1 = outptr0 + N;
@@ -2960,7 +2957,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 tmp1 = activation_ss(tmp1, activation_type, activation_params);
                 tmp2 = activation_ss(tmp2, activation_type, activation_params);
                 tmp3 = activation_ss(tmp3, activation_type, activation_params);
-
 
                 // if (out_elempack == 1)
                 {
@@ -4132,7 +4128,6 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     }
 }
 
-
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 void conv3x3s1_winograd63_transform_output_tile_bf16s_avx512bf16(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params);
 #endif
@@ -5102,7 +5097,6 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 tmp50 = activation_ss(tmp50, activation_type, activation_params);
                 tmp51 = activation_ss(tmp51, activation_type, activation_params);
 
-
                 // if (out_elempack == 1)
                 {
                     unsigned short* outptr1 = outptr0 + N;
@@ -5223,7 +5217,6 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 tmp4 = activation_ss(tmp4, activation_type, activation_params);
                 tmp5 = activation_ss(tmp5, activation_type, activation_params);
 
-
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = float32_to_bfloat16(tmp0);
@@ -5239,7 +5232,6 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
         }
     }
 }
-
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
 int conv3x3s1_winograd63_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt);
@@ -5373,4 +5365,3 @@ static int conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
-
