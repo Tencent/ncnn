@@ -29,8 +29,8 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
-set(CMAKE_C_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60")
-set(CMAKE_CXX_FLAGS "-march=rv64gc_zba_zbb_zbc_zbs_zicbop -mabi=lp64d -mtune=spacemit-x60")
+set(CMAKE_C_FLAGS "-march=rv64gcv_zba_zbb_zbc_zbs_zicbop -mabi=lp64d ")
+set(CMAKE_CXX_FLAGS "-march=rv64gcv_zba_zbb_zbc_zbs_zicbop -mabi=lp64d ")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")

@@ -1,4 +1,5 @@
-// Copyright 2026 Tencent
+
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "sdpa_riscv.h"
@@ -7,22 +8,26 @@
 
 #if __riscv_vector
 #include <riscv_vector.h>
-#endif
 #include "riscv_usability.h"
+#endif // __riscv_vector
 
 namespace ncnn {
 
 SDPA_riscv::SDPA_riscv()
 {
-    support_packing = true;
-
     qk_gemm = 0;
     qkv_gemm = 0;
     qk_softmax = 0;
 }
 
-int SDPA_riscv::create_pipeline(const Option& opt)
+int SDPA_riscv::create_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    if (int8_scale_term)
+    {
+        opt.use_packing_layout = false; // TODO enable packing
+    }
+
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
         ncnn::ParamDict pd;
@@ -34,23 +39,24 @@ int SDPA_riscv::create_pipeline(const Option& opt)
     }
 
     // Q * K^T
+    if (scale != 0.f)
     {
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
 
-        pd.set(0, 1.f); // alpha (will be set in forward)
-        pd.set(1, 0.f); // beta
-        pd.set(2, 0);   // transA (Q: Seq x Embed)
-        pd.set(3, 1);   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC (None)
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
+        pd.set(0, 1.f);                 // alpha (will be set in forward)
+        pd.set(1, 0.f);                 // beta
+        pd.set(2, 0);                   // transA (Q: Seq x Embed)
+        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, 1);                   // constantC (None)
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
+        pd.set(10, -1);                 // constant_broadcast_type_C
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
@@ -92,8 +98,14 @@ int SDPA_riscv::create_pipeline(const Option& opt)
     return 0;
 }
 
-int SDPA_riscv::destroy_pipeline(const Option& opt)
+int SDPA_riscv::destroy_pipeline(const Option& _opt)
 {
+    Option opt = _opt;
+    if (int8_scale_term)
+    {
+        opt.use_packing_layout = false; // TODO enable packing
+    }
+
     if (qk_softmax)
     {
         qk_softmax->destroy_pipeline(opt);
@@ -121,6 +133,11 @@ int SDPA_riscv::destroy_pipeline(const Option& opt)
 int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
     Option opt = _opt;
+    if (int8_scale_term)
+    {
+        opt.use_packing_layout = false; // TODO enable packing
+    }
+
     const Mat& query = bottom_blobs[0];
     const Mat& cur_key = bottom_blobs[1];
     const Mat& cur_value = bottom_blobs[2];
@@ -142,7 +159,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     {
         // Fallback for packed data
         // TODO: Implement optimized RVV paths for group=2 with elempack=2,4,8, and group=4 with elempack=4
-
+        
         // Unpack input blobs
         std::vector<Mat> bottom_blobs_unpacked = bottom_blobs;
         Option opt_unpack = opt;
@@ -208,8 +225,44 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             const Mat cur_key_head = cur_key.channel(q);
             Mat key_head = key.channel(q);
 
-            memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
-            memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
+            // memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * sizeof(float));
+            // memcpy(key_head.row(past_seqlen), cur_key_head, embed_dim * cur_seqlen * sizeof(float));
+            
+            const float* past_ptr = past_key_head;
+            float* key_ptr = key_head.row(0);
+            int len = embed_dim * past_seqlen;
+            
+#if __riscv_vector
+            int n = len;
+            while (n > 0) {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t v = __riscv_vle32_v_f32m8(past_ptr, vl);
+                __riscv_vse32_v_f32m8(key_ptr, v, vl);
+                past_ptr += vl;
+                key_ptr += vl;
+                n -= vl;
+            }
+#else
+            memcpy(key_ptr, past_ptr, len * sizeof(float));
+#endif
+
+            const float* cur_ptr = cur_key_head;
+            key_ptr = key_head.row(past_seqlen);
+            len = embed_dim * cur_seqlen;
+
+#if __riscv_vector
+            n = len;
+            while (n > 0) {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t v = __riscv_vle32_v_f32m8(cur_ptr, vl);
+                __riscv_vse32_v_f32m8(key_ptr, v, vl);
+                cur_ptr += vl;
+                key_ptr += vl;
+                n -= vl;
+            }
+#else
+            memcpy(key_ptr, cur_ptr, len * sizeof(float));
+#endif
         }
     }
     else
@@ -231,8 +284,44 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             const Mat cur_value_head = cur_value.channel(q);
             Mat value_head = value.channel(q);
 
-            memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
-            memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+            // memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * sizeof(float));
+            // memcpy(value_head.row(past_seqlen), cur_value_head, out_embed_dim * cur_seqlen * sizeof(float));
+
+            const float* past_ptr = past_value_head;
+            float* value_ptr = value_head.row(0);
+            int len = out_embed_dim * past_seqlen;
+
+#if __riscv_vector
+            int n = len;
+            while (n > 0) {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t v = __riscv_vle32_v_f32m8(past_ptr, vl);
+                __riscv_vse32_v_f32m8(value_ptr, v, vl);
+                past_ptr += vl;
+                value_ptr += vl;
+                n -= vl;
+            }
+#else
+            memcpy(value_ptr, past_ptr, len * sizeof(float));
+#endif
+
+            const float* cur_ptr = cur_value_head;
+            value_ptr = value_head.row(past_seqlen);
+            len = out_embed_dim * cur_seqlen;
+
+#if __riscv_vector
+            n = len;
+            while (n > 0) {
+                size_t vl = __riscv_vsetvl_e32m8(n);
+                vfloat32m8_t v = __riscv_vle32_v_f32m8(cur_ptr, vl);
+                __riscv_vse32_v_f32m8(value_ptr, v, vl);
+                cur_ptr += vl;
+                value_ptr += vl;
+                n -= vl;
+            }
+#else
+            memcpy(value_ptr, cur_ptr, len * sizeof(float));
+#endif
         }
     }
     else
@@ -253,63 +342,51 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     std::vector<int> retqks(num_heads);
 
-    float _scale = scale;
-    if (_scale == 0.f)
-    {
-        _scale = 1.f / sqrt(embed_dim);
-    }
-
-    // Create local Gemm if scale is dynamic or different from 1.f
+    // Dynamic Scale Calculation and Beta Correction
     Layer* _qk_gemm = qk_gemm;
-    bool local_gemm = false;
-    if (_scale != 1.f)
+    if (scale == 0.f)
     {
+        float _scale = 1.f / sqrt(embed_dim);
+
         _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(0, _scale); // alpha
-        pd.set(1, 0.f);    // beta
-        pd.set(2, 0);      // transA
-        pd.set(3, 1);      // transB
-        pd.set(4, 0);      // constantA
-        pd.set(5, 0);      // constantB
-        pd.set(6, 1);      // constantC (None)
-        pd.set(7, 0);      // M
-        pd.set(8, 0);      // N
-        pd.set(9, 0);      // K
-        pd.set(10, -1);    // constant_broadcast_type_C
-        pd.set(11, 0);     // output_N1M
-        pd.set(12, 1);     // output_elempack
+        pd.set(0, _scale);              // alpha
+        pd.set(1, 0.f);                 // beta
+        pd.set(2, 0);                   // transA
+        pd.set(3, 1);                   // transB
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, 1);                   // constantC (None)
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
+        pd.set(10, -1);                 // constant_broadcast_type_C
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
         _qk_gemm->load_param(pd);
         _qk_gemm->load_model(ModelBinFromMatArray(0));
+
         Option opt1 = opt;
         opt1.num_threads = 1;
         _qk_gemm->create_pipeline(opt1);
-        local_gemm = true;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         // 1. Q * K^T
-        const Mat q_head = query.channel(i);
-        const Mat k_head = key.channel(i / num_heads_per_group);
-        Mat score_head = qk_cross.channel(i);
+        std::vector<Mat> qk_bottom_blobs;
+        qk_bottom_blobs.push_back(query.channel(i));                     // Q: [Seq, Embed]
+        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group)); // K: [DstSeq, Embed]
 
-        for (int j = 0; j < src_seqlen; j++)
+        if (attn_mask)
         {
-            const float* qptr = q_head.row(j);
-            float* outptr = score_head.row(j);
-            const float* mptr_row = 0;
-            if (attn_mask)
-            {
-                const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(i) : attn_mask_blob;
-                mptr_row = maskm.row(j);
-            }
-
-            for (int k = 0; k < dst_seqlen; k++)
+            // Ensure mask is 2D for Gemm auto-broadcast detection
+            Mat maskm = attn_mask_blob;
+            if (maskm.dims == 3)
             {
                 const float* kptr = k_head.row(k);
                 float sum = 0.f;
@@ -318,7 +395,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 size_t vlmax = __riscv_vsetvlmax_e32m8();
                 vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
                 int l = 0;
-                for (; l < embed_dim;)
+                for (; l < embed_dim; )
                 {
                     size_t vl = __riscv_vsetvl_e32m8(embed_dim - l);
                     vfloat32m8_t _q = __riscv_vle32_v_f32m8(qptr + l, vl);
@@ -348,20 +425,14 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return retqks[i];
     }
 
-    if (local_gemm)
-    {
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->destroy_pipeline(opt1);
-        delete _qk_gemm;
-    }
-
     // 2. Softmax
     int retqk = qk_softmax->forward_inplace(qk_cross, opt);
     if (retqk != 0)
         return retqk;
 
     // 3. Attn * V
+    std::vector<int> retqkvs(num_heads);
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
@@ -381,7 +452,7 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 size_t vlmax = __riscv_vsetvlmax_e32m8();
                 vfloat32m8_t _sum_v = __riscv_vfmv_v_f_f32m8(0.0f, vlmax);
                 int l = 0;
-                for (; l < dst_seqlen;)
+                for (; l < dst_seqlen; )
                 {
                     size_t vl = __riscv_vsetvl_e32m8(dst_seqlen - l);
                     vfloat32m8_t _qk = __riscv_vle32_v_f32m8(qkptr + l, vl);
