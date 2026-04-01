@@ -1259,9 +1259,6 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
 #if NCNN_BF16
 int Convolution_x86::create_pipeline_bf16s(const Option& opt)
 {
-    activation = create_activation_layer(activation_type, activation_params, opt);
-    nT = opt.num_threads;
-
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
