@@ -1,8 +1,11 @@
-// Copyright 2019 Tencent
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "crop_x86.h"
 
+#include "cpu.h"
+
+#include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
@@ -17,6 +20,10 @@ Crop_x86::Crop_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+    support_fp16_storage = cpu_support_x86_f16c();
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 #if __SSE2__
@@ -37,6 +44,29 @@ static void crop_pack16_avx512(const Mat& src, Mat& dst, int top, int left)
         {
             __m512 _p = _mm512_loadu_ps(ptr);
             _mm512_storeu_ps(outptr, _p);
+            ptr += 16;
+            outptr += 16;
+        }
+
+        ptr += (left + right) * 16;
+    }
+}
+
+static void crop_pack16_bf16s_fp16s_avx512(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 16;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __m256i _p = _mm256_loadu_si256((const __m256i*)ptr);
+            _mm256_storeu_si256((__m256i*)outptr, _p);
             ptr += 16;
             outptr += 16;
         }
@@ -68,6 +98,29 @@ static void crop_pack8_avx(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 8;
     }
 }
+
+static void crop_pack8_bf16s_fp16s_avx(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 8;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __m128i _p = _mm_loadu_si128((const __m128i*)ptr);
+            _mm_storeu_si128((__m128i*)outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+
+        ptr += (left + right) * 8;
+    }
+}
 #endif // __AVX__
 
 static void crop_pack4_sse(const Mat& src, Mat& dst, int top, int left)
@@ -85,6 +138,28 @@ static void crop_pack4_sse(const Mat& src, Mat& dst, int top, int left)
         {
             __m128 _p = _mm_loadu_ps(ptr);
             _mm_storeu_ps(outptr, _p);
+            ptr += 4;
+            outptr += 4;
+        }
+
+        ptr += (left + right) * 4;
+    }
+}
+
+static void crop_pack4_bf16s_fp16s_sse(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 4;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            *(int64_t*)outptr = *(const int64_t*)ptr;
             ptr += 4;
             outptr += 4;
         }
@@ -139,7 +214,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -162,7 +240,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -199,7 +280,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 32u)
+                        crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -239,7 +323,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 32u)
+                            crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -268,7 +355,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -291,7 +381,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -328,7 +421,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 16u)
+                        crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -368,7 +464,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 16u)
+                            crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_avx(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -397,7 +496,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -420,7 +522,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -458,7 +563,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -499,7 +607,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_sse(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -580,7 +691,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -603,7 +717,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -640,7 +757,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 32u)
+                        crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -680,7 +800,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 32u)
+                            crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -709,7 +832,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -732,7 +858,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -769,7 +898,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 16u)
+                        crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -809,7 +941,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 16u)
+                            crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_avx(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -838,7 +973,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -861,7 +999,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -899,7 +1040,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -940,7 +1084,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_sse(m, borderm, _hoffset, _woffset);
                     }
                 }
 

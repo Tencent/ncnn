@@ -52,7 +52,10 @@ void attribute_unpooling(Graph& graph)
                 for (size_t j = 0; j < x->inputs.size(); j++)
                 {
                     if (x->inputs[j] == attr)
+                    {
                         x->inputs[j] = attr2;
+                        break;
+                    }
                 }
             }
 

@@ -403,6 +403,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
+#elif NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
@@ -458,6 +470,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             {
 #if NCNN_ARM82
                 if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    any_elempack = 8;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     any_elempack = 4;
                 else if (elemcount % 4 == 0)
                     any_elempack = 1;
@@ -644,6 +668,16 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return -1;
     }
 
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
+            return 233;
+        }
+    }
+
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
@@ -778,44 +812,17 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    ncnn::Option opt = _opt;
+    opt.use_vulkan_compute = true;
+
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
     op->vkdev = vkdev;
-
-    if (!top_shapes.empty())
-    {
-        op->bottom_shapes = a;
-        op->top_shapes = top_shapes;
-    }
-
-    if (op->one_blob_only && a.size() != 1)
-    {
-        fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
-        delete op;
-        return -1;
-    }
-
-    ncnn::ModelBinFromMatArray mb(weights.data());
-
-    op->load_model(mb);
-
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
-    ncnn::Option opt = _opt;
-    opt.use_vulkan_compute = true;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -841,9 +848,99 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
+
+    if (!top_shapes.empty())
+    {
+        op->bottom_shapes = a;
+        op->top_shapes = top_shapes;
+
+        if (op->support_vulkan_packing)
+        {
+            for (size_t j = 0; j < op->bottom_shapes.size(); j++)
+            {
+                // use packed shape hint for vulkan layer
+                const ncnn::Mat& shape = op->bottom_shapes[j];
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                ncnn::Mat shape_packed;
+                if (dims == 1) shape_packed = ncnn::Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = ncnn::Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = ncnn::Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = ncnn::Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                op->bottom_shapes[j] = shape_packed;
+            }
+            for (size_t j = 0; j < op->top_shapes.size(); j++)
+            {
+                // use packed shape hint for vulkan layer
+                const ncnn::Mat& shape = op->top_shapes[j];
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                ncnn::Mat shape_packed;
+                if (dims == 1) shape_packed = ncnn::Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = ncnn::Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = ncnn::Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = ncnn::Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                op->top_shapes[j] = shape_packed;
+            }
+        }
+    }
+
+    if (op->one_blob_only && a.size() != 1)
+    {
+        fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
+        delete op;
+        return -1;
+    }
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
 
     op->create_pipeline(opt);
 
@@ -851,6 +948,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 
@@ -1153,6 +1252,16 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_param(pd);
 
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
+            return 233;
+        }
+    }
+
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
@@ -1262,39 +1371,18 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    ncnn::Option opt = _opt;
+
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
     op->vkdev = vkdev;
 
-    if (top_shape.dims)
-    {
-        op->bottom_shapes.resize(1);
-        op->top_shapes.resize(1);
-        op->bottom_shapes[0] = a;
-        op->top_shapes[0] = top_shape;
-    }
-
-    ncnn::ModelBinFromMatArray mb(weights.data());
-
-    op->load_model(mb);
-
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
-    ncnn::Option opt = _opt;
     opt.use_vulkan_compute = true;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -1320,9 +1408,92 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
+
+    if (top_shape.dims)
+    {
+        op->bottom_shapes.resize(1);
+        op->top_shapes.resize(1);
+        op->bottom_shapes[0] = a;
+        op->top_shapes[0] = top_shape;
+
+        if (op->support_vulkan_packing)
+        {
+            {
+                // use packed shape hint for vulkan layer
+                const ncnn::Mat& shape = op->bottom_shapes[0];
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                ncnn::Mat shape_packed;
+                if (dims == 1) shape_packed = ncnn::Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = ncnn::Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = ncnn::Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = ncnn::Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                op->bottom_shapes[0] = shape_packed;
+            }
+            {
+                // use packed shape hint for vulkan layer
+                const ncnn::Mat& shape = op->top_shapes[0];
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                ncnn::Mat shape_packed;
+                if (dims == 1) shape_packed = ncnn::Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = ncnn::Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = ncnn::Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = ncnn::Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                op->top_shapes[0] = shape_packed;
+            }
+        }
+    }
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
 
     op->create_pipeline(opt);
 
@@ -1330,6 +1501,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 

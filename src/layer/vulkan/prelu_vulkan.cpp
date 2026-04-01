@@ -20,54 +20,36 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 0) elempack = num_slope % 4 == 0 ? 4 : 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
     std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = num_slope;
     specializations[1].f = num_slope == 1 ? slope_data[0] : 1.f;
-    specializations[2 + 0].i = shape_packed.dims;
-    specializations[2 + 1].i = shape_packed.w;
-    specializations[2 + 2].i = shape_packed.h;
-    specializations[2 + 3].i = shape_packed.c;
-    specializations[2 + 4].i = shape_packed.cstep;
+    specializations[2 + 0].i = shape.dims;
+    specializations[2 + 1].i = shape.w;
+    specializations[2 + 2].i = shape.h;
+    specializations[2 + 3].i = shape.c;
+    specializations[2 + 4].i = shape.cstep;
+
+    int elempack = shape.elempack;
+    if (elempack == 0) elempack = num_slope % 4 == 0 ? 4 : 1;
 
     Mat local_size_xyz(4, 4, std::min(4, num_slope / elempack), (void*)0);
-    if (shape_packed.dims == 1)
+    if (shape.dims == 1)
     {
-        local_size_xyz.w = std::min(64, shape_packed.w);
+        local_size_xyz.w = std::min(64, shape.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (shape_packed.dims == 2)
+    if (shape.dims == 2)
     {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
+        local_size_xyz.w = std::min(8, shape.w);
+        local_size_xyz.h = std::min(8, shape.h);
         local_size_xyz.c = 1;
     }
-    if (shape_packed.dims == 3)
+    if (shape.dims == 3)
     {
-        local_size_xyz.w = std::min(4, shape_packed.w);
-        local_size_xyz.h = std::min(4, shape_packed.h);
-        local_size_xyz.c = std::min(4, shape_packed.c);
+        local_size_xyz.w = std::min(4, shape.w);
+        local_size_xyz.h = std::min(4, shape.h);
+        local_size_xyz.c = std::min(4, shape.c);
     }
 
     // pack1

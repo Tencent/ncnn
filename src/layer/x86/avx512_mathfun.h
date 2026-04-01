@@ -217,6 +217,54 @@ static NCNN_FORCEINLINE __m512 tanh512_ps(const __m512& x)
     return dst;
 }
 
+_PS512_CONST(erf_threshold, 0.927734375f);
+
+_PS512_CONST(erf_c0, -1.72853470e-5f);
+_PS512_CONST(erf_c1, 3.83197126e-4f);
+_PS512_CONST(erf_c2, -3.88396438e-3f);
+_PS512_CONST(erf_c3, 2.42546219e-2f);
+_PS512_CONST(erf_c4, -1.06777877e-1f);
+_PS512_CONST(erf_c5, -6.34846687e-1f);
+_PS512_CONST(erf_c6, -1.28717512e-1f);
+
+_PS512_CONST(erf_p0, -5.96761703e-4f);
+_PS512_CONST(erf_p1, 4.99119423e-3f);
+_PS512_CONST(erf_p2, -2.67681349e-2f);
+_PS512_CONST(erf_p3, 1.12819925e-1f);
+_PS512_CONST(erf_p4, -3.76125336e-1f);
+_PS512_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m512 erf512_ps(const __m512& a)
+{
+    __m512 t = _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(0x7fffffff)));
+    __m512 s = _mm512_mul_ps(a, a);
+
+    __mmask16 mask = _mm512_cmp_ps_mask(t, *(__m512*)_ps512_erf_threshold, _CMP_GT_OQ);
+
+    __m512 r_large = _mm512_fmadd_ps(*(__m512*)_ps512_erf_c0, t, *(__m512*)_ps512_erf_c1);
+    __m512 u = _mm512_fmadd_ps(*(__m512*)_ps512_erf_c2, t, *(__m512*)_ps512_erf_c3);
+    r_large = _mm512_fmadd_ps(r_large, s, u);
+    r_large = _mm512_fmadd_ps(r_large, t, *(__m512*)_ps512_erf_c4);
+    r_large = _mm512_fmadd_ps(r_large, t, *(__m512*)_ps512_erf_c5);
+    r_large = _mm512_fmadd_ps(r_large, t, *(__m512*)_ps512_erf_c6);
+    r_large = _mm512_fmadd_ps(r_large, t, _mm512_sub_ps(_mm512_setzero_ps(), t));
+    r_large = _mm512_sub_ps(*(__m512*)_ps512_1, exp512_ps(r_large));
+
+    __m512 sign_mask = _mm512_and_ps(a, *(__m512*)_ps512_sign_mask);
+    r_large = _mm512_xor_ps(r_large, sign_mask);
+
+    __m512 r_small = *(__m512*)_ps512_erf_p0;
+    r_small = _mm512_fmadd_ps(r_small, s, *(__m512*)_ps512_erf_p1);
+    r_small = _mm512_fmadd_ps(r_small, s, *(__m512*)_ps512_erf_p2);
+    r_small = _mm512_fmadd_ps(r_small, s, *(__m512*)_ps512_erf_p3);
+    r_small = _mm512_fmadd_ps(r_small, s, *(__m512*)_ps512_erf_p4);
+    r_small = _mm512_fmadd_ps(r_small, s, *(__m512*)_ps512_erf_p5);
+    r_small = _mm512_fmadd_ps(r_small, a, a);
+
+    __m512 r = _mm512_mask_mov_ps(r_small, mask, r_large);
+    return r;
+}
+
 _PS512_CONST(minus_cephes_DP1, -0.78515625f);
 _PS512_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS512_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
@@ -852,6 +900,50 @@ static NCNN_FORCEINLINE __m512 abs512_ps(const __m512& x)
 {
     const __m512 abs_mask = _mm512_castsi512_ps(_mm512_set1_epi32(0x7fffffff));
     return _mm512_and_ps(abs_mask, x);
+}
+
+static NCNN_FORCEINLINE __m512 trunc512_ps(const __m512& x)
+{
+    // truncate toward zero
+    return _mm512_roundscale_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+}
+
+static NCNN_FORCEINLINE __m512 fmod512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    __m512 tq = trunc512_ps(q);
+    return _mm512_sub_ps(x, _mm512_mul_ps(tq, y));
+}
+
+static NCNN_FORCEINLINE __m512 round512_ps(const __m512& x)
+{
+    return _mm512_roundscale_ps(x, _MM_FROUND_NINT);
+}
+
+static NCNN_FORCEINLINE __m512 logaddexp512_ps(const __m512& x, const __m512& y)
+{
+    const __m512 magic_one = _mm512_set1_ps(1.0f);
+
+    __m512 max_xy = _mm512_max_ps(x, y);
+    __m512 min_xy = _mm512_min_ps(x, y);
+    __m512 diff = _mm512_sub_ps(min_xy, max_xy);
+    __m512 exp_diff = exp512_ps(diff);
+    __m512 one_plus_exp = _mm512_add_ps(magic_one, exp_diff);
+    __m512 log_result = log512_ps(one_plus_exp);
+    return _mm512_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    return _mm512_roundscale_ps(q, _MM_FROUND_TO_NEG_INF);
+}
+
+static NCNN_FORCEINLINE __m512 remainder512_ps(const __m512& x, const __m512& y)
+{
+    __m512 q = _mm512_div_ps(x, y);
+    __m512 rq = round512_ps(q);
+    return _mm512_sub_ps(x, _mm512_mul_ps(rq, y));
 }
 
 #endif // AVX512_MATHFUN_H

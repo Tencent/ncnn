@@ -29,6 +29,7 @@ NCNN_EXPORT float fmaxf(float, float);
 NCNN_EXPORT float truncf(float);
 NCNN_EXPORT float frac(float);
 NCNN_EXPORT float fmodf(float, float);
+NCNN_EXPORT float remainderf(float, float);
 /*
 * ====================================================
 * trigonometric functions
@@ -67,6 +68,7 @@ NCNN_EXPORT float frexp(float, int*);
 NCNN_EXPORT float logf(float);
 NCNN_EXPORT float log(float);
 NCNN_EXPORT float log10f(float);
+NCNN_EXPORT float log1pf(float);
 
 /*
 * ====================================================

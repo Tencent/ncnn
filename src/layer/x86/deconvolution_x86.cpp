@@ -17,29 +17,7 @@
 
 namespace ncnn {
 
-#if __SSE2__
-#include "deconvolution_pack4.h"
-#include "deconvolution_pack1to4.h"
-#include "deconvolution_pack4to1.h"
-
-#if __AVX__
-#include "deconvolution_pack8.h"
-#include "deconvolution_pack4to8.h"
-#include "deconvolution_pack8to4.h"
-#include "deconvolution_pack1to8.h"
-#include "deconvolution_pack8to1.h"
-
-#if __AVX512F__
-#include "deconvolution_pack16.h"
-#include "deconvolution_pack8to16.h"
-#include "deconvolution_pack16to8.h"
-#include "deconvolution_pack4to16.h"
-#include "deconvolution_pack16to4.h"
-#include "deconvolution_pack1to16.h"
-#include "deconvolution_pack16to1.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
+#include "deconvolution_packed.h"
 
 Deconvolution_x86::Deconvolution_x86()
 {
@@ -61,19 +39,15 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = 1;
     int out_elempack = 1;
 #if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX512F__
-        elempack = num_input % 16 == 0 ? 16 : num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #elif __AVX__
-        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        elempack = num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
     }
@@ -135,51 +109,7 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
     }
     else
     {
-        Mat weight_data_transposed(weight_data.w);
-        {
-            float* pt = weight_data_transposed;
-            const float* p = weight_data;
-
-            for (int i = 0; i < num_input * num_output; i++)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    pt[maxk - 1 - k] = p[k];
-                }
-
-                p += maxk;
-                pt += maxk;
-            }
-        }
-
-        // src = kw-kh-inch-outch
-        // dst = pb-pa-kw-kh-inch/pa-outch/pb
-        Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
-
-        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            float* g00 = weight_data_tm.channel(q / out_elempack);
-
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    for (int i = 0; i < elempack; i++)
-                    {
-                        for (int j = 0; j < out_elempack; j++)
-                        {
-                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-
-                            g00[0] = k00[k];
-
-                            g00++;
-                        }
-                    }
-                }
-            }
-        }
+        deconvolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
     if (opt.lightmode)
@@ -452,164 +382,7 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
     else
     {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        if (elempack == 16 && out_elempack == 16)
-        {
-            deconvolution_pack16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 8 && out_elempack == 16)
-        {
-            deconvolution_pack8to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 16 && out_elempack == 8)
-        {
-            deconvolution_pack16to8_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 4 && out_elempack == 16)
-        {
-            deconvolution_pack4to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 16 && out_elempack == 4)
-        {
-            deconvolution_pack16to4_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 1 && out_elempack == 16)
-        {
-            deconvolution_pack1to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 16 && out_elempack == 1)
-        {
-            deconvolution_pack16to1_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-#endif // __AVX512F__
-
-        if (elempack == 8 && out_elempack == 8)
-        {
-            deconvolution_pack8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 4 && out_elempack == 8)
-        {
-            deconvolution_pack4to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 8 && out_elempack == 4)
-        {
-            deconvolution_pack8to4_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 1 && out_elempack == 8)
-        {
-            deconvolution_pack1to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 8 && out_elempack == 1)
-        {
-            deconvolution_pack8to1_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-#endif // __AVX__
-
-        if (elempack == 4 && out_elempack == 4)
-        {
-            deconvolution_pack4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 1 && out_elempack == 4)
-        {
-            deconvolution_pack1to4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 4 && out_elempack == 1)
-        {
-            deconvolution_pack4to1_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-#endif // __SSE2__
-
-        if (elempack == 1 && out_elempack == 1)
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                float* outptr = top_blob_bordered.channel(p);
-
-                // shadowed variable for less openmp task args
-                const int w = bottom_blob.w;
-                const int h = bottom_blob.h;
-                const int channels = bottom_blob.c;
-                const int outw = top_blob_bordered.w;
-                const int outh = top_blob_bordered.h;
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const float* kptr = (const float*)weight_data_tm.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob.channel(q);
-
-                            for (int y = 0; y < kernel_h; y++)
-                            {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                const float* sptr = m.row(sy);
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    float val = sptr[sx];
-
-                                    int k = y * kernel_w + x;
-
-                                    float w = kptr[k];
-
-                                    sum += val * w;
-                                }
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        deconvolution_packed(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     cut_padding(top_blob_bordered, top_blob, opt);

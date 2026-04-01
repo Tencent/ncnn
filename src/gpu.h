@@ -225,6 +225,12 @@ public:
     // 3 = cpu
     int type() const;
 
+    // performance score roughly evaluated based on parameters such as device type,
+    // supported extensions, video memory size etc.
+    // high-end device scores over 75
+    // low-end device scores below 10
+    uint32_t rough_score() const;
+
     // hardware limit
     uint32_t max_shared_memory_size() const;
     uint32_t max_workgroup_count_x() const;
@@ -439,6 +445,7 @@ public:
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;
     void reclaim_queue(uint32_t queue_family_index, VkQueue queue) const;

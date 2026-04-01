@@ -247,6 +247,31 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
     }
 
+    // for avoiding driver timeout
+    // commit as soon as we collect enough pending
+    const uint32_t rough_score = vkdev->info.rough_score();
+    uint32_t pending_dispatch_threshold = 32 * 1024; // 32K
+    if (rough_score > 75)
+    {
+        pending_dispatch_threshold = 8 * 1024 * 1024; // 8M
+    }
+    else if (rough_score > 50)
+    {
+        pending_dispatch_threshold = 4 * 1024 * 1024; // 4M
+    }
+    else if (rough_score > 15)
+    {
+        pending_dispatch_threshold = 1 * 1024 * 1024; // 1M
+    }
+    else if (rough_score > 10)
+    {
+        pending_dispatch_threshold = 256 * 1024; // 256K
+    }
+    if (cmd.pending_dispatch_total() > pending_dispatch_threshold)
+    {
+        cmd_submit_and_wait = true;
+    }
+
     int ret;
     if (cmd_submit_and_wait)
     {
@@ -427,6 +452,18 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             {
 #if NCNN_ARM82
                 if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -1177,6 +1214,7 @@ int Net::load_param(const DataReader& dr)
         Mat shape_hints = pd.get(30, Mat());
         if (!shape_hints.empty())
         {
+            const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
             for (int j = 0; j < top_count; j++)
             {
@@ -1193,24 +1231,18 @@ int Net::load_param(const DataReader& dr)
                 }
                 if (dims == 3)
                 {
-                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                    if (psh_step == 5)
+                        blob.shape = Mat(psh[1], psh[2], psh[4], (void*)0, 4u, 1);
+                    else
+                        blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
+                if (dims == 4)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], psh[4], (void*)0, 4u, 1);
                 }
 
-                psh += 4;
+                psh += psh_step;
             }
-        }
-
-        // set bottom and top shape hints
-        layer->bottom_shapes.resize(bottom_count);
-        for (int j = 0; j < bottom_count; j++)
-        {
-            layer->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-        }
-
-        layer->top_shapes.resize(top_count);
-        for (int j = 0; j < top_count; j++)
-        {
-            layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
         // pull out layer specific feature disabled set
@@ -1273,6 +1305,85 @@ int Net::load_param(const DataReader& dr)
 
             delete layer;
             layer = layer_cpu;
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j = 0; j < bottom_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->bottoms[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->bottom_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->bottom_shapes[j] = shape;
+            }
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j = 0; j < top_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->tops[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->top_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->top_shapes[j] = shape;
+            }
         }
 
         d->layers[i] = layer;
@@ -1465,6 +1576,7 @@ int Net::load_param_bin(const DataReader& dr)
         Mat shape_hints = pd.get(30, Mat());
         if (!shape_hints.empty())
         {
+            const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
             for (int j = 0; j < top_count; j++)
             {
@@ -1481,24 +1593,18 @@ int Net::load_param_bin(const DataReader& dr)
                 }
                 if (dims == 3)
                 {
-                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                    if (psh_step == 5)
+                        blob.shape = Mat(psh[1], psh[2], psh[4], (void*)0, 4u, 1);
+                    else
+                        blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
+                if (dims == 4)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], psh[4], (void*)0, 4u, 1);
                 }
 
-                psh += 4;
+                psh += psh_step;
             }
-        }
-
-        // set bottom and top shape hints
-        layer->bottom_shapes.resize(bottom_count);
-        for (int j = 0; j < bottom_count; j++)
-        {
-            layer->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-        }
-
-        layer->top_shapes.resize(top_count);
-        for (int j = 0; j < top_count; j++)
-        {
-            layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
         // pull out layer specific feature disabled set
@@ -1562,6 +1668,85 @@ int Net::load_param_bin(const DataReader& dr)
             layer = layer_cpu;
         }
 
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j = 0; j < bottom_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->bottoms[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->bottom_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->bottom_shapes[j] = shape;
+            }
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j = 0; j < top_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->tops[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->top_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->top_shapes[j] = shape;
+            }
+        }
+
         d->layers[i] = layer;
     }
 
@@ -1602,14 +1787,7 @@ int Net::load_model(const DataReader& dr)
         // create gpu device allocator if null
         if (!d->weight_vkallocator)
         {
-            if (opt.use_weights_in_host_memory)
-            {
-                d->weight_vkallocator = new VkHostAllocator(d->vkdev);
-            }
-            else
-            {
-                d->weight_vkallocator = new VkWeightAllocator(d->vkdev);
-            }
+            d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
         }
         if (!d->weight_staging_vkallocator)
         {

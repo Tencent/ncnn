@@ -68,6 +68,8 @@ public:
 
     int reset();
 
+    uint64_t pending_dispatch_total() const;
+
 #if NCNN_BENCHMARK
     int create_query_pool(uint32_t query_count);
 
