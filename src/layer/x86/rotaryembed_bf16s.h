@@ -1,54 +1,27 @@
-// Copyright 2025 pchar.cn
+// Copyright 2026 pchar.cn
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "rotaryembed_x86.h"
-
-#if __SSE2__
-#include <emmintrin.h>
-#if __SSE3__
-#include <pmmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#endif // __AVX__
-#endif // __SSE3__
-#endif // __SSE2__
-
-#include "x86_usability.h"
-
-#include "cpu.h"
-
-namespace ncnn {
-
-#if NCNN_BF16
-#include "rotaryembed_bf16s.h"
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+void rotaryembed_bf16s_avx512bf16(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
-RotaryEmbed_x86::RotaryEmbed_x86()
+static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
-#if NCNN_BF16
-    support_bf16_storage = true;
+#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
+    if (ncnn::cpu_support_x86_avx512_bf16())
+    {
+        rotaryembed_bf16s_avx512bf16(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
+    }
 #endif
-}
-
-int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
-        return forward_bf16s(bottom_blobs, top_blobs, opt);
-#endif
-
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& cos_cache = bottom_blobs[1];
-    const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
     const int num_heads = bottom_blob.c;
 
-    Mat& top_blob = top_blobs[0];
     top_blob.create_like(bottom_blob, opt.blob_allocator);
     if (top_blob.empty())
-        return -100;
+        return;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -60,10 +33,10 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         {
             if (interleaved)
             {
-                const float* ptr = head.row(i);
-                const float* cos_ptr = cos_cache.row(i);
-                const float* sin_ptr = sin_cache.row(i);
-                float* outptr = out_head.row(i);
+                const unsigned short* ptr = head.row<const unsigned short>(i);
+                const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
+                const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+                unsigned short* outptr = out_head.row<unsigned short>(i);
 
                 int j = 0;
 #if __SSE2__
@@ -73,11 +46,11 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 const __m512i dupidx_lo = _mm512_set_epi32(7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0);
                 for (; j + 15 < embed_dim / 2; j += 16)
                 {
-                    __m512 a0 = _mm512_loadu_ps(ptr);
-                    __m512 a1 = _mm512_loadu_ps(ptr + 16);
+                    __m512 a0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
+                    __m512 a1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)(ptr + 16)));
 
-                    __m512 cs_src = _mm512_loadu_ps(cos_ptr);
-                    __m512 ss_src = _mm512_loadu_ps(sin_ptr);
+                    __m512 cs_src = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)cos_ptr));
+                    __m512 ss_src = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)sin_ptr));
 
                     __m512 c0 = _mm512_permutexvar_ps(dupidx_lo, cs_src);
                     __m512 c1 = _mm512_permutexvar_ps(dupidx, cs_src);
@@ -93,8 +66,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m512 y0 = _mm512_fmaddsub_ps(a0, c0, ss0);
                     __m512 y1 = _mm512_fmaddsub_ps(a1, c1, ss1);
 
-                    _mm512_storeu_ps(outptr, y0);
-                    _mm512_storeu_ps(outptr + 16, y1);
+                    _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx512(y0));
+                    _mm256_storeu_si256((__m256i*)(outptr + 16), float2bfloat_avx512(y1));
 
                     ptr += 32;
                     outptr += 32;
@@ -107,11 +80,11 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 const __m256i dupidx256_lo = _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0);
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
-                    __m256 a0 = _mm256_loadu_ps(ptr);
-                    __m256 a1 = _mm256_loadu_ps(ptr + 8);
+                    __m256 a0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                    __m256 a1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + 8)));
 
-                    __m256 c_src = _mm256_loadu_ps(cos_ptr);
-                    __m256 s_src = _mm256_loadu_ps(sin_ptr);
+                    __m256 c_src = bfloat2float_avx(_mm_loadu_si128((const __m128i*)cos_ptr));
+                    __m256 s_src = bfloat2float_avx(_mm_loadu_si128((const __m128i*)sin_ptr));
 
                     __m256 c0 = _mm256_permutevar8x32_ps(c_src, dupidx256_lo);
                     __m256 c1 = _mm256_permutevar8x32_ps(c_src, dupidx256);
@@ -127,8 +100,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m256 y0 = _mm256_fmaddsub_ps(a0, c0, ss0);
                     __m256 y1 = _mm256_fmaddsub_ps(a1, c1, ss1);
 
-                    _mm256_storeu_ps(outptr, y0);
-                    _mm256_storeu_ps(outptr + 8, y1);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
+                    _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
 
                     ptr += 16;
                     outptr += 16;
@@ -138,13 +111,13 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #else // __AVX2__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
-                    __m256 a0 = _mm256_loadu_ps(ptr);
-                    __m256 a1 = _mm256_loadu_ps(ptr + 8);
+                    __m256 a0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
+                    __m256 a1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(ptr + 8)));
 
-                    __m128 clo4 = _mm_loadu_ps(cos_ptr);
-                    __m128 chi4 = _mm_loadu_ps(cos_ptr + 4);
-                    __m128 slo4 = _mm_loadu_ps(sin_ptr);
-                    __m128 shi4 = _mm_loadu_ps(sin_ptr + 4);
+                    __m128 clo4 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)cos_ptr));
+                    __m128 chi4 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(cos_ptr + 4)));
+                    __m128 slo4 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)sin_ptr));
+                    __m128 shi4 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(sin_ptr + 4)));
 
                     __m128 clo_lo = _mm_unpacklo_ps(clo4, clo4); // [c0,c0,c1,c1]
                     __m128 clo_hi = _mm_unpackhi_ps(clo4, clo4); // [c2,c2,c3,c3]
@@ -178,8 +151,8 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m256 y0 = _mm256_addsub_ps(ac0, ss0);
                     __m256 y1 = _mm256_addsub_ps(ac1, ss1);
 #endif
-                    _mm256_storeu_ps(outptr, y0);
-                    _mm256_storeu_ps(outptr + 8, y1);
+                    _mm_storeu_si128((__m128i*)outptr, float2bfloat_avx(y0));
+                    _mm_storeu_si128((__m128i*)(outptr + 8), float2bfloat_avx(y1));
 
                     ptr += 16;
                     outptr += 16;
@@ -188,23 +161,15 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 }
 #endif // __AVX2__
 #endif // __AVX__
-#if !__SSE3__
-#if defined(__MINGW32__) && !defined(__x86_64__)
-                __attribute__((aligned(16)))
-                const float signmask128_array[4]
-                    = {-0.f, 0.f, -0.f, 0.f};
-                const __m128 signmask128 = _mm_load_ps(signmask128_array);
-#else
-                const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
-#endif
-#endif
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    __m128 a0 = _mm_loadu_ps(ptr);
-                    __m128 a1 = _mm_loadu_ps(ptr + 4);
+                    __m128 a0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
+                    __m128 a1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)(ptr + 4)));
 
-                    __m128 c4 = _mm_loadu_ps(cos_ptr);
-                    __m128 s4 = _mm_loadu_ps(sin_ptr);
+                    __m128i c4_raw = _mm_loadl_epi64((const __m128i*)cos_ptr);
+                    __m128i s4_raw = _mm_loadl_epi64((const __m128i*)sin_ptr);
+                    __m128 c4 = bfloat2float_sse(c4_raw);
+                    __m128 s4 = bfloat2float_sse(s4_raw);
 
                     __m128 clo = _mm_unpacklo_ps(c4, c4); // [c0,c0,c1,c1]
                     __m128 chi = _mm_unpackhi_ps(c4, c4); // [c2,c2,c3,c3]
@@ -226,14 +191,22 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     __m128 y0 = _mm_addsub_ps(ac0, ss0);
                     __m128 y1 = _mm_addsub_ps(ac1, ss1);
 #else
+#if defined(__MINGW32__) && !defined(__x86_64__)
+                    __attribute__((aligned(16)))
+                    const float signmask128_array[4]
+                        = {-0.f, 0.f, -0.f, 0.f};
+                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
+#else
+                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
+#endif
                     ss0 = _mm_xor_ps(ss0, signmask128);
                     ss1 = _mm_xor_ps(ss1, signmask128);
                     __m128 y0 = _mm_add_ps(ac0, ss0);
                     __m128 y1 = _mm_add_ps(ac1, ss1);
 #endif
 #endif
-                    _mm_storeu_ps(outptr, y0);
-                    _mm_storeu_ps(outptr + 4, y1);
+                    __m128i y01_bf16 = float2bfloat_sse(y0, y1);
+                    _mm_storeu_si128((__m128i*)outptr, y01_bf16);
 
                     ptr += 8;
                     outptr += 8;
@@ -242,13 +215,16 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 }
                 for (; j + 1 < embed_dim / 2; j += 2)
                 {
-                    __m128 a = _mm_loadu_ps(ptr);
+                    __m128i a_raw = _mm_loadl_epi64((const __m128i*)ptr);
+                    __m128 a = bfloat2float_sse(a_raw);
 
-                    __m128 c01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)cos_ptr));
-                    __m128 s01 = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i*)sin_ptr));
+                    float cos0 = bfloat16_to_float32(cos_ptr[0]);
+                    float cos1 = bfloat16_to_float32(cos_ptr[1]);
+                    float sin0 = bfloat16_to_float32(sin_ptr[0]);
+                    float sin1 = bfloat16_to_float32(sin_ptr[1]);
 
-                    __m128 c = _mm_unpacklo_ps(c01, c01); // [c0,c0,c1,c1]
-                    __m128 s = _mm_unpacklo_ps(s01, s01); // [s0,s0,s1,s1]
+                    __m128 c = _mm_set_ps(cos1, cos1, cos0, cos0);
+                    __m128 s = _mm_set_ps(sin1, sin1, sin0, sin0);
 
                     __m128 swap = _mm_shuffle_ps(a, a, _MM_SHUFFLE(2, 3, 0, 1));
                     __m128 ss = _mm_mul_ps(swap, s);
@@ -260,11 +236,20 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #if __SSE3__
                     __m128 y = _mm_addsub_ps(ac, ss);
 #else
+#if defined(__MINGW32__) && !defined(__x86_64__)
+                    __attribute__((aligned(16)))
+                    const float signmask128_array[4]
+                        = {-0.f, 0.f, -0.f, 0.f};
+                    const __m128 signmask128 = _mm_load_ps(signmask128_array);
+#else
+                    const __m128 signmask128 = _mm_set_ps(0.f, -0.f, 0.f, -0.f);
+#endif
                     ss = _mm_xor_ps(ss, signmask128);
                     __m128 y = _mm_add_ps(ac, ss);
 #endif
 #endif
-                    _mm_storeu_ps(outptr, y);
+                    __m128i y_bf16 = float2bfloat_sse(y, y);
+                    _mm_storel_epi64((__m128i*)outptr, y_bf16);
 
                     ptr += 4;
                     outptr += 4;
@@ -274,13 +259,13 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __SSE2__
                 for (; j < embed_dim / 2; j++)
                 {
-                    const float x0 = ptr[0];
-                    const float x1 = ptr[1];
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
+                    const float x0 = bfloat16_to_float32(ptr[0]);
+                    const float x1 = bfloat16_to_float32(ptr[1]);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
 
-                    outptr[0] = x0 * cos_val - x1 * sin_val;
-                    outptr[1] = x0 * sin_val + x1 * cos_val;
+                    outptr[0] = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    outptr[1] = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
 
                     ptr += 2;
                     outptr += 2;
@@ -288,13 +273,13 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             }
             else
             {
-                const float* ptr0 = head.row(i);
-                const float* ptr1 = ptr0 + embed_dim / 2;
-                const float* cos_ptr = cos_cache.row(i);
-                const float* sin_ptr = sin_cache.row(i);
+                const unsigned short* ptr0 = head.row<const unsigned short>(i);
+                const unsigned short* ptr1 = ptr0 + embed_dim / 2;
+                const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
+                const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
 
-                float* outptr0 = out_head.row(i);
-                float* outptr1 = outptr0 + embed_dim / 2;
+                unsigned short* outptr0 = out_head.row<unsigned short>(i);
+                unsigned short* outptr1 = outptr0 + embed_dim / 2;
 
                 int j = 0;
 #if __SSE2__
@@ -302,16 +287,16 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #if __AVX512F__
                 for (; j + 15 < embed_dim / 2; j += 16)
                 {
-                    __m512 x0 = _mm512_loadu_ps(ptr0);
-                    __m512 x1 = _mm512_loadu_ps(ptr1);
-                    __m512 c = _mm512_loadu_ps(cos_ptr);
-                    __m512 s = _mm512_loadu_ps(sin_ptr);
+                    __m512 x0 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr0));
+                    __m512 x1 = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr1));
+                    __m512 c = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)cos_ptr));
+                    __m512 s = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)sin_ptr));
 
                     __m512 y0 = _mm512_fnmadd_ps(x1, s, _mm512_mul_ps(x0, c));
                     __m512 y1 = _mm512_fmadd_ps(x0, s, _mm512_mul_ps(x1, c));
 
-                    _mm512_storeu_ps(outptr0, y0);
-                    _mm512_storeu_ps(outptr1, y1);
+                    _mm256_storeu_si256((__m256i*)outptr0, float2bfloat_avx512(y0));
+                    _mm256_storeu_si256((__m256i*)outptr1, float2bfloat_avx512(y1));
 
                     ptr0 += 16;
                     ptr1 += 16;
@@ -323,16 +308,16 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __AVX512F__
                 for (; j + 7 < embed_dim / 2; j += 8)
                 {
-                    __m256 x0 = _mm256_loadu_ps(ptr0);
-                    __m256 x1 = _mm256_loadu_ps(ptr1);
-                    __m256 c = _mm256_loadu_ps(cos_ptr);
-                    __m256 s = _mm256_loadu_ps(sin_ptr);
+                    __m256 x0 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr0));
+                    __m256 x1 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr1));
+                    __m256 c = bfloat2float_avx(_mm_loadu_si128((const __m128i*)cos_ptr));
+                    __m256 s = bfloat2float_avx(_mm_loadu_si128((const __m128i*)sin_ptr));
 
                     __m256 y0 = _mm256_comp_fnmadd_ps(x1, s, _mm256_mul_ps(x0, c));
                     __m256 y1 = _mm256_comp_fmadd_ps(x0, s, _mm256_mul_ps(x1, c));
 
-                    _mm256_storeu_ps(outptr0, y0);
-                    _mm256_storeu_ps(outptr1, y1);
+                    _mm_storeu_si128((__m128i*)outptr0, float2bfloat_avx(y0));
+                    _mm_storeu_si128((__m128i*)outptr1, float2bfloat_avx(y1));
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -344,16 +329,16 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __AVX__
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    __m128 x0 = _mm_loadu_ps(ptr0);
-                    __m128 x1 = _mm_loadu_ps(ptr1);
-                    __m128 c = _mm_loadu_ps(cos_ptr);
-                    __m128 s = _mm_loadu_ps(sin_ptr);
+                    __m128 x0 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr0));
+                    __m128 x1 = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr1));
+                    __m128 c = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)cos_ptr));
+                    __m128 s = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)sin_ptr));
 
                     __m128 y0 = _mm_comp_fnmadd_ps(x1, s, _mm_mul_ps(x0, c));
                     __m128 y1 = _mm_comp_fmadd_ps(x0, s, _mm_mul_ps(x1, c));
 
-                    _mm_storeu_ps(outptr0, y0);
-                    _mm_storeu_ps(outptr1, y1);
+                    _mm_storel_epi64((__m128i*)outptr0, float2bfloat_sse(y0, y0));
+                    _mm_storel_epi64((__m128i*)outptr1, float2bfloat_sse(y1, y1));
 
                     ptr0 += 4;
                     ptr1 += 4;
@@ -365,34 +350,15 @@ int RotaryEmbed_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
 #endif // __SSE2__
                 for (; j < embed_dim / 2; j++)
                 {
-                    const float x0 = *ptr0++;
-                    const float x1 = *ptr1++;
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
+                    const float x0 = bfloat16_to_float32(*ptr0++);
+                    const float x1 = bfloat16_to_float32(*ptr1++);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
 
-                    *outptr0++ = x0 * cos_val - x1 * sin_val;
-                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                    *outptr0++ = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    *outptr1++ = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
                 }
             }
         }
     }
-
-    return 0;
 }
-
-#if NCNN_BF16
-int RotaryEmbed_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& cos_cache = bottom_blobs[1];
-    const Mat& sin_cache = bottom_blobs[2];
-
-    Mat& top_blob = top_blobs[0];
-
-    rotaryembed_bf16s(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
-
-    return top_blob.empty() ? -100 : 0;
-}
-#endif // NCNN_BF16
-
-} // namespace ncnn
