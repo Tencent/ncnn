@@ -46,7 +46,10 @@ static int test_cumulativesum_3d()
            || test_cumulativesum(RandomMat(106, 50, 99), 2)
            || test_cumulativesum(RandomMat(303, 200, 103), -1)
            || test_cumulativesum(RandomMat(303, 200, 103), -2)
-           || test_cumulativesum(RandomMat(303, 200, 103), -2);
+           || test_cumulativesum(RandomMat(303, 200, 103), -2)
+           || test_cumulativesum(RandomMat(257, 17, 104), 1)
+           || test_cumulativesum(RandomMat(257, 17, 104), 2)
+           || test_cumulativesum(RandomMat(257, 17, 104), -1);
 }
 
 int main()
