@@ -19,6 +19,7 @@ namespace ncnn {
 
 #include "convolution_packed_bf16s.h"
 #include "convolution_im2col_gemm_bf16s.h"
+// convolution_3x3_winograd.h provides gemm_transB_packed_tile() used by convolution_3x3_winograd_bf16s.h
 #include "convolution_3x3_winograd.h"
 #include "convolution_3x3_winograd_bf16s.h"
 
