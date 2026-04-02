@@ -10,9 +10,9 @@ static void perf_sdpa_prefill(int embed_dim, int num_heads, int num_groups, int 
     const int out_embed_dim = embed_dim;
 
     ncnn::ParamDict pd;
-    pd.set(5, 0);    // attn_mask = 0
-    pd.set(6, 0.f);  // scale = 0 (default 1/sqrt(embed_dim))
-    pd.set(7, 0);    // kv_cache = 0 (no cache in prefill)
+    pd.set(5, 0);   // attn_mask = 0
+    pd.set(6, 0.f); // scale = 0 (default 1/sqrt(embed_dim))
+    pd.set(7, 0);   // kv_cache = 0 (no cache in prefill)
 
     std::vector<ncnn::Mat> weights(0);
 

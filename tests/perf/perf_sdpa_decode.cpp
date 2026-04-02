@@ -12,19 +12,19 @@ static void perf_sdpa_decode(int embed_dim, int num_heads, int num_groups, int p
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
     ncnn::ParamDict pd;
-    pd.set(5, 0);    // attn_mask = 0
-    pd.set(6, 0.f);  // scale = 0 (default 1/sqrt(embed_dim))
-    pd.set(7, 1);    // kv_cache = 1
+    pd.set(5, 0);   // attn_mask = 0
+    pd.set(6, 0.f); // scale = 0 (default 1/sqrt(embed_dim))
+    pd.set(7, 1);   // kv_cache = 1
 
     std::vector<ncnn::Mat> weights(0);
 
     // inputs: q, k, v, past_k, past_v
     std::vector<ncnn::Mat> inputs(5);
-    inputs[0] = PerfMat(embed_dim, src_seqlen, num_heads);      // q
-    inputs[1] = PerfMat(embed_dim, cur_seqlen, num_groups);     // cur_k
-    inputs[2] = PerfMat(out_embed_dim, cur_seqlen, num_groups); // cur_v
-    inputs[3] = PerfMat(embed_dim, past_seqlen, num_groups);    // past_k
-    inputs[4] = PerfMat(out_embed_dim, past_seqlen, num_groups);// past_v
+    inputs[0] = PerfMat(embed_dim, src_seqlen, num_heads);       // q
+    inputs[1] = PerfMat(embed_dim, cur_seqlen, num_groups);      // cur_k
+    inputs[2] = PerfMat(out_embed_dim, cur_seqlen, num_groups);  // cur_v
+    inputs[3] = PerfMat(embed_dim, past_seqlen, num_groups);     // past_k
+    inputs[4] = PerfMat(out_embed_dim, past_seqlen, num_groups); // past_v
 
     perf_layer("SDPA", pd, weights, inputs, 3,
                "embed=%d heads=%d groups=%d past=%d",
