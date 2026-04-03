@@ -30,6 +30,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
 
     float epsilon = 0.001;
 
+    // fp32 path (no bf16)
     {
         ncnn::Option opt;
         opt.num_threads = 1;
@@ -50,6 +51,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         }
     }
 
+    // bf16 path
     {
         ncnn::Option opt;
         opt.num_threads = 1;
@@ -73,42 +75,150 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     return 0;
 }
 
-// Target uncovered paths in convolution_packed_bf16s.h
-// All tests use sgemm=false, winograd=false to force the packed convolution path
-static int test_convolution_packed()
+// BF16 winograd path: kernel=3, dilation=1, stride=1, winograd=true, sgemm=false
+// Need num_input>8 || num_output>8 for prefer_winograd
+// winograd43 is the default variant (when neither 63 nor 23 is preferred)
+// winograd63: num_input<64 and specific size ranges (e.g. c=16,outch=16,minwh~25-44)
+// winograd23: large channels with small spatial (e.g. c=512,outch=512,minwh=3-14)
+static int test_convolution_winograd()
 {
-    static const int kdsp[3][4] = {
-        {3, 1, 2, 1},
-        {5, 1, 1, -234},
-        {3, 2, 1, -234},
-    };
+    // winograd43: default path for moderate sizes
+    // c=16,outch=16 => neither prefer_winograd63 nor prefer_winograd23 for w=11,h=10
+    int ret = 0
+              // Various elempack/out_elempack combos for winograd43
+              || test_convolution(11, 10, 16, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(11, 10, 16, 24, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(11, 10, 24, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(11, 10, 16, 3, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(11, 10, 3, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(11, 10, 16, 1, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(11, 10, 1, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(11, 10, 16, 2, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(11, 10, 2, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(11, 10, 9, 9, 3, 1, 1, 1, 0, false, true)
+              // out_elempack=8 (outch%16!=0 && outch%8==0)
+              || test_convolution(11, 10, 16, 8, 3, 1, 1, 1, 1, false, true)
+              // out_elempack=4 (outch%8!=0 && outch%4==0)
+              || test_convolution(11, 10, 16, 4, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(11, 10, 16, 12, 3, 1, 1, 1, 1, false, true)
 
-    for (int i = 0; i < 3; i++)
-    {
-        const int k = kdsp[i][0];
-        const int d = kdsp[i][1];
-        const int s = kdsp[i][2];
-        const int p = kdsp[i][3];
+              // winograd63: c=16,outch=16, larger spatial => minwh in [23..44]
+              || test_convolution(30, 30, 16, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(30, 30, 16, 24, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(30, 30, 24, 16, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(30, 30, 16, 3, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(30, 30, 3, 16, 3, 1, 1, 1, 1, false, true)
+              // winograd63 with out_elempack=8
+              || test_convolution(30, 30, 16, 8, 3, 1, 1, 1, 0, false, true)
+              // winograd63 with out_elempack=4 (covers the uncovered winograd63 output transform)
+              // Need larger spatial for outch<16 to prefer winograd63 (minwh in [47..128] for num_output>=8)
+              || test_convolution(50, 50, 16, 12, 3, 1, 1, 1, 1, false, true)
+              // outch=20 (out_elempack=4, outch>=16 for 16-wide output transform)
+              || test_convolution(50, 50, 16, 20, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(30, 30, 16, 4, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(30, 30, 16, 12, 3, 1, 1, 1, 0, false, true)
 
-        int ret = 0
-                  || test_convolution(11, 10, 16, 2, k, d, s, p, 1, false, false)
-                  || test_convolution(11, 10, 16, 3, k, d, s, p, 0, false, false)
-                  || test_convolution(11, 10, 16, 1, k, d, s, p, 1, false, false)
-                  || test_convolution(11, 10, 1, 16, k, d, s, p, 0, false, false)
-                  || test_convolution(11, 10, 2, 16, k, d, s, p, 1, false, false)
-                  || test_convolution(11, 10, 3, 16, k, d, s, p, 0, false, false)
-                  || test_convolution(11, 10, 16, 20, k, d, s, p, 1, false, false);
+              // winograd23: large channels, small spatial
+              || test_convolution(5, 5, 64, 64, 3, 1, 1, 1, 1, false, true)
+              || test_convolution(5, 5, 64, 32, 3, 1, 1, 1, 0, false, true)
+              || test_convolution(5, 5, 32, 64, 3, 1, 1, 1, 1, false, true)
+              // winograd23 with out_elempack=4
+              || test_convolution(5, 5, 64, 4, 3, 1, 1, 1, 0, false, true);
 
-        if (ret != 0)
-            return -1;
-    }
+    if (ret != 0)
+        return -1;
 
     return 0;
+}
+
+// BF16 im2col_gemm (sgemm) path: sgemm=true, winograd=false
+// Triggered when prefer_sgemm=true (large matrix) or kernel=1x1
+// prefer_sgemm: num_input * num_output * k*k * dilation^2 * stride^2 * sizeof(bf16) * 2 > L2
+//   or num_input > 16 || num_output > 16
+static int test_convolution_sgemm()
+{
+    // 1x1 convolution always goes to sgemm path
+    int ret = 0
+              || test_convolution(11, 10, 16, 16, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(11, 10, 16, 24, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 24, 16, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(11, 10, 16, 3, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 3, 16, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(11, 10, 16, 1, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 1, 16, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(11, 10, 16, 2, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 2, 16, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(11, 10, 9, 9, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 1, 1, 1, 1, 1, 0, 1, true, false)
+              // out_elempack=8 (1x1 with outch%8==0, outch%16!=0)
+              || test_convolution(11, 10, 16, 8, 1, 1, 1, 0, 1, true, false)
+              // out_elempack=4 (1x1 with outch%4==0, outch%8!=0)
+              || test_convolution(11, 10, 16, 4, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(11, 10, 16, 12, 1, 1, 1, 0, 1, true, false)
+
+              // non-1x1 with prefer_sgemm (num_output > 16)
+              || test_convolution(11, 10, 16, 20, 3, 1, 1, 1, 1, true, false)
+              || test_convolution(11, 10, 20, 16, 3, 1, 2, 1, 0, true, false)
+              || test_convolution(11, 10, 16, 20, 5, 1, 1, 2, 1, true, false)
+              || test_convolution(11, 10, 20, 16, 3, 2, 1, 2, 0, true, false)
+              || test_convolution(11, 10, 3, 20, 3, 1, 1, 1, 1, true, false)
+              || test_convolution(11, 10, 20, 3, 3, 1, 1, 1, 0, true, false)
+              // non-1x1 with out_elempack=8
+              || test_convolution(11, 10, 16, 8, 3, 1, 1, 1, 1, true, false)
+              // non-1x1 with out_elempack=4
+              || test_convolution(11, 10, 16, 4, 3, 1, 1, 1, 0, true, false);
+
+    if (ret != 0)
+        return -1;
+
+    return 0;
+}
+
+// BF16 packed path: sgemm=false, winograd=false (or conditions not met for winograd)
+// Falls through to convolution_packed_bf16s
+// Kernel configs: A={3,1,2,1} B={5,1,1,-234} C={3,2,1,-234} are spread across test items
+static int test_convolution_packed()
+{
+    return 0
+           // out_elempack=16                  k  d  s  p
+           || test_convolution(11, 10, 16, 16, 3, 1, 2, 1, 1, false, false) // ep=16
+           || test_convolution(11, 10, 24, 16, 5, 1, 1, -234, 0, false, false) // ep=8
+           || test_convolution(11, 10,  1, 16, 3, 2, 1, -234, 1, false, false) // ep=1
+           || test_convolution(11, 10,  3, 16, 3, 1, 2, 1, 0, false, false) // ep=1
+           || test_convolution(11, 10,  4, 16, 5, 1, 1, -234, 1, false, false) // ep=4, kernel_tm inch=4
+
+           // out_elempack=8
+           || test_convolution(11, 10, 16,  8, 3, 2, 1, -234, 0, false, false) // ep=16
+           || test_convolution(11, 10, 24,  8, 3, 1, 2, 1, 1, false, false) // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 20,  8, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17,  8, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
+           || test_convolution(11, 10,  1,  8, 3, 1, 2, 1, 0, false, false) // ep=1, kernel_tm inch=1
+
+           // out_elempack=4
+           || test_convolution(11, 10, 16,  4, 5, 1, 1, -234, 0, false, false) // ep=16
+           || test_convolution(11, 10, 24,  4, 3, 2, 1, -234, 1, false, false) // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 20,  4, 3, 1, 2, 1, 0, false, false) // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17,  4, 5, 1, 1, -234, 1, false, false) // ep=1, q+15 ep==1
+           || test_convolution(11, 10,  8,  4, 3, 2, 1, -234, 0, false, false) // ep=8, q+7 ep==8
+           || test_convolution(11, 10, 12,  4, 3, 1, 2, 1, 1, false, false) // ep=4, q+7/q+3 ep==4
+           || test_convolution(11, 10,  9,  4, 5, 1, 1, -234, 0, false, false) // ep=1, q+7 ep==1
+           || test_convolution(11, 10,  5,  4, 3, 2, 1, -234, 1, false, false) // ep=1, q+3 ep==1
+           || test_convolution(11, 10,  2,  4, 3, 1, 2, 1, 0, false, false) // kernel_tm inch=2
+           || test_convolution(11, 10, 16, 12, 5, 1, 1, -234, 1, false, false) // outch=12
+
+           // out_elempack=1
+           || test_convolution(11, 10, 16,  3, 3, 2, 1, -234, 1, false, false) // ep=16
+           || test_convolution(11, 10, 24,  1, 3, 1, 2, 1, 0, false, false) // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 24,  3, 5, 1, 1, -234, 1, false, false) // ep=8, outch=2+1
+           || test_convolution(11, 10, 20,  1, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17,  1, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
+           || test_convolution(11, 10, 12,  1, 3, 1, 2, 1, 0, false, false) // ep=4, q+7 ep==4
+           || test_convolution(11, 10,  9,  1, 5, 1, 1, -234, 1, false, false); // ep=1, q+7 ep==1
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_convolution_packed();
+    return test_convolution_winograd() || test_convolution_sgemm() || test_convolution_packed();
 }
