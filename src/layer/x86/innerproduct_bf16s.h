@@ -14,7 +14,7 @@ static void innerproduct_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
         innerproduct_bf16s_sse_avx512bf16(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
-#else // NCNN_RUNTIME_CPU
+#endif
 
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int outw = top_blob.w;
@@ -638,7 +638,6 @@ static void innerproduct_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
             outptr[p] = float32_to_bfloat16(sum);
         }
     }
-#endif // NCNN_RUNTIME_CPU
 }
 
 static void innerproduct_transform_kernel_bf16s_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
@@ -649,7 +648,7 @@ static void innerproduct_transform_kernel_bf16s_sse(const Mat& weight_data, Mat&
         innerproduct_transform_kernel_bf16s_sse_avx512bf16(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
-#else // NCNN_RUNTIME_CPU
+#endif
 
     int out_elempack = 1;
 #if __SSE2__
@@ -1025,5 +1024,4 @@ static void innerproduct_transform_kernel_bf16s_sse(const Mat& weight_data, Mat&
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
         ncnn::cast_float32_to_bfloat16(weight_data_r2, weight_data_tm, opt);
     }
-#endif // NCNN_RUNTIME_CPU
 }

@@ -13,7 +13,7 @@ static void innerproduct_gemm_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, c
         innerproduct_gemm_bf16s_sse_avx512bf16(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
         return;
     }
-#else // NCNN_RUNTIME_CPU
+#endif
 
     const int num_input = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
@@ -1081,5 +1081,4 @@ static void innerproduct_gemm_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, c
             }
         }
     }
-#endif // NCNN_RUNTIME_CPU
 }
