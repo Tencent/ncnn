@@ -25,7 +25,7 @@ int Spectrogram::load_param(const ParamDict& pd)
 
     // assert winlen <= n_fft
     // generate window
-    window_data.create(normalized == 2 ? n_fft + 1 : n_fft);
+    window_data.create(n_fft);
     {
         float* p = window_data;
         for (int i = 0; i < (n_fft - winlen) / 2; i++)
@@ -62,6 +62,14 @@ int Spectrogram::load_param(const ParamDict& pd)
         }
 
         // pre-calculated window norm factor
+        if (normalized == 1)
+        {
+            float scale = 1.f / sqrt(n_fft);
+            for (int i = 0; i < n_fft; i++)
+            {
+                window_data[i] *= scale;
+            }
+        }
         if (normalized == 2)
         {
             float sqsum = 0.f;
@@ -69,7 +77,12 @@ int Spectrogram::load_param(const ParamDict& pd)
             {
                 sqsum += window_data[i] * window_data[i];
             }
-            window_data[n_fft] = 1.f / sqrt(sqsum);
+            float scale = 1.f / sqrt(sqsum);
+
+            for (int i = 0; i < n_fft; i++)
+            {
+                window_data[i] *= scale;
+            }
         }
     }
 
@@ -137,19 +150,6 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 re += v * cosf(angle); // + imag * sinf(angle);
                 im -= v * sinf(angle); // + imag * cosf(angle);
-            }
-
-            if (normalized == 1)
-            {
-                float norm = 1.f / sqrt(n_fft);
-                re *= norm;
-                im *= norm;
-            }
-            if (normalized == 2)
-            {
-                float norm = window_data[n_fft];
-                re *= norm;
-                im *= norm;
             }
 
             if (power == 0)
