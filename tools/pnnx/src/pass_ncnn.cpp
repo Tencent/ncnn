@@ -24,6 +24,7 @@
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
 #include "pass_ncnn/fuse_convert_rotaryembed.h"
+#include "pass_ncnn/fuse_convert_stft.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
@@ -81,6 +82,7 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     attribute_unpooling(g);
 
     ncnn::fuse_convert_rotaryembed(g);
+    ncnn::fuse_convert_stft(g);
 
     ncnn::expand_expression(g);
 
