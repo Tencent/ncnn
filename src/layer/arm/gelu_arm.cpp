@@ -29,22 +29,11 @@ GELU_arm::GELU_arm()
 
 int GELU_arm::create_pipeline(const Option& /*opt*/)
 {
-    if (!fast_gelu)
-    {
-        support_packing = false;
-        support_fp16_storage = false;
-        support_bf16_storage = false;
-    }
     return 0;
 }
 
 int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (!fast_gelu)
-    {
-        return GELU::forward_inplace(bottom_top_blob, opt);
-    }
-
     int elembits = bottom_top_blob.elembits();
 
 #if NCNN_ARM82
@@ -77,25 +66,48 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int i = 0;
 
 #if __ARM_NEON
-        for (; i + 3 < size; i += 4)
+        if (fast_gelu)
         {
-            float32x4_t _pLoad = vld1q_f32(ptr);
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _pLoad = vld1q_f32(ptr);
 
-            float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
-            _blob = vmulq_f32(_pLoad, _blob);
-            _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
-            _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
-            _blob = tanh_ps(_blob);
-            _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-            _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
-            vst1q_f32(ptr, _blob);
-            ptr += 4;
+                float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
+                _blob = vmulq_f32(_pLoad, _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
+                _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
+                _blob = tanh_ps(_blob);
+                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                vst1q_f32(ptr, _blob);
+                ptr += 4;
+            }
+        }
+        else
+        {
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _pLoad = vld1q_f32(ptr);
+
+                float32x4_t _blob = vmulq_f32(vdupq_n_f32(0.70710678f), _pLoad);
+                _blob = erf_ps(_blob);
+                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                vst1q_f32(ptr, _blob);
+                ptr += 4;
+            }
         }
 #endif
         for (; i < size; i++)
         {
-            // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
-            *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+            if (fast_gelu)
+            {
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+            }
+            else
+            {
+                *ptr = 0.5f * *ptr * (1.0f + erff(0.70710678f * *ptr));
+            }
 
             ptr++;
         }
@@ -122,26 +134,50 @@ int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         int i = 0;
 
 #if __ARM_NEON
-        for (; i + 3 < size; i += 4)
+        if (fast_gelu)
         {
-            float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
 
-            float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
-            _blob = vmulq_f32(_pLoad, _blob);
-            _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
-            _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
-            _blob = tanh_ps(_blob);
-            _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-            _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
-            vst1_u16(ptr, float2bfloat(_blob));
-            ptr += 4;
+                float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
+                _blob = vmulq_f32(_pLoad, _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
+                _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
+                _blob = tanh_ps(_blob);
+                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                vst1_u16(ptr, float2bfloat(_blob));
+                ptr += 4;
+            }
+        }
+        else
+        {
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
+
+                float32x4_t _blob = vmulq_f32(vdupq_n_f32(0.70710678f), _pLoad);
+                _blob = erf_ps(_blob);
+                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
+                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                vst1_u16(ptr, float2bfloat(_blob));
+                ptr += 4;
+            }
         }
 #endif // __ARM_NEON
 
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
-            v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+            if (fast_gelu)
+            {
+                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+            }
+            else
+            {
+                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+            }
             *ptr = float32_to_bfloat16(v);
             ptr++;
         }
