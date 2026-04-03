@@ -181,39 +181,39 @@ static int test_convolution_packed()
 {
     return 0
            // out_elempack=16                  k  d  s  p
-           || test_convolution(11, 10, 16, 16, 3, 1, 2, 1, 1, false, false) // ep=16
+           || test_convolution(11, 10, 16, 16, 3, 1, 2, 1, 1, false, false)    // ep=16
            || test_convolution(11, 10, 24, 16, 5, 1, 1, -234, 0, false, false) // ep=8
-           || test_convolution(11, 10,  1, 16, 3, 2, 1, -234, 1, false, false) // ep=1
-           || test_convolution(11, 10,  3, 16, 3, 1, 2, 1, 0, false, false) // ep=1
-           || test_convolution(11, 10,  4, 16, 5, 1, 1, -234, 1, false, false) // ep=4, kernel_tm inch=4
+           || test_convolution(11, 10, 1, 16, 3, 2, 1, -234, 1, false, false)  // ep=1
+           || test_convolution(11, 10, 3, 16, 3, 1, 2, 1, 0, false, false)     // ep=1
+           || test_convolution(11, 10, 4, 16, 5, 1, 1, -234, 1, false, false)  // ep=4, kernel_tm inch=4
 
            // out_elempack=8
-           || test_convolution(11, 10, 16,  8, 3, 2, 1, -234, 0, false, false) // ep=16
-           || test_convolution(11, 10, 24,  8, 3, 1, 2, 1, 1, false, false) // ep=8, q+15 ep==8
-           || test_convolution(11, 10, 20,  8, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
-           || test_convolution(11, 10, 17,  8, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
-           || test_convolution(11, 10,  1,  8, 3, 1, 2, 1, 0, false, false) // ep=1, kernel_tm inch=1
+           || test_convolution(11, 10, 16, 8, 3, 2, 1, -234, 0, false, false) // ep=16
+           || test_convolution(11, 10, 24, 8, 3, 1, 2, 1, 1, false, false)    // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 20, 8, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17, 8, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
+           || test_convolution(11, 10, 1, 8, 3, 1, 2, 1, 0, false, false)     // ep=1, kernel_tm inch=1
 
            // out_elempack=4
-           || test_convolution(11, 10, 16,  4, 5, 1, 1, -234, 0, false, false) // ep=16
-           || test_convolution(11, 10, 24,  4, 3, 2, 1, -234, 1, false, false) // ep=8, q+15 ep==8
-           || test_convolution(11, 10, 20,  4, 3, 1, 2, 1, 0, false, false) // ep=4, q+15 ep==4
-           || test_convolution(11, 10, 17,  4, 5, 1, 1, -234, 1, false, false) // ep=1, q+15 ep==1
-           || test_convolution(11, 10,  8,  4, 3, 2, 1, -234, 0, false, false) // ep=8, q+7 ep==8
-           || test_convolution(11, 10, 12,  4, 3, 1, 2, 1, 1, false, false) // ep=4, q+7/q+3 ep==4
-           || test_convolution(11, 10,  9,  4, 5, 1, 1, -234, 0, false, false) // ep=1, q+7 ep==1
-           || test_convolution(11, 10,  5,  4, 3, 2, 1, -234, 1, false, false) // ep=1, q+3 ep==1
-           || test_convolution(11, 10,  2,  4, 3, 1, 2, 1, 0, false, false) // kernel_tm inch=2
+           || test_convolution(11, 10, 16, 4, 5, 1, 1, -234, 0, false, false)  // ep=16
+           || test_convolution(11, 10, 24, 4, 3, 2, 1, -234, 1, false, false)  // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 20, 4, 3, 1, 2, 1, 0, false, false)     // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17, 4, 5, 1, 1, -234, 1, false, false)  // ep=1, q+15 ep==1
+           || test_convolution(11, 10, 8, 4, 3, 2, 1, -234, 0, false, false)   // ep=8, q+7 ep==8
+           || test_convolution(11, 10, 12, 4, 3, 1, 2, 1, 1, false, false)     // ep=4, q+7/q+3 ep==4
+           || test_convolution(11, 10, 9, 4, 5, 1, 1, -234, 0, false, false)   // ep=1, q+7 ep==1
+           || test_convolution(11, 10, 5, 4, 3, 2, 1, -234, 1, false, false)   // ep=1, q+3 ep==1
+           || test_convolution(11, 10, 2, 4, 3, 1, 2, 1, 0, false, false)      // kernel_tm inch=2
            || test_convolution(11, 10, 16, 12, 5, 1, 1, -234, 1, false, false) // outch=12
 
            // out_elempack=1
-           || test_convolution(11, 10, 16,  3, 3, 2, 1, -234, 1, false, false) // ep=16
-           || test_convolution(11, 10, 24,  1, 3, 1, 2, 1, 0, false, false) // ep=8, q+15 ep==8
-           || test_convolution(11, 10, 24,  3, 5, 1, 1, -234, 1, false, false) // ep=8, outch=2+1
-           || test_convolution(11, 10, 20,  1, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
-           || test_convolution(11, 10, 17,  1, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
-           || test_convolution(11, 10, 12,  1, 3, 1, 2, 1, 0, false, false) // ep=4, q+7 ep==4
-           || test_convolution(11, 10,  9,  1, 5, 1, 1, -234, 1, false, false); // ep=1, q+7 ep==1
+           || test_convolution(11, 10, 16, 3, 3, 2, 1, -234, 1, false, false) // ep=16
+           || test_convolution(11, 10, 24, 1, 3, 1, 2, 1, 0, false, false)    // ep=8, q+15 ep==8
+           || test_convolution(11, 10, 24, 3, 5, 1, 1, -234, 1, false, false) // ep=8, outch=2+1
+           || test_convolution(11, 10, 20, 1, 5, 1, 1, -234, 0, false, false) // ep=4, q+15 ep==4
+           || test_convolution(11, 10, 17, 1, 3, 2, 1, -234, 1, false, false) // ep=1, q+15 ep==1
+           || test_convolution(11, 10, 12, 1, 3, 1, 2, 1, 0, false, false)    // ep=4, q+7 ep==4
+           || test_convolution(11, 10, 9, 1, 5, 1, 1, -234, 1, false, false); // ep=1, q+7 ep==1
 }
 
 int main()
