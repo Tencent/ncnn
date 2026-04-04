@@ -55,16 +55,18 @@ static inline vint8m1_t float2int8relu(vfloat32m4_t v, size_t vl)
 
 static inline vint8m2_t float2int8leakyrelu(vfloat32m8_t v, float slope, size_t vl)
 {
-    vint8m2_t v8 = float2int8(v, vl);
-    vint8m2_t v8_leaky = float2int8(__riscv_vfmul_vf_f32m8(v, slope, vl), vl);
-    return __riscv_vmax_vv_i8m2(v8, v8_leaky, vl);
+     vfloat32m8_t v_pos = __riscv_vfmax_vf_f32m8(v, 0.f, vl);
+     vfloat32m8_t v_neg = __riscv_vfmin_vf_f32m8(v, 0.f, vl);
+     vfloat32m8_t v_leakyrelu = __riscv_vfadd_vv_f32m8(v_pos, __riscv_vfmul_vf_f32m8(v_neg, slope, vl), vl);
+     return float2int8(v_leakyrelu, vl);
 }
 
 static inline vint8m1_t float2int8leakyrelu(vfloat32m4_t v, float slope, size_t vl)
 {
-    vint8m1_t v8 = float2int8(v, vl);
-    vint8m1_t v8_leaky = float2int8(__riscv_vfmul_vf_f32m4(v, slope, vl), vl);
-    return __riscv_vmax_vv_i8m1(v8, v8_leaky, vl);
+     vfloat32m4_t v_pos = __riscv_vfmax_vf_f32m4(v, 0.f, vl);
+     vfloat32m4_t v_neg = __riscv_vfmin_vf_f32m4(v, 0.f, vl);
+     vfloat32m4_t v_leakyrelu = __riscv_vfadd_vv_f32m4(v_pos, __riscv_vfmul_vf_f32m4(v_neg, slope, vl), vl);
+     return float2int8(v_leakyrelu, vl);
 }
 
 #if __riscv_zvfh
