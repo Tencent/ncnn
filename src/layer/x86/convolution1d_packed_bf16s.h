@@ -866,21 +866,21 @@ static void convolution1d_transform_kernel_packed_bf16s(const Mat& kernel, Mat& 
                 g00 += 16;
 #else  // __AVX2__
                 g00[0] = float32_to_bfloat16(k0[0]);
-                g00[1] = k0[kernel_w];
-                g00[2] = k0[kernel_w * 2];
-                g00[3] = k0[kernel_w * 3];
-                g00[4] = k0[kernel_w * 4];
-                g00[5] = k0[kernel_w * 5];
-                g00[6] = k0[kernel_w * 6];
-                g00[7] = k0[kernel_w * 7];
+                g00[1] = float32_to_bfloat16(k0[kernel_w]);
+                g00[2] = float32_to_bfloat16(k0[kernel_w * 2]);
+                g00[3] = float32_to_bfloat16(k0[kernel_w * 3]);
+                g00[4] = float32_to_bfloat16(k0[kernel_w * 4]);
+                g00[5] = float32_to_bfloat16(k0[kernel_w * 5]);
+                g00[6] = float32_to_bfloat16(k0[kernel_w * 6]);
+                g00[7] = float32_to_bfloat16(k0[kernel_w * 7]);
                 g00[8] = float32_to_bfloat16(k1[0]);
-                g00[9] = k1[kernel_w];
-                g00[10] = k1[kernel_w * 2];
-                g00[11] = k1[kernel_w * 3];
-                g00[12] = k1[kernel_w * 4];
-                g00[13] = k1[kernel_w * 5];
-                g00[14] = k1[kernel_w * 6];
-                g00[15] = k1[kernel_w * 7];
+                g00[9] = float32_to_bfloat16(k1[kernel_w]);
+                g00[10] = float32_to_bfloat16(k1[kernel_w * 2]);
+                g00[11] = float32_to_bfloat16(k1[kernel_w * 3]);
+                g00[12] = float32_to_bfloat16(k1[kernel_w * 4]);
+                g00[13] = float32_to_bfloat16(k1[kernel_w * 5]);
+                g00[14] = float32_to_bfloat16(k1[kernel_w * 6]);
+                g00[15] = float32_to_bfloat16(k1[kernel_w * 7]);
                 g00 += 16;
 #endif // __AVX2__
             }
@@ -904,13 +904,13 @@ static void convolution1d_transform_kernel_packed_bf16s(const Mat& kernel, Mat& 
                 g00 += 8;
 #else  // __AVX2__
                 g00[0] = float32_to_bfloat16(k0[0]);
-                g00[1] = k0[kernel_w];
-                g00[2] = k0[kernel_w * 2];
-                g00[3] = k0[kernel_w * 3];
+                g00[1] = float32_to_bfloat16(k0[kernel_w]);
+                g00[2] = float32_to_bfloat16(k0[kernel_w * 2]);
+                g00[3] = float32_to_bfloat16(k0[kernel_w * 3]);
                 g00[4] = float32_to_bfloat16(k1[0]);
-                g00[5] = k1[kernel_w];
-                g00[6] = k1[kernel_w * 2];
-                g00[7] = k1[kernel_w * 3];
+                g00[5] = float32_to_bfloat16(k1[kernel_w]);
+                g00[6] = float32_to_bfloat16(k1[kernel_w * 2]);
+                g00[7] = float32_to_bfloat16(k1[kernel_w * 3]);
                 g00 += 8;
 #endif // __AVX2__
             }
