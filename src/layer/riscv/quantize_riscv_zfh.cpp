@@ -420,7 +420,7 @@ static void quantize_packnto2n_fp16sa(const __fp16* ptr0, const __fp16* ptr1, si
 
 static void quantize_packnto1_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int stride)
 {
-    const size_t vlm4 = __riscv_vsetvlmax_e16m4();
+    const size_t vlm8 = __riscv_vsetvlmax_e16m8();
     const size_t vlm1 = __riscv_vsetvlmax_e16m1();
 
     __fp16 scale = (__fp16)scale_data[0];
@@ -432,7 +432,7 @@ static void quantize_packnto1_fp16sa(const __fp16* ptr, signed char* s8ptr, cons
         _scale = __riscv_vcreate_v_f16m1_f16m8(_s16, _s16, _s16, _s16, _s16, _s16, _s16, _s16);
     }
 
-    signed char tmp[vlm4];
+    signed char tmp[vlm8];
     int n = elemcount * vlm1;
     while (n > 0)
     {
