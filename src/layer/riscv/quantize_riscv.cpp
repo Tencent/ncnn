@@ -30,7 +30,6 @@ Quantize_riscv::Quantize_riscv()
 
 static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
 {
-    const int scale_data_size = scale_data.w;
     const int size = elemcount * elempack;
     float scale = scale_data[0];
 
@@ -38,7 +37,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
 #if __riscv_vector
     const size_t vlm1 = __riscv_vsetvlmax_e32m1();
     vfloat32m8_t _scale;
-    if (scale_data_size == 1)
+    if (scale_data.w == 1)
     {
         _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
     }
@@ -162,10 +161,8 @@ static void quantize_packnto1(const float* ptr, signed char* s8ptr, const Mat& s
 
 int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int elembits = bottom_blob.elembits();
-
 #if NCNN_ZFH
-    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && bottom_blob.elembits() == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blob, top_blob, opt);
