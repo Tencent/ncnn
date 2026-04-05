@@ -1605,6 +1605,35 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         }
     }
 
+    // onnx LSTM modules
+    for (const Operator* op : ops)
+    {
+        if (op->type != "LSTM" || op->inputs.size() < 3)
+            continue;
+
+        Operand* wih_op = op->inputs[1];
+        Operand* whh_op = op->inputs[2];
+
+        if (!wih_op->producer || wih_op->producer->type != "pnnx.Attribute")
+            continue;
+        if (!whh_op->producer || whh_op->producer->type != "pnnx.Attribute")
+            continue;
+
+        const auto& wih_shape = wih_op->producer->attrs.begin()->second.shape;
+        if (wih_shape.size() != 3)
+            continue;
+
+        int num_directions = wih_shape[0];
+        int hidden_size = wih_shape[1] / 4;
+        int input_size = wih_shape[2];
+        bool has_bias = (op->inputs.size() >= 4) && op->inputs[3]->producer && op->inputs[3]->producer->type == "pnnx.Attribute";
+
+        fprintf(pyfp, "        self.%s = nn.LSTM(%d, %d, 1, bias=%s, batch_first=False, bidirectional=%s)\n",
+            sanitize_identifier(op->name).c_str(), input_size, hidden_size,
+            has_bias ? "True" : "False",
+            num_directions == 2 ? "True" : "False");
+    }
+
     fprintf(pyfp, "\n");
 
     // load weights
@@ -1748,6 +1777,71 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             }
         }
 
+        // onnx LSTM weight loading
+        for (const Operator* op : ops)
+        {
+            if (op->type != "LSTM" || op->inputs.size() < 3)
+                continue;
+
+            Operand* wih_op = op->inputs[1];
+            Operand* whh_op = op->inputs[2];
+
+            if (!wih_op->producer || wih_op->producer->type != "pnnx.Attribute")
+                continue;
+            if (!whh_op->producer || whh_op->producer->type != "pnnx.Attribute")
+                continue;
+
+            const auto& wih_attr = wih_op->producer->attrs.begin()->second;
+            const auto& whh_attr = whh_op->producer->attrs.begin()->second;
+            const auto& wih_shape = wih_attr.shape;
+
+            int hidden_size = wih_shape[1] / 4;
+
+            std::string wih_key = wih_op->producer->name + "." + wih_op->producer->attrs.begin()->first;
+            std::string wih_shape_str;
+            for (size_t j = 0; j < wih_attr.shape.size(); j++)
+            {
+                wih_shape_str += std::to_string(wih_attr.shape[j]);
+                if (j + 1 != wih_attr.shape.size()) wih_shape_str += ",";
+            }
+            fprintf(pyfp, "        self.%s.weight_ih_l0 = nn.Parameter(self.load_pnnx_bin_as_tensor(archive, '%s', (%s), '%s')[0])\n",
+                sanitize_identifier(op->name).c_str(), wih_key.c_str(), wih_shape_str.c_str(),
+                type_to_numpy_string(wih_attr.type));
+
+            std::string whh_key = whh_op->producer->name + "." + whh_op->producer->attrs.begin()->first;
+            std::string whh_shape_str;
+            for (size_t j = 0; j < whh_attr.shape.size(); j++)
+            {
+                whh_shape_str += std::to_string(whh_attr.shape[j]);
+                if (j + 1 != whh_attr.shape.size()) whh_shape_str += ",";
+            }
+            fprintf(pyfp, "        self.%s.weight_hh_l0 = nn.Parameter(self.load_pnnx_bin_as_tensor(archive, '%s', (%s), '%s')[0])\n",
+                sanitize_identifier(op->name).c_str(), whh_key.c_str(), whh_shape_str.c_str(),
+                type_to_numpy_string(whh_attr.type));
+
+            if (op->inputs.size() >= 4 && op->inputs[3]->producer && op->inputs[3]->producer->type == "pnnx.Attribute")
+            {
+                Operand* bias_op = op->inputs[3];
+                const auto& bias_attr = bias_op->producer->attrs.begin()->second;
+                std::string bias_key = bias_op->producer->name + "." + bias_op->producer->attrs.begin()->first;
+
+                std::string bias_shape_str;
+                for (size_t j = 0; j < bias_attr.shape.size(); j++)
+                {
+                    bias_shape_str += std::to_string(bias_attr.shape[j]);
+                    if (j + 1 != bias_attr.shape.size()) bias_shape_str += ",";
+                }
+
+                fprintf(pyfp, "        _%s_bias = self.load_pnnx_bin_as_tensor(archive, '%s', (%s), '%s')[0]\n",
+                    sanitize_identifier(op->name).c_str(), bias_key.c_str(), bias_shape_str.c_str(),
+                    type_to_numpy_string(bias_attr.type));
+                fprintf(pyfp, "        self.%s.bias_ih_l0 = nn.Parameter(_%s_bias[:%d])\n",
+                    sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), hidden_size * 4);
+                fprintf(pyfp, "        self.%s.bias_hh_l0 = nn.Parameter(_%s_bias[%d:])\n",
+                    sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), hidden_size * 4);
+            }
+        }
+
         fprintf(pyfp, "        archive.close()\n");
     }
 
@@ -1810,6 +1904,18 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             }
             else if (op->type == "pnnx.Attribute")
             {
+                bool consumed_by_rnn = false;
+                for (const Operator* consumer : op->outputs[0]->consumers)
+                {
+                    if (consumer->type == "LSTM" || consumer->type == "GRU" || consumer->type == "RNN")
+                    {
+                        consumed_by_rnn = true;
+                        break;
+                    }
+                }
+                if (consumed_by_rnn)
+                    continue;
+
                 const std::string& key = op->attrs.begin()->first;
                 fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
             }
@@ -2064,6 +2170,20 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
                 }
+                fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "LSTM")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, "v_%s, (v_%s, v_%s)", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->outputs[1]->name).c_str(), sanitize_identifier(op->outputs[2]->name).c_str());
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
                 fprintf(pyfp, ")\n");
             }
             else if (op->type == "nn.LSTM")
