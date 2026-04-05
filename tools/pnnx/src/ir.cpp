@@ -2247,6 +2247,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         }
                     }
                 }
+                else if (op->type == "RoiAlign")
+                {
+                    int output_height = op->params.count("output_height") ? op->params.at("output_height").i : 1;
+                    int output_width = op->params.count("output_width") ? op->params.at("output_width").i : 1;
+                    float spatial_scale = op->params.count("spatial_scale") ? op->params.at("spatial_scale").f : 1.0f;
+                    int sampling_ratio = op->params.count("sampling_ratio") ? op->params.at("sampling_ratio").i : -1;
+                    fprintf(pyfp, " = torchvision.ops.roi_align(v_%s, torch.cat([v_%s.unsqueeze(1), v_%s], dim=1), (%d, %d), spatial_scale=%f, sampling_ratio=%d)",
+                        sanitize_identifier(op->inputs[0]->name).c_str(),
+                        sanitize_identifier(op->inputs[2]->name).c_str(),
+                        sanitize_identifier(op->inputs[1]->name).c_str(),
+                        output_height, output_width, spatial_scale, sampling_ratio);
+                    fprintf(pyfp, "\n");
+                }
                 else
                 {
                     fprintf(pyfp, " = %s(", op->type.c_str());
