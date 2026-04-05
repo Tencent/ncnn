@@ -2247,6 +2247,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         }
                     }
                 }
+                else if (op->type == "Pad")
+                {
+                    fprintf(pyfp, " = F.pad(v_%s, tuple(v_%s[v_%s.shape[0]//2:].flip(0).tolist())", sanitize_identifier(op->inputs[0]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str());
+                    if (op->params.count("mode"))
+                        fprintf(pyfp, ", mode=\"%s\"", op->params.at("mode").s.c_str());
+                    if (op->inputs.size() >= 3)
+                        fprintf(pyfp, ", value=v_%s.item()", sanitize_identifier(op->inputs[2]->name).c_str());
+                    fprintf(pyfp, ")\n");
+                }
                 else
                 {
                     fprintf(pyfp, " = %s(", op->type.c_str());
