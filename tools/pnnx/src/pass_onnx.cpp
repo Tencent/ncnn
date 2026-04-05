@@ -849,6 +849,10 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
             if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
+            if (op_type == "Gather")
+            {
+                sim_op_type = "aten::gather";
+            }
             if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
@@ -1242,6 +1246,11 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
 
                     op->name = op->name + "_sum0";
                 }
+            }
+            if (op_type == "Gather")
+            {
+                op->params["dim"] = op->params["axis"];
+                op->params.erase("axis");
             }
         }
         else if (is_prim_op)
