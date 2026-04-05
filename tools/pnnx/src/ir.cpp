@@ -2249,7 +2249,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else if (op->type == "Pad")
                 {
-                    fprintf(pyfp, " = F.pad(v_%s, tuple(v_%s[v_%s.shape[0]//2:].flip(0).tolist())", sanitize_identifier(op->inputs[0]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str());
+                    fprintf(pyfp, " = F.pad(v_%s, [x for i in range(len(v_%s)//2-1,-1,-1) for x in (v_%s[len(v_%s)//2+i],v_%s[i])]", sanitize_identifier(op->inputs[0]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[1]->name).c_str());
                     if (op->params.count("mode"))
                         fprintf(pyfp, ", mode=\"%s\"", op->params.at("mode").s.c_str());
                     if (op->inputs.size() >= 3)
