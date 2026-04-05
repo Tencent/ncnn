@@ -849,6 +849,10 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
             if (op_type == "Mod" && onnx2pnnx::OnnxNodeProxy(node).attribute("fmod").value_i() == 1) sim_op_type = "aten::fmod";
 
             // trinaryop
+            if (op_type == "Resize" || op_type == "Upsample" || op_type == "UpsampleNearest" || op_type == "UpsampleBilinear" || op_type == "ResizeNearestNeighbor" || op_type == "ResizeBilinear")
+            {
+                sim_op_type = "aten::interpolate";
+            }
             if (op_type == "Where") sim_op_type = "aten::where";
         }
         else if (string_starts_with(op_type, "aten_"))
@@ -1242,6 +1246,17 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
 
                     op->name = op->name + "_sum0";
                 }
+            }
+            if (op_type == "Resize" || op_type == "Upsample")
+            {
+                if (op->has_param("coordinate_transformation_mode"))
+                    op->params.erase("coordinate_transformation_mode");
+                if (op->has_param("exclude_outside"))
+                    op->params.erase("exclude_outside");
+                if (op->has_param("roi"))
+                    op->params.erase("roi");
+                if (op->has_param("scales") && op->has_param("sizes"))
+                    op->params.erase("scales");
             }
         }
         else if (is_prim_op)
