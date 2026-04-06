@@ -797,7 +797,7 @@ endif()
 
 if(onnxruntime_FOUND)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
-    target_link_libraries(pnnx PRIVATE onnx2pnnx)
+    target_link_libraries(pnnx PRIVATE onnx2pnnx onnxproto)
 endif()
 
 if(PNNX_TNN2PNNX)
