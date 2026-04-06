@@ -46,7 +46,7 @@ static void quantize_fp16s(const __fp16* ptr, signed char* s8ptr, const Mat& sca
 }
 
 #if __riscv_vector
-static void quantize_packnto2n_fp16s(const __fp16* ptr0, const __fp16* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
+static void quantize_packnton_s8_fp16s(const __fp16* ptr0, const __fp16* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
 {
     const size_t vlm1 = __riscv_vsetvlmax_e16m1();
     const size_t vlm2 = __riscv_vsetvlmax_e16m2();
@@ -200,7 +200,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnto2n_fp16s(ptr0, ptr1, s8ptr, scale_data_i, w);
+                quantize_packnton_s8_fp16s(ptr0, ptr1, s8ptr, scale_data_i, w);
             }
         }
         if (elempack == packn && out_elempack == 1)
@@ -259,7 +259,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnto2n_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_packnton_s8_fp16s(ptr0, ptr1, s8ptr, scale_data_q, w * h);
             }
         }
         if (elempack == packn && out_elempack == 1)
@@ -327,7 +327,7 @@ static void quantize_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& sc
 }
 
 #if __riscv_zvfh
-static void quantize_packnto2n_fp16sa(const __fp16* ptr0, const __fp16* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
+static void quantize_packnton_s8_fp16sa(const __fp16* ptr0, const __fp16* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
 {
     const size_t vlm1 = __riscv_vsetvlmax_e16m1();
     const size_t vlm2 = __riscv_vsetvlmax_e16m2();
@@ -502,7 +502,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
                 const Mat scale_data_i = scale_data_size > 1 ? scale_data.range(i * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnto2n_fp16sa(ptr0, ptr1, s8ptr, scale_data_i, w);
+                quantize_packnton_s8_fp16sa(ptr0, ptr1, s8ptr, scale_data_i, w);
             }
         }
 
@@ -563,7 +563,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
                 const Mat scale_data_q = scale_data_size > 1 ? scale_data.range(q * out_elempack, out_elempack) : scale_data;
 
-                quantize_packnto2n_fp16sa(ptr0, ptr1, s8ptr, scale_data_q, w * h);
+                quantize_packnton_s8_fp16sa(ptr0, ptr1, s8ptr, scale_data_q, w * h);
             }
         }
 
