@@ -149,7 +149,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
-    const int pack2n = csrr_vlenb();
+    const int packn_s8 = csrr_vlenb();
 #endif
 
     if (dims == 1)
@@ -158,7 +158,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 #if __riscv_vector
         if (opt.use_packing_layout)
         {
-            out_elempack = w * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = w * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outw = w * elempack / out_elempack;
@@ -190,7 +190,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 #if __riscv_vector
         if (opt.use_packing_layout)
         {
-            out_elempack = h * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = h * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outh = h * elempack / out_elempack;
@@ -201,7 +201,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
             return -100;
 
 #if __riscv_vector
-        if (elempack == packn && out_elempack == pack2n)
+        if (elempack == packn && out_elempack == packn_s8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
@@ -250,7 +250,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 #if __riscv_vector
         if (opt.use_packing_layout)
         {
-            out_elempack = channels * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = channels * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outc = channels * elempack / out_elempack;
@@ -260,7 +260,7 @@ int Quantize_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
         if (top_blob.empty())
             return -100;
 #if __riscv_vector
-        if (elempack == packn && out_elempack == pack2n)
+        if (elempack == packn && out_elempack == packn_s8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
@@ -465,7 +465,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 
 #if __riscv_zvfh
     const int packn = csrr_vlenb() / 2;
-    const int pack2n = csrr_vlenb();
+    const int packn_s8 = csrr_vlenb();
 #endif
 
     if (dims == 1)
@@ -474,7 +474,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 #if __riscv_zvfh
         if (opt.use_packing_layout)
         {
-            out_elempack = w * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = w * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outw = w * elempack / out_elempack;
@@ -506,7 +506,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 #if __riscv_zvfh
         if (opt.use_packing_layout)
         {
-            out_elempack = h * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = h * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outh = h * elempack / out_elempack;
@@ -516,7 +516,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
         if (top_blob.empty())
             return -100;
 #if __riscv_zvfh
-        if (elempack == packn && out_elempack == pack2n)
+        if (elempack == packn && out_elempack == packn_s8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
@@ -566,7 +566,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 #if __riscv_zvfh
         if (opt.use_packing_layout)
         {
-            out_elempack = channels * elempack % pack2n == 0 ? pack2n : 1;
+            out_elempack = channels * elempack % packn_s8 == 0 ? packn_s8 : 1;
         }
 #endif
         const int outc = channels * elempack / out_elempack;
@@ -577,7 +577,7 @@ int Quantize_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
             return -100;
 
 #if __riscv_zvfh
-        if (elempack == packn && out_elempack == pack2n)
+        if (elempack == packn && out_elempack == packn_s8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
