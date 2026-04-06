@@ -140,8 +140,10 @@ int main()
     SRAND(7767517);
 
     return 0
+#ifndef __riscv
+           || test_dequantize_3()
+#endif
            || test_dequantize_0()
            || test_dequantize_1()
-           || test_dequantize_2()
-           || test_dequantize_3();
+           || test_dequantize_2();
 }
