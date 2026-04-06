@@ -35,24 +35,12 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
 
     int i = 0;
 #if __riscv_vector
-    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-    vfloat32m8_t _scale;
-    if (scale_data.w == 1)
-    {
-        _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
-    }
-    else if (elempack == vlm1)
-    {
-        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, vlm1);
-        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-    }
-
     int n = size;
     while (n > 0)
     {
         size_t vl = __riscv_vsetvl_e32m8(n);
         vfloat32m8_t _v0 = __riscv_vle32_v_f32m8(ptr, vl);
-        _v0 = __riscv_vfmul_vv_f32m8(_v0, _scale, vl);
+        _v0 = __riscv_vfmul_vf_f32m8(_v0, scale, vl);
         __riscv_vse8_v_i8m2(s8ptr, float2int8(_v0, vl), vl);
 
         ptr += vl;

@@ -21,24 +21,12 @@ static void quantize_fp16s(const __fp16* ptr, signed char* s8ptr, const Mat& sca
 
     int i = 0;
 #if __riscv_vector
-    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-    vfloat32m8_t _scale;
-    if (scale_data_size == 1)
-    {
-        _scale = __riscv_vfmv_v_f_f32m8(scale, __riscv_vsetvlmax_e32m8());
-    }
-    else if (elempack == vlm1)
-    {
-        vfloat32m1_t _s = __riscv_vle32_v_f32m1(scale_data, vlm1);
-        _scale = __riscv_vcreate_v_f32m1_f32m8(_s, _s, _s, _s, _s, _s, _s, _s);
-    }
-
     int n = size;
     while (n > 0)
     {
         size_t vl = __riscv_vsetvl_e16m4(n);
         vfloat32m8_t _v0 = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
-        _v0 = __riscv_vfmul_vv_f32m8(_v0, _scale, vl);
+        _v0 = __riscv_vfmul_vf_f32m8(_v0, scale, vl);
         __riscv_vse8_v_i8m2(s8ptr, float2int8(_v0, vl), vl);
 
         ptr += vl;
@@ -314,25 +302,12 @@ static void quantize_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& sc
 
     int i = 0;
 #if __riscv_zvfh
-    const size_t vlm1 = __riscv_vsetvlmax_e16m1();
-    vfloat16m8_t _scale;
-    if (scale_data_size == 1)
-    {
-        _scale = __riscv_vfmv_v_f_f16m8(scale, __riscv_vsetvlmax_e16m8());
-    }
-    else if (elempack == vlm1)
-    {
-        vfloat32m1_t _s32 = __riscv_vle32_v_f32m1(scale_data, __riscv_vsetvlmax_e32m1());
-        vfloat16m1_t _s16 = __riscv_vfncvt_f_f_w_f16m1(__riscv_vcreate_v_f32m1_f32m2(_s32, _s32), vlm1);
-        _scale = __riscv_vcreate_v_f16m1_f16m8(_s16, _s16, _s16, _s16, _s16, _s16, _s16, _s16);
-    }
-
     int n = size;
     while (n > 0)
     {
         size_t vl = __riscv_vsetvl_e16m8(n);
         vfloat16m8_t _v0 = __riscv_vle16_v_f16m8(ptr, vl);
-        _v0 = __riscv_vfmul_vv_f16m8(_v0, _scale, vl);
+        _v0 = __riscv_vfmul_vf_f16m8(_v0, scale, vl);
         __riscv_vse8_v_i8m4(s8ptr, float2int8(_v0, vl), vl);
 
         ptr += vl;
