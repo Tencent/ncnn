@@ -7,6 +7,8 @@
 
 namespace ncnn {
 
+#include "interp_bilinear.h"
+#include "interp_bicubic.h"
 #include "interp_bf16s.h"
 
 void interp_forward_bf16s_sse_avx512bf16(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr)
