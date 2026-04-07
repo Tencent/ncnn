@@ -70,7 +70,8 @@ Option::Option()
     use_fp16_uniform = true;
     use_int8_uniform = true;
 
-    use_reserved_9 = false;
+    use_approximate_exp = false;
+
     use_reserved_10 = false;
     use_reserved_11 = false;
 }

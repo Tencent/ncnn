@@ -169,6 +169,11 @@ void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t all
     ((Option*)opt)->workspace_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
 }
 
+int ncnn_option_get_use_approximate_exp(const ncnn_option_t opt)
+{
+    return ((const Option*)opt)->use_approximate_exp;
+}
+
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 {
 #if NCNN_VULKAN
@@ -267,6 +272,11 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable)
     (void)opt;
     (void)enable;
 #endif
+}
+
+void ncnn_option_set_use_approximate_exp(ncnn_option_t opt, int enable)
+{
+    ((Option*)opt)->use_approximate_exp = enable;
 }
 
 void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable)

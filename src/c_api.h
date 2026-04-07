@@ -59,6 +59,7 @@ NCNN_EXPORT int ncnn_option_get_use_bf16_packed(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_bf16_storage(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_shader_local_memory(const ncnn_option_t opt);
 NCNN_EXPORT int ncnn_option_get_use_cooperative_matrix(const ncnn_option_t opt);
+NCNN_EXPORT int ncnn_option_get_use_approximate_exp(const ncnn_option_t opt);
 
 NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int enable);
@@ -75,6 +76,7 @@ NCNN_EXPORT void ncnn_option_set_use_bf16_packed(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_bf16_storage(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_shader_local_memory(ncnn_option_t opt, int enable);
 NCNN_EXPORT void ncnn_option_set_use_cooperative_matrix(ncnn_option_t opt, int enable);
+NCNN_EXPORT void ncnn_option_set_use_approximate_exp(ncnn_option_t opt, int enable);
 
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;

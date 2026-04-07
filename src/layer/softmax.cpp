@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "softmax.h"
+#include "fast_math.h"
 
 #include <float.h>
 
@@ -29,7 +30,7 @@ int Softmax::load_param(const ParamDict& pd)
     return 0;
 }
 
-static void softmax(float* _ptr, int size)
+static void softmax(float* _ptr, int size, bool use_approximate_exp)
 {
     // reduce max
     float max = -FLT_MAX;
@@ -47,7 +48,7 @@ static void softmax(float* _ptr, int size)
         float* ptr = _ptr;
         for (int i = 0; i < size; i++)
         {
-            *ptr = expf(*ptr - max);
+            *ptr = use_approximate_exp ? fast_exp(*ptr - max) : expf(*ptr - max);
             sum += *ptr;
             ptr++;
         }
@@ -63,7 +64,7 @@ static void softmax(float* _ptr, int size)
     }
 }
 
-static void softmax(float* _ptr, int size, int stride)
+static void softmax(float* _ptr, int size, int stride, bool use_approximate_exp)
 {
     // reduce max
     float max = -FLT_MAX;
@@ -82,7 +83,7 @@ static void softmax(float* _ptr, int size, int stride)
         float* ptr = _ptr;
         for (int i = 0; i < size; i++)
         {
-            *ptr = expf(*ptr - max);
+            *ptr = use_approximate_exp ? fast_exp(*ptr - max) : expf(*ptr - max);
             sum += *ptr;
             ptr += stride;
         }
@@ -111,12 +112,13 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     const int d = bottom_top_blob.d;
     const int channels = bottom_top_blob.c;
     const int positive_axis = axis < 0 ? dims + axis : axis;
+    const bool use_approx_exp = opt.use_approximate_exp;
 
     if (dims == 1) // positive_axis == 0
     {
         float* ptr = bottom_top_blob;
 
-        softmax(ptr, w);
+        softmax(ptr, w, use_approx_exp);
     }
 
     if (dims == 2 && positive_axis == 0)
@@ -126,7 +128,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = (float*)bottom_top_blob + i;
 
-            softmax(ptr, h, w);
+            softmax(ptr, h, w, use_approx_exp);
         }
     }
 
@@ -137,7 +139,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.row(i);
 
-            softmax(ptr, w);
+            softmax(ptr, w, use_approx_exp);
         }
     }
 
@@ -150,7 +152,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = (float*)bottom_top_blob + i;
 
-            softmax(ptr, channels, bottom_top_blob.cstep);
+            softmax(ptr, channels, bottom_top_blob.cstep, use_approx_exp);
         }
     }
 
@@ -163,7 +165,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < w; i++)
             {
-                softmax(ptr, h, w);
+                softmax(ptr, h, w, use_approx_exp);
                 ptr += 1;
             }
         }
@@ -178,7 +180,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < h; i++)
             {
-                softmax(ptr, w);
+                softmax(ptr, w, use_approx_exp);
                 ptr += w;
             }
         }
@@ -193,7 +195,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = (float*)bottom_top_blob + i;
 
-            softmax(ptr, channels, bottom_top_blob.cstep);
+            softmax(ptr, channels, bottom_top_blob.cstep, use_approx_exp);
         }
     }
 
@@ -206,7 +208,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < w * h; i++)
             {
-                softmax(ptr, d, w * h);
+                softmax(ptr, d, w * h, use_approx_exp);
                 ptr += 1;
             }
         }
@@ -223,7 +225,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 for (int j = 0; j < w; j++)
                 {
-                    softmax(ptr, h, w);
+                    softmax(ptr, h, w, use_approx_exp);
                     ptr += 1;
                 }
             }
@@ -241,7 +243,7 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 for (int j = 0; j < h; j++)
                 {
-                    softmax(ptr, w);
+                    softmax(ptr, w, use_approx_exp);
                     ptr += w;
                 }
             }

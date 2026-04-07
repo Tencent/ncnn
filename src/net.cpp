@@ -113,6 +113,7 @@ static Option get_masked_option(const Option& opt, int featmask)
     opt1.use_tensor_storage = opt1.use_tensor_storage && !(featmask & (1 << 4));
     opt1.use_sgemm_convolution = opt1.use_sgemm_convolution && !(featmask & (1 << 5));
     opt1.use_winograd_convolution = opt1.use_winograd_convolution && !(featmask & (1 << 6));
+    opt1.use_approximate_exp = opt1.use_approximate_exp && !(featmask & (1 << 8));
 
     if (featmask & (1 << 7))
         opt1.num_threads = 1;

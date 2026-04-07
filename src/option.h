@@ -145,7 +145,11 @@ public:
     bool use_fp16_uniform;
     bool use_int8_uniform;
 
-    bool use_reserved_9;
+    // enable approximate exp implementation
+    // use polynormial approximation for expf() in supported operators
+    // may improve performance at the cost of slight accracy loss
+    bool use_approximate_exp;
+
     bool use_reserved_10;
     bool use_reserved_11;
 };
