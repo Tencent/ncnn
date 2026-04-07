@@ -38,7 +38,60 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
 
             const float* alphap = alpha;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++)
+            int dx = 0;
+#if __AVX__
+#if __AVX512F__
+            for (; dx + 3 < w; dx += 4)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+                int sx2 = xofs[dx + 2] * 4;
+                int sx3 = xofs[dx + 3] * 4;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4], alphap[8], alphap[8], alphap[8], alphap[8], alphap[12], alphap[12], alphap[12], alphap[12]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5], alphap[9], alphap[9], alphap[9], alphap[9], alphap[13], alphap[13], alphap[13], alphap[13]);
+                __m512 _a2 = _mm512_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6], alphap[10], alphap[10], alphap[10], alphap[10], alphap[14], alphap[14], alphap[14], alphap[14]);
+                __m512 _a3 = _mm512_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7], alphap[11], alphap[11], alphap[11], alphap[11], alphap[15], alphap[15], alphap[15], alphap[15]);
+
+                __m512 _S30 = combine4x4_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4), _mm_load_ps(S3 + sx2 - 4), _mm_load_ps(S3 + sx3 - 4));
+                __m512 _S31 = combine4x4_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1), _mm_load_ps(S3 + sx2), _mm_load_ps(S3 + sx3));
+                __m512 _S32 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4), _mm_load_ps(S3 + sx2 + 4), _mm_load_ps(S3 + sx3 + 4));
+                __m512 _S33 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8), _mm_load_ps(S3 + sx2 + 8), _mm_load_ps(S3 + sx3 + 8));
+
+                __m512 _rows3 = _mm512_mul_ps(_S30, _a0);
+                _rows3 = _mm512_fmadd_ps(_S31, _a1, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S32, _a2, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S33, _a3, _rows3);
+                _mm512_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 16;
+            }
+#endif // __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+
+                __m256 _a0 = _mm256_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4]);
+                __m256 _a1 = _mm256_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5]);
+                __m256 _a2 = _mm256_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6]);
+                __m256 _a3 = _mm256_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7]);
+
+                __m256 _S30 = combine4x2_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4));
+                __m256 _S31 = combine4x2_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1));
+                __m256 _S32 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4));
+                __m256 _S33 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8));
+
+                __m256 _rows3 = _mm256_mul_ps(_S30, _a0);
+                _rows3 = _mm256_comp_fmadd_ps(_S31, _a1, _rows3);
+                _rows3 = _mm256_comp_fmadd_ps(_S32, _a2, _rows3);
+                _rows3 = _mm256_comp_fmadd_ps(_S33, _a3, _rows3);
+                _mm256_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 8;
+            }
+#endif // __AVX__
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S3p = S3 + sx;
@@ -76,7 +129,80 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             const float* alphap = alpha;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++)
+            int dx = 0;
+#if __AVX__
+#if __AVX512F__
+            for (; dx + 3 < w; dx += 4)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+                int sx2 = xofs[dx + 2] * 4;
+                int sx3 = xofs[dx + 3] * 4;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4], alphap[8], alphap[8], alphap[8], alphap[8], alphap[12], alphap[12], alphap[12], alphap[12]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5], alphap[9], alphap[9], alphap[9], alphap[9], alphap[13], alphap[13], alphap[13], alphap[13]);
+                __m512 _a2 = _mm512_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6], alphap[10], alphap[10], alphap[10], alphap[10], alphap[14], alphap[14], alphap[14], alphap[14]);
+                __m512 _a3 = _mm512_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7], alphap[11], alphap[11], alphap[11], alphap[11], alphap[15], alphap[15], alphap[15], alphap[15]);
+
+                __m512 _S20 = combine4x4_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4), _mm_load_ps(S2 + sx2 - 4), _mm_load_ps(S2 + sx3 - 4));
+                __m512 _S21 = combine4x4_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1), _mm_load_ps(S2 + sx2), _mm_load_ps(S2 + sx3));
+                __m512 _S22 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4), _mm_load_ps(S2 + sx2 + 4), _mm_load_ps(S2 + sx3 + 4));
+                __m512 _S23 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8), _mm_load_ps(S2 + sx2 + 8), _mm_load_ps(S2 + sx3 + 8));
+
+                __m512 _rows2 = _mm512_mul_ps(_S20, _a0);
+                _rows2 = _mm512_fmadd_ps(_S21, _a1, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S22, _a2, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S23, _a3, _rows2);
+                _mm512_storeu_ps(rows2p + dx * 4, _rows2);
+
+                __m512 _S30 = combine4x4_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4), _mm_load_ps(S3 + sx2 - 4), _mm_load_ps(S3 + sx3 - 4));
+                __m512 _S31 = combine4x4_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1), _mm_load_ps(S3 + sx2), _mm_load_ps(S3 + sx3));
+                __m512 _S32 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4), _mm_load_ps(S3 + sx2 + 4), _mm_load_ps(S3 + sx3 + 4));
+                __m512 _S33 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8), _mm_load_ps(S3 + sx2 + 8), _mm_load_ps(S3 + sx3 + 8));
+
+                __m512 _rows3 = _mm512_mul_ps(_S30, _a0);
+                _rows3 = _mm512_fmadd_ps(_S31, _a1, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S32, _a2, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S33, _a3, _rows3);
+                _mm512_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 16;
+            }
+#endif // __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+
+                __m256 _a0 = _mm256_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4]);
+                __m256 _a1 = _mm256_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5]);
+                __m256 _a2 = _mm256_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6]);
+                __m256 _a3 = _mm256_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7]);
+
+                __m256 _S20 = combine4x2_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4));
+                __m256 _S21 = combine4x2_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1));
+                __m256 _S22 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4));
+                __m256 _S23 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8));
+                __m256 _S30 = combine4x2_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4));
+                __m256 _S31 = combine4x2_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1));
+                __m256 _S32 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4));
+                __m256 _S33 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8));
+
+                __m256 _rows2 = _mm256_mul_ps(_S20, _a0);
+                __m256 _rows3 = _mm256_mul_ps(_S30, _a0);
+                _rows2 = _mm256_comp_fmadd_ps(_S21, _a1, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S31, _a1, _rows3);
+                _rows2 = _mm256_comp_fmadd_ps(_S22, _a2, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S32, _a2, _rows3);
+                _rows2 = _mm256_comp_fmadd_ps(_S23, _a3, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S33, _a3, _rows3);
+                _mm256_storeu_ps(rows2p + dx * 4, _rows2);
+                _mm256_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 8;
+            }
+#endif // __AVX__
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S2p = S2 + sx;
@@ -127,7 +253,97 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             float* rows1p = rows1;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++)
+            int dx = 0;
+#if __AVX__
+#if __AVX512F__
+            for (; dx + 3 < w; dx += 4)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+                int sx2 = xofs[dx + 2] * 4;
+                int sx3 = xofs[dx + 3] * 4;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4], alphap[8], alphap[8], alphap[8], alphap[8], alphap[12], alphap[12], alphap[12], alphap[12]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5], alphap[9], alphap[9], alphap[9], alphap[9], alphap[13], alphap[13], alphap[13], alphap[13]);
+                __m512 _a2 = _mm512_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6], alphap[10], alphap[10], alphap[10], alphap[10], alphap[14], alphap[14], alphap[14], alphap[14]);
+                __m512 _a3 = _mm512_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7], alphap[11], alphap[11], alphap[11], alphap[11], alphap[15], alphap[15], alphap[15], alphap[15]);
+
+                __m512 _S10 = combine4x4_ps(_mm_load_ps(S1 + sx0 - 4), _mm_load_ps(S1 + sx1 - 4), _mm_load_ps(S1 + sx2 - 4), _mm_load_ps(S1 + sx3 - 4));
+                __m512 _S11 = combine4x4_ps(_mm_load_ps(S1 + sx0), _mm_load_ps(S1 + sx1), _mm_load_ps(S1 + sx2), _mm_load_ps(S1 + sx3));
+                __m512 _S12 = combine4x4_ps(_mm_load_ps(S1 + sx0 + 4), _mm_load_ps(S1 + sx1 + 4), _mm_load_ps(S1 + sx2 + 4), _mm_load_ps(S1 + sx3 + 4));
+                __m512 _S13 = combine4x4_ps(_mm_load_ps(S1 + sx0 + 8), _mm_load_ps(S1 + sx1 + 8), _mm_load_ps(S1 + sx2 + 8), _mm_load_ps(S1 + sx3 + 8));
+                __m512 _rows1 = _mm512_mul_ps(_S10, _a0);
+                _rows1 = _mm512_fmadd_ps(_S11, _a1, _rows1);
+                _rows1 = _mm512_fmadd_ps(_S12, _a2, _rows1);
+                _rows1 = _mm512_fmadd_ps(_S13, _a3, _rows1);
+                _mm512_storeu_ps(rows1p + dx * 4, _rows1);
+
+                __m512 _S20 = combine4x4_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4), _mm_load_ps(S2 + sx2 - 4), _mm_load_ps(S2 + sx3 - 4));
+                __m512 _S21 = combine4x4_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1), _mm_load_ps(S2 + sx2), _mm_load_ps(S2 + sx3));
+                __m512 _S22 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4), _mm_load_ps(S2 + sx2 + 4), _mm_load_ps(S2 + sx3 + 4));
+                __m512 _S23 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8), _mm_load_ps(S2 + sx2 + 8), _mm_load_ps(S2 + sx3 + 8));
+                __m512 _rows2 = _mm512_mul_ps(_S20, _a0);
+                _rows2 = _mm512_fmadd_ps(_S21, _a1, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S22, _a2, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S23, _a3, _rows2);
+                _mm512_storeu_ps(rows2p + dx * 4, _rows2);
+
+                __m512 _S30 = combine4x4_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4), _mm_load_ps(S3 + sx2 - 4), _mm_load_ps(S3 + sx3 - 4));
+                __m512 _S31 = combine4x4_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1), _mm_load_ps(S3 + sx2), _mm_load_ps(S3 + sx3));
+                __m512 _S32 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4), _mm_load_ps(S3 + sx2 + 4), _mm_load_ps(S3 + sx3 + 4));
+                __m512 _S33 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8), _mm_load_ps(S3 + sx2 + 8), _mm_load_ps(S3 + sx3 + 8));
+                __m512 _rows3 = _mm512_mul_ps(_S30, _a0);
+                _rows3 = _mm512_fmadd_ps(_S31, _a1, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S32, _a2, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S33, _a3, _rows3);
+                _mm512_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 16;
+            }
+#endif // __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+
+                __m256 _a0 = _mm256_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4]);
+                __m256 _a1 = _mm256_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5]);
+                __m256 _a2 = _mm256_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6]);
+                __m256 _a3 = _mm256_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7]);
+
+                __m256 _S10 = combine4x2_ps(_mm_load_ps(S1 + sx0 - 4), _mm_load_ps(S1 + sx1 - 4));
+                __m256 _S11 = combine4x2_ps(_mm_load_ps(S1 + sx0), _mm_load_ps(S1 + sx1));
+                __m256 _S12 = combine4x2_ps(_mm_load_ps(S1 + sx0 + 4), _mm_load_ps(S1 + sx1 + 4));
+                __m256 _S13 = combine4x2_ps(_mm_load_ps(S1 + sx0 + 8), _mm_load_ps(S1 + sx1 + 8));
+                __m256 _S20 = combine4x2_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4));
+                __m256 _S21 = combine4x2_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1));
+                __m256 _S22 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4));
+                __m256 _S23 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8));
+                __m256 _S30 = combine4x2_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4));
+                __m256 _S31 = combine4x2_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1));
+                __m256 _S32 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4));
+                __m256 _S33 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8));
+
+                __m256 _rows1 = _mm256_mul_ps(_S10, _a0);
+                __m256 _rows2 = _mm256_mul_ps(_S20, _a0);
+                __m256 _rows3 = _mm256_mul_ps(_S30, _a0);
+                _rows1 = _mm256_comp_fmadd_ps(_S11, _a1, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S21, _a1, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S31, _a1, _rows3);
+                _rows1 = _mm256_comp_fmadd_ps(_S12, _a2, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S22, _a2, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S32, _a2, _rows3);
+                _rows1 = _mm256_comp_fmadd_ps(_S13, _a3, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S23, _a3, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S33, _a3, _rows3);
+                _mm256_storeu_ps(rows1p + dx * 4, _rows1);
+                _mm256_storeu_ps(rows2p + dx * 4, _rows2);
+                _mm256_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 8;
+            }
+#endif // __AVX__
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S1p = S1 + sx;
@@ -183,7 +399,116 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             float* rows1p = rows1;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++)
+            int dx = 0;
+#if __AVX__
+#if __AVX512F__
+            for (; dx + 3 < w; dx += 4)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+                int sx2 = xofs[dx + 2] * 4;
+                int sx3 = xofs[dx + 3] * 4;
+
+                __m512 _a0 = _mm512_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4], alphap[8], alphap[8], alphap[8], alphap[8], alphap[12], alphap[12], alphap[12], alphap[12]);
+                __m512 _a1 = _mm512_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5], alphap[9], alphap[9], alphap[9], alphap[9], alphap[13], alphap[13], alphap[13], alphap[13]);
+                __m512 _a2 = _mm512_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6], alphap[10], alphap[10], alphap[10], alphap[10], alphap[14], alphap[14], alphap[14], alphap[14]);
+                __m512 _a3 = _mm512_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7], alphap[11], alphap[11], alphap[11], alphap[11], alphap[15], alphap[15], alphap[15], alphap[15]);
+
+                __m512 _S00 = combine4x4_ps(_mm_load_ps(S0 + sx0 - 4), _mm_load_ps(S0 + sx1 - 4), _mm_load_ps(S0 + sx2 - 4), _mm_load_ps(S0 + sx3 - 4));
+                __m512 _S01 = combine4x4_ps(_mm_load_ps(S0 + sx0), _mm_load_ps(S0 + sx1), _mm_load_ps(S0 + sx2), _mm_load_ps(S0 + sx3));
+                __m512 _S02 = combine4x4_ps(_mm_load_ps(S0 + sx0 + 4), _mm_load_ps(S0 + sx1 + 4), _mm_load_ps(S0 + sx2 + 4), _mm_load_ps(S0 + sx3 + 4));
+                __m512 _S03 = combine4x4_ps(_mm_load_ps(S0 + sx0 + 8), _mm_load_ps(S0 + sx1 + 8), _mm_load_ps(S0 + sx2 + 8), _mm_load_ps(S0 + sx3 + 8));
+                __m512 _rows0 = _mm512_mul_ps(_S00, _a0);
+                _rows0 = _mm512_fmadd_ps(_S01, _a1, _rows0);
+                _rows0 = _mm512_fmadd_ps(_S02, _a2, _rows0);
+                _rows0 = _mm512_fmadd_ps(_S03, _a3, _rows0);
+                _mm512_storeu_ps(rows0p + dx * 4, _rows0);
+
+                __m512 _S10 = combine4x4_ps(_mm_load_ps(S1 + sx0 - 4), _mm_load_ps(S1 + sx1 - 4), _mm_load_ps(S1 + sx2 - 4), _mm_load_ps(S1 + sx3 - 4));
+                __m512 _S11 = combine4x4_ps(_mm_load_ps(S1 + sx0), _mm_load_ps(S1 + sx1), _mm_load_ps(S1 + sx2), _mm_load_ps(S1 + sx3));
+                __m512 _S12 = combine4x4_ps(_mm_load_ps(S1 + sx0 + 4), _mm_load_ps(S1 + sx1 + 4), _mm_load_ps(S1 + sx2 + 4), _mm_load_ps(S1 + sx3 + 4));
+                __m512 _S13 = combine4x4_ps(_mm_load_ps(S1 + sx0 + 8), _mm_load_ps(S1 + sx1 + 8), _mm_load_ps(S1 + sx2 + 8), _mm_load_ps(S1 + sx3 + 8));
+                __m512 _rows1 = _mm512_mul_ps(_S10, _a0);
+                _rows1 = _mm512_fmadd_ps(_S11, _a1, _rows1);
+                _rows1 = _mm512_fmadd_ps(_S12, _a2, _rows1);
+                _rows1 = _mm512_fmadd_ps(_S13, _a3, _rows1);
+                _mm512_storeu_ps(rows1p + dx * 4, _rows1);
+
+                __m512 _S20 = combine4x4_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4), _mm_load_ps(S2 + sx2 - 4), _mm_load_ps(S2 + sx3 - 4));
+                __m512 _S21 = combine4x4_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1), _mm_load_ps(S2 + sx2), _mm_load_ps(S2 + sx3));
+                __m512 _S22 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4), _mm_load_ps(S2 + sx2 + 4), _mm_load_ps(S2 + sx3 + 4));
+                __m512 _S23 = combine4x4_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8), _mm_load_ps(S2 + sx2 + 8), _mm_load_ps(S2 + sx3 + 8));
+                __m512 _rows2 = _mm512_mul_ps(_S20, _a0);
+                _rows2 = _mm512_fmadd_ps(_S21, _a1, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S22, _a2, _rows2);
+                _rows2 = _mm512_fmadd_ps(_S23, _a3, _rows2);
+                _mm512_storeu_ps(rows2p + dx * 4, _rows2);
+
+                __m512 _S30 = combine4x4_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4), _mm_load_ps(S3 + sx2 - 4), _mm_load_ps(S3 + sx3 - 4));
+                __m512 _S31 = combine4x4_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1), _mm_load_ps(S3 + sx2), _mm_load_ps(S3 + sx3));
+                __m512 _S32 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4), _mm_load_ps(S3 + sx2 + 4), _mm_load_ps(S3 + sx3 + 4));
+                __m512 _S33 = combine4x4_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8), _mm_load_ps(S3 + sx2 + 8), _mm_load_ps(S3 + sx3 + 8));
+                __m512 _rows3 = _mm512_mul_ps(_S30, _a0);
+                _rows3 = _mm512_fmadd_ps(_S31, _a1, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S32, _a2, _rows3);
+                _rows3 = _mm512_fmadd_ps(_S33, _a3, _rows3);
+                _mm512_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 16;
+            }
+#endif // __AVX512F__
+            for (; dx + 1 < w; dx += 2)
+            {
+                int sx0 = xofs[dx] * 4;
+                int sx1 = xofs[dx + 1] * 4;
+
+                __m256 _a0 = _mm256_setr_ps(alphap[0], alphap[0], alphap[0], alphap[0], alphap[4], alphap[4], alphap[4], alphap[4]);
+                __m256 _a1 = _mm256_setr_ps(alphap[1], alphap[1], alphap[1], alphap[1], alphap[5], alphap[5], alphap[5], alphap[5]);
+                __m256 _a2 = _mm256_setr_ps(alphap[2], alphap[2], alphap[2], alphap[2], alphap[6], alphap[6], alphap[6], alphap[6]);
+                __m256 _a3 = _mm256_setr_ps(alphap[3], alphap[3], alphap[3], alphap[3], alphap[7], alphap[7], alphap[7], alphap[7]);
+
+                __m256 _S00 = combine4x2_ps(_mm_load_ps(S0 + sx0 - 4), _mm_load_ps(S0 + sx1 - 4));
+                __m256 _S01 = combine4x2_ps(_mm_load_ps(S0 + sx0), _mm_load_ps(S0 + sx1));
+                __m256 _S02 = combine4x2_ps(_mm_load_ps(S0 + sx0 + 4), _mm_load_ps(S0 + sx1 + 4));
+                __m256 _S03 = combine4x2_ps(_mm_load_ps(S0 + sx0 + 8), _mm_load_ps(S0 + sx1 + 8));
+                __m256 _S10 = combine4x2_ps(_mm_load_ps(S1 + sx0 - 4), _mm_load_ps(S1 + sx1 - 4));
+                __m256 _S11 = combine4x2_ps(_mm_load_ps(S1 + sx0), _mm_load_ps(S1 + sx1));
+                __m256 _S12 = combine4x2_ps(_mm_load_ps(S1 + sx0 + 4), _mm_load_ps(S1 + sx1 + 4));
+                __m256 _S13 = combine4x2_ps(_mm_load_ps(S1 + sx0 + 8), _mm_load_ps(S1 + sx1 + 8));
+                __m256 _S20 = combine4x2_ps(_mm_load_ps(S2 + sx0 - 4), _mm_load_ps(S2 + sx1 - 4));
+                __m256 _S21 = combine4x2_ps(_mm_load_ps(S2 + sx0), _mm_load_ps(S2 + sx1));
+                __m256 _S22 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 4), _mm_load_ps(S2 + sx1 + 4));
+                __m256 _S23 = combine4x2_ps(_mm_load_ps(S2 + sx0 + 8), _mm_load_ps(S2 + sx1 + 8));
+                __m256 _S30 = combine4x2_ps(_mm_load_ps(S3 + sx0 - 4), _mm_load_ps(S3 + sx1 - 4));
+                __m256 _S31 = combine4x2_ps(_mm_load_ps(S3 + sx0), _mm_load_ps(S3 + sx1));
+                __m256 _S32 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 4), _mm_load_ps(S3 + sx1 + 4));
+                __m256 _S33 = combine4x2_ps(_mm_load_ps(S3 + sx0 + 8), _mm_load_ps(S3 + sx1 + 8));
+
+                __m256 _rows0 = _mm256_mul_ps(_S00, _a0);
+                __m256 _rows1 = _mm256_mul_ps(_S10, _a0);
+                __m256 _rows2 = _mm256_mul_ps(_S20, _a0);
+                __m256 _rows3 = _mm256_mul_ps(_S30, _a0);
+                _rows0 = _mm256_comp_fmadd_ps(_S01, _a1, _rows0);
+                _rows1 = _mm256_comp_fmadd_ps(_S11, _a1, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S21, _a1, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S31, _a1, _rows3);
+                _rows0 = _mm256_comp_fmadd_ps(_S02, _a2, _rows0);
+                _rows1 = _mm256_comp_fmadd_ps(_S12, _a2, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S22, _a2, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S32, _a2, _rows3);
+                _rows0 = _mm256_comp_fmadd_ps(_S03, _a3, _rows0);
+                _rows1 = _mm256_comp_fmadd_ps(_S13, _a3, _rows1);
+                _rows2 = _mm256_comp_fmadd_ps(_S23, _a3, _rows2);
+                _rows3 = _mm256_comp_fmadd_ps(_S33, _a3, _rows3);
+                _mm256_storeu_ps(rows0p + dx * 4, _rows0);
+                _mm256_storeu_ps(rows1p + dx * 4, _rows1);
+                _mm256_storeu_ps(rows2p + dx * 4, _rows2);
+                _mm256_storeu_ps(rows3p + dx * 4, _rows3);
+
+                alphap += 8;
+            }
+#endif // __AVX__
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S0p = S0 + sx;
@@ -240,35 +565,7 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
         prev_sy1 = sy;
 
         // vresize
-        __m128 _b0 = _mm_set1_ps(beta[0]);
-        __m128 _b1 = _mm_set1_ps(beta[1]);
-        __m128 _b2 = _mm_set1_ps(beta[2]);
-        __m128 _b3 = _mm_set1_ps(beta[3]);
-
-        float* rows0p = rows0;
-        float* rows1p = rows1;
-        float* rows2p = rows2;
-        float* rows3p = rows3;
-        float* Dp = dst.row(dy);
-
-        for (int dx = 0; dx < w; dx++)
-        {
-            __m128 _rows0 = _mm_load_ps(rows0p);
-            __m128 _rows1 = _mm_load_ps(rows1p);
-            __m128 _rows2 = _mm_load_ps(rows2p);
-            __m128 _rows3 = _mm_load_ps(rows3p);
-            __m128 _Dp = _mm_mul_ps(_rows0, _b0);
-            _Dp = _mm_comp_fmadd_ps(_rows1, _b1, _Dp);
-            _Dp = _mm_comp_fmadd_ps(_rows2, _b2, _Dp);
-            _Dp = _mm_comp_fmadd_ps(_rows3, _b3, _Dp);
-            _mm_store_ps(Dp, _Dp);
-
-            Dp += 4;
-            rows0p += 4;
-            rows1p += 4;
-            rows2p += 4;
-            rows3p += 4;
-        }
+        vresize_bicubic(rows0, rows1, rows2, rows3, dst.row(dy), w * 4, beta[0], beta[1], beta[2], beta[3]);
 
         beta += 4;
     }

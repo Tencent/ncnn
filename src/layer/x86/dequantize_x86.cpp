@@ -12,13 +12,22 @@
 
 #include "x86_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_BF16
+#include "dequantize_bf16s.h"
+#endif
 
 Dequantize_x86::Dequantize_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
@@ -219,6 +228,11 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 
 int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -283,5 +297,12 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
     return 0;
 }
+
+#if NCNN_BF16
+int Dequantize_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    return dequantize_forward_bf16s(bottom_blob, top_blob, scale_data, scale_data_size, bias_data, bias_data_size, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

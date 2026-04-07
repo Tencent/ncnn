@@ -459,6 +459,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
+#elif NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
@@ -514,6 +526,18 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             {
 #if NCNN_ARM82
                 if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    any_elempack = 8;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     any_elempack = 4;
                 else if (elemcount % 4 == 0)
                     any_elempack = 1;
@@ -700,6 +724,16 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return -1;
     }
 
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
+            return 233;
+        }
+    }
+
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
@@ -841,20 +875,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->vkdev = vkdev;
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -880,6 +904,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
@@ -963,12 +988,24 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
     op->create_pipeline(opt);
 
     if (!op->support_vulkan)
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 
@@ -1271,6 +1308,16 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_param(pd);
 
+    if (_opt.use_bf16_packed || _opt.use_bf16_storage)
+    {
+        if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
+        {
+            fprintf(stderr, "fixme: skip bf16 test for MultiHeadAttention\n");
+            delete op;
+            return 233;
+        }
+    }
+
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
@@ -1386,22 +1433,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->vkdev = vkdev;
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     opt.use_vulkan_compute = true;
 
     if (flag & TEST_LAYER_ENABLE_THREADING)
         opt.num_threads = ncnn::get_physical_big_cpu_count();
     else
         opt.num_threads = 1;
-
-    opt.blob_vkallocator = blob_vkallocator;
-    opt.workspace_vkallocator = blob_vkallocator;
-    opt.staging_vkallocator = staging_vkallocator;
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
@@ -1427,6 +1464,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (op->typeindex == ncnn::LayerType::MultiHeadAttention)
         {
             fprintf(stderr, "fixme: skip gpu bf16 test for MultiHeadAttention\n");
+            delete op;
             return 233;
         }
     }
@@ -1503,12 +1541,24 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
     op->create_pipeline(opt);
 
     if (!op->support_vulkan)
     {
         op->destroy_pipeline(opt);
         delete op;
+        vkdev->reclaim_blob_allocator(blob_vkallocator);
+        vkdev->reclaim_staging_allocator(staging_vkallocator);
         return 233;
     }
 

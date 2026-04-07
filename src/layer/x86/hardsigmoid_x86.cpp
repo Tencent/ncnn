@@ -12,7 +12,13 @@
 
 #include "x86_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_BF16
+#include "hardsigmoid_bf16s.h"
+#endif
 
 HardSigmoid_x86::HardSigmoid_x86()
 {
@@ -20,10 +26,18 @@ HardSigmoid_x86::HardSigmoid_x86()
     support_packing = true;
     support_any_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
     const int d = bottom_top_blob.d;
@@ -93,5 +107,14 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     return 0;
 }
+
+#if NCNN_BF16
+int HardSigmoid_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    hardsigmoid_bf16s(bottom_top_blob, alpha, beta, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
