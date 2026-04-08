@@ -217,7 +217,33 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             if (blob_mats_gpu[bottom_blob_index].dims == 0)
             {
                 // host to buffer
-                cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
+                if (blob_mats[bottom_blob_index].n > 1)
+                {
+                    // upload each batch separately and assemble
+                    const int B = blob_mats[bottom_blob_index].n;
+                    VkMat gpu_batch;
+                    for (int b = 0; b < B; b++)
+                    {
+                        Mat cpu_b = blob_mats[bottom_blob_index].batch(b);
+                        VkMat gpu_b;
+                        cmd.record_upload(cpu_b, gpu_b, opt);
+
+                        if (b == 0)
+                        {
+                            gpu_batch.create_like_batch(gpu_b, B, opt.blob_vkallocator);
+                            if (gpu_batch.empty())
+                                return -100;
+                        }
+
+                        VkMat gpu_batch_slot = gpu_batch.batch(b);
+                        cmd.record_clone(gpu_b, gpu_batch_slot, opt);
+                    }
+                    blob_mats_gpu[bottom_blob_index] = gpu_batch;
+                }
+                else
+                {
+                    cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu[bottom_blob_index], opt);
+                }
 
                 if (opt.lightmode)
                 {
@@ -374,7 +400,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 
             if (b == 0)
             {
-                bottom_batch.create_batch(bottom_b.w, bottom_b.h, bottom_b.d, bottom_b.c, B, bottom_b.elemsize, bottom_b.elempack, opt.blob_allocator);
+                bottom_batch.create_like_batch(bottom_b, B, opt.blob_allocator);
                 if (bottom_batch.empty())
                     return -100;
             }
@@ -606,7 +632,7 @@ int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute
 
             if (b == 0)
             {
-                bottom_batch.create_batch(bottom_b.w, bottom_b.h, bottom_b.d, bottom_b.c, B, bottom_b.elemsize, bottom_b.elempack, opt.blob_vkallocator);
+                bottom_batch.create_like_batch(bottom_b, B, opt.blob_vkallocator);
                 if (bottom_batch.empty())
                     return -100;
             }
@@ -712,7 +738,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
 
                     if (b == 0)
                     {
-                        top_batch.create_batch(top_b.w, top_b.h, top_b.d, top_b.c, B, top_b.elemsize, top_b.elempack, opt.blob_allocator);
+                        top_batch.create_like_batch(top_b, B, opt.blob_allocator);
                         if (top_batch.empty())
                             return -100;
                     }
@@ -846,7 +872,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                     {
                         for (size_t i = 0; i < top_b.size(); i++)
                         {
-                            top_batches[i].create_batch(top_b[i].w, top_b[i].h, top_b[i].d, top_b[i].c, B, top_b[i].elemsize, top_b[i].elempack, opt.blob_allocator);
+                            top_batches[i].create_like_batch(top_b[i], B, opt.blob_allocator);
                             if (top_batches[i].empty())
                                 return -100;
                         }
@@ -986,7 +1012,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
 
                     if (b == 0)
                     {
-                        top_batch.create_batch(top_b.w, top_b.h, top_b.d, top_b.c, B, top_b.elemsize, top_b.elempack, opt.blob_vkallocator);
+                        top_batch.create_like_batch(top_b, B, opt.blob_vkallocator);
                         if (top_batch.empty())
                             return -100;
                     }
@@ -1117,7 +1143,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                     {
                         for (size_t i = 0; i < top_b.size(); i++)
                         {
-                            top_batches[i].create_batch(top_b[i].w, top_b[i].h, top_b[i].d, top_b[i].c, B, top_b[i].elemsize, top_b[i].elempack, opt.blob_vkallocator);
+                            top_batches[i].create_like_batch(top_b[i], B, opt.blob_vkallocator);
                             if (top_batches[i].empty())
                                 return -100;
                         }
@@ -3030,7 +3056,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
                 if (b == 0)
                 {
-                    feat_batch.create_batch(feat_b.w, feat_b.h, feat_b.d, feat_b.c, B, feat_b.elemsize, feat_b.elempack, d->opt.blob_allocator);
+                    feat_batch.create_like_batch(feat_b, B, d->opt.blob_allocator);
                     if (feat_batch.empty())
                         return -100;
                 }

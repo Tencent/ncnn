@@ -163,8 +163,15 @@ public:
     void create(int w, int h, int d, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
     // allocate like
     void create_like(const Mat& m, Allocator* allocator = 0);
-    // allocate batch
-    void create_batch(int w, int h, int c, int batch, size_t elemsize = 4u, Allocator* allocator = 0);
+    // allocate like with batch count, copying shape from m
+    void create_like_batch(const Mat& m, int batch, Allocator* allocator = 0);
+    // allocate batch vec
+    void create_batch(int w, int batch, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // allocate batch image
+    void create_batch(int w, int h, int batch, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // allocate batch dim
+    void create_batch(int w, int h, int c, int batch, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // allocate batch packed cube
     void create_batch(int w, int h, int d, int c, int batch, size_t elemsize, int elempack, Allocator* allocator = 0);
 #if NCNN_VULKAN
     // allocate like
@@ -415,10 +422,19 @@ public:
     void create_like(const Mat& m, VkAllocator* allocator);
     // allocate like
     void create_like(const VkMat& m, VkAllocator* allocator);
+    // allocate like with batch count, copying shape from m
+    void create_like_batch(const Mat& m, int batch, VkAllocator* allocator);
+    // allocate like with batch count, copying shape from VkMat
+    void create_like_batch(const VkMat& m, int batch, VkAllocator* allocator);
     // allocate like
     void create_like(const VkImageMat& im, VkAllocator* allocator);
-    // allocate batch
-    void create_batch(int w, int h, int c, int batch, size_t elemsize, VkAllocator* allocator);
+    // allocate batch vec
+    void create_batch(int w, int batch, size_t elemsize, int elempack, VkAllocator* allocator);
+    // allocate batch image
+    void create_batch(int w, int h, int batch, size_t elemsize, int elempack, VkAllocator* allocator);
+    // allocate batch dim
+    void create_batch(int w, int h, int c, int batch, size_t elemsize, int elempack, VkAllocator* allocator);
+    // allocate batch packed cube
     void create_batch(int w, int h, int d, int c, int batch, size_t elemsize, int elempack, VkAllocator* allocator);
 
     // batch reference
