@@ -552,29 +552,14 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         if (post_cast_type > 0)
         {
             size_t fp32_elemsize = (size_t)(dst_fp16.elempack * 4u);
-            if (B > 1)
-            {
-                const Mat fp16_b = dst_fp16.batch(0);
-                if (dst_fp16.dims == 1)
-                    dst.create_batch(fp16_b.w, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 2)
-                    dst.create_batch(fp16_b.w, fp16_b.h, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 3)
-                    dst.create_batch(fp16_b.w, fp16_b.h, fp16_b.c, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 4)
-                    dst.create_batch(fp16_b.w, fp16_b.h, fp16_b.d, fp16_b.c, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-            }
-            else
-            {
-                if (dst_fp16.dims == 1)
-                    dst.create(dst_fp16.w, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 2)
-                    dst.create(dst_fp16.w, dst_fp16.h, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 3)
-                    dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 4)
-                    dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-            }
+            if (dst_fp16.dims == 1)
+                dst.create_batch(dst_fp16.w, B, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
+            else if (dst_fp16.dims == 2)
+                dst.create_batch(dst_fp16.w, dst_fp16.h, B, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
+            else if (dst_fp16.dims == 3)
+                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.c, B, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
+            else if (dst_fp16.dims == 4)
+                dst.create_batch(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, B, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 

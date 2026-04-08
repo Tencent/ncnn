@@ -360,32 +360,6 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     if (bottom_blob.empty())
         return 0;
 
-    // handle batch by converting each sample individually
-    if (bottom_blob.n > 1)
-    {
-        const int B = bottom_blob.n;
-        Mat bottom_batch;
-        for (int b = 0; b < B; b++)
-        {
-            Mat bottom_b = bottom_blob.batch(b);
-            int ret = convert_layout(bottom_b, layer, opt);
-            if (ret != 0)
-                return ret;
-
-            if (b == 0)
-            {
-                bottom_batch.create_like_batch(bottom_b, B, opt.blob_allocator);
-                if (bottom_batch.empty())
-                    return -100;
-            }
-
-            size_t batch_data_size = bottom_b.cstep * bottom_b.c * bottom_b.elemsize;
-            memcpy(bottom_batch.batch(b).data, bottom_b.data, batch_data_size);
-        }
-        bottom_blob = bottom_batch;
-        return 0;
-    }
-
     if (bottom_blob.elembits() == 32)
     {
         // clang-format off
@@ -2984,48 +2958,16 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     // empty is valid for outputs
     if (!feat.empty())
     {
-        // handle batch by post-processing each sample individually
-        if (feat.n > 1)
+        if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
         {
-            const int B = feat.n;
-            Mat feat_batch;
-            for (int b = 0; b < B; b++)
-            {
-                Mat feat_b = feat.batch(b);
-
-                if (d->opt.use_packing_layout && (type == 0) && feat_b.elempack != 1)
-                {
-                    Mat feat_b_unpacked;
-                    convert_packing(feat_b, feat_b_unpacked, 1, d->opt);
-                    feat_b = feat_b_unpacked;
-                    if (feat_b.empty())
-                        return -100;
-                }
-
-                if (b == 0)
-                {
-                    feat_batch.create_like_batch(feat_b, B, d->opt.blob_allocator);
-                    if (feat_batch.empty())
-                        return -100;
-                }
-
-                size_t batch_data_size = feat_b.cstep * feat_b.c * feat_b.elemsize;
-                memcpy(feat_batch.batch(b).data, feat_b.data, batch_data_size);
-            }
-            feat = feat_batch;
+            Mat feat_unpacked;
+            convert_packing(feat, feat_unpacked, 1, d->opt);
+            feat = feat_unpacked;
+            if (feat.empty())
+                return -100;
         }
-        else
-        {
-            if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
-            {
-                Mat bottom_blob_unpacked;
-                convert_packing(feat, bottom_blob_unpacked, 1, d->opt);
-                feat = bottom_blob_unpacked;
-                if (feat.empty())
-                    return -100;
-            }
 
-            // clang-format off
+        // clang-format off
         // *INDENT-OFF*
 #if NCNN_ARM82
         if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
@@ -3082,19 +3024,18 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             feat = feat_fp32;
         }
         // *INDENT-ON*
-            // clang-format on
+        // clang-format on
+        if (feat.empty())
+            return -100;
+
+        if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+        {
+            // detach the returned mat from local pool allocator
+            // so we could destroy net instance much earlier
+            feat = feat.clone();
             if (feat.empty())
                 return -100;
-
-            if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
-            {
-                // detach the returned mat from local pool allocator
-                // so we could destroy net instance much earlier
-                feat = feat.clone();
-                if (feat.empty())
-                    return -100;
-            }
-        } // n == 1
+        }
     }
 
     set_kmp_blocktime(old_blocktime);
