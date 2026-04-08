@@ -764,12 +764,6 @@ static int test_vkmat_create_batch_basic()
         vkdev->reclaim_blob_allocator(blob_allocator);
         return -1;
     }
-    if (m.batch_slots == 0)
-    {
-        fprintf(stderr, "test_vkmat_create_batch_basic batch_slots is null\n");
-        vkdev->reclaim_blob_allocator(blob_allocator);
-        return -1;
-    }
 
     m.release();
     vkdev->reclaim_blob_allocator(blob_allocator);
@@ -931,12 +925,6 @@ static int test_vkmat_batch_release()
     if (m.n != 1)
     {
         fprintf(stderr, "test_vkmat_batch_release n expect 1 got %d\n", m.n);
-        vkdev->reclaim_blob_allocator(blob_allocator);
-        return -1;
-    }
-    if (m.batch_slots != 0)
-    {
-        fprintf(stderr, "test_vkmat_batch_release batch_slots should be null\n");
         vkdev->reclaim_blob_allocator(blob_allocator);
         return -1;
     }

@@ -502,10 +502,10 @@ public:
     // batch count, default 1
     int n;
     // element step from one batch to the next (4K-byte aligned)
+    // for non-batch VkMat, equals data->capacity / elemsize
     size_t nstep;
-    // pre-allocated VkBufferMemory sub-descriptors for each batch slot
-    // NULL when n <= 1
-    VkBufferMemory** batch_slots;
+    // byte offset relative to data->offset (for batch sub-views)
+    size_t offset;
 };
 
 class NCNN_EXPORT VkImageMat
@@ -1480,54 +1480,54 @@ NCNN_FORCEINLINE const float& Mat::operator[](size_t i) const
 #if NCNN_VULKAN
 
 NCNN_FORCEINLINE VkMat::VkMat()
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), batch_slots(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0), n(1), nstep(0), offset(0)
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
@@ -1540,55 +1540,63 @@ NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
     cstep = m.cstep;
     n = m.n;
     nstep = m.nstep;
-    batch_slots = m.batch_slots;
+    offset = m.offset;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1), n(1), nstep(0), offset(0)
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1), n(1), nstep(0), offset(0)
 {
     cstep = alignSize(w * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c), n(1), nstep(0), batch_slots(0)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c), n(1), nstep(0), offset(0)
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+    nstep = _data->capacity / _elemsize;
 }
 
 NCNN_FORCEINLINE VkMat::~VkMat()
@@ -1622,7 +1630,7 @@ NCNN_FORCEINLINE VkMat& VkMat::operator=(const VkMat& m)
 
     n = m.n;
     nstep = m.nstep;
-    batch_slots = m.batch_slots;
+    offset = m.offset;
 
     return *this;
 }
@@ -1652,7 +1660,7 @@ NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
     if (!allocator->mappable)
         return 0;
 
-    return (unsigned char*)data->mapped_ptr + data->offset;
+    return (unsigned char*)data->mapped_ptr + data->offset + offset;
 }
 
 NCNN_FORCEINLINE void VkMat::addref()
@@ -1665,15 +1673,6 @@ NCNN_FORCEINLINE void VkMat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
     {
-        if (batch_slots)
-        {
-            for (int i = 0; i < n; i++)
-            {
-                delete batch_slots[i];
-            }
-            fastFree(batch_slots);
-        }
-
         if (allocator && data)
         {
             allocator->fastFree(data);
@@ -1695,7 +1694,7 @@ NCNN_FORCEINLINE void VkMat::release()
 
     n = 1;
     nstep = 0;
-    batch_slots = 0;
+    offset = 0;
 
     refcount = 0;
 }
@@ -1736,49 +1735,91 @@ NCNN_FORCEINLINE VkBuffer VkMat::buffer() const
 
 NCNN_FORCEINLINE size_t VkMat::buffer_offset() const
 {
-    return data->offset;
+    return data->offset + offset;
 }
 
 NCNN_FORCEINLINE size_t VkMat::buffer_capacity() const
 {
-    return data->capacity;
+    return nstep * elemsize;
 }
 
 NCNN_FORCEINLINE VkMat VkMat::batch(int b)
 {
-    VkMat m(w, h, d, c, batch_slots[b], elemsize, elempack, allocator);
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
     m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
     m.cstep = cstep;
+    m.n = 1;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
     return m;
 }
 
 NCNN_FORCEINLINE const VkMat VkMat::batch(int b) const
 {
-    VkMat m(w, h, d, c, batch_slots[b], elemsize, elempack, allocator);
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
     m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
     m.cstep = cstep;
+    m.n = 1;
+    m.nstep = nstep;
+    m.offset = offset + nstep * b * elemsize;
     return m;
 }
 
 NCNN_FORCEINLINE VkMat VkMat::batch_range(int b, int batches)
 {
-    VkMat m(w, h, d, c, batch_slots[b], elemsize, elempack, allocator);
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
     m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
     m.cstep = cstep;
     m.n = batches;
     m.nstep = nstep;
-    m.batch_slots = batch_slots + b;
+    m.offset = offset + nstep * b * elemsize;
     return m;
 }
 
 NCNN_FORCEINLINE const VkMat VkMat::batch_range(int b, int batches) const
 {
-    VkMat m(w, h, d, c, batch_slots[b], elemsize, elempack, allocator);
+    VkMat m;
+    m.data = data;
+    m.refcount = 0;
+    m.elemsize = elemsize;
+    m.elempack = elempack;
+    m.allocator = allocator;
     m.dims = dims;
+    m.w = w;
+    m.h = h;
+    m.d = d;
+    m.c = c;
     m.cstep = cstep;
     m.n = batches;
     m.nstep = nstep;
-    m.batch_slots = batch_slots + b;
+    m.offset = offset + nstep * b * elemsize;
     return m;
 }
 

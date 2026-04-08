@@ -737,6 +737,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -770,6 +771,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -803,6 +805,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -836,6 +839,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -869,6 +873,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -902,6 +907,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -935,6 +941,7 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -968,6 +975,7 @@ void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempa
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
+        nstep = data->capacity / elemsize;
     }
 }
 
@@ -1080,21 +1088,6 @@ void VkMat::create_batch(int _w, int _batch, size_t _elemsize, int _elempack, Vk
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-
-        batch_slots = (VkBufferMemory**)fastMalloc(n * sizeof(VkBufferMemory*));
-        for (int i = 0; i < n; i++)
-        {
-            batch_slots[i] = new VkBufferMemory;
-            batch_slots[i]->buffer = data->buffer;
-            batch_slots[i]->offset = data->offset + nstep * i * elemsize;
-            batch_slots[i]->capacity = nstep * elemsize;
-            batch_slots[i]->memory = data->memory;
-            batch_slots[i]->mapped_ptr = data->mapped_ptr;
-            batch_slots[i]->memory_type_index = data->memory_type_index;
-            batch_slots[i]->access_flags = 0;
-            batch_slots[i]->stage_flags = 0;
-            batch_slots[i]->refcount = 0;
-        }
     }
 }
 
@@ -1132,21 +1125,6 @@ void VkMat::create_batch(int _w, int _h, int _batch, size_t _elemsize, int _elem
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-
-        batch_slots = (VkBufferMemory**)fastMalloc(n * sizeof(VkBufferMemory*));
-        for (int i = 0; i < n; i++)
-        {
-            batch_slots[i] = new VkBufferMemory;
-            batch_slots[i]->buffer = data->buffer;
-            batch_slots[i]->offset = data->offset + nstep * i * elemsize;
-            batch_slots[i]->capacity = nstep * elemsize;
-            batch_slots[i]->memory = data->memory;
-            batch_slots[i]->mapped_ptr = data->mapped_ptr;
-            batch_slots[i]->memory_type_index = data->memory_type_index;
-            batch_slots[i]->access_flags = 0;
-            batch_slots[i]->stage_flags = 0;
-            batch_slots[i]->refcount = 0;
-        }
     }
 }
 
@@ -1192,21 +1170,6 @@ void VkMat::create_batch(int _w, int _h, int _d, int _c, int _batch, size_t _ele
     {
         refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
         *refcount = 1;
-
-        batch_slots = (VkBufferMemory**)fastMalloc(n * sizeof(VkBufferMemory*));
-        for (int i = 0; i < n; i++)
-        {
-            batch_slots[i] = new VkBufferMemory;
-            batch_slots[i]->buffer = data->buffer;
-            batch_slots[i]->offset = data->offset + nstep * i * elemsize;
-            batch_slots[i]->capacity = nstep * elemsize;
-            batch_slots[i]->memory = data->memory;
-            batch_slots[i]->mapped_ptr = data->mapped_ptr;
-            batch_slots[i]->memory_type_index = data->memory_type_index;
-            batch_slots[i]->access_flags = 0;
-            batch_slots[i]->stage_flags = 0;
-            batch_slots[i]->refcount = 0;
-        }
     }
 }
 
