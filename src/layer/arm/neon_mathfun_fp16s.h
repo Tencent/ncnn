@@ -198,8 +198,8 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
 #endif
 
     /* perform a floorf */
-    mm = vcvtm_s16_f16(fx);
-    fx = vcvt_f16_s16(mm);
+    fx = vrndm_f16(fx);
+    mm = vcvt_s16_f16(fx);
 
 #if defined(_MSC_VER) && !defined(__clang__)
     tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
@@ -250,8 +250,8 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
 #endif
 
     /* perform a floorf */
-    mm = vcvtmq_s16_f16(fx);
-    fx = vcvtq_f16_s16(mm);
+    fx = vrndmq_f16(fx);
+    mm = vcvtq_s16_f16(fx);
 
 #if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
