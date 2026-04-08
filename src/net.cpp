@@ -759,33 +759,33 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
         }
         else
         {
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            Mat& bottom_top_blob = bottom_blob;
-            int ret = layer->forward_inplace(bottom_top_blob, opt);
-            if (ret != 0)
-                return ret;
+            // forward
+            if (opt.lightmode && layer->support_inplace)
+            {
+                Mat& bottom_top_blob = bottom_blob;
+                int ret = layer->forward_inplace(bottom_top_blob, opt);
+                if (ret != 0)
+                    return ret;
 
-            // store top blob
-            blob_mats[top_blob_index] = bottom_top_blob;
-        }
-        else
-        {
-            Mat top_blob;
-            int ret = layer->forward(bottom_blob, top_blob, opt);
-            if (ret != 0)
-                return ret;
+                // store top blob
+                blob_mats[top_blob_index] = bottom_top_blob;
+            }
+            else
+            {
+                Mat top_blob;
+                int ret = layer->forward(bottom_blob, top_blob, opt);
+                if (ret != 0)
+                    return ret;
 
-            // store top blob
-            blob_mats[top_blob_index] = top_blob;
-        }
+                // store top blob
+                blob_mats[top_blob_index] = top_blob;
+            }
 
-        if (opt.lightmode)
-        {
-            // delete after taken in light mode
-            blob_mats[bottom_blob_index].release();
-        }
+            if (opt.lightmode)
+            {
+                // delete after taken in light mode
+                blob_mats[bottom_blob_index].release();
+            }
         } // n == 1
     }
     else
@@ -904,48 +904,48 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
         }
         else
         {
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            std::vector<Mat>& bottom_top_blobs = bottom_blobs;
-            int ret = layer->forward_inplace(bottom_top_blobs, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
+            // forward
+            if (opt.lightmode && layer->support_inplace)
             {
-                int top_blob_index = layer->tops[i];
+                std::vector<Mat>& bottom_top_blobs = bottom_blobs;
+                int ret = layer->forward_inplace(bottom_top_blobs, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats[top_blob_index] = bottom_top_blobs[i];
+                // store top blobs
+                for (size_t i = 0; i < layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats[top_blob_index] = bottom_top_blobs[i];
+                }
             }
-        }
-        else
-        {
-            std::vector<Mat> top_blobs(layer->tops.size());
-            int ret = layer->forward(bottom_blobs, top_blobs, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
+            else
             {
-                int top_blob_index = layer->tops[i];
+                std::vector<Mat> top_blobs(layer->tops.size());
+                int ret = layer->forward(bottom_blobs, top_blobs, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats[top_blob_index] = top_blobs[i];
+                // store top blobs
+                for (size_t i = 0; i < layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats[top_blob_index] = top_blobs[i];
+                }
             }
-        }
 
-        if (opt.lightmode)
-        {
-            for (size_t i = 0; i < layer->bottoms.size(); i++)
+            if (opt.lightmode)
             {
-                int bottom_blob_index = layer->bottoms[i];
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    int bottom_blob_index = layer->bottoms[i];
 
-                // delete after taken in light mode
-                blob_mats[bottom_blob_index].release();
+                    // delete after taken in light mode
+                    blob_mats[bottom_blob_index].release();
+                }
             }
-        }
         } // B == 1
     }
 
@@ -1031,33 +1031,33 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
         }
         else
         {
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            VkMat& bottom_top_blob = bottom_blob;
-            int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
+            // forward
+            if (opt.lightmode && layer->support_inplace)
+            {
+                VkMat& bottom_top_blob = bottom_blob;
+                int ret = layer->forward_inplace(bottom_top_blob, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-            // store top blob
-            blob_mats_gpu[top_blob_index] = bottom_top_blob;
-        }
-        else
-        {
-            VkMat top_blob;
-            int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
-            if (ret != 0)
-                return ret;
+                // store top blob
+                blob_mats_gpu[top_blob_index] = bottom_top_blob;
+            }
+            else
+            {
+                VkMat top_blob;
+                int ret = layer->forward(bottom_blob, top_blob, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-            // store top blob
-            blob_mats_gpu[top_blob_index] = top_blob;
-        }
+                // store top blob
+                blob_mats_gpu[top_blob_index] = top_blob;
+            }
 
-        if (opt.lightmode)
-        {
-            // delete after taken in light mode
-            blob_mats_gpu[bottom_blob_index].release();
-        }
+            if (opt.lightmode)
+            {
+                // delete after taken in light mode
+                blob_mats_gpu[bottom_blob_index].release();
+            }
         } // n == 1
     }
     else
@@ -1174,48 +1174,48 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
         }
         else
         {
-        // forward
-        if (opt.lightmode && layer->support_inplace)
-        {
-            std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
-            int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
+            // forward
+            if (opt.lightmode && layer->support_inplace)
             {
-                int top_blob_index = layer->tops[i];
+                std::vector<VkMat>& bottom_top_blobs = bottom_blobs;
+                int ret = layer->forward_inplace(bottom_top_blobs, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats_gpu[top_blob_index] = bottom_top_blobs[i];
+                // store top blobs
+                for (size_t i = 0; i < layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats_gpu[top_blob_index] = bottom_top_blobs[i];
+                }
             }
-        }
-        else
-        {
-            std::vector<VkMat> top_blobs(layer->tops.size());
-            int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
-            if (ret != 0)
-                return ret;
-
-            // store top blobs
-            for (size_t i = 0; i < layer->tops.size(); i++)
+            else
             {
-                int top_blob_index = layer->tops[i];
+                std::vector<VkMat> top_blobs(layer->tops.size());
+                int ret = layer->forward(bottom_blobs, top_blobs, cmd, opt);
+                if (ret != 0)
+                    return ret;
 
-                blob_mats_gpu[top_blob_index] = top_blobs[i];
+                // store top blobs
+                for (size_t i = 0; i < layer->tops.size(); i++)
+                {
+                    int top_blob_index = layer->tops[i];
+
+                    blob_mats_gpu[top_blob_index] = top_blobs[i];
+                }
             }
-        }
 
-        if (opt.lightmode)
-        {
-            for (size_t i = 0; i < layer->bottoms.size(); i++)
+            if (opt.lightmode)
             {
-                int bottom_blob_index = layer->bottoms[i];
+                for (size_t i = 0; i < layer->bottoms.size(); i++)
+                {
+                    int bottom_blob_index = layer->bottoms[i];
 
-                // delete after taken in light mode
-                blob_mats_gpu[bottom_blob_index].release();
+                    // delete after taken in light mode
+                    blob_mats_gpu[bottom_blob_index].release();
+                }
             }
-        }
         } // B == 1
     }
 
@@ -3068,16 +3068,16 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         }
         else
         {
-        if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
-        {
-            Mat bottom_blob_unpacked;
-            convert_packing(feat, bottom_blob_unpacked, 1, d->opt);
-            feat = bottom_blob_unpacked;
-            if (feat.empty())
-                return -100;
-        }
+            if (d->opt.use_packing_layout && (type == 0) && feat.elempack != 1)
+            {
+                Mat bottom_blob_unpacked;
+                convert_packing(feat, bottom_blob_unpacked, 1, d->opt);
+                feat = bottom_blob_unpacked;
+                if (feat.empty())
+                    return -100;
+            }
 
-        // clang-format off
+            // clang-format off
         // *INDENT-OFF*
 #if NCNN_ARM82
         if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
@@ -3134,18 +3134,18 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             feat = feat_fp32;
         }
         // *INDENT-ON*
-        // clang-format on
-        if (feat.empty())
-            return -100;
-
-        if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
-        {
-            // detach the returned mat from local pool allocator
-            // so we could destroy net instance much earlier
-            feat = feat.clone();
+            // clang-format on
             if (feat.empty())
                 return -100;
-        }
+
+            if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+            {
+                // detach the returned mat from local pool allocator
+                // so we could destroy net instance much earlier
+                feat = feat.clone();
+                if (feat.empty())
+                    return -100;
+            }
         } // n == 1
     }
 
