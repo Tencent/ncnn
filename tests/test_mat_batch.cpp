@@ -562,11 +562,10 @@ static int test_batch_forward_relu()
 {
     // Build a minimal Input -> ReLU network
     // ReLU with slope=0.1 (leaky relu)
-    const char param_str[] =
-        "7767517\n"
-        "2 2\n"
-        "Input input 0 1 data\n"
-        "ReLU  relu  1 1 data output 0=1.000000e-01\n";
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input input 0 1 data\n"
+                             "ReLU  relu  1 1 data output 0=1.000000e-01\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -641,11 +640,10 @@ static int test_batch_forward_relu()
 static int test_batch_forward_pooling()
 {
     // Input -> Pooling(max, 2x2, stride=2)
-    const char param_str[] =
-        "7767517\n"
-        "2 2\n"
-        "Input   input   0 1 data\n"
-        "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
 
     ncnn::Net net;
     net.load_param_mem(param_str);
@@ -1040,11 +1038,10 @@ static int test_vkmat_batch_upload_download()
 
 static int test_vkmat_batch_forward_relu()
 {
-    const char param_str[] =
-        "7767517\n"
-        "2 2\n"
-        "Input input 0 1 data\n"
-        "ReLU  relu  1 1 data output 0=1.000000e-01\n";
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input input 0 1 data\n"
+                             "ReLU  relu  1 1 data output 0=1.000000e-01\n";
 
     ncnn::Net net;
     ncnn::Option opt;
@@ -1120,11 +1117,10 @@ static int test_vkmat_batch_forward_relu()
 
 static int test_vkmat_batch_forward_pooling()
 {
-    const char param_str[] =
-        "7767517\n"
-        "2 2\n"
-        "Input   input   0 1 data\n"
-        "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
+    const char param_str[] = "7767517\n"
+                             "2 2\n"
+                             "Input   input   0 1 data\n"
+                             "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
 
     ncnn::Net net;
     ncnn::Option opt;
