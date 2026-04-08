@@ -692,6 +692,18 @@ void Mat::create_like(const VkMat& m, Allocator* _allocator)
         create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
+void Mat::create_like_batch(const VkMat& m, int _batch, Allocator* _allocator)
+{
+    if (m.dims == 1)
+        create_batch(m.w, _batch, m.elemsize, m.elempack, _allocator);
+    else if (m.dims == 2)
+        create_batch(m.w, m.h, _batch, m.elemsize, m.elempack, _allocator);
+    else if (m.dims == 3)
+        create_batch(m.w, m.h, m.c, _batch, m.elemsize, m.elempack, _allocator);
+    else if (m.dims == 4)
+        create_batch(m.w, m.h, m.d, m.c, _batch, m.elemsize, m.elempack, _allocator);
+}
+
 void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
 {
     int _dims = im.dims;

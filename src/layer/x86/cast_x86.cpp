@@ -31,6 +31,12 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         return 0;
     }
 
+    // fall back to generic implementation for batch processing
+    if (bottom_blob.n > 1)
+    {
+        return Cast::forward(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;

@@ -176,6 +176,8 @@ public:
 #if NCNN_VULKAN
     // allocate like
     void create_like(const VkMat& m, Allocator* allocator = 0);
+    // allocate like with batch count, copying shape from VkMat
+    void create_like_batch(const VkMat& m, int batch, Allocator* allocator = 0);
     // allocate like
     void create_like(const VkImageMat& im, Allocator* allocator = 0);
 #endif // NCNN_VULKAN

@@ -361,103 +361,34 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     const int B = src.n;
 
-    // cpu cast to fp16 per batch
+    // cpu cast to fp16 (discrete gpu)
     Mat src_fp16;
-    if (B > 1)
+    if (src.elemsize == src.elempack * 4u)
     {
-        // process first batch to determine shape
-        Mat src_b0 = src.batch(0);
-        Mat src_b0_fp16;
-        if (src_b0.elemsize == src_b0.elempack * 4u)
+        if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
         {
-            if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
-                ncnn::cast_float32_to_bfloat16(src_b0, src_b0_fp16, opt);
-            else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
-                ncnn::cast_float32_to_float16(src_b0, src_b0_fp16, opt);
-            else
-                src_b0_fp16 = src_b0;
+            ncnn::cast_float32_to_bfloat16(src, src_fp16, opt);
         }
-        else
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
         {
-            src_b0_fp16 = src_b0;
-        }
-
-        if (src_b0_fp16.elempack > 4)
-        {
-            Mat tmp;
-            ncnn::convert_packing(src_b0_fp16, tmp, 4, opt);
-            src_b0_fp16 = tmp;
-        }
-
-        // create batch fp16 mat and fill all batches
-        src_fp16.create_like_batch(src_b0_fp16, B, opt.blob_allocator);
-        if (src_fp16.empty())
-            return;
-
-        {
-            size_t batch_data_size = src_b0_fp16.total() * src_b0_fp16.elemsize;
-            memcpy(src_fp16.batch(0).data, src_b0_fp16.data, batch_data_size);
-        }
-
-        for (int b = 1; b < B; b++)
-        {
-            Mat src_b = src.batch(b);
-            Mat src_b_fp16;
-            if (src_b.elemsize == src_b.elempack * 4u)
-            {
-                if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
-                    ncnn::cast_float32_to_bfloat16(src_b, src_b_fp16, opt);
-                else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
-                    ncnn::cast_float32_to_float16(src_b, src_b_fp16, opt);
-                else
-                    src_b_fp16 = src_b;
-            }
-            else
-            {
-                src_b_fp16 = src_b;
-            }
-
-            if (src_b_fp16.elempack > 4)
-            {
-                Mat tmp;
-                ncnn::convert_packing(src_b_fp16, tmp, 4, opt);
-                src_b_fp16 = tmp;
-            }
-
-            size_t batch_data_size = src_b_fp16.total() * src_b_fp16.elemsize;
-            memcpy(src_fp16.batch(b).data, src_b_fp16.data, batch_data_size);
-        }
-    }
-    else
-    {
-        if (src.elemsize == src.elempack * 4u)
-        {
-            // cpu cast to fp16 (discrete gpu)
-            if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
-            {
-                ncnn::cast_float32_to_bfloat16(src, src_fp16, opt);
-            }
-            else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
-            {
-                ncnn::cast_float32_to_float16(src, src_fp16, opt);
-            }
-            else
-            {
-                src_fp16 = src;
-            }
+            ncnn::cast_float32_to_float16(src, src_fp16, opt);
         }
         else
         {
             src_fp16 = src;
         }
+    }
+    else
+    {
+        src_fp16 = src;
+    }
 
-        // vkdev->convert_packing only handles elempack=1/4
-        if (src_fp16.elempack > 4)
-        {
-            Mat src_fp16_pack4;
-            ncnn::convert_packing(src_fp16, src_fp16_pack4, 4, opt);
-            src_fp16 = src_fp16_pack4;
-        }
+    // vkdev->convert_packing only handles elempack=1/4
+    if (src_fp16.elempack > 4)
+    {
+        Mat src_fp16_pack4;
+        ncnn::convert_packing(src_fp16, src_fp16_pack4, 4, opt);
+        src_fp16 = src_fp16_pack4;
     }
 
     // upload staging buffer
@@ -473,18 +404,11 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     d->upload_staging_buffers.push_back(dst_staging);
 
     // memcpy src to device
-    if (B > 1)
+    for (int b = 0; b < B; b++)
     {
-        for (int b = 0; b < B; b++)
-        {
-            const Mat src_b = src_fp16.batch(b);
-            VkMat staging_b = dst_staging.batch(b);
-            memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
-        }
-    }
-    else
-    {
-        memcpy(dst_staging.mapped_ptr(), src_fp16.data, src_fp16.total() * src_fp16.elemsize);
+        const Mat src_b = src_fp16.batch(b);
+        VkMat staging_b = dst_staging.batch(b);
+        memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
     dst_staging.allocator->flush(dst_staging.data);
 
@@ -596,17 +520,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // create dst
     Mat dst_fp16;
     if (B > 1)
-    {
-        const VkMat staging_b = dst_staging.batch(0);
-        if (dst_staging.dims == 1)
-            dst_fp16.create_batch(staging_b.w, B, staging_b.elemsize, staging_b.elempack, opt.blob_allocator);
-        else if (dst_staging.dims == 2)
-            dst_fp16.create_batch(staging_b.w, staging_b.h, B, staging_b.elemsize, staging_b.elempack, opt.blob_allocator);
-        else if (dst_staging.dims == 3)
-            dst_fp16.create_batch(staging_b.w, staging_b.h, staging_b.c, B, staging_b.elemsize, staging_b.elempack, opt.blob_allocator);
-        else if (dst_staging.dims == 4)
-            dst_fp16.create_batch(staging_b.w, staging_b.h, staging_b.d, staging_b.c, B, staging_b.elemsize, staging_b.elempack, opt.blob_allocator);
-    }
+        dst_fp16.create_like_batch(dst_staging.batch(0), B, opt.blob_allocator);
     else
         dst_fp16.create_like(dst_staging, opt.blob_allocator);
     if (dst_fp16.empty())
@@ -629,7 +543,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
     {
+        int post_cast_type = 0; // 0=none, 1=bf16, 2=fp16
         if (vkdev->info.type() == 0 && (opt.use_bf16_storage || opt.use_bf16_packed))
+            post_cast_type = 1;
+        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
+            post_cast_type = 2;
+
+        if (post_cast_type > 0)
         {
             size_t fp32_elemsize = (size_t)(dst_fp16.elempack * 4u);
             if (B > 1)
@@ -646,63 +566,34 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             }
             else
             {
-                int dims = dst_fp16.dims;
-                if (dims == 1)
+                if (dst_fp16.dims == 1)
                     dst.create(dst_fp16.w, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 2)
+                else if (dst_fp16.dims == 2)
                     dst.create(dst_fp16.w, dst_fp16.h, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 3)
+                else if (dst_fp16.dims == 3)
                     dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 4)
+                else if (dst_fp16.dims == 4)
                     dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, fp32_elemsize, dst_fp16.elempack, opt.blob_allocator);
             }
 
             d->download_post_mats.push_back(dst);
 
             VkComputePrivate::record r;
-            r.type = VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32;
             r.command_buffer = 0;
-            r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset = d->download_post_mats_fp16.size() - 1;
-            r.post_cast_bfloat16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
-            r.post_cast_bfloat16_to_float32.num_threads = opt.num_threads;
-            d->delayed_records.push_back(r);
-        }
-        else if (vkdev->info.type() == 0 && (opt.use_fp16_storage || opt.use_fp16_packed))
-        {
-            size_t fp32_elemsize = (size_t)(dst_fp16.elempack * 4u);
-            if (B > 1)
+            if (post_cast_type == 1)
             {
-                const Mat fp16_b = dst_fp16.batch(0);
-                if (dst_fp16.dims == 1)
-                    dst.create_batch(fp16_b.w, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 2)
-                    dst.create_batch(fp16_b.w, fp16_b.h, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 3)
-                    dst.create_batch(fp16_b.w, fp16_b.h, fp16_b.c, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
-                else if (dst_fp16.dims == 4)
-                    dst.create_batch(fp16_b.w, fp16_b.h, fp16_b.d, fp16_b.c, B, fp32_elemsize, fp16_b.elempack, opt.blob_allocator);
+                r.type = VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32;
+                r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset = d->download_post_mats_fp16.size() - 1;
+                r.post_cast_bfloat16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+                r.post_cast_bfloat16_to_float32.num_threads = opt.num_threads;
             }
             else
             {
-                int dims = dst_fp16.dims;
-                if (dims == 1)
-                    dst.create(dst_fp16.w, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 2)
-                    dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 3)
-                    dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
-                if (dims == 4)
-                    dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+                r.type = VkComputePrivate::record::TYPE_post_cast_float16_to_float32;
+                r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
+                r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+                r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             }
-
-            d->download_post_mats.push_back(dst);
-
-            VkComputePrivate::record r;
-            r.type = VkComputePrivate::record::TYPE_post_cast_float16_to_float32;
-            r.command_buffer = 0;
-            r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
-            r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
-            r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -732,18 +623,11 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
         return;
 
     // memcpy src to device
-    if (B > 1)
+    for (int b = 0; b < B; b++)
     {
-        for (int b = 0; b < B; b++)
-        {
-            const Mat src_b = src.batch(b);
-            VkMat staging_b = dst_staging.batch(b);
-            memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
-        }
-    }
-    else
-    {
-        memcpy(dst_staging.mapped_ptr(), src.data, src.total() * src.elemsize);
+        const Mat src_b = src.batch(b);
+        VkMat staging_b = dst_staging.batch(b);
+        memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
     dst_staging.allocator->flush(dst_staging.data);
 
@@ -797,17 +681,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 
     // create dst
     if (B > 1)
-    {
-        const VkMat src_b = src.batch(0);
-        if (src.dims == 1)
-            dst.create_batch(src_b.w, B, src_b.elemsize, src_b.elempack, opt.blob_allocator);
-        else if (src.dims == 2)
-            dst.create_batch(src_b.w, src_b.h, B, src_b.elemsize, src_b.elempack, opt.blob_allocator);
-        else if (src.dims == 3)
-            dst.create_batch(src_b.w, src_b.h, src_b.c, B, src_b.elemsize, src_b.elempack, opt.blob_allocator);
-        else if (src.dims == 4)
-            dst.create_batch(src_b.w, src_b.h, src_b.d, src_b.c, B, src_b.elemsize, src_b.elempack, opt.blob_allocator);
-    }
+        dst.create_like_batch(src.batch(0), B, opt.blob_allocator);
     else
         dst.create_like(src, opt.blob_allocator);
     if (dst.empty())
@@ -2155,18 +2029,11 @@ int VkCompute::submit_and_wait()
             // NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
             src.allocator->invalidate(src.data);
-            if (dst.n > 1)
+            for (int b = 0; b < dst.n; b++)
             {
-                for (int b = 0; b < dst.n; b++)
-                {
-                    Mat dst_b = dst.batch(b);
-                    size_t src_batch_offset = src.nstep * b * src.elemsize;
-                    memcpy(dst_b.data, (const unsigned char*)src.mapped_ptr() + src_batch_offset, dst_b.total() * dst_b.elemsize);
-                }
-            }
-            else
-            {
-                memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
+                Mat dst_b = dst.batch(b);
+                size_t src_batch_offset = src.nstep * b * src.elemsize;
+                memcpy(dst_b.data, (const unsigned char*)src.mapped_ptr() + src_batch_offset, dst_b.total() * dst_b.elemsize);
             }
             break;
         }
@@ -2180,20 +2047,7 @@ int VkCompute::submit_and_wait()
             Option opt;
             opt.num_threads = r.post_cast_float16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
-            if (src.n > 1)
-            {
-                for (int b = 0; b < src.n; b++)
-                {
-                    const Mat src_b = src.batch(b);
-                    Mat dst_b_tmp;
-                    ncnn::cast_float16_to_float32(src_b, dst_b_tmp, opt);
-                    memcpy(dst.batch(b).data, dst_b_tmp.data, dst_b_tmp.total() * dst_b_tmp.elemsize);
-                }
-            }
-            else
-            {
-                ncnn::cast_float16_to_float32(src, dst, opt);
-            }
+            ncnn::cast_float16_to_float32(src, dst, opt);
             break;
         }
         case VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32:
@@ -2206,20 +2060,7 @@ int VkCompute::submit_and_wait()
             Option opt;
             opt.num_threads = r.post_cast_bfloat16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
-            if (src.n > 1)
-            {
-                for (int b = 0; b < src.n; b++)
-                {
-                    const Mat src_b = src.batch(b);
-                    Mat dst_b_tmp;
-                    ncnn::cast_bfloat16_to_float32(src_b, dst_b_tmp, opt);
-                    memcpy(dst.batch(b).data, dst_b_tmp.data, dst_b_tmp.total() * dst_b_tmp.elemsize);
-                }
-            }
-            else
-            {
-                ncnn::cast_bfloat16_to_float32(src, dst, opt);
-            }
+            ncnn::cast_bfloat16_to_float32(src, dst, opt);
             break;
         }
         default:
