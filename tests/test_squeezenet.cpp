@@ -623,7 +623,16 @@ int main()
             return ret;
         }
 
-        // TODO: test_squeezenet_batch gpu requires batch-aware record_upload/record_download
+#if NCNN_VULKAN
+        ncnn::Option opt_gpu = opt;
+        opt_gpu.use_vulkan_compute = true;
+        ret = test_squeezenet_batch(opt_gpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
+            return ret;
+        }
+#endif // NCNN_VULKAN
     }
 
     return 0;
