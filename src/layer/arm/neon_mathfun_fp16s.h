@@ -184,7 +184,6 @@ static inline float16x8_t log_ps_f16(float16x8_t x)
 static inline float16x4_t exp_ps_f16(float16x4_t x)
 {
     float16x4_t tmp, fx;
-    int16x4_t mm;
 
     float16x4_t one = vdup_n_f16(1);
     x = vmin_f16(x, vdup_n_f16(c_exp_hi_f16));
@@ -199,7 +198,6 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
 
     /* perform a floorf */
     fx = vrndm_f16(fx);
-    mm = vcvt_s16_f16(fx);
 
 #if defined(_MSC_VER) && !defined(__clang__)
     tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
@@ -224,6 +222,8 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
     y = vadd_f16(y, one);
 
     /* build 2^n */
+    int16x4_t mm;
+    mm = vcvt_s16_f16(fx);
     mm = vadd_s16(mm, vdup_n_s16(0xf));
     mm = vshl_n_s16(mm, 10);
     float16x4_t pow2n = vreinterpret_f16_s16(mm);
@@ -235,7 +235,6 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
 static inline float16x8_t exp_ps_f16(float16x8_t x)
 {
     float16x8_t tmp, fx;
-    int16x8_t mm;
 
     float16x8_t one = vdupq_n_f16(1);
     x = vminq_f16(x, vdupq_n_f16(c_exp_hi_f16));
@@ -251,7 +250,6 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
 
     /* perform a floorf */
     fx = vrndmq_f16(fx);
-    mm = vcvtq_s16_f16(fx);
 
 #if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
@@ -278,6 +276,8 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
     y = vaddq_f16(y, one);
 
     /* build 2^n */
+    int16x8_t mm;
+    mm = vcvtq_s16_f16(fx);
     mm = vaddq_s16(mm, vdupq_n_s16(0xf));
     mm = vshlq_n_s16(mm, 10);
     float16x8_t pow2n = vreinterpretq_f16_s16(mm);
