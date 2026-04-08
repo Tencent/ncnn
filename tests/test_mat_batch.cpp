@@ -6,6 +6,7 @@
 
 #if NCNN_VULKAN
 #include "gpu.h"
+#include "command.h"
 #endif
 
 #include <math.h>
@@ -943,6 +944,287 @@ static int test_vkmat_batch_release()
     vkdev->reclaim_blob_allocator(blob_allocator);
     return 0;
 }
+
+static int test_vkmat_batch_upload_download()
+{
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_allocator = vkdev->acquire_staging_allocator();
+
+    const int B = 3;
+    const int W = 4;
+    const int H = 3;
+    const int C = 2;
+
+    // create and fill cpu batch
+    ncnn::Mat cpu_batch;
+    cpu_batch.create_batch(W, H, C, B, 4u, 1);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = cpu_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 10 + i);
+            }
+        }
+    }
+
+    // upload each batch, assemble on gpu, download back
+    ncnn::VkCompute cmd(vkdev);
+
+    ncnn::Option opt;
+    opt.blob_vkallocator = blob_allocator;
+    opt.workspace_vkallocator = blob_allocator;
+    opt.staging_vkallocator = staging_allocator;
+    opt.use_vulkan_compute = true;
+
+    ncnn::VkMat gpu_batch;
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat cpu_b = cpu_batch.batch(b);
+        ncnn::VkMat gpu_b;
+        cmd.record_upload(cpu_b, gpu_b, opt);
+
+        if (b == 0)
+        {
+            gpu_batch.create_like_batch(gpu_b, B, blob_allocator);
+        }
+
+        ncnn::VkMat gpu_batch_slot = gpu_batch.batch(b);
+        cmd.record_clone(gpu_b, gpu_batch_slot, opt);
+    }
+
+    // download each batch back
+    std::vector<ncnn::Mat> cpu_results(B);
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::VkMat gpu_b = gpu_batch.batch(b);
+        cmd.record_download(gpu_b, cpu_results[b], opt);
+    }
+
+    int ret = cmd.submit_and_wait();
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_upload_download submit failed ret=%d\n", ret);
+        vkdev->reclaim_staging_allocator(staging_allocator);
+        vkdev->reclaim_blob_allocator(blob_allocator);
+        return -1;
+    }
+
+    // verify downloaded data matches original
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat& result = cpu_results[b];
+        if (result.w != W || result.h != H || result.c != C)
+        {
+            fprintf(stderr, "test_vkmat_batch_upload_download shape mismatch at batch %d\n", b);
+            vkdev->reclaim_staging_allocator(staging_allocator);
+            vkdev->reclaim_blob_allocator(blob_allocator);
+            return -1;
+        }
+
+        const ncnn::Mat orig = cpu_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            const float* orig_ptr = orig.channel(q);
+            const float* result_ptr = result.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                if (fabsf(orig_ptr[i] - result_ptr[i]) > 1e-5f)
+                {
+                    fprintf(stderr, "test_vkmat_batch_upload_download value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
+                            b, q, i, result_ptr[i], orig_ptr[i]);
+                    vkdev->reclaim_staging_allocator(staging_allocator);
+                    vkdev->reclaim_blob_allocator(blob_allocator);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    vkdev->reclaim_staging_allocator(staging_allocator);
+    vkdev->reclaim_blob_allocator(blob_allocator);
+    return 0;
+}
+
+static int test_vkmat_batch_forward_relu()
+{
+    const char param_str[] =
+        "7767517\n"
+        "2 2\n"
+        "Input input 0 1 data\n"
+        "ReLU  relu  1 1 data output 0=1.000000e-01\n";
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    const int B = 4;
+    const int C = 3;
+    const int H = 3;
+    const int W = 4;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+    if (input_batch.empty())
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_relu create_batch failed\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        sub.fill((float)(b - 1.5f));
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_relu extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    if (output_batch.n != B)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_relu output n expect %d got %d\n", B, output_batch.n);
+        return -1;
+    }
+    if (output_batch.w != W || output_batch.h != H || output_batch.c != C)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_relu output shape mismatch\n");
+        return -1;
+    }
+
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat out_sub = output_batch.batch(b);
+        float input_val = (float)(b - 1.5f);
+        float expected = input_val > 0 ? input_val : input_val * 0.1f;
+
+        for (int q = 0; q < C; q++)
+        {
+            const float* ptr = out_sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                if (fabsf(ptr[i] - expected) > 1e-4f)
+                {
+                    fprintf(stderr, "test_vkmat_batch_forward_relu value mismatch at b=%d q=%d i=%d: got %f expect %f\n",
+                            b, q, i, ptr[i], expected);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_vkmat_batch_forward_pooling()
+{
+    const char param_str[] =
+        "7767517\n"
+        "2 2\n"
+        "Input   input   0 1 data\n"
+        "Pooling pooling 1 1 data output 0=0 1=2 2=2\n";
+
+    ncnn::Net net;
+    ncnn::Option opt;
+    opt.use_vulkan_compute = true;
+    net.opt = opt;
+    net.load_param_mem(param_str);
+    net.load_model((const unsigned char*)"");
+
+    const int B = 2;
+    const int C = 2;
+    const int H = 4;
+    const int W = 4;
+
+    ncnn::Mat input_batch;
+    input_batch.create_batch(W, H, C, B, 4u, 1);
+
+    for (int b = 0; b < B; b++)
+    {
+        ncnn::Mat sub = input_batch.batch(b);
+        for (int q = 0; q < C; q++)
+        {
+            float* ptr = sub.channel(q);
+            for (int i = 0; i < W * H; i++)
+            {
+                ptr[i] = (float)(b * 100 + q * 10 + i);
+            }
+        }
+    }
+
+    ncnn::Extractor ex = net.create_extractor();
+    ex.input("data", input_batch);
+
+    ncnn::Mat output_batch;
+    int ret = ex.extract("output", output_batch);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_pooling extract failed ret=%d\n", ret);
+        return -1;
+    }
+
+    if (output_batch.n != B)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_pooling output n expect %d got %d\n", B, output_batch.n);
+        return -1;
+    }
+    if (output_batch.w != 2 || output_batch.h != 2 || output_batch.c != C)
+    {
+        fprintf(stderr, "test_vkmat_batch_forward_pooling output shape expect 2x2x%d got %dx%dx%d\n",
+                C, output_batch.w, output_batch.h, output_batch.c);
+        return -1;
+    }
+
+    // verify max pooling for batch 0, channel 0
+    // input 4x4: [ 0  1  2  3 / 4  5  6  7 / 8  9 10 11 / 12 13 14 15 ]
+    // max pool 2x2 stride 2 -> [ 5 7 / 13 15 ]
+    {
+        const ncnn::Mat out0 = output_batch.batch(0);
+        const float* ptr = out0.channel(0);
+        float expected[4] = {5.f, 7.f, 13.f, 15.f};
+        for (int i = 0; i < 4; i++)
+        {
+            if (fabsf(ptr[i] - expected[i]) > 1e-4f)
+            {
+                fprintf(stderr, "test_vkmat_batch_forward_pooling b0 mismatch at i=%d: got %f expect %f\n",
+                        i, ptr[i], expected[i]);
+                return -1;
+            }
+        }
+    }
+
+    // verify batch 1, channel 0: input 100+i -> max pool -> [105, 107, 113, 115]
+    {
+        const ncnn::Mat out1 = output_batch.batch(1);
+        const float* ptr = out1.channel(0);
+        float expected[4] = {105.f, 107.f, 113.f, 115.f};
+        for (int i = 0; i < 4; i++)
+        {
+            if (fabsf(ptr[i] - expected[i]) > 1e-4f)
+            {
+                fprintf(stderr, "test_vkmat_batch_forward_pooling b1 mismatch at i=%d: got %f expect %f\n",
+                        i, ptr[i], expected[i]);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
 #endif // NCNN_VULKAN
 
 int main()
@@ -972,6 +1254,9 @@ int main()
         ret |= test_vkmat_batch_subview();
         ret |= test_vkmat_batch_range();
         ret |= test_vkmat_batch_release();
+        ret |= test_vkmat_batch_upload_download();
+        ret |= test_vkmat_batch_forward_relu();
+        ret |= test_vkmat_batch_forward_pooling();
     }
     else
     {

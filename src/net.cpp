@@ -3002,9 +3002,35 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
             if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
             {
-                cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+                if (feat_gpu.n > 1)
+                {
+                    // download each batch separately and assemble
+                    const int B = feat_gpu.n;
+                    std::vector<Mat> cpu_batch_samples(B);
+                    for (int b = 0; b < B; b++)
+                    {
+                        VkMat gpu_b = feat_gpu.batch(b);
+                        cmd.record_download(gpu_b, cpu_batch_samples[b], d->opt);
+                    }
 
-                ret = cmd.submit_and_wait();
+                    ret = cmd.submit_and_wait();
+
+                    if (ret == 0)
+                    {
+                        d->blob_mats[blob_index].create_like_batch(cpu_batch_samples[0], B, d->opt.blob_allocator);
+                        for (int b = 0; b < B; b++)
+                        {
+                            size_t batch_data_size = cpu_batch_samples[b].total() * cpu_batch_samples[b].elemsize;
+                            memcpy(d->blob_mats[blob_index].batch(b).data, cpu_batch_samples[b].data, batch_data_size);
+                        }
+                    }
+                }
+                else
+                {
+                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+
+                    ret = cmd.submit_and_wait();
+                }
 
 #if NCNN_BENCHMARK
                 std::vector<uint64_t> results(d->net->layers().size() * 2);
@@ -3222,7 +3248,36 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
         if (d->blob_mats[blob_index].dims != 0)
         {
             // host to buffer
-            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+            if (d->blob_mats[blob_index].n > 1)
+            {
+                // upload each batch separately and assemble
+                const int B = d->blob_mats[blob_index].n;
+                VkMat gpu_batch;
+                for (int b = 0; b < B; b++)
+                {
+                    Mat cpu_b = d->blob_mats[blob_index].batch(b);
+                    VkMat gpu_b;
+                    cmd.record_upload(cpu_b, gpu_b, d->opt);
+
+                    if (b == 0)
+                    {
+                        gpu_batch.create_like_batch(gpu_b, B, d->opt.blob_vkallocator);
+                        if (gpu_batch.empty())
+                        {
+                            ret = -100;
+                            break;
+                        }
+                    }
+
+                    VkMat gpu_batch_slot = gpu_batch.batch(b);
+                    cmd.record_clone(gpu_b, gpu_batch_slot, d->opt);
+                }
+                d->blob_mats_gpu[blob_index] = gpu_batch;
+            }
+            else
+            {
+                cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+            }
         }
         else
         {
