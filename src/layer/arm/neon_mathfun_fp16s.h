@@ -198,19 +198,8 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
 #endif
 
     /* perform a floorf */
-#if defined(__aarch64__)
     mm = vcvtm_s16_f16(fx);
     fx = vcvt_f16_s16(mm);
-#else
-    tmp = vcvt_f16_s16(vcvt_s16_f16(fx));
-
-    /* if greater, substract 1 */
-    uint16x4_t mask = vcgt_f16(tmp, fx);
-    mask = vand_u16(mask, (uint16x4_t)(one));
-
-    fx = vsub_f16(tmp, (float16x4_t)(mask));
-    mm = vcvt_s16_f16(fx);
-#endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
     tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
@@ -261,19 +250,8 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
 #endif
 
     /* perform a floorf */
-#if defined(__aarch64__)
     mm = vcvtmq_s16_f16(fx);
     fx = vcvtq_f16_s16(mm);
-#else
-    tmp = vcvtq_f16_s16(vcvtq_s16_f16(fx));
-
-    /* if greater, substract 1 */
-    uint16x8_t mask = vcgtq_f16(tmp, fx);
-    mask = vandq_u16(mask, vreinterpretq_u16_f16(one));
-
-    fx = vsubq_f16(tmp, vreinterpretq_f16_u16(mask));
-    mm = vcvtq_s16_f16(fx);
-#endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
     float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
