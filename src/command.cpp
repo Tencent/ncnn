@@ -722,13 +722,11 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 {
     //     NCNN_LOGE("record_clone buffer to buffer");
 
-    // create dst if not already allocated (e.g. pre-allocated batch slot)
+    // create dst
+    // for batch sub-views, dst already has correct shape/allocator, create_like is noop
+    dst.create_like(src, opt.blob_vkallocator);
     if (dst.empty())
-    {
-        dst.create_like(src, opt.blob_vkallocator);
-        if (dst.empty())
-            return;
-    }
+        return;
 
     if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
