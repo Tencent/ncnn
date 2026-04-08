@@ -246,7 +246,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
         }
 #endif // __riscv_vector
-        if (elempack == out_elempack)
+        if (elempack == 1 && out_elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
@@ -307,7 +307,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
         }
 #endif // __riscv_vector
-        if (elempack == out_elempack)
+        if (elempack == 1 && out_elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
