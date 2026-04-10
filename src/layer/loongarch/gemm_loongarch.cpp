@@ -285,55 +285,55 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 4;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                    pp += 4;
+                    p0 += 4;
+                }
             }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+            else
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+                const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+                const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+                const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p1, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p2, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p3, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p1, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p2, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p3, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p1[0];
+                    pp[2] = p2[0];
+                    pp[3] = p3[0];
+                    pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
+                }
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
-        }
     }
 
     for (; ii + 1 < max_ii; ii += 2)
@@ -407,49 +407,49 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += A_hstep * 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += A_hstep * 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[4];
+                    pp[2] = p0[8];
+                    pp[3] = p0[12];
+                    pp += 4;
+                    p0++;
+                }
             }
-            for (; kk < max_kk; kk++)
+            else
             {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += A_hstep;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[1];
+                    pp[2] = p0[2];
+                    pp[3] = p0[3];
+                    pp += 4;
+                    p0 += A_hstep;
+                }
             }
-        }
     }
 
     for (; ii + 1 < max_ii; ii += 2)
@@ -562,83 +562,83 @@ static void pack_A_tile_8row(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
-            const float* p1 = (const float*)A + (i + ii + 4) * A_hstep + k * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+                const float* p1 = (const float*)A + (i + ii + 4) * A_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                __lsx_vst(__lsx_vld(p1, 0), pp + 4, 0);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                    __lsx_vst(__lsx_vld(p1, 0), pp + 4, 0);
+                    pp += 8;
+                    p0 += 4;
+                    p1 += 4;
+                }
             }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
-            const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
-            const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
-            const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
-            const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
+            else
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+                const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+                const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+                const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+                const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+                const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+                const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+                const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p1, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p2, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p3, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __m128 _r4 = (__m128)__lsx_vld(p4, 0);
-                __m128 _r5 = (__m128)__lsx_vld(p5, 0);
-                __m128 _r6 = (__m128)__lsx_vld(p6, 0);
-                __m128 _r7 = (__m128)__lsx_vld(p7, 0);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r4, pp + 4, 0);
-                __lsx_vst((__m128i)_r1, pp + 8, 0);
-                __lsx_vst((__m128i)_r5, pp + 12, 0);
-                __lsx_vst((__m128i)_r2, pp + 16, 0);
-                __lsx_vst((__m128i)_r6, pp + 20, 0);
-                __lsx_vst((__m128i)_r3, pp + 24, 0);
-                __lsx_vst((__m128i)_r7, pp + 28, 0);
-                pp += 32;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-                p4 += 4;
-                p5 += 4;
-                p6 += 4;
-                p7 += 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p1, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p2, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p3, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __m128 _r4 = (__m128)__lsx_vld(p4, 0);
+                    __m128 _r5 = (__m128)__lsx_vld(p5, 0);
+                    __m128 _r6 = (__m128)__lsx_vld(p6, 0);
+                    __m128 _r7 = (__m128)__lsx_vld(p7, 0);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r4, pp + 4, 0);
+                    __lsx_vst((__m128i)_r1, pp + 8, 0);
+                    __lsx_vst((__m128i)_r5, pp + 12, 0);
+                    __lsx_vst((__m128i)_r2, pp + 16, 0);
+                    __lsx_vst((__m128i)_r6, pp + 20, 0);
+                    __lsx_vst((__m128i)_r3, pp + 24, 0);
+                    __lsx_vst((__m128i)_r7, pp + 28, 0);
+                    pp += 32;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                    p4 += 4;
+                    p5 += 4;
+                    p6 += 4;
+                    p7 += 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p1[0];
+                    pp[2] = p2[0];
+                    pp[3] = p3[0];
+                    pp[4] = p4[0];
+                    pp[5] = p5[0];
+                    pp[6] = p6[0];
+                    pp[7] = p7[0];
+                    pp += 8;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
+                    p4++;
+                    p5++;
+                    p6++;
+                    p7++;
+                }
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
-        }
     }
 
     for (; ii + 3 < max_ii; ii += 4)
@@ -657,55 +657,55 @@ static void pack_A_tile_8row(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 4;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                    pp += 4;
+                    p0 += 4;
+                }
             }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+            else
+            {
+                const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+                const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+                const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+                const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p1, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p2, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p3, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p1, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p2, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p3, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p1[0];
+                    pp[2] = p2[0];
+                    pp[3] = p3[0];
+                    pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
+                }
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
-        }
     }
 
     for (; ii + 1 < max_ii; ii += 2)
@@ -771,60 +771,60 @@ static void transpose_pack_A_tile_8row(const Mat& A, Mat& AT, int i, int max_ii,
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __m128 _r4 = (__m128)__lsx_vld(p0 + 16, 0);
-                __m128 _r5 = (__m128)__lsx_vld(p0 + 20, 0);
-                __m128 _r6 = (__m128)__lsx_vld(p0 + 24, 0);
-                __m128 _r7 = (__m128)__lsx_vld(p0 + 28, 0);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r4, pp + 4, 0);
-                __lsx_vst((__m128i)_r1, pp + 8, 0);
-                __lsx_vst((__m128i)_r5, pp + 12, 0);
-                __lsx_vst((__m128i)_r2, pp + 16, 0);
-                __lsx_vst((__m128i)_r6, pp + 20, 0);
-                __lsx_vst((__m128i)_r3, pp + 24, 0);
-                __lsx_vst((__m128i)_r7, pp + 28, 0);
-                pp += 32;
-                p0 += A_hstep * 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __m128 _r4 = (__m128)__lsx_vld(p0 + 16, 0);
+                    __m128 _r5 = (__m128)__lsx_vld(p0 + 20, 0);
+                    __m128 _r6 = (__m128)__lsx_vld(p0 + 24, 0);
+                    __m128 _r7 = (__m128)__lsx_vld(p0 + 28, 0);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r4, pp + 4, 0);
+                    __lsx_vst((__m128i)_r1, pp + 8, 0);
+                    __lsx_vst((__m128i)_r5, pp + 12, 0);
+                    __lsx_vst((__m128i)_r2, pp + 16, 0);
+                    __lsx_vst((__m128i)_r6, pp + 20, 0);
+                    __lsx_vst((__m128i)_r3, pp + 24, 0);
+                    __lsx_vst((__m128i)_r7, pp + 28, 0);
+                    pp += 32;
+                    p0 += A_hstep * 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[4];
+                    pp[2] = p0[8];
+                    pp[3] = p0[12];
+                    pp[4] = p0[16];
+                    pp[5] = p0[20];
+                    pp[6] = p0[24];
+                    pp[7] = p0[28];
+                    pp += 8;
+                    p0++;
+                }
             }
-            for (; kk < max_kk; kk++)
+            else
             {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp += 8;
-                p0++;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
-                pp += 8;
-                p0 += A_hstep;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                    __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
+                    pp += 8;
+                    p0 += A_hstep;
+                }
             }
-        }
     }
 
     for (; ii + 3 < max_ii; ii += 4)
@@ -855,49 +855,49 @@ static void transpose_pack_A_tile_8row(const Mat& A, Mat& AT, int i, int max_ii,
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += A_hstep * 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += A_hstep * 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[4];
+                    pp[2] = p0[8];
+                    pp[3] = p0[12];
+                    pp += 4;
+                    p0++;
+                }
             }
-            for (; kk < max_kk; kk++)
+            else
             {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
+                const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += A_hstep;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[1];
+                    pp[2] = p0[2];
+                    pp[3] = p0[3];
+                    pp += 4;
+                    p0 += A_hstep;
+                }
             }
-        }
     }
 
     for (; ii + 1 < max_ii; ii += 2)
@@ -1061,55 +1061,55 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 4;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                    pp += 4;
+                    p0 += 4;
+                }
             }
-        }
-        else
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
-            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            else
+            {
+                const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+                const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+                const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+                const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p1, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p2, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p3, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p1, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p2, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p3, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += 4;
+                    p1 += 4;
+                    p2 += 4;
+                    p3 += 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p1[0];
+                    pp[2] = p2[0];
+                    pp[3] = p3[0];
+                    pp += 4;
+                    p0++;
+                    p1++;
+                    p2++;
+                    p3++;
+                }
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
-        }
     }
 
     for (; jj + 1 < max_jj; jj += 2)
@@ -1226,49 +1226,49 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
         }
         else
 #endif
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            if (elempack == 4)
+            {
+                const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
-                __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vst((__m128i)_r0, pp, 0);
-                __lsx_vst((__m128i)_r1, pp + 4, 0);
-                __lsx_vst((__m128i)_r2, pp + 8, 0);
-                __lsx_vst((__m128i)_r3, pp + 12, 0);
-                pp += 16;
-                p0 += B_hstep * 4;
+                int kk = 0;
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, pp, 0);
+                    __lsx_vst((__m128i)_r1, pp + 4, 0);
+                    __lsx_vst((__m128i)_r2, pp + 8, 0);
+                    __lsx_vst((__m128i)_r3, pp + 12, 0);
+                    pp += 16;
+                    p0 += B_hstep * 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[4];
+                    pp[2] = p0[8];
+                    pp[3] = p0[12];
+                    pp += 4;
+                    p0++;
+                }
             }
-            for (; kk < max_kk; kk++)
+            else
             {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
+                const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp += 4;
-                p0 += B_hstep;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    pp[0] = p0[0];
+                    pp[1] = p0[1];
+                    pp[2] = p0[2];
+                    pp[3] = p0[3];
+                    pp += 4;
+                    p0 += B_hstep;
+                }
             }
-        }
     }
 
     for (; jj + 1 < max_jj; jj += 2)
@@ -1425,8 +1425,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 4;
             }
         }
-        else
-        if (out_elempack == 4)
+        else if (out_elempack == 4)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
@@ -1551,8 +1550,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 2;
             }
         }
-        else
-        if (out_elempack == 4)
+        else if (out_elempack == 4)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
@@ -1672,8 +1670,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 pp += 1;
             }
         }
-        else
-        if (out_elempack == 4)
+        else if (out_elempack == 4)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
@@ -2650,8 +2647,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     store_output_block(top_blob, i + ii, 4, j + jj, 4, tmp, false, false);
                     outptr0 += 4;
                 }
-                else
-                if (out_elempack == 4)
+                else if (out_elempack == 4)
                 {
                     __lsx_vst((__m128i)_sum0, outptr0, 0);
                     __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
@@ -2746,8 +2742,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     store_output_block(top_blob, i + ii, 4, j + jj, 2, tmp, false, false);
                     outptr0 += 2;
                 }
-                else
-                if (out_elempack == 4)
+                else if (out_elempack == 4)
                 {
                     __lsx_vst((__m128i)_sum0, outptr0, 0);
                     __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
@@ -2825,8 +2820,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     store_output_block(top_blob, i + ii, 4, j + jj, 1, tmp, false, false);
                     outptr0 += 1;
                 }
-                else
-                if (out_elempack == 4)
+                else if (out_elempack == 4)
                 {
                     __lsx_vst((__m128i)_sum0, outptr0, 0);
                     outptr0 += 4;
@@ -3851,22 +3845,22 @@ static bool support_fp32_tiled_gemm(const Mat& A, const Mat& B, int output_elemp
 
     if (A.elempack != 1 && A.elempack != 4
 #if __loongarch_asx
-        && A.elempack != 8
+            && A.elempack != 8
 #endif
-    )
+       )
         return false;
     if (B.elempack != 1 && B.elempack != 4
 #if __loongarch_asx
-        && B.elempack != 8
+            && B.elempack != 8
 #endif
-    )
+       )
         return false;
 
     if (output_elempack != 0 && output_elempack != 1 && output_elempack != 4
 #if __loongarch_asx
-        && output_elempack != 8
+            && output_elempack != 8
 #endif
-    )
+       )
         return false;
 
     return true;
