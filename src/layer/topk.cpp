@@ -207,7 +207,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (_k == 1)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int line = 0; line < total_lines; line++)
         {
             int outer_i = line / inner;
@@ -326,7 +326,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (_k == axis_size && !sorted_flag)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int line = 0; line < total_lines; line++)
         {
             int outer_i = line / inner;
@@ -372,7 +372,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (_k <= 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int line = 0; line < total_lines; line++)
         {
             int outer_i = line / inner;
@@ -485,7 +485,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int line = 0; line < total_lines; line++)
     {
         std::vector<std::pair<float, int> > vec(axis_size);
