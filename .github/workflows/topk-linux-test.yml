@@ -107,5 +107,5 @@ jobs:
         cmake --build . --config Release -j$(nproc)
     - name: test-topk
       run: |
-        cd tools/pnnx
-        build/src/pnnx tests/onnx/test_torch_topk.py
+        cd tools/pnnx/build
+        ctest --output-on-failure -R test_onnx_torch_topk
