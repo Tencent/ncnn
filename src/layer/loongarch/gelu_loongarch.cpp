@@ -115,21 +115,83 @@ int GELU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #if NCNN_BF16
 int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    Option opt_cast = opt;
-    opt_cast.blob_allocator = opt.workspace_allocator;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int elempack = bottom_top_blob.elempack;
+    int channels = bottom_top_blob.c;
+    int size = w * h * d * elempack;
 
-    Mat bottom_top_blob_fp32;
-    cast_bfloat16_to_float32(bottom_top_blob, bottom_top_blob_fp32, opt_cast);
-    if (bottom_top_blob_fp32.empty())
-        return -100;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
 
-    int ret = forward_inplace(bottom_top_blob_fp32, opt);
-    if (ret != 0)
-        return ret;
+        int i = 0;
 
-    cast_float32_to_bfloat16(bottom_top_blob_fp32, bottom_top_blob, opt);
-    if (bottom_top_blob.empty())
-        return -100;
+        if (fast_gelu)
+        {
+#if __loongarch_sx
+#if __loongarch_asx
+            __m256 _half8 = (__m256)__lasx_xvreplfr2vr_s(0.5f);
+            __m256 _one8 = (__m256)__lasx_xvreplfr2vr_s(1.f);
+            __m256 _fast1c8 = (__m256)__lasx_xvreplfr2vr_s(0.79788452f);
+            __m256 _fast2c8 = (__m256)__lasx_xvreplfr2vr_s(0.044715f);
+            for (; i + 7 < size; i += 8)
+            {
+                __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                __m256 _cube = __lasx_xvfmul_s(_p, _p);
+                _cube = __lasx_xvfmul_s(_cube, _p);
+                __m256 _blob = __lasx_xvfmul_s(_fast2c8, _cube);
+                _blob = __lasx_xvfadd_s(_blob, _p);
+                _blob = __lasx_xvfmul_s(_fast1c8, _blob);
+                _blob = tanh256_ps(_blob);
+                _blob = __lasx_xvfadd_s(_one8, _blob);
+                _blob = __lasx_xvfmul_s(_half8, __lasx_xvfmul_s(_blob, _p));
+                __lasx_xvst(float2bfloat_avx(_blob), ptr, 0);
+
+                ptr += 8;
+            }
+#endif
+            __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
+            __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
+            __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
+            __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+            for (; i + 3 < size; i += 4)
+            {
+                __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                __m128 _cube = __lsx_vfmul_s(_p, _p);
+                _cube = __lsx_vfmul_s(_cube, _p);
+                __m128 _blob = __lsx_vfmul_s(_fast2c4, _cube);
+                _blob = __lsx_vfadd_s(_blob, _p);
+                _blob = __lsx_vfmul_s(_fast1c4, _blob);
+                _blob = tanh_ps(_blob);
+                _blob = __lsx_vfadd_s(_one4, _blob);
+                _blob = __lsx_vfmul_s(_half4, __lsx_vfmul_s(_blob, _p));
+                __lsx_vst(float2bfloat_sse(_blob), ptr, 0);
+
+                ptr += 4;
+            }
+#endif
+            for (; i < size; i++)
+            {
+                float v = bfloat16_to_float32(*ptr);
+                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                *ptr = float32_to_bfloat16(v);
+                ptr++;
+            }
+        }
+        else
+        {
+            for (; i < size; i++)
+            {
+                float v = bfloat16_to_float32(*ptr);
+                v = 0.5f * v * erfcf(-0.70710678f * v);
+                *ptr = float32_to_bfloat16(v);
+                ptr++;
+            }
+        }
+    }
 
     return 0;
 }

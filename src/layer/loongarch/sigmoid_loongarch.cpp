@@ -21,10 +21,18 @@ Sigmoid_loongarch::Sigmoid_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Sigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -78,5 +86,58 @@ int Sigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     return 0;
 }
+
+#if NCNN_BF16
+int Sigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+
+        int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_avx((__m128i*)ptr);
+            _p = (__m256)__lasx_xvbitrevi_w((__m256i)_p, 31);
+            _p = exp256_ps(_p);
+            _p = __lasx_xvfadd_s(_p, (__m256)__lasx_xvreplfr2vr_s(1.f));
+            _p = __lasx_xvfdiv_s((__m256)__lasx_xvreplfr2vr_s(1.f), _p);
+            __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+            ptr += 8;
+        }
+#endif // __loongarch_asx
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_sse((__m128i*)ptr);
+            _p = (__m128)__lsx_vbitrevi_w((__m128i)_p, 31);
+            _p = exp_ps(_p);
+            _p = __lsx_vfadd_s(_p, (__m128)__lsx_vreplfr2vr_s(1.f));
+            _p = __lsx_vfdiv_s((__m128)__lsx_vreplfr2vr_s(1.f), _p);
+            __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            v = 1.f / (1.f + expf(-v));
+            *ptr = float32_to_bfloat16(v);
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

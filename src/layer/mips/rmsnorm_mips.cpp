@@ -21,6 +21,130 @@ RMSNorm_mips::RMSNorm_mips()
 #endif
 }
 
+static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
+{
+    const int size = elemcount * elempack;
+
+#if __mips_msa
+    if (elempack == 4)
+    {
+        // compute rms
+        v4f32 _rms = (v4f32)__msa_fill_w(0);
+        const unsigned short* ptr0 = ptr;
+        for (int i = 0; i < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            _rms = __msa_fmadd_w(_rms, _p, _p);
+            ptr0 += 4;
+        }
+
+        float rms_data[4];
+        __msa_st_w((v4i32)_rms, rms_data, 0);
+        for (int i = 0; i < 4; i++)
+        {
+            rms_data[i] = 1.f / sqrtf(rms_data[i] / elemcount + eps);
+        }
+        _rms = (v4f32)__msa_ld_w(rms_data, 0);
+
+        if (gamma_ptr)
+        {
+            for (int i = 0; i < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
+                _p = __msa_fmul_w(_p, _rms);
+                _p = __msa_fmul_w(_p, _gamma);
+                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                ptr += 4;
+                gamma_ptr += 1;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                _p = __msa_fmul_w(_p, _rms);
+                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                ptr += 4;
+            }
+        }
+
+        return;
+    }
+#endif // __mips_msa
+
+    // elempack == 1 or no MSA
+    float rms = 0.f;
+    {
+        const unsigned short* ptr0 = ptr;
+        int i = 0;
+#if __mips_msa
+        v4f32 _rms = (v4f32)__msa_fill_w(0);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            _rms = __msa_fmadd_w(_rms, _p, _p);
+            ptr0 += 4;
+        }
+        rms += __msa_reduce_fadd_w(_rms);
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(ptr0[0]);
+            rms += v * v;
+            ptr0++;
+        }
+    }
+
+    rms = 1.f / sqrtf(rms / elemcount + eps);
+
+    if (gamma_ptr)
+    {
+        int i = 0;
+#if __mips_msa
+        v4f32 _rms = __msa_fill_w_f32(rms);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+            v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
+            _p = __msa_fmul_w(_p, _rms);
+            _p = __msa_fmul_w(_p, _gamma);
+            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            ptr += 4;
+            gamma_ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(ptr[0]);
+            ptr[0] = float32_to_bfloat16((v * rms) * gamma_ptr[0]);
+            ptr++;
+            gamma_ptr++;
+        }
+    }
+    else
+    {
+        int i = 0;
+#if __mips_msa
+        v4f32 _rms = __msa_fill_w_f32(rms);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+            _p = __msa_fmul_w(_p, _rms);
+            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(ptr[0]);
+            ptr[0] = float32_to_bfloat16(v * rms);
+            ptr++;
+        }
+    }
+}
+
 static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
@@ -200,21 +324,52 @@ int RMSNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if NCNN_BF16
 int RMSNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    Option opt_cast = opt;
-    opt_cast.blob_allocator = opt.workspace_allocator;
+    const int dims = bottom_top_blob.dims;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
 
-    Mat bottom_top_blob_fp32;
-    cast_bfloat16_to_float32(bottom_top_blob, bottom_top_blob_fp32, opt_cast);
-    if (bottom_top_blob_fp32.empty())
-        return -100;
+    if (dims == 1)
+    {
+        unsigned short* ptr = (unsigned short*)bottom_top_blob;
+        rmsnorm_mips_bf16(ptr, gamma_data, eps, w * elempack, 1);
+    }
 
-    int ret = forward_inplace(bottom_top_blob_fp32, opt);
-    if (ret != 0)
-        return ret;
+    if (dims == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            rmsnorm_mips_bf16(ptr, gamma_data, eps, w, elempack);
+        }
+    }
 
-    cast_float32_to_bfloat16(bottom_top_blob_fp32, bottom_top_blob, opt);
-    if (bottom_top_blob.empty())
-        return -100;
+    if (dims == 3)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int i = 0; i < h; i++)
+                {
+                    unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q).row<unsigned short>(i);
+                    rmsnorm_mips_bf16(ptr, gamma_data, eps, w, elempack);
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+                rmsnorm_mips_bf16(ptr, gamma_data, eps, w * h, elempack);
+            }
+        }
+    }
 
     return 0;
 }

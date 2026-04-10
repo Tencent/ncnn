@@ -10,60 +10,103 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 
-static inline v4f32 elu_ps(v4f32 inputs, v4f32 alphas)
+static NCNN_FORCEINLINE v4f32 sigmoid_msa(v4f32 inputs)
 {
-    v4f32 _zero = (v4f32)__msa_fill_w(0);
-    v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-    v4f32 _pos = __msa_fmax_w(inputs, _zero);
-    v4f32 _neg = __msa_fmin_w(inputs, _zero);
-    _neg = __msa_fsub_w(exp_ps(_neg), _one);
-    return __msa_fadd_w(_pos, __msa_fmul_w(alphas, _neg));
+    const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
+    return __msa_fdiv_w(one, __msa_fadd_w(one, exp_ps(__msa_fsub_w((v4f32)__msa_fill_w(0), inputs))));
 }
 
-static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
+static NCNN_FORCEINLINE v4f32 tanh_msa(v4f32 inputs)
 {
-    if (activation_type == 1)
+    const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
+    const v4f32 two = (v4f32)__msa_fill_w_f32(2.0f);
+    return __msa_fsub_w(__msa_fmul_w(sigmoid_msa(__msa_fmul_w(inputs, two)), two), one);
+}
+
+static NCNN_FORCEINLINE v4f32 mish_msa(v4f32 inputs)
+{
+    return __msa_fmul_w(inputs, tanh_msa(log_ps(__msa_fadd_w(exp_ps(inputs), (v4f32)__msa_fill_w_f32(1.f)))));
+}
+
+static NCNN_FORCEINLINE v4f32 swish_msa(v4f32 inputs)
+{
+    return __msa_fmul_w(inputs, sigmoid_msa(inputs));
+}
+
+static NCNN_FORCEINLINE v4f32 hardswish_msa(v4f32 inputs, v4f32 a, v4f32 b)
+{
+    const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
+    b = __msa_fmadd_w(b, inputs, a);
+    b = __msa_fmax_w(b, (v4f32)__msa_fill_w(0));
+    b = __msa_fmin_w(b, one);
+    return __msa_fmul_w(b, inputs);
+}
+
+static NCNN_FORCEINLINE v4f32 lrelu_msa(v4f32 inputs, float slope)
+{
+    v4f32 pos = __msa_fmax_w((v4f32)__msa_fill_w(0), inputs);
+    v4f32 neg = __msa_fmin_w((v4f32)__msa_fill_w(0), inputs);
+    return __msa_fadd_w(pos, __msa_fmul_w((v4f32)__msa_fill_w_f32(slope), neg));
+}
+
+static NCNN_FORCEINLINE v4f32 prelu_msa(v4f32 inputs, v4f32 alphas)
+{
+    v4f32 pos = __msa_fmax_w((v4f32)__msa_fill_w(0), inputs);
+    v4f32 neg = __msa_fmin_w((v4f32)__msa_fill_w(0), inputs);
+    return __msa_fadd_w(pos, __msa_fmul_w(alphas, neg));
+}
+
+static NCNN_FORCEINLINE v4f32 elu_msa(v4f32 inputs, v4f32 alphas)
+{
+    v4f32 pos = __msa_fmax_w((v4f32)__msa_fill_w(0), inputs);
+    v4f32 neg = __msa_fmin_w((v4f32)__msa_fill_w(0), inputs);
+    neg = __msa_fsub_w(exp_ps(neg), (v4f32)__msa_fill_w_f32(1.f));
+    return __msa_fadd_w(pos, __msa_fmul_w(alphas, neg));
+}
+
+static NCNN_FORCEINLINE v4f32 activation_msa(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
+{
+    switch (activation_type)
     {
-        v4f32 _zero = (v4f32)__msa_fill_w(0);
-        _v = __msa_fmax_w(_v, _zero);
+    case 1:
+    {
+        // Relu
+        return __msa_fmax_w(_v, (v4f32)__msa_fill_w(0));
     }
-    else if (activation_type == 2)
+    case 2:
     {
-        v4f32 _zero = (v4f32)__msa_fill_w(0);
-        v4f32 _slope = (v4f32)__msa_fill_w_f32(activation_params[0]);
-        v4i32_w _lemask = __msa_fcle_w(_v, _zero);
-        v4f32 _ps = __msa_fmul_w(_v, _slope);
-        _v = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_v, (v16u8)_ps);
+        // Leaky relu
+        return lrelu_msa(_v, activation_params[0]);
     }
-    else if (activation_type == 3)
+    case 3:
     {
-        v4f32 _min = (v4f32)__msa_fill_w_f32(activation_params[0]);
-        v4f32 _max = (v4f32)__msa_fill_w_f32(activation_params[1]);
-        _v = __msa_fmax_w(_v, _min);
-        _v = __msa_fmin_w(_v, _max);
+        // min max clip
+        v4f32 min = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        v4f32 max = (v4f32)__msa_fill_w_f32(activation_params[1]);
+        return __msa_fmin_w(__msa_fmax_w(_v, min), max);
     }
-    else if (activation_type == 4)
+    case 4:
     {
-        _v = sigmoid_ps(_v);
+        // Sigmoid
+        return sigmoid_msa(_v);
     }
-    else if (activation_type == 5)
+    case 5:
     {
-        _v = __msa_fmul_w(_v, tanh_ps(log_ps(__msa_fadd_w(exp_ps(_v), (v4f32)__msa_fill_w_f32(1.f)))));
+        // Mish
+        return mish_msa(_v);
     }
-    else if (activation_type == 6)
+    case 6:
     {
-        v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
-        v4f32 _beta = (v4f32)__msa_fill_w_f32(activation_params[1]);
-        v4f32 _zero = (v4f32)__msa_fill_w(0);
-        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-        v4f32 _outp = __msa_fmadd_w(_beta, _v, _alpha);
-        _outp = __msa_fmax_w(_outp, _zero);
-        _outp = __msa_fmin_w(_outp, _one);
-        _v = __msa_fmul_w(_outp, _v);
+        // Hard swish
+        v4f32 _a = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        v4f32 _b = (v4f32)__msa_fill_w_f32(activation_params[1]);
+        return hardswish_msa(_v, _a, _b);
+    }
     }
 
     return _v;
 }
+
 #endif // __mips_msa
 
 #endif // MIPS_ACTIVATION_H

@@ -14,6 +14,10 @@ public:
     HardSwish_loongarch();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+#if NCNN_BF16
+    virtual int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn
