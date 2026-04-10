@@ -1109,15 +1109,15 @@ static NCNN_FORCEINLINE v4i32 _mm_blend_epi16(v4i32 a, v4i32 b, int imm)
     if (imm & 8) mask = (v8i16)__msa_or_v((v16u8)mask, (v16u8)__msa_slli_h(__msa_fill_h(0xFFFF), 3));
     v4i32 mask_w = (v4i32)__msa_or_v((v16u8)(v8i16)mask, (v16u8)__msa_slli_w((v4i32)(v8i16)mask, 4));
     return (v4i32)__msa_or_v(
-        (v16u8)__msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask_w, (v16u8)mask_w)),
-        (v16u8)__msa_and_v((v16u8)b, (v16u8)mask_w));
+               (v16u8)__msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask_w, (v16u8)mask_w)),
+               (v16u8)__msa_and_v((v16u8)b, (v16u8)mask_w));
 }
 
 // _MM_TRANSPOSE4_PS macro
 #define _MM_TRANSPOSE4_PS(row0, row1, row2, row3) \
-    { \
-        v4f32 _tmp0, _tmp1, _tmp2, _tmp3; \
-        transpose4x4_ps(row0, row1, row2, row3); \
+    {                                             \
+        v4f32 _tmp0, _tmp1, _tmp2, _tmp3;         \
+        transpose4x4_ps(row0, row1, row2, row3);  \
     }
 
 #endif // __mips_msa

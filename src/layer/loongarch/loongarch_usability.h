@@ -93,7 +93,6 @@ static NCNN_FORCEINLINE int __lasx_reduce_add_w(__m256i _v)
     __m128i hi32 = __lsx_vilvr_w(hi64, sum64);
     __m128i sum32 = __lsx_vadd_w(sum64, hi32);
 
-
     return __lsx_vpickve_w_f(sum32, 0, 0);
 }
 #endif // __loongarch_asx
@@ -849,8 +848,8 @@ static NCNN_FORCEINLINE __m128i _mm_blend_epi16(__m128i a, __m128i b, int imm)
     if (imm & 8) mask = (v8i16)__lsx_vor_v((v16u8)mask, (v16u8)__lsx_vslli_h(__lsx_vreplgr2vr_h(0xFFFF), 3));
     __m128i mask_w = (v4i32)__lsx_vor_v((v16u8)(v8i16)mask, (v16u8)__lsx_vslli_w((v4i32)(v8i16)mask, 4));
     return (v4i32)__lsx_vor_v(
-        (v16u8)__lsx_vand_v((v16u8)a, (v16u8)__lsx_vnor_v((v16u8)mask_w, (v16u8)mask_w)),
-        (v16u8)__lsx_vand_v((v16u8)b, (v16u8)mask_w));
+               (v16u8)__lsx_vand_v((v16u8)a, (v16u8)__lsx_vnor_v((v16u8)mask_w, (v16u8)mask_w)),
+               (v16u8)__lsx_vand_v((v16u8)b, (v16u8)mask_w));
 }
 
 // _mm_andnot_si128 - bitwise and not ( (~a) & b )
@@ -1532,8 +1531,8 @@ static NCNN_FORCEINLINE __m256i _mm256_blend_epi16(__m256i a, __m256i b, int imm
     }
     __m256i mask_w = __lasx_xvor_v(mask, __lasx_xvslli_w(mask, 8));
     return __lasx_xvor_v(
-        __lasx_xvand_v(a, __lasx_xvnor_v(mask_w, mask_w)),
-        __lasx_xvand_v(b, mask_w));
+               __lasx_xvand_v(a, __lasx_xvnor_v(mask_w, mask_w)),
+               __lasx_xvand_v(b, mask_w));
 }
 
 // _mm256_andnot_si256 - bitwise and not
