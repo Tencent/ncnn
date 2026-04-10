@@ -1640,12 +1640,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 continue;
 
             fprintf(pyfp, "        self.%s = TopK(", sanitize_identifier(op->name).c_str());
-            
+
             int i = 0;
             for (const auto& it : op->params)
             {
                 fprintf(pyfp, "%s=", it.first.c_str());
-                
+
                 const Parameter& param = it.second;
                 if (param.type == 2)
                 {
@@ -1655,12 +1655,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     fprintf(pyfp, "%d", param.b ? 1 : 0);
                 }
-                
+
                 if (i + 1 != op->params.size())
                     fprintf(pyfp, ", ");
                 i++;
             }
-            
+
             fprintf(pyfp, ")\n");
         }
     }

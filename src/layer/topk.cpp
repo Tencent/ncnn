@@ -1,12 +1,17 @@
-// Copyright 2026 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "topk.h"
 
-#include <algorithm>
 #include <stdint.h>
 #include <string.h>
+
+#if NCNN_SIMPLESTL
+#include "simplestl.h"
+#else
+#include <algorithm>
 #include <vector>
+#endif
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -185,6 +190,21 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     const int total_lines = outer * inner;
 
+    // ncnn 3-/4-D mats have a channel stride (cstep) that may be larger than w*h
+    // due to alignment padding.  The flat inner/outer indexing must account for this:
+    //   - when axis reduces a non-channel dim, the outer loop spans channels and
+    //     the channel offset must use cstep rather than the product of spatial sizes;
+    //   - when axis IS the channel dim, the per-element j-stride must be cstep.
+    const size_t in_cstep = (dims >= 3) ? (size_t)bottom_blob.cstep : 0;
+    const size_t out_cstep = (dims >= 3) ? values.cstep : 0;
+    const bool axis_is_channel = (dims >= 3 && positive_axis == dims - 1);
+    // spatial-only outer count: channels factored out so cstep can be used separately
+    const int c_channels = (!axis_is_channel && dims >= 3) ? shape[dims - 1] : 1;
+    const int outer_spatial = (dims >= 3 && !axis_is_channel) ? outer / c_channels : outer;
+    // stride when stepping along the axis in memory
+    const size_t in_axis_stride = axis_is_channel ? in_cstep : (size_t)inner;
+    const size_t out_axis_stride = axis_is_channel ? out_cstep : (size_t)inner;
+
     if (_k == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -193,8 +213,19 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             int outer_i = line / inner;
             int inner_i = line - outer_i * inner;
 
-            int in_base = outer_i * axis_size * inner + inner_i;
-            int out_base = outer_i * inner + inner_i;
+            size_t in_base, out_base;
+            if (!axis_is_channel && dims >= 3)
+            {
+                const int ci = outer_i / outer_spatial;
+                const int sp_i = outer_i % outer_spatial;
+                in_base = (size_t)ci * in_cstep + (size_t)sp_i * axis_size * inner + inner_i;
+                out_base = (size_t)ci * out_cstep + (size_t)sp_i * 1 * inner + inner_i;
+            }
+            else
+            {
+                in_base = (size_t)outer_i * axis_size * inner + inner_i;
+                out_base = (size_t)outer_i * 1 * inner + inner_i;
+            }
 
 #if __ARM_NEON
             if (!output_indices && inner == 1 && axis_size >= 4)
@@ -273,7 +304,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
             for (int j = 1; j < axis_size; j++)
             {
-                const float candidate_value = ptr[in_base + j * inner];
+                const float candidate_value = ptr[in_base + j * in_axis_stride];
                 if (topk_value_index_comp(candidate_value, j, best_value, best_index, largest_flag))
                 {
                     best_value = candidate_value;
@@ -301,22 +332,33 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             int outer_i = line / inner;
             int inner_i = line - outer_i * inner;
 
-            int in_base = outer_i * axis_size * inner + inner_i;
-            int out_base = outer_i * _k * inner + inner_i;
+            size_t in_base, out_base;
+            if (!axis_is_channel && dims >= 3)
+            {
+                const int ci = outer_i / outer_spatial;
+                const int sp_i = outer_i % outer_spatial;
+                in_base = (size_t)ci * in_cstep + (size_t)sp_i * axis_size * inner + inner_i;
+                out_base = (size_t)ci * out_cstep + (size_t)sp_i * _k * inner + inner_i;
+            }
+            else
+            {
+                in_base = (size_t)outer_i * axis_size * inner + inner_i;
+                out_base = (size_t)outer_i * _k * inner + inner_i;
+            }
 
             if (output_indices)
             {
                 for (int j = 0; j < _k; j++)
                 {
-                    outptr[out_base + j * inner] = ptr[in_base + j * inner];
-                    outidxptr[out_base + j * inner] = (float)j;
+                    outptr[out_base + j * out_axis_stride] = ptr[in_base + j * in_axis_stride];
+                    outidxptr[out_base + j * out_axis_stride] = (float)j;
                 }
             }
             else
             {
                 for (int j = 0; j < _k; j++)
                 {
-                    outptr[out_base + j * inner] = ptr[in_base + j * inner];
+                    outptr[out_base + j * out_axis_stride] = ptr[in_base + j * in_axis_stride];
                 }
             }
         }
@@ -336,8 +378,19 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             int outer_i = line / inner;
             int inner_i = line - outer_i * inner;
 
-            int in_base = outer_i * axis_size * inner + inner_i;
-            int out_base = outer_i * _k * inner + inner_i;
+            size_t in_base, out_base;
+            if (!axis_is_channel && dims >= 3)
+            {
+                const int ci = outer_i / outer_spatial;
+                const int sp_i = outer_i % outer_spatial;
+                in_base = (size_t)ci * in_cstep + (size_t)sp_i * axis_size * inner + inner_i;
+                out_base = (size_t)ci * out_cstep + (size_t)sp_i * _k * inner + inner_i;
+            }
+            else
+            {
+                in_base = (size_t)outer_i * axis_size * inner + inner_i;
+                out_base = (size_t)outer_i * _k * inner + inner_i;
+            }
 
             float top_values[4];
             int top_indices[4];
@@ -347,7 +400,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             {
                 for (int j = 0; j < axis_size; j++)
                 {
-                    const float candidate_value = ptr[in_base + j * inner];
+                    const float candidate_value = ptr[in_base + j * in_axis_stride];
 
                     if (top_count < _k)
                     {
@@ -382,7 +435,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             {
                 for (int j = 0; j < axis_size; j++)
                 {
-                    const float candidate_value = ptr[in_base + j * inner];
+                    const float candidate_value = ptr[in_base + j * in_axis_stride];
 
                     if (top_count < _k)
                     {
@@ -412,15 +465,15 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             {
                 for (int j = 0; j < _k; j++)
                 {
-                    outptr[out_base + j * inner] = top_values[j];
-                    outidxptr[out_base + j * inner] = (float)top_indices[j];
+                    outptr[out_base + j * out_axis_stride] = top_values[j];
+                    outidxptr[out_base + j * out_axis_stride] = (float)top_indices[j];
                 }
             }
             else
             {
                 for (int j = 0; j < _k; j++)
                 {
-                    outptr[out_base + j * inner] = top_values[j];
+                    outptr[out_base + j * out_axis_stride] = top_values[j];
                 }
             }
         }
@@ -432,58 +485,73 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
-    #pragma omp parallel num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int line = 0; line < total_lines; line++)
     {
-        std::vector<std::pair<float, int> > vec;
-        vec.resize(axis_size);
+        std::vector<std::pair<float, int> > vec(axis_size);
 
         topk_pair_comparator comp(largest_flag);
 
-        #pragma omp for
-        for (int line = 0; line < total_lines; line++)
+        int outer_i = line / inner;
+        int inner_i = line - outer_i * inner;
+
+        size_t in_base, out_base;
+        if (!axis_is_channel && dims >= 3)
         {
-            int outer_i = line / inner;
-            int inner_i = line - outer_i * inner;
+            const int ci = outer_i / outer_spatial;
+            const int sp_i = outer_i % outer_spatial;
+            in_base = (size_t)ci * in_cstep + (size_t)sp_i * axis_size * inner + inner_i;
+            out_base = (size_t)ci * out_cstep + (size_t)sp_i * _k * inner + inner_i;
+        }
+        else
+        {
+            in_base = (size_t)outer_i * axis_size * inner + inner_i;
+            out_base = (size_t)outer_i * _k * inner + inner_i;
+        }
 
-            int in_base = outer_i * axis_size * inner + inner_i;
-            int out_base = outer_i * _k * inner + inner_i;
+        for (int j = 0; j < axis_size; j++)
+        {
+            vec[j].first = ptr[in_base + j * in_axis_stride];
+            vec[j].second = j;
+        }
 
-            for (int j = 0; j < axis_size; j++)
+        if (_k < axis_size)
+        {
+#if NCNN_SIMPLESTL
+            std::partial_sort(vec.begin(), vec.begin() + _k, vec.end(), comp);
+#else
+            if (sorted_flag)
             {
-                vec[j].first = ptr[in_base + j * inner];
-                vec[j].second = j;
-            }
-
-            if (_k < axis_size)
-            {
-                if (sorted_flag)
-                {
-                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
-                    std::sort(vec.begin(), vec.begin() + _k, comp);
-                }
-                else
-                    std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
-            }
-            else
-            {
-                if (sorted_flag)
-                    std::sort(vec.begin(), vec.end(), comp);
-            }
-
-            if (output_indices)
-            {
-                for (int j = 0; j < _k; j++)
-                {
-                    outptr[out_base + j * inner] = vec[j].first;
-                    outidxptr[out_base + j * inner] = (float)vec[j].second;
-                }
+                std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
+                std::sort(vec.begin(), vec.begin() + _k, comp);
             }
             else
+                std::nth_element(vec.begin(), vec.begin() + _k, vec.end(), comp);
+#endif
+        }
+        else
+        {
+            if (sorted_flag)
+#if NCNN_SIMPLESTL
+                std::partial_sort(vec.begin(), vec.end(), vec.end(), comp);
+#else
+                std::sort(vec.begin(), vec.end(), comp);
+#endif
+        }
+
+        if (output_indices)
+        {
+            for (int j = 0; j < _k; j++)
             {
-                for (int j = 0; j < _k; j++)
-                {
-                    outptr[out_base + j * inner] = vec[j].first;
-                }
+                outptr[out_base + j * out_axis_stride] = vec[j].first;
+                outidxptr[out_base + j * out_axis_stride] = (float)vec[j].second;
+            }
+        }
+        else
+        {
+            for (int j = 0; j < _k; j++)
+            {
+                outptr[out_base + j * out_axis_stride] = vec[j].first;
             }
         }
     }

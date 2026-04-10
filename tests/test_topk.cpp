@@ -1,9 +1,17 @@
-// Copyright 2026 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
 
-#include <limits>
+#if NCNN_SIMPLESTL
+// simplemath.h conflicts with system math.h; define only what we need
+static const float TEST_INF = 1.f / 0.f;
+static const float TEST_NAN = 0.f / 0.f;
+#define INFINITY TEST_INF
+#define NAN      TEST_NAN
+#else
+#include <math.h>
+#endif
 
 static int test_topk_cpu_forward(const ncnn::Mat& a, int axis, int k, int largest, int sorted, ncnn::Mat& values, ncnn::Mat& indices)
 {
@@ -121,7 +129,7 @@ static int test_topk_0()
     return 0
            || test_topk(a, 0, 1, 1, 1)
            || test_topk(a, 0, 5, 1, 1)
-            || test_topk(a, 0, 1, 0, 0)
+           || test_topk(a, 0, 1, 0, 0)
            || test_topk(a, -1, 7, 0, 1)
            || test_topk(a, 0, 4, 1, 0)
            || test_topk(a, 0, 9, 1, 1);
@@ -175,9 +183,9 @@ static int test_topk_inf_order()
     ncnn::Mat a(6);
     float* ptr = a;
     ptr[0] = 1.f;
-    ptr[1] = std::numeric_limits<float>::infinity();
+    ptr[1] = INFINITY;
     ptr[2] = -2.f;
-    ptr[3] = -std::numeric_limits<float>::infinity();
+    ptr[3] = -INFINITY;
     ptr[4] = 0.5f;
     ptr[5] = 3.f;
 
@@ -193,7 +201,7 @@ static int test_topk_inf_order()
 
     const float* vptr = values;
     const float* iptr = indices;
-    if (values.w != 2 || indices.w != 2 || vptr[0] != std::numeric_limits<float>::infinity() || vptr[1] != 3.f || (int)iptr[0] != 1 || (int)iptr[1] != 5)
+    if (values.w != 2 || indices.w != 2 || vptr[0] != INFINITY || vptr[1] != 3.f || (int)iptr[0] != 1 || (int)iptr[1] != 5)
     {
         fprintf(stderr, "test_topk_inf_order largest result mismatch\n");
         return -1;
@@ -208,7 +216,7 @@ static int test_topk_inf_order()
 
     vptr = values;
     iptr = indices;
-    if (values.w != 2 || indices.w != 2 || vptr[0] != -std::numeric_limits<float>::infinity() || vptr[1] != -2.f || (int)iptr[0] != 3 || (int)iptr[1] != 2)
+    if (values.w != 2 || indices.w != 2 || vptr[0] != -INFINITY || vptr[1] != -2.f || (int)iptr[0] != 3 || (int)iptr[1] != 2)
     {
         fprintf(stderr, "test_topk_inf_order smallest result mismatch\n");
         return -1;
@@ -222,7 +230,7 @@ static int test_topk_nan_robust()
     ncnn::Mat a(4);
     float* ptr = a;
     ptr[0] = 1.f;
-    ptr[1] = std::numeric_limits<float>::quiet_NaN();
+    ptr[1] = NAN;
     ptr[2] = 2.f;
     ptr[3] = -1.f;
 
