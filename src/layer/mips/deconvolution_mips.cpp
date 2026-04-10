@@ -51,9 +51,9 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     }
 #endif
 
-    if (opt.use_sgemm_convolution && elempack == 1 && out_elempack == 1)
+    if (opt.use_sgemm_convolution)
     {
-        gemm = new Gemm;
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 1);                 // transA
