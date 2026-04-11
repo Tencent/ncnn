@@ -51,40 +51,32 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
     else if (dims == 2)
     {
-        if (positive_axis == 0)
-            axis_dim_size = data_blob.h;
-        else
-            axis_dim_size = data_blob.w;
+        axis_dim_size = (positive_axis == 0) ? data_blob.w : data_blob.h;
     }
     else if (dims == 3)
     {
-        if (positive_axis == 0)
-            axis_dim_size = data_blob.c;
-        else if (positive_axis == 1)
-            axis_dim_size = data_blob.h;
-        else
-            axis_dim_size = data_blob.w;
+        axis_dim_size = (positive_axis == 0) ? data_blob.w : (positive_axis == 1) ? data_blob.h : data_blob.c;
     }
 
     for (int i = 0; i < total; i++)
     {
         // Calculate output coordinates from flat index
-        int out_idx[3] = {0, 0, 0};
+        int out_coords[3] = {0, 0, 0};
         int rem = i;
         
         if (dims >= 1)
         {
-            out_idx[0] = rem % index_blob.w;
+            out_coords[0] = rem % index_blob.w;
             rem /= index_blob.w;
         }
         if (dims >= 2)
         {
-            out_idx[1] = rem % index_blob.h;
+            out_coords[1] = rem % index_blob.h;
             rem /= index_blob.h;
         }
         if (dims >= 3)
         {
-            out_idx[2] = rem;
+            out_coords[2] = rem;
         }
 
         // Get index value at this position
@@ -95,28 +87,25 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             gather_idx += axis_dim_size;
         
         // Clamp to valid range
-        if (gather_idx < 0 || gather_idx >= axis_dim_size)
-        {
-            out[i] = 0.0f;
-            continue;
-        }
+        if (gather_idx < 0) gather_idx = 0;
+        if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
 
         // Calculate input coordinates (replace axis coordinate with gather_idx)
-        int in_idx[3] = {0, 0, 0};
+        int in_coords[3] = {0, 0, 0};
         for (int d = 0; d < 3; d++)
         {
             int data_d = d - (3 - dims);
             if (data_d >= 0 && data_d < 3)
             {
                 if (data_d == positive_axis)
-                    in_idx[data_d] = gather_idx;
+                    in_coords[data_d] = gather_idx;
                 else
-                    in_idx[data_d] = out_idx[d];
+                    in_coords[data_d] = out_coords[d];
             }
         }
 
         // Calculate flat input index
-        int flat_in = in_idx[0] + in_idx[1] * data_blob.w + in_idx[2] * (int)data_blob.cstep;
+        int flat_in = in_coords[0] + in_coords[1] * data_blob.w + in_coords[2] * (int)data_blob.cstep;
 
         out[i] = data[flat_in];
     }
