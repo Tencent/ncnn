@@ -1,4 +1,4 @@
-// ARM NEON optimized implementation for GatherElements
+// Highly optimized ARM NEON implementation for GatherElements
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
@@ -50,46 +50,69 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         axis_dim_size = (positive_axis == 0) ? data_blob.w : (positive_axis == 1) ? data_blob.h : data_blob.c;
     }
 
-    // ARM NEON optimized path for 1D case
+    // HOT PATH: 1D case with ARM NEON - process 8 elements at once
     if (data_dims == 1 && opt.num_threads > 1)
     {
-        const int nn = total >> 2;
-        const int remain = total - (nn << 2);
+        const int nn = total >> 3;  // Process 8 at a time
+        const int remain = total - (nn << 3);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
-            int idx = i << 2;
+            int idx = i << 3;
             
-            // Load 4 indices
-            int32x4_t idx_vec = vld1q_s32(indices + idx);
+            // Load 8 indices
+            int32x4_t idx0 = vld1q_s32(indices + idx);
+            int32x4_t idx1 = vld1q_s32(indices + idx + 4);
             
             // Handle negative indices: if idx < 0, idx += axis_dim_size
-            int32x4_t neg_mask = vcltq_s32(idx_vec, vdupq_n_s32(0));
-            int32x4_t adjusted = vaddq_s32(idx_vec, vdupq_n_s32(axis_dim_size));
-            idx_vec = vbslq_s32(neg_mask, adjusted, idx_vec);
+            int32x4_t neg_mask0 = vcltq_s32(idx0, vdupq_n_s32(0));
+            int32x4_t neg_mask1 = vcltq_s32(idx1, vdupq_n_s32(0));
+            int32x4_t adjusted0 = vaddq_s32(idx0, vdupq_n_s32(axis_dim_size));
+            int32x4_t adjusted1 = vaddq_s32(idx1, vdupq_n_s32(axis_dim_size));
+            idx0 = vbslq_s32(neg_mask0, adjusted0, idx0);
+            idx1 = vbslq_s32(neg_mask1, adjusted1, idx1);
             
             // Clamp to [0, axis_dim_size-1]
             int32x4_t upper = vdupq_n_s32(axis_dim_size - 1);
             int32x4_t lower = vdupq_n_s32(0);
-            idx_vec = vminq_s32(idx_vec, upper);
-            idx_vec = vmaxq_s32(idx_vec, lower);
+            idx0 = vminq_s32(idx0, upper);
+            idx1 = vminq_s32(idx1, upper);
+            idx0 = vmaxq_s32(idx0, lower);
+            idx1 = vmaxq_s32(idx1, lower);
             
-            // Gather values
-            float32x4_t out_vec;
-            int32_t idx_arr[4];
-            vst1q_s32(idx_arr, idx_vec);
+            // Extract and gather - unroll loop for better ILP
+            int32_t idx_arr[8];
+            vst1q_s32(idx_arr, idx0);
+            vst1q_s32(idx_arr + 4, idx1);
             
-            for (int j = 0; j < 4; j++)
-            {
-                ((float*)&out_vec)[j] = data[idx_arr[j]];
-            }
+            // Gather with manual unrolling (better than vqgather)
+            float32x4_t out0 = {data[idx_arr[0]], data[idx_arr[1]], data[idx_arr[2]], data[idx_arr[3]]};
+            float32x4_t out1 = {data[idx_arr[4]], data[idx_arr[5]], data[idx_arr[6]], data[idx_arr[7]]};
             
-            vst1q_f32(out + idx, out_vec);
+            vst1q_f32(out + idx, out0);
+            vst1q_f32(out + idx + 4, out1);
         }
 
-        // Handle remaining elements
-        for (int i = nn << 2; i < total; i++)
+        // Handle remaining 4 elements
+        for (int i = nn << 3; i < total - 3; i += 4)
+        {
+            int32x4_t idx_vec = vld1q_s32(indices + i);
+            int32x4_t neg_mask = vcltq_s32(idx_vec, vdupq_n_s32(0));
+            int32x4_t adjusted = vaddq_s32(idx_vec, vdupq_n_s32(axis_dim_size));
+            idx_vec = vbslq_s32(neg_mask, adjusted, idx_vec);
+            int32x4_t upper = vdupq_n_s32(axis_dim_size - 1);
+            idx_vec = vminq_s32(idx_vec, upper);
+            idx_vec = vmaxq_s32(idx_vec, vdupq_n_s32(0));
+            
+            int32_t idx_arr[4];
+            vst1q_s32(idx_arr, idx_vec);
+            float32x4_t out_vec = {data[idx_arr[0]], data[idx_arr[1]], data[idx_arr[2]], data[idx_arr[3]]};
+            vst1q_f32(out + i, out_vec);
+        }
+
+        // Handle remaining 1-3 elements
+        for (int i = total - (total % 4); i < total; i++)
         {
             int gather_idx = indices[i];
             if (gather_idx < 0) gather_idx += axis_dim_size;
@@ -101,7 +124,7 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         return 0;
     }
 
-    // Scalar path with OpenMP
+    // 2D/3D case with OpenMP - optimized memory access
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < total; i++)
     {

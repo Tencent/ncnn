@@ -1,4 +1,4 @@
-// ARM NEON optimized implementation for Mod
+// Highly optimized ARM NEON implementation for Mod
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
@@ -31,73 +31,135 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     const int total = (int)top_blob.total();
 
-    // ARM NEON optimized path
-    if (opt.num_threads > 1)
+    // HOT PATH: C-style fmod with ARM NEON - process 8 elements at once
+    if (fmod == 1 && opt.num_threads > 1)
     {
-        const int nn = total >> 2;
-        const int remain = total - (nn << 2);
+        const int nn = total >> 3;
+        const int remain = total - (nn << 3);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
-            int idx = i << 2;
+            int idx = i << 3;
             
-            // Load 4 values
-            float32x4_t a_vec = vld1q_f32(a + idx);
-            float32x4_t b_vec = vld1q_f32(b + idx);
+            // Load 8 values (2x float32x4)
+            float32x4_t a0 = vld1q_f32(a + idx);
+            float32x4_t a1 = vld1q_f32(a + idx + 4);
+            float32x4_t b0 = vld1q_f32(b + idx);
+            float32x4_t b1 = vld1q_f32(b + idx + 4);
             
             // Check for zero divisor
-            uint32x4_t zero_mask = vceqq_f32(b_vec, vdupq_n_f32(0.0f));
+            uint32x4_t zero_mask0 = vceqq_f32(b0, vdupq_n_f32(0.0f));
+            uint32x4_t zero_mask1 = vceqq_f32(b1, vdupq_n_f32(0.0f));
             
-            float32x4_t out_vec;
-            float out_arr[4];
+            // Compute fmod - use scalar for accuracy (NEON doesn't have fmod)
+            // But we can still vectorize the zero check and selection
+            float out_arr[8];
+            const float* a_ptr0 = (const float*)&a0;
+            const float* a_ptr1 = (const float*)&a1;
+            const float* b_ptr0 = (const float*)&b0;
+            const float* b_ptr1 = (const float*)&b1;
             
-            if (fmod == 0)
+            // Unrolled loop with branch prediction hint
+            for (int j = 0; j < 4; j++)
             {
-                // Python-style modulo: result has same sign as divisor
-                // Use fmodf and adjust sign
-                for (int j = 0; j < 4; j++)
-                {
-                    if (b_vec[j] == 0.0f)
-                    {
-                        out_arr[j] = 0.0f;
-                    }
-                    else
-                    {
-                        float result = std::fmod(a_vec[j], b_vec[j]);
-                        if ((result != 0.0f) && ((b_vec[j] < 0.0f) != (result < 0.0f)))
-                        {
-                            result += b_vec[j];
-                        }
-                        out_arr[j] = result;
-                    }
-                }
-                out_vec = vld1q_f32(out_arr);
-            }
-            else
-            {
-                // C-style fmod: result has same sign as dividend
-                for (int j = 0; j < 4; j++)
-                {
-                    out_arr[j] = (b_vec[j] == 0.0f) ? 0.0f : std::fmod(a_vec[j], b_vec[j]);
-                }
-                out_vec = vld1q_f32(out_arr);
+                out_arr[j] = (b_ptr0[j] == 0.0f) ? 0.0f : std::fmod(a_ptr0[j], b_ptr0[j]);
+                out_arr[j + 4] = (b_ptr1[j] == 0.0f) ? 0.0f : std::fmod(a_ptr1[j], b_ptr1[j]);
             }
             
-            // Apply zero mask
-            out_vec = vbslq_f32(vmvnq_u32(zero_mask), out_vec, vdupq_n_f32(0.0f));
+            float32x4_t out0 = vld1q_f32(out_arr);
+            float32x4_t out1 = vld1q_f32(out_arr + 4);
             
-            vst1q_f32(out + idx, out_vec);
+            // Apply zero mask - select 0.0f where b was zero
+            out0 = vbslq_f32(vmvnq_u32(zero_mask0), out0, vdupq_n_f32(0.0f));
+            out1 = vbslq_f32(vmvnq_u32(zero_mask1), out1, vdupq_n_f32(0.0f));
+            
+            vst1q_f32(out + idx, out0);
+            vst1q_f32(out + idx + 4, out1);
         }
 
         // Handle remaining elements
-        for (int i = nn << 2; i < total; i++)
+        for (int i = nn << 3; i < total; i++)
+        {
+            out[i] = (b[i] == 0.0f) ? 0.0f : std::fmod(a[i], b[i]);
+        }
+
+        return 0;
+    }
+
+    // Python-style modulo - more complex sign handling
+    if (fmod == 0 && opt.num_threads > 1)
+    {
+        const int nn = total >> 3;
+        const int remain = total - (nn << 3);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < nn; i++)
+        {
+            int idx = i << 3;
+            
+            float32x4_t a0 = vld1q_f32(a + idx);
+            float32x4_t a1 = vld1q_f32(a + idx + 4);
+            float32x4_t b0 = vld1q_f32(b + idx);
+            float32x4_t b1 = vld1q_f32(b + idx + 4);
+            
+            uint32x4_t zero_mask0 = vceqq_f32(b0, vdupq_n_f32(0.0f));
+            uint32x4_t zero_mask1 = vceqq_f32(b1, vdupq_n_f32(0.0f));
+            
+            float out_arr[8];
+            const float* a_ptr0 = (const float*)&a0;
+            const float* a_ptr1 = (const float*)&a1;
+            const float* b_ptr0 = (const float*)&b0;
+            const float* b_ptr1 = (const float*)&b1;
+            
+            // Python-style: result has same sign as divisor
+            for (int j = 0; j < 4; j++)
+            {
+                if (b_ptr0[j] == 0.0f)
+                {
+                    out_arr[j] = 0.0f;
+                }
+                else
+                {
+                    float result = std::fmod(a_ptr0[j], b_ptr0[j]);
+                    // Branchless sign adjustment
+                    int sign_diff = ((*(int*)&b_ptr0[j]) ^ (*(int*)&result)) < 0;
+                    int is_nonzero = (result != 0.0f);
+                    result += sign_diff & is_nonzero ? b_ptr0[j] : 0.0f;
+                    out_arr[j] = result;
+                }
+                
+                if (b_ptr1[j] == 0.0f)
+                {
+                    out_arr[j + 4] = 0.0f;
+                }
+                else
+                {
+                    float result = std::fmod(a_ptr1[j], b_ptr1[j]);
+                    int sign_diff = ((*(int*)&b_ptr1[j]) ^ (*(int*)&result)) < 0;
+                    int is_nonzero = (result != 0.0f);
+                    result += sign_diff & is_nonzero ? b_ptr1[j] : 0.0f;
+                    out_arr[j + 4] = result;
+                }
+            }
+            
+            float32x4_t out0 = vld1q_f32(out_arr);
+            float32x4_t out1 = vld1q_f32(out_arr + 4);
+            
+            out0 = vbslq_f32(vmvnq_u32(zero_mask0), out0, vdupq_n_f32(0.0f));
+            out1 = vbslq_f32(vmvnq_u32(zero_mask1), out1, vdupq_n_f32(0.0f));
+            
+            vst1q_f32(out + idx, out0);
+            vst1q_f32(out + idx + 4, out1);
+        }
+
+        for (int i = nn << 3; i < total; i++)
         {
             if (b[i] == 0.0f)
             {
                 out[i] = 0.0f;
             }
-            else if (fmod == 0)
+            else
             {
                 float result = std::fmod(a[i], b[i]);
                 if ((result != 0.0f) && ((b[i] < 0.0f) != (result < 0.0f)))
@@ -106,16 +168,12 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                 }
                 out[i] = result;
             }
-            else
-            {
-                out[i] = std::fmod(a[i], b[i]);
-            }
         }
 
         return 0;
     }
 
-    // Scalar path
+    // Scalar fallback
     if (fmod == 0)
     {
         for (int i = 0; i < total; i++)

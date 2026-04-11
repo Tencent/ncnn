@@ -1,4 +1,4 @@
-// ARM NEON optimized implementation for Expand
+// Highly optimized implementation for Expand with cache optimization
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
@@ -82,33 +82,106 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     int total = (int)top_blob.total();
 
-    // ARM NEON optimized path for simple expansion (broadcast from 1 element)
+    // HOT PATH: Broadcast from single value - highly optimized
     #if __ARM_NEON
     if (in_dims == 1 && in_shape[0] == 1 && out_dims == 1 && opt.num_threads > 1)
     {
         float val = inp[0];
         float32x4_t val_vec = vdupq_n_f32(val);
         
-        const int nn = total >> 2;
-        const int remain = total - (nn << 2);
+        const int nn = total >> 3;  // Process 8 at a time
+        const int remain = total - (nn << 3);
         
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
-            int idx = i << 2;
+            int idx = i << 3;
+            // Store 8 values at once using 2x float32x4
             vst1q_f32(out + idx, val_vec);
+            vst1q_f32(out + idx + 4, val_vec);
         }
         
-        for (int i = nn << 2; i < total; i++)
+        // Handle remaining 4 elements
+        for (int i = nn << 3; i < total - 3; i += 4)
+        {
+            vst1q_f32(out + i, val_vec);
+        }
+        
+        // Handle remaining 1-3 elements
+        for (int i = total - (total % 4); i < total; i++)
         {
             out[i] = val;
         }
         
         return 0;
     }
+    
+    // HOT PATH: Broadcast 1D to 2D (row vector to matrix)
+    if (in_dims == 1 && out_dims == 2 && in_shape[0] == out_shape[0] && opt.num_threads > 1)
+    {
+        const int w = out_shape[0];
+        const int h = out_shape[1];
+        const int nn = w >> 2;
+        const int remain = w - (nn << 2);
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int row = 0; row < h; row++)
+        {
+            float* dst_row = out + row * w;
+            
+            // Prefetch next row
+            if (row + 1 < h)
+            {
+                __builtin_prefetch(inp, 0, 3);
+            }
+            
+            // Copy row with NEON
+            for (int j = 0; j < nn; j++)
+            {
+                float32x4_t v = vld1q_f32(inp + j * 4);
+                vst1q_f32(dst_row + j * 4, v);
+            }
+            for (int j = nn << 2; j < w; j++)
+            {
+                dst_row[j] = inp[j];
+            }
+        }
+        
+        return 0;
+    }
     #endif
 
-    // General path with OpenMP
+    // HOT PATH: 2D to 2D with same width (broadcast height)
+    if (in_dims == 2 && out_dims == 2 && in_shape[0] == out_shape[0] && opt.num_threads > 1)
+    {
+        const int w = out_shape[0];
+        const int h = out_shape[1];
+        const int in_h = in_shape[1];
+        
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int row = 0; row < h; row++)
+        {
+            int src_row = row % in_h;
+            const float* src_ptr = inp + src_row * w;
+            float* dst_ptr = out + row * w;
+            
+            // Copy entire row
+            const int nn = w >> 2;
+            for (int j = 0; j < nn; j++)
+            {
+                float32x4_t v = vld1q_f32(src_ptr + j * 4);
+                vst1q_f32(dst_ptr + j * 4, v);
+            }
+            for (int j = nn << 2; j < w; j++)
+            {
+                dst_ptr[j] = src_ptr[j];
+            }
+        }
+        
+        return 0;
+    }
+
+    // General path with OpenMP and optimized indexing
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < total; i++)
     {
