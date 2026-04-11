@@ -3,6 +3,10 @@ on:
   push:
     branches:
     - topk-ci-tests
+    - fix-pnnx-onnx-topk-support
+  pull_request:
+    branches:
+    - master
 
 jobs:
   x64-none:
