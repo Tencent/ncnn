@@ -596,6 +596,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/gatherelements.cpp
     pass_ncnn/expand.cpp
     pass_ncnn/tile.cpp
+    pass_ncnn/mod.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp

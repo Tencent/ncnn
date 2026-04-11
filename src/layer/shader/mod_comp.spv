@@ -1,0 +1,42 @@
+#version 450
+
+// Mod Vulkan Compute Shader
+// Computes element-wise modulo operation: output = A % B
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 0) buffer a_buf { float a[]; };
+layout(binding = 1) buffer b_buf { float b[]; };
+layout(binding = 2) buffer output_buf { float output[]; };
+
+layout(binding = 3) uniform params {
+    int fmod;  // 0 = Python-style, 1 = C-style
+    int total;
+};
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= total) return;
+
+    float val_a = a[idx];
+    float val_b = b[idx];
+    
+    if (val_b == 0.0)
+    {
+        output[idx] = 0.0;
+        return;
+    }
+
+    if (fmod == 0)
+    {
+        // Python-style modulo (result has same sign as divisor)
+        float result = mod(val_a, val_b);
+        output[idx] = result;
+    }
+    else
+    {
+        // C-style fmod (result has same sign as dividend)
+        output[idx] = mod(val_a, val_b);
+    }
+}

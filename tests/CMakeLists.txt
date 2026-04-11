@@ -48,6 +48,19 @@ if(NCNN_PIXEL_DRAWING)
     ncnn_add_test(mat_pixel_drawing)
 endif()
 
+# YOLO26 support tests
+if(WITH_LAYER_GATHERELEMENTS)
+    ncnn_add_test(gatherelements)
+endif()
+
+if(WITH_LAYER_EXPAND)
+    ncnn_add_test(expand)
+endif()
+
+if(WITH_LAYER_MOD)
+    ncnn_add_test(mod)
+endif()
+
 if(NCNN_PIXEL_ROTATE)
     ncnn_add_test(mat_pixel_rotate)
 endif()
