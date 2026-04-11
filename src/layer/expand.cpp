@@ -30,7 +30,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     int out_dims = std::max(in_dims, target_dims);
     if (out_dims > 3) out_dims = 3;
-    
+
     int out_shape[3] = {1, 1, 1};
 
     for (int i = 0; i < out_dims; i++)
@@ -82,16 +82,16 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     int total = (int)top_blob.total();
 
-    // HOT PATH: Broadcast from single value - highly optimized
-    #if __ARM_NEON
+// HOT PATH: Broadcast from single value - highly optimized
+#if __ARM_NEON
     if (in_dims == 1 && in_shape[0] == 1 && out_dims == 1 && opt.num_threads > 1)
     {
         float val = inp[0];
         float32x4_t val_vec = vdupq_n_f32(val);
-        
-        const int nn = total >> 3;  // Process 8 at a time
+
+        const int nn = total >> 3; // Process 8 at a time
         const int remain = total - (nn << 3);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
@@ -100,22 +100,22 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             vst1q_f32(out + idx, val_vec);
             vst1q_f32(out + idx + 4, val_vec);
         }
-        
+
         // Handle remaining 4 elements
         for (int i = nn << 3; i < total - 3; i += 4)
         {
             vst1q_f32(out + i, val_vec);
         }
-        
+
         // Handle remaining 1-3 elements
         for (int i = total - (total % 4); i < total; i++)
         {
             out[i] = val;
         }
-        
+
         return 0;
     }
-    
+
     // HOT PATH: Broadcast 1D to 2D (row vector to matrix)
     if (in_dims == 1 && out_dims == 2 && in_shape[0] == out_shape[0] && opt.num_threads > 1)
     {
@@ -123,18 +123,18 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         const int h = out_shape[1];
         const int nn = w >> 2;
         const int remain = w - (nn << 2);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int row = 0; row < h; row++)
         {
             float* dst_row = out + row * w;
-            
+
             // Prefetch next row
             if (row + 1 < h)
             {
                 __builtin_prefetch(inp, 0, 3);
             }
-            
+
             // Copy row with NEON
             for (int j = 0; j < nn; j++)
             {
@@ -146,10 +146,10 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 dst_row[j] = inp[j];
             }
         }
-        
+
         return 0;
     }
-    #endif
+#endif
 
     // HOT PATH: 2D to 2D with same width (broadcast height)
     if (in_dims == 2 && out_dims == 2 && in_shape[0] == out_shape[0] && opt.num_threads > 1)
@@ -157,14 +157,14 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         const int w = out_shape[0];
         const int h = out_shape[1];
         const int in_h = in_shape[1];
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int row = 0; row < h; row++)
         {
             int src_row = row % in_h;
             const float* src_ptr = inp + src_row * w;
             float* dst_ptr = out + row * w;
-            
+
             // Copy entire row
             const int nn = w >> 2;
             for (int j = 0; j < nn; j++)
@@ -177,7 +177,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 dst_ptr[j] = src_ptr[j];
             }
         }
-        
+
         return 0;
     }
 

@@ -76,7 +76,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         // For 2D data with axis=0: flat_in = gather_idx + y * w
         // For 2D data with axis=1: flat_in = x + gather_idx * w
         int flat_in = 0;
-        
+
         if (data_dims == 1)
         {
             flat_in = gather_idx;
@@ -86,7 +86,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             // Calculate position in output (which matches index_blob shape)
             int x = i % index_blob.w;
             int y = i / index_blob.w;
-            
+
             if (positive_axis == 0)
             {
                 // Gather along width: output[x,y] = data[gather_idx, y]
@@ -104,7 +104,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             int tmp = i / index_blob.w;
             int y = tmp % index_blob.h;
             int z = tmp / index_blob.h;
-            
+
             if (positive_axis == 0)
             {
                 flat_in = gather_idx + (y + z * data_blob.h) * data_blob.w;

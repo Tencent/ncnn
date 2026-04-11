@@ -40,7 +40,7 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             repeat_h = repeats_ptr[1];
             repeat_c = repeats_ptr[2];
         }
-        
+
         int outw = bottom_blob.w * repeat_w;
         int outh = bottom_blob.h * repeat_h;
         int outc = bottom_blob.c * repeat_c;
@@ -53,25 +53,25 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         const float* ptr = bottom_blob;
         float* outptr = top_blob;
 
-        // HOT PATH: Optimized for common case repeat_w > 1, repeat_h = 1
-        #if __ARM_NEON
+// HOT PATH: Optimized for common case repeat_w > 1, repeat_h = 1
+#if __ARM_NEON
         if (repeat_w > 1 && repeat_h == 1 && repeat_c == 1 && opt.num_threads > 1)
         {
             const int w = bottom_blob.w;
             const int outw_total = outw;
-            
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < outh; y++)
             {
                 const float* src_row = ptr + y * w;
                 float* dst_row = outptr + y * outw_total;
-                
+
                 // Process each source element and repeat it
                 for (int x = 0; x < w; x++)
                 {
                     float val = src_row[x];
                     float* dst_ptr = dst_row + x * repeat_w;
-                    
+
                     // Unroll based on repeat_w
                     if (repeat_w == 2)
                     {
@@ -118,35 +118,35 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             }
             return 0;
         }
-        
+
         // HOT PATH: Optimized for repeat_h > 1, repeat_w = 1 (vertical tiling)
         if (repeat_w == 1 && repeat_h > 1 && repeat_c == 1 && opt.num_threads > 1)
         {
             const int w = bottom_blob.w;
             const int h = bottom_blob.h;
-            
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int t = 0; t < opt.num_threads; t++)
             {
                 int thread_start = (t * outh) / opt.num_threads;
                 int thread_end = ((t + 1) * outh) / opt.num_threads;
-                
+
                 for (int i = thread_start; i < thread_end; i++)
                 {
                     int src_row = i / repeat_h;
                     const float* src_ptr = ptr + src_row * w;
                     float* dst_ptr = outptr + i * outw;
-                    
+
                     // Copy row with prefetching and NEON
                     const int nn = w >> 2;
                     const int remain = w - (nn << 2);
-                    
+
                     // Prefetch next row
                     if (i + 1 < thread_end)
                     {
                         __builtin_prefetch(ptr + ((i / repeat_h) + 1) * w, 0, 3);
                     }
-                    
+
                     for (int j = 0; j < nn; j++)
                     {
                         float32x4_t v = vld1q_f32(src_ptr + j * 4);
@@ -160,7 +160,7 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             }
             return 0;
         }
-        #endif
+#endif
 
         // General path with OpenMP and cache-friendly access
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -177,7 +177,7 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 // Optimized row copy with better ILP
                 const int w = bottom_blob.w;
                 const int repeat_w_local = repeat_w;
-                
+
                 for (int j = 0; j < w; j++)
                 {
                     float val = ptr_row[j];
@@ -201,9 +201,24 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     if (repeats.empty())
     {
-        if (dims == 1) repeat_w = tiles;
-        else if (dims == 2) { if (axis == 0) repeat_h = tiles; else repeat_w = tiles; }
-        else if (dims == 3) { if (axis == 0) repeat_c = tiles; else if (axis == 1) repeat_h = tiles; else repeat_w = tiles; }
+        if (dims == 1)
+            repeat_w = tiles;
+        else if (dims == 2)
+        {
+            if (axis == 0)
+                repeat_h = tiles;
+            else
+                repeat_w = tiles;
+        }
+        else if (dims == 3)
+        {
+            if (axis == 0)
+                repeat_c = tiles;
+            else if (axis == 1)
+                repeat_h = tiles;
+            else
+                repeat_w = tiles;
+        }
     }
     else
     {

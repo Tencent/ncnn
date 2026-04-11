@@ -51,7 +51,7 @@ int Mod_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMa
 
     // Record command buffer
     // The mod_comp shader would compute: out[i] = a[i] % b[i]
-    
+
     // TODO: Implement actual Vulkan dispatch
     // Requires mod_comp shader with modulo operation
     // For now, placeholder implementation

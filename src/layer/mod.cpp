@@ -50,7 +50,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         {
             float val_a = a[i];
             float val_b = b[i];
-            
+
             if (val_b == 0.0f)
             {
                 out[i] = 0.0f;
@@ -75,7 +75,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         {
             float val_a = a[i];
             float val_b = b[i];
-            
+
             if (val_b == 0.0f)
             {
                 out[i] = 0.0f;

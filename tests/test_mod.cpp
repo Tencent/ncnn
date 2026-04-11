@@ -53,7 +53,7 @@ static int test_mod_cpu(int fmode, int w, int h, int c)
     const float* pa = a;
     const float* pb = b;
     const float* pout = out;
-    
+
     for (int i = 0; i < (int)out.total(); i++)
     {
         float expected;
@@ -71,10 +71,10 @@ static int test_mod_cpu(int fmode, int w, int h, int c)
             // C-style fmod
             expected = std::fmod(pa[i], pb[i]);
         }
-        
+
         if (std::abs(pout[i] - expected) > 0.001f)
         {
-            fprintf(stderr, "Value mismatch at index %d: expected %f, got %f\n", 
+            fprintf(stderr, "Value mismatch at index %d: expected %f, got %f\n",
                     i, expected, pout[i]);
             return -1;
         }
@@ -107,7 +107,7 @@ TEST(Mod, test_negative_values)
 {
     ncnn::Mat a(10);
     ncnn::Mat b(10);
-    
+
     for (int i = 0; i < 10; i++)
     {
         ((float*)a)[i] = -10.0f + i * 2.0f;
@@ -118,7 +118,7 @@ TEST(Mod, test_negative_values)
     opt.num_threads = 1;
 
     ncnn::Layer* op = ncnn::create_layer("Mod");
-    
+
     ncnn::ParamDict pd;
     pd.set(0, 0); // Python-style
     op->load_param(pd);

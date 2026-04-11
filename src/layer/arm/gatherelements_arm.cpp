@@ -53,18 +53,18 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     // HOT PATH: 1D case with ARM NEON - process 8 elements at once
     if (data_dims == 1 && opt.num_threads > 1)
     {
-        const int nn = total >> 3;  // Process 8 at a time
+        const int nn = total >> 3; // Process 8 at a time
         const int remain = total - (nn << 3);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
             int idx = i << 3;
-            
+
             // Load 8 indices
             int32x4_t idx0 = vld1q_s32(indices + idx);
             int32x4_t idx1 = vld1q_s32(indices + idx + 4);
-            
+
             // Handle negative indices: if idx < 0, idx += axis_dim_size
             int32x4_t neg_mask0 = vcltq_s32(idx0, vdupq_n_s32(0));
             int32x4_t neg_mask1 = vcltq_s32(idx1, vdupq_n_s32(0));
@@ -72,7 +72,7 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             int32x4_t adjusted1 = vaddq_s32(idx1, vdupq_n_s32(axis_dim_size));
             idx0 = vbslq_s32(neg_mask0, adjusted0, idx0);
             idx1 = vbslq_s32(neg_mask1, adjusted1, idx1);
-            
+
             // Clamp to [0, axis_dim_size-1]
             int32x4_t upper = vdupq_n_s32(axis_dim_size - 1);
             int32x4_t lower = vdupq_n_s32(0);
@@ -80,16 +80,16 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             idx1 = vminq_s32(idx1, upper);
             idx0 = vmaxq_s32(idx0, lower);
             idx1 = vmaxq_s32(idx1, lower);
-            
+
             // Extract and gather - unroll loop for better ILP
             int32_t idx_arr[8];
             vst1q_s32(idx_arr, idx0);
             vst1q_s32(idx_arr + 4, idx1);
-            
+
             // Gather with manual unrolling (better than vqgather)
             float32x4_t out0 = {data[idx_arr[0]], data[idx_arr[1]], data[idx_arr[2]], data[idx_arr[3]]};
             float32x4_t out1 = {data[idx_arr[4]], data[idx_arr[5]], data[idx_arr[6]], data[idx_arr[7]]};
-            
+
             vst1q_f32(out + idx, out0);
             vst1q_f32(out + idx + 4, out1);
         }
@@ -104,7 +104,7 @@ int GatherElements_arm::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             int32x4_t upper = vdupq_n_s32(axis_dim_size - 1);
             idx_vec = vminq_s32(idx_vec, upper);
             idx_vec = vmaxq_s32(idx_vec, vdupq_n_s32(0));
-            
+
             int32_t idx_arr[4];
             vst1q_s32(idx_arr, idx_vec);
             float32x4_t out_vec = {data[idx_arr[0]], data[idx_arr[1]], data[idx_arr[2]], data[idx_arr[3]]};

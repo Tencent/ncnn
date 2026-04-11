@@ -41,17 +41,17 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         for (int i = 0; i < nn; i++)
         {
             int idx = i << 3;
-            
+
             // Load 8 values (2x float32x4)
             float32x4_t a0 = vld1q_f32(a + idx);
             float32x4_t a1 = vld1q_f32(a + idx + 4);
             float32x4_t b0 = vld1q_f32(b + idx);
             float32x4_t b1 = vld1q_f32(b + idx + 4);
-            
+
             // Check for zero divisor
             uint32x4_t zero_mask0 = vceqq_f32(b0, vdupq_n_f32(0.0f));
             uint32x4_t zero_mask1 = vceqq_f32(b1, vdupq_n_f32(0.0f));
-            
+
             // Compute fmod - use scalar for accuracy (NEON doesn't have fmod)
             // But we can still vectorize the zero check and selection
             float out_arr[8];
@@ -59,21 +59,21 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             const float* a_ptr1 = (const float*)&a1;
             const float* b_ptr0 = (const float*)&b0;
             const float* b_ptr1 = (const float*)&b1;
-            
+
             // Unrolled loop with branch prediction hint
             for (int j = 0; j < 4; j++)
             {
                 out_arr[j] = (b_ptr0[j] == 0.0f) ? 0.0f : std::fmod(a_ptr0[j], b_ptr0[j]);
                 out_arr[j + 4] = (b_ptr1[j] == 0.0f) ? 0.0f : std::fmod(a_ptr1[j], b_ptr1[j]);
             }
-            
+
             float32x4_t out0 = vld1q_f32(out_arr);
             float32x4_t out1 = vld1q_f32(out_arr + 4);
-            
+
             // Apply zero mask - select 0.0f where b was zero
             out0 = vbslq_f32(vmvnq_u32(zero_mask0), out0, vdupq_n_f32(0.0f));
             out1 = vbslq_f32(vmvnq_u32(zero_mask1), out1, vdupq_n_f32(0.0f));
-            
+
             vst1q_f32(out + idx, out0);
             vst1q_f32(out + idx + 4, out1);
         }
@@ -97,21 +97,21 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         for (int i = 0; i < nn; i++)
         {
             int idx = i << 3;
-            
+
             float32x4_t a0 = vld1q_f32(a + idx);
             float32x4_t a1 = vld1q_f32(a + idx + 4);
             float32x4_t b0 = vld1q_f32(b + idx);
             float32x4_t b1 = vld1q_f32(b + idx + 4);
-            
+
             uint32x4_t zero_mask0 = vceqq_f32(b0, vdupq_n_f32(0.0f));
             uint32x4_t zero_mask1 = vceqq_f32(b1, vdupq_n_f32(0.0f));
-            
+
             float out_arr[8];
             const float* a_ptr0 = (const float*)&a0;
             const float* a_ptr1 = (const float*)&a1;
             const float* b_ptr0 = (const float*)&b0;
             const float* b_ptr1 = (const float*)&b1;
-            
+
             // Python-style: result has same sign as divisor
             for (int j = 0; j < 4; j++)
             {
@@ -128,7 +128,7 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                     result += sign_diff & is_nonzero ? b_ptr0[j] : 0.0f;
                     out_arr[j] = result;
                 }
-                
+
                 if (b_ptr1[j] == 0.0f)
                 {
                     out_arr[j + 4] = 0.0f;
@@ -142,13 +142,13 @@ int Mod_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                     out_arr[j + 4] = result;
                 }
             }
-            
+
             float32x4_t out0 = vld1q_f32(out_arr);
             float32x4_t out1 = vld1q_f32(out_arr + 4);
-            
+
             out0 = vbslq_f32(vmvnq_u32(zero_mask0), out0, vdupq_n_f32(0.0f));
             out1 = vbslq_f32(vmvnq_u32(zero_mask1), out1, vdupq_n_f32(0.0f));
-            
+
             vst1q_f32(out + idx, out0);
             vst1q_f32(out + idx + 4, out1);
         }
