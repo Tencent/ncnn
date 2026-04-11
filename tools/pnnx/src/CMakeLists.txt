@@ -592,6 +592,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_unflatten.cpp
+    pass_ncnn/TopK.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
@@ -602,6 +603,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_flip.cpp
+    pass_ncnn/torch_gather.cpp
     pass_ncnn/torch_istft.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
@@ -614,6 +616,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_roll.cpp
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
+    pass_ncnn/tensor_to.cpp
     pass_ncnn/torch_sum.cpp
     pass_ncnn/torch_stft.cpp
     pass_ncnn/torch_t.cpp
@@ -634,6 +637,15 @@ if(PROTOBUF_FOUND)
         add_library(onnxproto STATIC ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
         target_include_directories(onnxproto PUBLIC ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
         target_link_libraries(onnxproto PUBLIC ${PROTOBUF_LIBRARIES})
+        if(ABSL_LIBRARIES)
+            target_link_libraries(onnxproto PUBLIC ${ABSL_LIBRARIES})
+        endif()
+        # Force system protobuf headers BEFORE any Torch-bundled old headers
+        # (Torch bundles an ancient protobuf that conflicts with system protobuf >= 22)
+        set_property(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES_BEFORE
+            ${PROTOBUF_INCLUDE_DIR}
+            ${CMAKE_CURRENT_BINARY_DIR}
+        )
     else()
         add_library(onnxproto STATIC onnx-data.proto onnx-ml.proto onnx-operators-ml.proto)
         target_include_directories(onnxproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
@@ -673,6 +685,7 @@ set(torch2pnnx_SRCS
 add_library(torch2pnnx OBJECT ${torch2pnnx_SRCS})
 target_compile_definitions(torch2pnnx PRIVATE BUILD_TORCH2PNNX)
 target_compile_options(torch2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
+target_include_directories(torch2pnnx SYSTEM PRIVATE ${TORCH_INCLUDE_DIRS})
 
 if(WIN32)
     target_compile_definitions(torch2pnnx PUBLIC NOMINMAX)
@@ -686,6 +699,10 @@ if(PROTOBUF_FOUND)
     add_library(pnnx2onnx STATIC
         save_onnx.cpp
     )
+    # Ensure Homebrew protobuf headers are found BEFORE Torch's bundled old ones
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+        target_include_directories(pnnx2onnx BEFORE PRIVATE ${PROTOBUF_INCLUDE_DIR})
+    endif()
     if(onnxruntime_FOUND)
         target_link_libraries(pnnx2onnx PRIVATE onnxruntime::onnxruntime)
     else()
@@ -778,10 +795,16 @@ set(pnnx_SRCS
 add_executable(pnnx ${pnnx_SRCS})
 
 set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
+target_include_directories(pnnx SYSTEM PRIVATE ${TORCH_INCLUDE_DIRS})
 target_link_libraries(pnnx PRIVATE torch2pnnx)
 
 if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE ${TORCHVISION_LIBRARY})
+endif()
+
+# Link Abseil (needed for protobuf 34.x on macOS/Homebrew)
+if(ABSL_LIBRARIES)
+    target_link_libraries(pnnx PRIVATE ${ABSL_LIBRARIES})
 endif()
 
 if(WIN32)

@@ -13,8 +13,6 @@
 #include <chrono>
 #include <fstream>
 
-#include <onnxruntime_c_api.h>
-
 #include "ir.h"
 
 #include "pass_onnx/canonicalize.h"

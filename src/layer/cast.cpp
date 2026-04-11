@@ -74,6 +74,16 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         // bfloat16
         out_elemsize = 2 * elempack;
     }
+    else if (type_to == 5)
+    {
+        // int64
+        out_elemsize = 8 * elempack;
+    }
+    else if (type_to == 6)
+    {
+        // int32
+        out_elemsize = 4 * elempack;
+    }
 
     if (dims == 1)
     {
@@ -172,6 +182,70 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     }
 
     // TODO more cast type
+
+    if (type_from == 5 && type_to == 1)
+    {
+        // int64 → float32
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const long long* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = (float)ptr[i];
+            }
+        }
+    }
+
+    if (type_from == 1 && type_to == 5)
+    {
+        // float32 → int64
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            long long* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = (long long)ptr[i];
+            }
+        }
+    }
+
+    if (type_from == 6 && type_to == 1)
+    {
+        // int32 → float32
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const int* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = (float)ptr[i];
+            }
+        }
+    }
+
+    if (type_from == 1 && type_to == 6)
+    {
+        // float32 → int32
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            int* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = (int)ptr[i];
+            }
+        }
+    }
 
     return 0;
 }

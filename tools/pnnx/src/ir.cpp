@@ -1479,6 +1479,33 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    // output custom layer classes for pnnx operators
+    {
+        bool has_topk = false;
+        for (const Operator* op : ops)
+        {
+            if (op->type == "TopK")
+            {
+                has_topk = true;
+                break;
+            }
+        }
+
+        if (has_topk)
+        {
+            fprintf(pyfp, "class TopK(nn.Module):\n");
+            fprintf(pyfp, "    def __init__(self, axis=1, largest=1, sorted=1):\n");
+            fprintf(pyfp, "        super(TopK, self).__init__()\n");
+            fprintf(pyfp, "        self.axis = axis\n");
+            fprintf(pyfp, "        self.largest = largest\n");
+            fprintf(pyfp, "        self.sorted = sorted\n");
+            fprintf(pyfp, "    def forward(self, x, k):\n");
+            fprintf(pyfp, "        # Torch topk returns (values, indices)\n");
+            fprintf(pyfp, "        return torch.topk(x, k.item() if hasattr(k, 'item') else k, dim=self.axis, largest=bool(self.largest), sorted=bool(self.sorted))\n");
+            fprintf(pyfp, "\n");
+        }
+    }
+
     fprintf(pyfp, "class Model(nn.Module):\n");
     fprintf(pyfp, "    def __init__(self):\n");
     fprintf(pyfp, "        super(Model, self).__init__()\n");
@@ -1599,6 +1626,39 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 param_index++;
                 if (param_index != param_count)
                     fprintf(pyfp, ", ");
+            }
+
+            fprintf(pyfp, ")\n");
+        }
+    }
+
+    // TopK modules
+    {
+        for (const Operator* op : ops)
+        {
+            if (op->type != "TopK")
+                continue;
+
+            fprintf(pyfp, "        self.%s = TopK(", sanitize_identifier(op->name).c_str());
+
+            int i = 0;
+            for (const auto& it : op->params)
+            {
+                fprintf(pyfp, "%s=", it.first.c_str());
+
+                const Parameter& param = it.second;
+                if (param.type == 2)
+                {
+                    fprintf(pyfp, "%d", param.i);
+                }
+                else if (param.type == 1)
+                {
+                    fprintf(pyfp, "%d", param.b ? 1 : 0);
+                }
+
+                if (i + 1 != op->params.size())
+                    fprintf(pyfp, ", ");
+                i++;
             }
 
             fprintf(pyfp, ")\n");
@@ -2171,6 +2231,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
+                for (size_t i = 0; i < op->outputs.size(); i++)
+                {
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
+                    if (i + 1 != op->outputs.size())
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                {
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                    if (i + 1 != op->inputs.size())
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "TopK")
+            {
+                // self.topk_name()
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
