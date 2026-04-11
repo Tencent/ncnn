@@ -27,10 +27,8 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const Mat& index_blob = bottom_blobs[1];
 
     // Output has same shape as index_blob
-    const Mat& out_shape = index_blob;
-
     Mat& top_blob = top_blobs[0];
-    top_blob.create(out_shape.w, out_shape.h, out_shape.c, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
+    top_blob.create(index_blob.w, index_blob.h, index_blob.c, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -70,32 +68,32 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     for (int i = 0; i < total; i++)
     {
-        // Calculate multi-dimensional coordinates from flat index
-        int idx[4] = {0, 0, 0, 0};
+        // Calculate output coordinates from flat index
+        int out_idx[3] = {0, 0, 0};
         int rem = i;
-
-        if (dims == 1)
+        
+        if (dims >= 1)
         {
-            idx[0] = rem;
+            out_idx[0] = rem % index_blob.w;
+            rem /= index_blob.w;
         }
-        else if (dims == 2)
+        if (dims >= 2)
         {
-            idx[0] = rem % out_shape.w;
-            idx[1] = rem / out_shape.w;
+            out_idx[1] = rem % index_blob.h;
+            rem /= index_blob.h;
         }
-        else if (dims == 3)
+        if (dims >= 3)
         {
-            int wh = out_shape.w * out_shape.h;
-            idx[0] = (rem % wh) % out_shape.w;
-            idx[1] = (rem % wh) / out_shape.w;
-            idx[2] = rem / wh;
+            out_idx[2] = rem;
         }
 
-        // Get index value
+        // Get index value at this position
         int gather_idx = indices[i];
+        
+        // Handle negative indices
         if (gather_idx < 0)
             gather_idx += axis_dim_size;
-
+        
         // Clamp to valid range
         if (gather_idx < 0 || gather_idx >= axis_dim_size)
         {
@@ -103,26 +101,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             continue;
         }
 
-        // Replace coordinate at axis dimension
-        idx[positive_axis] = gather_idx;
-
-        // Calculate flat index into data
-        int data_idx = 0;
-        if (dims == 1)
+        // Calculate input coordinates (replace axis coordinate with gather_idx)
+        int in_idx[3] = {0, 0, 0};
+        for (int d = 0; d < 3; d++)
         {
-            data_idx = idx[0];
-        }
-        else if (dims == 2)
-        {
-            data_idx = idx[0] + idx[1] * data_blob.w;
-        }
-        else if (dims == 3)
-        {
-            size_t cstep = data_blob.cstep;
-            data_idx = idx[0] + idx[1] * data_blob.w + idx[2] * (int)cstep;
+            int data_d = d - (3 - dims);
+            if (data_d >= 0 && data_d < 3)
+            {
+                if (data_d == positive_axis)
+                    in_idx[data_d] = gather_idx;
+                else
+                    in_idx[data_d] = out_idx[d];
+            }
         }
 
-        out[i] = data[data_idx];
+        // Calculate flat input index
+        int flat_in = in_idx[0] + in_idx[1] * data_blob.w + in_idx[2] * (int)data_blob.cstep;
+
+        out[i] = data[flat_in];
     }
 
     return 0;
