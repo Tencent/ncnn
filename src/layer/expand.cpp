@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "expand.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -26,7 +27,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     // shape_blob contains the target shape as int32/int64 values
     const int* target_shape = (const int*)shape_blob;
-    int target_dims = (int)shape_blob.total();
+    int target_dims = (shape_blob.dims == 1) ? shape_blob.w : (int)shape_blob.total();
 
     // Get input dimensions
     int in_dims = input_blob.dims;
@@ -37,19 +38,20 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     // Calculate output shape using numpy broadcasting rules
     // Shapes are aligned from the right (last dimension)
-    int out_shape[3] = {1, 1, 1};
-    int out_dims = target_dims;
+    int out_dims = std::max(in_dims, target_dims);
     if (out_dims > 3) out_dims = 3;
     
-    for (int i = 0; i < 3; i++)
+    int out_shape[3] = {1, 1, 1};
+
+    for (int i = 0; i < out_dims; i++)
     {
         // Calculate index into input and target shapes (aligned from right)
-        int in_idx = i - (3 - in_dims);
-        int target_idx = i - (3 - target_dims);
-        
+        int in_idx = i - (out_dims - in_dims);
+        int target_idx = i - (out_dims - target_dims);
+
         int in_dim = (in_idx >= 0 && in_idx < 3) ? in_shape[in_idx] : 1;
-        int target_dim = (target_idx >= 0 && target_idx < 3) ? target_shape[target_idx] : 1;
-        
+        int target_dim = (target_idx >= 0 && target_idx < target_dims) ? target_shape[target_idx] : 1;
+
         // Broadcasting rules:
         // - If both are 1, output is 1
         // - If one is 1, output is the other
@@ -103,7 +105,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         // Calculate output coordinates from flat index
         int rem = i;
         int out_coords[3] = {0, 0, 0};
-        
+
         if (out_dims >= 1)
         {
             out_coords[0] = rem % top_blob.w;
@@ -119,21 +121,18 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             out_coords[2] = rem;
         }
 
-        // Map to input coordinates using broadcasting
+        // Map to input coordinates (modulo for expanded dimensions)
         int in_coords[3] = {0, 0, 0};
-        for (int d = 0; d < 3; d++)
+        for (int d = 0; d < out_dims; d++)
         {
-            int in_idx = d - (3 - in_dims);
-            if (in_idx >= 0 && in_idx < 3)
+            int in_idx = d - (out_dims - in_dims);
+            if (in_idx >= 0 && in_idx < 3 && in_shape[in_idx] > 1)
             {
-                if (in_shape[in_idx] == 1)
-                {
-                    in_coords[in_idx] = 0;
-                }
-                else
-                {
-                    in_coords[in_idx] = out_coords[d] % in_shape[in_idx];
-                }
+                in_coords[in_idx] = out_coords[d] % in_shape[in_idx];
+            }
+            else if (in_idx >= 0 && in_idx < 3)
+            {
+                in_coords[in_idx] = 0;
             }
         }
 

@@ -29,28 +29,29 @@ int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         const Mat& bottom_blob = bottom_blobs[0];
         const Mat& repeats_blob = bottom_blobs[1];
-        
+
         int dims = bottom_blob.dims;
         const int* repeats_ptr = (const int*)repeats_blob;
-        int repeats_count = (int)repeats_blob.total();
-        
+        // Use w for 1D tensor, total() can be unreliable for int32 tensors
+        int repeats_count = (repeats_blob.dims == 1) ? repeats_blob.w : (int)repeats_blob.total();
+
         // Calculate repeat factors for each dimension
         int repeat_w = 1, repeat_h = 1, repeat_c = 1;
-        
+
         if (repeats_count == 1)
         {
             repeat_w = repeats_ptr[0];
         }
         else if (repeats_count == 2)
         {
-            repeat_h = repeats_ptr[0];
-            repeat_w = repeats_ptr[1];
+            repeat_w = repeats_ptr[0];
+            repeat_h = repeats_ptr[1];
         }
         else if (repeats_count >= 3)
         {
-            repeat_c = repeats_ptr[repeats_count - 3];
-            repeat_h = repeats_ptr[repeats_count - 2];
-            repeat_w = repeats_ptr[repeats_count - 1];
+            repeat_w = repeats_ptr[0];
+            repeat_h = repeats_ptr[1];
+            repeat_c = repeats_ptr[2];
         }
         
         int outw = bottom_blob.w * repeat_w;
