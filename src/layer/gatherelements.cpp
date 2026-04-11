@@ -73,7 +73,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         // Calculate multi-dimensional coordinates from flat index
         int idx[4] = {0, 0, 0, 0};
         int rem = i;
-        
+
         if (dims == 1)
         {
             idx[0] = rem;

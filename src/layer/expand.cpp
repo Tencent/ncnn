@@ -39,21 +39,21 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     // Calculate output shape (broadcasting rules)
     int out_shape[4] = {1, 1, 1, 1};
     int max_dims = std::max(in_dims, target_dims);
-    
+
     for (int i = 0; i < max_dims; i++)
     {
         int in_idx = i - (max_dims - in_dims);
         int target_idx = i - (max_dims - target_dims);
-        
+
         int in_dim = (in_idx >= 0 && in_idx < in_dims) ? in_shape[in_idx] : 1;
         int target_dim = (target_idx >= 0 && target_idx < target_dims) ? target_shape[target_idx] : 1;
-        
+
         // Broadcasting: if in_dim is 1, expand to target_dim; otherwise must match
         out_shape[i] = (in_dim == 1) ? target_dim : in_dim;
     }
 
     Mat& top_blob = top_blobs[0];
-    
+
     if (max_dims == 1)
     {
         top_blob.create(out_shape[0], input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
@@ -70,7 +70,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     {
         return -1;
     }
-    
+
     if (top_blob.empty())
         return -100;
 
@@ -79,13 +79,13 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     // Fill output by broadcasting input
     int total = (int)top_blob.total();
-    
+
     for (int i = 0; i < total; i++)
     {
         // Calculate multi-dimensional coordinates
         int coords[4] = {0, 0, 0, 0};
         int rem = i;
-        
+
         if (max_dims == 1)
         {
             coords[0] = rem;
