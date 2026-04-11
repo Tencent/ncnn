@@ -32,9 +32,9 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     if (top_blob.empty())
         return -100;
 
-    int dims = data_blob.dims;
-    int positive_axis = axis < 0 ? axis + dims : axis;
-    if (positive_axis < 0 || positive_axis >= dims)
+    int data_dims = data_blob.dims;
+    int positive_axis = axis < 0 ? axis + data_dims : axis;
+    if (positive_axis < 0 || positive_axis >= data_dims)
         return -1;
 
     const float* data = data_blob;
@@ -45,67 +45,79 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     // Get axis dimension size
     int axis_dim_size = 1;
-    if (dims == 1)
+    if (data_dims == 1)
     {
         axis_dim_size = data_blob.w;
     }
-    else if (dims == 2)
+    else if (data_dims == 2)
     {
         axis_dim_size = (positive_axis == 0) ? data_blob.w : data_blob.h;
     }
-    else if (dims == 3)
+    else if (data_dims == 3)
     {
         axis_dim_size = (positive_axis == 0) ? data_blob.w : (positive_axis == 1) ? data_blob.h : data_blob.c;
     }
 
     for (int i = 0; i < total; i++)
     {
-        // Calculate output coordinates from flat index
-        int out_coords[3] = {0, 0, 0};
-        int rem = i;
-        
-        if (dims >= 1)
-        {
-            out_coords[0] = rem % index_blob.w;
-            rem /= index_blob.w;
-        }
-        if (dims >= 2)
-        {
-            out_coords[1] = rem % index_blob.h;
-            rem /= index_blob.h;
-        }
-        if (dims >= 3)
-        {
-            out_coords[2] = rem;
-        }
-
         // Get index value at this position
         int gather_idx = indices[i];
-        
+
         // Handle negative indices
         if (gather_idx < 0)
             gather_idx += axis_dim_size;
-        
+
         // Clamp to valid range
         if (gather_idx < 0) gather_idx = 0;
         if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
 
-        // Calculate input coordinates (replace axis coordinate with gather_idx)
-        int in_coords[3] = {0, 0, 0};
-        for (int d = 0; d < 3; d++)
+        // Calculate input flat index based on axis
+        // For 1D data: flat_in = gather_idx
+        // For 2D data with axis=0: flat_in = gather_idx + y * w
+        // For 2D data with axis=1: flat_in = x + gather_idx * w
+        int flat_in = 0;
+        
+        if (data_dims == 1)
         {
-            int data_d = d - (3 - dims);
-            if (data_d >= 0 && data_d < 3)
+            flat_in = gather_idx;
+        }
+        else if (data_dims == 2)
+        {
+            // Calculate position in output (which matches index_blob shape)
+            int x = i % index_blob.w;
+            int y = i / index_blob.w;
+            
+            if (positive_axis == 0)
             {
-                if (data_d == positive_axis)
-                    in_coords[data_d] = gather_idx;
-                else
-                    in_coords[data_d] = out_coords[d];
+                // Gather along width: output[x,y] = data[gather_idx, y]
+                flat_in = gather_idx + y * data_blob.w;
+            }
+            else
+            {
+                // Gather along height: output[x,y] = data[x, gather_idx]
+                flat_in = x + gather_idx * data_blob.w;
             }
         }
-
-        // Calculate flat input index
-        int flat_in = in_coords[0] + in_coords[1] * data_blob.w + in_coords[2] * (int)data_blob.cstep;
+        else if (data_dims == 3)
+        {
+            int x = i % index_blob.w;
+            int tmp = i / index_blob.w;
+            int y = tmp % index_blob.h;
+            int z = tmp / index_blob.h;
+            
+            if (positive_axis == 0)
+            {
+                flat_in = gather_idx + (y + z * data_blob.h) * data_blob.w;
+            }
+            else if (positive_axis == 1)
+            {
+                flat_in = x + (gather_idx + z * data_blob.h) * data_blob.w;
+            }
+            else
+            {
+                flat_in = x + (y + gather_idx * data_blob.h) * data_blob.w;
+            }
+        }
 
         out[i] = data[flat_in];
     }
