@@ -38,8 +38,8 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     int shape[4] = {1, 1, 1, 1};
     shape[0] = input_blob.w;
     if (dims >= 2) shape[1] = input_blob.h;
-    if (dims == 3)    shape[2] = input_blob.c;
-    if (dims == 4)    shape[2] = input_blob.c; // w*h*c layout
+    if (dims == 3) shape[2] = input_blob.c;
+    if (dims == 4) shape[2] = input_blob.c; // w*h*c layout
 
     const int axis_dim_size = shape[positive_axis];
 
@@ -65,12 +65,17 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         // Decompose flat index i into coordinates based on top_blob shape
         int rem = i;
         int coord_out[4] = {0, 0, 0, 0};
-        if (top_blob.dims == 1) {
+        if (top_blob.dims == 1)
+        {
             coord_out[0] = rem;
-        } else if (top_blob.dims == 2) {
+        }
+        else if (top_blob.dims == 2)
+        {
             coord_out[0] = rem % top_blob.w;
             coord_out[1] = rem / top_blob.w;
-        } else if (top_blob.dims == 3) {
+        }
+        else if (top_blob.dims == 3)
+        {
             int hw = top_blob.w * top_blob.h;
             coord_out[0] = (rem % hw) % top_blob.w;
             coord_out[1] = (rem % hw) / top_blob.w;
@@ -92,11 +97,16 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // Compute flat input index
         int flat_in = 0;
-        if (dims == 1) {
+        if (dims == 1)
+        {
             flat_in = coord_in[0];
-        } else if (dims == 2) {
+        }
+        else if (dims == 2)
+        {
             flat_in = coord_in[0] + coord_in[1] * input_blob.w;
-        } else if (dims == 3) {
+        }
+        else if (dims == 3)
+        {
             // ncnn 3D layout: w * h * c, with cstride padding
             size_t cstep = input_blob.cstep;
             flat_in = coord_in[0] + coord_in[1] * input_blob.w + coord_in[2] * (int)cstep;
