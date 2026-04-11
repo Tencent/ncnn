@@ -24,45 +24,63 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const Mat& input_blob = bottom_blobs[0];
     const Mat& shape_blob = bottom_blobs[1];
 
-    // shape_blob contains the target shape as int64/int32 values
+    // shape_blob contains the target shape as int32/int64 values
     const int* target_shape = (const int*)shape_blob;
     int target_dims = (int)shape_blob.total();
 
     // Get input dimensions
     int in_dims = input_blob.dims;
-    int in_shape[4] = {1, 1, 1, 1};
+    int in_shape[3] = {1, 1, 1};
     in_shape[0] = input_blob.w;
     if (in_dims >= 2) in_shape[1] = input_blob.h;
     if (in_dims >= 3) in_shape[2] = input_blob.c;
-    // For 4D, we'd need to handle differently but ncnn typically uses 3D blobs
 
-    // Calculate output shape (broadcasting rules)
-    int out_shape[4] = {1, 1, 1, 1};
-    int max_dims = std::max(in_dims, target_dims);
-
-    for (int i = 0; i < max_dims; i++)
+    // Calculate output shape using numpy broadcasting rules
+    // Shapes are aligned from the right (last dimension)
+    int out_shape[3] = {1, 1, 1};
+    int out_dims = target_dims;
+    if (out_dims > 3) out_dims = 3;
+    
+    for (int i = 0; i < 3; i++)
     {
-        int in_idx = i - (max_dims - in_dims);
-        int target_idx = i - (max_dims - target_dims);
-
-        int in_dim = (in_idx >= 0 && in_idx < in_dims) ? in_shape[in_idx] : 1;
-        int target_dim = (target_idx >= 0 && target_idx < target_dims) ? target_shape[target_idx] : 1;
-
-        // Broadcasting: if in_dim is 1, expand to target_dim; otherwise must match
-        out_shape[i] = (in_dim == 1) ? target_dim : in_dim;
+        // Calculate index into input and target shapes (aligned from right)
+        int in_idx = i - (3 - in_dims);
+        int target_idx = i - (3 - target_dims);
+        
+        int in_dim = (in_idx >= 0 && in_idx < 3) ? in_shape[in_idx] : 1;
+        int target_dim = (target_idx >= 0 && target_idx < 3) ? target_shape[target_idx] : 1;
+        
+        // Broadcasting rules:
+        // - If both are 1, output is 1
+        // - If one is 1, output is the other
+        // - If both are > 1, they must match
+        if (in_dim == 1)
+        {
+            out_shape[i] = target_dim;
+        }
+        else if (target_dim == 1)
+        {
+            out_shape[i] = in_dim;
+        }
+        else
+        {
+            // Both > 1, should match
+            out_shape[i] = target_dim;
+        }
     }
 
     Mat& top_blob = top_blobs[0];
 
-    if (max_dims == 1)
+    // Create output blob with correct shape
+    if (out_dims == 1)
     {
         top_blob.create(out_shape[0], input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
     }
-    else if (max_dims == 2)
+    else if (out_dims == 2)
     {
         top_blob.create(out_shape[0], out_shape[1], input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
     }
-    else if (max_dims == 3)
+    else if (out_dims == 3)
     {
         top_blob.create(out_shape[0], out_shape[1], out_shape[2], input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
     }
@@ -82,54 +100,45 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     for (int i = 0; i < total; i++)
     {
-        // Calculate multi-dimensional coordinates
-        int coords[4] = {0, 0, 0, 0};
+        // Calculate output coordinates from flat index
         int rem = i;
+        int out_coords[3] = {0, 0, 0};
+        
+        if (out_dims >= 1)
+        {
+            out_coords[0] = rem % top_blob.w;
+            rem /= top_blob.w;
+        }
+        if (out_dims >= 2)
+        {
+            out_coords[1] = rem % top_blob.h;
+            rem /= top_blob.h;
+        }
+        if (out_dims >= 3)
+        {
+            out_coords[2] = rem;
+        }
 
-        if (max_dims == 1)
+        // Map to input coordinates using broadcasting
+        int in_coords[3] = {0, 0, 0};
+        for (int d = 0; d < 3; d++)
         {
-            coords[0] = rem;
-        }
-        else if (max_dims == 2)
-        {
-            coords[0] = rem % top_blob.w;
-            coords[1] = rem / top_blob.w;
-        }
-        else if (max_dims == 3)
-        {
-            int wh = top_blob.w * top_blob.h;
-            coords[0] = (rem % wh) % top_blob.w;
-            coords[1] = (rem % wh) / top_blob.w;
-            coords[2] = rem / wh;
-        }
-
-        // Map to input coordinates (modulo for expanded dimensions)
-        int in_coords[4] = {0, 0, 0, 0};
-        for (int d = 0; d < max_dims; d++)
-        {
-            int in_idx = d - (max_dims - in_dims);
-            if (in_idx >= 0 && in_idx < in_dims)
+            int in_idx = d - (3 - in_dims);
+            if (in_idx >= 0 && in_idx < 3)
             {
-                int dim_size = (d == 0) ? input_blob.w : (d == 1 && in_dims >= 2) ? input_blob.h : input_blob.c;
-                in_coords[in_idx] = coords[d] % dim_size;
+                if (in_shape[in_idx] == 1)
+                {
+                    in_coords[in_idx] = 0;
+                }
+                else
+                {
+                    in_coords[in_idx] = out_coords[d] % in_shape[in_idx];
+                }
             }
         }
 
         // Calculate flat input index
-        int in_idx = 0;
-        if (in_dims == 1)
-        {
-            in_idx = in_coords[0];
-        }
-        else if (in_dims == 2)
-        {
-            in_idx = in_coords[0] + in_coords[1] * input_blob.w;
-        }
-        else if (in_dims == 3)
-        {
-            size_t cstep = input_blob.cstep;
-            in_idx = in_coords[0] + in_coords[1] * input_blob.w + in_coords[2] * (int)cstep;
-        }
+        int in_idx = in_coords[0] + in_coords[1] * input_blob.w + in_coords[2] * (int)input_blob.cstep;
 
         out[i] = inp[in_idx];
     }

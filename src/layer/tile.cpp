@@ -7,8 +7,10 @@ namespace ncnn {
 
 Tile::Tile()
 {
-    one_blob_only = true;
+    one_blob_only = false;  // Changed to support ONNX mode with 2 inputs
     support_inplace = false;
+    axis = 0;
+    tiles = 1;
 }
 
 int Tile::load_param(const ParamDict& pd)
@@ -20,8 +22,71 @@ int Tile::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    // ONNX mode: repeats comes as second input blob
+    if (bottom_blobs.size() >= 2 && !bottom_blobs[1].empty())
+    {
+        const Mat& bottom_blob = bottom_blobs[0];
+        const Mat& repeats_blob = bottom_blobs[1];
+        
+        int dims = bottom_blob.dims;
+        const int* repeats_ptr = (const int*)repeats_blob;
+        int repeats_count = (int)repeats_blob.total();
+        
+        // Calculate repeat factors for each dimension
+        int repeat_w = 1, repeat_h = 1, repeat_c = 1;
+        
+        if (repeats_count == 1)
+        {
+            repeat_w = repeats_ptr[0];
+        }
+        else if (repeats_count == 2)
+        {
+            repeat_h = repeats_ptr[0];
+            repeat_w = repeats_ptr[1];
+        }
+        else if (repeats_count >= 3)
+        {
+            repeat_c = repeats_ptr[repeats_count - 3];
+            repeat_h = repeats_ptr[repeats_count - 2];
+            repeat_w = repeats_ptr[repeats_count - 1];
+        }
+        
+        int outw = bottom_blob.w * repeat_w;
+        int outh = bottom_blob.h * repeat_h;
+        int outc = bottom_blob.c * repeat_c;
+        
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(outw, outh, outc, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+        
+        const float* ptr = bottom_blob;
+        float* outptr = top_blob;
+        
+        for (int q = 0; q < outc; q++)
+        {
+            const float* ptr_channel = ptr + bottom_blob.cstep * (q / repeat_c);
+            float* outptr_channel = outptr + top_blob.cstep * q;
+            
+            for (int i = 0; i < outh; i++)
+            {
+                const float* ptr_row = ptr_channel + bottom_blob.w * (i / repeat_h);
+                float* outptr_row = outptr_channel + top_blob.w * i;
+                
+                for (int j = 0; j < outw; j++)
+                {
+                    outptr_row[j] = ptr_row[j / repeat_w];
+                }
+            }
+        }
+        
+        return 0;
+    }
+    
+    // Legacy mode: use parameters
+    const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
     int repeat_w = 1;
     int repeat_h = 1;
@@ -71,18 +136,9 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
         if (repeats_num == 3)
         {
-            if (dims == 4)
-            {
-                repeat_d = repeats_ptr[0];
-                repeat_h = repeats_ptr[1];
-                repeat_w = repeats_ptr[2];
-            }
-            else
-            {
-                repeat_c = repeats_ptr[0];
-                repeat_h = repeats_ptr[1];
-                repeat_w = repeats_ptr[2];
-            }
+            repeat_c = repeats_ptr[0];
+            repeat_h = repeats_ptr[1];
+            repeat_w = repeats_ptr[2];
         }
         if (repeats_num == 4)
         {
@@ -93,102 +149,33 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
     }
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
+    int outw = bottom_blob.w * repeat_w;
+    int outh = bottom_blob.h * repeat_h;
+    int outc = bottom_blob.c * repeat_c;
 
-    const int outdims = std::max(dims, repeats_num);
-
-    if (repeat_w == 1 && repeat_h == 1 && repeat_d == 1 && repeat_c == 1)
-    {
-        // all ones
-        if (repeats_num == 0 || dims == repeats_num)
-        {
-            top_blob = bottom_blob;
-            return 0;
-        }
-    }
-
-    int outw = w * repeat_w;
-    int outh = h * repeat_h;
-    int outd = d * repeat_d;
-    int outc = channels * repeat_c;
-    if (outdims == 1)
-    {
-        top_blob.create(outw, elemsize, opt.blob_allocator);
-    }
-    if (outdims == 2)
-    {
-        top_blob.create(outw, outh, elemsize, opt.blob_allocator);
-    }
-    if (outdims == 3)
-    {
-        top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
-    }
-    if (outdims == 4)
-    {
-        top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
-    }
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(outw, outh, outc, bottom_blob.elemsize, bottom_blob.elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    const float* ptr = bottom_blob;
+    float* outptr = top_blob;
+
+    for (int q = 0; q < outc; q++)
     {
-        // repeat 0-w
-        for (int z = 0; z < d; z++)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                const float* ptr = bottom_blob.channel(q).depth(z).row(y);
-                float* outptr = top_blob.channel(q).depth(z).row(y);
+        const float* ptr_channel = ptr + bottom_blob.cstep * (q / repeat_c);
+        float* outptr_channel = outptr + top_blob.cstep * q;
 
-                for (int p = 0; p < repeat_w; p++)
-                {
-                    memcpy(outptr, ptr, w * sizeof(float));
-                    outptr += w;
-                }
+        for (int i = 0; i < outh; i++)
+        {
+            const float* ptr_row = ptr_channel + bottom_blob.w * (i / repeat_h);
+            float* outptr_row = outptr_channel + top_blob.w * i;
+
+            for (int j = 0; j < outw; j++)
+            {
+                outptr_row[j] = ptr_row[j / repeat_w];
             }
         }
-
-        // repeat 1-h
-        for (int z = 0; z < d; z++)
-        {
-            const float* ptr = top_blob.channel(q).depth(z);
-            float* outptr = top_blob.channel(q).depth(z).row(h);
-
-            const int size = w * repeat_w * h;
-            for (int p = 1; p < repeat_h; p++)
-            {
-                memcpy(outptr, ptr, size * sizeof(float));
-                outptr += size;
-            }
-        }
-
-        // repeat 1-d
-        {
-            const float* ptr = top_blob.channel(q);
-            float* outptr = top_blob.channel(q).depth(d);
-
-            const int size = w * repeat_w * h * repeat_h * d;
-            for (int p = 1; p < repeat_d; p++)
-            {
-                memcpy(outptr, ptr, size * sizeof(float));
-                outptr += size;
-            }
-        }
-    }
-
-    // repeat 1-c
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 1; p < repeat_c; p++)
-    {
-        const float* ptr = top_blob.channel_range(0, channels);
-        float* outptr = top_blob.channel_range(p * channels, channels);
-
-        memcpy(outptr, ptr, top_blob.cstep * channels * sizeof(float));
     }
 
     return 0;
