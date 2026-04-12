@@ -1,4 +1,5 @@
 // Copyright 2021 Xavier Hsinyuan <thelastlinex@hotmail.com>
+// Copyright 2026 ihb2032 <hebome@foxmail.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_ABSVAL_RISCV_H
@@ -18,6 +19,7 @@ public:
 protected:
 #if NCNN_ZFH
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
+    int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 };
 
