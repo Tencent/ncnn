@@ -894,7 +894,7 @@ static inline __m128 erfc_ps(__m128 x)
     r = __lsx_vfmul_s(r, exp_ps(tmp));
     r = __lsx_vfdiv_s(r, absx);
     t = __lsx_vfsub_s(two, r);
-    __m128i mask_x_ge_0 = __lsx_vfcmp_clt_s(zero, x);
+    __m128i mask_x_ge_0 = __lsx_vfcmp_cle_s(zero, x);
     r = (__m128)__lsx_vbitsel_v((__m128i)t, (__m128i)r, mask_x_ge_0);
     __m128i mask_absx_ge_28 = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(0x41e00000), absx);
     ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_absx_ge_28);
@@ -904,7 +904,7 @@ static inline __m128 erfc_ps(__m128 x)
     r = (__m128)__lsx_vbitsel_v((__m128i)t, (__m128i)r, mask_x_ge_0);
     ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_ge_1_25);
 
-    r = __lsx_vfsub_s(__lsx_vfmadd_s(x, q, __lsx_vfsub_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i))), (__m128)__lsx_vreplgr2vr_w(c_0p5.i));
+    r = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_0p5.i), __lsx_vfmadd_s(x, q, __lsx_vfsub_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i))));
     ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_ge_0_84375);
 
     __m128i mask_x_lt_m6 = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0xc0c00000));
