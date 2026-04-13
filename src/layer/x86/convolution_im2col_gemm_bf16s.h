@@ -1126,10 +1126,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
                 __m256i _pB0 = _mm256_loadu_si256((const __m256i*)pB);
-                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_PERM_BADC);
-                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
                 __m256i _pB2 = _mm256_permute4x64_epi64(_pB0, _MM_SHUFFLE(1, 0, 3, 2));
-                __m256i _pB3 = _mm256_shuffle_epi32(_pB2, _MM_PERM_ADCB);
+                __m256i _pB3 = _mm256_shuffle_epi32(_pB2, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB0);
                 _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA0, (__m256bh)_pB1);
                 _sum2 = _mm256_dpbf16_ps(_sum2, (__m256bh)_pA1, (__m256bh)_pB0);
@@ -1349,8 +1349,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
                 __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
                 __m256i _pB0 = combine4x2_epi32(_pB, _pB);
-                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_PERM_BADC);
-                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB0);
                 _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA0, (__m256bh)_pB1);
                 _sum2 = _mm256_dpbf16_ps(_sum2, (__m256bh)_pA1, (__m256bh)_pB0);
@@ -1593,8 +1593,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
                 __m256i _pA00 = combine4x2_epi32(_pA0, _pA0);
                 __m256i _pB01 = _mm256_loadu_si256((const __m256i*)pB);
-                __m256i _pA11 = _mm256_shuffle_epi32(_pA00, _MM_PERM_BADC);
-                __m256i _pB23 = _mm256_shuffle_epi32(_pB01, _MM_PERM_ADCB);
+                __m256i _pA11 = _mm256_shuffle_epi32(_pA00, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pB23 = _mm256_shuffle_epi32(_pB01, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA00, (__m256bh)_pB01);
                 _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA11, (__m256bh)_pB01);
                 _sum2 = _mm256_dpbf16_ps(_sum2, (__m256bh)_pA00, (__m256bh)_pB23);
@@ -1846,8 +1846,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m128i _pA0 = _mm_loadu_si128((const __m128i*)pA);
                 __m128i _pB0 = _mm_loadu_si128((const __m128i*)pB);
-                __m128i _pA1 = _mm_shuffle_epi32(_pA0, _MM_PERM_BADC);
-                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m128i _pA1 = _mm_shuffle_epi32(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA0, (__m128bh)_pB0);
                 _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA0, (__m128bh)_pB1);
                 _sum2 = _mm_dpbf16_ps(_sum2, (__m128bh)_pA1, (__m128bh)_pB0);
@@ -2041,7 +2041,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m256i _pA0 = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pA));
                 __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
-                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_PERM_ADCB);
+                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm256_dpbf16_ps(_sum0, (__m256bh)_pA0, (__m256bh)_pB);
                 _sum1 = _mm256_dpbf16_ps(_sum1, (__m256bh)_pA1, (__m256bh)_pB);
                 pA += 4;
@@ -2214,7 +2214,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m128i _pA = _mm_castpd_si128(_mm_load1_pd((const double*)pA));
                 __m128i _pB0 = _mm_loadu_si128((const __m128i*)pB);
-                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
                 _sum0 = _mm_dpbf16_ps(_sum0, (__m128bh)_pA, (__m128bh)_pB0);
                 _sum1 = _mm_dpbf16_ps(_sum1, (__m128bh)_pA, (__m128bh)_pB1);
                 pA += 4;
