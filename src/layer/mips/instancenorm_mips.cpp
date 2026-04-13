@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -131,7 +132,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             const unsigned short* ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+                v4f32 _p = bfloat2float_msa(ptr0);
                 _sum = __msa_fadd_w(_sum, _p);
                 ptr0 += 4;
             }
@@ -151,7 +152,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+                v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fsub_w(_p, _mean);
                 _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
                 ptr0 += 4;
@@ -189,9 +190,9 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
 
             for (int i = 0; i < size; i++)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 _p = __msa_fmadd_w(_b, _p, _a);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
         }
@@ -200,7 +201,98 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
     }
 #endif // __mips_msa
 
-    return InstanceNorm::forward_inplace(bottom_top_blob, opt);
+    // elempack == 1 bf16s path
+    {
+        const int channels = bottom_top_blob.c;
+        const int size = bottom_top_blob.w * bottom_top_blob.h;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            // compute mean
+            float mean = 0.f;
+            {
+                const unsigned short* ptr0 = ptr;
+                int i = 0;
+#if __mips_msa
+                v4f32 _sum = (v4f32)__msa_fill_w(0);
+                for (; i + 3 < size; i += 4)
+                {
+                    v4f32 _p = bfloat2float_msa(ptr0 + i);
+                    _sum = __msa_fadd_w(_sum, _p);
+                }
+                mean += __msa_reduce_fadd_w(_sum);
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    mean += bfloat16_to_float32(ptr0[i]);
+                }
+                mean /= size;
+            }
+
+            // compute var
+            float var = 0.f;
+            {
+                const unsigned short* ptr0 = ptr;
+                int i = 0;
+#if __mips_msa
+                v4f32 _mean = __msa_fill_w_f32(mean);
+                v4f32 _sqsum = (v4f32)__msa_fill_w(0);
+                for (; i + 3 < size; i += 4)
+                {
+                    v4f32 _p = bfloat2float_msa(ptr0 + i);
+                    _p = __msa_fsub_w(_p, _mean);
+                    _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+                }
+                var += __msa_reduce_fadd_w(_sqsum);
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    float v = bfloat16_to_float32(ptr0[i]) - mean;
+                    var += v * v;
+                }
+                var /= size;
+            }
+
+            float a;
+            float b;
+            if (affine)
+            {
+                float gamma = gamma_data[q];
+                float beta = beta_data[q];
+                a = gamma / sqrtf(var + eps);
+                b = -mean * a + beta;
+            }
+            else
+            {
+                a = 1.f / sqrtf(var + eps);
+                b = -mean * a;
+            }
+
+            // apply
+            {
+                int i = 0;
+#if __mips_msa
+                v4f32 _a = __msa_fill_w_f32(a);
+                v4f32 _b = __msa_fill_w_f32(b);
+                for (; i + 3 < size; i += 4)
+                {
+                    v4f32 _p = bfloat2float_msa(ptr + i);
+                    _p = __msa_fmadd_w(_b, _p, _a);
+                    float2bfloat_msa_store(_p, ptr + i);
+                }
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * a + b);
+                }
+            }
+        }
+
+        return 0;
+    }
 }
 #endif // NCNN_BF16
 

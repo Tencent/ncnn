@@ -5,6 +5,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#include "loongarch_usability.h"
 #if __loongarch_asx
 #include <lasxintrin.h>
 #endif // __loongarch_asx
@@ -335,7 +336,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                         _s = (__m256)__lasx_xvld(scale_fp32 + i * 8, 0);
                     __m256 _bias = (__m256)__lasx_xvld(bias + i * 8, 0);
                     _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                    __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                    __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 }
             }
             else
@@ -352,7 +353,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     else
                         _s = (__m256)__lasx_xvld(scale_fp32 + i * 8, 0);
                     _p = __lasx_xvfmul_s(_p, _s);
-                    __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                    __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 }
             }
 
@@ -385,7 +386,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m256 _p = bfloat2float_avx((__m128i*)ptr);
                         _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                        __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -406,7 +407,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m256 _p = bfloat2float_avx((__m128i*)ptr);
                         _p = __lasx_xvfmul_s(_p, _s);
-                        __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -441,7 +442,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m256 _p = bfloat2float_avx((__m128i*)ptr);
                         _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                        __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -462,7 +463,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m256 _p = bfloat2float_avx((__m128i*)ptr);
                         _p = __lasx_xvfmul_s(_p, _s);
-                        __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -498,7 +499,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                         _s = (__m128)__lsx_vld(scale_fp32 + i * 4, 0);
                     __m128 _bias = (__m128)__lsx_vld(bias + i * 4, 0);
                     _p = __lsx_vfmadd_s(_p, _s, _bias);
-                    __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                    __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 }
             }
             else
@@ -515,7 +516,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     else
                         _s = (__m128)__lsx_vld(scale_fp32 + i * 4, 0);
                     _p = __lsx_vfmul_s(_p, _s);
-                    __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                    __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 }
             }
 
@@ -548,7 +549,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m128 _p = bfloat2float_sse((__m128i*)ptr);
                         _p = __lsx_vfmadd_s(_p, _s, _bias);
-                        __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -569,7 +570,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m128 _p = bfloat2float_sse((__m128i*)ptr);
                         _p = __lsx_vfmul_s(_p, _s);
-                        __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -604,7 +605,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m128 _p = bfloat2float_sse((__m128i*)ptr);
                         _p = __lsx_vfmadd_s(_p, _s, _bias);
-                        __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -625,7 +626,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     {
                         __m128 _p = bfloat2float_sse((__m128i*)ptr);
                         _p = __lsx_vfmul_s(_p, _s);
-                        __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }

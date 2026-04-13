@@ -5,7 +5,9 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
+#include "mips_activation.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -81,9 +83,9 @@ int Mish_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-            _p = mish_ps(_p);
-            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            v4f32 _p = bfloat2float_msa(ptr);
+            _p = mish_msa(_p);
+            float2bfloat_msa_store(_p, ptr);
             ptr += 4;
         }
 #endif // __mips_msa

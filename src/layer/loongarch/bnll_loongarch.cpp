@@ -5,6 +5,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#include "loongarch_usability.h"
 #include "lsx_mathfun.h"
 #if __loongarch_asx
 #include <lasxintrin.h>
@@ -118,7 +119,7 @@ int BNLL_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __m256 _abs_p = (__m256)__lasx_xvand_v((__m256i)_p, __lasx_xvreplgr2vr_w(0x7fffffff));
             __m256 _tmp = log256_ps(__lasx_xvfadd_s(_one, exp256_ps((__m256)__lasx_xvbitrevi_w((__m256i)_abs_p, 31))));
             __m256 _outp = __lasx_xvfadd_s(__lasx_xvfmax_s(_p, _zero), _tmp);
-            __lasx_xvst(float2bfloat_avx(_outp), ptr, 0);
+            __lsx_vst(float2bfloat_avx(_outp), ptr, 0);
             ptr += 8;
         }
 #endif
@@ -130,7 +131,7 @@ int BNLL_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __m128 _abs_p = (__m128)__lsx_vand_v((__m128i)_p, __lsx_vreplgr2vr_w(0x7fffffff));
             __m128 _tmp = log_ps(__lsx_vfadd_s(_one, exp_ps((__m128)__lsx_vbitrevi_w((__m128i)_abs_p, 31))));
             __m128 _outp = __lsx_vfadd_s(__lsx_vfmax_s(_p, _zero), _tmp);
-            __lsx_vst(float2bfloat_sse(_outp), ptr, 0);
+            __lsx_vstelm_d(float2bfloat_sse(_outp), ptr, 0, 0);
             ptr += 4;
         }
 #endif

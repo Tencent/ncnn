@@ -112,7 +112,7 @@ int Sigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             _p = exp256_ps(_p);
             _p = __lasx_xvfadd_s(_p, (__m256)__lasx_xvreplfr2vr_s(1.f));
             _p = __lasx_xvfdiv_s((__m256)__lasx_xvreplfr2vr_s(1.f), _p);
-            __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
@@ -123,7 +123,7 @@ int Sigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             _p = exp_ps(_p);
             _p = __lsx_vfadd_s(_p, (__m128)__lsx_vreplfr2vr_s(1.f));
             _p = __lsx_vfdiv_s((__m128)__lsx_vreplfr2vr_s(1.f), _p);
-            __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

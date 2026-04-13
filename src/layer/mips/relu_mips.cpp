@@ -114,9 +114,9 @@ int ReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 _p = __msa_fmax_w(_p, _zero);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
 #endif // __mips_msa
@@ -142,11 +142,11 @@ int ReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _slope = (v4f32)__msa_fill_w_f32(slope);
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _pos = __msa_fmax_w(_p, _zero);
                 v4f32 _neg = __msa_fmin_w(_p, _zero);
                 _p = __msa_fadd_w(_pos, __msa_fmul_w(_slope, _neg));
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
 #endif // __mips_msa

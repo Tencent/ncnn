@@ -37,7 +37,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _mean = __msa_fadd_w(_mean, _p);
             ptr0 += 4;
         }
@@ -73,7 +73,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
             _var = __msa_fmadd_w(_var, _p, _p);
             ptr0 += 4;
@@ -143,9 +143,9 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+                v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fmadd_w(_b, _p, _a);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr0, 0);
+                float2bfloat_msa_store(_p, ptr0);
                 ptr0 += 4;
             }
 #endif // __mips_msa
@@ -166,9 +166,9 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+                v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fmadd_w(_mean, _p, _var);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr0, 0);
+                float2bfloat_msa_store(_p, ptr0);
                 ptr0 += 4;
             }
 #endif // __mips_msa

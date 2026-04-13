@@ -15,9 +15,6 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-public:
-    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
 #if NCNN_BF16
     virtual int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif

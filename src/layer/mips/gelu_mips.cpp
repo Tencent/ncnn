@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
@@ -130,7 +131,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _cube = __msa_fmul_w(_p, _p);
                 _cube = __msa_fmul_w(_p, _cube);
                 v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
@@ -138,7 +139,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
                 _blob = tanh_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
-                __msa_st_w((v4i32)float2bfloat_msa(_blob), ptr, 0);
+                float2bfloat_msa_store(_blob, ptr);
                 ptr += 4;
             }
         }
@@ -149,12 +150,12 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
             for (; i + 3 < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _blob = __msa_fmul_w(_inv_sqrt2, _p);
                 _blob = erf_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
-                __msa_st_w((v4i32)float2bfloat_msa(_blob), ptr, 0);
+                float2bfloat_msa_store(_blob, ptr);
                 ptr += 4;
             }
         }

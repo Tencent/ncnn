@@ -35,9 +35,16 @@ static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
 
 static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 {
-    v2f64 hi64 = __msa_fadd_d((v2f64)_v, (v2f64)__msa_ilvl_d((v2i64)_v, (v2i64)_v));
-    double sum = ((double*)&hi64)[0] + ((double*)&hi64)[1];
-    return (float)sum;
+    // _v = {f0, f1, f2, f3}
+    // swap pairs: {f2, f3, f0, f1}
+    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, 0x4E);
+    _v = __msa_fadd_w(_v, _s); // {f0+f2, f1+f3, ...}
+    // swap within pair: {f1+f3, f0+f2, ...}
+    _s = (v4f32)__msa_shf_w((v4i32)_v, 0xB1);
+    _v = __msa_fadd_w(_v, _s); // {f0+f1+f2+f3, ...}
+    float result;
+    __builtin_memcpy(&result, &_v, sizeof(float));
+    return result;
 }
 
 static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
@@ -352,22 +359,22 @@ static NCNN_FORCEINLINE void transpose8x4_epi16(v8i16& _r0, v8i16& _r1, v8i16& _
 // transpose16x4_epi8 - transpose 16x4 block of int8
 static NCNN_FORCEINLINE void transpose16x4_epi8(v16i8& _r0, v16i8& _r1, v16i8& _r2, v16i8& _r3)
 {
-    v16i8 _tmp0 = (v16i8)_mm_unpacklo_epi8((v4i32)_r0, (v4i32)_r1);
-    v16i8 _tmp1 = (v16i8)_mm_unpackhi_epi8((v4i32)_r0, (v4i32)_r1);
-    v16i8 _tmp2 = (v16i8)_mm_unpacklo_epi8((v4i32)_r2, (v4i32)_r3);
-    v16i8 _tmp3 = (v16i8)_mm_unpackhi_epi8((v4i32)_r2, (v4i32)_r3);
+    v16i8 _tmp0 = (v16i8)__msa_ilvr_b(_r1, _r0);
+    v16i8 _tmp1 = (v16i8)__msa_ilvl_b(_r1, _r0);
+    v16i8 _tmp2 = (v16i8)__msa_ilvr_b(_r3, _r2);
+    v16i8 _tmp3 = (v16i8)__msa_ilvl_b(_r3, _r2);
 
-    _r0 = (v16i8)_mm_unpacklo_epi16((v4i32)_tmp0, (v4i32)_tmp2);
-    _r1 = (v16i8)_mm_unpackhi_epi16((v4i32)_tmp0, (v4i32)_tmp2);
-    _r2 = (v16i8)_mm_unpacklo_epi16((v4i32)_tmp1, (v4i32)_tmp3);
-    _r3 = (v16i8)_mm_unpackhi_epi16((v4i32)_tmp1, (v4i32)_tmp3);
+    _r0 = (v16i8)__msa_ilvr_h((v8i16)_tmp2, (v8i16)_tmp0);
+    _r1 = (v16i8)__msa_ilvl_h((v8i16)_tmp2, (v8i16)_tmp0);
+    _r2 = (v16i8)__msa_ilvr_h((v8i16)_tmp3, (v8i16)_tmp1);
+    _r3 = (v16i8)__msa_ilvl_h((v8i16)_tmp3, (v8i16)_tmp1);
 }
 
 // transpose8x4_epi8 - transpose 8x4 block of int8
 static NCNN_FORCEINLINE void transpose8x4_epi8(v16i8& _r0, v16i8& _r1, v16i8& _r2, v16i8& _r3)
 {
     v16i8 _tmp0 = (v16i8)__msa_ilvr_b(_r1, _r0);
-    v16i8 _tmp1 = (v16i8)__msa_ilvr_h(_r3, _r2);
+    v16i8 _tmp1 = (v16i8)__msa_ilvr_h((v8i16)_r3, (v8i16)_r2);
 
     _r0 = (v16i8)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0);
     _r1 = (v16i8)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
@@ -457,61 +464,58 @@ static NCNN_FORCEINLINE v4f32 _mm_comp_fmadd_ps(const v4f32& _a, const v4f32& _b
 
 static NCNN_FORCEINLINE v4f32 _mm_comp_fnmadd_ps(const v4f32& _a, const v4f32& _b, const v4f32& _c)
 {
-    // return -a * b + c
-    return __msa_fmla_w(_c, _a, _b);
+    // return -a * b + c = c - a * b
+    return __msa_fmsub_w(_c, _a, _b);
 }
 
 static NCNN_FORCEINLINE v4f32 _mm_comp_fmsub_ps(const v4f32& _a, const v4f32& _b, const v4f32& _c)
 {
     // return a * b - c
-    return __msa_fmsub_w(_a, _b, _c);
+    return __msa_fsub_w(__msa_fmul_w(_a, _b), _c);
 }
 
 static NCNN_FORCEINLINE v4f32 _mm_comp_fnmsub_ps(const v4f32& _a, const v4f32& _b, const v4f32& _c)
 {
     // return -(a * b) - c
-    return __msa_fsub_w(_c, __msa_fmul_w(_a, _b));
+    v4f32 neg_ab = (v4f32)__msa_xor_v((v16u8)__msa_fmul_w(_a, _b), (v16u8)__msa_fill_w(0x80000000));
+    return __msa_fsub_w(neg_ab, _c);
 }
 
-// _mm_comp_mullo_epi32 - SSE2 equivalent using mul_lo
+// _mm_comp_mullo_epi32 - SSE4.1 equivalent using MSA mulv
 static NCNN_FORCEINLINE v4i32 _mm_comp_mullo_epi32(const v4i32& a, const v4i32& b)
 {
-    // MSA doesn't have a direct 32-bit mullo, use mul_s and extract low parts
-    v4i32 a_lo = __msa_ilvr_w(a, a);
-    v4i32 b_lo = __msa_ilvr_w(b, b);
-    v4i32 a_hi = __msa_ilvl_w(a, a);
-    v4i32 b_hi = __msa_ilvl_w(b, b);
-    v4i32 lo = __msa_mulv_w(a_lo, b_lo);
-    v4i32 hi = __msa_mulv_w(a_hi, b_hi);
-    return (v4i32)__msa_pckev_w(hi, lo);
+    return __msa_mulv_w(a, b);
 }
 
 // _mm_rcp_nr_ps - reciprocal with Newton-Raphson refinement
 static NCNN_FORCEINLINE v4f32 _mm_rcp_nr_ps(const v4f32& x)
 {
-    v4f32 y = (v4f32)__msa_frcp_w((v4i32)x);
-    v4f32 t = _mm_comp_fnmadd_ps(x, y, (v4f32)__msa_fill_w_f32(2.0f));
-    y = _mm_comp_fmadd_ps(y, t, (v4f32)__msa_fill_w_f32(0.0f));
+    v4f32 y = __msa_frcp_w(x);
+    // Newton-Raphson: y = y * (2 - x * y)
+    v4f32 two = __msa_fill_w_f32(2.0f);
+    v4f32 t = __msa_fmsub_w(two, x, y); // 2 - x * y
+    y = __msa_fmul_w(y, t);
     return y;
 }
 
 // reduce operations
 static NCNN_FORCEINLINE float _mm_reduce_add_ps(const v4f32& x)
 {
-    v2f64 x64 = __msa_fadd_d((v2f64)x, (v2f64)__msa_ilvl_d((v2i64)x, (v2i64)x));
-    double x32 = ((double*)&x64)[0];
-    v2f64 y64 = __msa_fadd_d((v2f64)x64, __msa_fill_d_f64(-0.0));
-    double y32 = ((double*)&y64)[1];
-    return (float)(x32 + y32);
+    // shf immediate: (1,0,3,2) = 0x4E, (0,3,2,1) = 0x39
+    v4f32 s = __msa_fadd_w(x, (v4f32)__msa_shf_w((v4i32)x, 0x4E));
+    s = __msa_fadd_w(s, (v4f32)__msa_shf_w((v4i32)s, 0x39));
+    float ret;
+    __msa_st_w((v4i32)s, &ret, 0);
+    return ret;
 }
 
 static NCNN_FORCEINLINE float _mm_reduce_max_ps(const v4f32& x)
 {
-    v2f64 x64 = __msa_fmax_d((v2f64)x, (v2f64)__msa_ilvl_d((v2i64)x, (v2i64)x));
-    double x32 = ((double*)&x64)[0];
-    v2f64 y64 = __msa_fmax_d((v2f64)x64, __msa_fill_d_f64(-0.0));
-    double y32 = ((double*)&y64)[1];
-    return (float)(x32 > y32 ? x32 : y32);
+    v4f32 s = __msa_fmax_w(x, (v4f32)__msa_shf_w((v4i32)x, 0x4E));
+    s = __msa_fmax_w(s, (v4f32)__msa_shf_w((v4i32)s, 0x39));
+    float ret;
+    __msa_st_w((v4i32)s, &ret, 0);
+    return ret;
 }
 
 static NCNN_FORCEINLINE int _mm_reduce_add_epi32(const v4i32& x)
@@ -551,17 +555,35 @@ static NCNN_FORCEINLINE int64_t _mm_reduce_add_epi64(const v2i64& x)
 // BF16 conversion utilities
 static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const v4i32& v0)
 {
-    v4i32 _zero = __msa_fill_w(0);
-    v4i32 _a = __msa_ilvr_w(v0, _zero);
-    return (v4f32)_a;
+    // BF16 values in low 64 bits (4 x 16-bit)
+    // Interleave with zeros to zero-extend each bf16 to high 16 bits of 32-bit fp32
+    v8i16 _zero = (v8i16)__msa_fill_w(0);
+    return (v4f32)__msa_ilvr_h((v8i16)v0, _zero);
+}
+
+// Load 4 bf16 values from potentially unaligned pointer and convert to fp32
+// Use __msa_ld_b instead of __msa_ld_w to avoid 16-byte alignment masking
+static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const unsigned short* ptr)
+{
+    v8i16 _zero = (v8i16)__msa_fill_w(0);
+    v16i8 _raw = __msa_ld_b(ptr, 0);
+    return (v4f32)__msa_ilvr_h((v8i16)_raw, _zero);
 }
 
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0)
 {
     v4i32 _a = (v4i32)v0;
     _a = __msa_srli_w(_a, 16);
-    v4i32 _v = __msa_pckev_h(_a, __msa_fill_w(0));
-    return _v;
+    v8i16 _v = __msa_pckev_h((v8i16)__msa_fill_w(0), (v8i16)_a);
+    return (v4i32)_v;
+}
+
+// Store 4 bf16 values to potentially unaligned pointer
+static NCNN_FORCEINLINE void float2bfloat_msa_store(const v4f32& v0, unsigned short* ptr)
+{
+    v4i32 _bf16 = float2bfloat_msa(v0);
+    int64_t val = __msa_copy_s_d((v2i64)_bf16, 0);
+    __builtin_memcpy(ptr, &val, sizeof(int64_t));
 }
 
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0, const v4f32& v1)
@@ -570,35 +592,37 @@ static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0, const v4f32& v1)
     v4i32 _b = (v4i32)v1;
     _a = __msa_srli_w(_a, 16);
     _b = __msa_srli_w(_b, 16);
-    v4i32 _v = __msa_pckev_h(_a, _b);
-    return _v;
+    v8i16 _v = __msa_pckev_h((v8i16)_b, (v8i16)_a);
+    return (v4i32)_v;
 }
 
 // DPWSSD for INT8 dot product
 static NCNN_FORCEINLINE v4i32 _mm_comp_dpwssd_epi32(const v4i32& src, const v4i32& a, const v4i32& b)
 {
-    return __msa_dpadd_s_w(src, a, b);
+    return __msa_dpadd_s_w(src, (v8i16)a, (v8i16)b);
 }
 
 // DPBUSSD for unsigned byte dot product
 static NCNN_FORCEINLINE v4i32 _mm_comp_dpbusd_epi32(const v4i32& src, const v16u8& a, const v16u8& b)
 {
-    // MSA doesn't have direct ubyte*ubyte->int32 dot product
-    // Unpack unsigned bytes to unsigned 16-bit, then multiply and accumulate
-    v8u16 a_lo = (v8u16)__msa_ilvr_b((v16i8)a, (v16i8)__msa_fill_w(0));
-    v8u16 a_hi = (v8u16)__msa_ilvl_b((v16i8)a, (v16i8)__msa_fill_w(0));
-    v8u16 b_lo = (v8u16)__msa_ilvr_b((v16i8)b, (v16i8)__msa_fill_w(0));
-    v8u16 b_hi = (v8u16)__msa_ilvl_b((v16i8)b, (v16i8)__msa_fill_w(0));
-    v4u32 prod_lo = (v4u32)__msa_mulv_h((v8i16)a_lo, (v8i16)b_lo);
-    v4u32 prod_hi = (v4u32)__msa_mulv_h((v8i16)a_hi, (v8i16)b_hi);
-    v4u32 sum = (v4u32)__msa_addv_w((v4i32)prod_lo, (v4i32)prod_hi);
-    return __msa_addv_w((v4i32)sum, src);
+    // Compute dot product of unsigned bytes in groups of 4 -> int32
+    // Zero-extend unsigned bytes to signed 16-bit
+    v16i8 _zero = (v16i8)__msa_fill_w(0);
+    v8i16 a_lo = (v8i16)__msa_ilvr_b(_zero, (v16i8)a);
+    v8i16 a_hi = (v8i16)__msa_ilvl_b(_zero, (v16i8)a);
+    v8i16 b_lo = (v8i16)__msa_ilvr_b(_zero, (v16i8)b);
+    v8i16 b_hi = (v8i16)__msa_ilvl_b(_zero, (v16i8)b);
+    // Multiply and add pairs of 16-bit -> 32-bit
+    v4i32 prod_lo = __msa_dpadd_s_w(__msa_fill_w(0), a_lo, b_lo);
+    v4i32 prod_hi = __msa_dpadd_s_w(__msa_fill_w(0), a_hi, b_hi);
+    v4i32 sum = __msa_addv_w(prod_lo, prod_hi);
+    return __msa_addv_w(sum, src);
 }
 
 // DPWSSDS - signed saturated version
 static NCNN_FORCEINLINE v4i32 _mm_comp_dpwssds_epi32(const v4i32& src, const v4i32& a, const v4i32& b)
 {
-    v4i32 prod = __msa_dpadd_s_w(src, a, b);
+    v4i32 prod = __msa_dpadd_s_w(src, (v8i16)a, (v8i16)b);
     return __msa_sat_s_w(prod, 31);
 }
 
@@ -656,9 +680,23 @@ public:
 
     NCNN_FORCEINLINE v4i32 _mm_comp_div_epu32(const v4i32& x) const
     {
-        v4i32 xm_low = __msa_srli_w(__msa_dpadd_u_w(__msa_fill_w(0), x, _multiplier), 32);
-        v4u32 xm = (v4u32)__msa_or_v((v16u8)xm_low, (v16u8)__msa_and_v((v16u8)__msa_srli_w(x, 32), (v16u8)__msa_fill_w(0xFFFF)));
-        return (v4i32)__msa_srl_w((v4u32)__msa_addv_w((v4i32)xm, __msa_srl_w(__msa_subv_w(x, (v4i32)xm), _shift1)), (v4u32)_shift2);
+        // Scalar fallback for integer division by constant
+        int tmp[4];
+        __msa_st_w(x, tmp, 0);
+        int mul[4];
+        __msa_st_w(_multiplier, mul, 0);
+        int sh1[4];
+        __msa_st_w(_shift1, sh1, 0);
+        int sh2[4];
+        __msa_st_w(_shift2, sh2, 0);
+        int result[4];
+        for (int i = 0; i < 4; i++)
+        {
+            uint32_t xu = (uint32_t)tmp[i];
+            uint64_t xm = ((uint64_t)xu * (uint64_t)(uint32_t)mul[i]) >> 32;
+            result[i] = (int)((xm + ((xu - xm) >> (uint32_t)sh1[i])) >> (uint32_t)sh2[i]);
+        }
+        return __msa_ld_w(result, 0);
     }
 
 protected:
@@ -737,14 +775,16 @@ static NCNN_FORCEINLINE v4f32 _mm_shuffle_ps(v4f32 a, v4f32 b, int imm)
 
 static NCNN_FORCEINLINE v4f32 _mm_unpacklo_ps(v4f32 a, v4f32 b)
 {
-    // MSA ILVR interleaves low (even-indexed) halves: {a[0],b[0],a[1],b[1]}
-    return (v4f32)__msa_ilvr_w((v4i32)a, (v4i32)b);
+    // x86: {a[0],b[0],a[1],b[1]}
+    // MSA ilvr_w(ws,wt) = {wt[0],ws[0],wt[1],ws[1]}
+    return (v4f32)__msa_ilvr_w((v4i32)b, (v4i32)a);
 }
 
 static NCNN_FORCEINLINE v4f32 _mm_unpackhi_ps(v4f32 a, v4f32 b)
 {
-    // MSA ILVL interleaves high (odd-indexed) halves: {a[2],b[2],a[3],b[3]}
-    return (v4f32)__msa_ilvl_w((v4i32)a, (v4i32)b);
+    // x86: {a[2],b[2],a[3],b[3]}
+    // MSA ilvl_w(ws,wt) = {wt[2],ws[2],wt[3],ws[3]}
+    return (v4f32)__msa_ilvl_w((v4i32)b, (v4i32)a);
 }
 
 static NCNN_FORCEINLINE v4f32 _mm_castpd_ps(v2f64 a)
@@ -824,44 +864,44 @@ static NCNN_FORCEINLINE v2i64 _mm_castpd_si128(v2f64 a)
     return (v2i64)a;
 }
 
-static NCNN_FORCEINLINE v4i32 _mm_unpacklo_epi16(v4i16 a, v4i16 b)
+static NCNN_FORCEINLINE v4i32 _mm_unpacklo_epi16(v8i16 a, v8i16 b)
 {
-    return __msa_ilvr_h((v8i16)a, (v8i16)b);
+    return (v4i32)__msa_ilvr_h(b, a);
 }
 
-static NCNN_FORCEINLINE v4i32 _mm_unpackhi_epi16(v4i16 a, v4i16 b)
+static NCNN_FORCEINLINE v4i32 _mm_unpackhi_epi16(v8i16 a, v8i16 b)
 {
-    return __msa_ilvl_h((v8i16)a, (v8i16)b);
+    return (v4i32)__msa_ilvl_h(b, a);
 }
 
 static NCNN_FORCEINLINE v4i32 _mm_unpacklo_epi8(v16i8 a, v16i8 b)
 {
-    return (v4i32)__msa_ilvr_b((v16i8)a, (v16i8)b);
+    return (v4i32)__msa_ilvr_b(b, a);
 }
 
 static NCNN_FORCEINLINE v4i32 _mm_unpackhi_epi8(v16i8 a, v16i8 b)
 {
-    return (v4i32)__msa_ilvl_b((v16i8)a, (v16i8)b);
+    return (v4i32)__msa_ilvl_b(b, a);
 }
 
 static NCNN_FORCEINLINE v4i32 _mm_unpacklo_epi32(v4i32 a, v4i32 b)
 {
-    return __msa_ilvr_w((v4i32)a, (v4i32)b);
+    return __msa_ilvr_w(b, a);
 }
 
 static NCNN_FORCEINLINE v4i32 _mm_unpackhi_epi32(v4i32 a, v4i32 b)
 {
-    return __msa_ilvl_w((v4i32)a, (v4i32)b);
+    return __msa_ilvl_w(b, a);
 }
 
 static NCNN_FORCEINLINE v2i64 _mm_unpacklo_pd(v2f64 a, v2f64 b)
 {
-    return (v2i64)__msa_ilvr_d((v2i64)a, (v2i64)b);
+    return (v2i64)__msa_ilvr_d((v2i64)b, (v2i64)a);
 }
 
 static NCNN_FORCEINLINE v2i64 _mm_unpackhi_pd(v2f64 a, v2f64 b)
 {
-    return (v2i64)__msa_ilvl_d((v2i64)a, (v2i64)b);
+    return (v2i64)__msa_ilvl_d((v2i64)b, (v2i64)a);
 }
 
 static NCNN_FORCEINLINE v4f32 _mm_castsi128_ps(v4i32 a)
@@ -886,25 +926,25 @@ static NCNN_FORCEINLINE v4i32 _mm_srli_epi32(v4i32 a, int imm)
 
 static NCNN_FORCEINLINE v4i32 _mm_and_si128(v4i32 a, v4i32 b)
 {
-    return __msa_and_v((v16u8)a, (v16u8)b);
+    return (v4i32)__msa_and_v((v16u8)a, (v16u8)b);
 }
 
 static NCNN_FORCEINLINE v4i32 _mm_or_si128(v4i32 a, v4i32 b)
 {
-    return __msa_or_v((v16u8)a, (v16u8)b);
+    return (v4i32)__msa_or_v((v16u8)a, (v16u8)b);
 }
 
 // _mm_srli_si128 - whole-register byte shift right by immediate
-// For imm=8: get high 64 bits as low 64 bits, zero high
 static NCNN_FORCEINLINE v4i32 _mm_srli_si128(v4i32 a, int imm)
 {
     if (imm == 8)
     {
-        // Extract high 64 bits, zero low
-        return (v4i32)__msa_ilvl_d((v2i64)a, (v2i64)a);
+        // High 64 bits to low 64 bits, zero the high
+        v2i64 _zero = (v2i64)__msa_fill_w(0);
+        return (v4i32)__msa_ilvl_d(_zero, (v2i64)a);
     }
-    // For other imm values, would need more complex handling
-    return a;
+    // General byte shift using sldi
+    return (v4i32)__msa_sldi_b((v16i8)__msa_fill_w(0), (v16i8)a, imm);
 }
 
 // _mm_xor_si128 - bitwise xor
@@ -982,13 +1022,17 @@ static NCNN_FORCEINLINE v16u8 _mm_max_epu8(v16u8 a, v16u8 b)
 // _mm_packs_epi32 - pack signed 32-bit to signed 16-bit with saturation
 static NCNN_FORCEINLINE v8i16 _mm_packs_epi32(v4i32 a, v4i32 b)
 {
-    return __msa_sat_s_w(a, 15);
+    v4i32 _a = __msa_sat_s_w(a, 15);
+    v4i32 _b = __msa_sat_s_w(b, 15);
+    return (v8i16)__msa_pckev_h((v8i16)_b, (v8i16)_a);
 }
 
 // _mm_packus_epi16 - pack signed 16-bit to unsigned 8-bit with unsigned saturation
 static NCNN_FORCEINLINE v16u8 _mm_packus_epi16(v8i16 a, v8i16 b)
 {
-    return (v16u8)__msa_sat_u_h(a, 7);
+    v8i16 _a = (v8i16)__msa_sat_u_h((v8u16)__msa_max_s_h(a, __msa_fill_h(0)), 7);
+    v8i16 _b = (v8i16)__msa_sat_u_h((v8u16)__msa_max_s_h(b, __msa_fill_h(0)), 7);
+    return (v16u8)__msa_pckev_b((v16i8)_b, (v16i8)_a);
 }
 
 // _mm_cvtepi32_ps - convert int32 to float
@@ -1078,39 +1122,37 @@ static NCNN_FORCEINLINE v4i32 _mm_shuffle_epi32(v4i32 a, int imm)
     return (v4i32)__msa_shf_w(a, imm);
 }
 
-// _mm_mul_epu32 - multiply unsigned 32-bit to 64-bit (low 64-bit result)
+// _mm_mul_epu32 - multiply unsigned 32-bit to 64-bit (low 32-bit elements only)
 static NCNN_FORCEINLINE v2i64 _mm_mul_epu32(v4i32 a, v4i32 b)
 {
-    v2i64 a_lo = (v2i64)__msa_ilvr_w(a, __msa_fill_w(0));
-    v2i64 b_lo = (v2i64)__msa_ilvr_w(b, __msa_fill_w(0));
+    v2i64 a_lo = (v2i64)__msa_ilvr_w(__msa_fill_w(0), a);
+    v2i64 b_lo = (v2i64)__msa_ilvr_w(__msa_fill_w(0), b);
     return __msa_mulv_d(a_lo, b_lo);
 }
 
-// _mm_movehl_ps - move high to low (float)
+// _mm_movehl_ps - {b[2],b[3],a[2],a[3]}
 static NCNN_FORCEINLINE v4f32 _mm_movehl_ps(v4f32 a, v4f32 b)
 {
-    return (v4f32)__msa_ilvl_w((v4i32)b, (v4i32)a);
+    return (v4f32)__msa_ilvl_d((v2i64)a, (v2i64)b);
 }
 
-// _mm_movelh_ps - move low to high (float)
+// _mm_movelh_ps - {a[0],a[1],b[0],b[1]}
 static NCNN_FORCEINLINE v4f32 _mm_movelh_ps(v4f32 a, v4f32 b)
 {
-    return (v4f32)__msa_ilvr_w((v4i32)b, (v4i32)a);
+    return (v4f32)__msa_ilvr_d((v2i64)b, (v2i64)a);
 }
 
 // _mm_blend_epi16 - blend with immediate mask (8 16-bit lanes)
 static NCNN_FORCEINLINE v4i32 _mm_blend_epi16(v4i32 a, v4i32 b, int imm)
 {
-    // imm is bitmask for 8 16-bit lanes: bit i = 1 means take from b, 0 from a
-    v8i16 mask = __msa_fill_h(0);
-    if (imm & 1) mask = (v8i16)__msa_or_v((v16u8)mask, (v16u8)__msa_fill_h(0xFFFF));
-    if (imm & 2) mask = (v8i16)__msa_or_v((v16u8)mask, (v16u8)__msa_slli_h(__msa_fill_h(0xFFFF), 1));
-    if (imm & 4) mask = (v8i16)__msa_or_v((v16u8)mask, (v16u8)__msa_slli_h(__msa_fill_h(0xFFFF), 2));
-    if (imm & 8) mask = (v8i16)__msa_or_v((v16u8)mask, (v16u8)__msa_slli_h(__msa_fill_h(0xFFFF), 3));
-    v4i32 mask_w = (v4i32)__msa_or_v((v16u8)(v8i16)mask, (v16u8)__msa_slli_w((v4i32)(v8i16)mask, 4));
+    // Scalar approach: build mask from imm bits
+    short mask_arr[8];
+    for (int i = 0; i < 8; i++)
+        mask_arr[i] = (imm & (1 << i)) ? (short)0xFFFF : (short)0;
+    v8i16 mask = (v8i16)__msa_ld_h(mask_arr, 0);
     return (v4i32)__msa_or_v(
-               (v16u8)__msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask_w, (v16u8)mask_w)),
-               (v16u8)__msa_and_v((v16u8)b, (v16u8)mask_w));
+        __msa_and_v((v16u8)b, (v16u8)mask),
+        __msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask, (v16u8)mask)));
 }
 
 // _MM_TRANSPOSE4_PS macro

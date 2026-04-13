@@ -100,7 +100,7 @@ int TanH_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
         {
             __m256 _p = bfloat2float_avx((__m128i*)ptr);
             _p = tanh256_ps(_p);
-            __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
@@ -108,7 +108,7 @@ int TanH_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
         {
             __m128 _p = bfloat2float_sse((__m128i*)ptr);
             _p = tanh_ps(_p);
-            __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

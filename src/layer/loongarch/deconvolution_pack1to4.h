@@ -77,7 +77,7 @@ static void deconvolution_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, co
                     kptr += maxk * 4;
                 }
 
-                _sum = activation_ps(_sum, activation_type, activation_params);
+                _sum = activation_lsx(_sum, activation_type, activation_params);
 
                 __lsx_vst(_sum, outptr + j * 4, 0);
             }

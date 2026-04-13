@@ -277,7 +277,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             {
                 __m256 _p = bfloat2float_avx((__m128i*)ptr);
                 _p = __lasx_xvfmadd_s(_p, _a, _b);
-                __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 ptr += 8;
             }
         }
@@ -360,7 +360,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             {
                 __m128 _p = bfloat2float_sse((__m128i*)ptr);
                 _p = __lsx_vfmadd_s(_p, _a, _b);
-                __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 ptr += 4;
             }
         }

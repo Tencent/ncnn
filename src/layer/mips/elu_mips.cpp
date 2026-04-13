@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
 #include "mips_activation.h"
 #endif // __mips_msa
@@ -47,7 +48,7 @@ int ELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            _p = elu_ps(_p, _alpha);
+            _p = elu_msa(_p, _alpha);
             __msa_st_w((v4i32)_p, ptr, 0);
 
             ptr += 4;
@@ -85,9 +86,9 @@ int ELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-            _p = elu_ps(_p, _alpha);
-            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            v4f32 _p = bfloat2float_msa(ptr);
+            _p = elu_msa(_p, _alpha);
+            float2bfloat_msa_store(_p, ptr);
             ptr += 4;
         }
 #endif // __mips_msa

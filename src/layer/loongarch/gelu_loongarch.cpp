@@ -5,6 +5,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#include "loongarch_usability.h"
 #include "lsx_mathfun.h"
 #if __loongarch_asx
 #include <lasxintrin.h>
@@ -148,7 +149,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 _blob = tanh256_ps(_blob);
                 _blob = __lasx_xvfadd_s(_one8, _blob);
                 _blob = __lasx_xvfmul_s(_half8, __lasx_xvfmul_s(_blob, _p));
-                __lasx_xvst(float2bfloat_avx(_blob), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_blob), ptr, 0);
 
                 ptr += 8;
             }
@@ -168,7 +169,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 _blob = tanh_ps(_blob);
                 _blob = __lsx_vfadd_s(_one4, _blob);
                 _blob = __lsx_vfmul_s(_half4, __lsx_vfmul_s(_blob, _p));
-                __lsx_vst(float2bfloat_sse(_blob), ptr, 0);
+                __lsx_vstelm_d(float2bfloat_sse(_blob), ptr, 0, 0);
 
                 ptr += 4;
             }

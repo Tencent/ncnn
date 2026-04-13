@@ -115,7 +115,7 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             {
                 __m256 _p = bfloat2float_avx((__m128i*)ptr);
                 _p = __lasx_xvfmax_s(_p, (__m256)__lasx_xvreplgr2vr_w(0));
-                __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 ptr += 8;
             }
 #endif // __loongarch_asx
@@ -124,7 +124,7 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             {
                 __m128 _p = bfloat2float_sse((__m128i*)ptr);
                 _p = __lsx_vfmax_s(_p, (__m128)__lsx_vreplgr2vr_w(0));
-                __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 ptr += 4;
             }
 #endif // __loongarch_sx
@@ -146,6 +146,7 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
             __m256 _slope = (__m256)__lasx_xvreplfr2vr_s(slope);
@@ -155,21 +156,22 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope);
                 _p = (__m256)__lasx_xvbitsel_v((__m256i)_p, (__m256i)_ps, (__m256i)_lemask);
-                __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 ptr += 8;
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
-            __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
-            __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
-            for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr);
-                __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
-                __m128 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
-                __lsx_vst(float2bfloat_sse(_p), ptr, 0);
-                ptr += 4;
+                __m128 _zero4 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _slope4 = (__m128)__lsx_vreplfr2vr_s(slope);
+                for (; i + 3 < size; i += 4)
+                {
+                    __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                    __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero4);
+                    __m128 _ps = __lsx_vfmul_s(_p, _slope4);
+                    _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
+                    __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                    ptr += 4;
+                }
             }
 #endif // __loongarch_sx
             for (; i < size; i++)

@@ -336,7 +336,7 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
                                 _sum = __lsx_vfmadd_s(_w, _val, _sum);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_lsx(_sum, activation_type, activation_params);
 
                             __lsx_vst(_sum, outptr + j * 4, 0);
                         }
@@ -757,8 +757,8 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                                 _sumfp32_1 = __lsx_vfadd_s(_sumfp32_1, _bias1);
                             }
 
-                            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                            _sumfp32_0 = activation_lsx(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_lsx(_sumfp32_1, activation_type, activation_params);
 
                             if (use_int8_requantize)
                             {

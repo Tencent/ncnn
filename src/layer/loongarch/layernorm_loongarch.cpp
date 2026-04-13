@@ -84,7 +84,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 __m256 _gamma = (__m256)__lasx_xvreplfr2vr_s(gamma_ptr[0]);
                 __m256 _beta = (__m256)__lasx_xvreplfr2vr_s(beta_ptr[0]);
                 _p = __lasx_xvfmadd_s(_p, _gamma, _beta);
-                __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 ptr += 8;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -96,7 +96,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             {
                 __m256 _p = bfloat2float_avx((__m128i*)ptr);
                 _p = __lasx_xvfmadd_s(_p, _a, _b);
-                __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
                 ptr += 8;
             }
         }
@@ -161,7 +161,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 __m128 _gamma = __lsx_vreplfr2vr_s(gamma_ptr[0]);
                 __m128 _beta = __lsx_vreplfr2vr_s(beta_ptr[0]);
                 _p = __lsx_vfmadd_s(_p, _gamma, _beta);
-                __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -173,7 +173,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             {
                 __m128 _p = bfloat2float_sse((__m128i*)ptr);
                 _p = __lsx_vfmadd_s(_p, _a, _b);
-                __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+                __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
                 ptr += 4;
             }
         }
@@ -267,7 +267,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             __m256 _beta = (__m256)__lasx_xvld(beta_ptr, 0);
             _p = __lasx_xvfmadd_s(_p, _a8, _b8);
             _p = __lasx_xvfmadd_s(_p, _gamma, _beta);
-            __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
             ptr += 8;
             gamma_ptr += 8;
             beta_ptr += 8;
@@ -283,7 +283,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             __m128 _beta = (__m128)__lsx_vld(beta_ptr, 0);
             _p = __lsx_vfmadd_s(_p, _a4, _b4);
             _p = __lsx_vfmadd_s(_p, _gamma, _beta);
-            __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
             ptr += 4;
             gamma_ptr += 4;
             beta_ptr += 4;
@@ -307,7 +307,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         {
             __m256 _p = bfloat2float_avx((__m128i*)ptr);
             _p = __lasx_xvfmadd_s(_p, _a8, _b8);
-            __lasx_xvst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
@@ -318,7 +318,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         {
             __m128 _p = bfloat2float_sse((__m128i*)ptr);
             _p = __lsx_vfmadd_s(_p, _a4, _b4);
-            __lsx_vst(float2bfloat_sse(_p), ptr, 0);
+            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

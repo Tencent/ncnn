@@ -336,7 +336,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
                                 _sum = __msa_fmadd_w(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_msa(_sum, activation_type, activation_params);
 
                             __msa_st_w((v4i32)_sum, outptr + j * 4, 0);
                         }
@@ -757,8 +757,8 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                                 _sumfp32_1 = __msa_fadd_w(_sumfp32_1, _bias1);
                             }
 
-                            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                            _sumfp32_0 = activation_msa(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_msa(_sumfp32_1, activation_type, activation_params);
 
                             if (use_int8_requantize)
                             {

@@ -185,10 +185,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                    _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+                    _sum2 = activation_lsx(_sum2, activation_type, activation_params);
+                    _sum3 = activation_lsx(_sum3, activation_type, activation_params);
 
                     __lsx_vst(_sum0, outptr, 0);
                     __lsx_vst(_sum1, outptr + 4, 0);
@@ -249,7 +249,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                     _sum2 = __lsx_vfadd_s(_sum2, _sum3);
                     _sum0 = __lsx_vfadd_s(_sum0, _sum2);
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
+                    _sum0 = activation_lsx(_sum0, activation_type, activation_params);
 
                     __lsx_vst(_sum0, outptr, 0);
                     outptr += 4;
@@ -284,7 +284,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_lsx(_sum, activation_type, activation_params);
 
                     __lsx_vst(_sum, outptr, 0);
                     outptr += 4;
@@ -421,7 +421,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
             _sum2 = __lsx_vfadd_s(_sum2, _sum3);
             _sum0 = __lsx_vfadd_s(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_lsx(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
             __lsx_vst(_sum0, outptr + p * 4, 0);
@@ -710,10 +710,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                    _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+                    _sum2 = activation_lsx(_sum2, activation_type, activation_params);
+                    _sum3 = activation_lsx(_sum3, activation_type, activation_params);
 
                     __lsx_vst(_sum0, outptr, 0);
                     __lsx_vst(_sum1, outptr + 4, 0);
@@ -776,7 +776,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                     _sum2 = __lsx_vfadd_s(_sum2, _sum3);
                     _sum0 = __lsx_vfadd_s(_sum0, _sum2);
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
+                    _sum0 = activation_lsx(_sum0, activation_type, activation_params);
 
                     __lsx_vst(_sum0, outptr, 0);
                     outptr += 4;
@@ -811,7 +811,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_lsx(_sum, activation_type, activation_params);
 
                     __lsx_vst(_sum, outptr, 0);
                     outptr += 4;
@@ -944,7 +944,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
             _sum2 = __lsx_vfadd_s(_sum2, _sum3);
             _sum0 = __lsx_vfadd_s(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_lsx(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
             __lsx_vst(_sum0, outptr + p * 4, 0);
@@ -1294,14 +1294,14 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                         _sumfp32_31 = __lsx_vfmul_s(_sumfp32_31, _scale_in1);
                     }
 
-                    _sumfp32_00 = activation_ps(_sumfp32_00, activation_type, activation_params);
-                    _sumfp32_01 = activation_ps(_sumfp32_01, activation_type, activation_params);
-                    _sumfp32_10 = activation_ps(_sumfp32_10, activation_type, activation_params);
-                    _sumfp32_11 = activation_ps(_sumfp32_11, activation_type, activation_params);
-                    _sumfp32_20 = activation_ps(_sumfp32_20, activation_type, activation_params);
-                    _sumfp32_21 = activation_ps(_sumfp32_21, activation_type, activation_params);
-                    _sumfp32_30 = activation_ps(_sumfp32_30, activation_type, activation_params);
-                    _sumfp32_31 = activation_ps(_sumfp32_31, activation_type, activation_params);
+                    _sumfp32_00 = activation_lsx(_sumfp32_00, activation_type, activation_params);
+                    _sumfp32_01 = activation_lsx(_sumfp32_01, activation_type, activation_params);
+                    _sumfp32_10 = activation_lsx(_sumfp32_10, activation_type, activation_params);
+                    _sumfp32_11 = activation_lsx(_sumfp32_11, activation_type, activation_params);
+                    _sumfp32_20 = activation_lsx(_sumfp32_20, activation_type, activation_params);
+                    _sumfp32_21 = activation_lsx(_sumfp32_21, activation_type, activation_params);
+                    _sumfp32_30 = activation_lsx(_sumfp32_30, activation_type, activation_params);
+                    _sumfp32_31 = activation_lsx(_sumfp32_31, activation_type, activation_params);
 
                     // transpose 4x8
                     __m128i _r01r = __lsx_vilvl_w((__m128i)_sumfp32_10, (__m128i)_sumfp32_00);
@@ -1445,8 +1445,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                         _sumfp32_1 = __lsx_vfmul_s(_sumfp32_1, _scale_in1);
                     }
 
-                    _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                    _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                    _sumfp32_0 = activation_lsx(_sumfp32_0, activation_type, activation_params);
+                    _sumfp32_1 = activation_lsx(_sumfp32_1, activation_type, activation_params);
 
                     __lsx_vst(_sumfp32_0, outptr, 0);
                     __lsx_vst(_sumfp32_1, outptr + 4, 0);
@@ -1568,8 +1568,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                 _sumfp32_1 = __lsx_vfmul_s(_sumfp32_1, _scale_in1);
             }
 
-            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+            _sumfp32_0 = activation_lsx(_sumfp32_0, activation_type, activation_params);
+            _sumfp32_1 = activation_lsx(_sumfp32_1, activation_type, activation_params);
 
             float* outptr = (float*)top_blob + p * 8;
             __lsx_vst(_sumfp32_0, outptr, 0);

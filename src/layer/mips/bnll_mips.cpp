@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
@@ -91,11 +92,11 @@ int BNLL_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+            v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _abs_p = (v4f32)__msa_bclri_w((v4u32)_p, 31);
             v4f32 _tmp = log_ps(__msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_abs_p, 31))));
             v4f32 _outp = __msa_fadd_w(__msa_fmax_w(_p, _zero), _tmp);
-            __msa_st_w((v4i32)float2bfloat_msa(_outp), ptr, 0);
+            float2bfloat_msa_store(_outp, ptr);
 
             ptr += 4;
         }

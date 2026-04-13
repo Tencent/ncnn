@@ -13,7 +13,7 @@
 static NCNN_FORCEINLINE __m128 sigmoid_lsx(__m128 inputs)
 {
     const __m128 one = (__m128)__lsx_vreplfr2vr_s(1.0f);
-    return (__m128)__lsx_vfdiv_s((__m128i)one, (__m128i)__lsx_vfadd_s(one, exp_ps(__lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(0), inputs))));
+    return __lsx_vfdiv_s(one, __lsx_vfadd_s(one, exp_ps(__lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(0), inputs))));
 }
 
 static NCNN_FORCEINLINE __m128 tanh_lsx(__m128 inputs)
@@ -36,7 +36,7 @@ static NCNN_FORCEINLINE __m128 swish_lsx(__m128 inputs)
 static NCNN_FORCEINLINE __m128 hardswish_lsx(__m128 inputs, __m128 a, __m128 b)
 {
     const __m128 one = (__m128)__lsx_vreplfr2vr_s(1.0f);
-    b = (__m128)__lsx_vfmadd_s((__m128i)a, (__m128i)inputs, (__m128i)b);
+    b = __lsx_vfmadd_s(a, inputs, b);
     b = __lsx_vfmax_s(b, (__m128)__lsx_vreplgr2vr_w(0));
     b = __lsx_vfmin_s(b, one);
     return __lsx_vfmul_s(b, inputs);
@@ -116,7 +116,8 @@ static NCNN_FORCEINLINE __m128 activation_lsx(__m128 _v, int activation_type, co
 static NCNN_FORCEINLINE __m256 sigmoid_lasx(__m256 inputs)
 {
     const __m256 one = (__m256)__lasx_xvreplfr2vr_s(1.0f);
-    return (__m256)__lasx_xvfdiv_s((__m256i)one, (__m256i)__lasx_xvfadd_s(one, exp256_ps(__lasx_xvfsub_s((__m256)__lasx_xvreplgr2vr_w(0), inputs))));
+    __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
+    return __lasx_xvfdiv_s(one, __lasx_xvfadd_s(one, exp256_ps(__lasx_xvfsub_s(_zero, inputs))));
 }
 
 static NCNN_FORCEINLINE __m256 tanh_lasx(__m256 inputs)
@@ -139,7 +140,7 @@ static NCNN_FORCEINLINE __m256 swish_lasx(__m256 inputs)
 static NCNN_FORCEINLINE __m256 hardswish_lasx(__m256 inputs, __m256 a, __m256 b)
 {
     const __m256 one = (__m256)__lasx_xvreplfr2vr_s(1.0f);
-    b = (__m256)__lasx_xvfmadd_s((__m256i)a, (__m256i)inputs, (__m256i)b);
+    b = __lasx_xvfmadd_s(b, a, inputs);
     b = __lasx_xvfmax_s(b, (__m256)__lasx_xvreplgr2vr_w(0));
     b = __lasx_xvfmin_s(b, one);
     return __lasx_xvfmul_s(b, inputs);

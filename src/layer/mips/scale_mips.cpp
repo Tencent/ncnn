@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -171,59 +172,52 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-
     const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+    int scale_elembits = scale_blob.elembits();
 
-    const float* scale = scale_blob;
-    const float* bias = bias_data;
+    int needs_cast_scale = (scale_elembits == 16);
 
 #if __mips_msa
     if (elempack == 4)
     {
         if (dims == 1)
         {
+            const int w = bottom_top_blob.w;
+            const unsigned short* scale_bf16 = (const unsigned short*)scale_blob;
+            const float* scale_fp32 = (const float*)scale_blob;
+
+            unsigned short* ptr = (unsigned short*)bottom_top_blob;
             if (bias_term)
             {
-                v4f32 _s = (v4f32)__msa_ld_w(scale, 0);
-                v4f32 _bias = (v4f32)__msa_ld_w(bias, 0);
-                int i = 0;
-                for (; i + 3 < w; i += 4)
+                const float* bias = bias_data;
+                for (int i = 0; i < w; i++)
                 {
-                    unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
-                    v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                    v4f32 _p = bfloat2float_msa(ptr);
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa(scale_bf16 + i * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w(scale_fp32 + i * 4, 0);
+                    v4f32 _bias = (v4f32)__msa_ld_w(bias + i * 4, 0);
                     _p = __msa_fmadd_w(_bias, _p, _s);
-                    __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
-                }
-                for (; i < w; i++)
-                {
-                    unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
-                    v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-                    _p = __msa_fmadd_w(_bias, _p, _s);
-                    __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                    float2bfloat_msa_store(_p, ptr);
+                    ptr += 4;
                 }
             }
             else
             {
-                v4f32 _s = (v4f32)__msa_ld_w(scale, 0);
-                int i = 0;
-                for (; i + 3 < w; i += 4)
+                for (int i = 0; i < w; i++)
                 {
-                    unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
-                    v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                    v4f32 _p = bfloat2float_msa(ptr);
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa(scale_bf16 + i * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w(scale_fp32 + i * 4, 0);
                     _p = __msa_fmul_w(_p, _s);
-                    __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
-                }
-                for (; i < w; i++)
-                {
-                    unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
-                    v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-                    _p = __msa_fmul_w(_p, _s);
-                    __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                    float2bfloat_msa_store(_p, ptr);
+                    ptr += 4;
                 }
             }
             return 0;
@@ -231,26 +225,31 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
 
         if (dims == 2)
         {
+            const int w = bottom_top_blob.w;
+            const int h = bottom_top_blob.h;
+
             if (bias_term)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
-                    v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + i * 4, 0);
-                    v4f32 _bias = (v4f32)__msa_ld_w((const float*)bias_data + i * 4, 0);
-                    int j = 0;
-                    for (; j + 3 < w; j += 4)
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa((const unsigned short*)scale_blob + i * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w((const float*)scale_blob + i * 4, 0);
+                    v4f32 _bias;
+                    if (needs_cast_scale)
+                        _bias = bfloat2float_msa((const unsigned short*)bias_data + i * 4);
+                    else
+                        _bias = (v4f32)__msa_ld_w((const float*)bias_data + i * 4, 0);
+                    for (int j = 0; j < w; j++)
                     {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + j * 4, 0));
+                        v4f32 _p = bfloat2float_msa(ptr);
                         _p = __msa_fmadd_w(_bias, _p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + j * 4, 0);
-                    }
-                    for (; j < w; j++)
-                    {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + j * 4, 0));
-                        _p = __msa_fmadd_w(_bias, _p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + j * 4, 0);
+                        float2bfloat_msa_store(_p, ptr);
+                        ptr += 4;
                     }
                 }
             }
@@ -260,19 +259,17 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                 for (int i = 0; i < h; i++)
                 {
                     unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
-                    v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + i * 4, 0);
-                    int j = 0;
-                    for (; j + 3 < w; j += 4)
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa((const unsigned short*)scale_blob + i * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w((const float*)scale_blob + i * 4, 0);
+                    for (int j = 0; j < w; j++)
                     {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + j * 4, 0));
+                        v4f32 _p = bfloat2float_msa(ptr);
                         _p = __msa_fmul_w(_p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + j * 4, 0);
-                    }
-                    for (; j < w; j++)
-                    {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + j * 4, 0));
-                        _p = __msa_fmul_w(_p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + j * 4, 0);
+                        float2bfloat_msa_store(_p, ptr);
+                        ptr += 4;
                     }
                 }
             }
@@ -281,7 +278,8 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
 
         if (dims == 3)
         {
-            const int size = w * h;
+            const int size = bottom_top_blob.w * bottom_top_blob.h;
+            const int channels = bottom_top_blob.c;
 
             if (bias_term)
             {
@@ -289,20 +287,22 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                 for (int q = 0; q < channels; q++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q);
-                    v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
-                    v4f32 _bias = (v4f32)__msa_ld_w((const float*)bias_data + q * 4, 0);
-                    int i = 0;
-                    for (; i + 3 < size; i += 4)
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa((const unsigned short*)scale_blob + q * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
+                    v4f32 _bias;
+                    if (needs_cast_scale)
+                        _bias = bfloat2float_msa((const unsigned short*)bias_data + q * 4);
+                    else
+                        _bias = (v4f32)__msa_ld_w((const float*)bias_data + q * 4, 0);
+                    for (int i = 0; i < size; i++)
                     {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + i * 4, 0));
+                        v4f32 _p = bfloat2float_msa(ptr);
                         _p = __msa_fmadd_w(_bias, _p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + i * 4, 0);
-                    }
-                    for (; i < size; i++)
-                    {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + i * 4, 0));
-                        _p = __msa_fmadd_w(_bias, _p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + i * 4, 0);
+                        float2bfloat_msa_store(_p, ptr);
+                        ptr += 4;
                     }
                 }
             }
@@ -312,19 +312,17 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                 for (int q = 0; q < channels; q++)
                 {
                     unsigned short* ptr = bottom_top_blob.channel(q);
-                    v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
-                    int i = 0;
-                    for (; i + 3 < size; i += 4)
+                    v4f32 _s;
+                    if (needs_cast_scale)
+                        _s = bfloat2float_msa((const unsigned short*)scale_blob + q * 4);
+                    else
+                        _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
+                    for (int i = 0; i < size; i++)
                     {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + i * 4, 0));
+                        v4f32 _p = bfloat2float_msa(ptr);
                         _p = __msa_fmul_w(_p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + i * 4, 0);
-                    }
-                    for (; i < size; i++)
-                    {
-                        v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr + i * 4, 0));
-                        _p = __msa_fmul_w(_p, _s);
-                        __msa_st_w((v4i32)float2bfloat_msa(_p), ptr + i * 4, 0);
+                        float2bfloat_msa_store(_p, ptr);
+                        ptr += 4;
                     }
                 }
             }
@@ -334,85 +332,36 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
     }
 #endif // __mips_msa
 
-    // per-element or elempack == 1 path
+    // scalar fallback, convert to fp32 and delegate
+    Option opt_cast = opt;
+    opt_cast.blob_allocator = opt.workspace_allocator;
+
+    Mat bottom_top_blob_fp32;
+    cast_bfloat16_to_float32(bottom_top_blob, bottom_top_blob_fp32, opt_cast);
+    if (bottom_top_blob_fp32.empty())
+        return -100;
+
+    Mat scale_blob_fp32 = scale_blob;
+    if (scale_blob.elembits() == 16)
     {
-        Mat bottom_top_blob_unpacked = bottom_top_blob;
-        Mat scale_blob_unpacked = scale_blob;
-        if (elempack != 1)
-        {
-            Option opt_unpack = opt;
-            opt_unpack.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_unpack);
-            if (bottom_top_blob_unpacked.empty())
-                return -100;
-            if (scale_blob.elempack != 1)
-            {
-                Mat scale_blob_unpacked2;
-                convert_packing(scale_blob, scale_blob_unpacked2, 1, opt_unpack);
-                if (scale_blob_unpacked2.empty())
-                    return -100;
-                scale_blob_unpacked = scale_blob_unpacked2;
-            }
-        }
-
-        int size = bottom_top_blob_unpacked.total();
-
-        if (bias_term)
-        {
-            int i = 0;
-#if __mips_msa
-            for (; i + 3 < size; i += 4)
-            {
-                unsigned short* ptr = bottom_top_blob_unpacked.row<unsigned short>(0) + i;
-                const float* sptr = (const float*)scale_blob_unpacked + i;
-                const float* bptr = (const float*)bias_data + i;
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-                v4f32 _s = (v4f32)__msa_ld_w(sptr, 0);
-                v4f32 _b = (v4f32)__msa_ld_w(bptr, 0);
-                _p = __msa_fmadd_w(_b, _p, _s);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
-            }
-#endif // __mips_msa
-            for (; i < size; i++)
-            {
-                float v = bfloat16_to_float32(((unsigned short*)bottom_top_blob_unpacked)[i]);
-                v = v * ((const float*)scale_blob_unpacked)[i] + ((const float*)bias_data)[i];
-                ((unsigned short*)bottom_top_blob_unpacked)[i] = float32_to_bfloat16(v);
-            }
-        }
-        else
-        {
-            int i = 0;
-#if __mips_msa
-            for (; i + 3 < size; i += 4)
-            {
-                unsigned short* ptr = bottom_top_blob_unpacked.row<unsigned short>(0) + i;
-                const float* sptr = (const float*)scale_blob_unpacked + i;
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
-                v4f32 _s = (v4f32)__msa_ld_w(sptr, 0);
-                _p = __msa_fmul_w(_p, _s);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
-            }
-#endif // __mips_msa
-            for (; i < size; i++)
-            {
-                float v = bfloat16_to_float32(((unsigned short*)bottom_top_blob_unpacked)[i]);
-                v = v * ((const float*)scale_blob_unpacked)[i];
-                ((unsigned short*)bottom_top_blob_unpacked)[i] = float32_to_bfloat16(v);
-            }
-        }
-
-        if (elempack != 1)
-        {
-            Option opt_pack = opt;
-            opt_pack.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_top_blob_unpacked, bottom_top_blob, elempack, opt_pack);
-            if (bottom_top_blob.empty())
-                return -100;
-        }
-
-        return 0;
+        cast_bfloat16_to_float32(scale_blob, scale_blob_fp32, opt_cast);
+        if (scale_blob_fp32.empty())
+            return -100;
     }
+
+    std::vector<Mat> bottom_top_blobs_fp32(2);
+    bottom_top_blobs_fp32[0] = bottom_top_blob_fp32;
+    bottom_top_blobs_fp32[1] = scale_blob_fp32;
+
+    int ret = forward_inplace(bottom_top_blobs_fp32, opt);
+    if (ret != 0)
+        return ret;
+
+    cast_float32_to_bfloat16(bottom_top_blob_fp32, bottom_top_blob, opt);
+    if (bottom_top_blob.empty())
+        return -100;
+
+    return 0;
 }
 #endif // NCNN_BF16
 

@@ -33,7 +33,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         const unsigned short* ptr0 = ptr;
         for (int i = 0; i < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _sum = __msa_fadd_w(_sum, _p);
             ptr0 += 4;
         }
@@ -53,7 +53,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         ptr0 = ptr;
         for (int i = 0; i < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
             _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
@@ -78,12 +78,12 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         {
             for (int i = 0; i < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 _p = __msa_fmadd_w(_b, _p, _a);
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 v4f32 _beta = __msa_fill_w_f32(beta_ptr[0]);
                 _p = __msa_fmadd_w(_beta, _p, _gamma);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -93,9 +93,9 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         {
             for (int i = 0; i < size; i += 4)
             {
-                v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+                v4f32 _p = bfloat2float_msa(ptr);
                 _p = __msa_fmadd_w(_b, _p, _a);
-                __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+                float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
         }
@@ -113,7 +113,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         v4f32 _sum = (v4f32)__msa_fill_w(0);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _sum = __msa_fadd_w(_sum, _p);
             ptr0 += 4;
         }
@@ -136,7 +136,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         v4f32 _sqsum = (v4f32)__msa_fill_w(0);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr0, 0));
+            v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
             _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
@@ -162,12 +162,12 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         v4f32 _b = __msa_fill_w_f32(bias);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+            v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
             v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr, 0);
             _p = __msa_fmadd_w(_b, _p, _a);
             _p = __msa_fmadd_w(_beta, _p, _gamma);
-            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            float2bfloat_msa_store(_p, ptr);
             ptr += 4;
             gamma_ptr += 4;
             beta_ptr += 4;
@@ -190,9 +190,9 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         v4f32 _b = __msa_fill_w_f32(bias);
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _p = bfloat2float_msa((v4i32)__msa_ld_w(ptr, 0));
+            v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fmadd_w(_b, _p, _a);
-            __msa_st_w((v4i32)float2bfloat_msa(_p), ptr, 0);
+            float2bfloat_msa_store(_p, ptr);
             ptr += 4;
         }
 #endif // __mips_msa
@@ -453,8 +453,7 @@ int LayerNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
     if (dims == 1)
     {
         unsigned short* ptr = (unsigned short*)bottom_top_blob;
-        int elemcount = w * elempack;
-        layernorm_mips_bf16(ptr, gamma_data, beta_data, eps, elemcount, elempack);
+        layernorm_mips_bf16(ptr, gamma_data, beta_data, eps, w * elempack, 1);
     }
 
     if (dims == 2)
