@@ -124,7 +124,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+            unsigned short* ptr = bottom_top_blob.channel(q);
 
             // compute mean
             v4f32 _sum = (v4f32)__msa_fill_w(0);

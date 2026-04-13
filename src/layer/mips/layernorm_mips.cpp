@@ -476,7 +476,7 @@ int LayerNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             {
                 for (int i = 0; i < h; i++)
                 {
-                    unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q).row<unsigned short>(i);
+                    unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
                     layernorm_mips_bf16(ptr, gamma_data, beta_data, eps, w, elempack);
                 }
             }
@@ -486,7 +486,7 @@ int LayerNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+                unsigned short* ptr = bottom_top_blob.channel(q);
                 layernorm_mips_bf16(ptr, gamma_data, beta_data, eps, w * h, elempack);
             }
         }

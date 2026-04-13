@@ -288,7 +288,7 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+                    unsigned short* ptr = bottom_top_blob.channel(q);
                     v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
                     v4f32 _bias = (v4f32)__msa_ld_w((const float*)bias_data + q * 4, 0);
                     int i = 0;
@@ -311,7 +311,7 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+                    unsigned short* ptr = bottom_top_blob.channel(q);
                     v4f32 _s = (v4f32)__msa_ld_w((const float*)scale_blob + q * 4, 0);
                     int i = 0;
                     for (; i + 3 < size; i += 4)

@@ -117,7 +117,7 @@ int SELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+        unsigned short* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
 #if __loongarch_sx

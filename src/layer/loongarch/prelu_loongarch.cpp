@@ -400,7 +400,7 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            unsigned short* ptr = bottom_top_blob.channel<unsigned short>(q);
+            unsigned short* ptr = bottom_top_blob.channel(q);
             float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
 
             int i = 0;
