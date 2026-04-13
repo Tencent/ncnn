@@ -111,19 +111,26 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "asin"
                  || t == "atan"
                  || t == "ceil"
-                 || t == "cos"
-                 || t == "erf"
-                 || t == "exp"
-                 || t == "floor"
-                 || t == "log"
-                 || t == "log10"
-                 || t == "neg"
-                 || t == "reciprocal"
-                 || t == "round"
-                 || t == "rsqrt"
-                 || t == "sign"
-                 || t == "sin"
-                 || t == "sqrt"
+                 || t == "cosh"
+                  || t == "cos"
+                 || t == "acosh"
+                 || t == "asinh"
+                 || t == "atanh"
+                  || t == "erf"
+                  || t == "exp"
+                 || t == "expm1"
+                  || t == "floor"
+                  || t == "log"
+                  || t == "log10"
+                 || t == "log1p"
+                  || t == "neg"
+                  || t == "reciprocal"
+                  || t == "round"
+                  || t == "rsqrt"
+                  || t == "sign"
+                  || t == "sin"
+                 || t == "sinh"
+                  || t == "sqrt"
                  || t == "square"
                  || t == "tan"
                  || t == "tanh"
@@ -139,21 +146,28 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
             if (t == "abs") op_unary->params["0"] = 0;
             if (t == "acos") op_unary->params["0"] = 13;
+            if (t == "acosh") op_unary->params["0"] = 25;
             if (t == "asin") op_unary->params["0"] = 12;
+            if (t == "asinh") op_unary->params["0"] = 23;
             if (t == "atan") op_unary->params["0"] = 14;
+            if (t == "atanh") op_unary->params["0"] = 26;
             if (t == "ceil") op_unary->params["0"] = 3;
             if (t == "cos") op_unary->params["0"] = 10;
+            if (t == "cosh") op_unary->params["0"] = 24;
             if (t == "exp") op_unary->params["0"] = 7;
+            if (t == "expm1") op_unary->params["0"] = 21;
             if (t == "erf") fprintf(stderr, "UnaryOp erf not supported yet\n"); // TODO
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
             if (t == "log10") op_unary->params["0"] = 17;
+            if (t == "log1p") op_unary->params["0"] = 27;
             if (t == "neg") op_unary->params["0"] = 1;
             if (t == "reciprocal") op_unary->params["0"] = 15;
             if (t == "round") op_unary->params["0"] = 18;
             if (t == "rsqrt") op_unary->params["0"] = 6;
-            if (t == "sign") fprintf(stderr, "UnaryOp sign not supported yet\n"); // TODO
+            if (t == "sign") op_unary->params["0"] = 20;
             if (t == "sin") op_unary->params["0"] = 9;
+            if (t == "sinh") op_unary->params["0"] = 22;
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "square") op_unary->params["0"] = 4;
             if (t == "tan") op_unary->params["0"] = 11;

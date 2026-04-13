@@ -48,6 +48,14 @@ void main()
     if (op_type == 17) res = log(v) * afp(0.434294481903);
     if (op_type == 18) res = round(v);
     if (op_type == 19) res = trunc(v);
+    if (op_type == 20) res = sign(v);
+    if (op_type == 21) res = exp(v) - afp(1.f);
+    if (op_type == 22) res = (exp(v) - exp(-v)) * afp(0.5f);
+    if (op_type == 23) res = log(v + sqrt(v * v + afp(1.f)));
+    if (op_type == 24) res = (exp(v) + exp(-v)) * afp(0.5f);
+    if (op_type == 25) res = log(v + sqrt(v - afp(1.f)) * sqrt(v + afp(1.f)));
+    if (op_type == 26) res = log((afp(1.f) + v) / (afp(1.f) - v)) * afp(0.5f);
+    if (op_type == 27) res = log(v + afp(1.f));
 
     buffer_st4(bottom_top_blob_data, gi, res);
 }

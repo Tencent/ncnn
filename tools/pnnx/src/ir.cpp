@@ -1035,12 +1035,14 @@ static std::string expand_expression(const Operator* op)
                  || t == "ceil"
                  || t == "cos"
                  || t == "cosh"
-                 || t == "erf"
-                 || t == "exp"
-                 || t == "floor"
-                 || t == "log"
-                 || t == "log10"
-                 || t == "neg"
+                  || t == "erf"
+                  || t == "exp"
+                 || t == "expm1"
+                  || t == "floor"
+                  || t == "log"
+                  || t == "log10"
+                 || t == "log1p"
+                  || t == "neg"
                  || t == "reciprocal"
                  || t == "round"
                  || t == "rsqrt"
@@ -1070,9 +1072,11 @@ static std::string expand_expression(const Operator* op)
             if (t == "cosh") unaryop = "torch.cosh";
             if (t == "erf") unaryop = "torch.erf";
             if (t == "exp") unaryop = "torch.exp";
+            if (t == "expm1") unaryop = "torch.expm1";
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";
             if (t == "log10") unaryop = "torch.log10";
+            if (t == "log1p") unaryop = "torch.log1p";
             if (t == "neg") unaryop = "-";
             if (t == "reciprocal") unaryop = "torch.reciprocal";
             if (t == "round") unaryop = "torch.round";
@@ -2249,7 +2253,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    fprintf(pyfp, " = %s(", op->type.c_str());
+                    std::string pyop = op->type;
+                    if (pyop == "aten::expm1") pyop = "torch.expm1";
+                    if (pyop == "aten::log1p") pyop = "torch.log1p";
+
+                    fprintf(pyfp, " = %s(", pyop.c_str());
 
                     if (op->inputnames.size() == op->inputs.size())
                     {

@@ -288,6 +288,96 @@ struct unary_op_trunc
     }
 };
 
+struct unary_op_sign
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        vbool4_t pos = __riscv_vmfgt_vf_f32m8_b4(x, 0.f, vl);
+        vbool4_t neg = __riscv_vmflt_vf_f32m8_b4(x, 0.f, vl);
+        vfloat32m8_t zero = __riscv_vfmv_v_f_f32m8(0.f, vl);
+        vfloat32m8_t one = __riscv_vfmv_v_f_f32m8(1.f, vl);
+        vfloat32m8_t negone = __riscv_vfmv_v_f_f32m8(-1.f, vl);
+        return __riscv_vmerge_vvm_f32m8(__riscv_vmerge_vvm_f32m8(zero, one, pos, vl), negone, neg, vl);
+    }
+};
+
+struct unary_op_expm1
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = expm1f(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_sinh
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = sinhf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_asinh
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = asinhf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_cosh
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = coshf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_acosh
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = acoshf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_atanh
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = atanhf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
+struct unary_op_log1p
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = log1pf(tmp[i]);
+        return __riscv_vle32_v_f32m8(tmp.data(), vl);
+    }
+};
+
 } // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
@@ -373,6 +463,30 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector

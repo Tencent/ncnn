@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 20
+#define OP_TYPE_MAX 28
 
 static int op_type = 0;
 
@@ -23,10 +23,25 @@ static int test_unaryop(const ncnn::Mat& _a)
         // value must be positive for sqrt rsqrt log
         Randomize(a, 0.001f, 2.f);
     }
+    if (op_type == 25)
+    {
+        // value must be >= 1 for acosh
+        Randomize(a, 1.001f, 2.f);
+    }
     if (op_type == 11 || op_type == 12 || op_type == 13)
     {
         // smaller range for tan asin acos
         Randomize(a, -1.f, 1.f);
+    }
+    if (op_type == 26)
+    {
+        // value must be in (-1, 1) for atanh
+        Randomize(a, -0.999f, 0.999f);
+    }
+    if (op_type == 27)
+    {
+        // value must be > -1 for log1p
+        Randomize(a, -0.999f, 2.f);
     }
 #if __powerpc__
     // nearbyintf produces wrong result in halfway cases, why ?

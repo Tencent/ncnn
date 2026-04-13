@@ -812,8 +812,10 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
             if (op_type == "Cosh") sim_op_type = "aten::cosh";
             if (op_type == "Erf") sim_op_type = "aten::erf";
             if (op_type == "Exp") sim_op_type = "aten::exp";
+            if (op_type == "Expm1") sim_op_type = "aten::expm1";
             if (op_type == "Floor") sim_op_type = "aten::floor";
             if (op_type == "Log") sim_op_type = "aten::log";
+            if (op_type == "Log1p") sim_op_type = "aten::log1p";
             if (op_type == "Neg") sim_op_type = "aten::neg";
             if (op_type == "Reciprocal") sim_op_type = "aten::reciprocal";
             if (op_type == "Round") sim_op_type = "aten::round";
