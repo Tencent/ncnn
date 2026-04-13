@@ -631,6 +631,25 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     float* pp = BT;
 
     int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[0] = get_packed_matrix_element(B, j + jj, k + kk);
+            pp[1] = get_packed_matrix_element(B, j + jj + 1, k + kk);
+            pp[2] = get_packed_matrix_element(B, j + jj + 2, k + kk);
+            pp[3] = get_packed_matrix_element(B, j + jj + 3, k + kk);
+            pp[4] = get_packed_matrix_element(B, j + jj + 4, k + kk);
+            pp[5] = get_packed_matrix_element(B, j + jj + 5, k + kk);
+            pp[6] = get_packed_matrix_element(B, j + jj + 6, k + kk);
+            pp[7] = get_packed_matrix_element(B, j + jj + 7, k + kk);
+            pp[8] = get_packed_matrix_element(B, j + jj + 8, k + kk);
+            pp[9] = get_packed_matrix_element(B, j + jj + 9, k + kk);
+            pp[10] = get_packed_matrix_element(B, j + jj + 10, k + kk);
+            pp[11] = get_packed_matrix_element(B, j + jj + 11, k + kk);
+            pp += 12;
+        }
+    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -742,6 +761,25 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     float* pp = BT;
 
     int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[0] = get_packed_matrix_element(B, k + kk, j + jj);
+            pp[1] = get_packed_matrix_element(B, k + kk, j + jj + 1);
+            pp[2] = get_packed_matrix_element(B, k + kk, j + jj + 2);
+            pp[3] = get_packed_matrix_element(B, k + kk, j + jj + 3);
+            pp[4] = get_packed_matrix_element(B, k + kk, j + jj + 4);
+            pp[5] = get_packed_matrix_element(B, k + kk, j + jj + 5);
+            pp[6] = get_packed_matrix_element(B, k + kk, j + jj + 6);
+            pp[7] = get_packed_matrix_element(B, k + kk, j + jj + 7);
+            pp[8] = get_packed_matrix_element(B, k + kk, j + jj + 8);
+            pp[9] = get_packed_matrix_element(B, k + kk, j + jj + 9);
+            pp[10] = get_packed_matrix_element(B, k + kk, j + jj + 10);
+            pp[11] = get_packed_matrix_element(B, k + kk, j + jj + 11);
+            pp += 12;
+        }
+    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -897,6 +935,13 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
     for (; ii + 7 < max_ii; ii += 8)
     {
         int jj = 0;
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float block[96];
+            memcpy(block, pp, sizeof(block));
+            store_output_block(top_blob, i + ii, 8, j + jj, 12, block, true, false);
+            pp += 96;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             float block[64];
@@ -934,6 +979,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[48];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, true, false);
+                pp += 48;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[32];
@@ -962,6 +1015,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[48];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, true, false);
+                pp += 48;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[32];
@@ -989,6 +1050,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[24];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, true, false);
+                pp += 24;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[16];
@@ -1016,6 +1085,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[24];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, true, false);
+                pp += 24;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[16];
@@ -1041,6 +1118,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[12];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 1, j + jj, 12, block, true, false);
+                pp += 12;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[8];
@@ -1061,6 +1146,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                float block[12];
+                memcpy(block, pp, sizeof(block));
+                store_output_block(top_blob, i + ii, 1, j + jj, 12, block, true, false);
+                pp += 12;
+                p0 += out_hstep * 12;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 float block[8];
@@ -1107,6 +1200,107 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            v4f32 _sum0[12];
+            v4f32 _sum1[12];
+
+            if (k == 0)
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    _sum0[c] = (v4f32)__msa_fill_w(0);
+                    _sum1[c] = (v4f32)__msa_fill_w(0);
+                }
+
+                if (pCi)
+                {
+                    if (broadcast_type_C == 0)
+                    {
+                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        for (int c = 0; c < 12; c++)
+                        {
+                            _sum0[c] = _c0;
+                            _sum1[c] = _c0;
+                        }
+                    }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
+                        v4f32 _c1 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        for (int c = 0; c < 12; c++)
+                        {
+                            _sum0[c] = _c0;
+                            _sum1[c] = _c1;
+                        }
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            _sum0[c] = (v4f32)__msa_ld_w(pCi + c * 8, 0);
+                            _sum1[c] = (v4f32)__msa_ld_w(pCi + c * 8 + 4, 0);
+                        }
+                        pCi += 96;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            v4f32 _c0 = __msa_fill_w_f32(pCi[c]);
+                            _sum0[c] = _c0;
+                            _sum1[c] = _c0;
+                        }
+                        pCi += 12;
+                    }
+                }
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    _sum0[c] = (v4f32)__msa_ld_w(outptr + c * 8, 0);
+                    _sum1[c] = (v4f32)__msa_ld_w(outptr + c * 8 + 4, 0);
+                }
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
+                for (int c = 0; c < 12; c++)
+                {
+                    v4f32 _pB = __msa_fill_w_f32(pB[c]);
+                    _sum0[c] = __msa_fmadd_w(_sum0[c], _pA0, _pB);
+                    _sum1[c] = __msa_fmadd_w(_sum1[c], _pA1, _pB);
+                }
+                pA += 8;
+                pB += 12;
+            }
+
+            if (k_end)
+            {
+                float block[96];
+                for (int c = 0; c < 12; c++)
+                {
+                    __msa_st_w((v4i32)_sum0[c], block + c * 8, 0);
+                    __msa_st_w((v4i32)_sum1[c], block + c * 8 + 4, 0);
+                }
+                store_output_block(top_blob, i + ii, 8, j + jj, 12, block, false, false);
+                outptr0 += 12 * out_elempack;
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    __msa_st_w((v4i32)_sum0[c], outptr + c * 8, 0);
+                    __msa_st_w((v4i32)_sum1[c], outptr + c * 8 + 4, 0);
+                }
+            }
+
+            outptr += 96;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum0[8];
@@ -1577,6 +1771,79 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            v4f32 _sum[12];
+
+            if (k == 0)
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    _sum[c] = (v4f32)__msa_fill_w(0);
+                }
+
+                if (pCi)
+                {
+                    if (broadcast_type_C == 0)
+                    {
+                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        for (int c = 0; c < 12; c++)
+                            _sum[c] = _c0;
+                    }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
+                        for (int c = 0; c < 12; c++)
+                            _sum[c] = _c0;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        for (int c = 0; c < 12; c++)
+                            _sum[c] = (v4f32)__msa_ld_w(pCi + c * 4, 0);
+                        pCi += 48;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        for (int c = 0; c < 12; c++)
+                            _sum[c] = __msa_fill_w_f32(pCi[c]);
+                        pCi += 12;
+                    }
+                }
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                    _sum[c] = (v4f32)__msa_ld_w(outptr + c * 4, 0);
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
+                for (int c = 0; c < 12; c++)
+                {
+                    _sum[c] = __msa_fmadd_w(_sum[c], _pA, __msa_fill_w_f32(pB[c]));
+                }
+                pA += 4;
+                pB += 12;
+            }
+
+            if (k_end)
+            {
+                float block[48];
+                for (int c = 0; c < 12; c++)
+                    __msa_st_w((v4i32)_sum[c], block + c * 4, 0);
+                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, false, false);
+                outptr0 += 12 * out_elempack;
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                    __msa_st_w((v4i32)_sum[c], outptr + c * 4, 0);
+            }
+
+            outptr += 48;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum[8];
@@ -1921,6 +2188,102 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float sum0[12];
+            float sum1[12];
+
+            if (k == 0)
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    sum0[c] = 0.f;
+                    sum1[c] = 0.f;
+                }
+
+                if (pCi)
+                {
+                    if (broadcast_type_C == 0)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            sum0[c] = pCi[0];
+                            sum1[c] = pCi[0];
+                        }
+                    }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            sum0[c] = pCi[0];
+                            sum1[c] = pCi[1];
+                        }
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            sum0[c] = pCi[c * 2];
+                            sum1[c] = pCi[c * 2 + 1];
+                        }
+                        pCi += 24;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        for (int c = 0; c < 12; c++)
+                        {
+                            sum0[c] = pCi[c];
+                            sum1[c] = pCi[c];
+                        }
+                        pCi += 12;
+                    }
+                }
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    sum0[c] = outptr[c * 2];
+                    sum1[c] = outptr[c * 2 + 1];
+                }
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const float a0 = pA[0];
+                const float a1 = pA[1];
+                for (int c = 0; c < 12; c++)
+                {
+                    sum0[c] += a0 * pB[c];
+                    sum1[c] += a1 * pB[c];
+                }
+                pA += 2;
+                pB += 12;
+            }
+
+            if (k_end)
+            {
+                float block[24];
+                for (int c = 0; c < 12; c++)
+                {
+                    block[c * 2] = sum0[c];
+                    block[c * 2 + 1] = sum1[c];
+                }
+                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, false, false);
+                outptr0 += 12;
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    outptr[c * 2] = sum0[c];
+                    outptr[c * 2 + 1] = sum1[c];
+                }
+            }
+
+            outptr += 24;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             float sum0[8];
@@ -2315,6 +2678,59 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+        for (; jj + 11 < max_jj; jj += 12)
+        {
+            float sum[12];
+
+            if (k == 0)
+            {
+                for (int c = 0; c < 12; c++)
+                    sum[c] = 0.f;
+
+                if (pCi)
+                {
+                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        for (int c = 0; c < 12; c++)
+                            sum[c] = pCi[0];
+                    }
+                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
+                    {
+                        for (int c = 0; c < 12; c++)
+                            sum[c] = pCi[c];
+                        pCi += 12;
+                    }
+                }
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                    sum[c] = outptr[c];
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                const float a0 = pA[0];
+                for (int c = 0; c < 12; c++)
+                    sum[c] += a0 * pB[c];
+                pA += 1;
+                pB += 12;
+            }
+
+            if (k_end)
+            {
+                store_output_block(top_blob, i + ii, 1, j + jj, 12, sum, false, false);
+                outptr0 += 12;
+            }
+            else
+            {
+                for (int c = 0; c < 12; c++)
+                    outptr[c] = sum[c];
+            }
+
+            outptr += 12;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             float sum[8];
@@ -2555,7 +2971,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
     TILE_M = std::max(4, tile_size / 4 * 4);
-    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 12 * 12);
     TILE_K = std::max(4, tile_size / 4 * 4);
 
     if (K > 0)
@@ -2567,7 +2983,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
             TILE_M = std::max(4, tile_size / 4 * 4);
-            TILE_N = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 12 * 12);
         }
     }
 
@@ -2582,7 +2998,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
     }
 
     if (nT > 1)
@@ -2593,7 +3009,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (constant_TILE_M > 0)
         TILE_M = (constant_TILE_M + 3) / 4 * 4;
     if (constant_TILE_N > 0)
-        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+        TILE_N = (constant_TILE_N + 11) / 12 * 12;
     if (constant_TILE_K > 0)
         TILE_K = (constant_TILE_K + 3) / 4 * 4;
 }
