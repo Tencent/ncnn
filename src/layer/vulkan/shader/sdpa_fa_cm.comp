@@ -229,7 +229,7 @@ void main()
             barrier();
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm[UNROLL_SG_M];
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
 #else
@@ -491,7 +491,7 @@ void main()
                 coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
                 coopMatLoad(a, tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                 coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
@@ -503,7 +503,7 @@ void main()
         barrier();
 
         // load P
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
 #else
         coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
@@ -561,7 +561,7 @@ void main()
 
             // load V
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
 #else
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
@@ -654,7 +654,7 @@ void main()
             barrier();
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> qm;
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> km;
 #else
@@ -891,7 +891,7 @@ void main()
             coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
             coopMatLoad(a, tmp_s, (sgi * UNROLL_SG_M + zm) * M * Np, Np, gl_CooperativeMatrixLayoutRowMajor);
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
@@ -902,7 +902,7 @@ void main()
         barrier();
 
         // load P
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M];
 #else
         coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M];
@@ -951,7 +951,7 @@ void main()
 
             // load V
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
 #else
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> vm;
@@ -1012,7 +1012,7 @@ void main()
                 vec4 v1 = vec4(tmp_o[oi8.r], tmp_o[oi8.g], tmp_o[oi8.b], tmp_o[oi8.a]) * inv_sum;
 
                 uvec4 out_data;
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                 out_data.x = packBFloat2x16(v0.rg);
                 out_data.y = packBFloat2x16(v0.ba);
                 out_data.z = packBFloat2x16(v1.rg);
