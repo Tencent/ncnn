@@ -11,15 +11,27 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "clip_bf16s.h"
+#endif
+
 Clip_mips::Clip_mips()
 {
 #if __mips_msa
     support_packing = true;
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 #endif
 }
 
 int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
@@ -61,5 +73,14 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Clip_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    clip_bf16s(bottom_top_blob, min, max, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
