@@ -500,6 +500,11 @@ float expf(float a)
     return r;
 }
 
+float expm1f(float x)
+{
+    return expf(x) - 1.0f;
+}
+
 float frexp(float x, int* y)
 {
     int hx, k;
