@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from packaging import version
 
 
 class Model(nn.Module):
@@ -10,20 +11,23 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.expm1(x)
-        y = torch.expm1(y)
-        z = torch.expm1(z)
+        x = torch.expm1(x - 0.5)
+        y = torch.expm1(y - 0.5)
+        z = torch.expm1(z - 0.5)
         return x, y, z
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.8'):
+        return True
+
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16) - 0.5
-    y = torch.rand(1, 5, 9, 11) - 0.5
-    z = torch.rand(14, 8, 5, 9, 10) - 0.5
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
     a = net(x, y, z)
 

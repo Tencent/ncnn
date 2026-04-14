@@ -2253,11 +2253,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    std::string pyop = op->type;
-                    if (pyop == "aten::expm1") pyop = "torch.expm1";
-                    if (pyop == "aten::log1p") pyop = "torch.log1p";
-
-                    fprintf(pyfp, " = %s(", pyop.c_str());
+                    fprintf(pyfp, " = %s(", op->type.c_str());
 
                     if (op->inputnames.size() == op->inputs.size())
                     {

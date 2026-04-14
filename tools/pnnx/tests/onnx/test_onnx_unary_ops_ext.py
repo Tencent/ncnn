@@ -10,6 +10,7 @@ import os
 import onnxruntime as ort
 import torch
 import torch.nn as nn
+from packaging import version
 
 
 class Model(nn.Module):
@@ -28,6 +29,10 @@ class Model(nn.Module):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9') or (version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.11')):
+        # asinh/acosh/atanh require torch>=1.9, and torch 2.9 legacy ONNX exporter cannot export aten::sinh to opset 19.
+        return True
+
     net = Model()
     net.eval()
 
