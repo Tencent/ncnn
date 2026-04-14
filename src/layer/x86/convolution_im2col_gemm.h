@@ -3607,7 +3607,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             }
         }
     }
-#else  // __AVX512F__
+#else // __AVX512F__
     for (; jj + 11 < max_jj; jj += 12)
     {
 #if __AVX__
@@ -4450,7 +4450,7 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
             }
         }
     }
-#else  // __AVX512F__
+#else // __AVX512F__
     for (; jj + 11 < max_jj; jj += 12)
     {
         int dy0 = (j + jj) / outw;
