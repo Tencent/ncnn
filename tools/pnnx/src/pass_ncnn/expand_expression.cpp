@@ -144,6 +144,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
             Operator* op_unary = graph.new_operator_before("UnaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
+            if (t == "erf") op_unary->type = "Erf";
             if (t == "abs") op_unary->params["0"] = 0;
             if (t == "acos") op_unary->params["0"] = 13;
             if (t == "acosh") op_unary->params["0"] = 25;
@@ -156,7 +157,6 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "cosh") op_unary->params["0"] = 24;
             if (t == "exp") op_unary->params["0"] = 7;
             if (t == "expm1") op_unary->params["0"] = 21;
-            if (t == "erf") fprintf(stderr, "UnaryOp erf not supported yet\n"); // TODO
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
             if (t == "log10") op_unary->params["0"] = 17;
