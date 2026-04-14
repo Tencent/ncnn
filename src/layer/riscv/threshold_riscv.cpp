@@ -32,10 +32,7 @@ int Threshold_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     if (opt.use_fp16_storage && elembits == 16)
     {
-        if (opt.use_fp16_arithmetic)
-            return forward_inplace_fp16sa(bottom_top_blob, opt);
-        else
-            return forward_inplace_fp16s(bottom_top_blob, opt);
+        return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif
 
