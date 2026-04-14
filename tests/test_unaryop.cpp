@@ -35,8 +35,8 @@ static int test_unaryop(const ncnn::Mat& _a)
     }
     if (op_type == 26)
     {
-        // value must be in (-1, 1) for atanh
-        Randomize(a, -0.999f, 0.999f);
+        // keep away from +/-1 so bf16 input casting does not round into the singularity
+        Randomize(a, -0.99f, 0.99f);
     }
     if (op_type == 27)
     {

@@ -39,6 +39,7 @@ def test():
 
     # export onnx
     torch.onnx.export(net, (x, y), "test_onnx_unary_ops_ext.onnx",
+                      dynamo=False,
                       input_names=["x", "y"],
                       dynamic_axes={"x": {0: "d0", 1: "d1", 2: "d2"},
                                     "y": {0: "d0", 1: "d1", 2: "d2"}},
