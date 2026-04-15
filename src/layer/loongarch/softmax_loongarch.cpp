@@ -12,6 +12,10 @@
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"
 #include "loongarch_usability.h"
+#if __loongarch_asx
+#include <lasxintrin.h>
+#include "lasx_mathfun.h"
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 namespace ncnn {
@@ -65,16 +69,11 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         float* ptr = bottom_top_blob.channel(q);
         float* maxptr = max;
 
+        int i = 0;
 #if __loongarch_sx
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __loongarch_sx
-
-#if __loongarch_sx
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __m128 _max = (__m128)__lsx_vld(maxptr, 0);
 
@@ -87,7 +86,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         }
 #endif // __loongarch_sx
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr = expf(*ptr - *maxptr);
 
@@ -106,16 +105,11 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
+        int i = 0;
 #if __loongarch_sx
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __loongarch_sx
-
-#if __loongarch_sx
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __m128 _sum = (__m128)__lsx_vld(sumptr, 0);
             _sum = __lsx_vfadd_s(_sum, _p);
@@ -126,7 +120,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         }
 #endif // __loongarch_sx
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *sumptr += *ptr;
 
@@ -141,16 +135,11 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
+        int i = 0;
 #if __loongarch_sx
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __loongarch_sx
-
-#if __loongarch_sx
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __m128 _sum = (__m128)__lsx_vld(sumptr, 0);
             _p = __lsx_vfdiv_s(_p, _sum);
@@ -161,7 +150,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         }
 #endif // __loongarch_sx
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr /= *sumptr;
 

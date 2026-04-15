@@ -36,6 +36,7 @@ int Scale_loongarch::forward_inplace(std::vector<Mat>& bottom_top_blobs, const O
     const int dims = bottom_top_blob.dims;
     const int elempack = bottom_top_blob.elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -165,8 +166,6 @@ int Scale_loongarch::forward_inplace(std::vector<Mat>& bottom_top_blobs, const O
         }
     }
 #endif // __loongarch_asx
-
-#if __loongarch_sx
     if (elempack == 4)
     {
         if (dims == 1)
@@ -462,6 +461,7 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
 
     int needs_cast_scale = (scale_elembits == 16);
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -624,8 +624,6 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
         }
     }
 #endif // __loongarch_asx
-
-#if __loongarch_sx
     if (elempack == 4)
     {
         if (dims == 1)

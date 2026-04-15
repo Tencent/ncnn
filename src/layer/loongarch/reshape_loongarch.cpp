@@ -240,11 +240,15 @@ int Reshape_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __loongarch_sx
 #if __loongarch_asx
             out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
             out_elempack = outh % 4 == 0 ? 4 : 1;
-#endif
+#endif // __loongarch_asx
+#else
+            out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif // __loongarch_sx
         }
 
         if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
@@ -318,11 +322,15 @@ int Reshape_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
         out_elempack = outc % 4 == 0 ? 4 : 1;
-#endif
+#endif // __loongarch_asx
+#else
+        out_elempack = outc % 4 == 0 ? 4 : 1;
+#endif // __loongarch_sx
     }
 
     if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == outc && elempack == out_elempack)

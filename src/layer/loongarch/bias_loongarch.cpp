@@ -57,6 +57,7 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
+            __builtin_prefetch(ptr + 32);
             __m256 _p = (__m256)__lasx_xvld(ptr, 0);
             _p = __lasx_xvfadd_s(_p, _bias256);
             __lasx_xvst(_p, ptr, 0);
@@ -65,6 +66,7 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfadd_s(_p, _bias);
             __lsx_vst(_p, ptr, 0);

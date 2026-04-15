@@ -48,6 +48,7 @@ int AbsVal_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
+            __builtin_prefetch(ptr + 32);
             __m256i _p = __lasx_xvld(ptr, 0);
             __m256i _outp = __lasx_xvbitclri_w(_p, 31);
             __lasx_xvst(_outp, ptr, 0);
@@ -57,6 +58,7 @@ int AbsVal_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128i _p = __lsx_vld(ptr, 0);
             __m128i _outp = __lsx_vbitclri_w(_p, 31);
             __lsx_vst(_outp, ptr, 0);

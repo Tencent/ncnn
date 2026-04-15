@@ -20,7 +20,7 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-public:
+protected:
 #if NCNN_BF16
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

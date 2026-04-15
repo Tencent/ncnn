@@ -9,9 +9,12 @@
 #include "loongarch_usability.h"
 #endif // __loongarch_sx
 
+#if __loongarch_sx
 #if __loongarch_asx
 #include <lasxintrin.h>
+#include "lasx_mathfun.h"
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
 #include "cpu.h"
 
@@ -324,19 +327,19 @@ MAKE_FUNCTION(binary_op_mul, x * y, __lsx_vfmul_s(x, y), __lasx_xvfmul_s(x, y))
 MAKE_FUNCTION(binary_op_div, x / y, __lsx_vfdiv_s(x, y), __lasx_xvfdiv_s(x, y))
 MAKE_FUNCTION(binary_op_max, std::max(x, y), __lsx_vfmax_s(x, y), __lasx_xvfmax_s(x, y))
 MAKE_FUNCTION(binary_op_min, std::min(x, y), __lsx_vfmin_s(x, y), __lasx_xvfmin_s(x, y))
-MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y), pow_ps(x, y))
+MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y), pow256_ps(x, y))
 MAKE_FUNCTION(binary_op_rsub, y - x, __lsx_vfsub_s(y, x), __lasx_xvfsub_s(y, x))
 MAKE_FUNCTION(binary_op_rdiv, y / x, __lsx_vfdiv_s(y, x), __lasx_xvfdiv_s(y, x))
-MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x), pow_ps(y, x))
-MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y), atan2_ps(x, y))
-MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x), atan2_ps(y, x))
-MAKE_FUNCTION(binary_op_fmod, (float)fmodf(x, y), fmod_ps(x, y), fmod_ps(x, y))
-MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x), fmod_ps(y, x))
-MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y), logaddexp_ps(x, y))
-MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y), floor_divide_ps(x, y))
-MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x), floor_divide_ps(y, x))
-MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y), remainder_ps(x, y))
-MAKE_FUNCTION(binary_op_rremainder, (float)remainderf(y, x), remainder_ps(y, x), remainder_ps(y, x))
+MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x), pow256_ps(y, x))
+MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y), atan2256_ps(x, y))
+MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x), atan2256_ps(y, x))
+MAKE_FUNCTION(binary_op_fmod, (float)fmodf(x, y), fmod_ps(x, y), fmod256_ps(x, y))
+MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x), fmod256_ps(y, x))
+MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y), logaddexp256_ps(x, y))
+MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y), floor_divide256_ps(x, y))
+MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x), floor_divide256_ps(y, x))
+MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y), remainder256_ps(x, y))
+MAKE_FUNCTION(binary_op_rremainder, (float)remainderf(y, x), remainder_ps(y, x), remainder256_ps(y, x))
 // *INDENT-ON*
 // clang-format on
 

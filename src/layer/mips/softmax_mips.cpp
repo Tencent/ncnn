@@ -65,16 +65,11 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* maxptr = max;
 
+        int i = 0;
 #if __mips_msa
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __mips_msa
-
-#if __mips_msa
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _max = (v4f32)__msa_ld_w(maxptr, 0);
 
@@ -87,7 +82,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __mips_msa
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr = expf(*ptr - *maxptr);
 
@@ -106,16 +101,11 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
+        int i = 0;
 #if __mips_msa
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __mips_msa
-
-#if __mips_msa
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
             _sum = __msa_fadd_w(_sum, _p);
@@ -126,7 +116,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __mips_msa
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *sumptr += *ptr;
 
@@ -141,16 +131,11 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
+        int i = 0;
 #if __mips_msa
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __mips_msa
-
-#if __mips_msa
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
             _p = __msa_fdiv_w(_p, _sum);
@@ -161,7 +146,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __mips_msa
 
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr /= *sumptr;
 

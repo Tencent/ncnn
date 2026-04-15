@@ -28,6 +28,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 {
     const int size = elemcount * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -105,7 +106,6 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (elempack == 4)
     {
         __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
@@ -187,6 +187,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     {
         const unsigned short* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _sum8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
         for (; i + 7 < size; i += 8)
@@ -197,7 +198,6 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         }
         mean += __lasx_reduce_fadd_s(_sum8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _sum4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
         {
@@ -219,6 +219,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     {
         const unsigned short* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _mean8 = __lasx_xvreplfr2vr_s(mean);
         __m256 _sqsum8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
@@ -231,7 +232,6 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         }
         var += __lasx_reduce_fadd_s(_sqsum8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _mean4 = __lsx_vreplfr2vr_s(mean);
         __m128 _sqsum4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
@@ -257,6 +257,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     if (gamma_ptr && beta_ptr)
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _a8 = __lasx_xvreplfr2vr_s(var);
         __m256 _b8 = __lasx_xvreplfr2vr_s(bias);
@@ -273,7 +274,6 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             beta_ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _a4 = __lsx_vreplfr2vr_s(var);
         __m128 _b4 = __lsx_vreplfr2vr_s(bias);
         for (; i + 3 < size; i += 4)
@@ -300,6 +300,7 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     else
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _a8 = __lasx_xvreplfr2vr_s(var);
         __m256 _b8 = __lasx_xvreplfr2vr_s(bias);
@@ -311,7 +312,6 @@ static void layernorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _a4 = __lsx_vreplfr2vr_s(var);
         __m128 _b4 = __lsx_vreplfr2vr_s(bias);
         for (; i + 3 < size; i += 4)
@@ -334,6 +334,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
 {
     const int size = elemcount * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -411,7 +412,6 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (elempack == 4)
     {
         __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
@@ -492,6 +492,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     {
         const float* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _sum8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
         for (; i + 7 < size; i += 8)
@@ -502,7 +503,6 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         }
         mean += __lasx_reduce_fadd_s(_sum8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _sum4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
         {
@@ -524,6 +524,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     {
         const float* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _mean8 = __lasx_xvreplfr2vr_s(mean);
         __m256 _sqsum8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
@@ -536,7 +537,6 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         }
         var += __lasx_reduce_fadd_s(_sqsum8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _mean4 = __lsx_vreplfr2vr_s(mean);
         __m128 _sqsum4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
@@ -562,6 +562,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     if (gamma_ptr && beta_ptr)
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _a8 = __lasx_xvreplfr2vr_s(var);
         __m256 _b8 = __lasx_xvreplfr2vr_s(bias);
@@ -578,7 +579,6 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
             beta_ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _a4 = __lsx_vreplfr2vr_s(var);
         __m128 _b4 = __lsx_vreplfr2vr_s(bias);
         for (; i + 3 < size; i += 4)
@@ -605,6 +605,7 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     else
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _a8 = __lasx_xvreplfr2vr_s(var);
         __m256 _b8 = __lasx_xvreplfr2vr_s(bias);
@@ -616,7 +617,6 @@ static void layernorm_loongarch(float* ptr, const float* gamma_ptr, const float*
             ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _a4 = __lsx_vreplfr2vr_s(var);
         __m128 _b4 = __lsx_vreplfr2vr_s(bias);
         for (; i + 3 < size; i += 4)

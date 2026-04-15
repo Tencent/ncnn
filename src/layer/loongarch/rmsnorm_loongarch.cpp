@@ -28,6 +28,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 {
     const int size = elemcount * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -76,7 +77,6 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (elempack == 4)
     {
         __m128 _rms = (__m128)__lsx_vreplfr2vr_s(0.f);
@@ -129,6 +129,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
     {
         const unsigned short* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
         for (; i + 7 < size; i += 8)
@@ -139,7 +140,6 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         }
         rms += __lasx_reduce_fadd_s(_rms8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
         {
@@ -162,6 +162,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
     if (gamma_ptr)
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = __lasx_xvreplfr2vr_s(rms);
         for (; i + 7 < size; i += 8)
@@ -175,7 +176,6 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
             gamma_ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
         for (; i + 3 < size; i += 4)
         {
@@ -198,6 +198,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
     else
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = __lasx_xvreplfr2vr_s(rms);
         for (; i + 7 < size; i += 8)
@@ -208,7 +209,6 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
             ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
         for (; i + 3 < size; i += 4)
         {
@@ -230,6 +230,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
 {
     const int size = elemcount * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (elempack == 8)
     {
@@ -278,7 +279,6 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (elempack == 4)
     {
         __m128 _rms = (__m128)__lsx_vreplfr2vr_s(0.f);
@@ -330,6 +330,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
     {
         const float* ptr0 = ptr;
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
         for (; i + 7 < size; i += 8)
@@ -340,7 +341,6 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
         }
         rms += __lasx_reduce_fadd_s(_rms8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
         {
@@ -362,6 +362,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
     if (gamma_ptr)
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = __lasx_xvreplfr2vr_s(rms);
         for (; i + 7 < size; i += 8)
@@ -375,7 +376,6 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
             gamma_ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
         for (; i + 3 < size; i += 4)
         {
@@ -398,6 +398,7 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
     else
     {
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         __m256 _rms8 = __lasx_xvreplfr2vr_s(rms);
         for (; i + 7 < size; i += 8)
@@ -408,7 +409,6 @@ static void rmsnorm_loongarch(float* ptr, const float* gamma_ptr, float eps, int
             ptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
         for (; i + 3 < size; i += 4)
         {

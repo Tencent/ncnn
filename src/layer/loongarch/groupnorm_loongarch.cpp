@@ -26,10 +26,10 @@ GroupNorm_loongarch::GroupNorm_loongarch()
 
 static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)
 {
+#if __loongarch_sx
 #if __loongarch_asx
     __m256 _mean8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
     __m128 _mean4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
     float mean = 0.f;
@@ -39,6 +39,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         const unsigned short* ptr0 = ptr + cstep * q * elempack;
 
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
@@ -47,7 +48,6 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             ptr0 += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
@@ -63,25 +63,25 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     }
 
     {
+#if __loongarch_sx
 #if __loongarch_asx
         mean += __lasx_reduce_fadd_s(_mean8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         mean += __lsx_reduce_fadd_s(_mean4);
 #endif // __loongarch_sx
         mean = mean / (channels * size);
+#if __loongarch_sx
 #if __loongarch_asx
         _mean8 = (__m256)__lasx_xvreplfr2vr_s(mean);
 #endif // __loongarch_asx
-#if __loongarch_sx
         _mean4 = (__m128)__lsx_vreplfr2vr_s(mean);
 #endif // __loongarch_sx
     }
 
+#if __loongarch_sx
 #if __loongarch_asx
     __m256 _var8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
     __m128 _var4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
     float var = 0.f;
@@ -91,6 +91,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         const unsigned short* ptr0 = ptr + cstep * q * elempack;
 
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
@@ -100,7 +101,6 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             ptr0 += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
@@ -118,19 +118,19 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
     }
 
     {
+#if __loongarch_sx
 #if __loongarch_asx
         var += __lasx_reduce_fadd_s(_var8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         var += __lsx_reduce_fadd_s(_var4);
 #endif // __loongarch_sx
         var = 1.f / sqrtf(var / (channels * size) + eps);
         mean = -mean * var;
+#if __loongarch_sx
 #if __loongarch_asx
         _var8 = (__m256)__lasx_xvreplfr2vr_s(var);
         _mean8 = (__m256)__lasx_xvreplfr2vr_s(mean);
 #endif // __loongarch_asx
-#if __loongarch_sx
         _var4 = (__m128)__lsx_vreplfr2vr_s(var);
         _mean4 = (__m128)__lsx_vreplfr2vr_s(mean);
 #endif // __loongarch_sx
@@ -142,17 +142,18 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
         {
             unsigned short* ptr0 = ptr + cstep * q * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
             __m256 _a8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
             __m256 _b8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
             __m128 _a4 = (__m128)__lsx_vreplfr2vr_s(0.f);
             __m128 _b4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
             float a = 0.f;
             float b = 0.f;
 
+#if __loongarch_sx
 #if __loongarch_asx
             if (elempack == 8)
             {
@@ -163,7 +164,6 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 _b8 = __lasx_xvfmadd_s(_mean8, _gamma, _beta);
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             if (elempack == 4)
             {
                 __m128 _gamma = (__m128)__lsx_vld(gamma_ptr + q * elempack, 0);
@@ -180,17 +180,18 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 
                 a = var * gamma;
                 b = mean * gamma + beta;
+#if __loongarch_sx
 #if __loongarch_asx
                 _a8 = (__m256)__lasx_xvreplfr2vr_s(a);
                 _b8 = (__m256)__lasx_xvreplfr2vr_s(b);
 #endif // __loongarch_asx
-#if __loongarch_sx
                 _a4 = (__m128)__lsx_vreplfr2vr_s(a);
                 _b4 = (__m128)__lsx_vreplfr2vr_s(b);
 #endif // __loongarch_sx
             }
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             if (elempack != 4)
             {
@@ -203,7 +204,6 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 }
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
@@ -226,6 +226,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             unsigned short* ptr0 = ptr + cstep * q * elempack;
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
@@ -235,7 +236,6 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 ptr0 += 8;
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
@@ -255,10 +255,10 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 
 static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int channels, int size, int elempack, size_t cstep)
 {
+#if __loongarch_sx
 #if __loongarch_asx
     __m256 _mean8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
     __m128 _mean4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
     float mean = 0.f;
@@ -268,6 +268,7 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         const float* ptr0 = ptr + cstep * q * elempack;
 
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
@@ -276,7 +277,6 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
             ptr0 += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr0, 0);
@@ -292,25 +292,25 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     }
 
     {
+#if __loongarch_sx
 #if __loongarch_asx
         mean += __lasx_reduce_fadd_s(_mean8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         mean += __lsx_reduce_fadd_s(_mean4);
 #endif // __loongarch_sx
         mean = mean / (channels * size);
+#if __loongarch_sx
 #if __loongarch_asx
         _mean8 = (__m256)__lasx_xvreplfr2vr_s(mean);
 #endif // __loongarch_asx
-#if __loongarch_sx
         _mean4 = (__m128)__lsx_vreplfr2vr_s(mean);
 #endif // __loongarch_sx
     }
 
+#if __loongarch_sx
 #if __loongarch_asx
     __m256 _var8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
     __m128 _var4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
     float var = 0.f;
@@ -320,6 +320,7 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         const float* ptr0 = ptr + cstep * q * elempack;
 
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
@@ -329,7 +330,6 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
             ptr0 += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr0, 0);
@@ -347,19 +347,19 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
     }
 
     {
+#if __loongarch_sx
 #if __loongarch_asx
         var += __lasx_reduce_fadd_s(_var8);
 #endif // __loongarch_asx
-#if __loongarch_sx
         var += __lsx_reduce_fadd_s(_var4);
 #endif // __loongarch_sx
         var = 1.f / sqrtf(var / (channels * size) + eps);
         mean = -mean * var;
+#if __loongarch_sx
 #if __loongarch_asx
         _var8 = (__m256)__lasx_xvreplfr2vr_s(var);
         _mean8 = (__m256)__lasx_xvreplfr2vr_s(mean);
 #endif // __loongarch_asx
-#if __loongarch_sx
         _var4 = (__m128)__lsx_vreplfr2vr_s(var);
         _mean4 = (__m128)__lsx_vreplfr2vr_s(mean);
 #endif // __loongarch_sx
@@ -371,17 +371,18 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
         {
             float* ptr0 = ptr + cstep * q * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
             __m256 _a8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
             __m256 _b8 = (__m256)__lasx_xvreplfr2vr_s(0.f);
 #endif // __loongarch_asx
-#if __loongarch_sx
             __m128 _a4 = (__m128)__lsx_vreplfr2vr_s(0.f);
             __m128 _b4 = (__m128)__lsx_vreplfr2vr_s(0.f);
 #endif // __loongarch_sx
             float a = 0.f;
             float b = 0.f;
 
+#if __loongarch_sx
 #if __loongarch_asx
             if (elempack == 8)
             {
@@ -392,7 +393,6 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
                 _b8 = __lasx_xvfmadd_s(_mean8, _gamma, _beta);
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             if (elempack == 4)
             {
                 __m128 _gamma = (__m128)__lsx_vld(gamma_ptr + q * elempack, 0);
@@ -409,17 +409,18 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
 
                 a = var * gamma;
                 b = mean * gamma + beta;
+#if __loongarch_sx
 #if __loongarch_asx
                 _a8 = (__m256)__lasx_xvreplfr2vr_s(a);
                 _b8 = (__m256)__lasx_xvreplfr2vr_s(b);
 #endif // __loongarch_asx
-#if __loongarch_sx
                 _a4 = (__m128)__lsx_vreplfr2vr_s(a);
                 _b4 = (__m128)__lsx_vreplfr2vr_s(b);
 #endif // __loongarch_sx
             }
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             if (elempack != 4)
             {
@@ -432,7 +433,6 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
                 }
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = (__m128)__lsx_vld(ptr0, 0);
@@ -455,6 +455,7 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
             float* ptr0 = ptr + cstep * q * elempack;
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
@@ -464,7 +465,6 @@ static void groupnorm_loongarch(float* ptr, const float* gamma_ptr, const float*
                 ptr0 += 8;
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = (__m128)__lsx_vld(ptr0, 0);
@@ -494,11 +494,11 @@ int GroupNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
     const int channels_g = channels / group;
 
     int g_elempack = elempack;
+#if __loongarch_sx
 #if __loongarch_asx
     if (opt.use_packing_layout && elempack == 8 && channels_g % 8 != 0)
         g_elempack = channels_g % 4 == 0 ? 4 : 1;
 #endif // __loongarch_asx
-#if __loongarch_sx
     if (opt.use_packing_layout && g_elempack == 4 && channels_g % 4 != 0)
         g_elempack = 1;
 #endif // __loongarch_sx
@@ -573,11 +573,11 @@ int GroupNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
     const int channels_g = channels / group;
 
     int g_elempack = elempack;
+#if __loongarch_sx
 #if __loongarch_asx
     if (opt.use_packing_layout && elempack == 8 && channels_g % 8 != 0)
         g_elempack = channels_g % 4 == 0 ? 4 : 1;
 #endif // __loongarch_asx
-#if __loongarch_sx
     if (opt.use_packing_layout && g_elempack == 4 && channels_g % 4 != 0)
         g_elempack = 1;
 #endif // __loongarch_sx

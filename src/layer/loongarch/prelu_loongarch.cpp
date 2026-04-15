@@ -162,9 +162,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
             __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : combine4x2_ps(_slope4, _slope4);
-            int nn_w8 = w / 8;
-            int remain_w_start8 = nn_w8 * 8;
-            for (; j < remain_w_start8; j += 8)
+            for (; j + 7 < w; j += 8)
             {
                 __builtin_prefetch(ptr + j + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr + j, 0);
@@ -174,9 +172,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 __lasx_xvst(_p, ptr + j, 0);
             }
 #endif // __loongarch_asx
-            int nn_w4 = w / 4;
-            int remain_w_start4 = nn_w4 * 4;
-            for (; j < remain_w_start4; j += 4)
+            for (; j + 3 < w; j += 4)
             {
                 __builtin_prefetch(ptr + j + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr + j, 0);
@@ -217,9 +213,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
             __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : combine4x2_ps(_slope4, _slope4);
-            int nn_size8 = size / 8;
-            int remain_size_start8 = nn_size8 * 8;
-            for (; i < remain_size_start8; i += 8)
+            for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + i + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr + i, 0);
@@ -229,9 +223,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 __lasx_xvst(_p, ptr + i, 0);
             }
 #endif // __loongarch_asx
-            int nn_size4 = size / 4;
-            int remain_size_start4 = nn_size4 * 4;
-            for (; i < remain_size_start4; i += 4)
+            for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + i + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr + i, 0);

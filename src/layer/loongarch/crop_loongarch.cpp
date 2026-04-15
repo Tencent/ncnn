@@ -49,6 +49,7 @@ static void crop_pack4_lsx(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
+#if NCNN_BF16
 static void crop_pack4_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -70,6 +71,7 @@ static void crop_pack4_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+#endif // NCNN_BF16
 
 #if __loongarch_asx
 static void crop_pack8_lasx(const Mat& src, Mat& dst, int top, int left)
@@ -95,6 +97,7 @@ static void crop_pack8_lasx(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
+#if NCNN_BF16
 static void crop_pack8_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -116,6 +119,7 @@ static void crop_pack8_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 8;
     }
 }
+#endif // NCNN_BF16
 #endif // __loongarch_asx
 #endif // __loongarch_sx
 

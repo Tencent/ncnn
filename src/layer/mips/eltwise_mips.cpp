@@ -350,6 +350,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                 _p = __msa_fmul_w(_p, _p1);
@@ -383,6 +384,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr, 0);
                     _p = __msa_fmul_w(_p, _p1);
@@ -419,6 +421,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     _p = __msa_fadd_w(_p, _p1);
@@ -452,6 +455,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
                         v4f32 _p1 = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fadd_w(_p, _p1);
@@ -492,6 +496,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     _p = __msa_fmul_w(_p, _coeff0);
@@ -530,6 +535,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
                         v4f32 _p1 = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fmadd_w(_p, _p1, _coeff);
@@ -565,6 +571,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                 _p = __msa_fmax_w(_p, _p1);
@@ -598,6 +605,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr, 0);
                     _p = __msa_fmax_w(_p, _p1);

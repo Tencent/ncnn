@@ -94,7 +94,7 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
         {
             __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = __lasx_xvfsub_s(_p, _max_lasx);
-            _p = exp_ps(_p);
+            _p = exp256_ps(_p);
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             _sum_lasx = __lasx_xvfadd_s(_sum_lasx, _p);
             ptr += 8;
@@ -233,7 +233,7 @@ static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t 
         {
             __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _max = (__m256)__lasx_xvreplfr2vr_s(*maxptr);
-            _p = exp_ps(__lasx_xvfsub_s(_p, _max));
+            _p = exp256_ps(__lasx_xvfsub_s(_p, _max));
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             *sumptr += __lasx_reduce_fadd_s(_p);
             ptr += 8;
@@ -430,7 +430,7 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
             __m256 _max = (__m256)__lasx_xvld(maxptr, 0);
             __m256 _sum = (__m256)__lasx_xvld(sumptr, 0);
             _p = __lasx_xvfsub_s(_p, _max);
-            _p = exp_ps(_p);
+            _p = exp256_ps(_p);
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             _sum = __lasx_xvfadd_s(_sum, _p);
             __lasx_xvst((__m256i)_sum, sumptr, 0);

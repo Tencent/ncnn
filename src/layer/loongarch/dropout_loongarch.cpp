@@ -54,6 +54,7 @@ int Dropout_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         __m256 _scale256 = (__m256)__lasx_xvreplfr2vr_s(scale);
         for (; i + 7 < size; i += 8)
         {
+            __builtin_prefetch(ptr + 32);
             __m256 _p = (__m256)__lasx_xvld(ptr, 0);
             _p = __lasx_xvfmul_s(_p, _scale256);
             __lasx_xvst(_p, ptr, 0);
@@ -64,6 +65,7 @@ int Dropout_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmul_s(_p, _scale);
             __lsx_vst(_p, ptr, 0);

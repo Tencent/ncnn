@@ -46,6 +46,7 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float* outptr = square_blob.channel(q);
 
         int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
@@ -57,7 +58,6 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             outptr += 8;
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
@@ -98,6 +98,7 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ssptr = square_sum.channel(q);
 
                 int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
@@ -110,7 +111,6 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     ssptr += 8;
                 }
 #endif // __loongarch_asx
-#if __loongarch_sx
                 for (; i + 3 < size; i += 4)
                 {
                     __m128 _sp = (__m128)__lsx_vld(sptr, 0);
@@ -134,6 +134,7 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ssptr = square_sum.channel(q);
 
             int i = 0;
+#if __loongarch_sx
 #if __loongarch_asx
             __m256 _bias = (__m256)__lasx_xvreplfr2vr_s(bias);
             __m256 _ads = (__m256)__lasx_xvreplfr2vr_s(alpha_div_size);
@@ -152,7 +153,6 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr += 8;
             }
 #endif // __loongarch_asx
-#if __loongarch_sx
             __m128 _bias4 = (__m128)__lsx_vreplfr2vr_s(bias);
             __m128 _ads4 = (__m128)__lsx_vreplfr2vr_s(alpha_div_size);
             __m128 _mb4 = (__m128)__lsx_vreplfr2vr_s(-beta);

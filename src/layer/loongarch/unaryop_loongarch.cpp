@@ -11,6 +11,7 @@
 #include "lsx_mathfun.h"
 #if __loongarch_asx
 #include <lasxintrin.h>
+#include "lasx_mathfun.h"
 #endif // __loongarch_asx
 #endif // __loongarch_sx
 
@@ -230,7 +231,7 @@ struct unary_op_exp
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return exp_ps(x);
+        return exp256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -250,7 +251,7 @@ struct unary_op_log
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return log_ps(x);
+        return log256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -506,7 +507,7 @@ struct unary_op_tanh
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return tanh_ps(x);
+        return tanh256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -526,7 +527,7 @@ struct unary_op_log10
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        return __lasx_xvfmul_s(log_ps(x), __lasx_xvreplfr2vr_s(0.434294481903));
+        return __lasx_xvfmul_s(log256_ps(x), __lasx_xvreplfr2vr_s(0.434294481903));
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx

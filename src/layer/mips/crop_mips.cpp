@@ -46,6 +46,7 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
+#if NCNN_BF16
 static void crop_pack4_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -67,6 +68,7 @@ static void crop_pack4_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+#endif // NCNN_BF16
 #endif // __mips_msa
 
 int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

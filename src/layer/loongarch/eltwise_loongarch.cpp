@@ -458,6 +458,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 __m256 _p1 = (__m256)__lasx_xvld(ptr1, 0);
                 _p = __lasx_xvfmul_s(_p, _p1);
@@ -470,6 +471,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
                 _p = __lsx_vfmul_s(_p, _p1);
@@ -504,6 +506,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(ptr + 32);
                     __m256 _p = (__m256)__lasx_xvld(outptr, 0);
                     __m256 _p1 = (__m256)__lasx_xvld(ptr, 0);
                     _p = __lasx_xvfmul_s(_p, _p1);
@@ -515,6 +518,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     __m128 _p = (__m128)__lsx_vld(outptr, 0);
                     __m128 _p1 = (__m128)__lsx_vld(ptr, 0);
                     _p = __lsx_vfmul_s(_p, _p1);
@@ -552,6 +556,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(ptr + 32);
                     __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                     __m256 _p1 = (__m256)__lasx_xvld(ptr1, 0);
                     _p = __lasx_xvfadd_s(_p, _p1);
@@ -564,6 +569,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     __m128 _p = (__m128)__lsx_vld(ptr, 0);
                     __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
                     _p = __lsx_vfadd_s(_p, _p1);
@@ -598,6 +604,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(ptr + 32);
                         __m256 _p = (__m256)__lasx_xvld(outptr, 0);
                         __m256 _p1 = (__m256)__lasx_xvld(ptr, 0);
                         _p = __lasx_xvfadd_s(_p, _p1);
@@ -609,6 +616,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(ptr + 16);
                         __m128 _p = (__m128)__lsx_vld(outptr, 0);
                         __m128 _p1 = (__m128)__lsx_vld(ptr, 0);
                         _p = __lsx_vfadd_s(_p, _p1);
@@ -654,6 +662,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(ptr + 32);
                     __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                     __m256 _p1 = (__m256)__lasx_xvld(ptr1, 0);
                     _p = __lasx_xvfmul_s(_p, _coeff0_256);
@@ -667,6 +676,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     __m128 _p = (__m128)__lsx_vld(ptr, 0);
                     __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
                     _p = __lsx_vfmul_s(_p, _coeff0);
@@ -709,6 +719,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(ptr + 32);
                         __m256 _p = (__m256)__lasx_xvld(outptr, 0);
                         __m256 _p1 = (__m256)__lasx_xvld(ptr, 0);
                         _p = __lasx_xvfmadd_s(_coeff_256, _p1, _p);
@@ -720,6 +731,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(ptr + 16);
                         __m128 _p = (__m128)__lsx_vld(outptr, 0);
                         __m128 _p1 = (__m128)__lsx_vld(ptr, 0);
                         _p = __lsx_vfmadd_s(_coeff, _p1, _p);
@@ -756,6 +768,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 __m256 _p1 = (__m256)__lasx_xvld(ptr1, 0);
                 _p = __lasx_xvfmax_s(_p, _p1);
@@ -768,6 +781,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
                 _p = __lsx_vfmax_s(_p, _p1);
@@ -802,6 +816,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(ptr + 32);
                     __m256 _p = (__m256)__lasx_xvld(outptr, 0);
                     __m256 _p1 = (__m256)__lasx_xvld(ptr, 0);
                     _p = __lasx_xvfmax_s(_p, _p1);
@@ -813,6 +828,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     __m128 _p = (__m128)__lsx_vld(outptr, 0);
                     __m128 _p1 = (__m128)__lsx_vld(ptr, 0);
                     _p = __lsx_vfmax_s(_p, _p1);

@@ -49,6 +49,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
 
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _s = (v4f32)__msa_ld_w(scale + i * 4, 0);
                     v4f32 _bias = (v4f32)__msa_ld_w(bias + i * 4, 0);
@@ -63,6 +64,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
 
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _s = (v4f32)__msa_ld_w(scale + i * 4, 0);
                     _p = __msa_fmul_w(_p, _s);
@@ -89,6 +91,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fmadd_w(_bias, _p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);
@@ -106,6 +109,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fmul_w(_p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);
@@ -133,6 +137,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fmadd_w(_bias, _p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);
@@ -150,6 +155,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         _p = __msa_fmul_w(_p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);

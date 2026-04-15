@@ -48,17 +48,21 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
+#if __loongarch_sx
 #if __loongarch_asx
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
     bool pack4to8 = elempack == 4 && out_elempack == 8;
     bool pack8to4 = elempack == 8 && out_elempack == 4;
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
     if (!pack1to4 && !pack4to1
+#if __loongarch_sx
 #if __loongarch_asx
             && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
 #endif // __loongarch_asx
+#endif // __loongarch_sx
        )
     {
         return Packing::forward(bottom_blob, top_blob, opt);
@@ -217,6 +221,7 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
+#if __loongarch_sx
 #if __loongarch_asx
         if (pack1to8)
         {
@@ -337,6 +342,7 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
         return 0;
     }
@@ -462,6 +468,7 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
+#if __loongarch_sx
 #if __loongarch_asx
         if (pack1to8)
         {
@@ -582,6 +589,7 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
         return 0;
     }
@@ -829,17 +837,21 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
+#if __loongarch_sx
 #if __loongarch_asx
     bool pack1to8 = elempack == 1 && out_elempack == 8;
     bool pack8to1 = elempack == 8 && out_elempack == 1;
     bool pack4to8 = elempack == 4 && out_elempack == 8;
     bool pack8to4 = elempack == 8 && out_elempack == 4;
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
     if (!pack1to4 && !pack4to1
+#if __loongarch_sx
 #if __loongarch_asx
             && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
 #endif // __loongarch_asx
+#endif // __loongarch_sx
        )
     {
         return Packing::forward(bottom_blob, top_blob, opt);
@@ -986,6 +998,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
+#if __loongarch_sx
 #if __loongarch_asx
         if (pack1to8)
         {
@@ -1106,6 +1119,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             }
         }
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
         return 0;
     }
@@ -1219,6 +1233,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
+#if __loongarch_sx
 #if __loongarch_asx
         if (pack1to8)
         {
@@ -1339,6 +1354,7 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             }
         }
 #endif // __loongarch_asx
+#endif // __loongarch_sx
 
         return 0;
     }

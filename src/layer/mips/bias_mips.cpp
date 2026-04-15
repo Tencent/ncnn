@@ -51,6 +51,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = __msa_fadd_w(_p, _bias);
             __msa_st_w((v4i32)_p, ptr, 0);

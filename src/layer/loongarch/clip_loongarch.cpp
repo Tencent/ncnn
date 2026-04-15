@@ -50,6 +50,7 @@ int Clip_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         __m256 _min256 = (__m256)__lasx_xvreplfr2vr_s(min);
         for (; i + 7 < size; i += 8)
         {
+            __builtin_prefetch(ptr + 32);
             __m256 _p = (__m256)__lasx_xvld(ptr, 0);
             _p = __lasx_xvfmax_s(_p, _min256);
             _p = __lasx_xvfmin_s(_p, _max256);
@@ -62,6 +63,7 @@ int Clip_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         __m128 _min = (__m128)__lsx_vreplfr2vr_s(min);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmax_s(_p, _min);
             _p = __lsx_vfmin_s(_p, _max);

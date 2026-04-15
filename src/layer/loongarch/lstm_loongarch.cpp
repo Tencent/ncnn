@@ -38,19 +38,21 @@ int LSTM_loongarch::create_pipeline(const Option& opt)
     int num_directions = direction == 2 ? 2 : 1;
     int size = weight_data_size / num_directions / hidden_size / 4;
 
+#if __loongarch_sx
 #if __loongarch_asx
     weight_xc_data_packed.create(size, hidden_size / 2 + hidden_size % 2, num_directions, 32u, 8);
     bias_c_data_packed.create(hidden_size, 1, num_directions, 16u, 4);
     weight_hc_data_packed.create(num_output, hidden_size / 2 + hidden_size % 2, num_directions, 32u, 8);
-#elif __loongarch_sx
-    weight_xc_data_packed.create(size, hidden_size, num_directions, 16u, 4);
-    bias_c_data_packed.create(hidden_size, 1, num_directions, 16u, 4);
-    weight_hc_data_packed.create(num_output, hidden_size, num_directions, 16u, 4);
 #else
     weight_xc_data_packed.create(size, hidden_size, num_directions, 16u, 4);
     bias_c_data_packed.create(hidden_size, 1, num_directions, 16u, 4);
     weight_hc_data_packed.create(num_output, hidden_size, num_directions, 16u, 4);
-#endif
+#endif // __loongarch_asx
+#else
+    weight_xc_data_packed.create(size, hidden_size, num_directions, 16u, 4);
+    bias_c_data_packed.create(hidden_size, 1, num_directions, 16u, 4);
+    weight_hc_data_packed.create(num_output, hidden_size, num_directions, 16u, 4);
+#endif // __loongarch_sx
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
@@ -71,6 +73,8 @@ int LSTM_loongarch::create_pipeline(const Option& opt)
         float* bias_c_IFOG = bias_c_data_packed_dr.row(0);
 
         int q = 0;
+#if __loongarch_sx
+#if __loongarch_sx
 #if __loongarch_asx
         for (; q + 1 < hidden_size; q += 2)
         {
@@ -135,6 +139,8 @@ int LSTM_loongarch::create_pipeline(const Option& opt)
             }
         }
 #endif // __loongarch_asx
+#endif // __loongarch_sx
+#endif // __loongarch_sx
         for (; q < hidden_size; q++)
         {
             bias_c_IFOG[0] = bias_c_I[q];
@@ -154,13 +160,23 @@ int LSTM_loongarch::create_pipeline(const Option& opt)
             const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
             const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
 
+#if __loongarch_sx
+#if __loongarch_sx
 #if __loongarch_asx
             float* weight_xc_IFOG = weight_xc_data_packed_dr.row(q / 2 + q % 2);
             float* weight_hc_IFOG = weight_hc_data_packed_dr.row(q / 2 + q % 2);
 #else
             float* weight_xc_IFOG = weight_xc_data_packed_dr.row(q);
             float* weight_hc_IFOG = weight_hc_data_packed_dr.row(q);
-#endif
+#endif // __loongarch_asx
+#else
+            float* weight_xc_IFOG = weight_xc_data_packed_dr.row(q);
+            float* weight_hc_IFOG = weight_hc_data_packed_dr.row(q);
+#endif // __loongarch_sx // __loongarch_asx
+#else
+            float* weight_xc_IFOG = weight_xc_data_packed_dr.row(q);
+            float* weight_hc_IFOG = weight_hc_data_packed_dr.row(q);
+#endif // __loongarch_sx
 
             for (int i = 0; i < size; i++)
             {
@@ -220,6 +236,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
     {
         int ti = reverse ? T - 1 - t : t;
 
+#if __loongarch_sx
+#if __loongarch_sx
 #if __loongarch_asx
         int nn_hidden_size = hidden_size >> 1;
         int remain_hidden_size_start = nn_hidden_size << 1;
@@ -313,6 +331,14 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         int nn_hidden_size = 0;
         int remain_hidden_size_start = 0;
 #endif // __loongarch_asx
+#else
+        int nn_hidden_size = 0;
+        int remain_hidden_size_start = 0;
+#endif // __loongarch_sx
+#else
+        int nn_hidden_size = 0;
+        int remain_hidden_size_start = 0;
+#endif // __loongarch_sx
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_hidden_size_start; q < hidden_size; q++)
@@ -320,13 +346,23 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             const float* bias_c_IFOG = (const float*)bias_c + q * 4;
 
             // gate I F O G
+#if __loongarch_sx
+#if __loongarch_sx
 #if __loongarch_asx
             const float* weight_xc_IFOG = weight_xc.row(q / 2 + q % 2);
             const float* weight_hc_IFOG = weight_hc.row(q / 2 + q % 2);
 #else
             const float* weight_xc_IFOG = weight_xc.row(q);
             const float* weight_hc_IFOG = weight_hc.row(q);
-#endif
+#endif // __loongarch_asx
+#else
+            const float* weight_xc_IFOG = weight_xc.row(q);
+            const float* weight_hc_IFOG = weight_hc.row(q);
+#endif // __loongarch_sx // __loongarch_asx
+#else
+            const float* weight_xc_IFOG = weight_xc.row(q);
+            const float* weight_hc_IFOG = weight_hc.row(q);
+#endif // __loongarch_sx
 
 #if __loongarch_sx
             __m128 _IFOG = (__m128)__lsx_vld(bias_c_IFOG, 0);

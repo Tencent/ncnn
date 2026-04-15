@@ -31,6 +31,7 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
         return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
+#if __loongarch_sx
 #if __loongarch_asx
     if (bottom_top_blob.elempack == 8)
     {
@@ -114,7 +115,6 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (bottom_top_blob.elempack == 4)
     {
         const int channels = bottom_top_blob.c;
@@ -203,6 +203,7 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
 #if NCNN_BF16
 int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __loongarch_sx
 #if __loongarch_asx
     if (bottom_top_blob.elempack == 8)
     {
@@ -286,7 +287,6 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
     }
 #endif // __loongarch_asx
 
-#if __loongarch_sx
     if (bottom_top_blob.elempack == 4)
     {
         const int channels = bottom_top_blob.c;

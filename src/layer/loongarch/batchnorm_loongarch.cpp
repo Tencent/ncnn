@@ -195,6 +195,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; j + 7 < w; j += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 _p = __lasx_xvfmadd_s(_b256, _p, _a256);
                 __lasx_xvst(_p, ptr, 0);
@@ -206,6 +207,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; j + 3 < w; j += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);
@@ -243,6 +245,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 _p = __lasx_xvfmadd_s(_b256, _p, _a256);
                 __lasx_xvst(_p, ptr, 0);
@@ -254,6 +257,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);

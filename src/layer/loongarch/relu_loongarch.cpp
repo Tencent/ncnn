@@ -51,6 +51,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             __m256 _zero256 = (__m256)__lasx_xvreplgr2vr_w(0);
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 _p = __lasx_xvfmax_s(_p, _zero256);
                 __lasx_xvst(_p, ptr, 0);
@@ -61,6 +62,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmax_s(_p, _zero);
                 __lsx_vst(_p, ptr, 0);
@@ -90,6 +92,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             __m256 _slope256 = (__m256)__lasx_xvreplfr2vr_s(slope);
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 __m256 _p = (__m256)__lasx_xvld(ptr, 0);
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero256);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope256);
@@ -103,6 +106,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope);
