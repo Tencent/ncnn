@@ -438,7 +438,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gc_zfh_xtheadvector -D__fp16=_Float16")
-        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+        check_cxx_source_compiles("int test() { asm volatile(\"th.vmv1r.v v0, v1\"); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
 
         unset(CMAKE_REQUIRED_FLAGS)
 
@@ -478,7 +478,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_ZVFH)
 
         set(CMAKE_REQUIRED_FLAGS "-march=rv32gc_zfh_xtheadvector -D__fp16=_Float16")
-        check_cxx_source_compiles("#include <riscv_vector.h>\nvfloat16m8_t test(vfloat16m8_t s, vfloat16m8_t w, __fp16 v, size_t vl) { return __riscv_vfmacc_vf_f16m8(s, v, w, vl); }\nvfloat16m1x2_t test2(vfloat16m1_t x){ return __riscv_vcreate_v_f16m1x2(x, x); }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
+        check_cxx_source_compiles("int test() { asm volatile(\"th.vmv1r.v v0, v1\"); return 0; }" NCNN_COMPILER_SUPPORT_RISCV_XTHEADVECTOR)
 
         unset(CMAKE_REQUIRED_FLAGS)
 
