@@ -3,132 +3,440 @@
 
 #include "deformableconv2d_mips.h"
 
+#if __mips_msa
+#include <msa.h>
+#endif // __mips_msa
+#include "mips_activation.h"
+#include "mips_usability.h"
+
+#include "benchmark.h"
+#include "cpu.h"
+#include "layer_type.h"
+
 namespace ncnn {
+
+#include "deformableconv2d_packed.h"
 
 DeformableConv2D_mips::DeformableConv2D_mips()
 {
+#if __mips_msa
     support_packing = true;
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
+
+    activation = 0;
+    gemm = 0;
 }
 
-static int unpack_or_cast_to_float32(const Mat& src, Mat& dst, const Option& opt)
+static int _4Dindex_to_1Dindex(int i0, int i1, int i2, int i3, int l1, int l2, int l3)
 {
-    if (src.empty())
+    return ((i0 * l1 + i1) * l2 + i2) * l3 + i3;
+}
+
+static int _6Dindex_to_1Dindex(int i0, int i1, int i2, int i3, int i4, int i5, int l1, int l2, int l3, int l4, int l5)
+{
+    return ((((i0 * l1 + i1) * l2 + i2) * l3 + i3) * l4 + i4) * l5 + i5;
+}
+
+static void deformableconv2d_transform_kernel_packed_msa(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
+{
+    const int maxk = kernel_w * kernel_h;
+
+    // src = kw-kh-inch-outch
+    // dst = pb-pa-inch/pa-kw-kh-outch/pb
     {
-        dst = src;
-        return 0;
+        const float* weight_ptr = weight_data;
+
+        weight_data_tm.create(num_input * maxk * num_output / (elempack * out_elempack), (size_t)4u * elempack * out_elempack, elempack * out_elempack);
+        float* ptr = weight_data_tm;
+        for (int oc = 0; oc < num_output; oc++)
+        {
+            for (int i = 0; i < kernel_h; i++)
+            {
+                for (int j = 0; j < kernel_w; j++)
+                {
+                    for (int ic = 0; ic < num_input; ic++)
+                    {
+                        ptr[_6Dindex_to_1Dindex(oc / out_elempack, i, j, ic / elempack, ic % elempack, oc % out_elempack, kernel_h, kernel_w, num_input / elempack, elempack, out_elempack)] = weight_ptr[_4Dindex_to_1Dindex(oc, ic, i, j, num_input, kernel_h, kernel_w)];
+                    }
+                }
+            }
+        }
+        weight_data_tm = weight_data_tm.reshape(num_input / elempack, maxk, num_output / out_elempack);
+    }
+}
+
+int DeformableConv2D_mips::create_pipeline(const Option& opt)
+{
+    activation = create_activation_layer(activation_type, activation_params, opt);
+
+    int kernel_size = kernel_w * kernel_h;
+    int num_input = weight_data_size / kernel_size / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+
+    if (opt.use_sgemm_convolution)
+    {
+        const int maxk = kernel_w * kernel_h;
+
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+
+        ncnn::ParamDict pd;
+        pd.set(2, 0);                   // transA
+        pd.set(3, 0);                   // transB
+        pd.set(4, 1);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, 1);                   // constantC
+        pd.set(7, num_output);          // M = outch
+        pd.set(8, 0);                   // N = size
+        pd.set(9, maxk * num_input);    // K = maxk*inch
+        pd.set(10, bias_term ? 1 : -1); // constant_broadcast_type_C = (M)
+        pd.set(11, 1);                  // output_N1M
+
+        gemm->load_param(pd);
+
+        // maxk-inch-outch to pa-maxk-inch/pa-outch
+        Mat tmp;
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            tmp.create(maxk * num_input, num_output);
+
+            for (int q = 0; q < num_output; q += 1)
+            {
+                float* g00 = tmp.row(q);
+
+                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q).row(p + i);
+                            g00[0] = k00[k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (bias_term)
+        {
+            ncnn::Mat weights[2];
+            weights[0] = tmp;
+            weights[1] = bias_data;
+
+            gemm->load_model(ModelBinFromMatArray(weights));
+        }
+        else
+        {
+            ncnn::Mat weights[1];
+            weights[0] = tmp;
+
+            gemm->load_model(ModelBinFromMatArray(weights));
+        }
+
+        gemm->create_pipeline(opt);
+    }
+    else
+    {
+        deformableconv2d_transform_kernel_packed_msa(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
-    Mat unpacked = src;
-    if (src.elempack != 1)
-    {
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
+    if (opt.lightmode)
+        weight_data.release();
 
-        convert_packing(src, unpacked, 1, opt_unpack);
-        if (unpacked.empty())
-            return -100;
-    }
-
-    if (unpacked.elembits() == 16)
-    {
-#if NCNN_BF16
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = opt.workspace_allocator;
-
-        cast_bfloat16_to_float32(unpacked, dst, opt_cast);
-        if (dst.empty())
-            return -100;
-
-        return 0;
-#else
-        return -100;
-#endif
-    }
-
-    dst = unpacked;
     return 0;
 }
 
-static int restore_output_layout(const Mat& src, Mat& dst, int out_elempack, bool output_bf16, const Option& opt)
+int DeformableConv2D_mips::destroy_pipeline(const Option& opt)
 {
-    Mat tmp = src;
-
-    if (out_elempack != 1)
+    if (activation)
     {
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat packed;
-        convert_packing(tmp, packed, out_elempack, opt_pack);
-        if (packed.empty())
-            return -100;
-
-        tmp = packed;
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
     }
 
-    if (output_bf16)
+    if (gemm)
     {
-#if NCNN_BF16
-        cast_float32_to_bfloat16(tmp, dst, opt);
-        if (dst.empty())
-            return -100;
-
-        return 0;
-#else
-        return -100;
-#endif
+        gemm->destroy_pipeline(opt);
+        delete gemm;
+        gemm = 0;
     }
 
-    dst = tmp;
     return 0;
 }
 
 int DeformableConv2D_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& offset = bottom_blobs[1];
+    const bool has_mask = (bottom_blobs.size() == 3);
+    Mat& top_blob = top_blobs[0];
 
-    bool all_pack1_fp32 = true;
-    for (size_t i = 0; i < bottom_blobs.size(); i++)
+    const int elembits = bottom_blob.elembits();
+
+#if NCNN_BF16
+    if (elembits == 16)
     {
-        if (bottom_blobs[i].elempack != 1 || bottom_blobs[i].elembits() != 32)
+        Option opt_fp32 = opt;
+        opt_fp32.use_bf16_storage = false;
+
+        std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
         {
-            all_pack1_fp32 = false;
-            break;
+            Option opt_cast = opt;
+            opt_cast.blob_allocator = opt.workspace_allocator;
+            cast_bfloat16_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt_cast);
+            if (bottom_blobs_fp32[i].empty())
+                return -100;
         }
-    }
 
-    if (all_pack1_fp32)
-        return DeformableConv2D::forward(bottom_blobs, top_blobs, opt);
+        std::vector<Mat> top_blobs_fp32(1);
+        int ret = forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
+        if (ret != 0)
+            return ret;
 
-    Option opt_fp32 = opt;
-    opt_fp32.use_packing_layout = false;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_fp16_arithmetic = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
-
-    std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-    for (size_t i = 0; i < bottom_blobs.size(); i++)
-    {
-        if (unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt) != 0)
+        cast_float32_to_bfloat16(top_blobs_fp32[0], top_blob, opt);
+        if (top_blob.empty())
             return -100;
-    }
 
-    std::vector<Mat> top_blobs_fp32(1);
-    int ret = DeformableConv2D::forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
-    if (ret != 0)
-        return ret;
+        return 0;
+    }
+#endif // NCNN_BF16
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int outw = (w + pad_left + pad_right - kernel_extent_w) / stride_w + 1;
+    const int outh = (h + pad_top + pad_bottom - kernel_extent_h) / stride_h + 1;
 
     int out_elempack = 1;
+#if __mips_msa
     if (opt.use_packing_layout)
+    {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    top_blobs.resize(1);
-    return restore_output_layout(top_blobs_fp32[0], top_blobs[0], out_elempack, bottom_blob.elembits() == 16, opt);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (opt.use_sgemm_convolution)
+    {
+        const int size = outw * outh;
+        const int maxk = kernel_w * kernel_h;
+
+        Mat offset_unpacked;
+        convert_packing(offset, offset_unpacked, 1, opt);
+
+        Mat mask_unpacked;
+        if (has_mask)
+        {
+            const Mat& mask = bottom_blobs[2];
+            convert_packing(mask, mask_unpacked, 1, opt);
+        }
+
+        // im2col
+        Mat bottom_im2col(size, maxk * channels, elemsize, elempack, opt.workspace_allocator);
+#if __mips_msa
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < channels; p++)
+            {
+                const Mat img = bottom_blob.channel(p);
+                float* ptr = bottom_im2col.row(p * maxk);
+
+                for (int u = 0; u < kernel_h; u++)
+                {
+                    for (int v = 0; v < kernel_w; v++)
+                    {
+                        const Mat offset_h_k = offset_unpacked.channel((u * kernel_w + v) * 2);
+                        const Mat offset_w_k = offset_unpacked.channel((u * kernel_w + v) * 2 + 1);
+                        const Mat mask_k = has_mask ? mask_unpacked.channel(u * kernel_w + v) : 0;
+
+                        for (int i = 0; i < outh; i++)
+                        {
+                            for (int j = 0; j < outw; j++)
+                            {
+                                float offset_h = offset_h_k.row(i)[j];
+                                float offset_w = offset_w_k.row(i)[j];
+
+                                int h_in = i * stride_h - pad_top;
+                                int w_in = j * stride_w - pad_left;
+
+                                const float h_im = h_in + u * dilation_h + offset_h;
+                                const float w_im = w_in + v * dilation_w + offset_w;
+
+                                // Bilinear
+                                v4f32 _val = (v4f32)__msa_fill_w(0);
+                                bool cond = h_im > -1 && w_im > -1 && h_im < h && w_im < w;
+                                if (cond)
+                                {
+                                    int h_low = (int)floorf(h_im);
+                                    int w_low = (int)floorf(w_im);
+                                    int h_high = h_low + 1;
+                                    int w_high = w_low + 1;
+
+                                    float lh = h_im - h_low;
+                                    float lw = w_im - w_low;
+                                    float hh = 1 - lh;
+                                    float hw = 1 - lw;
+
+                                    bool v1_cond = (h_low >= 0 && w_low >= 0);
+                                    bool v2_cond = (h_low >= 0 && w_high <= w - 1);
+                                    bool v3_cond = (h_high <= h - 1 && w_low >= 0);
+                                    bool v4_cond = (h_high <= h - 1 && w_high <= w - 1);
+
+                                    float w1 = hh * hw;
+                                    float w2 = hh * lw;
+                                    float w3 = lh * hw;
+                                    float w4 = lh * lw;
+
+                                    v4f32 _v1 = v1_cond ? (v4f32)__msa_ld_w(img.row(h_low) + w_low * 4, 0) : (v4f32)__msa_fill_w(0);
+                                    v4f32 _v2 = v2_cond ? (v4f32)__msa_ld_w(img.row(h_low) + w_high * 4, 0) : (v4f32)__msa_fill_w(0);
+                                    v4f32 _v3 = v3_cond ? (v4f32)__msa_ld_w(img.row(h_high) + w_low * 4, 0) : (v4f32)__msa_fill_w(0);
+                                    v4f32 _v4 = v4_cond ? (v4f32)__msa_ld_w(img.row(h_high) + w_high * 4, 0) : (v4f32)__msa_fill_w(0);
+
+                                    _val = __msa_fmadd_w(_val, _v1, __msa_fill_w_f32(w1));
+                                    _val = __msa_fmadd_w(_val, _v2, __msa_fill_w_f32(w2));
+                                    _val = __msa_fmadd_w(_val, _v3, __msa_fill_w_f32(w3));
+                                    _val = __msa_fmadd_w(_val, _v4, __msa_fill_w_f32(w4));
+
+                                    if (has_mask)
+                                        _val = __msa_fmul_w(_val, __msa_fill_w_f32(mask_k.row(i)[j]));
+                                }
+
+                                __msa_st_w((v4i32)_val, ptr, 0);
+
+                                ptr += 4;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+#endif // __mips_msa
+
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < channels; p++)
+            {
+                const Mat img = bottom_blob.channel(p);
+                float* ptr = bottom_im2col.row(p * maxk);
+
+                for (int u = 0; u < kernel_h; u++)
+                {
+                    for (int v = 0; v < kernel_w; v++)
+                    {
+                        const Mat offset_h_k = offset_unpacked.channel((u * kernel_w + v) * 2);
+                        const Mat offset_w_k = offset_unpacked.channel((u * kernel_w + v) * 2 + 1);
+                        const Mat mask_k = has_mask ? mask_unpacked.channel(u * kernel_w + v) : 0;
+
+                        for (int i = 0; i < outh; i++)
+                        {
+                            for (int j = 0; j < outw; j++)
+                            {
+                                float offset_h = offset_h_k.row(i)[j];
+                                float offset_w = offset_w_k.row(i)[j];
+
+                                int h_in = i * stride_h - pad_top;
+                                int w_in = j * stride_w - pad_left;
+
+                                const float h_im = h_in + u * dilation_h + offset_h;
+                                const float w_im = w_in + v * dilation_w + offset_w;
+
+                                // Bilinear
+                                float val = 0.f;
+                                bool cond = h_im > -1 && w_im > -1 && h_im < h && w_im < w;
+                                if (cond)
+                                {
+                                    int h_low = (int)floorf(h_im);
+                                    int w_low = (int)floorf(w_im);
+                                    int h_high = h_low + 1;
+                                    int w_high = w_low + 1;
+
+                                    float lh = h_im - h_low;
+                                    float lw = w_im - w_low;
+                                    float hh = 1 - lh;
+                                    float hw = 1 - lw;
+
+                                    bool v1_cond = (h_low >= 0 && w_low >= 0);
+                                    bool v2_cond = (h_low >= 0 && w_high <= w - 1);
+                                    bool v3_cond = (h_high <= h - 1 && w_low >= 0);
+                                    bool v4_cond = (h_high <= h - 1 && w_high <= w - 1);
+
+                                    float w1 = hh * hw;
+                                    float w2 = hh * lw;
+                                    float w3 = lh * hw;
+                                    float w4 = lh * lw;
+
+                                    float v1 = v1_cond ? img.row(h_low)[w_low] : 0.f;
+                                    float v2 = v2_cond ? img.row(h_low)[w_high] : 0.f;
+                                    float v3 = v3_cond ? img.row(h_high)[w_low] : 0.f;
+                                    float v4 = v4_cond ? img.row(h_high)[w_high] : 0.f;
+                                    val = w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4;
+
+                                    if (has_mask)
+                                        val *= mask_k.row(i)[j];
+                                }
+
+                                ptr[0] = val;
+
+                                ptr += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // sgemm
+        {
+            top_blob.w = outw * outh;
+            top_blob.h = 1;
+        }
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        gemm->forward(bottom_im2col, top_blob, opt_b);
+        {
+            top_blob.w = outw;
+            top_blob.h = outh;
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+
+        return 0;
+    }
+
+    deformableconv2d_packed(bottom_blobs, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_left, pad_top, activation_type, activation_params, opt);
+
+    return 0;
 }
 
 } // namespace ncnn

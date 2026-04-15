@@ -5,21 +5,36 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_usability.h"
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "eltwise_bf16s.h"
+#endif
+
 Eltwise_loongarch::Eltwise_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -318,5 +333,21 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_BF16
+int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    eltwise_bf16s(bottom_blobs, top_blob, op_type, coeffs, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

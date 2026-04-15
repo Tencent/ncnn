@@ -502,95 +502,95 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m256 _vlow, __m256 _vhigh,
 static NCNN_FORCEINLINE void transpose4x4_epi32(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
 {
     __m128i _tmp0 = __lsx_vilvr_w(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_w(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_w(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_w(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_w(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_w(_r3, _r2);
 
     _r0 = __lsx_vilvr_d(_tmp2, _tmp0);
-    _r1 = __lsx_vilvl_d(_tmp2, _tmp0);
+    _r1 = __lsx_vilvh_d(_tmp2, _tmp0);
     _r2 = __lsx_vilvr_d(_tmp3, _tmp1);
-    _r3 = __lsx_vilvl_d(_tmp3, _tmp1);
+    _r3 = __lsx_vilvh_d(_tmp3, _tmp1);
 }
 
 // transpose4x4_ps - transpose 4x4 block of float (LSX)
 static NCNN_FORCEINLINE void transpose4x4_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3)
 {
     __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_r1, (__m128i)_r0);
-    __m128 _tmp1 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
+    __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
     __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_r3, (__m128i)_r2);
-    __m128 _tmp3 = (__m128)__lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
+    __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
 
     _r0 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
-    _r1 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
+    _r1 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
     _r2 = (__m128)__lsx_vilvr_d((__m128i)_tmp3, (__m128i)_tmp1);
-    _r3 = (__m128)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp1);
+    _r3 = (__m128)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp1);
 }
 
 // transpose4x8_epi32 - transpose 4x8 block of int32 (LSX)
 static NCNN_FORCEINLINE void transpose4x8_epi32(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7)
 {
     __m128i _tmp0 = __lsx_vilvr_w(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_w(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_w(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_w(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_w(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_w(_r3, _r2);
     __m128i _tmp4 = __lsx_vilvr_w(_r5, _r4);
-    __m128i _tmp5 = __lsx_vilvl_w(_r5, _r4);
+    __m128i _tmp5 = __lsx_vilvh_w(_r5, _r4);
     __m128i _tmp6 = __lsx_vilvr_w(_r7, _r6);
-    __m128i _tmp7 = __lsx_vilvl_w(_r7, _r6);
+    __m128i _tmp7 = __lsx_vilvh_w(_r7, _r6);
 
     _r0 = __lsx_vilvr_d(_tmp2, _tmp0);
     _r1 = __lsx_vilvr_d(_tmp6, _tmp4);
-    _r2 = __lsx_vilvl_d(_tmp2, _tmp0);
-    _r3 = __lsx_vilvl_d(_tmp6, _tmp4);
+    _r2 = __lsx_vilvh_d(_tmp2, _tmp0);
+    _r3 = __lsx_vilvh_d(_tmp6, _tmp4);
     _r4 = __lsx_vilvr_d(_tmp3, _tmp1);
     _r5 = __lsx_vilvr_d(_tmp7, _tmp5);
-    _r6 = __lsx_vilvl_d(_tmp3, _tmp1);
-    _r7 = __lsx_vilvl_d(_tmp7, _tmp5);
+    _r6 = __lsx_vilvh_d(_tmp3, _tmp1);
+    _r7 = __lsx_vilvh_d(_tmp7, _tmp5);
 }
 
 // transpose8x8_epi16 - transpose 8x8 block of int16 (LSX)
 static NCNN_FORCEINLINE void transpose8x8_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7)
 {
     __m128i _tmp0 = __lsx_vilvr_h(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_h(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_h(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_h(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_h(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_h(_r3, _r2);
     __m128i _tmp4 = __lsx_vilvr_h(_r5, _r4);
-    __m128i _tmp5 = __lsx_vilvl_h(_r5, _r4);
+    __m128i _tmp5 = __lsx_vilvh_h(_r5, _r4);
     __m128i _tmp6 = __lsx_vilvr_h(_r7, _r6);
-    __m128i _tmp7 = __lsx_vilvl_h(_r7, _r6);
+    __m128i _tmp7 = __lsx_vilvh_h(_r7, _r6);
 
     __m128i _tmp8 = __lsx_vilvr_w(_tmp2, _tmp0);
-    __m128i _tmp9 = __lsx_vilvl_w(_tmp2, _tmp0);
+    __m128i _tmp9 = __lsx_vilvh_w(_tmp2, _tmp0);
     __m128i _tmpa = __lsx_vilvr_w(_tmp3, _tmp1);
-    __m128i _tmpb = __lsx_vilvl_w(_tmp3, _tmp1);
+    __m128i _tmpb = __lsx_vilvh_w(_tmp3, _tmp1);
     __m128i _tmpc = __lsx_vilvr_w(_tmp6, _tmp4);
-    __m128i _tmpd = __lsx_vilvl_w(_tmp6, _tmp4);
+    __m128i _tmpd = __lsx_vilvh_w(_tmp6, _tmp4);
     __m128i _tmpe = __lsx_vilvr_w(_tmp7, _tmp5);
-    __m128i _tmpf = __lsx_vilvl_w(_tmp7, _tmp5);
+    __m128i _tmpf = __lsx_vilvh_w(_tmp7, _tmp5);
 
     _r0 = __lsx_vilvr_d(_tmp8, _tmpc);
-    _r1 = __lsx_vilvl_d(_tmp8, _tmpc);
+    _r1 = __lsx_vilvh_d(_tmp8, _tmpc);
     _r2 = __lsx_vilvr_d(_tmp9, _tmpd);
-    _r3 = __lsx_vilvl_d(_tmp9, _tmpd);
+    _r3 = __lsx_vilvh_d(_tmp9, _tmpd);
     _r4 = __lsx_vilvr_d(_tmpa, _tmpe);
-    _r5 = __lsx_vilvl_d(_tmpa, _tmpe);
+    _r5 = __lsx_vilvh_d(_tmpa, _tmpe);
     _r6 = __lsx_vilvr_d(_tmpb, _tmpf);
-    _r7 = __lsx_vilvl_d(_tmpb, _tmpf);
+    _r7 = __lsx_vilvh_d(_tmpb, _tmpf);
 }
 
 // transpose8x4_epi16 - transpose 8x4 block of int16 (LSX)
 static NCNN_FORCEINLINE void transpose8x4_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
 {
     __m128i _tmp0 = __lsx_vilvr_h(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_h(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_h(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_h(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_h(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_h(_r3, _r2);
 
     _r0 = __lsx_vilvr_w(_tmp2, _tmp0);
-    _r1 = __lsx_vilvl_w(_tmp2, _tmp0);
+    _r1 = __lsx_vilvh_w(_tmp2, _tmp0);
     _r2 = __lsx_vilvr_w(_tmp3, _tmp1);
-    _r3 = __lsx_vilvl_w(_tmp3, _tmp1);
+    _r3 = __lsx_vilvh_w(_tmp3, _tmp1);
 }
 
 // transpose8x4_epi8 - transpose 8x4 block of int8 (LSX)
@@ -600,155 +600,163 @@ static NCNN_FORCEINLINE void transpose8x4_epi8(__m128i& _r0, __m128i& _r1, __m12
     __m128i _tmp1 = __lsx_vilvr_h(_r3, _r2);
 
     _r0 = __lsx_vilvr_w(_tmp1, _tmp0);
-    _r1 = __lsx_vilvl_w(_tmp1, _tmp0);
+    _r1 = __lsx_vilvh_w(_tmp1, _tmp0);
 }
 
 // transpose4x4_epi16 - transpose 4x4 block of int16 (LSX)
 static NCNN_FORCEINLINE void transpose4x4_epi16(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
 {
     __m128i _tmp0 = __lsx_vilvr_h(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_h(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_h(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_h(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_h(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_h(_r3, _r2);
 
     _r0 = __lsx_vilvr_w(_tmp2, _tmp0);
-    _r1 = __lsx_vilvl_w(_tmp2, _tmp0);
+    _r1 = __lsx_vilvh_w(_tmp2, _tmp0);
     _r2 = __lsx_vilvr_w(_tmp3, _tmp1);
-    _r3 = __lsx_vilvl_w(_tmp3, _tmp1);
+    _r3 = __lsx_vilvh_w(_tmp3, _tmp1);
 }
 
 // transpose8x4_ps - transpose 8x4 block of float (LSX)
 static NCNN_FORCEINLINE void transpose8x4_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3)
 {
     __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_r1, (__m128i)_r0);
-    __m128 _tmp1 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
+    __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
     __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_r3, (__m128i)_r2);
-    __m128 _tmp3 = (__m128)__lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
+    __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
 
     _r0 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
-    _r1 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
+    _r1 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
     _r2 = (__m128)__lsx_vilvr_d((__m128i)_tmp3, (__m128i)_tmp1);
-    _r3 = (__m128)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp1);
+    _r3 = (__m128)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp1);
 }
 
 // transpose8x8_ps - transpose 8x8 block of float (LSX)
 static NCNN_FORCEINLINE void transpose8x8_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3, __m128& _r4, __m128& _r5, __m128& _r6, __m128& _r7)
 {
     __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_r1, (__m128i)_r0);
-    __m128 _tmp1 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
+    __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
     __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_r3, (__m128i)_r2);
-    __m128 _tmp3 = (__m128)__lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
+    __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
     __m128 _tmp4 = (__m128)__lsx_vilvr_w((__m128i)_r5, (__m128i)_r4);
-    __m128 _tmp5 = (__m128)__lsx_vilvl_w((__m128i)_r5, (__m128i)_r4);
+    __m128 _tmp5 = (__m128)__lsx_vilvh_w((__m128i)_r5, (__m128i)_r4);
     __m128 _tmp6 = (__m128)__lsx_vilvr_w((__m128i)_r7, (__m128i)_r6);
-    __m128 _tmp7 = (__m128)__lsx_vilvl_w((__m128i)_r7, (__m128i)_r6);
+    __m128 _tmp7 = (__m128)__lsx_vilvh_w((__m128i)_r7, (__m128i)_r6);
 
     __m128 _tmp8 = (__m128)__lsx_vilvr_w((__m128i)_tmp2, (__m128i)_tmp0);
-    __m128 _tmp9 = (__m128)__lsx_vilvl_w((__m128i)_tmp2, (__m128i)_tmp0);
+    __m128 _tmp9 = (__m128)__lsx_vilvh_w((__m128i)_tmp2, (__m128i)_tmp0);
     __m128 _tmpa = (__m128)__lsx_vilvr_w((__m128i)_tmp3, (__m128i)_tmp1);
-    __m128 _tmpb = (__m128)__lsx_vilvl_w((__m128i)_tmp3, (__m128i)_tmp1);
+    __m128 _tmpb = (__m128)__lsx_vilvh_w((__m128i)_tmp3, (__m128i)_tmp1);
     __m128 _tmpc = (__m128)__lsx_vilvr_w((__m128i)_tmp6, (__m128i)_tmp4);
-    __m128 _tmpd = (__m128)__lsx_vilvl_w((__m128i)_tmp6, (__m128i)_tmp4);
+    __m128 _tmpd = (__m128)__lsx_vilvh_w((__m128i)_tmp6, (__m128i)_tmp4);
     __m128 _tmpe = (__m128)__lsx_vilvr_w((__m128i)_tmp7, (__m128i)_tmp5);
-    __m128 _tmpf = (__m128)__lsx_vilvl_w((__m128i)_tmp7, (__m128i)_tmp5);
+    __m128 _tmpf = (__m128)__lsx_vilvh_w((__m128i)_tmp7, (__m128i)_tmp5);
 
     _r0 = (__m128)__lsx_vilvr_d((__m128i)_tmp8, (__m128i)_tmpc);
-    _r1 = (__m128)__lsx_vilvl_d((__m128i)_tmp8, (__m128i)_tmpc);
+    _r1 = (__m128)__lsx_vilvh_d((__m128i)_tmp8, (__m128i)_tmpc);
     _r2 = (__m128)__lsx_vilvr_d((__m128i)_tmp9, (__m128i)_tmpd);
-    _r3 = (__m128)__lsx_vilvl_d((__m128i)_tmp9, (__m128i)_tmpd);
+    _r3 = (__m128)__lsx_vilvh_d((__m128i)_tmp9, (__m128i)_tmpd);
     _r4 = (__m128)__lsx_vilvr_d((__m128i)_tmpa, (__m128i)_tmpe);
-    _r5 = (__m128)__lsx_vilvl_d((__m128i)_tmpa, (__m128i)_tmpe);
+    _r5 = (__m128)__lsx_vilvh_d((__m128i)_tmpa, (__m128i)_tmpe);
     _r6 = (__m128)__lsx_vilvr_d((__m128i)_tmpb, (__m128i)_tmpf);
-    _r7 = (__m128)__lsx_vilvl_d((__m128i)_tmpb, (__m128i)_tmpf);
+    _r7 = (__m128)__lsx_vilvh_d((__m128i)_tmpb, (__m128i)_tmpf);
 }
 
 // transpose8x8_epi32 - transpose 8x8 block of int32 (LSX)
 static NCNN_FORCEINLINE void transpose8x8_epi32(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3, __m128i& _r4, __m128i& _r5, __m128i& _r6, __m128i& _r7)
 {
     __m128i _tmp0 = __lsx_vilvr_w(_r1, _r0);
-    __m128i _tmp1 = __lsx_vilvl_w(_r1, _r0);
+    __m128i _tmp1 = __lsx_vilvh_w(_r1, _r0);
     __m128i _tmp2 = __lsx_vilvr_w(_r3, _r2);
-    __m128i _tmp3 = __lsx_vilvl_w(_r3, _r2);
+    __m128i _tmp3 = __lsx_vilvh_w(_r3, _r2);
     __m128i _tmp4 = __lsx_vilvr_w(_r5, _r4);
-    __m128i _tmp5 = __lsx_vilvl_w(_r5, _r4);
+    __m128i _tmp5 = __lsx_vilvh_w(_r5, _r4);
     __m128i _tmp6 = __lsx_vilvr_w(_r7, _r6);
-    __m128i _tmp7 = __lsx_vilvl_w(_r7, _r6);
+    __m128i _tmp7 = __lsx_vilvh_w(_r7, _r6);
 
     __m128i _tmp8 = __lsx_vilvr_w(_tmp2, _tmp0);
-    __m128i _tmp9 = __lsx_vilvl_w(_tmp2, _tmp0);
+    __m128i _tmp9 = __lsx_vilvh_w(_tmp2, _tmp0);
     __m128i _tmpa = __lsx_vilvr_w(_tmp3, _tmp1);
-    __m128i _tmpb = __lsx_vilvl_w(_tmp3, _tmp1);
+    __m128i _tmpb = __lsx_vilvh_w(_tmp3, _tmp1);
     __m128i _tmpc = __lsx_vilvr_w(_tmp6, _tmp4);
-    __m128i _tmpd = __lsx_vilvl_w(_tmp6, _tmp4);
+    __m128i _tmpd = __lsx_vilvh_w(_tmp6, _tmp4);
     __m128i _tmpe = __lsx_vilvr_w(_tmp7, _tmp5);
-    __m128i _tmpf = __lsx_vilvl_w(_tmp7, _tmp5);
+    __m128i _tmpf = __lsx_vilvh_w(_tmp7, _tmp5);
 
     _r0 = __lsx_vilvr_d(_tmp8, _tmpc);
-    _r1 = __lsx_vilvl_d(_tmp8, _tmpc);
+    _r1 = __lsx_vilvh_d(_tmp8, _tmpc);
     _r2 = __lsx_vilvr_d(_tmp9, _tmpd);
-    _r3 = __lsx_vilvl_d(_tmp9, _tmpd);
+    _r3 = __lsx_vilvh_d(_tmp9, _tmpd);
     _r4 = __lsx_vilvr_d(_tmpa, _tmpe);
-    _r5 = __lsx_vilvl_d(_tmpa, _tmpe);
+    _r5 = __lsx_vilvh_d(_tmpa, _tmpe);
     _r6 = __lsx_vilvr_d(_tmpb, _tmpf);
-    _r7 = __lsx_vilvl_d(_tmpb, _tmpf);
+    _r7 = __lsx_vilvh_d(_tmpb, _tmpf);
 }
 
 // transpose16x4_epi8 - transpose 16x4 block of int8 (LSX)
 static NCNN_FORCEINLINE void transpose16x4_epi8(__m128i& _r0, __m128i& _r1, __m128i& _r2, __m128i& _r3)
 {
     __m128i _tmp0 = __lsx_vilvr_b(_r0, _r1);
-    __m128i _tmp1 = __lsx_vilvl_b(_r0, _r1);
+    __m128i _tmp1 = __lsx_vilvh_b(_r0, _r1);
     __m128i _tmp2 = __lsx_vilvr_b(_r2, _r3);
-    __m128i _tmp3 = __lsx_vilvl_b(_r2, _r3);
+    __m128i _tmp3 = __lsx_vilvh_b(_r2, _r3);
 
     _r0 = __lsx_vilvr_h(_tmp0, _tmp2);
-    _r1 = __lsx_vilvl_h(_tmp0, _tmp2);
+    _r1 = __lsx_vilvh_h(_tmp0, _tmp2);
     _r2 = __lsx_vilvr_h(_tmp1, _tmp3);
-    _r3 = __lsx_vilvl_h(_tmp1, _tmp3);
+    _r3 = __lsx_vilvh_h(_tmp1, _tmp3);
 }
 
 // FMA equivalents (LSX has fmadd/fmsub)
+// __lsx_vfmadd_s(a, b, c) = a * b + c
+// __lsx_vfmsub_s(a, b, c) = a * b - c
+// __lsx_vfnmadd_s(a, b, c) = -(a * b) + c
+// __lsx_vfnmsub_s(a, b, c) = -(a * b) - c
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
-    return __lsx_vfmadd_s(_c, _a, _b);
+    // return a * b + c
+    return __lsx_vfmadd_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     // return -a * b + c
-    return __lsx_vfmsub_s(_c, _a, _b);
+    return __lsx_vfnmadd_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m128 _mm_comp_fmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     // return a * b - c
-    return __lsx_vfmadd_s(_a, _b, _c);
+    return __lsx_vfmsub_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m128 _mm_comp_fnmsub_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
-    // return -(a * b) - c = fmsub(-c, a, b) ... use fnmadd then negate
-    __m128 _neg_a = (__m128)__lsx_vbitrevi_w((__m128i)_a, 31);
-    return (__m128)__lsx_vfsub_s((__m128)__lsx_vfmul_s(_neg_a, _b), _c);
+    // return -(a * b) - c
+    return __lsx_vfnmsub_s(_a, _b, _c);
 }
 
 // reduce operations (LSX)
 static NCNN_FORCEINLINE float _mm_reduce_add_ps(const __m128& x)
 {
-    __m128 hi64 = (__m128)__lsx_vilvl_d((__m128i)x, (__m128i)x);
+    __m128 hi64 = (__m128)__lsx_vbsrl_v((__m128i)x, 8);
     __m128 sum64 = __lsx_vfadd_s(hi64, x);
-    __m128 hi32 = (__m128)__lsx_vilvr_w((__m128i)hi64, (__m128i)sum64);
+    __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)sum64, 4);
     __m128 sum32 = __lsx_vfadd_s(sum64, hi32);
-    return __lsx_vpickve2gr_w((__m128i)sum32, 0);
+    float result;
+    *(int*)&result = __lsx_vpickve2gr_w((__m128i)sum32, 0);
+    return result;
 }
 
 static NCNN_FORCEINLINE float _mm_reduce_max_ps(const __m128& x)
 {
-    __m128 hi64 = (__m128)__lsx_vilvl_d((__m128i)x, (__m128i)x);
+    __m128 hi64 = (__m128)__lsx_vbsrl_v((__m128i)x, 8);
     __m128 max64 = __lsx_vfmax_s(hi64, x);
-    __m128 hi32 = (__m128)__lsx_vilvr_w((__m128i)hi64, (__m128i)max64);
+    __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)max64, 4);
     __m128 max32 = __lsx_vfmax_s(max64, hi32);
-    return __lsx_vpickve2gr_w((__m128i)max32, 0);
+    float result;
+    *(int*)&result = __lsx_vpickve2gr_w((__m128i)max32, 0);
+    return result;
 }
 
 static NCNN_FORCEINLINE int _mm_reduce_add_epi32(const __m128i& x)
@@ -760,25 +768,25 @@ static NCNN_FORCEINLINE int _mm_reduce_add_epi32(const __m128i& x)
 
 static NCNN_FORCEINLINE int _mm_reduce_max_epi32(const __m128i& x)
 {
-    __m128i hi64 = __lsx_vilvl_d(x, x);
+    __m128i hi64 = __lsx_vbsrl_v(x, 8);
     __m128i max64 = __lsx_vmax_w(hi64, x);
-    __m128i hi32 = __lsx_vilvr_w(hi64, max64);
+    __m128i hi32 = __lsx_vbsrl_v(max64, 4);
     __m128i max32 = __lsx_vmax_w(max64, hi32);
     return __lsx_vpickve2gr_w(max32, 0);
 }
 
 static NCNN_FORCEINLINE int _mm_reduce_min_epi32(const __m128i& x)
 {
-    __m128i hi64 = __lsx_vilvl_d(x, x);
+    __m128i hi64 = __lsx_vbsrl_v(x, 8);
     __m128i min64 = __lsx_vmin_w(hi64, x);
-    __m128i hi32 = __lsx_vilvr_w(hi64, min64);
+    __m128i hi32 = __lsx_vbsrl_v(min64, 4);
     __m128i min32 = __lsx_vmin_w(min64, hi32);
     return __lsx_vpickve2gr_w(min32, 0);
 }
 
 static NCNN_FORCEINLINE int64_t _mm_reduce_add_epi64(const __m128i& x)
 {
-    __m128i hi64 = __lsx_vilvl_d(x, x);
+    __m128i hi64 = __lsx_vbsrl_v(x, 8);
     __m128i sum64 = __lsx_vadd_d(hi64, x);
     return ((int64_t*)&sum64)[0];
 }
@@ -1020,6 +1028,17 @@ static NCNN_FORCEINLINE __m128 bfloat2float_sse(const __m128i* ptr)
     return bfloat2float_sse(v0);
 }
 
+// Load 4 bf16 values from pointer using safe 64-bit load (no 16-byte overread)
+static NCNN_FORCEINLINE __m128 bfloat2float_sse(const unsigned short* ptr)
+{
+    int64_t v;
+    memcpy(&v, ptr, 8);
+    __m128i _zero = __lsx_vreplgr2vr_w(0);
+    __m128i _raw = __lsx_vreplgr2vr_d(v);
+    __m128i _a = __lsx_vilvl_h(_raw, _zero);
+    return (__m128)_a;
+}
+
 static NCNN_FORCEINLINE __m128i float2bfloat_sse(const __m128& v)
 {
     __m128i _a = (__m128i)v;
@@ -1082,16 +1101,32 @@ static NCNN_FORCEINLINE int32_t int8_short_to_int32_scalar(int8_t* v0)
     return _v0;
 }
 
-// HorizontalSums for 8 accumulators (LSX)
-static NCNN_FORCEINLINE __m128 HorizontalSums(__m128& v0, __m128& v1, __m128& v2, __m128& v3, __m128& v4, __m128& v5, __m128& v6, __m128& v7)
+// HorizontalSums for 4 accumulators (LSX)
+// Compute horizontal sum of each __m128 vector, pack 4 results into __m128
+static NCNN_FORCEINLINE __m128 HorizontalSums(__m128& v0, __m128& v1, __m128& v2, __m128& v3)
 {
-    __m128 s01 = __lsx_vfadd_s(v0, v1);
-    __m128 s23 = __lsx_vfadd_s(v2, v3);
-    __m128 s45 = __lsx_vfadd_s(v4, v5);
-    __m128 s67 = __lsx_vfadd_s(v6, v7);
-    __m128 s0123 = __lsx_vfadd_s(s01, s23);
-    __m128 s4556 = __lsx_vfadd_s(s45, s67);
-    return __lsx_vfadd_s(s0123, s4556);
+    transpose4x4_ps(v0, v1, v2, v3);
+    v0 = __lsx_vfadd_s(v0, v1);
+    v0 = __lsx_vfadd_s(v0, v2);
+    v0 = __lsx_vfadd_s(v0, v3);
+    return v0;
+}
+
+// HorizontalSums for 8 accumulators (LSX)
+// Compute horizontal sum of each __m128 vector, pack first 4 results into __m128
+// Note: only the first 4 sums fit in __m128. The last 4 sums are computed but only
+// the first group is returned. Use two calls for 8 accumulators if needed.
+static NCNN_FORCEINLINE void HorizontalSums(__m128& v0, __m128& v1, __m128& v2, __m128& v3, __m128& v4, __m128& v5, __m128& v6, __m128& v7, __m128& sum03, __m128& sum47)
+{
+    transpose4x4_ps(v0, v1, v2, v3);
+    sum03 = __lsx_vfadd_s(v0, v1);
+    sum03 = __lsx_vfadd_s(sum03, v2);
+    sum03 = __lsx_vfadd_s(sum03, v3);
+
+    transpose4x4_ps(v4, v5, v6, v7);
+    sum47 = __lsx_vfadd_s(v4, v5);
+    sum47 = __lsx_vfadd_s(sum47, v6);
+    sum47 = __lsx_vfadd_s(sum47, v7);
 }
 
 // fast integer division (LSX)
@@ -1176,68 +1211,74 @@ static NCNN_FORCEINLINE __m256i combine4x2_epi32(const __m128i& a, const __m128i
 // transpose8x8_ps - transpose 8x8 block of float (LASX)
 static NCNN_FORCEINLINE void transpose8x8_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3, __m256& _r4, __m256& _r5, __m256& _r6, __m256& _r7)
 {
+    // step 1: 32-bit word interleave
     __m256 _tmp0 = (__m256)__lasx_xvilvr_w((__m256i)_r1, (__m256i)_r0);
-    __m256 _tmp1 = (__m256)__lasx_xvilvl_w((__m256i)_r1, (__m256i)_r0);
+    __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_r1, (__m256i)_r0);
     __m256 _tmp2 = (__m256)__lasx_xvilvr_w((__m256i)_r3, (__m256i)_r2);
-    __m256 _tmp3 = (__m256)__lasx_xvilvl_w((__m256i)_r3, (__m256i)_r2);
+    __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_r3, (__m256i)_r2);
     __m256 _tmp4 = (__m256)__lasx_xvilvr_w((__m256i)_r5, (__m256i)_r4);
-    __m256 _tmp5 = (__m256)__lasx_xvilvl_w((__m256i)_r5, (__m256i)_r4);
+    __m256 _tmp5 = (__m256)__lasx_xvilvh_w((__m256i)_r5, (__m256i)_r4);
     __m256 _tmp6 = (__m256)__lasx_xvilvr_w((__m256i)_r7, (__m256i)_r6);
-    __m256 _tmp7 = (__m256)__lasx_xvilvl_w((__m256i)_r7, (__m256i)_r6);
+    __m256 _tmp7 = (__m256)__lasx_xvilvh_w((__m256i)_r7, (__m256i)_r6);
 
-    __m256 _tmp8 = (__m256)__lasx_xvilvr_w((__m256i)_tmp2, (__m256i)_tmp0);
-    __m256 _tmp9 = (__m256)__lasx_xvilvl_w((__m256i)_tmp2, (__m256i)_tmp0);
-    __m256 _tmpa = (__m256)__lasx_xvilvr_w((__m256i)_tmp3, (__m256i)_tmp1);
-    __m256 _tmpb = (__m256)__lasx_xvilvl_w((__m256i)_tmp3, (__m256i)_tmp1);
-    __m256 _tmpc = (__m256)__lasx_xvilvr_w((__m256i)_tmp6, (__m256i)_tmp4);
-    __m256 _tmpd = (__m256)__lasx_xvilvl_w((__m256i)_tmp6, (__m256i)_tmp4);
-    __m256 _tmpe = (__m256)__lasx_xvilvr_w((__m256i)_tmp7, (__m256i)_tmp5);
-    __m256 _tmpf = (__m256)__lasx_xvilvl_w((__m256i)_tmp7, (__m256i)_tmp5);
+    // step 2: 64-bit doubleword interleave
+    __m256 _tmp8 = (__m256)__lasx_xvilvr_d((__m256i)_tmp2, (__m256i)_tmp0);
+    __m256 _tmp9 = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
+    __m256 _tmpa = (__m256)__lasx_xvilvr_d((__m256i)_tmp3, (__m256i)_tmp1);
+    __m256 _tmpb = (__m256)__lasx_xvilvh_d((__m256i)_tmp3, (__m256i)_tmp1);
+    __m256 _tmpc = (__m256)__lasx_xvilvr_d((__m256i)_tmp6, (__m256i)_tmp4);
+    __m256 _tmpd = (__m256)__lasx_xvilvh_d((__m256i)_tmp6, (__m256i)_tmp4);
+    __m256 _tmpe = (__m256)__lasx_xvilvr_d((__m256i)_tmp7, (__m256i)_tmp5);
+    __m256 _tmpf = (__m256)__lasx_xvilvh_d((__m256i)_tmp7, (__m256i)_tmp5);
 
-    _r0 = (__m256)__lasx_xvilvr_d((__m256i)_tmp8, (__m256i)_tmpc);
-    _r1 = (__m256)__lasx_xvilvl_d((__m256i)_tmp8, (__m256i)_tmpc);
-    _r2 = (__m256)__lasx_xvilvr_d((__m256i)_tmp9, (__m256i)_tmpd);
-    _r3 = (__m256)__lasx_xvilvl_d((__m256i)_tmp9, (__m256i)_tmpd);
-    _r4 = (__m256)__lasx_xvilvr_d((__m256i)_tmpa, (__m256i)_tmpe);
-    _r5 = (__m256)__lasx_xvilvl_d((__m256i)_tmpa, (__m256i)_tmpe);
-    _r6 = (__m256)__lasx_xvilvr_d((__m256i)_tmpb, (__m256i)_tmpf);
-    _r7 = (__m256)__lasx_xvilvl_d((__m256i)_tmpb, (__m256i)_tmpf);
+    // step 3: cross-lane 128-bit permute
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, 0x20);
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, 0x20);
+    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, 0x20);
+    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, 0x20);
+    _r4 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, 0x31);
+    _r5 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, 0x31);
+    _r6 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, 0x31);
+    _r7 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, 0x31);
 }
 
 // transpose8x4_ps - transpose 8x4 block of float (LASX)
 static NCNN_FORCEINLINE void transpose8x4_ps(__m256& _r0, __m256& _r1, __m256& _r2, __m256& _r3)
 {
+    // Step 1: lane-wise word interleave
     __m256 _tmp0 = (__m256)__lasx_xvilvr_w((__m256i)_r1, (__m256i)_r0);
-    __m256 _tmp1 = (__m256)__lasx_xvilvl_w((__m256i)_r1, (__m256i)_r0);
+    __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_r1, (__m256i)_r0);
     __m256 _tmp2 = (__m256)__lasx_xvilvr_w((__m256i)_r3, (__m256i)_r2);
-    __m256 _tmp3 = (__m256)__lasx_xvilvl_w((__m256i)_r3, (__m256i)_r2);
+    __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_r3, (__m256i)_r2);
 
-    __m256 _tmp4 = (__m256)__lasx_xvilvr_w((__m256i)_tmp2, (__m256i)_tmp0);
-    __m256 _tmp5 = (__m256)__lasx_xvilvl_w((__m256i)_tmp2, (__m256i)_tmp0);
-    __m256 _tmp6 = (__m256)__lasx_xvilvr_w((__m256i)_tmp3, (__m256i)_tmp1);
-    __m256 _tmp7 = (__m256)__lasx_xvilvl_w((__m256i)_tmp3, (__m256i)_tmp1);
+    // Step 2: lane-wise doubleword interleave
+    __m256 _tmp4 = (__m256)__lasx_xvilvr_d((__m256i)_tmp2, (__m256i)_tmp0);
+    __m256 _tmp5 = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
+    __m256 _tmp6 = (__m256)__lasx_xvilvr_d((__m256i)_tmp3, (__m256i)_tmp1);
+    __m256 _tmp7 = (__m256)__lasx_xvilvh_d((__m256i)_tmp3, (__m256i)_tmp1);
 
-    _r0 = (__m256)__lasx_xvilvr_d((__m256i)_tmp4, (__m256i)_tmp5);
-    _r1 = (__m256)__lasx_xvilvl_d((__m256i)_tmp4, (__m256i)_tmp5);
-    _r2 = (__m256)__lasx_xvilvr_d((__m256i)_tmp6, (__m256i)_tmp7);
-    _r3 = (__m256)__lasx_xvilvl_d((__m256i)_tmp6, (__m256i)_tmp7);
+    // Step 3: cross-lane 128-bit permute
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, 0x20);
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, 0x20);
+    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, 0x31);
+    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, 0x31);
 }
 
 // transpose8x2_ps - transpose 8x2 block of float (LASX)
 static NCNN_FORCEINLINE void transpose8x2_ps(__m256& _r0, __m256& _r1)
 {
     __m256 _tmp0 = (__m256)__lasx_xvilvr_w((__m256i)_r1, (__m256i)_r0);
-    __m256 _tmp1 = (__m256)__lasx_xvilvl_w((__m256i)_r1, (__m256i)_r0);
+    __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_r1, (__m256i)_r0);
 
-    _r0 = (__m256)__lasx_xvilvr_d((__m256i)_tmp0, (__m256i)_tmp1);
-    _r1 = (__m256)__lasx_xvilvl_d((__m256i)_tmp0, (__m256i)_tmp1);
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, 0x20);
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, 0x31);
 }
 
 // transpose2x8_ps - transpose 2x8 block of float (LASX)
 static NCNN_FORCEINLINE void transpose2x8_ps(__m256& _r0, __m256& _r1)
 {
-    __m256 _tmp0 = (__m256)__lasx_xvpermi_q((__m256i)_r0, (__m256i)_r1, 0x20);
-    __m256 _tmp1 = (__m256)__lasx_xvpermi_q((__m256i)_r0, (__m256i)_r1, 0x31);
+    __m256 _tmp0 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, 0x20);
+    __m256 _tmp1 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, 0x31);
 
     _r0 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp0, 0x88);
     _r1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, 0xDD);
@@ -1247,155 +1288,154 @@ static NCNN_FORCEINLINE void transpose2x8_ps(__m256& _r0, __m256& _r1)
 static NCNN_FORCEINLINE void transpose8x8_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7)
 {
     __m256i _tmp0 = __lasx_xvilvr_w(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_w(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_w(_r1, _r0);
     __m256i _tmp2 = __lasx_xvilvr_w(_r3, _r2);
-    __m256i _tmp3 = __lasx_xvilvl_w(_r3, _r2);
+    __m256i _tmp3 = __lasx_xvilvh_w(_r3, _r2);
     __m256i _tmp4 = __lasx_xvilvr_w(_r5, _r4);
-    __m256i _tmp5 = __lasx_xvilvl_w(_r5, _r4);
+    __m256i _tmp5 = __lasx_xvilvh_w(_r5, _r4);
     __m256i _tmp6 = __lasx_xvilvr_w(_r7, _r6);
-    __m256i _tmp7 = __lasx_xvilvl_w(_r7, _r6);
+    __m256i _tmp7 = __lasx_xvilvh_w(_r7, _r6);
 
     __m256i _tmp8 = __lasx_xvilvr_w(_tmp2, _tmp0);
-    __m256i _tmp9 = __lasx_xvilvl_w(_tmp2, _tmp0);
+    __m256i _tmp9 = __lasx_xvilvh_w(_tmp2, _tmp0);
     __m256i _tmpa = __lasx_xvilvr_w(_tmp3, _tmp1);
-    __m256i _tmpb = __lasx_xvilvl_w(_tmp3, _tmp1);
+    __m256i _tmpb = __lasx_xvilvh_w(_tmp3, _tmp1);
     __m256i _tmpc = __lasx_xvilvr_w(_tmp6, _tmp4);
-    __m256i _tmpd = __lasx_xvilvl_w(_tmp6, _tmp4);
+    __m256i _tmpd = __lasx_xvilvh_w(_tmp6, _tmp4);
     __m256i _tmpe = __lasx_xvilvr_w(_tmp7, _tmp5);
-    __m256i _tmpf = __lasx_xvilvl_w(_tmp7, _tmp5);
+    __m256i _tmpf = __lasx_xvilvh_w(_tmp7, _tmp5);
 
     _r0 = __lasx_xvilvr_d(_tmp8, _tmpc);
-    _r1 = __lasx_xvilvl_d(_tmp8, _tmpc);
+    _r1 = __lasx_xvilvh_d(_tmp8, _tmpc);
     _r2 = __lasx_xvilvr_d(_tmp9, _tmpd);
-    _r3 = __lasx_xvilvl_d(_tmp9, _tmpd);
+    _r3 = __lasx_xvilvh_d(_tmp9, _tmpd);
     _r4 = __lasx_xvilvr_d(_tmpa, _tmpe);
-    _r5 = __lasx_xvilvl_d(_tmpa, _tmpe);
+    _r5 = __lasx_xvilvh_d(_tmpa, _tmpe);
     _r6 = __lasx_xvilvr_d(_tmpb, _tmpf);
-    _r7 = __lasx_xvilvl_d(_tmpb, _tmpf);
+    _r7 = __lasx_xvilvh_d(_tmpb, _tmpf);
 }
 
 // transpose8x4_epi32 - transpose 8x4 block of int32 (LASX)
 static NCNN_FORCEINLINE void transpose8x4_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3)
 {
     __m256i _tmp0 = __lasx_xvilvr_w(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_w(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_w(_r1, _r0);
     __m256i _tmp2 = __lasx_xvilvr_w(_r3, _r2);
-    __m256i _tmp3 = __lasx_xvilvl_w(_r3, _r2);
+    __m256i _tmp3 = __lasx_xvilvh_w(_r3, _r2);
 
     __m256i _tmp4 = __lasx_xvilvr_w(_tmp2, _tmp0);
-    __m256i _tmp5 = __lasx_xvilvl_w(_tmp2, _tmp0);
+    __m256i _tmp5 = __lasx_xvilvh_w(_tmp2, _tmp0);
     __m256i _tmp6 = __lasx_xvilvr_w(_tmp3, _tmp1);
-    __m256i _tmp7 = __lasx_xvilvl_w(_tmp3, _tmp1);
+    __m256i _tmp7 = __lasx_xvilvh_w(_tmp3, _tmp1);
 
     _r0 = __lasx_xvilvr_d(_tmp4, _tmp5);
-    _r1 = __lasx_xvilvl_d(_tmp4, _tmp5);
+    _r1 = __lasx_xvilvh_d(_tmp4, _tmp5);
     _r2 = __lasx_xvilvr_d(_tmp6, _tmp7);
-    _r3 = __lasx_xvilvl_d(_tmp6, _tmp7);
+    _r3 = __lasx_xvilvh_d(_tmp6, _tmp7);
 }
 
 // transpose8x2_epi32 - transpose 8x2 block of int32 (LASX)
 static NCNN_FORCEINLINE void transpose8x2_epi32(__m256i& _r0, __m256i& _r1)
 {
     __m256i _tmp0 = __lasx_xvilvr_w(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_w(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_w(_r1, _r0);
 
     _r0 = __lasx_xvilvr_d(_tmp0, _tmp1);
-    _r1 = __lasx_xvilvl_d(_tmp0, _tmp1);
+    _r1 = __lasx_xvilvh_d(_tmp0, _tmp1);
 }
 
 // transpose16x4_epi16 - transpose 16x4 block of int16 (LASX)
 static NCNN_FORCEINLINE void transpose16x4_epi16(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3)
 {
     __m256i _tmp0 = __lasx_xvilvr_h(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_h(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_h(_r1, _r0);
     __m256i _tmp2 = __lasx_xvilvr_h(_r3, _r2);
-    __m256i _tmp3 = __lasx_xvilvl_h(_r3, _r2);
+    __m256i _tmp3 = __lasx_xvilvh_h(_r3, _r2);
 
     __m256i _tmp4 = __lasx_xvilvr_w(_tmp0, _tmp2);
-    __m256i _tmp5 = __lasx_xvilvl_w(_tmp0, _tmp2);
+    __m256i _tmp5 = __lasx_xvilvh_w(_tmp0, _tmp2);
     __m256i _tmp6 = __lasx_xvilvr_w(_tmp1, _tmp3);
-    __m256i _tmp7 = __lasx_xvilvl_w(_tmp1, _tmp3);
+    __m256i _tmp7 = __lasx_xvilvh_w(_tmp1, _tmp3);
 
     _r0 = __lasx_xvilvr_d(_tmp4, _tmp5);
-    _r1 = __lasx_xvilvl_d(_tmp4, _tmp5);
+    _r1 = __lasx_xvilvh_d(_tmp4, _tmp5);
     _r2 = __lasx_xvilvr_d(_tmp6, _tmp7);
-    _r3 = __lasx_xvilvl_d(_tmp6, _tmp7);
+    _r3 = __lasx_xvilvh_d(_tmp6, _tmp7);
 }
 
 // transpose16x2_epi16 - transpose 16x2 block of int16 (LASX)
 static NCNN_FORCEINLINE void transpose16x2_epi16(__m256i& _r0, __m256i& _r1)
 {
     __m256i _tmp0 = __lasx_xvilvr_h(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_h(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_h(_r1, _r0);
 
     _r0 = __lasx_xvilvr_d(_tmp0, _tmp1);
-    _r1 = __lasx_xvilvl_d(_tmp0, _tmp1);
+    _r1 = __lasx_xvilvh_d(_tmp0, _tmp1);
 }
 
 // transpose16x8_epi16 - transpose 16x8 block of int16 (LASX)
 static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7)
 {
     __m256i _tmp0 = __lasx_xvilvr_h(_r1, _r0);
-    __m256i _tmp1 = __lasx_xvilvl_h(_r1, _r0);
+    __m256i _tmp1 = __lasx_xvilvh_h(_r1, _r0);
     __m256i _tmp2 = __lasx_xvilvr_h(_r3, _r2);
-    __m256i _tmp3 = __lasx_xvilvl_h(_r3, _r2);
+    __m256i _tmp3 = __lasx_xvilvh_h(_r3, _r2);
     __m256i _tmp4 = __lasx_xvilvr_h(_r5, _r4);
-    __m256i _tmp5 = __lasx_xvilvl_h(_r5, _r4);
+    __m256i _tmp5 = __lasx_xvilvh_h(_r5, _r4);
     __m256i _tmp6 = __lasx_xvilvr_h(_r7, _r6);
-    __m256i _tmp7 = __lasx_xvilvl_h(_r7, _r6);
+    __m256i _tmp7 = __lasx_xvilvh_h(_r7, _r6);
 
     __m256i _tmpg = __lasx_xvilvr_w(_tmp0, _tmp2);
-    __m256i _tmph = __lasx_xvilvl_w(_tmp0, _tmp2);
+    __m256i _tmph = __lasx_xvilvh_w(_tmp0, _tmp2);
     __m256i _tmpi = __lasx_xvilvr_w(_tmp1, _tmp3);
-    __m256i _tmpj = __lasx_xvilvl_w(_tmp1, _tmp3);
+    __m256i _tmpj = __lasx_xvilvh_w(_tmp1, _tmp3);
     __m256i _tmpk = __lasx_xvilvr_w(_tmp4, _tmp6);
-    __m256i _tmpl = __lasx_xvilvl_w(_tmp4, _tmp6);
+    __m256i _tmpl = __lasx_xvilvh_w(_tmp4, _tmp6);
     __m256i _tmpm = __lasx_xvilvr_w(_tmp5, _tmp7);
-    __m256i _tmpn = __lasx_xvilvl_w(_tmp5, _tmp7);
+    __m256i _tmpn = __lasx_xvilvh_w(_tmp5, _tmp7);
 
     _tmp0 = __lasx_xvilvr_d(_tmpg, _tmpk);
-    _tmp1 = __lasx_xvilvl_d(_tmpg, _tmpk);
+    _tmp1 = __lasx_xvilvh_d(_tmpg, _tmpk);
     _tmp2 = __lasx_xvilvr_d(_tmph, _tmpl);
-    _tmp3 = __lasx_xvilvl_d(_tmph, _tmpl);
+    _tmp3 = __lasx_xvilvh_d(_tmph, _tmpl);
     _tmp4 = __lasx_xvilvr_d(_tmpi, _tmpm);
-    _tmp5 = __lasx_xvilvl_d(_tmpi, _tmpm);
+    _tmp5 = __lasx_xvilvh_d(_tmpi, _tmpm);
     _tmp6 = __lasx_xvilvr_d(_tmpj, _tmpn);
-    _tmp7 = __lasx_xvilvl_d(_tmpj, _tmpn);
+    _tmp7 = __lasx_xvilvh_d(_tmpj, _tmpn);
 
-    _r0 = __lasx_xvpermi_q(_tmp0, _tmp1, 0x20);
-    _r1 = __lasx_xvpermi_q(_tmp2, _tmp3, 0x20);
-    _r2 = __lasx_xvpermi_q(_tmp4, _tmp5, 0x20);
-    _r3 = __lasx_xvpermi_q(_tmp6, _tmp7, 0x20);
-    _r4 = __lasx_xvpermi_q(_tmp0, _tmp1, 0x31);
-    _r5 = __lasx_xvpermi_q(_tmp2, _tmp3, 0x31);
-    _r6 = __lasx_xvpermi_q(_tmp4, _tmp5, 0x31);
-    _r7 = __lasx_xvpermi_q(_tmp6, _tmp7, 0x31);
+    _r0 = __lasx_xvpermi_q(_tmp1, _tmp0, 0x20);
+    _r1 = __lasx_xvpermi_q(_tmp3, _tmp2, 0x20);
+    _r2 = __lasx_xvpermi_q(_tmp5, _tmp4, 0x20);
+    _r3 = __lasx_xvpermi_q(_tmp7, _tmp6, 0x20);
+    _r4 = __lasx_xvpermi_q(_tmp1, _tmp0, 0x31);
+    _r5 = __lasx_xvpermi_q(_tmp3, _tmp2, 0x31);
+    _r6 = __lasx_xvpermi_q(_tmp5, _tmp4, 0x31);
+    _r7 = __lasx_xvpermi_q(_tmp7, _tmp6, 0x31);
 }
 
 // FMA equivalents (LASX)
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
-    return __lasx_xvfmadd_s(_c, _a, _b);
+    // return a * b + c
+    return __lasx_xvfmadd_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return -a * b + c
-    return __lasx_xvfmsub_s(_c, _a, _b);
+    return __lasx_xvfnmadd_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return a * b - c
-    __m256 _neg_c = (__m256)__lasx_xvbitrevi_w((__m256i)_c, 31);
-    return __lasx_xvfmadd_s(_neg_c, _a, _b);
+    return __lasx_xvfmsub_s(_a, _b, _c);
 }
 
 static NCNN_FORCEINLINE __m256 _mm256_comp_fnmsub_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return -(a * b) - c
-    __m256 _neg_a = (__m256)__lasx_xvbitrevi_w((__m256i)_a, 31);
-    return (__m256)__lasx_xvfsub_s(__lasx_xvfmul_s(_neg_a, _b), _c);
+    return __lasx_xvfnmsub_s(_a, _b, _c);
 }
 
 // rcp_nr (LASX)
@@ -1447,11 +1487,13 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(const __m256& x)
     __m128 lo = (__m128)__lasx_extract_lo128((__m256i)x);
     __m128 hi = (__m128)__lasx_extract_hi128((__m256i)x);
     __m128 sum = __lsx_vfadd_s(lo, hi);
-    __m128 hi64 = (__m128)__lsx_vilvl_d((__m128i)sum, (__m128i)sum);
+    __m128 hi64 = (__m128)__lsx_vbsrl_v((__m128i)sum, 8);
     __m128 sum64 = __lsx_vfadd_s(hi64, sum);
-    __m128 hi32 = (__m128)__lsx_vilvr_w((__m128i)hi64, (__m128i)sum64);
+    __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)sum64, 4);
     __m128 sum32 = __lsx_vfadd_s(sum64, hi32);
-    return __lsx_vpickve2gr_w((__m128i)sum32, 0);
+    float result;
+    *(int*)&result = __lsx_vpickve2gr_w((__m128i)sum32, 0);
+    return result;
 }
 
 static NCNN_FORCEINLINE float _mm256_reduce_max_ps(const __m256& x)
@@ -1459,44 +1501,58 @@ static NCNN_FORCEINLINE float _mm256_reduce_max_ps(const __m256& x)
     __m128 lo = (__m128)__lasx_extract_lo128((__m256i)x);
     __m128 hi = (__m128)__lasx_extract_hi128((__m256i)x);
     __m128 maxv = __lsx_vfmax_s(lo, hi);
-    __m128 hi64 = (__m128)__lsx_vilvl_d((__m128i)maxv, (__m128i)maxv);
+    __m128 hi64 = (__m128)__lsx_vbsrl_v((__m128i)maxv, 8);
     __m128 max64 = __lsx_vfmax_s(hi64, maxv);
-    __m128 hi32 = (__m128)__lsx_vilvr_w((__m128i)hi64, (__m128i)max64);
+    __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)max64, 4);
     __m128 max32 = __lsx_vfmax_s(max64, hi32);
-    return __lsx_vpickve2gr_w((__m128i)max32, 0);
+    float result;
+    *(int*)&result = __lsx_vpickve2gr_w((__m128i)max32, 0);
+    return result;
 }
 
 static NCNN_FORCEINLINE int _mm256_reduce_add_epi32(const __m256i& x)
 {
-    __m256i hi64 = __lasx_xvilvl_d(x, x);
-    __m256i sum64 = __lasx_xvadd_d(hi64, x);
-    __m256i hi32 = __lasx_xvilvr_w(hi64, sum64);
-    __m256i sum32 = __lasx_xvadd_w(sum64, hi32);
-    return __lsx_vpickve2gr_w(__lasx_extract_lo128(sum32), 0);
+    __m128i lo = __lasx_extract_lo128(x);
+    __m128i hi = __lasx_extract_hi128(x);
+    __m128i sum = __lsx_vadd_w(lo, hi);
+    __m128i hi64 = __lsx_vbsrl_v(sum, 8);
+    __m128i sum64 = __lsx_vadd_w(hi64, sum);
+    __m128i hi32 = __lsx_vbsrl_v(sum64, 4);
+    __m128i sum32 = __lsx_vadd_w(sum64, hi32);
+    return __lsx_vpickve2gr_w(sum32, 0);
 }
 
 static NCNN_FORCEINLINE int _mm256_reduce_max_epi32(const __m256i& x)
 {
-    __m256i hi64 = __lasx_xvilvl_d(x, x);
-    __m256i max64 = __lasx_xvmax_w(hi64, x);
-    __m256i hi32 = __lasx_xvilvr_w(hi64, max64);
-    __m256i max32 = __lasx_xvmax_w(max64, hi32);
-    return __lsx_vpickve2gr_w(__lasx_extract_lo128(max32), 0);
+    __m128i lo = __lasx_extract_lo128(x);
+    __m128i hi = __lasx_extract_hi128(x);
+    __m128i maxv = __lsx_vmax_w(lo, hi);
+    __m128i hi64 = __lsx_vbsrl_v(maxv, 8);
+    __m128i max64 = __lsx_vmax_w(hi64, maxv);
+    __m128i hi32 = __lsx_vbsrl_v(max64, 4);
+    __m128i max32 = __lsx_vmax_w(max64, hi32);
+    return __lsx_vpickve2gr_w(max32, 0);
 }
 
 static NCNN_FORCEINLINE int _mm256_reduce_min_epi32(const __m256i& x)
 {
-    __m256i hi64 = __lasx_xvilvl_d(x, x);
-    __m256i min64 = __lasx_xvmin_w(hi64, x);
-    __m256i hi32 = __lasx_xvilvr_w(hi64, min64);
-    __m256i min32 = __lasx_xvmin_w(min64, hi32);
-    return __lsx_vpickve2gr_w(__lasx_extract_lo128(min32), 0);
+    __m128i lo = __lasx_extract_lo128(x);
+    __m128i hi = __lasx_extract_hi128(x);
+    __m128i minv = __lsx_vmin_w(lo, hi);
+    __m128i hi64 = __lsx_vbsrl_v(minv, 8);
+    __m128i min64 = __lsx_vmin_w(hi64, minv);
+    __m128i hi32 = __lsx_vbsrl_v(min64, 4);
+    __m128i min32 = __lsx_vmin_w(min64, hi32);
+    return __lsx_vpickve2gr_w(min32, 0);
 }
 
 static NCNN_FORCEINLINE int64_t _mm256_reduce_add_epi64(const __m256i& x)
 {
-    __m256i hi64 = __lasx_xvilvl_d(x, x);
-    __m256i sum64 = __lasx_xvadd_d(hi64, x);
+    __m128i lo = __lasx_extract_lo128(x);
+    __m128i hi = __lasx_extract_hi128(x);
+    __m128i sum = __lsx_vadd_d(lo, hi);
+    __m128i hi64 = __lsx_vbsrl_v(sum, 8);
+    __m128i sum64 = __lsx_vadd_d(sum, hi64);
     return ((int64_t*)&sum64)[0];
 }
 
@@ -1724,28 +1780,49 @@ static NCNN_FORCEINLINE __m256 _mm256_movelh_ps(__m256 a, __m256 b)
 }
 
 // HorizontalSums (LASX)
+// Compute horizontal sum of each __m256 vector, pack 8 results into __m256
 static NCNN_FORCEINLINE __m256 HorizontalSums(__m256& v0, __m256& v1, __m256& v2, __m256& v3, __m256& v4, __m256& v5, __m256& v6, __m256& v7)
 {
-    __m256 s01 = __lasx_xvfadd_s(v0, v1);
-    __m256 s23 = __lasx_xvfadd_s(v2, v3);
-    __m256 s45 = __lasx_xvfadd_s(v4, v5);
-    __m256 s67 = __lasx_xvfadd_s(v6, v7);
-    __m256 s0123 = __lasx_xvfadd_s(s01, s23);
-    __m256 s4567 = __lasx_xvfadd_s(s45, s67);
+    // Reduce 256 to 128 by adding hi and lo halves
+    __m128 s0 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v0), (__m128)__lasx_extract_hi128((__m256i)v0));
+    __m128 s1 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v1), (__m128)__lasx_extract_hi128((__m256i)v1));
+    __m128 s2 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v2), (__m128)__lasx_extract_hi128((__m256i)v2));
+    __m128 s3 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v3), (__m128)__lasx_extract_hi128((__m256i)v3));
+    __m128 s4 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v4), (__m128)__lasx_extract_hi128((__m256i)v4));
+    __m128 s5 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v5), (__m128)__lasx_extract_hi128((__m256i)v5));
+    __m128 s6 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v6), (__m128)__lasx_extract_hi128((__m256i)v6));
+    __m128 s7 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v7), (__m128)__lasx_extract_hi128((__m256i)v7));
 
-    __m256 vb0 = (__m256)__lasx_xvshuf4i_w((__m256i)s0123, 0xD8);
-    __m256 vb1 = (__m256)__lasx_xvpermi_q((__m256i)s0123, (__m256i)s4567, 0x31);
+    // Transpose and reduce first group of 4
+    transpose4x4_ps(s0, s1, s2, s3);
+    s0 = __lsx_vfadd_s(s0, s1);
+    s0 = __lsx_vfadd_s(s0, s2);
+    s0 = __lsx_vfadd_s(s0, s3);
 
-    return __lasx_xvfadd_s(vb0, vb1);
+    // Transpose and reduce second group of 4
+    transpose4x4_ps(s4, s5, s6, s7);
+    s4 = __lsx_vfadd_s(s4, s5);
+    s4 = __lsx_vfadd_s(s4, s6);
+    s4 = __lsx_vfadd_s(s4, s7);
+
+    return (__m256)combine4x2_epi32((__m128i)s0, (__m128i)s4);
 }
 
+// Compute horizontal sum of each __m256 vector, pack 4 results into __m128
 static NCNN_FORCEINLINE __m128 HorizontalSums(__m256& v0, __m256& v1, __m256& v2, __m256& v3)
 {
-    __m256 s01 = __lasx_xvfadd_s(v0, v1);
-    __m256 s23 = __lasx_xvfadd_s(v2, v3);
-    __m256 s0123 = __lasx_xvfadd_s(s01, s23);
+    // Reduce 256 to 128 by adding hi and lo halves
+    __m128 s0 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v0), (__m128)__lasx_extract_hi128((__m256i)v0));
+    __m128 s1 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v1), (__m128)__lasx_extract_hi128((__m256i)v1));
+    __m128 s2 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v2), (__m128)__lasx_extract_hi128((__m256i)v2));
+    __m128 s3 = __lsx_vfadd_s((__m128)__lasx_extract_lo128((__m256i)v3), (__m128)__lasx_extract_hi128((__m256i)v3));
 
-    return (__m128)__lasx_extract_lo128((__m256i)s0123);
+    // Transpose and reduce
+    transpose4x4_ps(s0, s1, s2, s3);
+    s0 = __lsx_vfadd_s(s0, s1);
+    s0 = __lsx_vfadd_s(s0, s2);
+    s0 = __lsx_vfadd_s(s0, s3);
+    return s0;
 }
 
 // BF16 conversion (LASX)
@@ -1776,13 +1853,16 @@ static NCNN_FORCEINLINE __m128i float2bfloat_avx(const __m256& v0)
 
 static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256& v1)
 {
-    __m256i _a = (__m256i)v0;
-    __m256i _b = (__m256i)v1;
-    _a = __lasx_xvsrli_w(_a, 16);
-    _b = __lasx_xvsrli_w(_b, 16);
-    __m256i _v = __lasx_xvpickev_h(_b, _a);
-    _v = __lasx_xvpermi_q(_v, _v, 0xD8);
-    return _v;
+    // Convert each 256-bit float vector to 128-bit bf16 separately
+    __m128i _v0_bf16 = float2bfloat_avx(v0);
+    __m128i _v1_bf16 = float2bfloat_avx(v1);
+    // Combine: lo128 = v0's 8 bf16, hi128 = v1's 8 bf16
+    __m256i _r = (__m256i)__lasx_xvreplgr2vr_d(0);
+    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v0_bf16, 0), 0);
+    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v0_bf16, 1), 1);
+    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v1_bf16, 0), 2);
+    _r = __lasx_xvinsgr2vr_d(_r, __lsx_vpickve2gr_d(_v1_bf16, 1), 3);
+    return _r;
 }
 
 // DPWSSD (LASX)

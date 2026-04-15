@@ -1,0 +1,62 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+//                    https://opensource.org/licenses/BSD-3-Clause
+//
+// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// SPDX-License-Identifier: BSD-3-Clause
+
+#ifndef CLIP_LOONGARCH_BF16S_H
+#define CLIP_LOONGARCH_BF16S_H
+
+static void clip_bf16s(Mat& a, float min, float max, const Option& opt)
+{
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = a.channel(q);
+
+        int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
+        __m256 _min_lasx = (__m256)__lasx_xvreplfr2vr_s(min);
+        __m256 _max_lasx = (__m256)__lasx_xvreplfr2vr_s(max);
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            _p = __lasx_xvfmax_s(_p, _min_lasx);
+            _p = __lasx_xvfmin_s(_p, _max_lasx);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            ptr += 8;
+        }
+#endif // __loongarch_asx
+        __m128 _min = (__m128)__lsx_vreplfr2vr_s(min);
+        __m128 _max = (__m128)__lsx_vreplfr2vr_s(max);
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+            _p = __lsx_vfmax_s(_p, _min);
+            _p = __lsx_vfmin_s(_p, _max);
+            __lsx_vstelm_d(float2bfloat_sse(_p, _p), ptr, 0, 0);
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            if (v < min) v = min;
+            if (v > max) v = max;
+            *ptr = float32_to_bfloat16(v);
+            ptr++;
+        }
+    }
+}
+
+#endif // CLIP_LOONGARCH_BF16S_H

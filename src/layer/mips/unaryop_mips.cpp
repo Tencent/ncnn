@@ -18,6 +18,9 @@ UnaryOp_mips::UnaryOp_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 template<typename Op>
@@ -426,8 +429,18 @@ struct unary_op_trunc
 
 } // namespace UnaryOp_mips_functor
 
+#if NCNN_BF16
+#include "mips_usability.h"
+#include "unaryop_bf16s.h"
+#endif
+
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     using namespace UnaryOp_mips_functor;
 
     if (op_type == Operation_ABS)
@@ -492,5 +505,74 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int UnaryOp_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    using namespace UnaryOp_mips_functor;
+
+    if (op_type == Operation_ABS)
+        return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
+
+    if (op_type == Operation_NEG)
+        return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
+
+    if (op_type == Operation_FLOOR)
+        return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
+
+    if (op_type == Operation_CEIL)
+        return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQUARE)
+        return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQRT)
+        return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RSQRT)
+        return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXP)
+        return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG)
+        return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIN)
+        return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COS)
+        return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TAN)
+        return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASIN)
+        return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOS)
+        return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATAN)
+        return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TANH)
+        return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

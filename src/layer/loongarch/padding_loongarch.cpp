@@ -1,6 +1,7 @@
 // Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
+
 #include "padding_loongarch.h"
 
 #if __loongarch_sx
@@ -13,7 +14,16 @@ namespace ncnn {
 
 #if __loongarch_sx
 #include "padding_pack4.h"
+#if __loongarch_asx
+#include "padding_pack8.h"
+#endif
 #include "padding_pack8_int8.h"
+#if NCNN_BF16
+#include "padding_pack4_bf16s.h"
+#if __loongarch_asx
+#include "padding_pack8_bf16s.h"
+#endif // __loongarch_asx
+#endif // NCNN_BF16
 #endif // __loongarch_sx
 
 Padding_loongarch::Padding_loongarch()
@@ -21,6 +31,32 @@ Padding_loongarch::Padding_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+}
+
+int Padding_loongarch::create_pipeline(const Option& opt)
+{
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        value_bf16 = float32_to_bfloat16(value);
+
+        ncnn::cast_float32_to_bfloat16(per_channel_pad_data, per_channel_pad_data_bf16, opt);
+    }
+#endif
+
+    return 0;
+}
+
+int Padding_loongarch::destroy_pipeline(const Option& /*opt*/)
+{
+#if NCNN_BF16
+    per_channel_pad_data_bf16 = Mat();
+#endif
+
+    return 0;
 }
 
 int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -36,6 +72,11 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
+#if NCNN_BF16
+    if (elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
@@ -45,13 +86,144 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     int elempack = bottom_blob.elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m256 pad_value = (__m256)__lasx_xvreplfr2vr_s(value);
+                padding_constant_pack8_lasx(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m256 pad_value = (__m256)__lasx_xvreplfr2vr_s(value);
+                padding_constant_pack8_lasx(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
+            {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    __m256 pad_value = per_channel_pad_data_size ? (__m256)__lasx_xvld((const float*)per_channel_pad_data + q * 8, 0) : (__m256)__lasx_xvreplfr2vr_s(value);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack8_lasx(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack8_lasx(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack8_lasx(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    __m256 pad_value = per_channel_pad_data_size ? (__m256)__lasx_xvld((const float*)per_channel_pad_data + q * 8, 0) : (__m256)__lasx_xvreplfr2vr_s(value);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack8_lasx(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __loongarch_asx
+
     if (elempack == 4)
     {
         if (dims == 1)
         {
             int outw = w * elempack + left + right;
 
+#if __loongarch_asx
             int out_elempack = outw % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outw % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (left % 4 == 0 && out_elempack == 4 && type == 0)
@@ -72,7 +244,11 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
+#if __loongarch_asx
             int out_elempack = outh % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (top % 4 == 0 && out_elempack == 4 && type == 0)
@@ -94,7 +270,11 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
+#if __loongarch_asx
             int out_elempack = outc % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outc % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
@@ -189,7 +369,14 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+            out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+        else
+            out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#else
         out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 
@@ -197,6 +384,328 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     return 0;
 }
+
+#if NCNN_BF16
+int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int d = bottom_blob.d;
+    int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    unsigned short pad_value_bf16 = 0;
+    if (opt.use_bf16_storage)
+    {
+        pad_value_bf16 = value_bf16;
+    }
+
+    const Mat& per_channel_pad_data_bf16_ref = opt.use_bf16_storage ? per_channel_pad_data_bf16 : Mat();
+
+#if __loongarch_sx
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m128i pad_value = __lsx_vreplgr2vr_h(pad_value_bf16);
+                padding_constant_pack8_bf16s_lasx(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m128i pad_value = __lsx_vreplgr2vr_h(pad_value_bf16);
+                padding_constant_pack8_bf16s_lasx(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
+            {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    __m128i pad_value = per_channel_pad_data_size ? __lsx_vld((const unsigned short*)per_channel_pad_data_bf16_ref + q * 8, 0) : __lsx_vreplgr2vr_h(pad_value_bf16);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack8_bf16s_lasx(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack8_bf16s_lasx(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack8_bf16s_lasx(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    __m128i pad_value = per_channel_pad_data_size ? __lsx_vld((const unsigned short*)per_channel_pad_data_bf16_ref + q * 8, 0) : __lsx_vreplgr2vr_h(pad_value_bf16);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack8_bf16s_lasx(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __loongarch_asx
+
+    if (elempack == 4)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+#if __loongarch_asx
+            int out_elempack = outw % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outw % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (left % 4 == 0 && out_elempack == 4 && type == 0)
+            {
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int64_t v16 = (int64_t)(unsigned short)pad_value_bf16;
+                int64_t pad_value_i64 = v16 | (v16 << 16) | (v16 << 32) | (v16 << 48);
+                padding_constant_pack4_bf16s_lsx(bottom_blob, top_blob, 0, 0, left / 4, right / 4, pad_value_i64);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+#if __loongarch_asx
+            int out_elempack = outh % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (top % 4 == 0 && out_elempack == 4 && type == 0)
+            {
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int64_t v16 = (int64_t)(unsigned short)pad_value_bf16;
+                int64_t pad_value_i64 = v16 | (v16 << 16) | (v16 << 32) | (v16 << 48);
+                padding_constant_pack4_bf16s_lsx(bottom_blob, top_blob, top / 4, bottom / 4, left, right, pad_value_i64);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+#if __loongarch_asx
+            int out_elempack = outc % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outc % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
+            {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    int64_t pad_value_i64;
+                    if (per_channel_pad_data_size)
+                    {
+                        const unsigned short* p = (const unsigned short*)per_channel_pad_data_bf16_ref + q * 4;
+                        pad_value_i64 = *(const int64_t*)p;
+                    }
+                    else
+                    {
+                        int64_t v16 = (int64_t)(unsigned short)pad_value_bf16;
+                        pad_value_i64 = v16 | (v16 << 16) | (v16 << 32) | (v16 << 48);
+                    }
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill<int64_t>(pad_value_i64);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack4_bf16s_lsx(m, borderm, top, bottom, left, right, pad_value_i64);
+                        if (type == 1)
+                            padding_replicate_pack4_bf16s_lsx(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack4_bf16s_lsx(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    int64_t pad_value_i64;
+                    if (per_channel_pad_data_size)
+                    {
+                        const unsigned short* p = (const unsigned short*)per_channel_pad_data_bf16_ref + q * 4;
+                        pad_value_i64 = *(const int64_t*)p;
+                    }
+                    else
+                    {
+                        int64_t v16 = (int64_t)(unsigned short)pad_value_bf16;
+                        pad_value_i64 = v16 | (v16 << 16) | (v16 << 32) | (v16 << 48);
+                    }
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill<int64_t>(pad_value_i64);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack4_bf16s_lsx(m, borderm, top, bottom, left, right, pad_value_i64);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __loongarch_sx
+
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
+    }
+
+    return Padding::forward(bottom_blob_unpacked, top_blob, opt);
+}
+#endif // NCNN_BF16
 
 int Padding_loongarch::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -362,7 +871,14 @@ int Padding_loongarch::forward_int8(const Mat& bottom_blob, Mat& top_blob, const
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
-        out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : 1;
+#if __loongarch_asx
+        if (elempack == 8)
+            out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+        else
+            out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 

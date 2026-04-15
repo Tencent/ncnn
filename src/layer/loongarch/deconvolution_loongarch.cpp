@@ -8,6 +8,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
@@ -15,17 +18,19 @@
 
 namespace ncnn {
 
-#if __loongarch_sx
-#include "deconvolution_pack4.h"
-#include "deconvolution_pack1to4.h"
-#include "deconvolution_pack4to1.h"
-#endif // __loongarch_sx
+#include "deconvolution_packed.h"
+#if NCNN_BF16
+#include "deconvolution_packed_bf16s.h"
+#endif
 
 Deconvolution_loongarch::Deconvolution_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 
     activation = 0;
     gemm = 0;
@@ -38,16 +43,25 @@ int Deconvolution_loongarch::create_pipeline(const Option& opt)
 
     activation = create_activation_layer(activation_type, activation_params, opt);
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
+    }
+#endif
+
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = 1;
     int out_elempack = 1;
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
-        elempack = num_input % 4 == 0 ? 4 : 1;
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 
@@ -104,53 +118,7 @@ int Deconvolution_loongarch::create_pipeline(const Option& opt)
     }
     else
     {
-        Mat weight_data_transposed(weight_data.w);
-        {
-            float* pt = weight_data_transposed;
-            const float* p = weight_data;
-
-            for (int i = 0; i < num_input * num_output; i++)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    pt[maxk - 1 - k] = p[k];
-                }
-
-                p += maxk;
-                pt += maxk;
-            }
-        }
-
-        // src = kw-kh-inch-outch
-        // dst = pb-pa-kw-kh-inch/pa-outch/pb
-        {
-            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
-
-            weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
-
-            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-            {
-                float* g00 = weight_data_tm.channel(q / out_elempack);
-
-                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-                {
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        for (int i = 0; i < elempack; i++)
-                        {
-                            for (int j = 0; j < out_elempack; j++)
-                            {
-                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-
-                                g00[0] = k00[k];
-
-                                g00++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        deconvolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
     if (opt.lightmode)
@@ -183,9 +151,15 @@ int Deconvolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
     // deconvolv with NxN kernel
     // value = value + bias
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -200,7 +174,11 @@ int Deconvolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -240,6 +218,50 @@ int Deconvolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
             const int gap = (outw * stride_h - w * stride_w) * out_elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+            if (out_elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const float* sptr = top_col2im.row(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill((__m256)__lasx_xvreplgr2vr_w(0));
+                    }
+                    else
+                    {
+                        outm.fill((__m256)__lasx_xvld((const float*)bias_data + p * 8, 0));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = outm.row(dilation_h * u) + dilation_w * v * 8;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    __m256 _val = (__m256)__lasx_xvld(ptr, 0);
+                                    __m256 _s = (__m256)__lasx_xvld(sptr, 0);
+                                    _val = __lasx_xvfadd_s(_val, _s);
+                                    __lasx_xvst(_val, ptr, 0);
+
+                                    ptr += stride_w * 8;
+                                    sptr += 8;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+#endif // __loongarch_asx
             if (out_elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -326,93 +348,7 @@ int Deconvolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
     }
     else
     {
-#if __loongarch_sx
-        if (elempack == 4 && out_elempack == 4)
-        {
-            deconvolution_pack4_lsx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 1 && out_elempack == 4)
-        {
-            deconvolution_pack1to4_lsx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 4 && out_elempack == 1)
-        {
-            deconvolution_pack4to1_lsx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-#endif // __loongarch_sx
-
-        if (elempack == 1 && out_elempack == 1)
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                float* outptr = top_blob_bordered.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const float* kptr = (const float*)weight_data_tm.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob.channel(q);
-
-                            for (int y = 0; y < kernel_h; y++)
-                            {
-                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
-                                if (sys < 0 || sys % stride_h != 0)
-                                    continue;
-
-                                int sy = sys / stride_h;
-                                if (sy >= h)
-                                    continue;
-
-                                const float* sptr = m.row(sy);
-
-                                for (int x = 0; x < kernel_w; x++)
-                                {
-                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
-                                    if (sxs < 0 || sxs % stride_w != 0)
-                                        continue;
-
-                                    int sx = sxs / stride_w;
-                                    if (sx >= w)
-                                        continue;
-
-                                    float val = sptr[sx];
-
-                                    int k = y * kernel_w + x;
-
-                                    float w = kptr[k];
-
-                                    sum += val * w;
-                                }
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        deconvolution_packed(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     cut_padding(top_blob_bordered, top_blob, opt);
@@ -437,6 +373,15 @@ int Deconvolution_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
     flatten(_weight_data, weight_data_flattened, opt);
     if (weight_data_flattened.empty())
         return -100;
+
+#if NCNN_BF16
+    if (weight_data_flattened.elembits() == 16)
+    {
+        Mat tmp;
+        cast_bfloat16_to_float32(weight_data_flattened, tmp, opt);
+        weight_data_flattened = tmp;
+    }
+#endif
 
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
@@ -479,6 +424,15 @@ int Deconvolution_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (bias_data_flattened.elembits() == 16)
+        {
+            Mat tmp;
+            cast_bfloat16_to_float32(bias_data_flattened, tmp, opt);
+            bias_data_flattened = tmp;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -527,5 +481,68 @@ int Deconvolution_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
 
     return 0;
 }
+
+#if NCNN_BF16
+int Deconvolution_loongarch::create_pipeline_bf16s(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    deconvolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Deconvolution_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif
+    size_t out_elemsize = 2u * out_elempack;
+
+    int out_channels = num_output / out_elempack;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    deconvolution_packed_bf16s(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

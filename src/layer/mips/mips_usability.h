@@ -33,6 +33,20 @@ static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
     return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 
+static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)
+{
+    // _v = {f0, f1, f2, f3}
+    // swap pairs: {f2, f3, f0, f1}
+    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, 0x4E);
+    _v = __msa_fmax_w(_v, _s); // {max(f0,f2), max(f1,f3), ...}
+    // swap within pair: {max(f1,f3), max(f0,f2), ...}
+    _s = (v4f32)__msa_shf_w((v4i32)_v, 0xB1);
+    _v = __msa_fmax_w(_v, _s); // {max(f0,f1,f2,f3), ...}
+    float result;
+    __builtin_memcpy(&result, &_v, sizeof(float));
+    return result;
+}
+
 static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 {
     // _v = {f0, f1, f2, f3}
@@ -565,9 +579,12 @@ static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const v4i32& v0)
 // Use __msa_ld_b instead of __msa_ld_w to avoid 16-byte alignment masking
 static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const unsigned short* ptr)
 {
+    // Use 64-bit load (not 128-bit __msa_ld_b) to avoid overread past allocation
+    int64_t v;
+    memcpy(&v, ptr, 8);
     v8i16 _zero = (v8i16)__msa_fill_w(0);
-    v16i8 _raw = __msa_ld_b(ptr, 0);
-    return (v4f32)__msa_ilvr_h((v8i16)_raw, _zero);
+    v8i16 _raw = (v8i16)__msa_fill_d(v);
+    return (v4f32)__msa_ilvr_h(_raw, _zero);
 }
 
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0)
@@ -640,16 +657,31 @@ static NCNN_FORCEINLINE int32_t int8_short_to_int32_scalar(int8_t* v0)
     return _v0;
 }
 
-// HorizontalSums for 8 accumulators
-static NCNN_FORCEINLINE v4f32 HorizontalSums(v4f32& v0, v4f32& v1, v4f32& v2, v4f32& v3, v4f32& v4, v4f32& v5, v4f32& v6, v4f32& v7)
+// HorizontalSums for 4 accumulators
+// Compute horizontal sum of each v4f32 vector, pack 4 results into v4f32
+static NCNN_FORCEINLINE v4f32 HorizontalSums(v4f32& v0, v4f32& v1, v4f32& v2, v4f32& v3)
 {
-    v4f32 s01 = __msa_fadd_w(v0, v1);
-    v4f32 s23 = __msa_fadd_w(v2, v3);
-    v4f32 s45 = __msa_fadd_w(v4, v5);
-    v4f32 s67 = __msa_fadd_w(v6, v7);
-    v4f32 s0123 = __msa_fadd_w(s01, s23);
-    v4f32 s4556 = __msa_fadd_w(s45, s67);
-    return __msa_fadd_w(s0123, s4556);
+    // transpose 4x4
+    v4i32 _t0 = __msa_ilvr_w((v4i32)v1, (v4i32)v0);
+    v4i32 _t1 = __msa_ilvr_w((v4i32)v3, (v4i32)v2);
+    v4i32 _t2 = __msa_ilvl_w((v4i32)v1, (v4i32)v0);
+    v4i32 _t3 = __msa_ilvl_w((v4i32)v3, (v4i32)v2);
+    v4f32 _r0 = (v4f32)__msa_ilvr_d((v2i64)_t1, (v2i64)_t0);
+    v4f32 _r1 = (v4f32)__msa_ilvl_d((v2i64)_t1, (v2i64)_t0);
+    v4f32 _r2 = (v4f32)__msa_ilvr_d((v2i64)_t3, (v2i64)_t2);
+    v4f32 _r3 = (v4f32)__msa_ilvl_d((v2i64)_t3, (v2i64)_t2);
+    _r0 = __msa_fadd_w(_r0, _r1);
+    _r0 = __msa_fadd_w(_r0, _r2);
+    _r0 = __msa_fadd_w(_r0, _r3);
+    return _r0;
+}
+
+// HorizontalSums for 8 accumulators
+// Returns two v4f32: sum03 = [hsum(v0)..hsum(v3)], sum47 = [hsum(v4)..hsum(v7)]
+static NCNN_FORCEINLINE void HorizontalSums(v4f32& v0, v4f32& v1, v4f32& v2, v4f32& v3, v4f32& v4, v4f32& v5, v4f32& v6, v4f32& v7, v4f32& sum03, v4f32& sum47)
+{
+    sum03 = HorizontalSums(v0, v1, v2, v3);
+    sum47 = HorizontalSums(v4, v5, v6, v7);
 }
 
 // fast integer division

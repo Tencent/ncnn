@@ -21,8 +21,13 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    // packn
-    Mat weight_data_packed;
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
+public:
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

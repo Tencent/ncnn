@@ -11,13 +11,21 @@
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
+#include "loongarch_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "innerproduct_bf16s.h"
+#endif
 
 InnerProduct_loongarch::InnerProduct_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 #endif // __loongarch_sx
 
     flatten = 0;
@@ -46,6 +54,13 @@ int InnerProduct_loongarch::create_pipeline(const Option& opt)
     if (opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
     }
 #endif
 
@@ -111,6 +126,14 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            return forward_int8_loongarch(bottom_blob_fp32, top_blob, opt);
+        }
+#endif
         return forward_int8_loongarch(bottom_blob, top_blob, opt);
     }
 #endif
@@ -119,6 +142,13 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
     if (opt.use_fp16_storage)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -1616,5 +1646,76 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
     return 0;
 }
 #endif // NCNN_INT8
+
+#if NCNN_BF16
+int InnerProduct_loongarch::create_pipeline_bf16s(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    innerproduct_transform_kernel_bf16s_lsx(weight_data, weight_data_tm, num_input, num_output, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int InnerProduct_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        // gemm
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        innerproduct_gemm_bf16s_lsx(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+        return 0;
+    }
+
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
+
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    innerproduct_bf16s_lsx(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

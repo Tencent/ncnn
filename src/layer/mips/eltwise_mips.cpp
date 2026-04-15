@@ -11,15 +11,27 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "eltwise_bf16s.h"
+#endif
+
 Eltwise_mips::Eltwise_mips()
 {
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -318,5 +330,21 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     return 0;
 }
+
+#if NCNN_BF16
+int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    eltwise_bf16s(bottom_blobs, top_blob, op_type, coeffs, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

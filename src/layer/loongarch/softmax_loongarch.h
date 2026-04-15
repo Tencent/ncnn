@@ -12,6 +12,7 @@ class Softmax_loongarch : public Softmax
 {
 public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+    virtual int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

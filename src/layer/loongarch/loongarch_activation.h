@@ -140,7 +140,7 @@ static NCNN_FORCEINLINE __m256 swish_lasx(__m256 inputs)
 static NCNN_FORCEINLINE __m256 hardswish_lasx(__m256 inputs, __m256 a, __m256 b)
 {
     const __m256 one = (__m256)__lasx_xvreplfr2vr_s(1.0f);
-    b = __lasx_xvfmadd_s(b, a, inputs);
+    b = __lasx_xvfmadd_s(a, inputs, b);
     b = __lasx_xvfmax_s(b, (__m256)__lasx_xvreplgr2vr_w(0));
     b = __lasx_xvfmin_s(b, one);
     return __lasx_xvfmul_s(b, inputs);

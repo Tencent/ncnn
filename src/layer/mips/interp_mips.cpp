@@ -24,10 +24,18 @@ Interp_mips::Interp_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -463,5 +471,38 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     return 0;
 }
+
+#if NCNN_BF16
+int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+
+    // cast bf16 to fp32
+    Mat bottom_blob_fp32;
+    cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+
+    // call fp32 forward
+    std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
+    bottom_blobs_fp32[0] = bottom_blob_fp32;
+    for (size_t i = 1; i < bottom_blobs.size(); i++)
+    {
+        bottom_blobs_fp32[i] = bottom_blobs[i];
+    }
+    std::vector<Mat> top_blobs_fp32(1);
+
+    Option opt_fp32 = opt;
+    opt_fp32.use_bf16_storage = false;
+
+    int ret = Interp_mips::forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
+    if (ret != 0)
+        return ret;
+
+    // cast fp32 to bf16
+    Mat& top_blob = top_blobs[0];
+    cast_float32_to_bfloat16(top_blobs_fp32[0], top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -13,7 +13,15 @@ class DeformableConv2D_loongarch : public DeformableConv2D
 public:
     DeformableConv2D_loongarch();
 
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+public:
+    Layer* activation;
+
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn
