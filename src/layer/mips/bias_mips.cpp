@@ -33,7 +33,8 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h * d;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     const float* bias_ptr = bias_data;
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -41,22 +42,24 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         float* ptr = bottom_top_blob.channel(q);
 
+#if __mips_msa
+        v4f32 _bias = (elempack == 4) ? (v4f32)__msa_ld_w(bias_ptr + q * 4, 0) : (v4f32)__msa_fill_w_f32(bias_ptr[q]);
+#endif
         float bias = bias_ptr[q];
 
         int i = 0;
 #if __mips_msa
-        v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            v4f32 _outp = __msa_fadd_w(_p, _bias);
-            __msa_st_w((v4i32)_outp, ptr, 0);
+            _p = __msa_fadd_w(_p, _bias);
+            __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            *ptr = *ptr + bias;
+            *ptr += bias;
             ptr++;
         }
     }
@@ -80,11 +83,13 @@ int Bias_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
+#if __mips_msa
+        v4f32 _bias = (elempack == 4) ? (v4f32)__msa_ld_w(bias_ptr + q * 4, 0) : (v4f32)__msa_fill_w_f32(bias_ptr[q]);
+#endif
         float bias = bias_ptr[q];
 
         int i = 0;
 #if __mips_msa
-        v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);
