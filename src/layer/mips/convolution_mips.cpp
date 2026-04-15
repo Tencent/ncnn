@@ -866,24 +866,24 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
     }
     else
 #endif // __mips_msa
-    if (opt.use_sgemm_convolution && !weight_sgemm_data.empty())
-    {
-        int _nT = nT ? nT : opt.num_threads;
-        if (nT != 0 && opt.num_threads != nT)
+        if (opt.use_sgemm_convolution && !weight_sgemm_data.empty())
         {
-            // force num_threads the same as in create_pipeline
-            // so we could use pre-packed A/B from the same tile config
-            NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
-        }
+            int _nT = nT ? nT : opt.num_threads;
+            if (nT != 0 && opt.num_threads != nT)
+            {
+                // force num_threads the same as in create_pipeline
+                // so we could use pre-packed A/B from the same tile config
+                NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
+            }
 
-        int ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
-        if (ret != 0)
-            return ret;
-    }
-    else
-    {
-        convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-    }
+            int ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
 
 #if __mips_msa
     if (opt.use_packing_layout)
