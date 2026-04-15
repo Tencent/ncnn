@@ -478,7 +478,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum11, outptr + 88, 0);
                 outptr += 96;
             }
-
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -680,7 +679,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum7, outptr + 56, 0);
                 outptr += 64;
             }
-
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -806,7 +804,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
                 outptr += 32;
             }
-
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -894,7 +891,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
                 outptr += 16;
             }
-
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -964,7 +960,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum0, outptr + 0, 0);
                 outptr += 8;
             }
-
         }
 
         pAT += max_kk * 8;

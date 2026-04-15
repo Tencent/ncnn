@@ -206,7 +206,6 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
     }
 }
 
-
 static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int activation_type, const Mat& activation_params)
 {
     const int out_elempack = top_blob.elempack;
@@ -2567,7 +2566,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
     }
 }
 
-
 static void convolution_im2col_gemm_get_optimal_tile_mnk_bf16s(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
@@ -2964,13 +2962,17 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // 2x4 -> 4x2 transpose in bf16
-                __m128i _r0 = __lsx_vld(p0, 0); // 8 bf16 values: j0c0 j0c1 j0c2 j0c3 j1c0 j1c1 j1c2 j1c3
-                __m128i _t0 = __lsx_vilvl_h(__lsx_vshuf4i_h(_r0, 0x4E), _r0);  // interleave to c0j0 c0j1 c1j0 c1j1
+                __m128i _r0 = __lsx_vld(p0, 0);                               // 8 bf16 values: j0c0 j0c1 j0c2 j0c3 j1c0 j1c1 j1c2 j1c3
+                __m128i _t0 = __lsx_vilvl_h(__lsx_vshuf4i_h(_r0, 0x4E), _r0); // interleave to c0j0 c0j1 c1j0 c1j1
                 // Actually just do scalar for 2x4
-                pp[0] = p0[0]; pp[1] = p0[4];
-                pp[2] = p0[1]; pp[3] = p0[5];
-                pp[4] = p0[2]; pp[5] = p0[6];
-                pp[6] = p0[3]; pp[7] = p0[7];
+                pp[0] = p0[0];
+                pp[1] = p0[4];
+                pp[2] = p0[1];
+                pp[3] = p0[5];
+                pp[4] = p0[2];
+                pp[5] = p0[6];
+                pp[6] = p0[3];
+                pp[7] = p0[7];
                 pp += 8;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -3034,7 +3036,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
         }
     }
 }
-
 
 static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h)
 {

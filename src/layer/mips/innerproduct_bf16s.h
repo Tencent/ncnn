@@ -387,133 +387,133 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
 
     if (out_elempack == 1)
     {
-    int remain_outw_start = 0;
+        int remain_outw_start = 0;
 #if __mips_msa
-    int nn_outw = outw >> 2;
+        int nn_outw = outw >> 2;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outw; pp++)
-    {
-        int p = remain_outw_start + (pp * 4);
-
-        float sums[4] = {0.0f};
-        if (bias_data_ptr)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_outw; pp++)
         {
-            sums[0] = bias_data_ptr[p];
-            sums[1] = bias_data_ptr[p + 1];
-            sums[2] = bias_data_ptr[p + 2];
-            sums[3] = bias_data_ptr[p + 3];
+            int p = remain_outw_start + (pp * 4);
+
+            float sums[4] = {0.0f};
+            if (bias_data_ptr)
+            {
+                sums[0] = bias_data_ptr[p];
+                sums[1] = bias_data_ptr[p + 1];
+                sums[2] = bias_data_ptr[p + 2];
+                sums[3] = bias_data_ptr[p + 3];
+            }
+
+            const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
+            const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
+            const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
+            const unsigned short* m = bottom_blob;
+
+            int i = 0;
+            v4f32 _sum0l = (v4f32)__msa_fill_w(0);
+            v4f32 _sum1l = (v4f32)__msa_fill_w(0);
+            v4f32 _sum2l = (v4f32)__msa_fill_w(0);
+            v4f32 _sum3l = (v4f32)__msa_fill_w(0);
+            for (; i + 3 < num_input; i += 4)
+            {
+                v4f32 _m = bfloat2float_msa(m);
+
+                v4f32 _w0 = bfloat2float_msa(w0);
+                v4f32 _w1 = bfloat2float_msa(w1);
+                v4f32 _w2 = bfloat2float_msa(w2);
+                v4f32 _w3 = bfloat2float_msa(w3);
+
+                _sum0l = __msa_fmadd_w(_sum0l, _m, _w0);
+                _sum1l = __msa_fmadd_w(_sum1l, _m, _w1);
+                _sum2l = __msa_fmadd_w(_sum2l, _m, _w2);
+                _sum3l = __msa_fmadd_w(_sum3l, _m, _w3);
+
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
+            }
+            for (; i < num_input; i++)
+            {
+                sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
+                sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
+                sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
+                sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+
+            v4f32 _sums = (v4f32)__msa_ld_w(sums, 0);
+
+            // transpose and reduce
+            v4i32 _t0 = __msa_ilvr_w((v4i32)_sum1l, (v4i32)_sum0l);
+            v4i32 _t1 = __msa_ilvr_w((v4i32)_sum3l, (v4i32)_sum2l);
+            v4i32 _t2 = __msa_ilvl_w((v4i32)_sum1l, (v4i32)_sum0l);
+            v4i32 _t3 = __msa_ilvl_w((v4i32)_sum3l, (v4i32)_sum2l);
+            v4f32 _r0 = (v4f32)__msa_ilvr_d((v2i64)_t1, (v2i64)_t0);
+            v4f32 _r1 = (v4f32)__msa_ilvl_d((v2i64)_t1, (v2i64)_t0);
+            v4f32 _r2 = (v4f32)__msa_ilvr_d((v2i64)_t3, (v2i64)_t2);
+            v4f32 _r3 = (v4f32)__msa_ilvl_d((v2i64)_t3, (v2i64)_t2);
+            _sums = __msa_fadd_w(_sums, _r0);
+            _sums = __msa_fadd_w(_sums, _r1);
+            _sums = __msa_fadd_w(_sums, _r2);
+            _sums = __msa_fadd_w(_sums, _r3);
+
+            _sums = activation_msa(_sums, activation_type, activation_params);
+
+            unsigned short* outptr = (unsigned short*)top_blob;
+            float2bfloat_msa_store(_sums, outptr + p);
         }
 
-        const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
-        const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
-        const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
-        const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
-        const unsigned short* m = bottom_blob;
-
-        int i = 0;
-        v4f32 _sum0l = (v4f32)__msa_fill_w(0);
-        v4f32 _sum1l = (v4f32)__msa_fill_w(0);
-        v4f32 _sum2l = (v4f32)__msa_fill_w(0);
-        v4f32 _sum3l = (v4f32)__msa_fill_w(0);
-        for (; i + 3 < num_input; i += 4)
-        {
-            v4f32 _m = bfloat2float_msa(m);
-
-            v4f32 _w0 = bfloat2float_msa(w0);
-            v4f32 _w1 = bfloat2float_msa(w1);
-            v4f32 _w2 = bfloat2float_msa(w2);
-            v4f32 _w3 = bfloat2float_msa(w3);
-
-            _sum0l = __msa_fmadd_w(_sum0l, _m, _w0);
-            _sum1l = __msa_fmadd_w(_sum1l, _m, _w1);
-            _sum2l = __msa_fmadd_w(_sum2l, _m, _w2);
-            _sum3l = __msa_fmadd_w(_sum3l, _m, _w3);
-
-            m += 4;
-            w0 += 4;
-            w1 += 4;
-            w2 += 4;
-            w3 += 4;
-        }
-        for (; i < num_input; i++)
-        {
-            sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
-            sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
-            sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
-            sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
-
-            m++;
-            w0++;
-            w1++;
-            w2++;
-            w3++;
-        }
-
-        v4f32 _sums = (v4f32)__msa_ld_w(sums, 0);
-
-        // transpose and reduce
-        v4i32 _t0 = __msa_ilvr_w((v4i32)_sum1l, (v4i32)_sum0l);
-        v4i32 _t1 = __msa_ilvr_w((v4i32)_sum3l, (v4i32)_sum2l);
-        v4i32 _t2 = __msa_ilvl_w((v4i32)_sum1l, (v4i32)_sum0l);
-        v4i32 _t3 = __msa_ilvl_w((v4i32)_sum3l, (v4i32)_sum2l);
-        v4f32 _r0 = (v4f32)__msa_ilvr_d((v2i64)_t1, (v2i64)_t0);
-        v4f32 _r1 = (v4f32)__msa_ilvl_d((v2i64)_t1, (v2i64)_t0);
-        v4f32 _r2 = (v4f32)__msa_ilvr_d((v2i64)_t3, (v2i64)_t2);
-        v4f32 _r3 = (v4f32)__msa_ilvl_d((v2i64)_t3, (v2i64)_t2);
-        _sums = __msa_fadd_w(_sums, _r0);
-        _sums = __msa_fadd_w(_sums, _r1);
-        _sums = __msa_fadd_w(_sums, _r2);
-        _sums = __msa_fadd_w(_sums, _r3);
-
-        _sums = activation_msa(_sums, activation_type, activation_params);
-
-        unsigned short* outptr = (unsigned short*)top_blob;
-        float2bfloat_msa_store(_sums, outptr + p);
-    }
-
-    remain_outw_start += (nn_outw << 2);
+        remain_outw_start += (nn_outw << 2);
 #endif // __mips_msa
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outw_start; p < outw; p++)
-    {
-        float sum = 0.f;
-
-        if (bias_data_ptr)
-            sum = bias_data_ptr[p];
-
-        const unsigned short* w = weight_data_tm.row<const unsigned short>(p);
-        const unsigned short* m = bottom_blob;
-
-        int i = 0;
-#if __mips_msa
-        v4f32 _sum = (v4f32)__msa_fill_w(0);
-        for (; i + 3 < num_input; i += 4)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = remain_outw_start; p < outw; p++)
         {
-            v4f32 _m = bfloat2float_msa(m);
-            v4f32 _w = bfloat2float_msa(w);
-            _sum = __msa_fmadd_w(_sum, _m, _w);
+            float sum = 0.f;
 
-            m += 4;
-            w += 4;
-        }
+            if (bias_data_ptr)
+                sum = bias_data_ptr[p];
+
+            const unsigned short* w = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* m = bottom_blob;
+
+            int i = 0;
+#if __mips_msa
+            v4f32 _sum = (v4f32)__msa_fill_w(0);
+            for (; i + 3 < num_input; i += 4)
+            {
+                v4f32 _m = bfloat2float_msa(m);
+                v4f32 _w = bfloat2float_msa(w);
+                _sum = __msa_fmadd_w(_sum, _m, _w);
+
+                m += 4;
+                w += 4;
+            }
 #endif // __mips_msa
-        for (; i < num_input; i++)
-        {
-            sum += bfloat16_to_float32(*m) * bfloat16_to_float32(*w);
-            m++;
-            w++;
-        }
+            for (; i < num_input; i++)
+            {
+                sum += bfloat16_to_float32(*m) * bfloat16_to_float32(*w);
+                m++;
+                w++;
+            }
 
 #if __mips_msa
-        sum += __msa_reduce_fadd_w(_sum);
+            sum += __msa_reduce_fadd_w(_sum);
 #endif // __mips_msa
 
-        sum = activation_ss(sum, activation_type, activation_params);
+            sum = activation_ss(sum, activation_type, activation_params);
 
-        unsigned short* outptr = (unsigned short*)top_blob;
-        outptr[p] = float32_to_bfloat16(sum);
-    }
+            unsigned short* outptr = (unsigned short*)top_blob;
+            outptr[p] = float32_to_bfloat16(sum);
+        }
     } // out_elempack == 1
 }

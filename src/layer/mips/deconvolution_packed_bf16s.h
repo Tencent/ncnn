@@ -430,7 +430,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
     remain_outch_start += nn_outch * 4;
     nn_outch = (outch - remain_outch_start) / 2;
-#else // __mips_msa
+#else  // __mips_msa
     nn_outch = (outch - remain_outch_start) / 2;
 #endif // __mips_msa
     #pragma omp parallel for num_threads(opt.num_threads)

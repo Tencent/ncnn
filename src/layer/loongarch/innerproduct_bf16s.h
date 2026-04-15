@@ -882,7 +882,7 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __lsx_vstelm_d(float2bfloat_sse(_sum0), outptr + p * 4, 0, 0);
         }
     }
-#else // !__loongarch_sx
+#else  // !__loongarch_sx
     (void)out_elempack;
 #endif // __loongarch_sx
 
@@ -890,253 +890,253 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
     {
 #if __loongarch_sx
 #if __loongarch_asx
-    int remain_outw_start = 0;
-    int nn_outw = outw >> 3;
+        int remain_outw_start = 0;
+        int nn_outw = outw >> 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outw; pp++)
-    {
-        int p = remain_outw_start + (pp * 8);
-
-        float sums[8] = {0.0f};
-        if (bias_data_ptr)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_outw; pp++)
         {
-            for (int k = 0; k < 8; k++)
-                sums[k] = bias_data_ptr[p + k];
+            int p = remain_outw_start + (pp * 8);
+
+            float sums[8] = {0.0f};
+            if (bias_data_ptr)
+            {
+                for (int k = 0; k < 8; k++)
+                    sums[k] = bias_data_ptr[p + k];
+            }
+
+            const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
+            const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
+            const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
+            const unsigned short* w4 = weight_data_tm.row<const unsigned short>(p + 4);
+            const unsigned short* w5 = weight_data_tm.row<const unsigned short>(p + 5);
+            const unsigned short* w6 = weight_data_tm.row<const unsigned short>(p + 6);
+            const unsigned short* w7 = weight_data_tm.row<const unsigned short>(p + 7);
+            const unsigned short* m = bottom_blob;
+
+            int i = 0;
+            __m256 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+            __m256 _sum1 = _sum0;
+            __m256 _sum2 = _sum0;
+            __m256 _sum3 = _sum0;
+            __m256 _sum4 = _sum0;
+            __m256 _sum5 = _sum0;
+            __m256 _sum6 = _sum0;
+            __m256 _sum7 = _sum0;
+            for (; i + 7 < num_input; i += 8)
+            {
+                __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
+
+                _sum0 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w0, 0)), _sum0);
+                _sum1 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w1, 0)), _sum1);
+                _sum2 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w2, 0)), _sum2);
+                _sum3 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w3, 0)), _sum3);
+                _sum4 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w4, 0)), _sum4);
+                _sum5 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w5, 0)), _sum5);
+                _sum6 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w6, 0)), _sum6);
+                _sum7 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w7, 0)), _sum7);
+
+                m += 8;
+                w0 += 8;
+                w1 += 8;
+                w2 += 8;
+                w3 += 8;
+                w4 += 8;
+                w5 += 8;
+                w6 += 8;
+                w7 += 8;
+            }
+            for (; i < num_input; i++)
+            {
+                sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
+                sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
+                sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
+                sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
+                sums[4] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w4);
+                sums[5] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w5);
+                sums[6] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w6);
+                sums[7] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w7);
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+                w4++;
+                w5++;
+                w6++;
+                w7++;
+            }
+
+            __m256 _sums = (__m256)__lasx_xvld(sums, 0);
+            __m256 _hsums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
+            _sums = __lasx_xvfadd_s(_sums, _hsums);
+            _sums = activation_lasx(_sums, activation_type, activation_params);
+
+            unsigned short* outptr = (unsigned short*)top_blob;
+            __lsx_vst(float2bfloat_avx(_sums), outptr + p, 0);
         }
 
-        const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
-        const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
-        const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
-        const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
-        const unsigned short* w4 = weight_data_tm.row<const unsigned short>(p + 4);
-        const unsigned short* w5 = weight_data_tm.row<const unsigned short>(p + 5);
-        const unsigned short* w6 = weight_data_tm.row<const unsigned short>(p + 6);
-        const unsigned short* w7 = weight_data_tm.row<const unsigned short>(p + 7);
-        const unsigned short* m = bottom_blob;
-
-        int i = 0;
-        __m256 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
-        __m256 _sum1 = _sum0;
-        __m256 _sum2 = _sum0;
-        __m256 _sum3 = _sum0;
-        __m256 _sum4 = _sum0;
-        __m256 _sum5 = _sum0;
-        __m256 _sum6 = _sum0;
-        __m256 _sum7 = _sum0;
-        for (; i + 7 < num_input; i += 8)
-        {
-            __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
-
-            _sum0 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w0, 0)), _sum0);
-            _sum1 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w1, 0)), _sum1);
-            _sum2 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w2, 0)), _sum2);
-            _sum3 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w3, 0)), _sum3);
-            _sum4 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w4, 0)), _sum4);
-            _sum5 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w5, 0)), _sum5);
-            _sum6 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w6, 0)), _sum6);
-            _sum7 = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w7, 0)), _sum7);
-
-            m += 8;
-            w0 += 8;
-            w1 += 8;
-            w2 += 8;
-            w3 += 8;
-            w4 += 8;
-            w5 += 8;
-            w6 += 8;
-            w7 += 8;
-        }
-        for (; i < num_input; i++)
-        {
-            sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
-            sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
-            sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
-            sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
-            sums[4] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w4);
-            sums[5] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w5);
-            sums[6] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w6);
-            sums[7] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w7);
-            m++;
-            w0++;
-            w1++;
-            w2++;
-            w3++;
-            w4++;
-            w5++;
-            w6++;
-            w7++;
-        }
-
-        __m256 _sums = (__m256)__lasx_xvld(sums, 0);
-        __m256 _hsums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-        _sums = __lasx_xvfadd_s(_sums, _hsums);
-        _sums = activation_lasx(_sums, activation_type, activation_params);
-
-        unsigned short* outptr = (unsigned short*)top_blob;
-        __lsx_vst(float2bfloat_avx(_sums), outptr + p, 0);
-    }
-
-    remain_outw_start += (nn_outw << 3);
-    nn_outw = (outw - remain_outw_start) >> 2;
+        remain_outw_start += (nn_outw << 3);
+        nn_outw = (outw - remain_outw_start) >> 2;
 #else
-    int remain_outw_start = 0;
-    int nn_outw = outw >> 2;
+        int remain_outw_start = 0;
+        int nn_outw = outw >> 2;
 #endif // __loongarch_asx
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outw; pp++)
-    {
-        int p = remain_outw_start + (pp * 4);
-
-        float sums[4] = {0.0f};
-        if (bias_data_ptr)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_outw; pp++)
         {
-            sums[0] = bias_data_ptr[p];
-            sums[1] = bias_data_ptr[p + 1];
-            sums[2] = bias_data_ptr[p + 2];
-            sums[3] = bias_data_ptr[p + 3];
-        }
+            int p = remain_outw_start + (pp * 4);
 
-        const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
-        const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
-        const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
-        const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
-        const unsigned short* m = bottom_blob;
+            float sums[4] = {0.0f};
+            if (bias_data_ptr)
+            {
+                sums[0] = bias_data_ptr[p];
+                sums[1] = bias_data_ptr[p + 1];
+                sums[2] = bias_data_ptr[p + 2];
+                sums[3] = bias_data_ptr[p + 3];
+            }
 
-        int i = 0;
+            const unsigned short* w0 = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* w1 = weight_data_tm.row<const unsigned short>(p + 1);
+            const unsigned short* w2 = weight_data_tm.row<const unsigned short>(p + 2);
+            const unsigned short* w3 = weight_data_tm.row<const unsigned short>(p + 3);
+            const unsigned short* m = bottom_blob;
+
+            int i = 0;
 #if __loongarch_asx
-        __m256 _sum0a = (__m256)__lasx_xvreplgr2vr_w(0);
-        __m256 _sum1a = _sum0a;
-        __m256 _sum2a = _sum0a;
-        __m256 _sum3a = _sum0a;
-        for (; i + 7 < num_input; i += 8)
-        {
-            __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
+            __m256 _sum0a = (__m256)__lasx_xvreplgr2vr_w(0);
+            __m256 _sum1a = _sum0a;
+            __m256 _sum2a = _sum0a;
+            __m256 _sum3a = _sum0a;
+            for (; i + 7 < num_input; i += 8)
+            {
+                __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
 
-            _sum0a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w0, 0)), _sum0a);
-            _sum1a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w1, 0)), _sum1a);
-            _sum2a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w2, 0)), _sum2a);
-            _sum3a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w3, 0)), _sum3a);
+                _sum0a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w0, 0)), _sum0a);
+                _sum1a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w1, 0)), _sum1a);
+                _sum2a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w2, 0)), _sum2a);
+                _sum3a = __lasx_xvfmadd_s(_m, bfloat2float_avx(__lsx_vld(w3, 0)), _sum3a);
 
-            m += 8;
-            w0 += 8;
-            w1 += 8;
-            w2 += 8;
-            w3 += 8;
-        }
+                m += 8;
+                w0 += 8;
+                w1 += 8;
+                w2 += 8;
+                w3 += 8;
+            }
 #endif // __loongarch_asx
 
-        __m128 _sum0l = (__m128)__lsx_vreplgr2vr_w(0);
-        __m128 _sum1l = _sum0l;
-        __m128 _sum2l = _sum0l;
-        __m128 _sum3l = _sum0l;
-        for (; i + 3 < num_input; i += 4)
-        {
-            __m128 _m = bfloat2float_sse(m);
+            __m128 _sum0l = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1l = _sum0l;
+            __m128 _sum2l = _sum0l;
+            __m128 _sum3l = _sum0l;
+            for (; i + 3 < num_input; i += 4)
+            {
+                __m128 _m = bfloat2float_sse(m);
 
-            _sum0l = __lsx_vfmadd_s(_m, bfloat2float_sse(w0), _sum0l);
-            _sum1l = __lsx_vfmadd_s(_m, bfloat2float_sse(w1), _sum1l);
-            _sum2l = __lsx_vfmadd_s(_m, bfloat2float_sse(w2), _sum2l);
-            _sum3l = __lsx_vfmadd_s(_m, bfloat2float_sse(w3), _sum3l);
+                _sum0l = __lsx_vfmadd_s(_m, bfloat2float_sse(w0), _sum0l);
+                _sum1l = __lsx_vfmadd_s(_m, bfloat2float_sse(w1), _sum1l);
+                _sum2l = __lsx_vfmadd_s(_m, bfloat2float_sse(w2), _sum2l);
+                _sum3l = __lsx_vfmadd_s(_m, bfloat2float_sse(w3), _sum3l);
 
-            m += 4;
-            w0 += 4;
-            w1 += 4;
-            w2 += 4;
-            w3 += 4;
-        }
-        for (; i < num_input; i++)
-        {
-            sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
-            sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
-            sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
-            sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
+            }
+            for (; i < num_input; i++)
+            {
+                sums[0] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w0);
+                sums[1] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w1);
+                sums[2] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w2);
+                sums[3] += bfloat16_to_float32(*m) * bfloat16_to_float32(*w3);
 
-            m++;
-            w0++;
-            w1++;
-            w2++;
-            w3++;
-        }
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
 
-        __m128 _sums = (__m128)__lsx_vld(sums, 0);
+            __m128 _sums = (__m128)__lsx_vld(sums, 0);
 #if __loongarch_asx
-        _sums = __lsx_vfadd_s(HorizontalSums(_sum0a, _sum1a, _sum2a, _sum3a), _sums);
+            _sums = __lsx_vfadd_s(HorizontalSums(_sum0a, _sum1a, _sum2a, _sum3a), _sums);
 #endif
-        transpose4x4_ps(_sum0l, _sum1l, _sum2l, _sum3l);
-        _sums = __lsx_vfadd_s(_sum0l, _sums);
-        _sums = __lsx_vfadd_s(_sum1l, _sums);
-        _sums = __lsx_vfadd_s(_sum2l, _sums);
-        _sums = __lsx_vfadd_s(_sum3l, _sums);
-        _sums = activation_lsx(_sums, activation_type, activation_params);
+            transpose4x4_ps(_sum0l, _sum1l, _sum2l, _sum3l);
+            _sums = __lsx_vfadd_s(_sum0l, _sums);
+            _sums = __lsx_vfadd_s(_sum1l, _sums);
+            _sums = __lsx_vfadd_s(_sum2l, _sums);
+            _sums = __lsx_vfadd_s(_sum3l, _sums);
+            _sums = activation_lsx(_sums, activation_type, activation_params);
 
-        unsigned short* outptr = (unsigned short*)top_blob;
-        __lsx_vstelm_d(float2bfloat_sse(_sums), outptr + p, 0, 0);
-    }
+            unsigned short* outptr = (unsigned short*)top_blob;
+            __lsx_vstelm_d(float2bfloat_sse(_sums), outptr + p, 0, 0);
+        }
 
-    remain_outw_start += (nn_outw << 2);
+        remain_outw_start += (nn_outw << 2);
 #else
-    int remain_outw_start = 0;
+        int remain_outw_start = 0;
 #endif // __loongarch_sx
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outw_start; p < outw; p++)
-    {
-        float sum = 0.f;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = remain_outw_start; p < outw; p++)
+        {
+            float sum = 0.f;
 
-        if (bias_data_ptr)
-            sum = bias_data_ptr[p];
+            if (bias_data_ptr)
+                sum = bias_data_ptr[p];
 
-        const unsigned short* w = weight_data_tm.row<const unsigned short>(p);
-        const unsigned short* m = bottom_blob;
+            const unsigned short* w = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* m = bottom_blob;
 
-        int i = 0;
+            int i = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-        __m256 _sum256 = (__m256)__lasx_xvreplgr2vr_w(0);
-        for (; i + 7 < num_input; i += 8)
-        {
-            __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
-            __m256 _w = bfloat2float_avx(__lsx_vld(w, 0));
-            _sum256 = __lasx_xvfmadd_s(_m, _w, _sum256);
+            __m256 _sum256 = (__m256)__lasx_xvreplgr2vr_w(0);
+            for (; i + 7 < num_input; i += 8)
+            {
+                __m256 _m = bfloat2float_avx(__lsx_vld(m, 0));
+                __m256 _w = bfloat2float_avx(__lsx_vld(w, 0));
+                _sum256 = __lasx_xvfmadd_s(_m, _w, _sum256);
 
-            m += 8;
-            w += 8;
-        }
+                m += 8;
+                w += 8;
+            }
 #endif // __loongarch_asx
-        __m128 _suml = (__m128)__lsx_vreplgr2vr_w(0);
-        for (; i + 3 < num_input; i += 4)
-        {
-            __m128 _m = bfloat2float_sse(m);
-            __m128 _w = bfloat2float_sse(w);
-            _suml = __lsx_vfmadd_s(_m, _w, _suml);
+            __m128 _suml = (__m128)__lsx_vreplgr2vr_w(0);
+            for (; i + 3 < num_input; i += 4)
+            {
+                __m128 _m = bfloat2float_sse(m);
+                __m128 _w = bfloat2float_sse(w);
+                _suml = __lsx_vfmadd_s(_m, _w, _suml);
 
-            m += 4;
-            w += 4;
-        }
+                m += 4;
+                w += 4;
+            }
 #endif // __loongarch_sx
-        for (; i < num_input; i++)
-        {
-            sum += bfloat16_to_float32(*m) * bfloat16_to_float32(*w);
-            m++;
-            w++;
-        }
+            for (; i < num_input; i++)
+            {
+                sum += bfloat16_to_float32(*m) * bfloat16_to_float32(*w);
+                m++;
+                w++;
+            }
 
 #if __loongarch_sx
 #if __loongarch_asx
-        __m128 _lo = (__m128)__lasx_extract_lo128((__m256i)_sum256);
-        __m128 _hi = (__m128)__lasx_extract_hi128((__m256i)_sum256);
-        _suml = __lsx_vfadd_s(_suml, _lo);
-        _suml = __lsx_vfadd_s(_suml, _hi);
+            __m128 _lo = (__m128)__lasx_extract_lo128((__m256i)_sum256);
+            __m128 _hi = (__m128)__lasx_extract_hi128((__m256i)_sum256);
+            _suml = __lsx_vfadd_s(_suml, _lo);
+            _suml = __lsx_vfadd_s(_suml, _hi);
 #endif // __loongarch_asx
-        sum += __lsx_reduce_fadd_s(_suml);
+            sum += __lsx_reduce_fadd_s(_suml);
 #endif // __loongarch_sx
 
-        sum = activation_ss(sum, activation_type, activation_params);
+            sum = activation_ss(sum, activation_type, activation_params);
 
-        unsigned short* outptr = (unsigned short*)top_blob;
-        outptr[p] = float32_to_bfloat16(sum);
-    }
+            unsigned short* outptr = (unsigned short*)top_blob;
+            outptr[p] = float32_to_bfloat16(sum);
+        }
     } // out_elempack == 1
 }

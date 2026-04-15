@@ -654,7 +654,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
     remain_outch_start += nn_outch * 8;
     nn_outch = (outch - remain_outch_start) / 4;
-#else // __loongarch_asx
+#else  // __loongarch_asx
     nn_outch = outch / 4;
 #endif // __loongarch_asx
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -940,7 +940,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
     remain_outch_start += nn_outch * 4;
     nn_outch = (outch - remain_outch_start) / 2;
-#else // __loongarch_sx
+#else  // __loongarch_sx
     nn_outch = (outch - remain_outch_start) / 2;
 #endif // __loongarch_sx
     #pragma omp parallel for num_threads(opt.num_threads)

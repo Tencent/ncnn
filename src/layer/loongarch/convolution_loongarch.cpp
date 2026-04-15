@@ -580,7 +580,6 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
     int l2_cache_size = get_cpu_level2_cache_size();
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
 
-
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         int _nT = nT ? nT : opt.num_threads;
@@ -590,7 +589,6 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
             // so we could use pre-packed A/B from the same tile config
             NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
-
 
         int ret = convolution_im2col_gemm(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
         if (ret != 0)
@@ -1183,7 +1181,6 @@ int Convolution_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, 
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
 
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);

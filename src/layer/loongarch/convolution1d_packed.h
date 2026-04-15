@@ -1044,7 +1044,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     }
     remain_outh_start += nn_outh * 4;
     nn_outh = (outh - remain_outh_start) / 2;
-#else // __loongarch_sx
+#else  // __loongarch_sx
     nn_outh = (outh - remain_outh_start) / 2;
 #endif // __loongarch_sx
     #pragma omp parallel for num_threads(opt.num_threads)

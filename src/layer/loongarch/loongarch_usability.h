@@ -45,8 +45,14 @@
 
 // Compat helpers for removed intrinsics
 #if __loongarch_sx
-static NCNN_FORCEINLINE __m128i __lsx_extract_lo128(__m128i v) { return v; }
-static NCNN_FORCEINLINE __m128 __lsx_extract_lo128f(__m128 v) { return v; }
+static NCNN_FORCEINLINE __m128i __lsx_extract_lo128(__m128i v)
+{
+    return v;
+}
+static NCNN_FORCEINLINE __m128 __lsx_extract_lo128f(__m128 v)
+{
+    return v;
+}
 #if __loongarch_asx
 static NCNN_FORCEINLINE __m128i __lasx_extract_lo128(__m256i v)
 {
@@ -134,9 +140,9 @@ static NCNN_FORCEINLINE __m256 __lasx_xvreplfr2vr_s(float val)
 static NCNN_FORCEINLINE float __lasx_reduce_fadd_s(__m256 _v)
 {
     __m256i _vi = (__m256i)_v;
-    __m128 lo = (__m128)*(__m128i*)&_vi;
+    __m128 lo = (__m128) * (__m128i*)&_vi;
     __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, 0x11);
-    __m128 hi = (__m128)*(__m128i*)&_hi256;
+    __m128 hi = (__m128) * (__m128i*)&_hi256;
     __m128 sum = __lsx_vfadd_s(lo, hi);
     return __lsx_reduce_fadd_s(sum);
 }
@@ -153,9 +159,9 @@ static NCNN_FORCEINLINE int __lasx_reduce_add_w(__m256i _v)
 static NCNN_FORCEINLINE float __lasx_reduce_fmax_s(__m256 _v)
 {
     __m256i _vi = (__m256i)_v;
-    __m128 lo = (__m128)*(__m128i*)&_vi;
+    __m128 lo = (__m128) * (__m128i*)&_vi;
     __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, 0x11);
-    __m128 hi = (__m128)*(__m128i*)&_hi256;
+    __m128 hi = (__m128) * (__m128i*)&_hi256;
     __m128 maxv = __lsx_vfmax_s(lo, hi);
     return __lsx_reduce_fmax_s(maxv);
 }

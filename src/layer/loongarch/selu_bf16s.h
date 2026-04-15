@@ -57,8 +57,10 @@ static void selu_bf16s(Mat& a, float alpha, float lambda, const Option& opt)
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
-            if (v < 0.f) v = (expf(v) * alpha - alpha) * lambda;
-            else v = v * lambda;
+            if (v < 0.f)
+                v = (expf(v) * alpha - alpha) * lambda;
+            else
+                v = v * lambda;
             *ptr = float32_to_bfloat16(v);
             ptr++;
         }

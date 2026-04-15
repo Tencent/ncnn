@@ -1,7 +1,6 @@
 // Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
-
 #include "packing_loongarch.h"
 
 #if __loongarch_sx
@@ -58,9 +57,9 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (!pack1to4 && !pack4to1
 #if __loongarch_asx
-        && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
+            && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
 #endif // __loongarch_asx
-    )
+       )
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -839,9 +838,9 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     if (!pack1to4 && !pack4to1
 #if __loongarch_asx
-        && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
+            && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4
 #endif // __loongarch_asx
-    )
+       )
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }

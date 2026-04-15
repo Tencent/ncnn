@@ -1183,8 +1183,8 @@ static NCNN_FORCEINLINE v4i32 _mm_blend_epi16(v4i32 a, v4i32 b, int imm)
         mask_arr[i] = (imm & (1 << i)) ? (short)0xFFFF : (short)0;
     v8i16 mask = (v8i16)__msa_ld_h(mask_arr, 0);
     return (v4i32)__msa_or_v(
-        __msa_and_v((v16u8)b, (v16u8)mask),
-        __msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask, (v16u8)mask)));
+               __msa_and_v((v16u8)b, (v16u8)mask),
+               __msa_and_v((v16u8)a, (v16u8)__msa_nor_v((v16u8)mask, (v16u8)mask)));
 }
 
 // _MM_TRANSPOSE4_PS macro
