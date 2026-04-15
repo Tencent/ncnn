@@ -11,7 +11,6 @@
 
 namespace ncnn {
 
-
 Dropout_mips::Dropout_mips()
 {
 #if __mips_msa

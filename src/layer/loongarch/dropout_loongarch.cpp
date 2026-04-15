@@ -14,7 +14,6 @@
 
 namespace ncnn {
 
-
 Dropout_loongarch::Dropout_loongarch()
 {
 #if __loongarch_sx

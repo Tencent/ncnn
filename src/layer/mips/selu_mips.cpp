@@ -12,7 +12,6 @@
 
 namespace ncnn {
 
-
 SELU_mips::SELU_mips()
 {
 #if __mips_msa

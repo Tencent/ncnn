@@ -14,7 +14,6 @@
 
 namespace ncnn {
 
-
 Clip_loongarch::Clip_loongarch()
 {
 #if __loongarch_sx

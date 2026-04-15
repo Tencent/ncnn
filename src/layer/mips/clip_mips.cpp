@@ -11,7 +11,6 @@
 
 namespace ncnn {
 
-
 Clip_mips::Clip_mips()
 {
 #if __mips_msa
