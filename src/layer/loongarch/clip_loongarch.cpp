@@ -11,9 +11,6 @@
 
 namespace ncnn {
 
-#if NCNN_BF16
-#include "clip_bf16s.h"
-#endif
 
 Clip_loongarch::Clip_loongarch()
 {
@@ -77,7 +74,52 @@ int Clip_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #if NCNN_BF16
 int Clip_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    clip_bf16s(bottom_top_blob, min, max, opt);
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int channels = bottom_top_blob.c;
+    int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+#if __loongarch_sx
+#if __loongarch_asx
+        __m256 _min_lasx = (__m256)__lasx_xvreplfr2vr_s(min);
+        __m256 _max_lasx = (__m256)__lasx_xvreplfr2vr_s(max);
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            _p = __lasx_xvfmax_s(_p, _min_lasx);
+            _p = __lasx_xvfmin_s(_p, _max_lasx);
+            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            ptr += 8;
+        }
+#endif // __loongarch_asx
+        __m128 _min = (__m128)__lsx_vreplfr2vr_s(min);
+        __m128 _max = (__m128)__lsx_vreplfr2vr_s(max);
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+            _p = __lsx_vfmax_s(_p, _min);
+            _p = __lsx_vfmin_s(_p, _max);
+            __lsx_vstelm_d(float2bfloat_sse(_p, _p), ptr, 0, 0);
+            ptr += 4;
+        }
+#endif // __loongarch_sx
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(*ptr);
+            if (v < min) v = min;
+            if (v > max) v = max;
+            *ptr = float32_to_bfloat16(v);
+            ptr++;
+        }
+    }
 
     return 0;
 }

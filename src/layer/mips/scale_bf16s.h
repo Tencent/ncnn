@@ -1,9 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-//                    https://opensource.org/licenses/BSD-3-Clause
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
+// Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef SCALE_MIPS_BF16S_H

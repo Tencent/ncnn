@@ -5,6 +5,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_usability.h"
@@ -28,15 +31,33 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         float bias = bias_ptr[q];
 
 #if __loongarch_sx
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
+#if __loongarch_asx
+        int nn8 = size >> 3;
+        int remain8 = size - (nn8 << 3);
+#else
+        int nn8 = 0;
+        int remain8 = size;
+#endif // __loongarch_asx
+        int nn4 = remain8 >> 2;
+        int remain = remain8 - (nn4 << 2);
 #else
         int remain = size;
 #endif // __loongarch_sx
 
 #if __loongarch_sx
+#if __loongarch_asx
+        __m256 _bias256 = (__m256)__lasx_xvreplfr2vr_s(bias);
+        for (; nn8 > 0; nn8--)
+        {
+            __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+            __m256 _outp = __lasx_xvfadd_s(_p, _bias256);
+            __lasx_xvst(_outp, ptr, 0);
+
+            ptr += 8;
+        }
+#endif // __loongarch_asx
         __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias);
-        for (; nn > 0; nn--)
+        for (; nn4 > 0; nn4--)
         {
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __m128 _outp = __lsx_vfadd_s(_p, _bias);

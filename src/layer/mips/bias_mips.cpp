@@ -1,4 +1,5 @@
 // Copyright 2019 Leo <leo@nullptr.com.cn>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "bias_mips.h"
@@ -6,8 +7,6 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
-
-#include "mips_usability.h"
 
 namespace ncnn {
 
@@ -27,26 +26,19 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         float bias = bias_ptr[q];
 
-#if __mips_msa
-        int nn = size >> 2;
-        int remain = size - (nn << 2);
-#else
-        int remain = size;
-#endif // __mips_msa
-
+        int i = 0;
 #if __mips_msa
         v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
-        for (; nn > 0; nn--)
+        for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _outp = __msa_fadd_w(_p, _bias);
             __msa_st_w((v4i32)_outp, ptr, 0);
-
             ptr += 4;
         }
 #endif // __mips_msa
-
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *ptr = *ptr + bias;
             ptr++;

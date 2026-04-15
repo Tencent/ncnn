@@ -1,9 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-//                    https://opensource.org/licenses/BSD-3-Clause
-//
-// Copyright (C) 2026 THL A29 Limited, a Tencent company. All rights reserved.
-//
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 static void padding_constant_pack8_bf16s_lasx(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const __m128i& v)

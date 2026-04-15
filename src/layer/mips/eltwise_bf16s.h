@@ -1,7 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-//                    Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
+// Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)

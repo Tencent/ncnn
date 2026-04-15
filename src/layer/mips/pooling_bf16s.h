@@ -1,7 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2026 THL A29 Limited, a Tencent company. All rights reserved.
-//
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 static void pooling_global_max_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const Option& opt)

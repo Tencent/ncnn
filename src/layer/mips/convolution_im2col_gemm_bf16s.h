@@ -1,4 +1,4 @@
-// Copyright 2026 nihui. All rights reserved.
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
