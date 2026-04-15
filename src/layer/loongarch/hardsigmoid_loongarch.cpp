@@ -113,21 +113,21 @@ int HardSigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Opt
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i*)ptr);
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr);
             _p = __lasx_xvfmadd_s((__m256)__lasx_xvreplfr2vr_s(alpha), _p, (__m256)__lasx_xvreplfr2vr_s(beta));
             _p = __lasx_xvfmax_s(_p, (__m256)__lasx_xvreplgr2vr_w(0));
             _p = __lasx_xvfmin_s(_p, (__m256)__lasx_xvreplfr2vr_s(1.f));
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
             _p = __lsx_vfmadd_s((__m128)__lsx_vreplfr2vr_s(alpha), _p, (__m128)__lsx_vreplfr2vr_s(beta));
             _p = __lsx_vfmax_s(_p, (__m128)__lsx_vreplgr2vr_w(0));
             _p = __lsx_vfmin_s(_p, (__m128)__lsx_vreplfr2vr_s(1.f));
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

@@ -50,7 +50,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m256 _v = (__m256)__lasx_xvffint_s_w(__lasx_xvld(intptr, 0));
             _v = __lasx_xvfmul_s(_v, _scale_avx);
-            __lsx_vst(float2bfloat_avx(_v), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_v), ptr, 0);
             intptr += 8;
             ptr += 8;
         }
@@ -61,7 +61,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
             __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmul_s(_v0, _scale0);
             _v1 = __lsx_vfmul_s(_v1, _scale1);
-            __lsx_vst(float2bfloat_sse(_v0, _v1), ptr, 0);
+            __lsx_vst(float2bfloat_lsx(_v0, _v1), ptr, 0);
             intptr += 8;
             ptr += 8;
         }
@@ -70,7 +70,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
-            __lsx_vstelm_d(float2bfloat_sse(_v, _v), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_v, _v), ptr, 0, 0);
             intptr += 4;
             ptr += 4;
         }
@@ -122,7 +122,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m256 _v = (__m256)__lasx_xvffint_s_w(__lasx_xvld(intptr, 0));
             _v = __lasx_xvfmadd_s(_v, _scale_avx, _bias_avx);
-            __lsx_vst(float2bfloat_avx(_v), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_v), ptr, 0);
             intptr += 8;
             ptr += 8;
         }
@@ -133,7 +133,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
             __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
             _v0 = __lsx_vfmadd_s(_v0, _scale0, _bias0);
             _v1 = __lsx_vfmadd_s(_v1, _scale1, _bias1);
-            __lsx_vst(float2bfloat_sse(_v0, _v1), ptr, 0);
+            __lsx_vst(float2bfloat_lsx(_v0, _v1), ptr, 0);
             intptr += 8;
             ptr += 8;
         }
@@ -142,7 +142,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
-            __lsx_vstelm_d(float2bfloat_sse(_v, _v), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_v, _v), ptr, 0, 0);
             intptr += 4;
             ptr += 4;
         }

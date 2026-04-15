@@ -21,14 +21,14 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _max_lasx = __lasx_xvfmax_s(_max_lasx, _p);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             _max = __lsx_vfmax_s(_max, _p);
             ptr += 4;
         }
@@ -92,20 +92,20 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = __lasx_xvfsub_s(_p, _max_lasx);
             _p = exp_ps(_p);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             _sum_lasx = __lasx_xvfadd_s(_sum_lasx, _p);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             _p = __lsx_vfsub_s(_p, _max);
             _p = exp_ps(_p);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             _sum = __lsx_vfadd_s(_sum, _p);
             ptr += 4;
         }
@@ -179,17 +179,17 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = __lasx_xvfmul_s(_p, _sum_lasx);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             _p = __lsx_vfmul_s(_p, _sum);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx
@@ -214,7 +214,7 @@ static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             *maxptr = std::max(*maxptr, __lasx_reduce_fmax_s(_p));
             ptr += 8;
             maxptr++;
@@ -231,10 +231,10 @@ static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _max = (__m256)__lasx_xvreplfr2vr_s(*maxptr);
             _p = exp_ps(__lasx_xvfsub_s(_p, _max));
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             *sumptr += __lasx_reduce_fadd_s(_p);
             ptr += 8;
             maxptr++;
@@ -277,10 +277,10 @@ static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _sum = (__m256)__lasx_xvreplfr2vr_s(*sumptr);
             _p = __lasx_xvfmul_s(_p, _sum);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
             sumptr++;
         }
@@ -299,7 +299,7 @@ static void softmax_bf16s_pack4_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             *maxptr = std::max(*maxptr, __lsx_reduce_fmax_s(_p));
             ptr += 4;
             maxptr++;
@@ -316,10 +316,10 @@ static void softmax_bf16s_pack4_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             __m128 _max = (__m128)__lsx_vreplfr2vr_s(*maxptr);
             _p = exp_ps(__lsx_vfsub_s(_p, _max));
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             *sumptr += __lsx_reduce_fadd_s(_p);
             ptr += 4;
             maxptr++;
@@ -364,10 +364,10 @@ static void softmax_bf16s_pack4_lsx(unsigned short* _ptr, int elemcount, size_t 
         int j = 0;
         for (; j < size1; j++)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             __m128 _sum = (__m128)__lsx_vreplfr2vr_s(*sumptr);
             _p = __lsx_vfmul_s(_p, _sum);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
             sumptr++;
         }
@@ -388,7 +388,7 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
 #if __loongarch_asx
         for (; j + 7 < size1; j += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _max = (__m256)__lasx_xvld(maxptr, 0);
             _max = __lasx_xvfmax_s(_max, _p);
             __lasx_xvst((__m256i)_max, maxptr, 0);
@@ -398,7 +398,7 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
 #endif // __loongarch_asx
         for (; j + 3 < size1; j += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             __m128 _max = (__m128)__lsx_vld(maxptr, 0);
             _max = __lsx_vfmax_s(_max, _p);
             __lsx_vst(_max, maxptr, 0);
@@ -426,12 +426,12 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
 #if __loongarch_asx
         for (; j + 7 < size1; j += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _max = (__m256)__lasx_xvld(maxptr, 0);
             __m256 _sum = (__m256)__lasx_xvld(sumptr, 0);
             _p = __lasx_xvfsub_s(_p, _max);
             _p = exp_ps(_p);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             _sum = __lasx_xvfadd_s(_sum, _p);
             __lasx_xvst((__m256i)_sum, sumptr, 0);
             ptr += 8;
@@ -441,12 +441,12 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
 #endif // __loongarch_asx
         for (; j + 3 < size1; j += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             __m128 _max = (__m128)__lsx_vld(maxptr, 0);
             __m128 _sum = (__m128)__lsx_vld(sumptr, 0);
             _p = __lsx_vfsub_s(_p, _max);
             _p = exp_ps(_p);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             _sum = __lsx_vfadd_s(_sum, _p);
             __lsx_vst(_sum, sumptr, 0);
             ptr += 4;
@@ -506,20 +506,20 @@ static void softmax_bf16s_pack1_lsx(unsigned short* _ptr, int elemcount, size_t 
 #if __loongarch_asx
         for (; j + 7 < size1; j += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             __m256 _sum = (__m256)__lasx_xvld(sumptr, 0);
             _p = __lasx_xvfmul_s(_p, _sum);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
             sumptr += 8;
         }
 #endif // __loongarch_asx
         for (; j + 3 < size1; j += 4)
         {
-            __m128 _p = bfloat2float_sse((const unsigned short*)ptr);
+            __m128 _p = bfloat2float_lsx((const unsigned short*)ptr);
             __m128 _sum = (__m128)__lsx_vld(sumptr, 0);
             _p = __lsx_vfmul_s(_p, _sum);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
             sumptr += 4;
         }

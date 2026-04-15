@@ -273,24 +273,24 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
 #if __loongarch_asx
             for (; i + 7 < w; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)(ptr + i));
+                __m256 _p = bfloat2float_lasx((__m128i*)(ptr + i));
                 __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
                 __m256 _slope = (__m256)__lasx_xvld(slope + i, 0);
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope);
                 _p = (__m256)__lasx_xvbitsel_v((__m256i)_p, (__m256i)_ps, (__m256i)_lemask);
-                __lsx_vst(float2bfloat_avx(_p), ptr + i, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
             }
 #endif // __loongarch_asx
             for (; i + 3 < w; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)(ptr + i));
+                __m128 _p = bfloat2float_lsx((__m128i*)(ptr + i));
                 __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _slope = (__m128)__lsx_vld(slope + i, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope);
                 _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr + i, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
             }
 #endif // __loongarch_sx
             for (; i < w; i++)
@@ -311,24 +311,24 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
 #if __loongarch_asx
             for (; i + 7 < w; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)(ptr + i));
+                __m256 _p = bfloat2float_lasx((__m128i*)(ptr + i));
                 __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
                 __m256 _slope = (__m256)__lasx_xvreplfr2vr_s(slope);
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope);
                 _p = (__m256)__lasx_xvbitsel_v((__m256i)_p, (__m256i)_ps, (__m256i)_lemask);
-                __lsx_vst(float2bfloat_avx(_p), ptr + i, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
             }
 #endif // __loongarch_asx
             for (; i + 3 < w; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)(ptr + i));
+                __m128 _p = bfloat2float_lsx((__m128i*)(ptr + i));
                 __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope);
                 _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr + i, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
             }
 #endif // __loongarch_sx
             for (; i < w; i++)
@@ -363,20 +363,20 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
             __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : combine4x2_ps(_slope4, _slope4);
             for (; j + 7 < w; j += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)(ptr + j));
+                __m256 _p = bfloat2float_lasx((__m128i*)(ptr + j));
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero8);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope8);
                 _p = (__m256)__lasx_xvbitsel_v((__m256i)_p, (__m256i)_ps, (__m256i)_lemask);
-                __lsx_vst(float2bfloat_avx(_p), ptr + j, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr + j, 0);
             }
 #endif // __loongarch_asx
             for (; j + 3 < w; j += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)(ptr + j));
+                __m128 _p = bfloat2float_lsx((__m128i*)(ptr + j));
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero4);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope4);
                 _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr + j, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + j, 0, 0);
             }
 #endif // __loongarch_sx
             for (; j < w; j++)
@@ -414,20 +414,20 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
             __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : combine4x2_ps(_slope4, _slope4);
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)(ptr + i));
+                __m256 _p = bfloat2float_lasx((__m128i*)(ptr + i));
                 __m256i _lemask = __lasx_xvfcmp_cle_s(_p, _zero8);
                 __m256 _ps = __lasx_xvfmul_s(_p, _slope8);
                 _p = (__m256)__lasx_xvbitsel_v((__m256i)_p, (__m256i)_ps, (__m256i)_lemask);
-                __lsx_vst(float2bfloat_avx(_p), ptr + i, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
             }
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)(ptr + i));
+                __m128 _p = bfloat2float_lsx((__m128i*)(ptr + i));
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero4);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope4);
                 _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr + i, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
             }
 #endif // __loongarch_sx
             for (; i < size; i++)

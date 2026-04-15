@@ -328,15 +328,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 8;
 
-                    __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                    __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)(scale_bf16 + i * 8));
+                        _s = bfloat2float_lasx((__m128i*)(scale_bf16 + i * 8));
                     else
                         _s = (__m256)__lasx_xvld(scale_fp32 + i * 8, 0);
                     __m256 _bias = (__m256)__lasx_xvld(bias + i * 8, 0);
                     _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                    __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                 }
             }
             else
@@ -346,14 +346,14 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 8;
 
-                    __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                    __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)(scale_bf16 + i * 8));
+                        _s = bfloat2float_lasx((__m128i*)(scale_bf16 + i * 8));
                     else
                         _s = (__m256)__lasx_xvld(scale_fp32 + i * 8, 0);
                     _p = __lasx_xvfmul_s(_p, _s);
-                    __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                 }
             }
 
@@ -373,20 +373,20 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.row(i);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)((const unsigned short*)scale_blob + i * 8));
+                        _s = bfloat2float_lasx((__m128i*)((const unsigned short*)scale_blob + i * 8));
                     else
                         _s = (__m256)__lasx_xvld((const float*)scale_blob + i * 8, 0);
                     __m256 _bias;
                     if (needs_cast_scale)
-                        _bias = bfloat2float_avx((__m128i*)((const unsigned short*)bias_data + i * 8));
+                        _bias = bfloat2float_lasx((__m128i*)((const unsigned short*)bias_data + i * 8));
                     else
                         _bias = (__m256)__lasx_xvld((const float*)bias_data + i * 8, 0);
 
                     for (int j = 0; j < w; j++)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                        __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                         _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -399,15 +399,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.row(i);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)((const unsigned short*)scale_blob + i * 8));
+                        _s = bfloat2float_lasx((__m128i*)((const unsigned short*)scale_blob + i * 8));
                     else
                         _s = (__m256)__lasx_xvld((const float*)scale_blob + i * 8, 0);
 
                     for (int j = 0; j < w; j++)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                        __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                         _p = __lasx_xvfmul_s(_p, _s);
-                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -429,20 +429,20 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)((const unsigned short*)scale_blob + q * 8));
+                        _s = bfloat2float_lasx((__m128i*)((const unsigned short*)scale_blob + q * 8));
                     else
                         _s = (__m256)__lasx_xvld((const float*)scale_blob + q * 8, 0);
                     __m256 _bias;
                     if (needs_cast_scale)
-                        _bias = bfloat2float_avx((__m128i*)((const unsigned short*)bias_data + q * 8));
+                        _bias = bfloat2float_lasx((__m128i*)((const unsigned short*)bias_data + q * 8));
                     else
                         _bias = (__m256)__lasx_xvld((const float*)bias_data + q * 8, 0);
 
                     for (int i = 0; i < size; i++)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                        __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                         _p = __lasx_xvfmadd_s(_p, _s, _bias);
-                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -455,15 +455,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
                     __m256 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_avx((__m128i*)((const unsigned short*)scale_blob + q * 8));
+                        _s = bfloat2float_lasx((__m128i*)((const unsigned short*)scale_blob + q * 8));
                     else
                         _s = (__m256)__lasx_xvld((const float*)scale_blob + q * 8, 0);
 
                     for (int i = 0; i < size; i++)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                        __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                         _p = __lasx_xvfmul_s(_p, _s);
-                        __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                         ptr += 8;
                     }
                 }
@@ -491,15 +491,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
 
-                    __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                    __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)(scale_bf16 + i * 4));
+                        _s = bfloat2float_lsx((__m128i*)(scale_bf16 + i * 4));
                     else
                         _s = (__m128)__lsx_vld(scale_fp32 + i * 4, 0);
                     __m128 _bias = (__m128)__lsx_vld(bias + i * 4, 0);
                     _p = __lsx_vfmadd_s(_p, _s, _bias);
-                    __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                 }
             }
             else
@@ -509,14 +509,14 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
 
-                    __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                    __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)(scale_bf16 + i * 4));
+                        _s = bfloat2float_lsx((__m128i*)(scale_bf16 + i * 4));
                     else
                         _s = (__m128)__lsx_vld(scale_fp32 + i * 4, 0);
                     _p = __lsx_vfmul_s(_p, _s);
-                    __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                 }
             }
 
@@ -536,20 +536,20 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.row(i);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)((const unsigned short*)scale_blob + i * 4));
+                        _s = bfloat2float_lsx((__m128i*)((const unsigned short*)scale_blob + i * 4));
                     else
                         _s = (__m128)__lsx_vld((const float*)scale_blob + i * 4, 0);
                     __m128 _bias;
                     if (needs_cast_scale)
-                        _bias = bfloat2float_sse((__m128i*)((const unsigned short*)bias_data + i * 4));
+                        _bias = bfloat2float_lsx((__m128i*)((const unsigned short*)bias_data + i * 4));
                     else
                         _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                        __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                         _p = __lsx_vfmadd_s(_p, _s, _bias);
-                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -562,15 +562,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.row(i);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)((const unsigned short*)scale_blob + i * 4));
+                        _s = bfloat2float_lsx((__m128i*)((const unsigned short*)scale_blob + i * 4));
                     else
                         _s = (__m128)__lsx_vld((const float*)scale_blob + i * 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                        __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                         _p = __lsx_vfmul_s(_p, _s);
-                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -592,20 +592,20 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)((const unsigned short*)scale_blob + q * 4));
+                        _s = bfloat2float_lsx((__m128i*)((const unsigned short*)scale_blob + q * 4));
                     else
                         _s = (__m128)__lsx_vld((const float*)scale_blob + q * 4, 0);
                     __m128 _bias;
                     if (needs_cast_scale)
-                        _bias = bfloat2float_sse((__m128i*)((const unsigned short*)bias_data + q * 4));
+                        _bias = bfloat2float_lsx((__m128i*)((const unsigned short*)bias_data + q * 4));
                     else
                         _bias = (__m128)__lsx_vld((const float*)bias_data + q * 4, 0);
 
                     for (int i = 0; i < size; i++)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                        __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                         _p = __lsx_vfmadd_s(_p, _s, _bias);
-                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }
@@ -618,15 +618,15 @@ int Scale_loongarch::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, c
                     unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
                     __m128 _s;
                     if (needs_cast_scale)
-                        _s = bfloat2float_sse((__m128i*)((const unsigned short*)scale_blob + q * 4));
+                        _s = bfloat2float_lsx((__m128i*)((const unsigned short*)scale_blob + q * 4));
                     else
                         _s = (__m128)__lsx_vld((const float*)scale_blob + q * 4, 0);
 
                     for (int i = 0; i < size; i++)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                        __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                         _p = __lsx_vfmul_s(_p, _s);
-                        __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                         ptr += 4;
                     }
                 }

@@ -218,7 +218,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             const unsigned short* ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+                __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
                 _sum = __lasx_xvfadd_s(_sum, _p);
                 ptr0 += 8;
             }
@@ -237,7 +237,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+                __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
                 _p = __lasx_xvfsub_s(_p, _mean);
                 _sqsum = __lasx_xvfmadd_s(_p, _p, _sqsum);
                 ptr0 += 8;
@@ -275,9 +275,9 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
 
             for (int i = 0; i < size; i++)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)ptr);
+                __m256 _p = bfloat2float_lasx((__m128i*)ptr);
                 _p = __lasx_xvfmadd_s(_p, _a, _b);
-                __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                 ptr += 8;
             }
         }
@@ -301,7 +301,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             const unsigned short* ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
                 _sum = __lsx_vfadd_s(_sum, _p);
                 ptr0 += 4;
             }
@@ -320,7 +320,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             ptr0 = ptr;
             for (int i = 0; i < size; i++)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
                 _p = __lsx_vfsub_s(_p, _mean);
                 _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
                 ptr0 += 4;
@@ -358,9 +358,9 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
 
             for (int i = 0; i < size; i++)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr);
+                __m128 _p = bfloat2float_lsx((__m128i*)ptr);
                 _p = __lsx_vfmadd_s(_p, _a, _b);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                 ptr += 4;
             }
         }

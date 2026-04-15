@@ -24,7 +24,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
             v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
             v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
-            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+            transpose4x4_ps(_r0, _r1, _r2, _r3);
             float2bfloat_msa_store(_r0, pp);
             float2bfloat_msa_store(_r1, pp + 4);
             float2bfloat_msa_store(_r2, pp + 8);
@@ -248,9 +248,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
-                    _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
-                    _MM_TRANSPOSE4_PS(_sum8, _sum9, _suma, _sumb);
+                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                    transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                    transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
 
                     float2bfloat_msa_store(_sum0, outptr0);
                     float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
@@ -378,8 +378,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
-                    _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
+                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                    transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
                     float2bfloat_msa_store(_sum0, outptr0);
                     float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
@@ -471,7 +471,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
+                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
 
                     float2bfloat_msa_store(_sum0, outptr0);
                     float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
@@ -1446,9 +1446,9 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r9 = bfloat2float_msa(p0 + 4 * 9);
                 v4f32 _ra = bfloat2float_msa(p0 + 4 * 10);
                 v4f32 _rb = bfloat2float_msa(p0 + 4 * 11);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                transpose4x4_ps(_r8, _r9, _ra, _rb);
                 float2bfloat_msa_store(_r0, pp);
                 float2bfloat_msa_store(_r4, pp + 4 * 1);
                 float2bfloat_msa_store(_r8, pp + 4 * 2);
@@ -1507,8 +1507,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r5 = bfloat2float_msa(p0 + 4 * 5);
                 v4f32 _r6 = bfloat2float_msa(p0 + 4 * 6);
                 v4f32 _r7 = bfloat2float_msa(p0 + 4 * 7);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
                 float2bfloat_msa_store(_r0, pp);
                 float2bfloat_msa_store(_r4, pp + 4 * 1);
                 float2bfloat_msa_store(_r1, pp + 4 * 2);
@@ -1555,7 +1555,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r1 = bfloat2float_msa(p0 + 4);
                 v4f32 _r2 = bfloat2float_msa(p0 + 4 * 2);
                 v4f32 _r3 = bfloat2float_msa(p0 + 4 * 3);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
                 float2bfloat_msa_store(_r0, pp);
                 float2bfloat_msa_store(_r1, pp + 4 * 1);
                 float2bfloat_msa_store(_r2, pp + 4 * 2);
@@ -1730,9 +1730,9 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r9 = bfloat2float_msa(sptr + stride_w * 36);
                     v4f32 _ra = bfloat2float_msa(sptr + stride_w * 40);
                     v4f32 _rb = bfloat2float_msa(sptr + stride_w * 44);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    transpose4x4_ps(_r8, _r9, _ra, _rb);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r4, pp + 4 * 1);
                     float2bfloat_msa_store(_r8, pp + 4 * 2);
@@ -1830,9 +1830,9 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r9 = bfloat2float_msa(sptr9);
                     v4f32 _ra = bfloat2float_msa(sptra);
                     v4f32 _rb = bfloat2float_msa(sptrb);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    transpose4x4_ps(_r8, _r9, _ra, _rb);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r4, pp + 4 * 1);
                     float2bfloat_msa_store(_r8, pp + 4 * 2);
@@ -1912,8 +1912,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r5 = bfloat2float_msa(sptr + stride_w * 20);
                     v4f32 _r6 = bfloat2float_msa(sptr + stride_w * 24);
                     v4f32 _r7 = bfloat2float_msa(sptr + stride_w * 28);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r4, pp + 4 * 1);
                     float2bfloat_msa_store(_r1, pp + 4 * 2);
@@ -1986,8 +1986,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r5 = bfloat2float_msa(sptr5);
                     v4f32 _r6 = bfloat2float_msa(sptr6);
                     v4f32 _r7 = bfloat2float_msa(sptr7);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r4, pp + 4 * 1);
                     float2bfloat_msa_store(_r1, pp + 4 * 2);
@@ -2047,7 +2047,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r1 = bfloat2float_msa(sptr + stride_w * 4);
                     v4f32 _r2 = bfloat2float_msa(sptr + stride_w * 8);
                     v4f32 _r3 = bfloat2float_msa(sptr + stride_w * 12);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r1, pp + 4 * 1);
                     float2bfloat_msa_store(_r2, pp + 4 * 2);
@@ -2096,7 +2096,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r1 = bfloat2float_msa(sptr1);
                     v4f32 _r2 = bfloat2float_msa(sptr2);
                     v4f32 _r3 = bfloat2float_msa(sptr3);
-                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
                     float2bfloat_msa_store(_r0, pp);
                     float2bfloat_msa_store(_r1, pp + 4 * 1);
                     float2bfloat_msa_store(_r2, pp + 4 * 2);

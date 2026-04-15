@@ -18,17 +18,17 @@ static void pooling_global_max_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
         {
             const unsigned short* ptr = bottom_blob.channel(q);
 
-            __m256 _max = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _max = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             ptr += 8;
             for (int i = 1; i < size; i++)
             {
-                __m256 _val = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                 _max = __lasx_xvfmax_s(_max, _val);
                 ptr += 8;
             }
 
             unsigned short* outptr = top_blob;
-            __lsx_vst(float2bfloat_avx(_max), outptr + q * 8, 0);
+            __lsx_vst(float2bfloat_lasx(_max), outptr + q * 8, 0);
         }
 
         return;
@@ -42,17 +42,17 @@ static void pooling_global_max_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
         {
             const unsigned short* ptr = bottom_blob.channel(q);
 
-            __m128 _max = bfloat2float_sse(ptr);
+            __m128 _max = bfloat2float_lsx(ptr);
             ptr += 4;
             for (int i = 1; i < size; i++)
             {
-                __m128 _val = bfloat2float_sse(ptr);
+                __m128 _val = bfloat2float_lsx(ptr);
                 _max = __lsx_vfmax_s(_max, _val);
                 ptr += 4;
             }
 
             unsigned short* outptr = top_blob;
-            __lsx_vstelm_d(float2bfloat_sse(_max), outptr + q * 4, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_max), outptr + q * 4, 0, 0);
         }
 
         return;
@@ -99,7 +99,7 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
             __m256 _sum = (__m256)__lasx_xvreplgr2vr_w(0);
             for (int i = 0; i < size; i++)
             {
-                __m256 _val = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                 _sum = __lasx_xvfadd_s(_sum, _val);
                 ptr += 8;
             }
@@ -108,7 +108,7 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
             __m256 _avg = __lasx_xvfmul_s(_sum, _inv_size);
 
             unsigned short* outptr = top_blob;
-            __lsx_vst(float2bfloat_avx(_avg), outptr + q * 8, 0);
+            __lsx_vst(float2bfloat_lasx(_avg), outptr + q * 8, 0);
         }
 
         return;
@@ -125,7 +125,7 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
             __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
             for (int i = 0; i < size; i++)
             {
-                __m128 _val = bfloat2float_sse(ptr);
+                __m128 _val = bfloat2float_lsx(ptr);
                 _sum = __lsx_vfadd_s(_sum, _val);
                 ptr += 4;
             }
@@ -134,7 +134,7 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
             __m128 _avg = __lsx_vfmul_s(_sum, _inv_size);
 
             unsigned short* outptr = top_blob;
-            __lsx_vstelm_d(float2bfloat_sse(_avg), outptr + q * 4, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_avg), outptr + q * 4, 0, 0);
         }
 
         return;
@@ -206,15 +206,15 @@ static void pooling_max_bf16s_sse(const Mat& bottom_blob_bordered, Mat& top_blob
                 {
                     const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
 
-                    __m256 _max = bfloat2float_avx((__m128i)__lsx_vld(sptr, 0));
+                    __m256 _max = bfloat2float_lasx((__m128i)__lsx_vld(sptr, 0));
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        __m256 _val = bfloat2float_avx((__m128i)__lsx_vld(sptr + space_ofs[k] * 8, 0));
+                        __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(sptr + space_ofs[k] * 8, 0));
                         _max = __lasx_xvfmax_s(_max, _val);
                     }
 
-                    __lsx_vst(float2bfloat_avx(_max), outptr + j * 8, 0);
+                    __lsx_vst(float2bfloat_lasx(_max), outptr + j * 8, 0);
                 }
 
                 outptr += outw * 8;
@@ -239,15 +239,15 @@ static void pooling_max_bf16s_sse(const Mat& bottom_blob_bordered, Mat& top_blob
                 {
                     const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
-                    __m128 _max = bfloat2float_sse(sptr);
+                    __m128 _max = bfloat2float_lsx(sptr);
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        __m128 _val = bfloat2float_sse(sptr + space_ofs[k] * 4);
+                        __m128 _val = bfloat2float_lsx(sptr + space_ofs[k] * 4);
                         _max = __lsx_vfmax_s(_max, _val);
                     }
 
-                    __lsx_vstelm_d(float2bfloat_sse(_max), outptr + j * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_max), outptr + j * 4, 0, 0);
                 }
 
                 outptr += outw * 4;
@@ -372,7 +372,7 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
                                 if (sx >= w - pad_right - wtailpad)
                                     break;
 
-                                __m256 _val = bfloat2float_avx((__m128i)__lsx_vld(m.row<const unsigned short>(sy) + sx * 8, 0));
+                                __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(m.row<const unsigned short>(sy) + sx * 8, 0));
                                 _sum = __lasx_xvfadd_s(_sum, _val);
                                 area += 1;
                             }
@@ -380,7 +380,7 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
 
                         __m256 _inv_area = __lasx_xvreplfr2vr_s(1.f / area);
                         __m256 _avg = __lasx_xvfmul_s(_sum, _inv_area);
-                        __lsx_vst(float2bfloat_avx(_avg), outptr + j * 8, 0);
+                        __lsx_vst(float2bfloat_lasx(_avg), outptr + j * 8, 0);
                     }
 
                     outptr += outw * 8;
@@ -430,7 +430,7 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
                                 if (sx >= w - pad_right - wtailpad)
                                     break;
 
-                                __m128 _val = bfloat2float_sse(m.row<const unsigned short>(sy) + sx * 4);
+                                __m128 _val = bfloat2float_lsx(m.row<const unsigned short>(sy) + sx * 4);
                                 _sum = __lsx_vfadd_s(_sum, _val);
                                 area += 1;
                             }
@@ -438,7 +438,7 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
 
                         __m128 _inv_area = __lsx_vreplfr2vr_s(1.f / area);
                         __m128 _avg = __lsx_vfmul_s(_sum, _inv_area);
-                        __lsx_vstelm_d(float2bfloat_sse(_avg), outptr + j * 4, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_avg), outptr + j * 4, 0, 0);
                     }
 
                     outptr += outw * 4;
@@ -525,12 +525,12 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            __m256 _val = bfloat2float_avx((__m128i)__lsx_vld(sptr + space_ofs[k] * 8, 0));
+                            __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(sptr + space_ofs[k] * 8, 0));
                             _sum = __lasx_xvfadd_s(_sum, _val);
                         }
 
                         __m256 _avg = __lasx_xvfmul_s(_sum, _inv_maxk);
-                        __lsx_vst(float2bfloat_avx(_avg), outptr + j * 8, 0);
+                        __lsx_vst(float2bfloat_lasx(_avg), outptr + j * 8, 0);
                     }
 
                     outptr += outw * 8;
@@ -561,12 +561,12 @@ static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bo
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            __m128 _val = bfloat2float_sse(sptr + space_ofs[k] * 4);
+                            __m128 _val = bfloat2float_lsx(sptr + space_ofs[k] * 4);
                             _sum = __lsx_vfadd_s(_sum, _val);
                         }
 
                         __m128 _avg = __lsx_vfmul_s(_sum, _inv_maxk);
-                        __lsx_vstelm_d(float2bfloat_sse(_avg), outptr + j * 4, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_avg), outptr + j * 4, 0, 0);
                     }
 
                     outptr += outw * 4;

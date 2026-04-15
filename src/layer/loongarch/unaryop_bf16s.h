@@ -23,17 +23,17 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = op.func_pack8(_p);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse(ptr);
+            __m128 _p = bfloat2float_lsx(ptr);
             _p = op.func_pack4(_p);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

@@ -5,6 +5,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_usability.h"
@@ -48,10 +51,20 @@ int Dropout_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
         int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        __m256 _scale256 = (__m256)__lasx_xvreplfr2vr_s(scale);
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+            _p = __lasx_xvfmul_s(_p, _scale256);
+            __lasx_xvst(_p, ptr, 0);
+
+            ptr += 8;
+        }
+#endif // __loongarch_asx
         __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(ptr + 16);
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmul_s(_p, _scale);
             __lsx_vst(_p, ptr, 0);
@@ -96,18 +109,18 @@ int Dropout_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
         __m256 _scale_lasx = (__m256)__lasx_xvreplfr2vr_s(scale);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = __lasx_xvfmul_s(_p, _scale_lasx);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
         __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+            __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
             _p = __lsx_vfmul_s(_p, _scale);
-            __lsx_vstelm_d(float2bfloat_sse(_p, _p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

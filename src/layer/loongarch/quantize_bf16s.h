@@ -38,8 +38,8 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
 #if __loongarch_asx
     for (; i + 15 < size; i += 16)
     {
-        __m256 _v0 = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
-        __m256 _v1 = bfloat2float_avx((__m128i)__lsx_vld(ptr + 8, 0));
+        __m256 _v0 = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+        __m256 _v1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr + 8, 0));
         _v0 = __lasx_xvfmul_s(_v0, _scale_avx);
         _v1 = __lasx_xvfmul_s(_v1, _scale_avx);
         *(int64_t*)s8ptr = float2int8(_v0, _v1);
@@ -57,12 +57,12 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
     for (; i + 7 < size; i += 8)
     {
 #if __loongarch_asx
-        __m256 _v = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+        __m256 _v = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
         _v = __lasx_xvfmul_s(_v, _scale_avx);
         *(int64_t*)s8ptr = float2int8(_v);
 #else  // __loongarch_asx
-        __m128 _v0 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-        __m128 _v1 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 4, 0));
+        __m128 _v0 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+        __m128 _v1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 4, 0));
         _v0 = __lsx_vfmul_s(_v0, _scale);
         _v1 = __lsx_vfmul_s(_v1, _scale);
         *(int64_t*)s8ptr = float2int8(_v0, _v1);
@@ -72,7 +72,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
     }
     for (; i + 3 < size; i += 4)
     {
-        __m128 _v = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+        __m128 _v = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
         _v = __lsx_vfmul_s(_v, _scale);
         __m128i v = float2int8(_v);
         int32_t vi = __lsx_vpickve2gr_w(v, 0);
@@ -111,10 +111,10 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
     int i = 0;
     for (; i + 1 < elemcount; i += 2)
     {
-        __m128 _v0 = bfloat2float_sse((__m128i)__lsx_vld(ptr0, 0));
-        __m128 _v1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
-        __m128 _v2 = bfloat2float_sse((__m128i)__lsx_vld(ptr0 + 4, 0));
-        __m128 _v3 = bfloat2float_sse((__m128i)__lsx_vld(ptr1 + 4, 0));
+        __m128 _v0 = bfloat2float_lsx((__m128i)__lsx_vld(ptr0, 0));
+        __m128 _v1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
+        __m128 _v2 = bfloat2float_lsx((__m128i)__lsx_vld(ptr0 + 4, 0));
+        __m128 _v3 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1 + 4, 0));
         _v0 = __lsx_vfmul_s(_v0, _scale0);
         _v1 = __lsx_vfmul_s(_v1, _scale1);
         _v2 = __lsx_vfmul_s(_v2, _scale0);
@@ -130,8 +130,8 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v0 = bfloat2float_sse((__m128i)__lsx_vld(ptr0, 0));
-        __m128 _v1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
+        __m128 _v0 = bfloat2float_lsx((__m128i)__lsx_vld(ptr0, 0));
+        __m128 _v1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
         _v0 = __lsx_vfmul_s(_v0, _scale0);
         _v1 = __lsx_vfmul_s(_v1, _scale1);
         *(int64_t*)s8ptr = float2int8(_v0, _v1);
@@ -156,14 +156,14 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
     int i = 0;
     for (; i + 7 < elemcount; i += 8)
     {
-        __m128 _v0 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-        __m128 _v1 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 4, 0));
-        __m128 _v2 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 8, 0));
-        __m128 _v3 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 12, 0));
-        __m128 _v4 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 16, 0));
-        __m128 _v5 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 20, 0));
-        __m128 _v6 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 24, 0));
-        __m128 _v7 = bfloat2float_sse((__m128i)__lsx_vld(ptr + 28, 0));
+        __m128 _v0 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+        __m128 _v1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 4, 0));
+        __m128 _v2 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 8, 0));
+        __m128 _v3 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 12, 0));
+        __m128 _v4 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 16, 0));
+        __m128 _v5 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 20, 0));
+        __m128 _v6 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 24, 0));
+        __m128 _v7 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 28, 0));
         _v0 = __lsx_vfmul_s(_v0, _scale);
         _v1 = __lsx_vfmul_s(_v1, _scale);
         _v2 = __lsx_vfmul_s(_v2, _scale);
@@ -198,7 +198,7 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+        __m128 _v = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
         _v = __lsx_vfmul_s(_v, _scale);
         int64_t v = float2int8(_v, _v);
         s8ptr0[0] = (v >> 32) & 0xff;

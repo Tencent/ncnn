@@ -27,10 +27,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
-                __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr1, 0));
+                __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+                __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0));
                 _p = __lasx_xvfmul_s(_p, _p1);
-                __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                 ptr += 8;
                 ptr1 += 8;
@@ -39,10 +39,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-                __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
+                __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+                __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
                 _p = __lsx_vfmul_s(_p, _p1);
-                __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                 ptr += 4;
                 ptr1 += 4;
@@ -73,10 +73,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(outptr, 0));
-                    __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                    __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(outptr, 0));
+                    __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                     _p = __lasx_xvfmul_s(_p, _p1);
-                    __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                     ptr += 8;
                     outptr += 8;
@@ -84,10 +84,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(outptr, 0));
-                    __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+                    __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(outptr, 0));
+                    __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
                     _p = __lsx_vfmul_s(_p, _p1);
-                    __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                     ptr += 4;
                     outptr += 4;
@@ -121,10 +121,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
-                    __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr1, 0));
+                    __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+                    __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0));
                     _p = __lasx_xvfadd_s(_p, _p1);
-                    __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                     ptr += 8;
                     ptr1 += 8;
@@ -133,10 +133,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-                    __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
+                    __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+                    __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
                     _p = __lsx_vfadd_s(_p, _p1);
-                    __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                     ptr += 4;
                     ptr1 += 4;
@@ -167,10 +167,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
                     for (; i + 7 < size; i += 8)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(outptr, 0));
-                        __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                        __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(outptr, 0));
+                        __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                         _p = __lasx_xvfadd_s(_p, _p1);
-                        __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                         ptr += 8;
                         outptr += 8;
@@ -178,10 +178,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(outptr, 0));
-                        __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+                        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(outptr, 0));
+                        __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
                         _p = __lsx_vfadd_s(_p, _p1);
-                        __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                         ptr += 4;
                         outptr += 4;
@@ -218,11 +218,11 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m256 _coeff1_lasx = (__m256)__lasx_xvreplfr2vr_s(coeff1);
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
-                    __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr1, 0));
+                    __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+                    __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0));
                     _p = __lasx_xvfmul_s(_p, _coeff0_lasx);
                     _p = __lasx_xvfmadd_s(_coeff1_lasx, _p1, _p);
-                    __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                     ptr += 8;
                     ptr1 += 8;
@@ -233,11 +233,11 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                 __m128 _coeff1 = (__m128)__lsx_vreplfr2vr_s(coeff1);
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-                    __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
+                    __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+                    __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
                     _p = __lsx_vfmul_s(_p, _coeff0);
                     _p = __lsx_vfmadd_s(_coeff1, _p1, _p);
-                    __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                     ptr += 4;
                     ptr1 += 4;
@@ -271,10 +271,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m256 _coeff_lasx = (__m256)__lasx_xvreplfr2vr_s(coeff);
                     for (; i + 7 < size; i += 8)
                     {
-                        __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(outptr, 0));
-                        __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                        __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(outptr, 0));
+                        __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                         _p = __lasx_xvfmadd_s(_coeff_lasx, _p1, _p);
-                        __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                        __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                         ptr += 8;
                         outptr += 8;
@@ -283,10 +283,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     __m128 _coeff = (__m128)__lsx_vreplfr2vr_s(coeff);
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(outptr, 0));
-                        __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+                        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(outptr, 0));
+                        __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
                         _p = __lsx_vfmadd_s(_coeff, _p1, _p);
-                        __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                         ptr += 4;
                         outptr += 4;
@@ -319,10 +319,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
-                __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr1, 0));
+                __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+                __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0));
                 _p = __lasx_xvfmax_s(_p, _p1);
-                __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                 ptr += 8;
                 ptr1 += 8;
@@ -331,10 +331,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
-                __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr1, 0));
+                __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+                __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
                 _p = __lsx_vfmax_s(_p, _p1);
-                __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                 ptr += 4;
                 ptr1 += 4;
@@ -365,10 +365,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #if __loongarch_asx
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = bfloat2float_avx((__m128i)__lsx_vld(outptr, 0));
-                    __m256 _p1 = bfloat2float_avx((__m128i)__lsx_vld(ptr, 0));
+                    __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(outptr, 0));
+                    __m256 _p1 = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
                     _p = __lasx_xvfmax_s(_p, _p1);
-                    __lsx_vst(float2bfloat_avx(_p), outptr, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
 
                     ptr += 8;
                     outptr += 8;
@@ -376,10 +376,10 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_sse((__m128i)__lsx_vld(outptr, 0));
-                    __m128 _p1 = bfloat2float_sse((__m128i)__lsx_vld(ptr, 0));
+                    __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(outptr, 0));
+                    __m128 _p1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
                     _p = __lsx_vfmax_s(_p, _p1);
-                    __lsx_vstelm_d(float2bfloat_sse(_p, _p), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_p, _p), outptr, 0, 0);
 
                     ptr += 4;
                     outptr += 4;

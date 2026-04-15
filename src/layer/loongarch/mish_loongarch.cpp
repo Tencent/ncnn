@@ -100,17 +100,17 @@ int Mish_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i*)ptr);
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr);
             _p = __lasx_xvfmul_s(_p, tanh256_ps(log256_ps(__lasx_xvfadd_s(exp256_ps(_p), (__m256)__lasx_xvreplfr2vr_s(1.f)))));
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
             _p = __lsx_vfmul_s(_p, tanh_ps(log_ps(__lsx_vfadd_s(exp_ps(_p), (__m128)__lsx_vreplfr2vr_s(1.f)))));
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

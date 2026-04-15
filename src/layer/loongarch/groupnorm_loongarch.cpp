@@ -42,7 +42,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
             _mean8 = __lasx_xvfadd_s(_mean8, _p);
             ptr0 += 8;
         }
@@ -50,7 +50,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
             _mean4 = __lsx_vfadd_s(_mean4, _p);
             ptr0 += 4;
         }
@@ -94,7 +94,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
             _p = __lasx_xvfsub_s(_p, _mean8);
             _var8 = __lasx_xvfmadd_s(_p, _p, _var8);
             ptr0 += 8;
@@ -103,7 +103,7 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_sx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
             _p = __lsx_vfsub_s(_p, _mean4);
             _var4 = __lsx_vfmadd_s(_p, _p, _var4);
             ptr0 += 4;
@@ -196,9 +196,9 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             {
                 for (; i + 7 < size; i += 8)
                 {
-                    __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+                    __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
                     _p = __lasx_xvfmadd_s(_p, _a8, _b8);
-                    __lsx_vst(float2bfloat_avx(_p), ptr0, 0);
+                    __lsx_vst(float2bfloat_lasx(_p), ptr0, 0);
                     ptr0 += 8;
                 }
             }
@@ -206,9 +206,9 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
                 _p = __lsx_vfmadd_s(_p, _a4, _b4);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr0, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr0, 0, 0);
                 ptr0 += 4;
             }
 #endif // __loongarch_sx
@@ -229,18 +229,18 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
 #if __loongarch_asx
             for (; i + 7 < size; i += 8)
             {
-                __m256 _p = bfloat2float_avx((__m128i*)ptr0);
+                __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
                 _p = __lasx_xvfmadd_s(_p, _var8, _mean8);
-                __lsx_vst(float2bfloat_avx(_p), ptr0, 0);
+                __lsx_vst(float2bfloat_lasx(_p), ptr0, 0);
                 ptr0 += 8;
             }
 #endif // __loongarch_asx
 #if __loongarch_sx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_sse((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
                 _p = __lsx_vfmadd_s(_p, _var4, _mean4);
-                __lsx_vstelm_d(float2bfloat_sse(_p), ptr0, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr0, 0, 0);
                 ptr0 += 4;
             }
 #endif // __loongarch_sx

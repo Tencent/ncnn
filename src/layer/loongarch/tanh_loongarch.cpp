@@ -98,17 +98,28 @@ int TanH_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #if __loongarch_asx
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx((__m128i*)ptr);
+            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
             _p = tanh256_ps(_p);
-            __lsx_vst(float2bfloat_avx(_p), ptr, 0);
+            __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_sse((__m128i*)ptr);
+            // load 4 bf16 values safely via 64-bit load
+            int64_t v;
+            memcpy(&v, ptr, 8);
+            __m128i _raw = __lsx_vreplgr2vr_d(v);
+            __m128i _pi = __lsx_vilvl_h(_raw, _zero);
+            __m128 _p = (__m128)_pi;
+            // tanh
             _p = tanh_ps(_p);
-            __lsx_vstelm_d(float2bfloat_sse(_p), ptr, 0, 0);
+            // fp32 -> bf16
+            _pi = (__m128i)_p;
+            _pi = __lsx_vsrli_w(_pi, 16);
+            __m128i _out = __lsx_vpickev_h(__lsx_vreplgr2vr_w(0), _pi);
+            __lsx_vstelm_d(_out, ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

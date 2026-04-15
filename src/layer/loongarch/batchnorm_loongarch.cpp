@@ -5,6 +5,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_usability.h"
@@ -40,8 +43,14 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
         int w = bottom_top_blob.w * elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+        int nn_w8 = w / 8;
+        int nn_w = (w - nn_w8 * 8) / 4;
+        int remain_w_start = nn_w8 * 8 + nn_w * 4;
+#else
         int nn_w = w / 4;
         int remain_w_start = nn_w * 4;
+#endif // __loongarch_asx
 #else
         int remain_w_start = 0;
 #endif // __loongarch_sx
@@ -49,14 +58,36 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
         float* ptr = bottom_top_blob;
 
 #if __loongarch_sx
+#if __loongarch_asx
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < nn_w8; i++)
+        {
+            float* ptr0 = ptr + i * 8;
+
+            __m256 _p = (__m256)__lasx_xvld(ptr0, 0);
+            __m256 _a = (__m256)__lasx_xvld((const float*)a_data + i * 8, 0);
+            __m256 _b = (__m256)__lasx_xvld((const float*)b_data + i * 8, 0);
+            _p = __lasx_xvfmadd_s(_b, _p, _a);
+            __lasx_xvst(_p, ptr0, 0);
+        }
+#endif // __loongarch_asx
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn_w; i++)
         {
+#if __loongarch_asx
+            float* ptr0 = ptr + nn_w8 * 8 + i * 4;
+#else
             float* ptr0 = ptr + i * 4;
+#endif // __loongarch_asx
 
             __m128 _p = (__m128)__lsx_vld(ptr0, 0);
+#if __loongarch_asx
+            __m128 _a = (__m128)__lsx_vld((const float*)a_data + (nn_w8 * 8 + i * 4), 0);
+            __m128 _b = (__m128)__lsx_vld((const float*)b_data + (nn_w8 * 8 + i * 4), 0);
+#else
             __m128 _a = (__m128)__lsx_vld((const float*)a_data + i * 4, 0);
             __m128 _b = (__m128)__lsx_vld((const float*)b_data + i * 4, 0);
+#endif // __loongarch_asx
             _p = __lsx_vfmadd_s(_b, _p, _a);
             __lsx_vst(_p, ptr0, 0);
         }
@@ -83,11 +114,22 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
 
             int j = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+            __m256 _a256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + i * 4, 0), (__m128)__lsx_vld((const float*)a_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            for (; j + 7 < w; j += 8)
+            {
+                __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+                _p = __lasx_xvfmadd_s(_b256, _p, _a256);
+                __lasx_xvst(_p, ptr, 0);
+
+                ptr += 8;
+            }
+#endif // __loongarch_asx
             __m128 _a = elempack == 4 ? (__m128)__lsx_vld((const float*)a_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(a);
             __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; j + 3 < w; j += 4)
             {
-                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);
@@ -120,11 +162,22 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
 
             int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+            __m256 _a256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + q * 4, 0), (__m128)__lsx_vld((const float*)a_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            for (; i + 7 < size; i += 8)
+            {
+                __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+                _p = __lasx_xvfmadd_s(_b256, _p, _a256);
+                __lasx_xvst(_p, ptr, 0);
+
+                ptr += 8;
+            }
+#endif // __loongarch_asx
             __m128 _a = elempack == 4 ? (__m128)__lsx_vld((const float*)a_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(a);
             __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; i + 3 < size; i += 4)
             {
-                __builtin_prefetch(ptr + 16);
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);
