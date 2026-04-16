@@ -1645,10 +1645,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             int axis_val = -1;
             int largest_val = 1;
             int sorted_val = 1;
-            if (op->params.count("3")) k_val      = op->params.at("3").i;
-            if (op->params.count("0")) axis_val   = op->params.at("0").i;
+            if (op->params.count("3")) k_val = op->params.at("3").i;
+            if (op->params.count("0")) axis_val = op->params.at("0").i;
             if (op->params.count("1")) largest_val = op->params.at("1").i;
-            if (op->params.count("2")) sorted_val  = op->params.at("2").i;
+            if (op->params.count("2")) sorted_val = op->params.at("2").i;
 
             fprintf(pyfp, "        self.%s = TopK(k=%d, axis=%d, largest=%d, sorted=%d)\n",
                     sanitize_identifier(op->name).c_str(), k_val, axis_val, largest_val, sorted_val);

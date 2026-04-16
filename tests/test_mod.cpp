@@ -106,7 +106,11 @@ static int test_mod_negative_values()
     float bvals[6] = {3, 3, 3, 3, 3, 3};
     float* ap = a;
     float* bp = b;
-    for (int i = 0; i < 6; i++) { ap[i] = avals[i]; bp[i] = bvals[i]; }
+    for (int i = 0; i < 6; i++)
+    {
+        ap[i] = avals[i];
+        bp[i] = bvals[i];
+    }
 
     ncnn::Mat out;
     if (run_mod(a, b, 0, out) != 0)

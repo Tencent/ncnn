@@ -52,9 +52,9 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     // Resolve broadcast: -1 means keep input dim; 1 means broadcast
     auto resolve_dim = [](int in_dim, int tgt_dim) -> int {
-        if (tgt_dim <= 0) return in_dim;  // -1 or 0: keep
+        if (tgt_dim <= 0) return in_dim; // -1 or 0: keep
         if (in_dim == 1) return tgt_dim;
-        return in_dim;  // tgt==1 or tgt==in_dim: keep in_dim
+        return in_dim; // tgt==1 or tgt==in_dim: keep in_dim
     };
 
     const int out_w = resolve_dim(in_w, tgt_w);
@@ -63,9 +63,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const int out_dims = std::max(in_dims, target_dims);
 
     // Validate: if neither is 1 and they differ, it's invalid
-    if ((in_w != 1 && tgt_w != 1 && tgt_w > 0 && in_w != tgt_w) ||
-        (in_h != 1 && tgt_h != 1 && tgt_h > 0 && in_h != tgt_h) ||
-        (in_c != 1 && tgt_c != 1 && tgt_c > 0 && in_c != tgt_c))
+    if ((in_w != 1 && tgt_w != 1 && tgt_w > 0 && in_w != tgt_w) || (in_h != 1 && tgt_h != 1 && tgt_h > 0 && in_h != tgt_h) || (in_c != 1 && tgt_c != 1 && tgt_c > 0 && in_c != tgt_c))
         return -1;
 
     Mat& top_blob = top_blobs[0];

@@ -72,10 +72,11 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #define READ_IDX(pos) \
     (idx_elemsize == 8 ? (int)idx_ptr64[(pos)] : idx_ptr32[(pos)])
 
-#define CLAMP_IDX(gi)                                     \
-    do {                                                  \
-        if ((gi) < 0) (gi) += axis_dim_size;              \
-        if ((gi) < 0) (gi) = 0;                           \
+#define CLAMP_IDX(gi)                                        \
+    do                                                       \
+    {                                                        \
+        if ((gi) < 0) (gi) += axis_dim_size;                 \
+        if ((gi) < 0) (gi) = 0;                              \
         if ((gi) >= axis_dim_size) (gi) = axis_dim_size - 1; \
     } while (0)
 
