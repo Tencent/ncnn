@@ -170,7 +170,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     const float* ptr = bottom_blob;
     float* outptr = values;
-    float* outidxptr = indices;
+    int* outidxptr = (int*)(void*)(indices.data);
     const bool output_indices = outidxptr != 0;
 
     int inner = 1;
@@ -314,7 +314,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
             outptr[out_base] = best_value;
             if (output_indices)
-                outidxptr[out_base] = (float)best_index;
+                outidxptr[out_base] = best_index;
         }
 
         top_blobs[0] = values;
@@ -351,7 +351,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 for (int j = 0; j < _k; j++)
                 {
                     outptr[out_base + j * out_axis_stride] = ptr[in_base + j * in_axis_stride];
-                    outidxptr[out_base + j * out_axis_stride] = (float)j;
+                    outidxptr[out_base + j * out_axis_stride] = j;
                 }
             }
             else
@@ -466,7 +466,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 for (int j = 0; j < _k; j++)
                 {
                     outptr[out_base + j * out_axis_stride] = top_values[j];
-                    outidxptr[out_base + j * out_axis_stride] = (float)top_indices[j];
+                    outidxptr[out_base + j * out_axis_stride] = top_indices[j];
                 }
             }
             else
@@ -544,7 +544,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             for (int j = 0; j < _k; j++)
             {
                 outptr[out_base + j * out_axis_stride] = vec[j].first;
-                outidxptr[out_base + j * out_axis_stride] = (float)vec[j].second;
+                outidxptr[out_base + j * out_axis_stride] = vec[j].second;
             }
         }
         else

@@ -1,76 +1,190 @@
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "layer/expand.h"
 #include "testutil.h"
 
-#include <gtest/gtest.h>
+#include <string.h>
 
-static int test_expand_cpu(int in_w, int in_h, int in_c, int out_w, int out_h, int out_c)
+// Run the Expand layer: data (bottom_blobs[0]) + shape (bottom_blobs[1]) → output
+static int run_expand(const ncnn::Mat& data, const ncnn::Mat& shape, ncnn::Mat& out)
 {
-    ncnn::Mat input(in_w, in_h, in_c);
-    Randomize(input);
-
-    // Create shape tensor
-    ncnn::Mat shape_tensor(3);
-    ((int*)shape_tensor)[0] = out_w;
-    ((int*)shape_tensor)[1] = out_h;
-    ((int*)shape_tensor)[2] = out_c;
+    ncnn::ParamDict pd;
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.use_vulkan_compute = false;
+    opt.use_packing_layout = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Expand");
-    op->vkdev = ncnn::get_gpu_device();
+    ncnn::Layer* op = ncnn::create_layer_cpu("Expand");
+    if (!op)
+        return -1;
 
-    ncnn::ParamDict pd;
     op->load_param(pd);
 
+    std::vector<ncnn::Mat> weights(0);
+    ncnn::ModelBinFromMatArray mb(weights.data());
+    op->load_model(mb);
+    op->create_pipeline(opt);
+
     std::vector<ncnn::Mat> bottom_blobs(2);
-    bottom_blobs[0] = input;
-    bottom_blobs[1] = shape_tensor;
+    bottom_blobs[0] = data;
+    bottom_blobs[1] = shape;
 
     std::vector<ncnn::Mat> top_blobs(1);
     int ret = op->forward(bottom_blobs, top_blobs, opt);
 
+    op->destroy_pipeline(opt);
     delete op;
 
     if (ret != 0)
-        return -1;
+        return ret;
 
-    // Check output shape
-    const ncnn::Mat& out = top_blobs[0];
-    if (out.w != out_w || out.h != out_h || out.c != out_c)
-    {
-        fprintf(stderr, "Output shape mismatch: expected (%d,%d,%d), got (%d,%d,%d)\n",
-                out_w, out_h, out_c, out.w, out.h, out.c);
-        return -1;
-    }
-
+    out = top_blobs[0];
     return 0;
 }
 
-TEST(Expand, test_1d_to_1d)
+// Build a 1D int32 shape Mat in ncnn ordering (w, h, c).
+static ncnn::Mat make_shape(int w, int h, int c)
 {
-    EXPECT_EQ(0, test_expand_cpu(1, 1, 1, 10, 1, 1));
+    ncnn::Mat s(3, (size_t)4u);
+    int* p = (int*)(void*)s;
+    p[0] = w;
+    p[1] = h;
+    p[2] = c;
+    return s;
 }
 
-TEST(Expand, test_1d_to_2d)
+static int check_equal(const ncnn::Mat& a, const ncnn::Mat& b, const char* name)
 {
-    EXPECT_EQ(0, test_expand_cpu(5, 1, 1, 5, 3, 1));
+    if (a.dims != b.dims || a.w != b.w || a.h != b.h || a.c != b.c)
+    {
+        fprintf(stderr, "%s: shape mismatch got(%d %d %d dims=%d) expected(%d %d %d dims=%d)\n",
+                name, a.w, a.h, a.c, a.dims, b.w, b.h, b.c, b.dims);
+        return -1;
+    }
+    const float* ap = a;
+    const float* bp = b;
+    // Iterate actual data elements (w*h*c), not total() which includes cstep padding
+    for (int z = 0; z < a.c; z++)
+        for (int y = 0; y < a.h; y++)
+            for (int x = 0; x < a.w; x++)
+            {
+                float got = ap[(int)(z * a.cstep) + y * a.w + x];
+                float exp = bp[(int)(z * b.cstep) + y * b.w + x];
+                if (got != exp)
+                {
+                    fprintf(stderr, "%s: value mismatch at [%d,%d,%d]: got %f expected %f\n",
+                            name, z, y, x, got, exp);
+                    return -1;
+                }
+            }
+    return 0;
 }
 
-TEST(Expand, test_2d_broadcast)
+// Build expected output by broadcasting input to (out_w, out_h, out_c)
+static ncnn::Mat ref_expand(const ncnn::Mat& src, int out_w, int out_h, int out_c)
 {
-    EXPECT_EQ(0, test_expand_cpu(1, 5, 1, 4, 5, 1));
+    ncnn::Mat out;
+    out.create(out_w, out_h, out_c, (size_t)4u);
+
+    const float* sp = src;
+    float* op = out;
+
+    for (int z = 0; z < out_c; z++)
+    {
+        int sz = (src.c > 1) ? z : 0;
+        const float* sc = sp + sz * (int)src.cstep;
+        float* dc = op + z * (int)out.cstep;
+        for (int y = 0; y < out_h; y++)
+        {
+            int sy = (src.h > 1) ? y : 0;
+            const float* sr = sc + sy * src.w;
+            float* dr = dc + y * out_w;
+            for (int x = 0; x < out_w; x++)
+            {
+                int sx = (src.w > 1) ? x : 0;
+                dr[x] = sr[sx];
+            }
+        }
+    }
+    return out;
 }
 
-TEST(Expand, test_3d_expand)
+static int test_expand(const ncnn::Mat& data, int out_w, int out_h, int out_c, const char* name)
 {
-    EXPECT_EQ(0, test_expand_cpu(2, 3, 1, 2, 3, 5));
+    ncnn::Mat shape = make_shape(out_w, out_h, out_c);
+    ncnn::Mat expected = ref_expand(data, out_w, out_h, out_c);
+    ncnn::Mat got;
+    int ret = run_expand(data, shape, got);
+    if (ret != 0)
+    {
+        fprintf(stderr, "%s: forward failed\n", name);
+        return -1;
+    }
+    return check_equal(got, expected, name);
 }
 
-TEST(Expand, test_full_broadcast)
+// --- Tests ---
+
+static int test_expand_scalar_to_1d()
 {
-    EXPECT_EQ(0, test_expand_cpu(1, 1, 1, 4, 6, 8));
+    // Scalar (1,1,1) → (10,1,1)
+    ncnn::Mat data = RandomMat(1, 1, 1);
+    return test_expand(data, 10, 1, 1, "expand_scalar_to_w10");
+}
+
+static int test_expand_broadcast_w()
+{
+    // (1, 3, 1) → (5, 3, 1): broadcast w from 1 to 5
+    ncnn::Mat data = RandomMat(1, 3, 1);
+    return test_expand(data, 5, 3, 1, "expand_broadcast_w");
+}
+
+static int test_expand_broadcast_h()
+{
+    // (4, 1, 1) → (4, 6, 1): broadcast h from 1 to 6
+    ncnn::Mat data = RandomMat(4, 1, 1);
+    return test_expand(data, 4, 6, 1, "expand_broadcast_h");
+}
+
+static int test_expand_broadcast_c()
+{
+    // (4, 3, 1) → (4, 3, 8): broadcast c from 1 to 8
+    ncnn::Mat data = RandomMat(4, 3, 1);
+    return test_expand(data, 4, 3, 8, "expand_broadcast_c");
+}
+
+static int test_expand_broadcast_hw()
+{
+    // (5, 1, 1) → (5, 4, 1): broadcast h only
+    ncnn::Mat data = RandomMat(5, 1, 1);
+    return test_expand(data, 5, 4, 1, "expand_broadcast_hw");
+}
+
+static int test_expand_full_broadcast()
+{
+    // (1, 1, 1) → (4, 6, 8): broadcast all dims
+    ncnn::Mat data = RandomMat(1, 1, 1);
+    return test_expand(data, 4, 6, 8, "expand_full_broadcast");
+}
+
+static int test_expand_no_broadcast()
+{
+    // (4, 3, 2) → (4, 3, 2): no change
+    ncnn::Mat data = RandomMat(4, 3, 2);
+    return test_expand(data, 4, 3, 2, "expand_no_broadcast");
+}
+
+int main()
+{
+    SRAND(7767517);
+
+    return 0
+           || test_expand_scalar_to_1d()
+           || test_expand_broadcast_w()
+           || test_expand_broadcast_h()
+           || test_expand_broadcast_c()
+           || test_expand_broadcast_hw()
+           || test_expand_full_broadcast()
+           || test_expand_no_broadcast();
 }

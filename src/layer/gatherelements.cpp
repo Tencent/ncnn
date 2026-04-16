@@ -3,6 +3,7 @@
 
 #include "gatherelements.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace ncnn {
@@ -28,7 +29,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const Mat& data_blob = bottom_blobs[0];
     const Mat& index_blob = bottom_blobs[1];
 
-    // Output has same shape as index_blob (preserve rank)
+    // Output has same shape as index_blob (same rank)
     Mat& top_blob = top_blobs[0];
     if (index_blob.dims == 1)
         top_blob.create(index_blob.w, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
@@ -48,7 +49,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;
     float* out = top_blob;
 
-    // PyTorch/ONNX axis ordering: axis=0 is outermost (c for 3D, h for 2D, w for 1D)
+    // PyTorch/ONNX axis ordering: axis=0 = outermost (c for 3D, h for 2D, w for 1D)
     int data_shape[3] = {1, 1, 1};
     if (data_dims == 1)
         data_shape[0] = data_blob.w;
@@ -63,93 +64,134 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         data_shape[1] = data_blob.h;
         data_shape[2] = data_blob.w;
     }
-
     const int axis_dim_size = data_shape[positive_axis];
+
+    const int64_t* idx_ptr64 = (const int64_t*)(const void*)index_blob;
+    const int* idx_ptr32 = (const int*)(const void*)index_blob;
+
+#define READ_IDX(pos) \
+    (idx_elemsize == 8 ? (int)idx_ptr64[(pos)] : idx_ptr32[(pos)])
+
+#define CLAMP_IDX(gi)                                     \
+    do {                                                  \
+        if ((gi) < 0) (gi) += axis_dim_size;              \
+        if ((gi) < 0) (gi) = 0;                           \
+        if ((gi) >= axis_dim_size) (gi) = axis_dim_size - 1; \
+    } while (0)
 
     if (data_dims == 1)
     {
-        // axis=0 only: output[x] = data[index[x]]
         for (int x = 0; x < index_blob.w; x++)
         {
-            int gather_idx;
-            if (idx_elemsize == 8)
-                gather_idx = (int)((const int64_t*)(const void*)index_blob)[x];
-            else
-                gather_idx = ((const int*)(const void*)index_blob)[x];
-            if (gather_idx < 0) gather_idx += axis_dim_size;
-            if (gather_idx < 0) gather_idx = 0;
-            if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-            out[x] = data[gather_idx];
+            int gi = READ_IDX(x);
+            CLAMP_IDX(gi);
+            out[x] = data[gi];
         }
     }
     else if (data_dims == 2)
     {
-        // axis=0 -> h (outer): output[y,x] = data[index[y,x], x]  ->  flat_in = gather_idx*w + x
-        // axis=1 -> w (inner): output[y,x] = data[y, index[y,x]]  ->  flat_in = y*w + gather_idx
         const int dw = data_blob.w;
-        for (int y = 0; y < index_blob.h; y++)
+        const int idxw = index_blob.w;
+
+        if (positive_axis == 0)
         {
-            for (int x = 0; x < index_blob.w; x++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < index_blob.h; y++)
             {
-                int idx_flat = y * index_blob.w + x;
-                int gather_idx;
-                if (idx_elemsize == 8)
-                    gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
-                else
-                    gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
-                if (gather_idx < 0) gather_idx += axis_dim_size;
-                if (gather_idx < 0) gather_idx = 0;
-                if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-
-                int flat_in;
-                if (positive_axis == 0)
-                    flat_in = gather_idx * dw + x;
-                else
-                    flat_in = y * dw + gather_idx;
-
-                out[idx_flat] = data[flat_in];
+                float* out_row = out + y * top_blob.w;
+                for (int x = 0; x < idxw; x++)
+                {
+                    int gi = READ_IDX(y * idxw + x);
+                    CLAMP_IDX(gi);
+                    out_row[x] = data[gi * dw + x];
+                }
+            }
+        }
+        else // positive_axis == 1
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < index_blob.h; y++)
+            {
+                const float* data_row = data + y * dw;
+                float* out_row = out + y * top_blob.w;
+                for (int x = 0; x < idxw; x++)
+                {
+                    int gi = READ_IDX(y * idxw + x);
+                    CLAMP_IDX(gi);
+                    out_row[x] = data_row[gi];
+                }
             }
         }
     }
     else // data_dims == 3
     {
-        // axis=0 -> c: output[z,y,x] = data[index[z,y,x], y, x]  ->  flat_in = gather_idx*cstep + y*w + x
-        // axis=1 -> h: output[z,y,x] = data[z, index[z,y,x], x]  ->  flat_in = z*cstep + gather_idx*w + x
-        // axis=2 -> w: output[z,y,x] = data[z, y, index[z,y,x]]  ->  flat_in = z*cstep + y*w + gather_idx
         const int dw = data_blob.w;
         const size_t in_cstep = data_blob.cstep;
         const size_t idx_cstep = index_blob.cstep;
         const size_t out_cstep = top_blob.cstep;
+        const int idxw = index_blob.w;
 
-        for (int z = 0; z < index_blob.c; z++)
+        if (positive_axis == 0)
         {
-            for (int y = 0; y < index_blob.h; y++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
             {
-                for (int x = 0; x < index_blob.w; x++)
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
                 {
-                    int idx_flat = (int)(z * idx_cstep) + y * index_blob.w + x;
-                    int gather_idx;
-                    if (idx_elemsize == 8)
-                        gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
-                    else
-                        gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
-                    if (gather_idx < 0) gather_idx += axis_dim_size;
-                    if (gather_idx < 0) gather_idx = 0;
-                    if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-
-                    int flat_in;
-                    if (positive_axis == 0)
-                        flat_in = (int)(gather_idx * in_cstep) + y * dw + x;
-                    else if (positive_axis == 1)
-                        flat_in = (int)(z * in_cstep) + gather_idx * dw + x;
-                    else
-                        flat_in = (int)(z * in_cstep) + y * dw + gather_idx;
-
-                    out[(int)(z * out_cstep) + y * top_blob.w + x] = data[flat_in];
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = data[(int)(gi * in_cstep) + y * dw + x];
+                    }
+                }
+            }
+        }
+        else if (positive_axis == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
+            {
+                const float* data_chan = data + z * in_cstep;
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
+                {
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = data_chan[gi * dw + x];
+                    }
+                }
+            }
+        }
+        else // positive_axis == 2
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
+            {
+                const float* data_chan = data + z * in_cstep;
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
+                {
+                    const float* data_row = data_chan + y * dw;
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = data_row[gi];
+                    }
                 }
             }
         }
     }
+
+#undef READ_IDX
+#undef CLAMP_IDX
 
     return 0;
 }

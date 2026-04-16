@@ -72,6 +72,14 @@ pnnx.Output             output      2 0 values indices
         if (axis >= 0)
             new_axis = axis > batch_index ? axis - 1 : axis;
 
+        // ncnn TopK uses ncnn-internal axis ordering (shape[0]=w=innermost),
+        // but pnnx axis is PyTorch-style (outermost=0). Convert.
+        const int pytorch_ndim = (int)op->inputs[0]->shape.size();
+        const bool has_batch = (batch_index >= 0 && batch_index < pytorch_ndim);
+        const int ncnn_ndim = has_batch ? pytorch_ndim - 1 : pytorch_ndim;
+        if (new_axis >= 0 && ncnn_ndim > 0)
+            new_axis = (ncnn_ndim - 1) - new_axis;
+
         int k_val = 1;
         if (captured_params.find("k") != captured_params.end())
         {
@@ -145,6 +153,14 @@ pnnx.Output             output      1 0 values
         int new_axis = axis;
         if (axis >= 0)
             new_axis = axis > batch_index ? axis - 1 : axis;
+
+        // ncnn TopK uses ncnn-internal axis ordering (shape[0]=w=innermost),
+        // but pnnx axis is PyTorch-style (outermost=0). Convert.
+        const int pytorch_ndim = (int)op->inputs[0]->shape.size();
+        const bool has_batch = (batch_index >= 0 && batch_index < pytorch_ndim);
+        const int ncnn_ndim = has_batch ? pytorch_ndim - 1 : pytorch_ndim;
+        if (new_axis >= 0 && ncnn_ndim > 0)
+            new_axis = (ncnn_ndim - 1) - new_axis;
 
         int k_val = 1;
         if (captured_params.find("k") != captured_params.end())

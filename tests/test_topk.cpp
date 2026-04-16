@@ -200,8 +200,8 @@ static int test_topk_inf_order()
     }
 
     const float* vptr = values;
-    const float* iptr = indices;
-    if (values.w != 2 || indices.w != 2 || vptr[0] != INFINITY || vptr[1] != 3.f || (int)iptr[0] != 1 || (int)iptr[1] != 5)
+    const int* iptr = (const int*)(const void*)indices;
+    if (values.w != 2 || indices.w != 2 || vptr[0] != INFINITY || vptr[1] != 3.f || iptr[0] != 1 || iptr[1] != 5)
     {
         fprintf(stderr, "test_topk_inf_order largest result mismatch\n");
         return -1;
@@ -215,8 +215,8 @@ static int test_topk_inf_order()
     }
 
     vptr = values;
-    iptr = indices;
-    if (values.w != 2 || indices.w != 2 || vptr[0] != -INFINITY || vptr[1] != -2.f || (int)iptr[0] != 3 || (int)iptr[1] != 2)
+    iptr = (const int*)(const void*)indices;
+    if (values.w != 2 || indices.w != 2 || vptr[0] != -INFINITY || vptr[1] != -2.f || iptr[0] != 3 || iptr[1] != 2)
     {
         fprintf(stderr, "test_topk_inf_order smallest result mismatch\n");
         return -1;
@@ -251,8 +251,8 @@ static int test_topk_nan_robust()
     }
 
     const float* vptr = values;
-    const float* iptr = indices;
-    if (vptr[0] != 2.f || vptr[1] != 1.f || (int)iptr[0] != 2 || (int)iptr[1] != 0)
+    const int* iptr = (const int*)(const void*)indices;
+    if (vptr[0] != 2.f || vptr[1] != 1.f || iptr[0] != 2 || iptr[1] != 0)
     {
         fprintf(stderr, "test_topk_nan_robust sorted largest mismatch\n");
         return -1;
@@ -272,8 +272,8 @@ static int test_topk_nan_robust()
     }
 
     vptr = values;
-    iptr = indices;
-    if (vptr[0] != -1.f || vptr[1] != 1.f || (int)iptr[0] != 3 || (int)iptr[1] != 0)
+    iptr = (const int*)(const void*)indices;
+    if (vptr[0] != -1.f || vptr[1] != 1.f || iptr[0] != 3 || iptr[1] != 0)
     {
         fprintf(stderr, "test_topk_nan_robust sorted smallest mismatch\n");
         return -1;
@@ -292,8 +292,8 @@ static int test_topk_nan_robust()
         return -1;
     }
 
-    iptr = indices;
-    if ((int)iptr[0] < 0 || (int)iptr[0] >= 4 || (int)iptr[1] < 0 || (int)iptr[1] >= 4)
+    iptr = (const int*)(const void*)indices;
+    if (iptr[0] < 0 || iptr[0] >= 4 || iptr[1] < 0 || iptr[1] >= 4)
     {
         fprintf(stderr, "test_topk_nan_robust unsorted invalid indices\n");
         return -1;
