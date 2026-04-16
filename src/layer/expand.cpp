@@ -118,7 +118,6 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         float32x4_t val_vec = vdupq_n_f32(val);
 
         const int nn = total >> 3; // Process 8 at a time
-        const int remain = total - (nn << 3);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
@@ -150,7 +149,6 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         const int w = out_shape[0];
         const int h = out_shape[1];
         const int nn = w >> 2;
-        const int remain = w - (nn << 2);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int row = 0; row < h; row++)

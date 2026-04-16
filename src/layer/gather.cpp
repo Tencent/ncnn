@@ -3,6 +3,7 @@
 
 #include "gather.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 namespace ncnn {
@@ -76,92 +77,138 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;
     float* out = top_blob;
 
+    const int64_t* idx_ptr64 = (const int64_t*)(const void*)index_blob;
+    const int* idx_ptr32 = (const int*)(const void*)index_blob;
+
+#define READ_IDX(pos) \
+    (idx_elemsize == 8 ? (int)idx_ptr64[(pos)] : idx_ptr32[(pos)])
+
+#define CLAMP_IDX(gi)                              \
+    do {                                           \
+        if ((gi) < 0) (gi) += axis_dim_size;       \
+        if ((gi) < 0) (gi) = 0;                    \
+        if ((gi) >= axis_dim_size) (gi) = axis_dim_size - 1; \
+    } while (0)
+
     if (dims == 1)
     {
         // axis=0 only: output[x] = input[index[x]]
         for (int x = 0; x < index_blob.w; x++)
         {
-            int gather_idx;
-            if (idx_elemsize == 8)
-                gather_idx = (int)((const int64_t*)(const void*)index_blob)[x];
-            else
-                gather_idx = ((const int*)(const void*)index_blob)[x];
-            if (gather_idx < 0) gather_idx += axis_dim_size;
-            if (gather_idx < 0) gather_idx = 0;
-            if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-            out[x] = inp[gather_idx];
+            int gi = READ_IDX(x);
+            CLAMP_IDX(gi);
+            out[x] = inp[gi];
         }
     }
     else if (dims == 2)
     {
-        // PyTorch axis=0 -> h (outer), axis=1 -> w (inner)
-        // axis=0: output[y,x] = input[index[y,x], x]  ->  flat_in = gather_idx*w + x
-        // axis=1: output[y,x] = input[y, index[y,x]]  ->  flat_in = y*w + gather_idx
+        // PyTorch axis=0 -> h (outer): output[y,x] = input[index[y,x], x]
+        // PyTorch axis=1 -> w (inner): output[y,x] = input[y, index[y,x]]
         const int iw = input_blob.w;
-        for (int y = 0; y < index_blob.h; y++)
+        const int idxw = index_blob.w;
+
+        if (positive_axis == 0)
         {
-            for (int x = 0; x < index_blob.w; x++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < index_blob.h; y++)
             {
-                int idx_flat = y * index_blob.w + x;
-                int gather_idx;
-                if (idx_elemsize == 8)
-                    gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
-                else
-                    gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
-                if (gather_idx < 0) gather_idx += axis_dim_size;
-                if (gather_idx < 0) gather_idx = 0;
-                if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-
-                int flat_in;
-                if (positive_axis == 0)
-                    flat_in = gather_idx * iw + x;
-                else
-                    flat_in = y * iw + gather_idx;
-
-                out[idx_flat] = inp[flat_in];
+                float* out_row = out + y * top_blob.w;
+                for (int x = 0; x < idxw; x++)
+                {
+                    int gi = READ_IDX(y * idxw + x);
+                    CLAMP_IDX(gi);
+                    out_row[x] = inp[gi * iw + x];
+                }
+            }
+        }
+        else // positive_axis == 1
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < index_blob.h; y++)
+            {
+                const float* inp_row = inp + y * iw;
+                float* out_row = out + y * top_blob.w;
+                for (int x = 0; x < idxw; x++)
+                {
+                    int gi = READ_IDX(y * idxw + x);
+                    CLAMP_IDX(gi);
+                    out_row[x] = inp_row[gi];
+                }
             }
         }
     }
     else // dims == 3
     {
-        // PyTorch axis=0 -> c (outer), axis=1 -> h, axis=2 -> w (inner)
-        // axis=0: output[z,y,x] = input[index[z,y,x], y, x]  ->  flat_in = gather_idx*cstep + y*w + x
-        // axis=1: output[z,y,x] = input[z, index[z,y,x], x]  ->  flat_in = z*cstep + gather_idx*w + x
-        // axis=2: output[z,y,x] = input[z, y, index[z,y,x]]  ->  flat_in = z*cstep + y*w + gather_idx
+        // PyTorch axis=0 -> c (outer): output[z,y,x] = input[index[z,y,x], y, x]
+        // PyTorch axis=1 -> h:          output[z,y,x] = input[z, index[z,y,x], x]
+        // PyTorch axis=2 -> w (inner):  output[z,y,x] = input[z, y, index[z,y,x]]
         const int iw = input_blob.w;
         const size_t in_cstep = input_blob.cstep;
         const size_t idx_cstep = index_blob.cstep;
         const size_t out_cstep = top_blob.cstep;
+        const int idxw = index_blob.w;
 
-        for (int z = 0; z < index_blob.c; z++)
+        if (positive_axis == 0)
         {
-            for (int y = 0; y < index_blob.h; y++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
             {
-                for (int x = 0; x < index_blob.w; x++)
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
                 {
-                    int idx_flat = (int)(z * idx_cstep) + y * index_blob.w + x;
-                    int gather_idx;
-                    if (idx_elemsize == 8)
-                        gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
-                    else
-                        gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
-                    if (gather_idx < 0) gather_idx += axis_dim_size;
-                    if (gather_idx < 0) gather_idx = 0;
-                    if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-
-                    int flat_in;
-                    if (positive_axis == 0)
-                        flat_in = (int)(gather_idx * in_cstep) + y * iw + x;
-                    else if (positive_axis == 1)
-                        flat_in = (int)(z * in_cstep) + gather_idx * iw + x;
-                    else
-                        flat_in = (int)(z * in_cstep) + y * iw + gather_idx;
-
-                    out[(int)(z * out_cstep) + y * top_blob.w + x] = inp[flat_in];
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX(z * idx_cstep + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = inp[gi * in_cstep + y * iw + x];
+                    }
+                }
+            }
+        }
+        else if (positive_axis == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
+            {
+                const float* inp_chan = inp + z * in_cstep;
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
+                {
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX(z * idx_cstep + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = inp_chan[gi * iw + x];
+                    }
+                }
+            }
+        }
+        else // positive_axis == 2
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < index_blob.c; z++)
+            {
+                const float* inp_chan = inp + z * in_cstep;
+                float* out_chan = out + z * out_cstep;
+                for (int y = 0; y < index_blob.h; y++)
+                {
+                    const float* inp_row = inp_chan + y * iw;
+                    float* out_row = out_chan + y * top_blob.w;
+                    for (int x = 0; x < idxw; x++)
+                    {
+                        int gi = READ_IDX(z * idx_cstep + y * idxw + x);
+                        CLAMP_IDX(gi);
+                        out_row[x] = inp_row[gi];
+                    }
                 }
             }
         }
     }
+
+#undef READ_IDX
+#undef CLAMP_IDX
 
     return 0;
 }
