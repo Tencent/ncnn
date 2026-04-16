@@ -52,6 +52,14 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     if (top_blob.empty())
         return -100;
 
+    // Only float32 data supported
+    if (input_blob.elemsize / input_blob.elempack != 4)
+        return -1;
+
+    // Only dims 1/2/3 supported
+    if (dims > 3 || index_blob.dims > 3)
+        return -1;
+
     const float* inp = input_blob;
     // Indices may be int32 (elemsize=4) or int64 (elemsize=8)
     const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;

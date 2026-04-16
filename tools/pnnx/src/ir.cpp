@@ -1494,14 +1494,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         if (has_topk)
         {
             fprintf(pyfp, "class TopK(nn.Module):\n");
-            fprintf(pyfp, "    def __init__(self, axis=1, largest=1, sorted=1):\n");
+            fprintf(pyfp, "    def __init__(self, k=1, axis=1, largest=1, sorted=1):\n");
             fprintf(pyfp, "        super(TopK, self).__init__()\n");
+            fprintf(pyfp, "        self.k = k\n");
             fprintf(pyfp, "        self.axis = axis\n");
             fprintf(pyfp, "        self.largest = largest\n");
             fprintf(pyfp, "        self.sorted = sorted\n");
-            fprintf(pyfp, "    def forward(self, x, k):\n");
+            fprintf(pyfp, "    def forward(self, x):\n");
             fprintf(pyfp, "        # Torch topk returns (values, indices)\n");
-            fprintf(pyfp, "        return torch.topk(x, k.item() if hasattr(k, 'item') else k, dim=self.axis, largest=bool(self.largest), sorted=bool(self.sorted))\n");
+            fprintf(pyfp, "        return torch.topk(x, self.k, dim=self.axis, largest=bool(self.largest), sorted=bool(self.sorted))\n");
             fprintf(pyfp, "\n");
         }
     }
@@ -1639,17 +1640,18 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             if (op->type != "TopK")
                 continue;
 
-            // TopK __init__ takes (axis, largest, sorted); k is a forward() input, not a ctor param.
-            // param ids: "0"=axis "1"=largest "2"=sorted "3"=k (skip k here)
+            // TopK param ids: "0"=axis "1"=largest "2"=sorted "3"=k
+            int k_val = 1;
             int axis_val = -1;
             int largest_val = 1;
             int sorted_val = 1;
+            if (op->params.count("3")) k_val      = op->params.at("3").i;
             if (op->params.count("0")) axis_val   = op->params.at("0").i;
             if (op->params.count("1")) largest_val = op->params.at("1").i;
             if (op->params.count("2")) sorted_val  = op->params.at("2").i;
 
-            fprintf(pyfp, "        self.%s = TopK(axis=%d, largest=%d, sorted=%d)\n",
-                    sanitize_identifier(op->name).c_str(), axis_val, largest_val, sorted_val);
+            fprintf(pyfp, "        self.%s = TopK(k=%d, axis=%d, largest=%d, sorted=%d)\n",
+                    sanitize_identifier(op->name).c_str(), k_val, axis_val, largest_val, sorted_val);
         }
     }
 

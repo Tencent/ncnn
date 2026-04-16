@@ -646,10 +646,7 @@ if(PROTOBUF_FOUND)
         endif()
         # Force system protobuf headers BEFORE any Torch-bundled old headers
         # (Torch bundles an ancient protobuf that conflicts with system protobuf >= 22)
-        set_property(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES_BEFORE
-            ${PROTOBUF_INCLUDE_DIR}
-            ${CMAKE_CURRENT_BINARY_DIR}
-        )
+        include_directories(BEFORE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
     else()
         add_library(onnxproto STATIC onnx-data.proto onnx-ml.proto onnx-operators-ml.proto)
         target_include_directories(onnxproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
