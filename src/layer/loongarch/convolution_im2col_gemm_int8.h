@@ -541,6 +541,70 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         const signed char* pB = pBT;
 
         int jj = 0;
+#if __loongarch_sx
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int sum00;
+            int sum01;
+            int sum10;
+            int sum11;
+            int sum20;
+            int sum21;
+            int sum30;
+            int sum31;
+
+            if (k == 0)
+            {
+                sum00 = 0;
+                sum01 = 0;
+                sum10 = 0;
+                sum11 = 0;
+                sum20 = 0;
+                sum21 = 0;
+                sum30 = 0;
+                sum31 = 0;
+            }
+            else
+            {
+                sum00 = outptr[0];
+                sum01 = outptr[1];
+                sum10 = outptr[2];
+                sum11 = outptr[3];
+                sum20 = outptr[4];
+                sum21 = outptr[5];
+                sum30 = outptr[6];
+                sum31 = outptr[7];
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                sum00 += pA[0] * pB[0];
+                sum01 += pA[1] * pB[0];
+                sum10 += pA[0] * pB[1];
+                sum11 += pA[1] * pB[1];
+                sum20 += pA[0] * pB[2];
+                sum21 += pA[1] * pB[2];
+                sum30 += pA[0] * pB[3];
+                sum31 += pA[1] * pB[3];
+
+                pA += 2;
+                pB += 4;
+            }
+
+            outptr[0] = sum00;
+            outptr[1] = sum01;
+            outptr[2] = sum10;
+            outptr[3] = sum11;
+            outptr[4] = sum20;
+            outptr[5] = sum21;
+            outptr[6] = sum30;
+            outptr[7] = sum31;
+
+            outptr += 8;
+        }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             int sum00;
@@ -622,6 +686,50 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         const signed char* pB = pBT;
 
         int jj = 0;
+#if __loongarch_sx
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            int sum0;
+            int sum1;
+            int sum2;
+            int sum3;
+
+            if (k == 0)
+            {
+                sum0 = 0;
+                sum1 = 0;
+                sum2 = 0;
+                sum3 = 0;
+            }
+            else
+            {
+                sum0 = outptr[0];
+                sum1 = outptr[1];
+                sum2 = outptr[2];
+                sum3 = outptr[3];
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                sum0 += pA[0] * pB[0];
+                sum1 += pA[0] * pB[1];
+                sum2 += pA[0] * pB[2];
+                sum3 += pA[0] * pB[3];
+
+                pA += 1;
+                pB += 4;
+            }
+
+            outptr[0] = sum0;
+            outptr[1] = sum1;
+            outptr[2] = sum2;
+            outptr[3] = sum3;
+
+            outptr += 4;
+        }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             int sum0;
@@ -909,6 +1017,22 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j;
 
         int jj = 0;
+#if __loongarch_sx
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            p0[0] = pp[0];
+            p0[1] = pp[2];
+            p0[2] = pp[4];
+            p0[3] = pp[6];
+            p0[out_hstep] = pp[1];
+            p0[out_hstep + 1] = pp[3];
+            p0[out_hstep + 2] = pp[5];
+            p0[out_hstep + 3] = pp[7];
+            p0 += 4;
+
+            pp += 8;
+        }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             p0[0] = pp[0];
@@ -933,6 +1057,18 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j;
 
         int jj = 0;
+#if __loongarch_sx
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            p0[0] = pp[0];
+            p0[1] = pp[1];
+            p0[2] = pp[2];
+            p0[3] = pp[3];
+            p0 += 4;
+
+            pp += 4;
+        }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             p0[0] = pp[0];
