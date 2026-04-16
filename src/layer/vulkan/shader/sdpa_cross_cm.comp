@@ -253,7 +253,7 @@ void main()
                                 const uvec4 ai8m8d2 = (ai8 % 8) / 2;
                                 const uvec4 ai8m2 = ai8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                 if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
                                 if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
                                 if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
@@ -352,7 +352,7 @@ void main()
                                 const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                                 const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                 if (gn4.r < psc(GN)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                                 if (gn4.g < psc(GN)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                                 if (gn4.b < psc(GN)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -457,7 +457,7 @@ void main()
                                 const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                                 const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                 if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                                 if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                                 if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -633,7 +633,7 @@ void main()
                                     const uvec4 ai8m8d2 = (ai8 % 8) / 2;
                                     const uvec4 ai8m2 = ai8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                     if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
                                     if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
                                     if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
@@ -732,7 +732,7 @@ void main()
                                     const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                                     const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                     if (gn4.r < psc(GN)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                                     if (gn4.g < psc(GN)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                                     if (gn4.b < psc(GN)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -837,7 +837,7 @@ void main()
                                     const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                                     const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                                     if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                                     if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                                     if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -872,7 +872,7 @@ void main()
             }
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
             coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B[UNROLL_SG_N];
 #else
@@ -993,7 +993,7 @@ void main()
         barrier();
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
         coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B[UNROLL_SG_N];
 #else
@@ -1131,7 +1131,7 @@ void main()
                             const uvec4 ai8m8d2 = (ai8 % 8) / 2;
                             const uvec4 ai8m2 = ai8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
                             if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
                             if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
@@ -1230,7 +1230,7 @@ void main()
                             const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                             const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gn4.r < psc(GN)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                             if (gn4.g < psc(GN)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                             if (gn4.b < psc(GN)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -1335,7 +1335,7 @@ void main()
                             const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                             const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                             if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                             if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -1371,7 +1371,7 @@ void main()
         barrier();
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
         coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B[UNROLL_SG_N];
 #else
@@ -1502,7 +1502,7 @@ void main()
                             const uvec4 ai8m8d2 = (ai8 % 8) / 2;
                             const uvec4 ai8m2 = ai8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(A_blob_data[ai4d8.r][ai4m8d2.r])[ai4m2.r];
                             if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(A_blob_data[ai4d8.g][ai4m8d2.g])[ai4m2.g];
                             if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(A_blob_data[ai4d8.b][ai4m8d2.b])[ai4m2.b];
@@ -1591,7 +1591,7 @@ void main()
                             const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                             const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gn4.r < psc(GN)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                             if (gn4.g < psc(GN)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                             if (gn4.b < psc(GN)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -1686,7 +1686,7 @@ void main()
                             const uvec4 bi8m8d2 = (bi8 % 8) / 2;
                             const uvec4 bi8m2 = bi8 % 2;
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                             if (gk4.r < psc(GK)) v4.r = unpackBFloat2x16(B_blob_data[bi4d8.r][bi4m8d2.r])[bi4m2.r];
                             if (gk4.g < psc(GK)) v4.g = unpackBFloat2x16(B_blob_data[bi4d8.g][bi4m8d2.g])[bi4m2.g];
                             if (gk4.b < psc(GK)) v4.b = unpackBFloat2x16(B_blob_data[bi4d8.b][bi4m8d2.b])[bi4m2.b];
@@ -1722,7 +1722,7 @@ void main()
         barrier();
 
 #if ncnn_VK_KHR_cooperative_matrix
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
         coopmat<bfloat16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B[UNROLL_SG_N];
 #else
@@ -1832,7 +1832,7 @@ void main()
                     if (gn * 8 + 6 < psc(GN)) vd.r = float(buffer_ld1(attn_mask_blob_data, ci8.b));
                     if (gn * 8 + 7 < psc(GN)) vd.g = float(buffer_ld1(attn_mask_blob_data, ci8.a));
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                     uvec4 v = uvec4(packBFloat2x16(va), packBFloat2x16(vb), packBFloat2x16(vc), packBFloat2x16(vd));
 #else
                     uvec4 v = uvec4(packHalf2x16(va), packHalf2x16(vb), packHalf2x16(vc), packHalf2x16(vd));
@@ -1863,7 +1863,7 @@ void main()
 #if NCNN_fp16_arithmetic
                 coopMatLoad(mask, tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 #else
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                 coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask_fp16;
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> mask_fp16;
@@ -1894,7 +1894,7 @@ void main()
 #if NCNN_fp16_arithmetic
             coopMatStore(sum[zn][zm], tmp_o, ((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * (Nd8p * M), Nd8p, gl_CooperativeMatrixLayoutRowMajor);
 #else
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
             coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
 #else
             coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum_fp16 = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(sum[zn][zm]);
@@ -1972,7 +1972,7 @@ void main()
                 {
                     uvec4 v = tmp_o[(((sgi * UNROLL_SG_N + zn) * UNROLL_SG_M + zm) * M + i) * Nd8p + j];
 
-#if NCNN_bf16_storage || NCNN_bf16_packed
+#if NCNN_bf16_storage
                     afpvec4 vab = afpvec4(unpackBFloat2x16(v.r), unpackBFloat2x16(v.g));
                     afpvec4 vcd = afpvec4(unpackBFloat2x16(v.b), unpackBFloat2x16(v.a));
 #else
