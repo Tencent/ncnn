@@ -1,9 +1,5 @@
 name: topk-linux-test
 on:
-  push:
-    branches:
-    - topk-ci-tests
-    - feature/yolo26-support
   pull_request:
     branches:
     - master
@@ -48,25 +44,6 @@ jobs:
             -DNCNN_SSE2=ON -DNCNN_AVX=ON -DNCNN_F16C=ON -DNCNN_FMA=ON -DNCNN_AVX2=ON \
             -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF \
             -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
-    - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather$|test_gatherelements|test_expand$|test_mod$|test_tile$"
-
-  simplestl-simplemath:
-    runs-on: ubuntu-latest
-    # Pre-existing ncnn x86 layers conflict with simplemath.h; our new layers
-    # (mod, expand, topk) are SIMPLESTL-compatible but libncnn itself is broken.
-    continue-on-error: true
-    steps:
-    - uses: actions/checkout@v4
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
       run: cd build && ctest --output-on-failure -R "test_topk|test_gather$|test_gatherelements|test_expand$|test_mod$|test_tile$"

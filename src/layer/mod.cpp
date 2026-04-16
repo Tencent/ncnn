@@ -35,34 +35,38 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     if (top_blob.empty())
         return -100;
 
-    const float* a = a_blob;
-    const float* b = b_blob;
-    float* out = top_blob;
-
-    const int total = (int)top_blob.total();
+    const int out_w = top_blob.w;
+    const int out_h = top_blob.h;
+    const int out_c = top_blob.c;
 
     if (fmod == 0)
     {
         // Python-style modulo (remainder with same sign as divisor)
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < total; i++)
+        for (int z = 0; z < out_c; z++)
         {
-            float val_a = a[i];
-            float val_b = b[i];
-
-            if (val_b == 0.0f)
+            const float* aptr = (const float*)a_blob + z * (int)a_blob.cstep;
+            const float* bptr = (const float*)b_blob + z * (int)b_blob.cstep;
+            float* optr = (float*)top_blob + z * (int)top_blob.cstep;
+            for (int y = 0; y < out_h; y++)
             {
-                out[i] = 0.0f;
-            }
-            else
-            {
-                // Python-style: result has same sign as divisor (b)
-                float result = ::fmod(val_a, val_b);
-                if ((result != 0.0f) && ((val_b < 0.0f) != (result < 0.0f)))
+                for (int x = 0; x < out_w; x++)
                 {
-                    result += val_b;
+                    float val_a = aptr[y * out_w + x];
+                    float val_b = bptr[y * out_w + x];
+                    if (val_b == 0.0f)
+                    {
+                        optr[y * out_w + x] = 0.0f;
+                    }
+                    else
+                    {
+                        // Python-style: result has same sign as divisor (b)
+                        float result = ::fmod(val_a, val_b);
+                        if ((result != 0.0f) && ((val_b < 0.0f) != (result < 0.0f)))
+                            result += val_b;
+                        optr[y * out_w + x] = result;
+                    }
                 }
-                out[i] = result;
             }
         }
     }
@@ -70,18 +74,18 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     {
         // C-style fmod (remainder with same sign as dividend)
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < total; i++)
+        for (int z = 0; z < out_c; z++)
         {
-            float val_a = a[i];
-            float val_b = b[i];
-
-            if (val_b == 0.0f)
+            const float* aptr = (const float*)a_blob + z * (int)a_blob.cstep;
+            const float* bptr = (const float*)b_blob + z * (int)b_blob.cstep;
+            float* optr = (float*)top_blob + z * (int)top_blob.cstep;
+            for (int y = 0; y < out_h; y++)
             {
-                out[i] = 0.0f;
-            }
-            else
-            {
-                out[i] = ::fmod(val_a, val_b);
+                for (int x = 0; x < out_w; x++)
+                {
+                    float val_b = bptr[y * out_w + x];
+                    optr[y * out_w + x] = (val_b == 0.0f) ? 0.0f : ::fmod(aptr[y * out_w + x], val_b);
+                }
             }
         }
     }

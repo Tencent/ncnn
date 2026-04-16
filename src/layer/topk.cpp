@@ -110,7 +110,13 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         if (k_blob.total() < 1)
             return -1;
 
-        _k = (int)((const float*)k_blob)[0];
+        const size_t k_elemsize = k_blob.elemsize / k_blob.elempack;
+        if (k_elemsize == 8)
+            _k = (int)((const int64_t*)(const void*)k_blob)[0];
+        else if (k_elemsize == 4)
+            _k = ((const int*)(const void*)k_blob)[0];
+        else
+            return -1;
     }
 
     if (bottom_blob.dims < 1 || bottom_blob.dims > 4)

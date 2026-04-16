@@ -48,10 +48,14 @@ static int test_mod(int w, int h, int c, int fmode, const char* name)
     ncnn::Mat a = RandomMat(w, h, c);
     ncnn::Mat b = RandomMat(w, h, c);
 
-    // Ensure b is non-zero
-    float* bp = b;
-    for (int i = 0; i < (int)b.total(); i++)
-        if (bp[i] == 0.0f) bp[i] = 1.0f;
+    // Ensure b is non-zero (use explicit loops to avoid cstep padding)
+    for (int z = 0; z < c; z++)
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float* bp = (float*)b + z * (int)b.cstep + y * w + x;
+                if (*bp == 0.0f) *bp = 1.0f;
+            }
 
     ncnn::Mat out;
     int ret = run_mod(a, b, fmode, out);
@@ -67,33 +71,33 @@ static int test_mod(int w, int h, int c, int fmode, const char* name)
         return -1;
     }
 
-    const float* ap = a;
-    const float* bptr = b;
-    const float* op_ptr = out;
+    for (int z = 0; z < c; z++)
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float val_a = ((const float*)a)[z * (int)a.cstep + y * w + x];
+                float val_b = ((const float*)b)[z * (int)b.cstep + y * w + x];
+                float val_out = ((const float*)out)[z * (int)out.cstep + y * w + x];
 
-    for (int i = 0; i < (int)out.total(); i++)
-    {
-        float expected;
-        if (fmode == 0)
-        {
-            // Python-style: result has sign of divisor
-            expected = fmodf(ap[i], bptr[i]);
-            if (expected != 0.0f && (bptr[i] < 0.0f) != (expected < 0.0f))
-                expected += bptr[i];
-        }
-        else
-        {
-            // C-style fmod
-            expected = fmodf(ap[i], bptr[i]);
-        }
+                float expected;
+                if (fmode == 0)
+                {
+                    expected = fmodf(val_a, val_b);
+                    if (expected != 0.0f && (val_b < 0.0f) != (expected < 0.0f))
+                        expected += val_b;
+                }
+                else
+                {
+                    expected = fmodf(val_a, val_b);
+                }
 
-        if (fabsf(op_ptr[i] - expected) > 0.001f)
-        {
-            fprintf(stderr, "%s: value mismatch at %d: got %f expected %f\n",
-                    name, i, op_ptr[i], expected);
-            return -1;
-        }
-    }
+                if (fabsf(val_out - expected) > 0.001f)
+                {
+                    fprintf(stderr, "%s: value mismatch at z=%d y=%d x=%d: got %f expected %f\n",
+                            name, z, y, x, val_out, expected);
+                    return -1;
+                }
+            }
     return 0;
 }
 
