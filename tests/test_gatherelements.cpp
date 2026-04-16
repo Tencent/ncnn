@@ -167,17 +167,22 @@ static int check_equal(const ncnn::Mat& a, const ncnn::Mat& b, const char* name)
                 name, a.w, a.h, a.c, a.dims, b.w, b.h, b.c, b.dims);
         return -1;
     }
-    const float* ap = a;
-    const float* bp = b;
-    int total = (int)a.total();
-    for (int i = 0; i < total; i++)
-    {
-        if (ap[i] != bp[i])
-        {
-            fprintf(stderr, "%s: value mismatch at %d: got %f expected %f\n", name, i, ap[i], bp[i]);
-            return -1;
-        }
-    }
+    // Use explicit loops to avoid comparing uninitialized cstep padding bytes
+    const float* ad = (const float*)a.data;
+    const float* bd = (const float*)b.data;
+    for (int z = 0; z < a.c; z++)
+        for (int y = 0; y < a.h; y++)
+            for (int x = 0; x < a.w; x++)
+            {
+                float av = ad[z * a.cstep + y * a.w + x];
+                float bv = bd[z * b.cstep + y * b.w + x];
+                if (av != bv)
+                {
+                    fprintf(stderr, "%s: value mismatch at z=%d y=%d x=%d: got %f expected %f\n",
+                            name, z, y, x, av, bv);
+                    return -1;
+                }
+            }
     return 0;
 }
 
