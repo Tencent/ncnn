@@ -10,6 +10,20 @@
 
 namespace ncnn {
 
+Tile::Tile()
+{
+    one_blob_only = false;
+    support_inplace = false;
+}
+
+int Tile::load_param(const ParamDict& pd)
+{
+    axis = pd.get(0, 0);
+    tiles = pd.get(1, 1);
+    repeats = pd.get(2, Mat());
+    return 0;
+}
+
 int Tile::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // ONNX mode: repeats comes as second input blob

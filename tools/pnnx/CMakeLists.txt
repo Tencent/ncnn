@@ -125,6 +125,29 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
     endif()
 endif()
 
+# https://github.com/supertone-inc/onnxruntime-build
+set(onnxruntime_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
+find_library(onnxruntime_LIB NAMES onnxruntime
+    PATHS ${onnxruntime_INSTALL_DIR}/lib64 ${onnxruntime_INSTALL_DIR}/lib
+          /opt/homebrew/lib /usr/local/lib)
+if(onnxruntime_LIB)
+    set(onnxruntime_FOUND TRUE)
+    add_library(onnxruntime::onnxruntime SHARED IMPORTED)
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES IMPORTED_LOCATION ${onnxruntime_LIB})
+    # prefer install-dir include, fall back to homebrew
+    if(EXISTS ${onnxruntime_INSTALL_DIR}/include)
+        set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INSTALL_DIR}/include)
+    else()
+        find_path(onnxruntime_INCLUDE_DIR onnxruntime_c_api.h
+            PATHS /opt/homebrew/include/onnxruntime /usr/local/include/onnxruntime)
+        if(onnxruntime_INCLUDE_DIR)
+            set_target_properties(onnxruntime::onnxruntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${onnxruntime_INCLUDE_DIR})
+        endif()
+    endif()
+else()
+    set(onnxruntime_FOUND FALSE)
+endif()
+
 option(PNNX_DISABLE_ONNXRUNTIME "disable onnxruntime support and skip building onnx2pnnx" OFF)
 if(PNNX_DISABLE_ONNXRUNTIME)
     set(onnxruntime_FOUND FALSE)

@@ -11,6 +11,17 @@
 
 namespace ncnn {
 
+Expand::Expand()
+{
+    one_blob_only = false;
+    support_inplace = false;
+}
+
+int Expand::load_param(const ParamDict& /*pd*/)
+{
+    return 0;
+}
+
 int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     if (bottom_blobs.size() < 2)

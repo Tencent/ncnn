@@ -39,8 +39,8 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     if (top_blob.empty())
         return -100;
 
-    int data_dims = data_blob.dims;
-    int positive_axis = axis < 0 ? axis + data_dims : axis;
+    const int data_dims = data_blob.dims;
+    const int positive_axis = axis < 0 ? axis + data_dims : axis;
     if (positive_axis < 0 || positive_axis >= data_dims)
         return -1;
 
@@ -48,79 +48,107 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;
     float* out = top_blob;
 
-    const int total = (int)top_blob.total();
+    // PyTorch/ONNX axis ordering: axis=0 is outermost (c for 3D, h for 2D, w for 1D)
+    int data_shape[3] = {1, 1, 1};
+    if (data_dims == 1)
+        data_shape[0] = data_blob.w;
+    else if (data_dims == 2)
+    {
+        data_shape[0] = data_blob.h;
+        data_shape[1] = data_blob.w;
+    }
+    else
+    {
+        data_shape[0] = data_blob.c;
+        data_shape[1] = data_blob.h;
+        data_shape[2] = data_blob.w;
+    }
 
-    // Get axis dimension size using ncnn Mat axis order: w, h, c, d
-    const int data_shape[4] = {data_blob.w, data_blob.h, data_blob.c, data_blob.d};
     const int axis_dim_size = data_shape[positive_axis];
 
-    for (int i = 0; i < total; i++)
+    if (data_dims == 1)
     {
-        // Get index value — handle int32 (elemsize=4) and int64 (elemsize=8)
-        int gather_idx;
-        if (idx_elemsize == 8)
-            gather_idx = (int)((const int64_t*)(const void*)index_blob)[i];
-        else
-            gather_idx = ((const int*)(const void*)index_blob)[i];
-
-        // Handle negative indices
-        if (gather_idx < 0)
-            gather_idx += axis_dim_size;
-
-        // Clamp to valid range
-        if (gather_idx < 0) gather_idx = 0;
-        if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
-
-        // Calculate input flat index based on axis
-        // For 1D data: flat_in = gather_idx
-        // For 2D data with axis=0: flat_in = gather_idx + y * w
-        // For 2D data with axis=1: flat_in = x + gather_idx * w
-        int flat_in = 0;
-
-        if (data_dims == 1)
+        // axis=0 only: output[x] = data[index[x]]
+        for (int x = 0; x < index_blob.w; x++)
         {
-            flat_in = gather_idx;
-        }
-        else if (data_dims == 2)
-        {
-            // Calculate position in output (which matches index_blob shape)
-            int x = i % index_blob.w;
-            int y = i / index_blob.w;
-
-            if (positive_axis == 0)
-            {
-                // Gather along width: output[x,y] = data[gather_idx, y]
-                flat_in = gather_idx + y * data_blob.w;
-            }
+            int gather_idx;
+            if (idx_elemsize == 8)
+                gather_idx = (int)((const int64_t*)(const void*)index_blob)[x];
             else
-            {
-                // Gather along height: output[x,y] = data[x, gather_idx]
-                flat_in = x + gather_idx * data_blob.w;
-            }
+                gather_idx = ((const int*)(const void*)index_blob)[x];
+            if (gather_idx < 0) gather_idx += axis_dim_size;
+            if (gather_idx < 0) gather_idx = 0;
+            if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
+            out[x] = data[gather_idx];
         }
-        else if (data_dims == 3)
+    }
+    else if (data_dims == 2)
+    {
+        // axis=0 -> h (outer): output[y,x] = data[index[y,x], x]  ->  flat_in = gather_idx*w + x
+        // axis=1 -> w (inner): output[y,x] = data[y, index[y,x]]  ->  flat_in = y*w + gather_idx
+        const int dw = data_blob.w;
+        for (int y = 0; y < index_blob.h; y++)
         {
-            int x = i % index_blob.w;
-            int tmp = i / index_blob.w;
-            int y = tmp % index_blob.h;
-            int z = tmp / index_blob.h;
-            const int cstep = (int)data_blob.cstep;
+            for (int x = 0; x < index_blob.w; x++)
+            {
+                int idx_flat = y * index_blob.w + x;
+                int gather_idx;
+                if (idx_elemsize == 8)
+                    gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
+                else
+                    gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
+                if (gather_idx < 0) gather_idx += axis_dim_size;
+                if (gather_idx < 0) gather_idx = 0;
+                if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
 
-            if (positive_axis == 0)
-            {
-                flat_in = gather_idx + y * data_blob.w + z * cstep;
-            }
-            else if (positive_axis == 1)
-            {
-                flat_in = x + gather_idx * data_blob.w + z * cstep;
-            }
-            else
-            {
-                flat_in = x + y * data_blob.w + gather_idx * cstep;
+                int flat_in;
+                if (positive_axis == 0)
+                    flat_in = gather_idx * dw + x;
+                else
+                    flat_in = y * dw + gather_idx;
+
+                out[idx_flat] = data[flat_in];
             }
         }
+    }
+    else // data_dims == 3
+    {
+        // axis=0 -> c: output[z,y,x] = data[index[z,y,x], y, x]  ->  flat_in = gather_idx*cstep + y*w + x
+        // axis=1 -> h: output[z,y,x] = data[z, index[z,y,x], x]  ->  flat_in = z*cstep + gather_idx*w + x
+        // axis=2 -> w: output[z,y,x] = data[z, y, index[z,y,x]]  ->  flat_in = z*cstep + y*w + gather_idx
+        const int dw = data_blob.w;
+        const size_t in_cstep = data_blob.cstep;
+        const size_t idx_cstep = index_blob.cstep;
+        const size_t out_cstep = top_blob.cstep;
 
-        out[i] = data[flat_in];
+        for (int z = 0; z < index_blob.c; z++)
+        {
+            for (int y = 0; y < index_blob.h; y++)
+            {
+                for (int x = 0; x < index_blob.w; x++)
+                {
+                    int idx_flat = (int)(z * idx_cstep) + y * index_blob.w + x;
+                    int gather_idx;
+                    if (idx_elemsize == 8)
+                        gather_idx = (int)((const int64_t*)(const void*)index_blob)[idx_flat];
+                    else
+                        gather_idx = ((const int*)(const void*)index_blob)[idx_flat];
+                    if (gather_idx < 0) gather_idx += axis_dim_size;
+                    if (gather_idx < 0) gather_idx = 0;
+                    if (gather_idx >= axis_dim_size) gather_idx = axis_dim_size - 1;
+
+                    int flat_in;
+                    if (positive_axis == 0)
+                        flat_in = (int)(gather_idx * in_cstep) + y * dw + x;
+                    else if (positive_axis == 1)
+                        flat_in = (int)(z * in_cstep) + gather_idx * dw + x;
+                    else
+                        flat_in = (int)(z * in_cstep) + y * dw + gather_idx;
+
+                    out[(int)(z * out_cstep) + y * top_blob.w + x] = data[flat_in];
+                }
+            }
+        }
     }
 
     return 0;
