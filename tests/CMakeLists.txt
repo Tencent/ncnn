@@ -49,6 +49,10 @@ if(NCNN_PIXEL_DRAWING)
 endif()
 
 # YOLO26 support tests
+if(WITH_LAYER_GATHER)
+    ncnn_add_test(gather)
+endif()
+
 if(WITH_LAYER_GATHERELEMENTS)
     ncnn_add_test(gatherelements)
 endif()

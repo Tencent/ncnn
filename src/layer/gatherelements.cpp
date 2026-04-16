@@ -50,20 +50,9 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     const int total = (int)top_blob.total();
 
-    // Get axis dimension size
-    int axis_dim_size = 1;
-    if (data_dims == 1)
-    {
-        axis_dim_size = data_blob.w;
-    }
-    else if (data_dims == 2)
-    {
-        axis_dim_size = (positive_axis == 0) ? data_blob.w : data_blob.h;
-    }
-    else if (data_dims == 3)
-    {
-        axis_dim_size = (positive_axis == 0) ? data_blob.w : (positive_axis == 1) ? data_blob.h : data_blob.c;
-    }
+    // Get axis dimension size using ncnn Mat axis order: w, h, c, d
+    const int data_shape[4] = {data_blob.w, data_blob.h, data_blob.c, data_blob.d};
+    const int axis_dim_size = data_shape[positive_axis];
 
     for (int i = 0; i < total; i++)
     {
