@@ -102,7 +102,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #endif // __mips_msa
     for (; q + 1 < outch; q += 2)
     {
+#if __mips_msa
         signed char* g00 = kernel_tm.channel(q / 4 + (q % 4) / 2);
+#else
+        signed char* g00 = kernel_tm.channel(q / 2);
+#endif
 
         int p = 0;
 #if __mips_msa
@@ -152,7 +156,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
     }
     for (; q < outch; q++)
     {
+#if __mips_msa
         signed char* g00 = kernel_tm.channel(q / 4 + (q % 4) / 2 + q % 2);
+#else
+        signed char* g00 = kernel_tm.channel(q / 2 + q % 2);
+#endif
 
         int p = 0;
 #if __mips_msa
@@ -379,7 +387,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int j = 0; j < outw; j++)
             {
+#if __mips_msa
                 const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 4 + (p % 4) / 2);
+#else
+                const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 2);
+#endif
 
                 int sum0 = 0;
                 int sum1 = 0;
@@ -470,7 +482,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int j = 0; j < outw; j++)
             {
+#if __mips_msa
                 const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 4 + (p % 4) / 2 + p % 2);
+#else
+                const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 2 + p % 2);
+#endif
 
                 int sum = 0;
 

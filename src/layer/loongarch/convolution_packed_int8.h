@@ -387,7 +387,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int j = 0; j < outw; j++)
             {
+#if __loongarch_sx
                 const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 4 + (p % 4) / 2);
+#else
+                const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 2);
+#endif
 
                 int sum0 = 0;
                 int sum1 = 0;
@@ -478,7 +482,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int j = 0; j < outw; j++)
             {
+#if __loongarch_sx
                 const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 4 + (p % 4) / 2 + p % 2);
+#else
+                const signed char* kptr = (const signed char*)weight_data_tm.channel(p / 2 + p % 2);
+#endif
 
                 int sum = 0;
 
