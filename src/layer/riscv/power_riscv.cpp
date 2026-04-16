@@ -1,21 +1,22 @@
-// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// Copyright 2026 ihb2032 <hebome@foxmail.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "dropout_riscv.h"
+#include "power_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
+#include "rvv_mathfun.h"
 #endif // __riscv_vector
 
 #include "cpu.h"
 
 namespace ncnn {
 
-Dropout_riscv::Dropout_riscv()
+Power_riscv::Power_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#endif
+#endif // __riscv_vector
 #if NCNN_ZFH
 #if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
@@ -25,15 +26,10 @@ Dropout_riscv::Dropout_riscv()
 #endif
 }
 
-int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Power_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (scale == 1.f)
-    {
-        return 0;
-    }
-
 #if NCNN_ZFH
-    int elembits = bottom_top_blob.elembits();
+    const int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
     {
@@ -44,12 +40,12 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -61,9 +57,10 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e32m8(n);
-
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             _p = __riscv_vfmul_vf_f32m8(_p, scale, vl);
+            _p = __riscv_vfadd_vf_f32m8(_p, shift, vl);
+            _p = pow_ps(_p, __riscv_vfmv_v_f_f32m8(power, vl), vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
@@ -72,9 +69,7 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = *ptr * scale;
-
-            ptr++;
+            ptr[i] = powf(shift + ptr[i] * scale, power);
         }
 #endif // __riscv_vector
     }
