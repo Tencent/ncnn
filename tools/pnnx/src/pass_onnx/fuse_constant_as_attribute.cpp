@@ -201,9 +201,16 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                     continue;
                 }
             }
-            else if (tensor.dims_size() == 1)
+            else if (tensor.dims_size() == 1 || tensor.dims_size() == 2)
             {
-                const int list_size = tensor.dims(0);
+                // for 2-D tensors, only fuse if one dim is 1 (squeezeable to 1-D)
+                if (tensor.dims_size() == 2 && tensor.dims(0) != 1 && tensor.dims(1) != 1)
+                {
+                    // tensor type, cannot fuse it as scalar/list attribute
+                    continue;
+                }
+
+                const int list_size = (int)numel;
                 if (tensor.data_type() == onnx::TensorProto::INT32)
                 {
                     std::vector<int> ai(list_size);
