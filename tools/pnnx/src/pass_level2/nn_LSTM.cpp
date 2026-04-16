@@ -648,6 +648,162 @@ pnnx.Output             output      1 0 out2
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B5, 140)
 
+class nn_LSTM_onnx_6 : public nn_LSTM_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+LSTM                    lstm        3 1 input W R out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_6, 141)
+
+class nn_LSTM_onnx_B6 : public nn_LSTM_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+LSTM                    lstm        4 1 input W R B out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B6, 141)
+
+class nn_LSTM_onnx_7 : public nn_LSTM_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 6
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+LSTM                    lstm        3 3 input W R out outh outc %*=%*
+pnnx.Output             output      3 0 out outh outc
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_7, 141)
+
+class nn_LSTM_onnx_B7 : public nn_LSTM_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 7
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+LSTM                    lstm        4 3 input W R B out outh outc %*=%*
+pnnx.Output             output      3 0 out outh outc
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B7, 141)
+
+class nn_LSTM_onnx_8 : public nn_LSTM_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Input              input_2     0 1 initial_c
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+LSTM                    lstm        5 3 input W R initial_h initial_c out outh outc %*=%*
+pnnx.Output             output      3 0 out outh outc
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_8, 141)
+
+class nn_LSTM_onnx_B8 : public nn_LSTM_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 9
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Input              input_2     0 1 initial_c
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+LSTM                    lstm        6 3 input W R B initial_h initial_c out outh outc %*=%*
+pnnx.Output             output      3 0 out outh outc
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B8, 141)
+
+class nn_LSTM_onnx_9 : public nn_LSTM_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Input              input_2     0 1 initial_c
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+LSTM                    lstm        5 1 input W R initial_h initial_c out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_9, 141)
+
+class nn_LSTM_onnx_B9 : public nn_LSTM_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Input              input_2     0 1 initial_c
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+LSTM                    lstm        6 1 input W R B initial_h initial_c out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_LSTM_onnx_B9, 141)
+
 class nn_LSTM_tnn : public GraphRewriterPass
 {
 public:
