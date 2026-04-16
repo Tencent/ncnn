@@ -43,7 +43,19 @@ pnnx.Output             output      1 0 out
                 axis = dim_p.ai[0];
         }
 
-        op->params["0"] = axis;
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        if (axis == batch_index)
+        {
+            fprintf(stderr, "Gather along batch axis is not supported\n");
+            return;
+        }
+
+        int new_axis = axis;
+        if (axis >= 0)
+            new_axis = axis > batch_index ? axis - 1 : axis;
+
+        op->params["0"] = new_axis;
     }
 };
 

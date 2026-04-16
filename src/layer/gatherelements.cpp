@@ -3,6 +3,8 @@
 
 #include "gatherelements.h"
 
+#include <stdint.h>
+
 namespace ncnn {
 
 GatherElements::GatherElements()
@@ -26,9 +28,14 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const Mat& data_blob = bottom_blobs[0];
     const Mat& index_blob = bottom_blobs[1];
 
-    // Output has same shape as index_blob
+    // Output has same shape as index_blob (preserve rank)
     Mat& top_blob = top_blobs[0];
-    top_blob.create(index_blob.w, index_blob.h, index_blob.c, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
+    if (index_blob.dims == 1)
+        top_blob.create(index_blob.w, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
+    else if (index_blob.dims == 2)
+        top_blob.create(index_blob.w, index_blob.h, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
+    else
+        top_blob.create(index_blob.w, index_blob.h, index_blob.c, data_blob.elemsize, data_blob.elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -38,7 +45,7 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         return -1;
 
     const float* data = data_blob;
-    const int* indices = (const int*)index_blob;
+    const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;
     float* out = top_blob;
 
     const int total = (int)top_blob.total();
@@ -60,8 +67,12 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     for (int i = 0; i < total; i++)
     {
-        // Get index value at this position
-        int gather_idx = indices[i];
+        // Get index value — handle int32 (elemsize=4) and int64 (elemsize=8)
+        int gather_idx;
+        if (idx_elemsize == 8)
+            gather_idx = (int)((const int64_t*)(const void*)index_blob)[i];
+        else
+            gather_idx = ((const int*)(const void*)index_blob)[i];
 
         // Handle negative indices
         if (gather_idx < 0)
@@ -104,18 +115,19 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             int tmp = i / index_blob.w;
             int y = tmp % index_blob.h;
             int z = tmp / index_blob.h;
+            const int cstep = (int)data_blob.cstep;
 
             if (positive_axis == 0)
             {
-                flat_in = gather_idx + (y + z * data_blob.h) * data_blob.w;
+                flat_in = gather_idx + y * data_blob.w + z * cstep;
             }
             else if (positive_axis == 1)
             {
-                flat_in = x + (gather_idx + z * data_blob.h) * data_blob.w;
+                flat_in = x + gather_idx * data_blob.w + z * cstep;
             }
             else
             {
-                flat_in = x + (y + gather_idx * data_blob.h) * data_blob.w;
+                flat_in = x + y * data_blob.w + gather_idx * cstep;
             }
         }
 

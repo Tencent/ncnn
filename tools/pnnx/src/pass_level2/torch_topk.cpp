@@ -11,7 +11,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-12 7
+7 7
 pnnx.Input              input_0     0 1 input
 prim::Constant          op_0        0 1 k value=%k
 prim::Constant          op_1        0 1 dim value=%dim

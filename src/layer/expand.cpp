@@ -1,9 +1,9 @@
-// Highly optimized implementation for Expand with cache optimization
 // Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "expand.h"
 #include <algorithm>
+#include <stdint.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -19,8 +19,11 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const Mat& input_blob = bottom_blobs[0];
     const Mat& shape_blob = bottom_blobs[1];
 
-    const int* target_shape = (const int*)shape_blob;
+    // shape_blob may be int32 (elemsize=4) or int64 (elemsize=8) from ONNX
+    const size_t shape_elemsize = shape_blob.elemsize / shape_blob.elempack;
+    const bool shape_is_int64 = (shape_elemsize == 8);
     int target_dims = (shape_blob.dims == 1) ? shape_blob.w : (int)shape_blob.total();
+    if (target_dims > 3) target_dims = 3;
 
     int in_dims = input_blob.dims;
     int in_shape[3] = {1, 1, 1};
@@ -39,19 +42,33 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         int target_idx = i - (out_dims - target_dims);
 
         int in_dim = (in_idx >= 0 && in_idx < 3) ? in_shape[in_idx] : 1;
-        int target_dim = (target_idx >= 0 && target_idx < target_dims) ? target_shape[target_idx] : 1;
+
+        // Read target dimension from shape_blob (int32 or int64)
+        int target_dim = 1;
+        if (target_idx >= 0 && target_idx < target_dims)
+        {
+            if (shape_is_int64)
+                target_dim = (int)((const int64_t*)(const void*)shape_blob)[target_idx];
+            else
+                target_dim = ((const int*)(const void*)shape_blob)[target_idx];
+        }
 
         if (in_dim == 1)
         {
-            out_shape[i] = target_dim;
+            out_shape[i] = (target_dim > 0) ? target_dim : 1;
         }
-        else if (target_dim == 1)
+        else if (target_dim == 1 || target_dim == -1)
+        {
+            out_shape[i] = in_dim;
+        }
+        else if (target_dim == in_dim)
         {
             out_shape[i] = in_dim;
         }
         else
         {
-            out_shape[i] = target_dim;
+            // Invalid broadcast: target_dim != in_dim and neither is 1
+            return -1;
         }
     }
 

@@ -72,9 +72,20 @@ pnnx.Output             output      2 0 values indices
         if (axis >= 0)
             new_axis = axis > batch_index ? axis - 1 : axis;
 
+        int k_val = 1;
+        if (captured_params.find("k") != captured_params.end())
+        {
+            const Parameter& k_p = captured_params.at("k");
+            if (k_p.type == 2)
+                k_val = k_p.i;
+            else if (k_p.type == 5 && !k_p.ai.empty())
+                k_val = k_p.ai[0];
+        }
+
         op->params["0"] = new_axis;
         op->params["1"] = largest;
         op->params["2"] = sorted;
+        op->params["3"] = k_val;
     }
 };
 
@@ -135,9 +146,20 @@ pnnx.Output             output      1 0 values
         if (axis >= 0)
             new_axis = axis > batch_index ? axis - 1 : axis;
 
+        int k_val = 1;
+        if (captured_params.find("k") != captured_params.end())
+        {
+            const Parameter& k_p = captured_params.at("k");
+            if (k_p.type == 2)
+                k_val = k_p.i;
+            else if (k_p.type == 5 && !k_p.ai.empty())
+                k_val = k_p.ai[0];
+        }
+
         op->params["0"] = new_axis;
         op->params["1"] = largest;
         op->params["2"] = sorted;
+        op->params["3"] = k_val;
     }
 };
 

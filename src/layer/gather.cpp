@@ -3,6 +3,8 @@
 
 #include "gather.h"
 
+#include <stdint.h>
+
 namespace ncnn {
 
 Gather::Gather()
@@ -27,10 +29,6 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const Mat& index_blob = bottom_blobs[1];
     const int dims = input_blob.dims;
 
-    // index_blob should contain int64 or int32 indices
-    // For simplicity we treat it as float and cast
-    const int index_size = (int)index_blob.total();
-
     int positive_axis = axis < 0 ? axis + dims : axis;
     if (positive_axis < 0 || positive_axis >= dims)
         return -1;
@@ -43,17 +41,20 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     const int axis_dim_size = shape[positive_axis];
 
-    // Output shape matches index_blob shape
-    const Mat& out_shape = index_blob;
-
-    // Allocate output (same dtype as input, shape matches index)
+    // Output shape matches index_blob shape exactly (preserve rank)
     Mat& top_blob = top_blobs[0];
-    top_blob.create(out_shape.w, out_shape.h, out_shape.c, input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
+    if (index_blob.dims == 1)
+        top_blob.create(index_blob.w, input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
+    else if (index_blob.dims == 2)
+        top_blob.create(index_blob.w, index_blob.h, input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
+    else
+        top_blob.create(index_blob.w, index_blob.h, index_blob.c, input_blob.elemsize, input_blob.elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     const float* inp = input_blob;
-    const int* idx = (const int*)index_blob;
+    // Indices may be int32 (elemsize=4) or int64 (elemsize=8)
+    const size_t idx_elemsize = index_blob.elemsize / index_blob.elempack;
     float* out = top_blob;
 
     // General case: iterate over all output positions
@@ -82,8 +83,12 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             coord_out[2] = rem / hw;
         }
 
-        // Get index value at this output position
-        int gather_idx = idx[i];
+        // Get index value — handle int32 (elemsize=4) and int64 (elemsize=8)
+        int gather_idx;
+        if (idx_elemsize == 8)
+            gather_idx = (int)((const int64_t*)(const void*)index_blob)[i];
+        else
+            gather_idx = ((const int*)(const void*)index_blob)[i];
         // Handle negative indices
         if (gather_idx < 0) gather_idx += axis_dim_size;
 

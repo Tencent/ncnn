@@ -125,8 +125,10 @@ if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH
     endif()
 endif()
 
-# Disable onnxruntime auto-detection — we only need torch2pnnx for YOLOv10
-set(onnxruntime_FOUND FALSE)
+option(PNNX_DISABLE_ONNXRUNTIME "disable onnxruntime support and skip building onnx2pnnx" OFF)
+if(PNNX_DISABLE_ONNXRUNTIME)
+    set(onnxruntime_FOUND FALSE)
+endif()
 
 option(PNNX_TNN2PNNX "build tnn2pnnx" ON)
 

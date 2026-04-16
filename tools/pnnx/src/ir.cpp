@@ -1639,29 +1639,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             if (op->type != "TopK")
                 continue;
 
-            fprintf(pyfp, "        self.%s = TopK(", sanitize_identifier(op->name).c_str());
+            // TopK __init__ takes (axis, largest, sorted); k is a forward() input, not a ctor param.
+            // param ids: "0"=axis "1"=largest "2"=sorted "3"=k (skip k here)
+            int axis_val = -1;
+            int largest_val = 1;
+            int sorted_val = 1;
+            if (op->params.count("0")) axis_val   = op->params.at("0").i;
+            if (op->params.count("1")) largest_val = op->params.at("1").i;
+            if (op->params.count("2")) sorted_val  = op->params.at("2").i;
 
-            int i = 0;
-            for (const auto& it : op->params)
-            {
-                fprintf(pyfp, "%s=", it.first.c_str());
-
-                const Parameter& param = it.second;
-                if (param.type == 2)
-                {
-                    fprintf(pyfp, "%d", param.i);
-                }
-                else if (param.type == 1)
-                {
-                    fprintf(pyfp, "%d", param.b ? 1 : 0);
-                }
-
-                if (i + 1 != op->params.size())
-                    fprintf(pyfp, ", ");
-                i++;
-            }
-
-            fprintf(pyfp, ")\n");
+            fprintf(pyfp, "        self.%s = TopK(axis=%d, largest=%d, sorted=%d)\n",
+                    sanitize_identifier(op->name).c_str(), axis_val, largest_val, sorted_val);
         }
     }
 
