@@ -1,17 +1,17 @@
-// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// Copyright 2026 ihb2032 <hebome@foxmail.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef LAYER_DROPOUT_RISCV_H
-#define LAYER_DROPOUT_RISCV_H
+#ifndef LAYER_POWER_RISCV_H
+#define LAYER_POWER_RISCV_H
 
-#include "dropout.h"
+#include "power.h"
 
 namespace ncnn {
 
-class Dropout_riscv : public Dropout
+class Power_riscv : public Power
 {
 public:
-    Dropout_riscv();
+    Power_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
@@ -24,4 +24,4 @@ protected:
 
 } // namespace ncnn
 
-#endif // LAYER_DROPOUT_RISCV_H
+#endif // LAYER_POWER_RISCV_H

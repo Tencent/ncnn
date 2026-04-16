@@ -115,14 +115,10 @@ pnnx.Output             output      1 0 out
         const int new_conv_pad_right = conv_pad_right + pad_right;
         const int new_conv_pad_bottom = conv_pad_bottom + pad_bottom;
 
-        if (new_conv_pad_left != conv_pad_left)
-            op->params["4"] = new_conv_pad_left;
-        if (new_conv_pad_top != new_conv_pad_left)
-            op->params["14"] = new_conv_pad_top;
-        if (new_conv_pad_right != new_conv_pad_left)
-            op->params["15"] = new_conv_pad_right;
-        if (new_conv_pad_bottom != new_conv_pad_top)
-            op->params["16"] = new_conv_pad_bottom;
+        op->params["4"] = new_conv_pad_left;
+        op->params["14"] = new_conv_pad_top;
+        op->params["15"] = new_conv_pad_right;
+        op->params["16"] = new_conv_pad_bottom;
 
         float padding_value = captured_params.find("op_0.5") != captured_params.end() ? captured_params.at("op_0.5").f : 0.f;
         if (padding_value != 0.f)
