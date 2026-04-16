@@ -787,6 +787,24 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 #if __mips_msa
     for (; jj + 3 < max_jj; jj += 4)
     {
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                for (int n = 0; n < 8; n++)
+                {
+                    pp[0] = p0[n];
+                    pp[1] = p0[8 + n];
+                    pp[2] = p0[16 + n];
+                    pp[3] = p0[24 + n];
+                    pp += 4;
+                }
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
@@ -806,6 +824,24 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 #endif // __mips_msa
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                for (int n = 0; n < 8; n++)
+                {
+                    pp[0] = p0[n];
+                    pp[1] = p0[8 + n];
+                    pp += 2;
+                }
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __mips_msa
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
@@ -822,6 +858,23 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
     }
     for (; jj < max_jj; jj++)
     {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                for (int n = 0; n < 8; n++)
+                {
+                    pp[0] = p0[n];
+                    pp += 1;
+                }
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __mips_msa
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
@@ -872,6 +925,31 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         if (dy0 == dy3)
         {
             int kk = 0;
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                    pp[0] = sptr[n];
+                    pp[1] = sptr[stride_w * 8 + n];
+                    pp[2] = sptr[stride_w * 16 + n];
+                    pp[3] = sptr[stride_w * 24 + n];
+                    pp += 4;
+                }
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -899,6 +977,41 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         else
         {
             int kk = 0;
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+
+                    pp[0] = sptr0[n];
+                    pp[1] = sptr1[n];
+                    pp[2] = sptr2[n];
+                    pp[3] = sptr3[n];
+                    pp += 4;
+                }
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -945,6 +1058,31 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         if (dy0 == dy1)
         {
             int kk = 0;
+#if __mips_msa
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                    pp[0] = sptr[n];
+                    pp[1] = sptr[stride_w * 8 + n];
+                    pp += 2;
+                }
+            }
+#endif // __mips_msa
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -970,6 +1108,34 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         else
         {
             int kk = 0;
+#if __mips_msa
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+
+                    pp[0] = sptr0[n];
+                    pp[1] = sptr1[n];
+                    pp += 2;
+                }
+            }
+#endif // __mips_msa
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -1002,6 +1168,30 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
         int dx = (j + jj) % outw;
 
         int kk = 0;
+#if __mips_msa
+        if (elempack == 8)
+        {
+            for (; kk < max_kk; kk++)
+            {
+                int raw_ch = kk / maxk;
+                int kpos = kk % maxk;
+                int p = raw_ch / 8;
+                int n = raw_ch % 8;
+                int u = kpos / kernel_w;
+                int v = kpos % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x = stride_w * dx + dilation_w * v;
+                int y = stride_h * dy + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y) + x * 8;
+
+                pp[0] = sptr[n];
+                pp += 1;
+            }
+        }
+#endif // __mips_msa
         for (; kk < max_kk / elempack; kk++)
         {
             int p = (k / elempack + kk) / maxk;
