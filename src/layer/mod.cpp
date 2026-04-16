@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "mod.h"
-#include <cmath>
 
 namespace ncnn {
 
@@ -58,7 +57,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
             else
             {
                 // Python-style: result has same sign as divisor (b)
-                float result = std::fmod(val_a, val_b);
+                float result = ::fmod(val_a, val_b);
                 if ((result != 0.0f) && ((val_b < 0.0f) != (result < 0.0f)))
                 {
                     result += val_b;
@@ -82,7 +81,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
             }
             else
             {
-                out[i] = std::fmod(val_a, val_b);
+                out[i] = ::fmod(val_a, val_b);
             }
         }
     }
