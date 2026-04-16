@@ -242,7 +242,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
-    // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const signed char* pAT = AT_tile;
     const signed char* pBT = BT_tile;
@@ -544,63 +544,48 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #if __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
         {
-            int sum00;
-            int sum01;
-            int sum10;
-            int sum11;
-            int sum20;
-            int sum21;
-            int sum30;
-            int sum31;
+            __m128i _sum0;
+            __m128i _sum1;
 
             if (k == 0)
             {
-                sum00 = 0;
-                sum01 = 0;
-                sum10 = 0;
-                sum11 = 0;
-                sum20 = 0;
-                sum21 = 0;
-                sum30 = 0;
-                sum31 = 0;
+                _sum0 = __lsx_vreplgr2vr_w(0);
+                _sum1 = __lsx_vreplgr2vr_w(0);
             }
             else
             {
-                sum00 = outptr[0];
-                sum01 = outptr[1];
-                sum10 = outptr[2];
-                sum11 = outptr[3];
-                sum20 = outptr[4];
-                sum21 = outptr[5];
-                sum30 = outptr[6];
-                sum31 = outptr[7];
+                __m128i _s0 = __lsx_vld(outptr, 0);
+                __m128i _s1 = __lsx_vld(outptr + 4, 0);
+
+                _sum0 = __lsx_vpickev_w(_s1, _s0);
+                _sum1 = __lsx_vpickod_w(_s1, _s0);
             }
 
             const signed char* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                sum00 += pA[0] * pB[0];
-                sum01 += pA[1] * pB[0];
-                sum10 += pA[0] * pB[1];
-                sum11 += pA[1] * pB[1];
-                sum20 += pA[0] * pB[2];
-                sum21 += pA[1] * pB[2];
-                sum30 += pA[0] * pB[3];
-                sum31 += pA[1] * pB[3];
+                __m128i _pB = __lsx_vreplgr2vr_d(*(int*)pB);
+                _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
+
+                __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
+                __m128i _pA1 = __lsx_vreplgr2vr_h(pA[1]);
+
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB);
+
+                _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
 
                 pA += 2;
                 pB += 4;
             }
 
-            outptr[0] = sum00;
-            outptr[1] = sum01;
-            outptr[2] = sum10;
-            outptr[3] = sum11;
-            outptr[4] = sum20;
-            outptr[5] = sum21;
-            outptr[6] = sum30;
-            outptr[7] = sum31;
+            __m128i _s0 = __lsx_vilvl_w(_sum1, _sum0);
+            __m128i _s1 = __lsx_vilvh_w(_sum1, _sum0);
+
+            __lsx_vst(_s0, outptr, 0);
+            __lsx_vst(_s1, outptr + 4, 0);
 
             outptr += 8;
         }
@@ -636,6 +621,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
 
+                // HACK
+                NCNN_LOGE("%d %d  x  %d %d", pA[0], pA[1], pB[0], pB[1]);
+
                 pA += 2;
                 pB += 2;
             }
@@ -669,6 +657,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 sum0 += pA[0] * pB[0];
                 sum1 += pA[1] * pB[0];
+
+                // HACK
+                NCNN_LOGE("%d %d  x  %d", pA[0], pA[1], pB[0]);
+
                 pA += 2;
                 pB += 1;
             }
@@ -689,43 +681,35 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #if __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
         {
-            int sum0;
-            int sum1;
-            int sum2;
-            int sum3;
+            __m128i _sum0;
 
             if (k == 0)
             {
-                sum0 = 0;
-                sum1 = 0;
-                sum2 = 0;
-                sum3 = 0;
+                _sum0 = __lsx_vreplgr2vr_w(0);
             }
             else
             {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
-                sum2 = outptr[2];
-                sum3 = outptr[3];
+                _sum0 = __lsx_vld(outptr, 0);
             }
 
             const signed char* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                sum0 += pA[0] * pB[0];
-                sum1 += pA[0] * pB[1];
-                sum2 += pA[0] * pB[2];
-                sum3 += pA[0] * pB[3];
+                __m128i _pB = __lsx_vreplgr2vr_d(*(int*)pB);
+                _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
+
+                __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
+
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB);
+
+                _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
 
                 pA += 1;
                 pB += 4;
             }
 
-            outptr[0] = sum0;
-            outptr[1] = sum1;
-            outptr[2] = sum2;
-            outptr[3] = sum3;
+            __lsx_vst(_sum0, outptr, 0);
 
             outptr += 4;
         }
@@ -752,6 +736,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 sum0 += pA[0] * pB[0];
                 sum1 += pA[0] * pB[1];
+
+                // HACK
+                NCNN_LOGE("%d  x  %d %d", pA[0], pB[0], pB[1]);
 
                 pA += 1;
                 pB += 2;
@@ -797,6 +784,8 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 {
     const int out_elempack = top_blob.elempack;
     const int out_hstep = (int)top_blob.cstep;
+
+    NCNN_LOGE("unpack_output_tile_int32 %d %d %d %d     %d %d", i, max_ii, j, max_jj, out_elempack, out_hstep);
 
     const int* pp = topT;
 
