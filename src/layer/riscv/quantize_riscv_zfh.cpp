@@ -19,7 +19,6 @@ static void quantize_fp16s(const __fp16* ptr, signed char* s8ptr, const Mat& sca
     const int size = elemcount * elempack;
     float scale = scale_data[0];
 
-    int i = 0;
 #if __riscv_vector
     int n = size;
     while (n > 0)
@@ -33,16 +32,15 @@ static void quantize_fp16s(const __fp16* ptr, signed char* s8ptr, const Mat& sca
         s8ptr += vl;
         n -= vl;
     }
-
-    i += (size - n);
-#endif
-    for (; i < size; i++)
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
     {
         float v = (float)(*ptr) * scale;
         *s8ptr = float2int8(v);
         ptr++;
         s8ptr++;
     }
+#endif // __riscv_zvfh
 }
 
 #if __riscv_vector
@@ -300,7 +298,6 @@ static void quantize_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& sc
     const int size = elemcount * elempack;
     __fp16 scale = (__fp16)scale_data[0];
 
-    int i = 0;
 #if __riscv_zvfh
     int n = size;
     while (n > 0)
@@ -314,16 +311,15 @@ static void quantize_fp16sa(const __fp16* ptr, signed char* s8ptr, const Mat& sc
         s8ptr += vl;
         n -= vl;
     }
-
-    i += (size - n);
-#endif // __riscv_zvfh
-    for (; i < size; i++)
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
     {
         __fp16 v = *ptr * scale;
         *s8ptr = float2int8(v);
         ptr++;
         s8ptr++;
     }
+#endif // __riscv_zvfh
 }
 
 #if __riscv_zvfh

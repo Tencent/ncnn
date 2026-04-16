@@ -33,7 +33,6 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     const int size = elemcount * elempack;
     float scale = scale_data[0];
 
-    int i = 0;
 #if __riscv_vector
     int n = size;
     while (n > 0)
@@ -47,15 +46,14 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
         s8ptr += vl;
         n -= vl;
     }
-
-    i += (size - n);
-#endif
-    for (; i < size; i++)
+#else  // __riscv_zvfh
+    for (int i = 0; i < size; i++)
     {
         *s8ptr = float2int8(*ptr * scale);
         ptr++;
         s8ptr++;
     }
+#endif // __riscv_zvfh
 }
 
 #if __riscv_vector
@@ -296,6 +294,7 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         }
         if (elempack == packn && out_elempack == 1)
         {
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
