@@ -615,4 +615,156 @@ pnnx.Output             output      1 0 out2
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B5, 140)
 
+class nn_GRU_onnx_6 : public nn_GRU_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+GRU                     gru         3 1 input W R out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_6, 141)
+
+class nn_GRU_onnx_B6 : public nn_GRU_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+GRU                     gru         4 1 input W R B out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B6, 141)
+
+class nn_GRU_onnx_7 : public nn_GRU_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 5
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+GRU                     gru         3 2 input W R out outh %*=%*
+pnnx.Output             output      2 0 out outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_7, 141)
+
+class nn_GRU_onnx_B7 : public nn_GRU_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 6
+pnnx.Input              input_0     0 1 input
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+GRU                     gru         4 2 input W R B out outh %*=%*
+pnnx.Output             output      2 0 out outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B7, 141)
+
+class nn_GRU_onnx_8 : public nn_GRU_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+GRU                     gru         4 2 input W R initial_h out outh %*=%*
+pnnx.Output             output      2 0 out outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_8, 141)
+
+class nn_GRU_onnx_B8 : public nn_GRU_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+GRU                     gru         5 2 input W R B initial_h out outh %*=%*
+pnnx.Output             output      2 0 out outh
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B8, 141)
+
+class nn_GRU_onnx_9 : public nn_GRU_onnx
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+GRU                     gru         4 1 input W R initial_h out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_9, 141)
+
+class nn_GRU_onnx_B9 : public nn_GRU_onnx_B
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 initial_h
+pnnx.Attribute          W           0 1 W @data
+pnnx.Attribute          R           0 1 R @data
+pnnx.Attribute          B           0 1 B @data
+GRU                     gru         5 1 input W R B initial_h out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_GRU_onnx_B9, 141)
+
 } // namespace pnnx
