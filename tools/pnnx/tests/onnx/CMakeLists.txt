@@ -74,6 +74,8 @@ pnnx_onnx_add_test(F_upsample_bilinear)
 pnnx_onnx_add_test(F_upsample_nearest)
 pnnx_onnx_add_test(F_upsample)
 
+pnnx_onnx_add_test(nn_Resize_nearest)
+
 pnnx_onnx_add_test(nn_AdaptiveAvgPool1d)
 pnnx_onnx_add_test(nn_AdaptiveAvgPool2d)
 pnnx_onnx_add_test(nn_AdaptiveAvgPool3d)

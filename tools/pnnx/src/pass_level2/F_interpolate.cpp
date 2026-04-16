@@ -819,13 +819,17 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.nearest_mode") != captured_params.end())
         {
-            if (captured_params.at("op_0.nearest_mode").type != 4 || captured_params.at("op_0.nearest_mode").s != "floor")
+            if (captured_params.at("op_0.nearest_mode").type != 4)
+                return false;
+            const std::string& nearest_mode = captured_params.at("op_0.nearest_mode").s;
+            if (nearest_mode != "floor" && nearest_mode != "round_prefer_floor")
                 return false;
         }
 
+        // roi may be fused as identity [1,1,...,1] by fuse_constant_as_attribute, accept any float array
         if (captured_params.find("op_0.roi") != captured_params.end())
         {
-            if (captured_params.at("op_0.roi").type != 6 || !captured_params.at("op_0.roi").af.empty())
+            if (captured_params.at("op_0.roi").type != 6)
                 return false;
         }
 
@@ -1045,7 +1049,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.roi") != captured_params.end())
         {
-            if (captured_params.at("op_0.roi").type != 6 || !captured_params.at("op_0.roi").af.empty())
+            if (captured_params.at("op_0.roi").type != 6)
                 return false;
         }
 
@@ -1063,7 +1067,10 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.find("op_0.nearest_mode") != captured_params.end())
         {
-            if (captured_params.at("op_0.nearest_mode").type != 4 || captured_params.at("op_0.nearest_mode").s != "floor")
+            if (captured_params.at("op_0.nearest_mode").type != 4)
+                return false;
+            const std::string& nearest_mode = captured_params.at("op_0.nearest_mode").s;
+            if (nearest_mode != "floor" && nearest_mode != "round_prefer_floor")
                 return false;
         }
 
