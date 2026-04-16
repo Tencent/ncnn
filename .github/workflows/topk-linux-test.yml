@@ -19,9 +19,9 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Debug -DNCNN_RUNTIME_CPU=OFF \
             -DNCNN_SSE2=OFF -DNCNN_AVX=OFF \
             -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
 
   x64-sse2:
     runs-on: ubuntu-latest
@@ -33,9 +33,9 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Debug -DNCNN_RUNTIME_CPU=OFF \
             -DNCNN_SSE2=ON -DNCNN_AVX=OFF \
             -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
 
   x64-avx2:
     runs-on: ubuntu-latest
@@ -48,9 +48,9 @@ jobs:
             -DNCNN_SSE2=ON -DNCNN_AVX=ON -DNCNN_F16C=ON -DNCNN_FMA=ON -DNCNN_AVX2=ON \
             -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF \
             -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
 
   simplestl-simplemath:
     runs-on: ubuntu-latest
@@ -64,9 +64,9 @@ jobs:
             -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON \
             -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
 
   linux-x86-gcc:
     runs-on: ubuntu-latest
@@ -79,18 +79,18 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake \
             -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
     - name: build-nosse
       run: |
         mkdir build-nosse && cd build-nosse
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake \
             -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod -j$(nproc)
+        cmake --build . --target test_topk test_gather test_gatherelements test_expand test_mod test_tile -j$(nproc)
     - name: test-nosse
-      run: cd build-nosse && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod"
+      run: cd build-nosse && ctest --output-on-failure -R "test_topk|test_gather|test_gatherelements|test_expand|test_mod|test_tile"
 
   pnnx-onnx-ops:
     runs-on: ubuntu-latest
