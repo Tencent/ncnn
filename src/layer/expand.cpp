@@ -3,8 +3,10 @@
 
 #include "expand.h"
 
-#include <algorithm>
 #include <string.h>
+#if !NCNN_SIMPLESTL
+#include <algorithm>
+#endif
 
 namespace ncnn {
 
