@@ -245,31 +245,29 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 for (; !has_nan && j + 3 < axis_size; j += 4)
                 {
                     float32x4_t v = vld1q_f32(lineptr + j);
+                    // NaN check: v != v is true for NaN; OR all lanes via 64-bit view
                     uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(v, v));
-                    uint32_t nan_mask_lanes[4];
-                    vst1q_u32(nan_mask_lanes, nan_mask);
-                    if (nan_mask_lanes[0] || nan_mask_lanes[1] || nan_mask_lanes[2] || nan_mask_lanes[3])
+                    uint64x2_t nm64 = vreinterpretq_u64_u32(nan_mask);
+                    if (vgetq_lane_u64(nm64, 0) | vgetq_lane_u64(nm64, 1))
                     {
                         has_nan = 1;
                         break;
                     }
 
-                    float tmp[4];
-                    vst1q_f32(tmp, v);
-
+                    // Reduce 4 values against best using pairwise max/min (no store)
                     if (largest_flag)
                     {
-                        if (tmp[0] > best_value) best_value = tmp[0];
-                        if (tmp[1] > best_value) best_value = tmp[1];
-                        if (tmp[2] > best_value) best_value = tmp[2];
-                        if (tmp[3] > best_value) best_value = tmp[3];
+                        float32x4_t cur = vmaxq_f32(vdupq_n_f32(best_value), v);
+                        float32x2_t m = vpmax_f32(vget_low_f32(cur), vget_high_f32(cur));
+                        m = vpmax_f32(m, m);
+                        best_value = vget_lane_f32(m, 0);
                     }
                     else
                     {
-                        if (tmp[0] < best_value) best_value = tmp[0];
-                        if (tmp[1] < best_value) best_value = tmp[1];
-                        if (tmp[2] < best_value) best_value = tmp[2];
-                        if (tmp[3] < best_value) best_value = tmp[3];
+                        float32x4_t cur = vminq_f32(vdupq_n_f32(best_value), v);
+                        float32x2_t m = vpmin_f32(vget_low_f32(cur), vget_high_f32(cur));
+                        m = vpmin_f32(m, m);
+                        best_value = vget_lane_f32(m, 0);
                     }
                 }
 

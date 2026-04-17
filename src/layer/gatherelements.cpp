@@ -99,10 +99,11 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < index_blob.h; y++)
             {
+                const int idx_base = y * idxw;
                 float* out_row = out + y * top_blob.w;
                 for (int x = 0; x < idxw; x++)
                 {
-                    int gi = READ_IDX(y * idxw + x);
+                    int gi = READ_IDX(idx_base + x);
                     CLAMP_IDX(gi);
                     out_row[x] = data[gi * dw + x];
                 }
@@ -113,11 +114,12 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < index_blob.h; y++)
             {
+                const int idx_base = y * idxw;
                 const float* data_row = data + y * dw;
                 float* out_row = out + y * top_blob.w;
                 for (int x = 0; x < idxw; x++)
                 {
-                    int gi = READ_IDX(y * idxw + x);
+                    int gi = READ_IDX(idx_base + x);
                     CLAMP_IDX(gi);
                     out_row[x] = data_row[gi];
                 }
@@ -138,14 +140,17 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             for (int z = 0; z < index_blob.c; z++)
             {
                 float* out_chan = out + z * out_cstep;
+                const int idx_z_base = (int)(z * idx_cstep);
                 for (int y = 0; y < index_blob.h; y++)
                 {
                     float* out_row = out_chan + y * top_blob.w;
+                    const int idx_base = idx_z_base + y * idxw;
+                    const int inp_y_off = y * dw;
                     for (int x = 0; x < idxw; x++)
                     {
-                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        int gi = READ_IDX(idx_base + x);
                         CLAMP_IDX(gi);
-                        out_row[x] = data[(int)(gi * in_cstep) + y * dw + x];
+                        out_row[x] = data[(int)(gi * in_cstep) + inp_y_off + x];
                     }
                 }
             }
@@ -157,12 +162,14 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 const float* data_chan = data + z * in_cstep;
                 float* out_chan = out + z * out_cstep;
+                const int idx_z_base = (int)(z * idx_cstep);
                 for (int y = 0; y < index_blob.h; y++)
                 {
                     float* out_row = out_chan + y * top_blob.w;
+                    const int idx_base = idx_z_base + y * idxw;
                     for (int x = 0; x < idxw; x++)
                     {
-                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        int gi = READ_IDX(idx_base + x);
                         CLAMP_IDX(gi);
                         out_row[x] = data_chan[gi * dw + x];
                     }
@@ -176,13 +183,15 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 const float* data_chan = data + z * in_cstep;
                 float* out_chan = out + z * out_cstep;
+                const int idx_z_base = (int)(z * idx_cstep);
                 for (int y = 0; y < index_blob.h; y++)
                 {
                     const float* data_row = data_chan + y * dw;
                     float* out_row = out_chan + y * top_blob.w;
+                    const int idx_base = idx_z_base + y * idxw;
                     for (int x = 0; x < idxw; x++)
                     {
-                        int gi = READ_IDX((int)(z * idx_cstep) + y * idxw + x);
+                        int gi = READ_IDX(idx_base + x);
                         CLAMP_IDX(gi);
                         out_row[x] = data_row[gi];
                     }
