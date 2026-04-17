@@ -247,7 +247,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             if (!output_indices && inner == 1 && axis_size >= 4)
             {
                 const float* lineptr = ptr + in_base;
-                
+
                 // Pre-scan for NaN - if found, fall through to NaN-aware scalar path
                 bool has_nan = false;
                 for (int j = 0; j < axis_size; j++)
@@ -258,7 +258,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         break;
                     }
                 }
-                
+
                 if (!has_nan)
                 {
                     // Accumulate best4 across all NEON chunks; reduce to scalar only once.
