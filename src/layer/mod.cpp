@@ -3,6 +3,8 @@
 
 #include "mod.h"
 
+#include <math.h>
+
 namespace ncnn {
 
 Mod::Mod()
@@ -59,7 +61,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
                 }
                 else
                 {
-                    float result = ::fmod(aptr[i], val_b);
+                    float result = ::fmodf(aptr[i], val_b);
                     if ((result != 0.0f) && ((val_b < 0.0f) != (result < 0.0f)))
                         result += val_b;
                     optr[i] = result;
@@ -79,7 +81,7 @@ int Mod::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
             for (int i = 0; i < count; i++)
             {
                 const float val_b = bptr[i];
-                optr[i] = (val_b == 0.0f) ? 0.0f : ::fmod(aptr[i], val_b);
+                optr[i] = (val_b == 0.0f) ? 0.0f : ::fmodf(aptr[i], val_b);
             }
         }
     }

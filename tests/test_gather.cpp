@@ -4,13 +4,14 @@
 #include "testutil.h"
 
 // Run the Gather layer and return the output blob.
-static int run_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int axis, ncnn::Mat& out)
+static int run_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int axis, ncnn::Mat& out,
+                      int num_threads = 1)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);
 
     ncnn::Option opt;
-    opt.num_threads = 1;
+    opt.num_threads = num_threads;
     opt.use_vulkan_compute = false;
     opt.use_packing_layout = false;
 
@@ -229,8 +230,7 @@ static int test_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int axis
 {
     ncnn::Mat expected = ref_gather(data, indices, axis);
     ncnn::Mat got;
-    int ret = run_gather(data, indices, axis, got);
-    if (ret != 0)
+    if (run_gather(data, indices, axis, got) != 0)
     {
         fprintf(stderr, "%s: forward failed\n", name);
         return -1;
@@ -296,7 +296,7 @@ static int test_gather_negative_axis()
 
 static int test_gather_clamp()
 {
-    // Verify that out-of-range indices are clamped, not crashed.
+    // 1D: out-of-range indices must clamp, not crash.
     ncnn::Mat data = RandomMat(6);
     ncnn::Mat idx;
     idx.create(4, (size_t)4u);
@@ -306,7 +306,55 @@ static int test_gather_clamp()
     p[2] = 5;
     p[3] = 100; // clamps to 5
 
-    return test_gather(data, idx, 0, "gather_clamp");
+    if (test_gather(data, idx, 0, "gather_clamp_1d") != 0) return -1;
+
+    // 2D axis=0: out-of-range row indices
+    {
+        ncnn::Mat data2d = RandomMat(5, 4); // h=4, w=5
+        ncnn::Mat idx2d;
+        idx2d.create(5, 3, (size_t)4u); // index shape [3, 5]
+        int* q = (int*)(void*)idx2d;
+        for (int i = 0; i < 15; i++) q[i] = (i % 3) - 1; // values: -1, 0, 1
+        if (test_gather(data2d, idx2d, 0, "gather_clamp_2d_axis0") != 0) return -1;
+    }
+
+    // 2D axis=1: out-of-range column indices
+    {
+        ncnn::Mat data2d = RandomMat(5, 4);
+        ncnn::Mat idx2d;
+        idx2d.create(3, 4, (size_t)4u);
+        int* q = (int*)(void*)idx2d;
+        for (int i = 0; i < 12; i++) q[i] = (i % 7) - 1; // includes -1 and 5+
+        if (test_gather(data2d, idx2d, 1, "gather_clamp_2d_axis1") != 0) return -1;
+    }
+
+    // 3D axis=2: out-of-range indices in the innermost dim
+    {
+        ncnn::Mat data3d = RandomMat(6, 4, 3);
+        ncnn::Mat idx3d;
+        idx3d.create(4, 4, 3, (size_t)4u);
+        int* q = (int*)(void*)idx3d;
+        for (int i = 0; i < (int)idx3d.total(); i++) q[i] = (i % 9) - 2; // includes negatives and overflow
+        if (test_gather(data3d, idx3d, 2, "gather_clamp_3d_axis2") != 0) return -1;
+    }
+
+    return 0;
+}
+
+// Multi-threaded: result must match single-threaded (catches OMP data races).
+static int test_gather_multithread()
+{
+    ncnn::Mat data = RandomMat(16, 12, 8);
+    ncnn::Mat idx = make_indices(12, 8, 8, 12); // axis=1 (h=12)
+
+    ncnn::Mat out_single, out_multi;
+    if (run_gather(data, idx, 1, out_single, 1) != 0
+        || run_gather(data, idx, 1, out_multi, 4) != 0)
+    {
+        fprintf(stderr, "gather_multithread: forward failed\n");
+        return -1;
+    }
+    return check_equal(out_single, out_multi, "gather_multithread");
 }
 
 static int test_gather_int64_indices()
@@ -340,5 +388,6 @@ int main()
            || test_gather_3d()
            || test_gather_negative_axis()
            || test_gather_clamp()
-           || test_gather_int64_indices();
+           || test_gather_int64_indices()
+           || test_gather_multithread();
 }

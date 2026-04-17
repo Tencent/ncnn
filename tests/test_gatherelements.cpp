@@ -4,13 +4,14 @@
 #include "testutil.h"
 
 // Run the GatherElements layer and return the output blob.
-static int run_gatherelements(const ncnn::Mat& data, const ncnn::Mat& indices, int axis, ncnn::Mat& out)
+static int run_gatherelements(const ncnn::Mat& data, const ncnn::Mat& indices, int axis, ncnn::Mat& out,
+                              int num_threads = 1)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);
 
     ncnn::Option opt;
-    opt.num_threads = 1;
+    opt.num_threads = num_threads;
     opt.use_vulkan_compute = false;
     opt.use_packing_layout = false;
 
@@ -281,7 +282,7 @@ static int test_gatherelements_negative_axis()
 
 static int test_gatherelements_clamp()
 {
-    // Verify that out-of-range indices are clamped, not crashed.
+    // 1D: out-of-range indices must clamp, not crash.
     ncnn::Mat data = RandomMat(6);
     ncnn::Mat idx;
     idx.create(4, (size_t)4u);
@@ -291,7 +292,45 @@ static int test_gatherelements_clamp()
     p[2] = 5;
     p[3] = 100; // clamps to 5
 
-    return test_gatherelements(data, idx, 0, "gatherelements_clamp");
+    if (test_gatherelements(data, idx, 0, "gatherelements_clamp_1d") != 0) return -1;
+
+    // 2D axis=0: out-of-range row indices
+    {
+        ncnn::Mat data2d = RandomMat(5, 4);
+        ncnn::Mat idx2d;
+        idx2d.create(5, 4, (size_t)4u); // same shape as data (GatherElements requirement)
+        int* q = (int*)(void*)idx2d;
+        for (int i = 0; i < 20; i++) q[i] = (i % 5) - 1; // includes -1 and 3+
+        if (test_gatherelements(data2d, idx2d, 0, "gatherelements_clamp_2d_axis0") != 0) return -1;
+    }
+
+    // 3D axis=1: out-of-range height indices
+    {
+        ncnn::Mat data3d = RandomMat(6, 4, 3);
+        ncnn::Mat idx3d;
+        idx3d.create(6, 4, 3, (size_t)4u);
+        int* q = (int*)(void*)idx3d;
+        for (int i = 0; i < (int)idx3d.total(); i++) q[i] = (i % 7) - 2;
+        if (test_gatherelements(data3d, idx3d, 1, "gatherelements_clamp_3d_axis1") != 0) return -1;
+    }
+
+    return 0;
+}
+
+// Multi-threaded: result must match single-threaded (catches OMP data races).
+static int test_gatherelements_multithread()
+{
+    ncnn::Mat data = RandomMat(16, 12, 8);
+    ncnn::Mat idx = make_indices(16, 12, 8, 12); // axis=1 (h=12)
+
+    ncnn::Mat out_single, out_multi;
+    if (run_gatherelements(data, idx, 1, out_single, 1) != 0
+        || run_gatherelements(data, idx, 1, out_multi, 4) != 0)
+    {
+        fprintf(stderr, "gatherelements_multithread: forward failed\n");
+        return -1;
+    }
+    return check_equal(out_single, out_multi, "gatherelements_multithread");
 }
 
 static int test_gatherelements_int64_indices()
@@ -322,5 +361,6 @@ int main()
            || test_gatherelements_3d()
            || test_gatherelements_negative_axis()
            || test_gatherelements_clamp()
-           || test_gatherelements_int64_indices();
+           || test_gatherelements_int64_indices()
+           || test_gatherelements_multithread();
 }

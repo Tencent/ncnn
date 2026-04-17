@@ -8,6 +8,10 @@
 #include <algorithm>
 #endif
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif
+
 namespace ncnn {
 
 Expand::Expand()
@@ -101,8 +105,24 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             else // in_w == 1: broadcast scalar across row
             {
                 const float val = src_row[0];
+#if __ARM_NEON
+                float32x4_t vval = vdupq_n_f32(val);
+                int x = 0;
+                for (; x + 16 <= out_w; x += 16)
+                {
+                    vst1q_f32(dst_row + x,      vval);
+                    vst1q_f32(dst_row + x + 4,  vval);
+                    vst1q_f32(dst_row + x + 8,  vval);
+                    vst1q_f32(dst_row + x + 12, vval);
+                }
+                for (; x + 4 <= out_w; x += 4)
+                    vst1q_f32(dst_row + x, vval);
+                for (; x < out_w; x++)
+                    dst_row[x] = val;
+#else
                 for (int x = 0; x < out_w; x++)
                     dst_row[x] = val;
+#endif
             }
         }
     }
