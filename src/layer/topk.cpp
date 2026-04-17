@@ -246,12 +246,13 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             {
                 const float* lineptr = ptr + in_base;
                 int has_nan = topk_isnan(lineptr[0]);
+                float best_value = lineptr[0];
 
                 // Accumulate best4 across all NEON chunks; reduce to scalar only once.
                 float32x4_t best4 = vdupq_n_f32(lineptr[0]);
                 int j = 1;
 
-                for (; !has_nan && j + 3 < axis_size; j += 4)
+                for (; j + 3 < axis_size; j += 4)
                 {
                     float32x4_t v = vld1q_f32(lineptr + j);
                     // NaN check: v != v is true for NaN; OR all lanes via 64-bit view
@@ -260,20 +261,23 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     if (vgetq_lane_u64(nm64, 0) | vgetq_lane_u64(nm64, 1))
                     {
                         has_nan = 1;
-                        break;
+                        // Don't break - continue to process remaining elements
+                        // NaN will be handled by fallback comparator
                     }
-
-                    best4 = largest_flag ? vmaxq_f32(best4, v) : vminq_f32(best4, v);
+                    else
+                    {
+                        best4 = largest_flag ? vmaxq_f32(best4, v) : vminq_f32(best4, v);
+                    }
                 }
 
+                // Reduce best4 to scalar once after the loop (only valid if no NaN)
                 if (!has_nan)
                 {
-                    // Reduce best4 to scalar once after the loop
                     float32x2_t m = largest_flag
                                     ? vpmax_f32(vget_low_f32(best4), vget_high_f32(best4))
                                     : vpmin_f32(vget_low_f32(best4), vget_high_f32(best4));
                     m = largest_flag ? vpmax_f32(m, m) : vpmin_f32(m, m);
-                    float best_value = vget_lane_f32(m, 0);
+                    best_value = vget_lane_f32(m, 0);
 
                     for (; j < axis_size; j++)
                     {
@@ -295,13 +299,14 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                                 best_value = candidate_value;
                         }
                     }
-
-                    if (!has_nan)
-                    {
-                        outptr[out_base] = best_value;
-                        continue;
-                    }
                 }
+
+                if (!has_nan)
+                {
+                    outptr[out_base] = best_value;
+                    continue;
+                }
+                // Fall through to NaN-aware fallback for proper tie-breaking
             }
 #endif // __ARM_NEON
 

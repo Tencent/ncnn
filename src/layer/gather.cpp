@@ -80,9 +80,6 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const int64_t* idx_ptr64 = (const int64_t*)(const void*)index_blob;
     const int* idx_ptr32 = (const int*)(const void*)index_blob;
 
-#define READ_IDX(pos) \
-    (idx_elemsize == 8 ? (int)idx_ptr64[(pos)] : idx_ptr32[(pos)])
-
 #define CLAMP_IDX(gi)                                        \
     do                                                       \
     {                                                        \

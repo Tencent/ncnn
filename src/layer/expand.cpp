@@ -108,6 +108,7 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 #if __ARM_NEON
                 float32x4_t vval = vdupq_n_f32(val);
                 int x = 0;
+                // Unroll 4x NEON stores (4 vectors × 4 floats = 16 elements per iteration)
                 for (; x + 16 <= out_w; x += 16)
                 {
                     vst1q_f32(dst_row + x, vval);
