@@ -38,6 +38,7 @@
 #include "layer/convolution.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/innerproduct.h"
+#include "layer/embed.h"
 
 class QuantBlobStat
 {
@@ -91,11 +92,13 @@ public:
     std::vector<int> conv_layers;
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
+    std::vector<int> embed_layers;
 
     // result
     std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blob_scales;
+    std::vector<float> embed_weight_scales;
 };
 
 QuantNet::QuantNet()
@@ -126,14 +129,22 @@ int QuantNet::init()
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
+        
+        // find embed layers
+        else if (layer->type == "Embed")
+        {
+            embed_layers.push_back(i);
+        }
     }
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
 
     quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
     bottom_blob_scales.resize(conv_bottom_blob_count);
+    embed_weight_scales.resize(embed_layer_count);
 
     return 0;
 }
@@ -149,6 +160,7 @@ int QuantNet::save_table(const char* tablepath)
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
 
     fprintf(stdout, "param:%d\n", conv_layer_count);
 
@@ -173,6 +185,14 @@ int QuantNet::save_table(const char* tablepath)
         {
             fprintf(fp, "%f ", bottom_blob_scale[j]);
         }
+        fprintf(fp, "\n");
+    }
+    
+    fprintf(stdout, "param:%d\n", embed_layer_count);
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", embed_weight_scales[i]);
         fprintf(fp, "\n");
     }
 
@@ -302,6 +322,8 @@ int QuantNet::quantize_KL()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+
     const int file_count = (int)listspaths[0].size();
 
     const int num_histogram_bins = 2048;
@@ -405,6 +427,22 @@ int QuantNet::quantize_KL()
                 weight_scales[i][n] = 127 / absmax;
             }
         }
+    }
+
+    // initialize embed weight scales
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[embed_layers[i]];
+        const ncnn::Embed* embed = (const ncnn::Embed*)layer;
+        const float* ptr = embed->weight_data;
+
+        float absmax = 0.f;
+        for (int j = 0; j < embed->weight_data.w; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[j]));
+        }
+        embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+               
     }
 
     // count the absmax
@@ -780,6 +818,8 @@ int QuantNet::quantize_ACIQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+
     const int file_count = (int)listspaths[0].size();
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
@@ -885,6 +925,22 @@ int QuantNet::quantize_ACIQ()
                 weight_scales[i][n] = 127 / threshold;
             }
         }
+    }
+
+    // initialize embed weight scales
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[embed_layers[i]];
+        const ncnn::Embed* embed = (const ncnn::Embed*)layer;
+        const float* ptr = embed->weight_data;
+
+        float absmax = 0.f;
+        for (int j = 0; j < embed->weight_data.w; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[j]));
+        }
+        embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+               
     }
 
     // count the absmax

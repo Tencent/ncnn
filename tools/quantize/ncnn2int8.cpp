@@ -563,6 +563,15 @@ int NetQuantize::quantize_embed()
         if (layers[i]->type != "Embed")
             continue;
 
+        char key[256];
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
+        if (iter == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            return -1;
+        }
+
         // Embed - quantize weight from fp32 to int8
         ncnn::Embed* embed = (ncnn::Embed*)layers[i];
 
@@ -573,17 +582,7 @@ int NetQuantize::quantize_embed()
         const int num_output = embed->num_output;
         const int input_dim = embed->input_dim;
 
-        ncnn::Mat weight_data_int8_scales(1);
-        {
-            const float* ptr = embed->weight_data;
-            float absmax = 0.f;
-            for (int i = 0; i < embed->weight_data.w; i++)
-            {
-                absmax = std::max(absmax, (float)fabs(ptr[i]));
-            }
-
-            weight_data_int8_scales[0] = absmax == 0.f ? 1.f : 127 / absmax;
-        }
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
         {
             ncnn::Mat weight_data_int8;
