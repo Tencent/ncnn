@@ -107,8 +107,13 @@ static int test_mod_zero_divisor()
 {
     ncnn::Mat a(5, (size_t)4u);
     ncnn::Mat b(5, (size_t)4u);
-    float* ap = a; float* bp = b;
-    ap[0] = 7.f; ap[1] = -3.f; ap[2] = 0.f; ap[3] = 100.f; ap[4] = -50.f;
+    float* ap = a;
+    float* bp = b;
+    ap[0] = 7.f;
+    ap[1] = -3.f;
+    ap[2] = 0.f;
+    ap[3] = 100.f;
+    ap[4] = -50.f;
     for (int i = 0; i < 5; i++) bp[i] = 0.0f;
 
     ncnn::Mat out;
@@ -140,8 +145,13 @@ static int test_mod_negative_values()
     ncnn::Mat b(6, (size_t)4u);
     float avals[6] = {-10, -8, -6, -4, -2, 0};
     float bvals[6] = {3, 3, 3, 3, 3, 3};
-    float* ap = a; float* bp = b;
-    for (int i = 0; i < 6; i++) { ap[i] = avals[i]; bp[i] = bvals[i]; }
+    float* ap = a;
+    float* bp = b;
+    for (int i = 0; i < 6; i++)
+    {
+        ap[i] = avals[i];
+        bp[i] = bvals[i];
+    }
 
     ncnn::Mat out;
     if (run_mod(a, b, 0, out) != 0)
@@ -169,11 +179,16 @@ static int test_mod_fmod1_negative_b()
 {
     ncnn::Mat a(4, (size_t)4u);
     ncnn::Mat b(4, (size_t)4u);
-    float* ap = a; float* bp = b;
-    ap[0] = 7.f;  bp[0] = -3.f;  // fmod(7, -3)  = 1  (sign of dividend +7)
-    ap[1] = -7.f; bp[1] = 3.f;   // fmod(-7, 3)  = -1 (sign of dividend -7)
-    ap[2] = -7.f; bp[2] = -3.f;  // fmod(-7, -3) = -1
-    ap[3] = 6.f;  bp[3] = -2.f;  // fmod(6, -2)  = 0
+    float* ap = a;
+    float* bp = b;
+    ap[0] = 7.f;
+    bp[0] = -3.f; // fmod(7, -3)  = 1  (sign of dividend +7)
+    ap[1] = -7.f;
+    bp[1] = 3.f; // fmod(-7, 3)  = -1 (sign of dividend -7)
+    ap[2] = -7.f;
+    bp[2] = -3.f; // fmod(-7, -3) = -1
+    ap[3] = 6.f;
+    bp[3] = -2.f; // fmod(6, -2)  = 0
 
     ncnn::Mat out;
     if (run_mod(a, b, 1, out) != 0)

@@ -47,7 +47,9 @@ static ncnn::Mat make_shape_i32(int w, int h, int c)
 {
     ncnn::Mat s(3, (size_t)4u);
     int* p = (int*)(void*)s;
-    p[0] = w; p[1] = h; p[2] = c;
+    p[0] = w;
+    p[1] = h;
+    p[2] = c;
     return s;
 }
 
@@ -56,7 +58,9 @@ static ncnn::Mat make_shape_i64(int w, int h, int c)
 {
     ncnn::Mat s(3, (size_t)8u);
     int64_t* p = (int64_t*)(void*)s;
-    p[0] = w; p[1] = h; p[2] = c;
+    p[0] = w;
+    p[1] = h;
+    p[2] = c;
     return s;
 }
 

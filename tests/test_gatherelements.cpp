@@ -325,7 +325,7 @@ static int test_gatherelements_multithread()
 
     ncnn::Mat out_single, out_multi;
     if (run_gatherelements(data, idx, 1, out_single, 1) != 0
-        || run_gatherelements(data, idx, 1, out_multi, 4) != 0)
+            || run_gatherelements(data, idx, 1, out_multi, 4) != 0)
     {
         fprintf(stderr, "gatherelements_multithread: forward failed\n");
         return -1;

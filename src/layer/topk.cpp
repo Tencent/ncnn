@@ -270,8 +270,8 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 {
                     // Reduce best4 to scalar once after the loop
                     float32x2_t m = largest_flag
-                        ? vpmax_f32(vget_low_f32(best4), vget_high_f32(best4))
-                        : vpmin_f32(vget_low_f32(best4), vget_high_f32(best4));
+                                    ? vpmax_f32(vget_low_f32(best4), vget_high_f32(best4))
+                                    : vpmin_f32(vget_low_f32(best4), vget_high_f32(best4));
                     m = largest_flag ? vpmax_f32(m, m) : vpmin_f32(m, m);
                     float best_value = vget_lane_f32(m, 0);
 
@@ -319,8 +319,16 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     for (int j = 1; j < axis_size; j++)
                     {
                         const float v = ptr[in_base + j * in_axis_stride];
-                        if (topk_isnan(v)) { has_nan = true; break; }
-                        if (v > best_value) { best_value = v; best_index = j; }
+                        if (topk_isnan(v))
+                        {
+                            has_nan = true;
+                            break;
+                        }
+                        if (v > best_value)
+                        {
+                            best_value = v;
+                            best_index = j;
+                        }
                     }
                 }
                 else
@@ -328,8 +336,16 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     for (int j = 1; j < axis_size; j++)
                     {
                         const float v = ptr[in_base + j * in_axis_stride];
-                        if (topk_isnan(v)) { has_nan = true; break; }
-                        if (v < best_value) { best_value = v; best_index = j; }
+                        if (topk_isnan(v))
+                        {
+                            has_nan = true;
+                            break;
+                        }
+                        if (v < best_value)
+                        {
+                            best_value = v;
+                            best_index = j;
+                        }
                     }
                 }
             }
@@ -444,11 +460,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                     const float candidate_value = ptr[in_base + j * in_axis_stride];
                     const bool cand_nan = topk_isnan(candidate_value);
 
-                    // Select comparator: skip NaN handling when neither side has NaN.
-                    #define COMP_K4(a_v, a_i, b_v, b_i) \
-                        ((!cand_nan && !has_nan_in_top) \
-                            ? topk_value_index_comp_nonnan(a_v, a_i, b_v, b_i, largest_flag) \
-                            : topk_value_index_comp(a_v, a_i, b_v, b_i, largest_flag))
+// Select comparator: skip NaN handling when neither side has NaN.
+#define COMP_K4(a_v, a_i, b_v, b_i)                                       \
+    ((!cand_nan && !has_nan_in_top)                                       \
+         ? topk_value_index_comp_nonnan(a_v, a_i, b_v, b_i, largest_flag) \
+         : topk_value_index_comp(a_v, a_i, b_v, b_i, largest_flag))
 
                     if (top_count < _k)
                     {
@@ -472,7 +488,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             // Evicting a NaN: recheck whether any NaN remains in top buffer.
                             has_nan_in_top = false;
                             for (int t = 0; t < _k - 1; t++)
-                                if (topk_isnan(top_values[t])) { has_nan_in_top = true; break; }
+                                if (topk_isnan(top_values[t]))
+                                {
+                                    has_nan_in_top = true;
+                                    break;
+                                }
                         }
 
                         int insert_pos = _k - 1;
@@ -488,7 +508,7 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         if (cand_nan) has_nan_in_top = true;
                     }
 
-                    #undef COMP_K4
+#undef COMP_K4
                 }
             }
             else
@@ -512,14 +532,14 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                         for (int t = 1; t < _k; t++)
                         {
                             bool is_worse = use_fast
-                                ? topk_value_index_comp_nonnan(top_values[worst_pos], top_indices[worst_pos], top_values[t], top_indices[t], largest_flag)
-                                : topk_value_index_comp(top_values[worst_pos], top_indices[worst_pos], top_values[t], top_indices[t], largest_flag);
+                                            ? topk_value_index_comp_nonnan(top_values[worst_pos], top_indices[worst_pos], top_values[t], top_indices[t], largest_flag)
+                                            : topk_value_index_comp(top_values[worst_pos], top_indices[worst_pos], top_values[t], top_indices[t], largest_flag);
                             if (is_worse) worst_pos = t;
                         }
 
                         bool replace = use_fast
-                            ? topk_value_index_comp_nonnan(candidate_value, j, top_values[worst_pos], top_indices[worst_pos], largest_flag)
-                            : topk_value_index_comp(candidate_value, j, top_values[worst_pos], top_indices[worst_pos], largest_flag);
+                                       ? topk_value_index_comp_nonnan(candidate_value, j, top_values[worst_pos], top_indices[worst_pos], largest_flag)
+                                       : topk_value_index_comp(candidate_value, j, top_values[worst_pos], top_indices[worst_pos], largest_flag);
 
                         if (replace)
                         {
@@ -527,7 +547,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                             {
                                 has_nan_in_top = false;
                                 for (int t = 0; t < _k; t++)
-                                    if (t != worst_pos && topk_isnan(top_values[t])) { has_nan_in_top = true; break; }
+                                    if (t != worst_pos && topk_isnan(top_values[t]))
+                                    {
+                                        has_nan_in_top = true;
+                                        break;
+                                    }
                             }
                             top_values[worst_pos] = candidate_value;
                             top_indices[worst_pos] = j;

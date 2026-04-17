@@ -313,7 +313,7 @@ static int test_topk_multiple_nans()
     vp = values;
     ip = (const int*)(const void*)indices;
     if (values.w != 3 || vp[0] != 1.f || vp[1] != 2.f || vp[2] != 5.f
-        || ip[0] != 5 || ip[1] != 1 || ip[2] != 3)
+            || ip[0] != 5 || ip[1] != 1 || ip[2] != 3)
     {
         fprintf(stderr, "test_topk_multiple_nans k3 mismatch\n");
         return -1;
@@ -327,22 +327,33 @@ static int test_topk_sorted0_vs_sorted1()
 {
     ncnn::Mat a(8);
     float* ptr = a;
-    ptr[0] = 3.f; ptr[1] = 1.f; ptr[2] = 4.f; ptr[3] = 1.f;
-    ptr[4] = 5.f; ptr[5] = 9.f; ptr[6] = 2.f; ptr[7] = 6.f;
+    ptr[0] = 3.f;
+    ptr[1] = 1.f;
+    ptr[2] = 4.f;
+    ptr[3] = 1.f;
+    ptr[4] = 5.f;
+    ptr[5] = 9.f;
+    ptr[6] = 2.f;
+    ptr[7] = 6.f;
 
     ncnn::Mat sv, uv, dummy;
 
     // k=3, largest
     if (run_topk(a, 0, 3, 1, 1, false, sv, dummy) != 0
-        || run_topk(a, 0, 3, 1, 0, false, uv, dummy) != 0)
+            || run_topk(a, 0, 3, 1, 0, false, uv, dummy) != 0)
     {
         fprintf(stderr, "test_topk_sorted0_vs_sorted1: forward failed\n");
         return -1;
     }
     {
         float s[3], u[3];
-        const float* sp = sv; const float* up = uv;
-        for (int i = 0; i < 3; i++) { s[i] = sp[i]; u[i] = up[i]; }
+        const float* sp = sv;
+        const float* up = uv;
+        for (int i = 0; i < 3; i++)
+        {
+            s[i] = sp[i];
+            u[i] = up[i];
+        }
         std::sort(s, s + 3);
         std::sort(u, u + 3);
         for (int i = 0; i < 3; i++)
@@ -358,15 +369,20 @@ static int test_topk_sorted0_vs_sorted1()
 
     // k=4, smallest
     if (run_topk(a, 0, 4, 0, 1, false, sv, dummy) != 0
-        || run_topk(a, 0, 4, 0, 0, false, uv, dummy) != 0)
+            || run_topk(a, 0, 4, 0, 0, false, uv, dummy) != 0)
     {
         fprintf(stderr, "test_topk_sorted0_vs_sorted1: smallest forward failed\n");
         return -1;
     }
     {
         float s[4], u[4];
-        const float* sp = sv; const float* up = uv;
-        for (int i = 0; i < 4; i++) { s[i] = sp[i]; u[i] = up[i]; }
+        const float* sp = sv;
+        const float* up = uv;
+        for (int i = 0; i < 4; i++)
+        {
+            s[i] = sp[i];
+            u[i] = up[i];
+        }
         std::sort(s, s + 4);
         std::sort(u, u + 4);
         for (int i = 0; i < 4; i++)
@@ -387,7 +403,11 @@ static int test_topk_tie_breaking()
 {
     ncnn::Mat a(5);
     float* ptr = a;
-    ptr[0] = 5.f; ptr[1] = 5.f; ptr[2] = 3.f; ptr[3] = 5.f; ptr[4] = 1.f;
+    ptr[0] = 5.f;
+    ptr[1] = 5.f;
+    ptr[2] = 3.f;
+    ptr[3] = 5.f;
+    ptr[4] = 1.f;
 
     ncnn::Mat values, indices;
 
@@ -451,7 +471,10 @@ static int test_topk_k_clamp()
 {
     ncnn::Mat a(4);
     float* ptr = a;
-    ptr[0] = 1.f; ptr[1] = 4.f; ptr[2] = 3.f; ptr[3] = 2.f;
+    ptr[0] = 1.f;
+    ptr[1] = 4.f;
+    ptr[2] = 3.f;
+    ptr[3] = 2.f;
 
     ncnn::Mat values, indices;
     if (run_topk(a, 0, 10, 1, 1, true, values, indices) != 0)
@@ -463,7 +486,7 @@ static int test_topk_k_clamp()
     const int* ip = (const int*)(const void*)indices;
     // clamped to k=4, sorted largest: 4@1, 3@2, 2@3, 1@0
     if ((int)values.total() != 4 || vp[0] != 4.f || vp[1] != 3.f || vp[2] != 2.f || vp[3] != 1.f
-        || ip[0] != 1 || ip[1] != 2 || ip[2] != 3 || ip[3] != 0)
+            || ip[0] != 1 || ip[1] != 2 || ip[2] != 3 || ip[3] != 0)
     {
         fprintf(stderr, "test_topk_k_clamp: mismatch\n");
         return -1;
@@ -475,7 +498,11 @@ static int test_topk_values_only_fastpaths()
 {
     ncnn::Mat a(5);
     float* ptr = a;
-    ptr[0] = 1.f; ptr[1] = -2.f; ptr[2] = 4.f; ptr[3] = 3.f; ptr[4] = 0.f;
+    ptr[0] = 1.f;
+    ptr[1] = -2.f;
+    ptr[2] = 4.f;
+    ptr[3] = 3.f;
+    ptr[4] = 0.f;
 
     ncnn::Mat values, dummy;
 

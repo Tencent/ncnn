@@ -110,9 +110,9 @@ int Expand::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 int x = 0;
                 for (; x + 16 <= out_w; x += 16)
                 {
-                    vst1q_f32(dst_row + x,      vval);
-                    vst1q_f32(dst_row + x + 4,  vval);
-                    vst1q_f32(dst_row + x + 8,  vval);
+                    vst1q_f32(dst_row + x, vval);
+                    vst1q_f32(dst_row + x + 4, vval);
+                    vst1q_f32(dst_row + x + 8, vval);
                     vst1q_f32(dst_row + x + 12, vval);
                 }
                 for (; x + 4 <= out_w; x += 4)

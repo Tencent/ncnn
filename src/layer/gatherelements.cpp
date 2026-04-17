@@ -87,18 +87,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             int x = 0;
             for (; x + 4 <= index_blob.w; x += 4)
             {
-                int gi0 = idx_ptr32[x];   CLAMP_IDX(gi0);
-                int gi1 = idx_ptr32[x+1]; CLAMP_IDX(gi1);
-                int gi2 = idx_ptr32[x+2]; CLAMP_IDX(gi2);
-                int gi3 = idx_ptr32[x+3]; CLAMP_IDX(gi3);
-                out[x]   = data[gi0];
-                out[x+1] = data[gi1];
-                out[x+2] = data[gi2];
-                out[x+3] = data[gi3];
+                int gi0 = idx_ptr32[x];
+                CLAMP_IDX(gi0);
+                int gi1 = idx_ptr32[x + 1];
+                CLAMP_IDX(gi1);
+                int gi2 = idx_ptr32[x + 2];
+                CLAMP_IDX(gi2);
+                int gi3 = idx_ptr32[x + 3];
+                CLAMP_IDX(gi3);
+                out[x] = data[gi0];
+                out[x + 1] = data[gi1];
+                out[x + 2] = data[gi2];
+                out[x + 3] = data[gi3];
             }
             for (; x < index_blob.w; x++)
             {
-                int gi = idx_ptr32[x]; CLAMP_IDX(gi); out[x] = data[gi];
+                int gi = idx_ptr32[x];
+                CLAMP_IDX(gi);
+                out[x] = data[gi];
             }
         }
         else
@@ -106,18 +112,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             int x = 0;
             for (; x + 4 <= index_blob.w; x += 4)
             {
-                int gi0 = (int)idx_ptr64[x];   CLAMP_IDX(gi0);
-                int gi1 = (int)idx_ptr64[x+1]; CLAMP_IDX(gi1);
-                int gi2 = (int)idx_ptr64[x+2]; CLAMP_IDX(gi2);
-                int gi3 = (int)idx_ptr64[x+3]; CLAMP_IDX(gi3);
-                out[x]   = data[gi0];
-                out[x+1] = data[gi1];
-                out[x+2] = data[gi2];
-                out[x+3] = data[gi3];
+                int gi0 = (int)idx_ptr64[x];
+                CLAMP_IDX(gi0);
+                int gi1 = (int)idx_ptr64[x + 1];
+                CLAMP_IDX(gi1);
+                int gi2 = (int)idx_ptr64[x + 2];
+                CLAMP_IDX(gi2);
+                int gi3 = (int)idx_ptr64[x + 3];
+                CLAMP_IDX(gi3);
+                out[x] = data[gi0];
+                out[x + 1] = data[gi1];
+                out[x + 2] = data[gi2];
+                out[x + 3] = data[gi3];
             }
             for (; x < index_blob.w; x++)
             {
-                int gi = (int)idx_ptr64[x]; CLAMP_IDX(gi); out[x] = data[gi];
+                int gi = (int)idx_ptr64[x];
+                CLAMP_IDX(gi);
+                out[x] = data[gi];
             }
         }
     }
@@ -138,18 +150,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     int x = 0;
                     for (; x + 4 <= idxw; x += 4)
                     {
-                        int gi0 = ir[x];   CLAMP_IDX(gi0);
-                        int gi1 = ir[x+1]; CLAMP_IDX(gi1);
-                        int gi2 = ir[x+2]; CLAMP_IDX(gi2);
-                        int gi3 = ir[x+3]; CLAMP_IDX(gi3);
-                        out_row[x]   = data[gi0 * dw + x];
-                        out_row[x+1] = data[gi1 * dw + x+1];
-                        out_row[x+2] = data[gi2 * dw + x+2];
-                        out_row[x+3] = data[gi3 * dw + x+3];
+                        int gi0 = ir[x];
+                        CLAMP_IDX(gi0);
+                        int gi1 = ir[x + 1];
+                        CLAMP_IDX(gi1);
+                        int gi2 = ir[x + 2];
+                        CLAMP_IDX(gi2);
+                        int gi3 = ir[x + 3];
+                        CLAMP_IDX(gi3);
+                        out_row[x] = data[gi0 * dw + x];
+                        out_row[x + 1] = data[gi1 * dw + x + 1];
+                        out_row[x + 2] = data[gi2 * dw + x + 2];
+                        out_row[x + 3] = data[gi3 * dw + x + 3];
                     }
                     for (; x < idxw; x++)
                     {
-                        int gi = ir[x]; CLAMP_IDX(gi); out_row[x] = data[gi * dw + x];
+                        int gi = ir[x];
+                        CLAMP_IDX(gi);
+                        out_row[x] = data[gi * dw + x];
                     }
                 }
                 else
@@ -158,18 +176,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     int x = 0;
                     for (; x + 4 <= idxw; x += 4)
                     {
-                        int gi0 = (int)ir[x];   CLAMP_IDX(gi0);
-                        int gi1 = (int)ir[x+1]; CLAMP_IDX(gi1);
-                        int gi2 = (int)ir[x+2]; CLAMP_IDX(gi2);
-                        int gi3 = (int)ir[x+3]; CLAMP_IDX(gi3);
-                        out_row[x]   = data[gi0 * dw + x];
-                        out_row[x+1] = data[gi1 * dw + x+1];
-                        out_row[x+2] = data[gi2 * dw + x+2];
-                        out_row[x+3] = data[gi3 * dw + x+3];
+                        int gi0 = (int)ir[x];
+                        CLAMP_IDX(gi0);
+                        int gi1 = (int)ir[x + 1];
+                        CLAMP_IDX(gi1);
+                        int gi2 = (int)ir[x + 2];
+                        CLAMP_IDX(gi2);
+                        int gi3 = (int)ir[x + 3];
+                        CLAMP_IDX(gi3);
+                        out_row[x] = data[gi0 * dw + x];
+                        out_row[x + 1] = data[gi1 * dw + x + 1];
+                        out_row[x + 2] = data[gi2 * dw + x + 2];
+                        out_row[x + 3] = data[gi3 * dw + x + 3];
                     }
                     for (; x < idxw; x++)
                     {
-                        int gi = (int)ir[x]; CLAMP_IDX(gi); out_row[x] = data[gi * dw + x];
+                        int gi = (int)ir[x];
+                        CLAMP_IDX(gi);
+                        out_row[x] = data[gi * dw + x];
                     }
                 }
             }
@@ -187,18 +211,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     int x = 0;
                     for (; x + 4 <= idxw; x += 4)
                     {
-                        int gi0 = ir[x];   CLAMP_IDX(gi0);
-                        int gi1 = ir[x+1]; CLAMP_IDX(gi1);
-                        int gi2 = ir[x+2]; CLAMP_IDX(gi2);
-                        int gi3 = ir[x+3]; CLAMP_IDX(gi3);
-                        out_row[x]   = data_row[gi0];
-                        out_row[x+1] = data_row[gi1];
-                        out_row[x+2] = data_row[gi2];
-                        out_row[x+3] = data_row[gi3];
+                        int gi0 = ir[x];
+                        CLAMP_IDX(gi0);
+                        int gi1 = ir[x + 1];
+                        CLAMP_IDX(gi1);
+                        int gi2 = ir[x + 2];
+                        CLAMP_IDX(gi2);
+                        int gi3 = ir[x + 3];
+                        CLAMP_IDX(gi3);
+                        out_row[x] = data_row[gi0];
+                        out_row[x + 1] = data_row[gi1];
+                        out_row[x + 2] = data_row[gi2];
+                        out_row[x + 3] = data_row[gi3];
                     }
                     for (; x < idxw; x++)
                     {
-                        int gi = ir[x]; CLAMP_IDX(gi); out_row[x] = data_row[gi];
+                        int gi = ir[x];
+                        CLAMP_IDX(gi);
+                        out_row[x] = data_row[gi];
                     }
                 }
                 else
@@ -207,18 +237,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     int x = 0;
                     for (; x + 4 <= idxw; x += 4)
                     {
-                        int gi0 = (int)ir[x];   CLAMP_IDX(gi0);
-                        int gi1 = (int)ir[x+1]; CLAMP_IDX(gi1);
-                        int gi2 = (int)ir[x+2]; CLAMP_IDX(gi2);
-                        int gi3 = (int)ir[x+3]; CLAMP_IDX(gi3);
-                        out_row[x]   = data_row[gi0];
-                        out_row[x+1] = data_row[gi1];
-                        out_row[x+2] = data_row[gi2];
-                        out_row[x+3] = data_row[gi3];
+                        int gi0 = (int)ir[x];
+                        CLAMP_IDX(gi0);
+                        int gi1 = (int)ir[x + 1];
+                        CLAMP_IDX(gi1);
+                        int gi2 = (int)ir[x + 2];
+                        CLAMP_IDX(gi2);
+                        int gi3 = (int)ir[x + 3];
+                        CLAMP_IDX(gi3);
+                        out_row[x] = data_row[gi0];
+                        out_row[x + 1] = data_row[gi1];
+                        out_row[x + 2] = data_row[gi2];
+                        out_row[x + 3] = data_row[gi3];
                     }
                     for (; x < idxw; x++)
                     {
-                        int gi = (int)ir[x]; CLAMP_IDX(gi); out_row[x] = data_row[gi];
+                        int gi = (int)ir[x];
+                        CLAMP_IDX(gi);
+                        out_row[x] = data_row[gi];
                     }
                 }
             }
@@ -249,18 +285,23 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data[(int)(gi0 * in_cstep) + inp_y_off + x];
-                            out_row[x+1] = data[(int)(gi1 * in_cstep) + inp_y_off + x+1];
-                            out_row[x+2] = data[(int)(gi2 * in_cstep) + inp_y_off + x+2];
-                            out_row[x+3] = data[(int)(gi3 * in_cstep) + inp_y_off + x+3];
+                            int gi0 = ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data[(int)(gi0 * in_cstep) + inp_y_off + x];
+                            out_row[x + 1] = data[(int)(gi1 * in_cstep) + inp_y_off + x + 1];
+                            out_row[x + 2] = data[(int)(gi2 * in_cstep) + inp_y_off + x + 2];
+                            out_row[x + 3] = data[(int)(gi3 * in_cstep) + inp_y_off + x + 3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = ir[x]; CLAMP_IDX(gi);
+                            int gi = ir[x];
+                            CLAMP_IDX(gi);
                             out_row[x] = data[(int)(gi * in_cstep) + inp_y_off + x];
                         }
                     }
@@ -275,18 +316,23 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = (int)ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = (int)ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = (int)ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = (int)ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data[(int)(gi0 * in_cstep) + inp_y_off + x];
-                            out_row[x+1] = data[(int)(gi1 * in_cstep) + inp_y_off + x+1];
-                            out_row[x+2] = data[(int)(gi2 * in_cstep) + inp_y_off + x+2];
-                            out_row[x+3] = data[(int)(gi3 * in_cstep) + inp_y_off + x+3];
+                            int gi0 = (int)ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = (int)ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = (int)ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = (int)ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data[(int)(gi0 * in_cstep) + inp_y_off + x];
+                            out_row[x + 1] = data[(int)(gi1 * in_cstep) + inp_y_off + x + 1];
+                            out_row[x + 2] = data[(int)(gi2 * in_cstep) + inp_y_off + x + 2];
+                            out_row[x + 3] = data[(int)(gi3 * in_cstep) + inp_y_off + x + 3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = (int)ir[x]; CLAMP_IDX(gi);
+                            int gi = (int)ir[x];
+                            CLAMP_IDX(gi);
                             out_row[x] = data[(int)(gi * in_cstep) + inp_y_off + x];
                         }
                     }
@@ -310,18 +356,23 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data_chan[gi0 * dw + x];
-                            out_row[x+1] = data_chan[gi1 * dw + x+1];
-                            out_row[x+2] = data_chan[gi2 * dw + x+2];
-                            out_row[x+3] = data_chan[gi3 * dw + x+3];
+                            int gi0 = ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data_chan[gi0 * dw + x];
+                            out_row[x + 1] = data_chan[gi1 * dw + x + 1];
+                            out_row[x + 2] = data_chan[gi2 * dw + x + 2];
+                            out_row[x + 3] = data_chan[gi3 * dw + x + 3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = ir[x]; CLAMP_IDX(gi);
+                            int gi = ir[x];
+                            CLAMP_IDX(gi);
                             out_row[x] = data_chan[gi * dw + x];
                         }
                     }
@@ -335,18 +386,23 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = (int)ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = (int)ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = (int)ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = (int)ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data_chan[gi0 * dw + x];
-                            out_row[x+1] = data_chan[gi1 * dw + x+1];
-                            out_row[x+2] = data_chan[gi2 * dw + x+2];
-                            out_row[x+3] = data_chan[gi3 * dw + x+3];
+                            int gi0 = (int)ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = (int)ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = (int)ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = (int)ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data_chan[gi0 * dw + x];
+                            out_row[x + 1] = data_chan[gi1 * dw + x + 1];
+                            out_row[x + 2] = data_chan[gi2 * dw + x + 2];
+                            out_row[x + 3] = data_chan[gi3 * dw + x + 3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = (int)ir[x]; CLAMP_IDX(gi);
+                            int gi = (int)ir[x];
+                            CLAMP_IDX(gi);
                             out_row[x] = data_chan[gi * dw + x];
                         }
                     }
@@ -371,18 +427,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data_row[gi0];
-                            out_row[x+1] = data_row[gi1];
-                            out_row[x+2] = data_row[gi2];
-                            out_row[x+3] = data_row[gi3];
+                            int gi0 = ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data_row[gi0];
+                            out_row[x + 1] = data_row[gi1];
+                            out_row[x + 2] = data_row[gi2];
+                            out_row[x + 3] = data_row[gi3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = ir[x]; CLAMP_IDX(gi); out_row[x] = data_row[gi];
+                            int gi = ir[x];
+                            CLAMP_IDX(gi);
+                            out_row[x] = data_row[gi];
                         }
                     }
                 }
@@ -396,18 +458,24 @@ int GatherElements::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         int x = 0;
                         for (; x + 4 <= idxw; x += 4)
                         {
-                            int gi0 = (int)ir[x];   CLAMP_IDX(gi0);
-                            int gi1 = (int)ir[x+1]; CLAMP_IDX(gi1);
-                            int gi2 = (int)ir[x+2]; CLAMP_IDX(gi2);
-                            int gi3 = (int)ir[x+3]; CLAMP_IDX(gi3);
-                            out_row[x]   = data_row[gi0];
-                            out_row[x+1] = data_row[gi1];
-                            out_row[x+2] = data_row[gi2];
-                            out_row[x+3] = data_row[gi3];
+                            int gi0 = (int)ir[x];
+                            CLAMP_IDX(gi0);
+                            int gi1 = (int)ir[x + 1];
+                            CLAMP_IDX(gi1);
+                            int gi2 = (int)ir[x + 2];
+                            CLAMP_IDX(gi2);
+                            int gi3 = (int)ir[x + 3];
+                            CLAMP_IDX(gi3);
+                            out_row[x] = data_row[gi0];
+                            out_row[x + 1] = data_row[gi1];
+                            out_row[x + 2] = data_row[gi2];
+                            out_row[x + 3] = data_row[gi3];
                         }
                         for (; x < idxw; x++)
                         {
-                            int gi = (int)ir[x]; CLAMP_IDX(gi); out_row[x] = data_row[gi];
+                            int gi = (int)ir[x];
+                            CLAMP_IDX(gi);
+                            out_row[x] = data_row[gi];
                         }
                     }
                 }
