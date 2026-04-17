@@ -1,5 +1,8 @@
 name: topk-linux-test
 on:
+  push:
+    branches:
+    - feature/yolo26-support
   pull_request:
     branches:
     - master
