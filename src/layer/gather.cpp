@@ -494,7 +494,6 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
     }
 
-#undef READ_IDX
 #undef CLAMP_IDX
 
     return 0;

@@ -242,52 +242,46 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             }
 
 #if __ARM_NEON
+            // Fast path: NEON-optimized k=1 without indices (values-only)
+            // Requires: no NaN values in input (NaN breaks vector comparisons)
             if (!output_indices && inner == 1 && axis_size >= 4)
             {
                 const float* lineptr = ptr + in_base;
-                int has_nan = topk_isnan(lineptr[0]);
-                float best_value = lineptr[0];
-
-                // Accumulate best4 across all NEON chunks; reduce to scalar only once.
-                float32x4_t best4 = vdupq_n_f32(lineptr[0]);
-                int j = 1;
-
-                for (; j + 3 < axis_size; j += 4)
+                
+                // Pre-scan for NaN - if found, fall through to NaN-aware scalar path
+                bool has_nan = false;
+                for (int j = 0; j < axis_size; j++)
                 {
-                    float32x4_t v = vld1q_f32(lineptr + j);
-                    // NaN check: v != v is true for NaN; OR all lanes via 64-bit view
-                    uint32x4_t nan_mask = vmvnq_u32(vceqq_f32(v, v));
-                    uint64x2_t nm64 = vreinterpretq_u64_u32(nan_mask);
-                    if (vgetq_lane_u64(nm64, 0) | vgetq_lane_u64(nm64, 1))
+                    if (topk_isnan(lineptr[j]))
                     {
-                        has_nan = 1;
-                        // Don't break - continue to process remaining elements
-                        // NaN will be handled by fallback comparator
-                    }
-                    else
-                    {
-                        best4 = largest_flag ? vmaxq_f32(best4, v) : vminq_f32(best4, v);
+                        has_nan = true;
+                        break;
                     }
                 }
-
-                // Reduce best4 to scalar once after the loop (only valid if no NaN)
+                
                 if (!has_nan)
                 {
+                    // Accumulate best4 across all NEON chunks; reduce to scalar only once.
+                    float32x4_t best4 = vld1q_f32(lineptr);
+                    int j = 4;
+
+                    for (; j + 3 < axis_size; j += 4)
+                    {
+                        float32x4_t v = vld1q_f32(lineptr + j);
+                        best4 = largest_flag ? vmaxq_f32(best4, v) : vminq_f32(best4, v);
+                    }
+
+                    // Reduce best4 to scalar once after the loop
                     float32x2_t m = largest_flag
                                     ? vpmax_f32(vget_low_f32(best4), vget_high_f32(best4))
                                     : vpmin_f32(vget_low_f32(best4), vget_high_f32(best4));
                     m = largest_flag ? vpmax_f32(m, m) : vpmin_f32(m, m);
-                    best_value = vget_lane_f32(m, 0);
+                    float best_value = vget_lane_f32(m, 0);
 
+                    // Handle remaining elements (scalar)
                     for (; j < axis_size; j++)
                     {
                         const float candidate_value = lineptr[j];
-                        if (topk_isnan(candidate_value))
-                        {
-                            has_nan = 1;
-                            break;
-                        }
-
                         if (largest_flag)
                         {
                             if (candidate_value > best_value)
@@ -299,14 +293,11 @@ int TopK::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                                 best_value = candidate_value;
                         }
                     }
-                }
 
-                if (!has_nan)
-                {
                     outptr[out_base] = best_value;
                     continue;
                 }
-                // Fall through to NaN-aware fallback for proper tie-breaking
+                // Fall through to NaN-aware scalar path for proper tie-breaking
             }
 #endif // __ARM_NEON
 
