@@ -42,6 +42,14 @@ static int run_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int axis,
     return 0;
 }
 
+// Read index at flat element offset, supporting int32 and int64.
+static int read_flat_idx(const ncnn::Mat& m, int flat)
+{
+    if (m.elemsize == 8)
+        return (int)((const int64_t*)(const void*)m)[flat];
+    return ((const int*)(const void*)m)[flat];
+}
+
 // Reference gather: PyTorch-style axis ordering (axis=0 = outermost).
 // 1D axis=0:  out[x]     = data[idx[x]]
 // 2D axis=0:  out[y,x]   = data[idx[y,x], x]
@@ -79,14 +87,13 @@ static ncnn::Mat ref_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int
         out.create(indices.w, indices.h, indices.c, (size_t)4u);
 
     const float* dp = data;
-    const int* ip = (const int*)(const void*)indices;
     float* op_ptr = out;
 
     if (dims == 1)
     {
         for (int x = 0; x < indices.w; x++)
         {
-            int gi = ip[x];
+            int gi = read_flat_idx(indices, x);
             if (gi < 0) gi += axis_size;
             if (gi < 0) gi = 0;
             if (gi >= axis_size) gi = axis_size - 1;
@@ -102,7 +109,7 @@ static ncnn::Mat ref_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int
             for (int y = 0; y < indices.h; y++)
                 for (int x = 0; x < idxw; x++)
                 {
-                    int gi = ip[y * idxw + x];
+                    int gi = read_flat_idx(indices, y * idxw + x);
                     if (gi < 0) gi += axis_size;
                     if (gi < 0) gi = 0;
                     if (gi >= axis_size) gi = axis_size - 1;
@@ -114,7 +121,7 @@ static ncnn::Mat ref_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int
             for (int y = 0; y < indices.h; y++)
                 for (int x = 0; x < idxw; x++)
                 {
-                    int gi = ip[y * idxw + x];
+                    int gi = read_flat_idx(indices, y * idxw + x);
                     if (gi < 0) gi += axis_size;
                     if (gi < 0) gi = 0;
                     if (gi >= axis_size) gi = axis_size - 1;
@@ -134,7 +141,7 @@ static ncnn::Mat ref_gather(const ncnn::Mat& data, const ncnn::Mat& indices, int
             for (int y = 0; y < indices.h; y++)
                 for (int x = 0; x < idxw; x++)
                 {
-                    int gi = ip[(int)(z * i_cstep) + y * idxw + x];
+                    int gi = read_flat_idx(indices, (int)(z * i_cstep) + y * idxw + x);
                     if (gi < 0) gi += axis_size;
                     if (gi < 0) gi = 0;
                     if (gi >= axis_size) gi = axis_size - 1;
@@ -167,6 +174,24 @@ static ncnn::Mat make_indices(int w, int h, int c, int axis_size)
         m.create(w, (size_t)4u);
 
     int* p = (int*)(void*)m;
+    int total = (int)m.total();
+    for (int i = 0; i < total; i++)
+        p[i] = (i * 3 + 1) % axis_size;
+    return m;
+}
+
+// Build an int64 index Mat with the same pattern.
+static ncnn::Mat make_indices_i64(int w, int h, int c, int axis_size)
+{
+    ncnn::Mat m;
+    if (c > 1)
+        m.create(w, h, c, (size_t)8u);
+    else if (h > 1)
+        m.create(w, h, (size_t)8u);
+    else
+        m.create(w, (size_t)8u);
+
+    int64_t* p = (int64_t*)(void*)m;
     int total = (int)m.total();
     for (int i = 0; i < total; i++)
         p[i] = (i * 3 + 1) % axis_size;
@@ -284,6 +309,27 @@ static int test_gather_clamp()
     return test_gather(data, idx, 0, "gather_clamp");
 }
 
+static int test_gather_int64_indices()
+{
+    // Verify the int64 index path (elemsize==8) works identically to int32.
+    ncnn::Mat data = RandomMat(8, 5); // w=8 h=5
+
+    // 2D axis=0 with int64 indices
+    ncnn::Mat idx0_i64 = make_indices_i64(8, 3, 1, 5);
+    if (test_gather(data, idx0_i64, 0, "gather_i64_2d_axis0") != 0) return -1;
+
+    // 2D axis=1 with int64 indices
+    ncnn::Mat idx1_i64 = make_indices_i64(4, 5, 1, 8);
+    if (test_gather(data, idx1_i64, 1, "gather_i64_2d_axis1") != 0) return -1;
+
+    // 3D axis=1 with int64 indices
+    ncnn::Mat data3d = RandomMat(8, 6, 4);
+    ncnn::Mat idx3d_i64 = make_indices_i64(8, 3, 4, 6);
+    if (test_gather(data3d, idx3d_i64, 1, "gather_i64_3d_axis1") != 0) return -1;
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -293,5 +339,6 @@ int main()
            || test_gather_2d()
            || test_gather_3d()
            || test_gather_negative_axis()
-           || test_gather_clamp();
+           || test_gather_clamp()
+           || test_gather_int64_indices();
 }

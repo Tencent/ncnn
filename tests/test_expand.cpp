@@ -175,6 +175,22 @@ static int test_expand_no_broadcast()
     return test_expand(data, 4, 3, 2, "expand_no_broadcast");
 }
 
+static int test_expand_1d_to_3d()
+{
+    // True 1D input (dims=1, w=4) expanding to 3D (4, 6, 8).
+    // Tests dim promotion: in_dims=1, target_dims=3.
+    ncnn::Mat data = RandomMat(4);
+    return test_expand(data, 4, 6, 8, "expand_1d_to_3d");
+}
+
+static int test_expand_2d_to_3d()
+{
+    // 2D input (w=4, h=3) with c=1 broadcast to c=8.
+    // Tests dim promotion: in_dims=2, target_dims=3.
+    ncnn::Mat data = RandomMat(4, 3);
+    return test_expand(data, 4, 3, 8, "expand_2d_to_3d");
+}
+
 int main()
 {
     SRAND(7767517);
@@ -186,5 +202,7 @@ int main()
            || test_expand_broadcast_c()
            || test_expand_broadcast_hw()
            || test_expand_full_broadcast()
-           || test_expand_no_broadcast();
+           || test_expand_no_broadcast()
+           || test_expand_1d_to_3d()
+           || test_expand_2d_to_3d();
 }

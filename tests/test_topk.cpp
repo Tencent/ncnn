@@ -353,6 +353,24 @@ static int test_topk_values_only_fastpaths()
     return 0;
 }
 
+static int test_topk_full_k()
+{
+    // k equals the full size of the axis — exercises the sort-all codepath.
+    // 2D [w=8, h=5]: topk on axis=0 (h=5) with k=5
+    ncnn::Mat a2d = RandomMat(8, 5);
+    if (test_topk(a2d, 0, 5, 1, 1) != 0) return -1; // largest, sorted
+    if (test_topk(a2d, 0, 5, 0, 1) != 0) return -1; // smallest, sorted
+    if (test_topk(a2d, 1, 8, 1, 1) != 0) return -1; // axis=1 (w=8), k=8
+
+    // 3D [w=6, h=4, c=3]: topk on each axis with k=full
+    ncnn::Mat a3d = RandomMat(6, 4, 3);
+    if (test_topk(a3d, 0, 3, 1, 1) != 0) return -1; // axis=0 (c=3), k=3
+    if (test_topk(a3d, 1, 4, 1, 1) != 0) return -1; // axis=1 (h=4), k=4
+    if (test_topk(a3d, 2, 6, 1, 1) != 0) return -1; // axis=2 (w=6), k=6
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -364,5 +382,6 @@ int main()
            || test_topk_3()
            || test_topk_inf_order()
            || test_topk_nan_robust()
-           || test_topk_values_only_fastpaths();
+           || test_topk_values_only_fastpaths()
+           || test_topk_full_k();
 }
