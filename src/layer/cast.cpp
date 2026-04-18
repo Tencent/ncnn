@@ -50,6 +50,7 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -76,33 +77,29 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     }
 
     if (dims == 1)
-    {
-        top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
-    }
+        top_blob.create_batch(w, batch, out_elemsize, elempack, opt.blob_allocator);
     else if (dims == 2)
-    {
-        top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
-    }
+        top_blob.create_batch(w, h, batch, out_elemsize, elempack, opt.blob_allocator);
     else if (dims == 3)
-    {
-        top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
-    }
+        top_blob.create_batch(w, h, channels, batch, out_elemsize, elempack, opt.blob_allocator);
     else if (dims == 4)
-    {
-        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
-    }
+        top_blob.create_batch(w, h, d, channels, batch, out_elemsize, elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     int size = w * h * d * elempack;
 
+    int total_bc = batch * channels;
+
     if (type_from == 1 && type_to == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        for (int bc = 0; bc < total_bc; bc++)
         {
-            const float* ptr = bottom_blob.channel(q);
-            unsigned short* outptr = top_blob.channel(q);
+            int b = bc / channels;
+            int q = bc % channels;
+            const float* ptr = bottom_blob.batch(b).channel(q);
+            unsigned short* outptr = top_blob.batch(b).channel(q);
 
             for (int i = 0; i < size; i++)
             {
@@ -114,10 +111,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 2 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        for (int bc = 0; bc < total_bc; bc++)
         {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
+            int b = bc / channels;
+            int q = bc % channels;
+            const unsigned short* ptr = bottom_blob.batch(b).channel(q);
+            float* outptr = top_blob.batch(b).channel(q);
 
             for (int i = 0; i < size; i++)
             {
@@ -129,10 +128,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 3 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        for (int bc = 0; bc < total_bc; bc++)
         {
-            const signed char* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
+            int b = bc / channels;
+            int q = bc % channels;
+            const signed char* ptr = bottom_blob.batch(b).channel(q);
+            float* outptr = top_blob.batch(b).channel(q);
 
             for (int i = 0; i < size; i++)
             {
@@ -144,10 +145,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 1 && type_to == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        for (int bc = 0; bc < total_bc; bc++)
         {
-            const float* ptr = bottom_blob.channel(q);
-            unsigned short* outptr = top_blob.channel(q);
+            int b = bc / channels;
+            int q = bc % channels;
+            const float* ptr = bottom_blob.batch(b).channel(q);
+            unsigned short* outptr = top_blob.batch(b).channel(q);
 
             for (int i = 0; i < size; i++)
             {
@@ -159,10 +162,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 4 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        for (int bc = 0; bc < total_bc; bc++)
         {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
+            int b = bc / channels;
+            int q = bc % channels;
+            const unsigned short* ptr = bottom_blob.batch(b).channel(q);
+            float* outptr = top_blob.batch(b).channel(q);
 
             for (int i = 0; i < size; i++)
             {

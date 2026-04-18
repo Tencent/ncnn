@@ -69,6 +69,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -97,6 +98,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
         return 0;
     }
 
@@ -105,21 +107,24 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i * 4);
-                const float* r1 = bottom_blob.row(i * 4 + 1);
-                const float* r2 = bottom_blob.row(i * 4 + 2);
-                const float* r3 = bottom_blob.row(i * 4 + 3);
+                int b = bi / outh;
+                int i = bi % outh;
+                const float* r0 = bottom_blob.batch(b).row(i * 4);
+                const float* r1 = bottom_blob.batch(b).row(i * 4 + 1);
+                const float* r2 = bottom_blob.batch(b).row(i * 4 + 2);
+                const float* r3 = bottom_blob.batch(b).row(i * 4 + 3);
 
-                float* outptr = top_blob.row(i);
+                float* outptr = top_blob.batch(b).row(i);
 
                 int j = 0;
 #if __ARM_NEON
@@ -152,15 +157,18 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack4to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const float* r0 = bottom_blob.row(i);
+                int b = bi / h;
+                int i = bi % h;
+                const float* r0 = bottom_blob.batch(b).row(i);
 
-                float* outptr0 = top_blob.row(i * 4);
-                float* outptr1 = top_blob.row(i * 4 + 1);
-                float* outptr2 = top_blob.row(i * 4 + 2);
-                float* outptr3 = top_blob.row(i * 4 + 3);
+                float* outptr0 = top_blob.batch(b).row(i * 4);
+                float* outptr1 = top_blob.batch(b).row(i * 4 + 1);
+                float* outptr2 = top_blob.batch(b).row(i * 4 + 2);
+                float* outptr3 = top_blob.batch(b).row(i * 4 + 3);
 
                 int j = 0;
 #if __ARM_NEON
@@ -201,23 +209,26 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
-        else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q * 4);
-                const float* r1 = bottom_blob.channel(q * 4 + 1);
-                const float* r2 = bottom_blob.channel(q * 4 + 2);
-                const float* r3 = bottom_blob.channel(q * 4 + 3);
+                int b = bq / outc;
+                int q = bq % outc;
+                const float* r0 = bottom_blob.batch(b).channel(q * 4);
+                const float* r1 = bottom_blob.batch(b).channel(q * 4 + 1);
+                const float* r2 = bottom_blob.batch(b).channel(q * 4 + 2);
+                const float* r3 = bottom_blob.batch(b).channel(q * 4 + 3);
 
-                float* outptr = top_blob.channel(q);
+                float* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
 #if __ARM_NEON
@@ -250,15 +261,18 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack4to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const float* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const float* r0 = bottom_blob.batch(b).channel(q);
 
-                float* outptr0 = top_blob.channel(q * 4);
-                float* outptr1 = top_blob.channel(q * 4 + 1);
-                float* outptr2 = top_blob.channel(q * 4 + 2);
-                float* outptr3 = top_blob.channel(q * 4 + 3);
+                float* outptr0 = top_blob.batch(b).channel(q * 4);
+                float* outptr1 = top_blob.batch(b).channel(q * 4 + 1);
+                float* outptr2 = top_blob.batch(b).channel(q * 4 + 2);
+                float* outptr3 = top_blob.batch(b).channel(q * 4 + 3);
 
                 int i = 0;
 #if __ARM_NEON
@@ -328,6 +342,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -356,6 +371,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
         return 0;
     }
 
@@ -364,21 +380,24 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 4);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 4 + 1);
-                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 4 + 2);
-                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 4 + 3);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 4);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).row<const unsigned short>(i * 4 + 3);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
                 int j = 0;
 #if __ARM_NEON
@@ -411,15 +430,18 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack4to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 4);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 4 + 1);
-                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 4 + 2);
-                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 4 + 3);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 4);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 4 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).row<unsigned short>(i * 4 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).row<unsigned short>(i * 4 + 3);
 
                 int j = 0;
 #if __ARM_NEON
@@ -451,19 +473,22 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack1to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 8);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 8 + 1);
-                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 8 + 2);
-                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 8 + 3);
-                const unsigned short* r4 = bottom_blob.row<const unsigned short>(i * 8 + 4);
-                const unsigned short* r5 = bottom_blob.row<const unsigned short>(i * 8 + 5);
-                const unsigned short* r6 = bottom_blob.row<const unsigned short>(i * 8 + 6);
-                const unsigned short* r7 = bottom_blob.row<const unsigned short>(i * 8 + 7);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 8);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 3);
+                const unsigned short* r4 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 4);
+                const unsigned short* r5 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 5);
+                const unsigned short* r6 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 6);
+                const unsigned short* r7 = bottom_blob.batch(b).row<const unsigned short>(i * 8 + 7);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
                 int j = 0;
 #if __ARM_NEON
@@ -615,19 +640,22 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack8to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 8);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 8 + 1);
-                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 8 + 2);
-                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 8 + 3);
-                unsigned short* outptr4 = top_blob.row<unsigned short>(i * 8 + 4);
-                unsigned short* outptr5 = top_blob.row<unsigned short>(i * 8 + 5);
-                unsigned short* outptr6 = top_blob.row<unsigned short>(i * 8 + 6);
-                unsigned short* outptr7 = top_blob.row<unsigned short>(i * 8 + 7);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 8);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 8 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).row<unsigned short>(i * 8 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).row<unsigned short>(i * 8 + 3);
+                unsigned short* outptr4 = top_blob.batch(b).row<unsigned short>(i * 8 + 4);
+                unsigned short* outptr5 = top_blob.batch(b).row<unsigned short>(i * 8 + 5);
+                unsigned short* outptr6 = top_blob.batch(b).row<unsigned short>(i * 8 + 6);
+                unsigned short* outptr7 = top_blob.batch(b).row<unsigned short>(i * 8 + 7);
 
                 int j = 0;
 #if __ARM_NEON
@@ -769,13 +797,16 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack4to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 2);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 2 + 1);
+                int b = bi / outh;
+                int i = bi % outh;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i * 2);
+                const unsigned short* r1 = bottom_blob.batch(b).row<const unsigned short>(i * 2 + 1);
 
-                unsigned short* outptr = top_blob.row<unsigned short>(i);
+                unsigned short* outptr = top_blob.batch(b).row<unsigned short>(i);
 
                 int j = 0;
 #if NCNN_GNU_INLINE_ASM
@@ -836,13 +867,16 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack8to4)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const unsigned short* r0 = bottom_blob.batch(b).row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 2);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 2 + 1);
+                unsigned short* outptr0 = top_blob.batch(b).row<unsigned short>(i * 2);
+                unsigned short* outptr1 = top_blob.batch(b).row<unsigned short>(i * 2 + 1);
 
                 int j = 0;
 #if NCNN_GNU_INLINE_ASM
@@ -912,23 +946,26 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
-        else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to4)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 4);
-                const unsigned short* r1 = bottom_blob.channel(q * 4 + 1);
-                const unsigned short* r2 = bottom_blob.channel(q * 4 + 2);
-                const unsigned short* r3 = bottom_blob.channel(q * 4 + 3);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 4);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 4 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).channel(q * 4 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).channel(q * 4 + 3);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
 #if __ARM_NEON
@@ -961,15 +998,18 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack4to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 4);
-                unsigned short* outptr1 = top_blob.channel(q * 4 + 1);
-                unsigned short* outptr2 = top_blob.channel(q * 4 + 2);
-                unsigned short* outptr3 = top_blob.channel(q * 4 + 3);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 4);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 4 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).channel(q * 4 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).channel(q * 4 + 3);
 
                 int i = 0;
 #if __ARM_NEON
@@ -1001,19 +1041,22 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack1to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 8);
-                const unsigned short* r1 = bottom_blob.channel(q * 8 + 1);
-                const unsigned short* r2 = bottom_blob.channel(q * 8 + 2);
-                const unsigned short* r3 = bottom_blob.channel(q * 8 + 3);
-                const unsigned short* r4 = bottom_blob.channel(q * 8 + 4);
-                const unsigned short* r5 = bottom_blob.channel(q * 8 + 5);
-                const unsigned short* r6 = bottom_blob.channel(q * 8 + 6);
-                const unsigned short* r7 = bottom_blob.channel(q * 8 + 7);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 8);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
+                const unsigned short* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
+                const unsigned short* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
+                const unsigned short* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
+                const unsigned short* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
+                const unsigned short* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
+                const unsigned short* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
 #if __ARM_NEON
@@ -1165,19 +1208,22 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack8to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 8);
-                unsigned short* outptr1 = top_blob.channel(q * 8 + 1);
-                unsigned short* outptr2 = top_blob.channel(q * 8 + 2);
-                unsigned short* outptr3 = top_blob.channel(q * 8 + 3);
-                unsigned short* outptr4 = top_blob.channel(q * 8 + 4);
-                unsigned short* outptr5 = top_blob.channel(q * 8 + 5);
-                unsigned short* outptr6 = top_blob.channel(q * 8 + 6);
-                unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 8);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
+                unsigned short* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
+                unsigned short* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
+                unsigned short* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
+                unsigned short* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
+                unsigned short* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
+                unsigned short* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
 
                 int i = 0;
 #if __ARM_NEON
@@ -1319,13 +1365,16 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack4to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q * 2);
-                const unsigned short* r1 = bottom_blob.channel(q * 2 + 1);
+                int b = bq / outc;
+                int q = bq % outc;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q * 2);
+                const unsigned short* r1 = bottom_blob.batch(b).channel(q * 2 + 1);
 
-                unsigned short* outptr = top_blob.channel(q);
+                unsigned short* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
 #if NCNN_GNU_INLINE_ASM
@@ -1386,13 +1435,16 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         if (pack8to4)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const unsigned short* r0 = bottom_blob.batch(b).channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q * 2);
-                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
+                unsigned short* outptr0 = top_blob.batch(b).channel(q * 2);
+                unsigned short* outptr1 = top_blob.batch(b).channel(q * 2 + 1);
 
                 int i = 0;
 #if NCNN_GNU_INLINE_ASM
@@ -1487,6 +1539,7 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
 
     if (!use_padding)
     {
@@ -1515,6 +1568,7 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         top_blob.cstep = bottom_blob.cstep * elempack / out_elempack;
         top_blob.elemsize = elemsize / elempack * out_elempack;
         top_blob.elempack = out_elempack;
+        top_blob.nstep = bottom_blob.nstep * elempack / out_elempack;
         return 0;
     }
 
@@ -1523,25 +1577,28 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         int outh = h * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to8)
         {
+            const int total_bi = batch * outh;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const signed char* r0 = bottom_blob.row<const signed char>(i * 8);
-                const signed char* r1 = bottom_blob.row<const signed char>(i * 8 + 1);
-                const signed char* r2 = bottom_blob.row<const signed char>(i * 8 + 2);
-                const signed char* r3 = bottom_blob.row<const signed char>(i * 8 + 3);
-                const signed char* r4 = bottom_blob.row<const signed char>(i * 8 + 4);
-                const signed char* r5 = bottom_blob.row<const signed char>(i * 8 + 5);
-                const signed char* r6 = bottom_blob.row<const signed char>(i * 8 + 6);
-                const signed char* r7 = bottom_blob.row<const signed char>(i * 8 + 7);
+                int b = bi / outh;
+                int i = bi % outh;
+                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i * 8);
+                const signed char* r1 = bottom_blob.batch(b).row<const signed char>(i * 8 + 1);
+                const signed char* r2 = bottom_blob.batch(b).row<const signed char>(i * 8 + 2);
+                const signed char* r3 = bottom_blob.batch(b).row<const signed char>(i * 8 + 3);
+                const signed char* r4 = bottom_blob.batch(b).row<const signed char>(i * 8 + 4);
+                const signed char* r5 = bottom_blob.batch(b).row<const signed char>(i * 8 + 5);
+                const signed char* r6 = bottom_blob.batch(b).row<const signed char>(i * 8 + 6);
+                const signed char* r7 = bottom_blob.batch(b).row<const signed char>(i * 8 + 7);
 
-                signed char* outptr = top_blob.row<signed char>(i);
+                signed char* outptr = top_blob.batch(b).row<signed char>(i);
 
                 int j = 0;
                 for (; j < w; j++)
@@ -1561,19 +1618,22 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
         if (pack8to1)
         {
+            const int total_bi = batch * h;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
+            for (int bi = 0; bi < total_bi; bi++)
             {
-                const signed char* r0 = bottom_blob.row<const signed char>(i);
+                int b = bi / h;
+                int i = bi % h;
+                const signed char* r0 = bottom_blob.batch(b).row<const signed char>(i);
 
-                signed char* outptr0 = top_blob.row<signed char>(i * 8);
-                signed char* outptr1 = top_blob.row<signed char>(i * 8 + 1);
-                signed char* outptr2 = top_blob.row<signed char>(i * 8 + 2);
-                signed char* outptr3 = top_blob.row<signed char>(i * 8 + 3);
-                signed char* outptr4 = top_blob.row<signed char>(i * 8 + 4);
-                signed char* outptr5 = top_blob.row<signed char>(i * 8 + 5);
-                signed char* outptr6 = top_blob.row<signed char>(i * 8 + 6);
-                signed char* outptr7 = top_blob.row<signed char>(i * 8 + 7);
+                signed char* outptr0 = top_blob.batch(b).row<signed char>(i * 8);
+                signed char* outptr1 = top_blob.batch(b).row<signed char>(i * 8 + 1);
+                signed char* outptr2 = top_blob.batch(b).row<signed char>(i * 8 + 2);
+                signed char* outptr3 = top_blob.batch(b).row<signed char>(i * 8 + 3);
+                signed char* outptr4 = top_blob.batch(b).row<signed char>(i * 8 + 4);
+                signed char* outptr5 = top_blob.batch(b).row<signed char>(i * 8 + 5);
+                signed char* outptr6 = top_blob.batch(b).row<signed char>(i * 8 + 6);
+                signed char* outptr7 = top_blob.batch(b).row<signed char>(i * 8 + 7);
 
                 int j = 0;
                 for (; j < w; j++)
@@ -1602,27 +1662,30 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         if (dims == 3)
-            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
-        else // if (dims == 4)
-            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (pack1to8)
         {
+            const int total_bq = batch * outc;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const signed char* r0 = bottom_blob.channel(q * 8);
-                const signed char* r1 = bottom_blob.channel(q * 8 + 1);
-                const signed char* r2 = bottom_blob.channel(q * 8 + 2);
-                const signed char* r3 = bottom_blob.channel(q * 8 + 3);
-                const signed char* r4 = bottom_blob.channel(q * 8 + 4);
-                const signed char* r5 = bottom_blob.channel(q * 8 + 5);
-                const signed char* r6 = bottom_blob.channel(q * 8 + 6);
-                const signed char* r7 = bottom_blob.channel(q * 8 + 7);
+                int b = bq / outc;
+                int q = bq % outc;
+                const signed char* r0 = bottom_blob.batch(b).channel(q * 8);
+                const signed char* r1 = bottom_blob.batch(b).channel(q * 8 + 1);
+                const signed char* r2 = bottom_blob.batch(b).channel(q * 8 + 2);
+                const signed char* r3 = bottom_blob.batch(b).channel(q * 8 + 3);
+                const signed char* r4 = bottom_blob.batch(b).channel(q * 8 + 4);
+                const signed char* r5 = bottom_blob.batch(b).channel(q * 8 + 5);
+                const signed char* r6 = bottom_blob.batch(b).channel(q * 8 + 6);
+                const signed char* r7 = bottom_blob.batch(b).channel(q * 8 + 7);
 
-                signed char* outptr = top_blob.channel(q);
+                signed char* outptr = top_blob.batch(b).channel(q);
 
                 int i = 0;
                 for (; i < size; i++)
@@ -1642,19 +1705,22 @@ int Packing_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
         if (pack8to1)
         {
+            const int total_bq = batch * channels;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
+            for (int bq = 0; bq < total_bq; bq++)
             {
-                const signed char* r0 = bottom_blob.channel(q);
+                int b = bq / channels;
+                int q = bq % channels;
+                const signed char* r0 = bottom_blob.batch(b).channel(q);
 
-                signed char* outptr0 = top_blob.channel(q * 8);
-                signed char* outptr1 = top_blob.channel(q * 8 + 1);
-                signed char* outptr2 = top_blob.channel(q * 8 + 2);
-                signed char* outptr3 = top_blob.channel(q * 8 + 3);
-                signed char* outptr4 = top_blob.channel(q * 8 + 4);
-                signed char* outptr5 = top_blob.channel(q * 8 + 5);
-                signed char* outptr6 = top_blob.channel(q * 8 + 6);
-                signed char* outptr7 = top_blob.channel(q * 8 + 7);
+                signed char* outptr0 = top_blob.batch(b).channel(q * 8);
+                signed char* outptr1 = top_blob.batch(b).channel(q * 8 + 1);
+                signed char* outptr2 = top_blob.batch(b).channel(q * 8 + 2);
+                signed char* outptr3 = top_blob.batch(b).channel(q * 8 + 3);
+                signed char* outptr4 = top_blob.batch(b).channel(q * 8 + 4);
+                signed char* outptr5 = top_blob.batch(b).channel(q * 8 + 5);
+                signed char* outptr6 = top_blob.batch(b).channel(q * 8 + 6);
+                signed char* outptr7 = top_blob.batch(b).channel(q * 8 + 7);
 
                 int i = 0;
                 for (; i < size; i++)

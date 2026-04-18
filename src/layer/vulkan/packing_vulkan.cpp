@@ -190,7 +190,8 @@ int Packing_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     const int elempack = bottom_blob.elempack;
-    // NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d", elempack, out_elempack, cast_type_from, cast_type_to);
+    const int B = bottom_blob.n;
+    // NCNN_LOGE("Packing_vulkan b2b %d %d   %d %d  n=%d", elempack, out_elempack, cast_type_from, cast_type_to, B);
 
     if (elempack == out_elempack && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
     {
@@ -258,12 +259,18 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = bottom_blob.elemsize / elempack;
             top_blob.elempack = out_elempack;
+            // preserve byte stride per batch when element size changes
+            if (B > 1)
+                top_blob.nstep = bottom_blob.nstep * bottom_blob.elemsize / top_blob.elemsize;
             return 0;
         }
 
         int outw = (w * elempack + out_elempack - 1) / out_elempack;
 
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (B > 1)
+            top_blob.create_batch(outw, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
@@ -272,7 +279,10 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (B > 1)
+            top_blob.create_batch(w, outh, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
@@ -281,7 +291,10 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (B > 1)
+            top_blob.create_batch(w, h, outc, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
@@ -290,145 +303,151 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
 
-        top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (B > 1)
+            top_blob.create_batch(w, h, d, outc, B, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
     }
 
-    std::vector<VkMat> buffer_bindings(4);
-    buffer_bindings[0] = bottom_blob;
-    buffer_bindings[1] = bottom_blob;
-    buffer_bindings[2] = top_blob;
-    buffer_bindings[3] = top_blob;
-
-    if (elempack == out_elempack)
+    // dispatch per batch, writing directly to batch sub-views
+    for (int b = 0; b < B; b++)
     {
-        size_t n = 0;
-        size_t c = 0;
-        size_t stride = 0;
-        if (cast_type_from == 1)
+        const VkMat bottom_b = B > 1 ? bottom_blob.batch(b) : bottom_blob;
+        const VkMat top_b = B > 1 ? top_blob.batch(b) : top_blob;
+
+        std::vector<VkMat> buffer_bindings(4);
+        buffer_bindings[0] = bottom_b;
+        buffer_bindings[1] = bottom_b;
+        buffer_bindings[2] = top_b;
+        buffer_bindings[3] = top_b;
+
+        if (elempack == out_elempack)
         {
-            if (dims == 1 || dims == 2)
+            size_t n = 0;
+            size_t c = 0;
+            size_t stride = 0;
+            if (cast_type_from == 1)
             {
-                n = bottom_blob.cstep * elempack;
-                c = 1;
-                stride = top_blob.cstep * out_elempack;
+                if (dims == 1 || dims == 2)
+                {
+                    n = bottom_b.cstep * elempack;
+                    c = 1;
+                    stride = top_b.cstep * out_elempack;
+                }
+                if (dims == 3 || dims == 4)
+                {
+                    n = bottom_b.cstep * elempack;
+                    c = bottom_b.c;
+                    stride = top_b.cstep * out_elempack;
+                }
+            }
+            else // if (cast_type_to == 1)
+            {
+                if (dims == 1 || dims == 2)
+                {
+                    n = top_b.cstep * out_elempack;
+                    c = 1;
+                    stride = bottom_b.cstep * elempack;
+                }
+                if (dims == 3 || dims == 4)
+                {
+                    n = top_b.cstep * out_elempack;
+                    c = top_b.c;
+                    stride = bottom_b.cstep * elempack;
+                }
+            }
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].u32 = n / 4;
+            constants[1].u32 = c;
+            constants[2].u32 = stride / 4;
+
+            VkMat dispatcher;
+            dispatcher.w = n / 4;
+            dispatcher.h = c;
+            dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher);
+        }
+        if (elempack < out_elempack)
+        {
+            size_t n = 0;
+            size_t c = 0;
+            size_t stride = 0;
+            if (dims == 1)
+            {
+                n = 1;
+                c = top_b.w;
+                stride = 1;
+            }
+            if (dims == 2)
+            {
+                n = top_b.w;
+                c = top_b.h;
+                stride = bottom_b.w;
             }
             if (dims == 3 || dims == 4)
             {
-                n = bottom_blob.cstep * elempack;
-                c = bottom_blob.c;
-                stride = top_blob.cstep * out_elempack;
+                n = top_b.cstep;
+                c = top_b.c;
+                stride = bottom_b.cstep;
+            }
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].u32 = n;
+            constants[1].u32 = c;
+            constants[2].u32 = stride;
+
+            VkMat dispatcher;
+            dispatcher.w = n;
+            dispatcher.h = c;
+            dispatcher.c = 1;
+
+            if (elempack == 1 && out_elempack == 4)
+            {
+                cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher);
             }
         }
-        else // if (cast_type_to == 1)
+        if (elempack > out_elempack)
         {
-            if (dims == 1 || dims == 2)
+            size_t n = 0;
+            size_t c = 0;
+            size_t stride = 0;
+            if (dims == 1)
             {
-                n = top_blob.cstep * out_elempack;
-                c = 1;
-                stride = bottom_blob.cstep * elempack;
+                n = 1;
+                c = bottom_b.w;
+                stride = 1;
+            }
+            if (dims == 2)
+            {
+                n = bottom_b.w;
+                c = bottom_b.h;
+                stride = top_b.w;
             }
             if (dims == 3 || dims == 4)
             {
-                n = top_blob.cstep * out_elempack;
-                c = top_blob.c;
-                stride = bottom_blob.cstep * elempack;
+                n = bottom_b.cstep;
+                c = bottom_b.c;
+                stride = top_b.cstep;
             }
-        }
 
-        std::vector<vk_constant_type> constants(3);
-        constants[0].u32 = n / 4;
-        constants[1].u32 = c;
-        constants[2].u32 = stride / 4;
+            std::vector<vk_constant_type> constants(3);
+            constants[0].u32 = n;
+            constants[1].u32 = c;
+            constants[2].u32 = stride;
 
-        VkMat dispatcher;
-        dispatcher.w = n / 4;
-        dispatcher.h = c;
-        dispatcher.c = 1;
+            VkMat dispatcher;
+            dispatcher.w = n;
+            dispatcher.h = c;
+            dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline_packing, buffer_bindings, constants, dispatcher);
-    }
-    if (elempack < out_elempack)
-    {
-        size_t n = 0;
-        size_t c = 0;
-        size_t stride = 0;
-        if (dims == 1)
-        {
-            n = 1;
-            c = top_blob.w;
-            stride = 1;
-        }
-        if (dims == 2)
-        {
-            n = top_blob.w;
-            c = top_blob.h;
-            stride = bottom_blob.w;
-        }
-        if (dims == 3 || dims == 4)
-        {
-            n = top_blob.cstep;
-            c = top_blob.c;
-            stride = bottom_blob.cstep;
-        }
-
-        std::vector<vk_constant_type> constants(3);
-        constants[0].u32 = n;
-        constants[1].u32 = c;
-        constants[2].u32 = stride;
-
-        // NCNN_LOGE("n = %u   c = %u  stride = %u", n, c, stride);
-
-        VkMat dispatcher;
-        dispatcher.w = n;
-        dispatcher.h = c;
-        dispatcher.c = 1;
-
-        if (elempack == 1 && out_elempack == 4)
-        {
-            cmd.record_pipeline(pipeline_packing_pack1to4, buffer_bindings, constants, dispatcher);
-        }
-    }
-    if (elempack > out_elempack)
-    {
-        size_t n = 0;
-        size_t c = 0;
-        size_t stride = 0;
-        if (dims == 1)
-        {
-            n = 1;
-            c = bottom_blob.w;
-            stride = 1;
-        }
-        if (dims == 2)
-        {
-            n = bottom_blob.w;
-            c = bottom_blob.h;
-            stride = top_blob.w;
-        }
-        if (dims == 3 || dims == 4)
-        {
-            n = bottom_blob.cstep;
-            c = bottom_blob.c;
-            stride = top_blob.cstep;
-        }
-
-        std::vector<vk_constant_type> constants(3);
-        constants[0].u32 = n;
-        constants[1].u32 = c;
-        constants[2].u32 = stride;
-
-        // NCNN_LOGE("n = %u   c = %u  stride = %u", n, c, stride);
-
-        VkMat dispatcher;
-        dispatcher.w = n;
-        dispatcher.h = c;
-        dispatcher.c = 1;
-
-        if (elempack == 4 && out_elempack == 1)
-        {
-            cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher);
+            if (elempack == 4 && out_elempack == 1)
+            {
+                cmd.record_pipeline(pipeline_packing_pack4to1, buffer_bindings, constants, dispatcher);
+            }
         }
     }
 

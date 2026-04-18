@@ -37,6 +37,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
+    int batch = bottom_blob.n;
     size_t elemsize = bottom_blob.elemsize;
 
     if (!use_padding)
@@ -68,17 +69,22 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             top_blob.cstep = bottom_blob.cstep * elempack;
             top_blob.elemsize = elemsize / elempack;
             top_blob.elempack = out_elempack;
+            top_blob.nstep = bottom_blob.nstep * elempack;
             return 0;
         }
 
         int outw = (w * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(outw, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        memcpy(top_blob.data, bottom_blob.data, w * elemsize);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int b = 0; b < batch; b++)
+        {
+            memcpy((unsigned char*)top_blob.batch(b).data, (unsigned char*)bottom_blob.batch(b).data, w * elemsize);
+        }
 
         return 0;
     }
@@ -89,14 +95,19 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         size_t out_elemsize = elemsize / elempack * out_elempack;
         size_t lane_size = out_elemsize / out_elempack;
 
-        top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, outh, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
+        int total_bi = batch * outh;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < outh; i++)
+        for (int bi = 0; bi < total_bi; bi++)
         {
-            unsigned char* outptr = (unsigned char*)top_blob + (size_t)i * w * out_elemsize;
+            int b = bi / outh;
+            int i = bi % outh;
+
+            const unsigned char* bottom_ptr = (const unsigned char*)bottom_blob.batch(b).data;
+            unsigned char* outptr = (unsigned char*)top_blob.batch(b) + (size_t)i * w * out_elemsize;
 
             for (int j = 0; j < w; j++)
             {
@@ -110,7 +121,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                     int srck = (i * out_elempack + k) % elempack;
 
-                    const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)srcy * w * elemsize;
+                    const unsigned char* ptr = bottom_ptr + (size_t)srcy * w * elemsize;
                     const unsigned char* elem_ptr = ptr + j * elemsize;
 
                     memcpy(out_elem_ptr + k * lane_size, elem_ptr + srck * lane_size, lane_size);
@@ -127,14 +138,20 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         size_t out_elemsize = elemsize / elempack * out_elempack;
         size_t lane_size = out_elemsize / out_elempack;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, h, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
+        int total_bq = batch * outc;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < outc; q++)
+        for (int bq = 0; bq < total_bq; bq++)
         {
-            Mat out = top_blob.channel(q);
+            int b = bq / outc;
+            int q = bq % outc;
+
+            Mat out = top_blob.batch(b).channel(q);
+
+            const Mat bottom_batch = bottom_blob.batch(b);
 
             for (int i = 0; i < h; i++)
             {
@@ -152,7 +169,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                         int srck = (q * out_elempack + k) % elempack;
 
-                        const Mat m = bottom_blob.channel(srcq);
+                        const Mat m = bottom_batch.channel(srcq);
                         const unsigned char* ptr = (const unsigned char*)m + (size_t)i * w * elemsize;
                         const unsigned char* elem_ptr = ptr + j * elemsize;
 
@@ -171,14 +188,20 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         size_t out_elemsize = elemsize / elempack * out_elempack;
         size_t lane_size = out_elemsize / out_elempack;
 
-        top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create_batch(w, h, d, outc, batch, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
+        int total_bq = batch * outc;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < outc; q++)
+        for (int bq = 0; bq < total_bq; bq++)
         {
-            Mat out = top_blob.channel(q);
+            int b = bq / outc;
+            int q = bq % outc;
+
+            Mat out = top_blob.batch(b).channel(q);
+
+            const Mat bottom_batch = bottom_blob.batch(b);
 
             for (int z = 0; z < d; z++)
             {
@@ -198,7 +221,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                             int srck = (q * out_elempack + k) % elempack;
 
-                            const Mat m = bottom_blob.channel(srcq);
+                            const Mat m = bottom_batch.channel(srcq);
                             const unsigned char* ptr = (const unsigned char*)m + (size_t)(z * h + i) * w * elemsize;
                             const unsigned char* elem_ptr = ptr + j * elemsize;
 
