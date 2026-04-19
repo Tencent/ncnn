@@ -39,6 +39,7 @@
 #include "layer/convolutiondepthwise.h"
 #include "layer/innerproduct.h"
 #include "layer/embed.h"
+#include "layer/multiheadattention.h"
 
 class QuantBlobStat
 {
@@ -60,6 +61,15 @@ public:
     // KL
     std::vector<uint64_t> histogram;
     std::vector<float> histogram_normed;
+};
+
+class QuantMHAStat
+{
+public:
+    ncnn::Mat q_weight_scales;
+    ncnn::Mat k_weight_scales;
+    ncnn::Mat v_weight_scales;
+    float out_weight_scale;
 };
 
 class QuantNet : public ncnn::Net
@@ -93,12 +103,14 @@ public:
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
     std::vector<int> embed_layers;
+    std::vector<int> mha_layers;
 
     // result
     std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blob_scales;
     std::vector<float> embed_weight_scales;
+    std::vector<QuantMHAStat> mha_stats;
 };
 
 QuantNet::QuantNet()
@@ -135,16 +147,24 @@ int QuantNet::init()
         {
             embed_layers.push_back(i);
         }
+
+        // find all mha layers
+        else if (layer->type == "MultiHeadAttention")
+        {
+            mha_layers.push_back(i);
+        }
     }
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
 
     quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
     bottom_blob_scales.resize(conv_bottom_blob_count);
     embed_weight_scales.resize(embed_layer_count);
+    mha_stats.resize(mha_layer_count);
 
     return 0;
 }
@@ -161,6 +181,7 @@ int QuantNet::save_table(const char* tablepath)
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
 
     fprintf(stdout, "param:%d\n", conv_layer_count);
 
@@ -190,10 +211,46 @@ int QuantNet::save_table(const char* tablepath)
     
     fprintf(stdout, "param:%d\n", embed_layer_count);
     for (int i = 0; i < embed_layer_count; i++)
-    {
+    {   
         fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
         fprintf(fp, "%f ", embed_weight_scales[i]);
         fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", mha_layer_count);
+    for (int i = 0; i < mha_layer_count; i++)
+    {   
+        // q_weight
+        const ncnn::Mat q_weight_scales = mha_stats[i].q_weight_scales;
+        fprintf(fp, "%s_param_0 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < q_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", q_weight_scales[j]);
+        }
+        fprintf(fp, "\n");   
+        
+        // k_weight
+        const ncnn::Mat k_weight_scales = mha_stats[i].k_weight_scales;
+        fprintf(fp, "%s_param_1 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < k_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", k_weight_scales[j]);
+        }
+        fprintf(fp, "\n");  
+        
+        // v_weight
+        const ncnn::Mat v_weight_scales = mha_stats[i].v_weight_scales;
+        fprintf(fp, "%s_param_2 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < v_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", v_weight_scales[j]);
+        }
+        fprintf(fp, "\n");   
+        
+        // out_weight
+        fprintf(fp, "%s_param_3 ", layers[mha_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", mha_stats[i].out_weight_scale);
+        fprintf(fp, "\n");          
     }
 
     fclose(fp);
@@ -323,6 +380,7 @@ int QuantNet::quantize_KL()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
 
     const int file_count = (int)listspaths[0].size();
 
@@ -443,6 +501,63 @@ int QuantNet::quantize_KL()
         }
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
                
+    }
+
+    // initialize mha weight scales
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[mha_layers[i]];
+        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*) layer;
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+        mha_stats[i].q_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float q_absmax = 0.f;
+
+            const float* q_ptr = (const float*)mha->q_weight_data + j * qdim;
+            for (int k = 0; k < qdim; k++)
+            {
+                q_absmax = std::max(q_absmax, (float)fabs(q_ptr[k]));
+            }
+            mha_stats[i].q_weight_scales[j] = q_absmax == 0.f ? 1.f : 127 / q_absmax;
+        }
+
+        const int kdim = mha->kdim;
+        mha_stats[i].k_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float k_absmax = 0.f;
+
+            const float* k_ptr = (const float*)mha->k_weight_data + j * kdim;
+            for (int k = 0; k < kdim; k++)
+            {
+                k_absmax = std::max(k_absmax, (float)fabs(k_ptr[k]));
+            }
+            mha_stats[i].k_weight_scales[j] = k_absmax == 0.f ? 1.f : 127 / k_absmax;
+        }
+
+        const int vdim = mha->vdim;
+        mha_stats[i].v_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float v_absmax = 0.f;
+
+            const float* v_ptr = (const float*)mha->v_weight_data + j * vdim;
+            for (int k = 0; k < vdim; k++)
+            {
+                v_absmax = std::max(v_absmax, (float)fabs(v_ptr[k]));
+            }
+            mha_stats[i].v_weight_scales[j] = v_absmax == 0.f ? 1.f : 127 / v_absmax;
+        }
+
+        const float* o_ptr = (const float*)mha->out_weight_data;
+        float o_absmax = 0.f;
+        for (int k = 0; k < mha->out_weight_data.w; k++)
+        {
+            o_absmax = std::max(o_absmax, (float)fabs(o_ptr[k]));
+        }
+        mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
     }
 
     // count the absmax
