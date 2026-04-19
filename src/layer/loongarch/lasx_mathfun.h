@@ -601,4 +601,14 @@ static inline __m256 sigmoid256_ps(__m256 _v)
     return __lasx_xvfdiv_s(_one, _v);
 }
 
+static inline __m256 elu_ps(__m256 _v, __m256 _alpha)
+{
+    __m256 _zero = (__m256)__lasx_xvreplgr2vr_w(0);
+    __m256 _one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+    __m256 _pos = __lasx_xvfmax_s(_v, _zero);
+    __m256 _neg = __lasx_xvfmin_s(_v, _zero);
+    _neg = __lasx_xvfsub_s(exp256_ps(_neg), _one);
+    return __lasx_xvfadd_s(_pos, __lasx_xvfmul_s(_alpha, _neg));
+}
+
 #endif // LASX_MATHFUN_H
