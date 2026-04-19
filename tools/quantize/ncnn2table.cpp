@@ -129,7 +129,7 @@ int QuantNet::init()
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
-        
+
         // find embed layers
         else if (layer->type == "Embed")
         {
@@ -187,7 +187,7 @@ int QuantNet::save_table(const char* tablepath)
         }
         fprintf(fp, "\n");
     }
-    
+
     fprintf(stdout, "param:%d\n", embed_layer_count);
     for (int i = 0; i < embed_layer_count; i++)
     {
@@ -442,7 +442,6 @@ int QuantNet::quantize_KL()
             absmax = std::max(absmax, (float)fabs(ptr[j]));
         }
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-               
     }
 
     // count the absmax
@@ -940,7 +939,6 @@ int QuantNet::quantize_ACIQ()
             absmax = std::max(absmax, (float)fabs(ptr[j]));
         }
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-               
     }
 
     // count the absmax
