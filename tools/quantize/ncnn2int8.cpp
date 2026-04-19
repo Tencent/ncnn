@@ -577,8 +577,6 @@ int NetQuantize::quantize_embed()
 
         fprintf(stderr, "quantize_embed %s\n", embed->name.c_str());
 
-        // TODO move to ncnn2table
-
         const int num_output = embed->num_output;
         const int input_dim = embed->input_dim;
 
@@ -718,29 +716,51 @@ int NetQuantize::quantize_multiheadattention()
         if (layers[i]->type != "MultiHeadAttention")
             continue;
 
+        char key_q[256];
+        snprintf(key_q, 256, "%s_param_0", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter_q = weight_int8scale_table.find(key_q);
+        if (iter_q == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            return -1;
+        }
+
+        char key_k[256];
+        snprintf(key_k, 256, "%s_param_1", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter_k = weight_int8scale_table.find(key_k);
+        if (iter_k == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            return -1;
+        }
+
+        char key_v[256];
+        snprintf(key_v, 256, "%s_param_2", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter_v = weight_int8scale_table.find(key_v);
+        if (iter_v == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            return -1;
+        }
+
+        char key_out[256];
+        snprintf(key_out, 256, "%s_param_3", layers[i]->name.c_str());
+        std::map<std::string, ncnn::Mat>::iterator iter_out = weight_int8scale_table.find(key_out);
+        if (iter_out == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            return -1;
+        }
+
         // MultiHeadAttention - quantize weight from fp32 to int8
         ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
 
         fprintf(stderr, "quantize_multiheadattention %s\n", mha->name.c_str());
 
-        // TODO move to ncnn2table
-
         const int qdim = mha->weight_data_size / mha->embed_dim;
 
         {
-            mha->q_weight_data_int8_scales.create(mha->embed_dim);
-            for (int i = 0; i < mha->embed_dim; i++)
-            {
-                float absmax = 0.f;
-
-                const float* ptr = (const float*)mha->q_weight_data + i * qdim;
-                for (int j = 0; j < qdim; j++)
-                {
-                    absmax = std::max(absmax, (float)fabs(ptr[j]));
-                }
-
-                mha->q_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-            }
+            mha->q_weight_data_int8_scales = iter_q->second;
 
             ncnn::Mat q_weight_data = mha->q_weight_data.reshape(qdim, mha->embed_dim);
             ncnn::Mat q_weight_data_int8;
@@ -756,19 +776,7 @@ int NetQuantize::quantize_multiheadattention()
         }
 
         {
-            mha->k_weight_data_int8_scales.create(mha->embed_dim);
-            for (int i = 0; i < mha->embed_dim; i++)
-            {
-                float absmax = 0.f;
-
-                const float* ptr = (const float*)mha->k_weight_data + i * mha->kdim;
-                for (int j = 0; j < mha->kdim; j++)
-                {
-                    absmax = std::max(absmax, (float)fabs(ptr[j]));
-                }
-
-                mha->k_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-            }
+            mha->k_weight_data_int8_scales = iter_k->second;
 
             ncnn::Mat k_weight_data = mha->k_weight_data.reshape(mha->kdim, mha->embed_dim);
             ncnn::Mat k_weight_data_int8;
@@ -784,19 +792,7 @@ int NetQuantize::quantize_multiheadattention()
         }
 
         {
-            mha->v_weight_data_int8_scales.create(mha->embed_dim);
-            for (int i = 0; i < mha->embed_dim; i++)
-            {
-                float absmax = 0.f;
-
-                const float* ptr = (const float*)mha->v_weight_data + i * mha->vdim;
-                for (int j = 0; j < mha->vdim; j++)
-                {
-                    absmax = std::max(absmax, (float)fabs(ptr[j]));
-                }
-
-                mha->v_weight_data_int8_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-            }
+            mha->v_weight_data_int8_scales = iter_v->second;
 
             ncnn::Mat v_weight_data = mha->v_weight_data.reshape(mha->vdim, mha->embed_dim);
             ncnn::Mat v_weight_data_int8;
@@ -812,17 +808,8 @@ int NetQuantize::quantize_multiheadattention()
         }
 
         {
-            const float* ptr = mha->out_weight_data;
-            float absmax = 0.f;
-            for (int j = 0; j < mha->out_weight_data.w; j++)
-            {
-                absmax = std::max(absmax, (float)fabs(ptr[j]));
-            }
-
-            mha->out_weight_data_int8_scale = absmax == 0.f ? 1.f : 127 / absmax;
-
-            ncnn::Mat out_weight_data_int8_scales(1);
-            out_weight_data_int8_scales[0] = mha->out_weight_data_int8_scale;
+            ncnn::Mat out_weight_data_int8_scales = iter_out->second;
+            mha->out_weight_data_int8_scale = out_weight_data_int8_scales[0];
 
             ncnn::Mat out_weight_data_int8;
 
