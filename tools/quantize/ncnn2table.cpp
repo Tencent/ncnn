@@ -382,13 +382,6 @@ int QuantNet::quantize_KL()
     const int embed_layer_count = (int)embed_layers.size();
     const int mha_layer_count = (int)mha_layers.size();
 
-    const int file_count = (int)listspaths[0].size();
-
-    const int num_histogram_bins = 2048;
-
-    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
-    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
-
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
@@ -559,6 +552,16 @@ int QuantNet::quantize_KL()
         }
         mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
     }
+
+    if (conv_layer_count == 0)
+        return 0;
+
+    const int file_count = (int)listspaths[0].size();
+
+    const int num_histogram_bins = 2048;
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
@@ -934,11 +937,7 @@ int QuantNet::quantize_ACIQ()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int embed_layer_count = (int)embed_layers.size();
-
-    const int file_count = (int)listspaths[0].size();
-
-    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
-    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+    const int mha_layer_count = (int)mha_layers.size();
 
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -1057,6 +1056,71 @@ int QuantNet::quantize_ACIQ()
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
                
     }
+
+    // initialize mha weight scales
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[mha_layers[i]];
+        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layer;
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+        mha_stats[i].q_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float q_absmax = 0.f;
+
+            const float* q_ptr = (const float*)mha->q_weight_data + j * qdim;
+            for (int k = 0; k < qdim; k++)
+            {
+                q_absmax = std::max(q_absmax, (float)fabs(q_ptr[k]));
+            }
+            mha_stats[i].q_weight_scales[j] = q_absmax == 0.f ? 1.f : 127 / q_absmax;
+        }
+
+        const int kdim = mha->kdim;
+        mha_stats[i].k_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float k_absmax = 0.f;
+
+            const float* k_ptr = (const float*)mha->k_weight_data + j * kdim;
+            for (int k = 0; k < kdim; k++)
+            {
+                k_absmax = std::max(k_absmax, (float)fabs(k_ptr[k]));
+            }
+            mha_stats[i].k_weight_scales[j] = k_absmax == 0.f ? 1.f : 127 / k_absmax;
+        }
+
+        const int vdim = mha->vdim;
+        mha_stats[i].v_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float v_absmax = 0.f;
+
+            const float* v_ptr = (const float*)mha->v_weight_data + j * vdim;
+            for (int k = 0; k < vdim; k++)
+            {
+                v_absmax = std::max(v_absmax, (float)fabs(v_ptr[k]));
+            }
+            mha_stats[i].v_weight_scales[j] = v_absmax == 0.f ? 1.f : 127 / v_absmax;
+        }
+
+        const float* o_ptr = (const float*)mha->out_weight_data;
+        float o_absmax = 0.f;
+        for (int k = 0; k < mha->out_weight_data.w; k++)
+        {
+            o_absmax = std::max(o_absmax, (float)fabs(o_ptr[k]));
+        }
+        mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
+    }
+
+    if (conv_layer_count == 0)
+        return 0;
+
+    const int file_count = (int)listspaths[0].size();
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
@@ -1282,6 +1346,9 @@ int QuantNet::quantize_EQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    if (conv_layer_count == 0)
+        return 0;
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
@@ -1832,6 +1899,7 @@ static void print_pixel_type_list(const std::vector<int>& list)
 static void show_usage()
 {
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
+    fprintf(stderr, "       ncnn2table [ncnnparam] [ncnnbin] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
     fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
@@ -1846,7 +1914,7 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
-    if (argc < 5)
+    if (argc < 4)
     {
         show_usage();
         return -1;
@@ -1863,8 +1931,6 @@ int main(int argc, char** argv)
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
-    char* lists = argv[3];
-    const char* outtable = argv[4];
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -1880,13 +1946,47 @@ int main(int argc, char** argv)
 
     net.init();
 
-    // load lists
-    net.listspaths = parse_comma_path_list(lists);
+    const bool need_calibration_dataset = !net.conv_layers.empty();
+
+    const char* outtable = 0;
+    int kv_start = 0;
+
+    if (need_calibration_dataset)
+    {
+        if (argc < 5)
+        {
+            show_usage();
+            return -1;
+        }
+
+        net.listspaths = parse_comma_path_list(argv[3]);
+        outtable = argv[4];
+        kv_start = 5;
+    }
+    else
+    {
+        if (argc >= 5 && strchr(argv[4], '='))
+        {
+            outtable = argv[3];
+            kv_start = 4;
+        }
+        else if (argc >= 5)
+        {
+            net.listspaths = parse_comma_path_list(argv[3]);
+            outtable = argv[4];
+            kv_start = 5;
+        }
+        else
+        {
+            outtable = argv[3];
+            kv_start = 4;
+        }
+    }
 
     std::string method = "kl";
     net.file_type = 0;
 
-    for (int i = 5; i < argc; i++)
+    for (int i = kv_start; i < argc; i++)
     {
         // key=value
         char* kv = argv[i];
@@ -1922,27 +2022,27 @@ int main(int argc, char** argv)
 
     // sanity check
     const size_t input_blob_count = net.input_blobs.size();
-    if (net.listspaths.size() != input_blob_count)
+    if (need_calibration_dataset && net.listspaths.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d lists, but got %d\n", (int)input_blob_count, (int)net.listspaths.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.means.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.means.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d means, but got %d\n", (int)input_blob_count, (int)net.means.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.norms.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.norms.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d norms, but got %d\n", (int)input_blob_count, (int)net.norms.size());
         return -1;
     }
-    if (net.shapes.size() != input_blob_count)
+    if (need_calibration_dataset && net.shapes.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d shapes, but got %d\n", (int)input_blob_count, (int)net.shapes.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;
