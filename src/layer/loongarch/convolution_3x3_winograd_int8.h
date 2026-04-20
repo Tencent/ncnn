@@ -1378,7 +1378,6 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
     }
 }
 
-
 static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& kernel, Mat& A, int inch, int i, int max_ii, int k, int max_kk)
 {
     // const signed char ktm[4][3] = {
@@ -1437,7 +1436,6 @@ static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd23_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-
     const int M = outch;
     const int K = inch;
     const int B = 16;
@@ -1498,8 +1496,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 16;
 
-        __attribute__((aligned(32)))
-        short tmp[4][4][16];
+        __attribute__((aligned(32))) short tmp[4][4][16];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1526,19 +1523,22 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                         __m128i _t1 = __lsx_vld(r1, 0);
                         __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                         _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        if (tj * 2 + 1 < w) {
+                        if (tj * 2 + 1 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 8, 0);
                             __m128i _t1 = __lsx_vld(r1 + 8, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 2 + 2 < w) {
+                        if (tj * 2 + 2 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 16, 0);
                             __m128i _t1 = __lsx_vld(r1 + 16, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 2 + 3 < w) {
+                        if (tj * 2 + 3 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 24, 0);
                             __m128i _t1 = __lsx_vld(r1 + 24, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
@@ -1598,7 +1598,8 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 2 + 1 < w) {
+                        if (tj * 2 + 1 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 1, 0);
                             __m128i _t1 = __lsx_vld(r1 + 1, 0);
                             __m128i _t2 = __lsx_vld(r2 + 1, 0);
@@ -1633,7 +1634,8 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 2 + 2 < w) {
+                        if (tj * 2 + 2 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 2, 0);
                             __m128i _t1 = __lsx_vld(r1 + 2, 0);
                             __m128i _t2 = __lsx_vld(r2 + 2, 0);
@@ -1668,7 +1670,8 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 2 + 3 < w) {
+                        if (tj * 2 + 3 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 3, 0);
                             __m128i _t1 = __lsx_vld(r1 + 3, 0);
                             __m128i _t2 = __lsx_vld(r2 + 3, 0);
@@ -1758,8 +1761,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(16)))
-        short tmp[4][4][8];
+        __attribute__((aligned(16))) short tmp[4][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2062,8 +2064,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 #if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
-        __attribute__((aligned(32)))
-        int tmp[2][4][8];
+        __attribute__((aligned(32))) int tmp[2][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2178,8 +2179,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 #if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
-        __attribute__((aligned(16)))
-        int tmp[2][4][4];
+        __attribute__((aligned(16))) int tmp[2][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2379,10 +2379,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 
 static int conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-
-
-
-
     int outw = top_blob.w;
     int outh = top_blob.h;
 
@@ -2571,7 +2567,6 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd43_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-
     const int M = outch;
     const int K = inch;
     const int B = 36;
@@ -2634,8 +2629,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 16;
 
-        __attribute__((aligned(32)))
-        short tmp[6][6][16];
+        __attribute__((aligned(32))) short tmp[6][6][16];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2664,31 +2658,36 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                         __m128i _t1 = __lsx_vld(r1, 0);
                         __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                         _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        if (tj * 4 + 1 < w) {
+                        if (tj * 4 + 1 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 8, 0);
                             __m128i _t1 = __lsx_vld(r1 + 8, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 4 + 2 < w) {
+                        if (tj * 4 + 2 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 16, 0);
                             __m128i _t1 = __lsx_vld(r1 + 16, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 4 + 3 < w) {
+                        if (tj * 4 + 3 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 24, 0);
                             __m128i _t1 = __lsx_vld(r1 + 24, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 4 + 4 < w) {
+                        if (tj * 4 + 4 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 32, 0);
                             __m128i _t1 = __lsx_vld(r1 + 32, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
                             _r4 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
                         }
-                        if (tj * 4 + 5 < w) {
+                        if (tj * 4 + 5 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 40, 0);
                             __m128i _t1 = __lsx_vld(r1 + 40, 0);
                             __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
@@ -2748,7 +2747,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 4 + 1 < w) {
+                        if (tj * 4 + 1 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 1, 0);
                             __m128i _t1 = __lsx_vld(r1 + 1, 0);
                             __m128i _t2 = __lsx_vld(r2 + 1, 0);
@@ -2783,7 +2783,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 4 + 2 < w) {
+                        if (tj * 4 + 2 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 2, 0);
                             __m128i _t1 = __lsx_vld(r1 + 2, 0);
                             __m128i _t2 = __lsx_vld(r2 + 2, 0);
@@ -2818,7 +2819,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 4 + 3 < w) {
+                        if (tj * 4 + 3 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 3, 0);
                             __m128i _t1 = __lsx_vld(r1 + 3, 0);
                             __m128i _t2 = __lsx_vld(r2 + 3, 0);
@@ -2853,7 +2855,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 4 + 4 < w) {
+                        if (tj * 4 + 4 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 4, 0);
                             __m128i _t1 = __lsx_vld(r1 + 4, 0);
                             __m128i _t2 = __lsx_vld(r2 + 4, 0);
@@ -2888,7 +2891,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                             __m128i _val = __lsx_vilvl_d(_v1, _v0);
                             _r4 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
                         }
-                        if (tj * 4 + 5 < w) {
+                        if (tj * 4 + 5 < w)
+                        {
                             __m128i _t0 = __lsx_vld(r0 + 5, 0);
                             __m128i _t1 = __lsx_vld(r1 + 5, 0);
                             __m128i _t2 = __lsx_vld(r2 + 5, 0);
@@ -3010,8 +3014,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(16)))
-        short tmp[6][6][8];
+        __attribute__((aligned(16))) short tmp[6][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3438,8 +3441,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 #if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
-        __attribute__((aligned(32)))
-        int tmp[4][6][8];
+        __attribute__((aligned(32))) int tmp[4][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3652,8 +3654,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 #if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
-        __attribute__((aligned(16)))
-        int tmp[4][6][4];
+        __attribute__((aligned(16))) int tmp[4][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -4091,10 +4092,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 
 static int conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-
-
-
-
     int outw = top_blob.w;
     int outh = top_blob.h;
 
