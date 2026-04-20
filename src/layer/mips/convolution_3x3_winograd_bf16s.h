@@ -12,6 +12,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if __mips_msa
+static NCNN_FORCEINLINE v4f32 load_bfloat4_rows_msa(const unsigned short* ptr0, size_t N, int offset, int valid_cols)
+{
+    if (offset >= valid_cols)
+        return (v4f32)__msa_fill_w(0);
+
+    const unsigned short* ptr1 = ptr0 + N;
+    const unsigned short* ptr2 = ptr1 + N;
+    const unsigned short* ptr3 = ptr2 + N;
+
+    __attribute__((aligned(16)))
+    float tmp[4] = {
+        bfloat16_to_float32(ptr0[offset]),
+        bfloat16_to_float32(ptr1[offset]),
+        bfloat16_to_float32(ptr2[offset]),
+        bfloat16_to_float32(ptr3[offset])
+    };
+
+    return (v4f32)__msa_ld_w(tmp, 0);
+}
+#endif // __mips_msa
+
 static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
     // const float itm[4][4] = {
@@ -31,7 +53,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     int nn_max_kk = 0;
     int remain_max_kk_start = 0;
 #if __mips_msa
-    nn_max_kk = max_kk / 4;
+    nn_max_kk = elempack == 4 ? max_kk / 4 : 0;
     #pragma omp parallel for num_threads(nT)
     for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
@@ -66,30 +88,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
                     }
                     if (elempack == 1)
                     {
-                        const unsigned short* r1 = r0 + N;
-                        const unsigned short* r2 = r0 + N * 2;
-                        const unsigned short* r3 = r0 + N * 3;
-
-                        v4f32 _t0 = bfloat2float_msa(r0);
-                        v4f32 _t1 = bfloat2float_msa(r1);
-                        v4f32 _t2 = bfloat2float_msa(r2);
-                        v4f32 _t3 = bfloat2float_msa(r3);
-
-                        {
-                            v4i32 _01r = __msa_ilvr_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _01l = __msa_ilvl_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _23r = __msa_ilvr_w((v4i32)_t3, (v4i32)_t2);
-                            v4i32 _23l = __msa_ilvl_w((v4i32)_t3, (v4i32)_t2);
-                            _t0 = (v4f32)__msa_ilvr_d((v2i64)_23r, (v2i64)_01r);
-                            _t1 = (v4f32)__msa_ilvl_d((v2i64)_23r, (v2i64)_01r);
-                            _t2 = (v4f32)__msa_ilvr_d((v2i64)_23l, (v2i64)_01l);
-                            _t3 = (v4f32)__msa_ilvl_d((v2i64)_23l, (v2i64)_01l);
-                        }
-
-                        _r0 = _t0;
-                        if (tj * 2 + 1 < w) _r1 = _t1;
-                        if (tj * 2 + 2 < w) _r2 = _t2;
-                        if (tj * 2 + 3 < w) _r3 = _t3;
+                        const int valid_cols = w - tj * 2;
+                        _r0 = load_bfloat4_rows_msa(r0, N, 0, valid_cols);
+                        _r1 = load_bfloat4_rows_msa(r0, N, 1, valid_cols);
+                        _r2 = load_bfloat4_rows_msa(r0, N, 2, valid_cols);
+                        _r3 = load_bfloat4_rows_msa(r0, N, 3, valid_cols);
                     }
                 }
 
@@ -319,7 +322,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
 
     int ii = 0;
 #if __mips_msa
-    for (; ii + 3 < max_ii; ii += 4)
+    for (; out_elempack == 4 && ii + 3 < max_ii; ii += 4)
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 
@@ -692,7 +695,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     int nn_max_kk = 0;
     int remain_max_kk_start = 0;
 #if __mips_msa
-    nn_max_kk = max_kk / 4;
+    nn_max_kk = elempack == 4 ? max_kk / 4 : 0;
     #pragma omp parallel for num_threads(nT)
     for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
@@ -737,38 +740,13 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
                     }
                     if (elempack == 1)
                     {
-                        const unsigned short* r1 = r0 + N;
-                        const unsigned short* r2 = r0 + N * 2;
-                        const unsigned short* r3 = r0 + N * 3;
-
-                        v4f32 _t0 = bfloat2float_msa(r0);
-                        v4f32 _t1 = bfloat2float_msa(r1);
-                        v4f32 _t2 = bfloat2float_msa(r2);
-                        v4f32 _t3 = bfloat2float_msa(r3);
-
-                        {
-                            v4i32 _01r = __msa_ilvr_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _01l = __msa_ilvl_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _23r = __msa_ilvr_w((v4i32)_t3, (v4i32)_t2);
-                            v4i32 _23l = __msa_ilvl_w((v4i32)_t3, (v4i32)_t2);
-                            _t0 = (v4f32)__msa_ilvr_d((v2i64)_23r, (v2i64)_01r);
-                            _t1 = (v4f32)__msa_ilvl_d((v2i64)_23r, (v2i64)_01r);
-                            _t2 = (v4f32)__msa_ilvr_d((v2i64)_23l, (v2i64)_01l);
-                            _t3 = (v4f32)__msa_ilvl_d((v2i64)_23l, (v2i64)_01l);
-                        }
-
-                        _r0 = _t0;
-                        if (tj * 4 + 1 < w) _r1 = _t1;
-                        if (tj * 4 + 2 < w) _r2 = _t2;
-                        if (tj * 4 + 3 < w) _r3 = _t3;
-                        {
-                            float __set_tmp[4] = {bfloat16_to_float32(r0[4]), bfloat16_to_float32(r1[4]), bfloat16_to_float32(r2[4]), bfloat16_to_float32(r3[4])};
-                            _r4 = (v4f32)__msa_ld_w(__set_tmp, 0);
-                        }
-                        {
-                            float __set_tmp[4] = {bfloat16_to_float32(r0[5]), bfloat16_to_float32(r1[5]), bfloat16_to_float32(r2[5]), bfloat16_to_float32(r3[5])};
-                            _r5 = (v4f32)__msa_ld_w(__set_tmp, 0);
-                        }
+                        const int valid_cols = w - tj * 4;
+                        _r0 = load_bfloat4_rows_msa(r0, N, 0, valid_cols);
+                        _r1 = load_bfloat4_rows_msa(r0, N, 1, valid_cols);
+                        _r2 = load_bfloat4_rows_msa(r0, N, 2, valid_cols);
+                        _r3 = load_bfloat4_rows_msa(r0, N, 3, valid_cols);
+                        _r4 = load_bfloat4_rows_msa(r0, N, 4, valid_cols);
+                        _r5 = load_bfloat4_rows_msa(r0, N, 5, valid_cols);
                     }
                 }
 
@@ -1101,7 +1079,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
 
     int ii = 0;
 #if __mips_msa
-    for (; ii + 3 < max_ii; ii += 4)
+    for (; out_elempack == 4 && ii + 3 < max_ii; ii += 4)
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 
@@ -1604,7 +1582,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     int nn_max_kk = 0;
     int remain_max_kk_start = 0;
 #if __mips_msa
-    nn_max_kk = max_kk / 4;
+    nn_max_kk = elempack == 4 ? max_kk / 4 : 0;
     #pragma omp parallel for num_threads(nT)
     for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
@@ -1656,53 +1634,15 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                     }
                     if (elempack == 1)
                     {
-                        const unsigned short* r1 = r0 + N;
-                        const unsigned short* r2 = r0 + N * 2;
-                        const unsigned short* r3 = r0 + N * 3;
-
-                        v4f32 _t0 = bfloat2float_msa(r0);
-                        v4f32 _t1 = bfloat2float_msa(r1);
-                        v4f32 _t2 = bfloat2float_msa(r2);
-                        v4f32 _t3 = bfloat2float_msa(r3);
-
-                        {
-                            v4i32 _01r = __msa_ilvr_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _01l = __msa_ilvl_w((v4i32)_t1, (v4i32)_t0);
-                            v4i32 _23r = __msa_ilvr_w((v4i32)_t3, (v4i32)_t2);
-                            v4i32 _23l = __msa_ilvl_w((v4i32)_t3, (v4i32)_t2);
-                            _t0 = (v4f32)__msa_ilvr_d((v2i64)_23r, (v2i64)_01r);
-                            _t1 = (v4f32)__msa_ilvl_d((v2i64)_23r, (v2i64)_01r);
-                            _t2 = (v4f32)__msa_ilvr_d((v2i64)_23l, (v2i64)_01l);
-                            _t3 = (v4f32)__msa_ilvl_d((v2i64)_23l, (v2i64)_01l);
-                        }
-
-                        _r0 = _t0;
-                        if (tj * 6 + 1 < w) _r1 = _t1;
-                        if (tj * 6 + 2 < w) _r2 = _t2;
-                        if (tj * 6 + 3 < w) _r3 = _t3;
-
-                        {
-                            v4f32 _s0 = bfloat2float_msa(r0 + 4);
-                            v4f32 _s1 = bfloat2float_msa(r1 + 4);
-                            v4f32 _s2 = bfloat2float_msa(r2 + 4);
-                            v4f32 _s3 = bfloat2float_msa(r3 + 4);
-
-                            {
-                                v4i32 _01r = __msa_ilvr_w((v4i32)_s1, (v4i32)_s0);
-                                v4i32 _01l = __msa_ilvl_w((v4i32)_s1, (v4i32)_s0);
-                                v4i32 _23r = __msa_ilvr_w((v4i32)_s3, (v4i32)_s2);
-                                v4i32 _23l = __msa_ilvl_w((v4i32)_s3, (v4i32)_s2);
-                                _s0 = (v4f32)__msa_ilvr_d((v2i64)_23r, (v2i64)_01r);
-                                _s1 = (v4f32)__msa_ilvl_d((v2i64)_23r, (v2i64)_01r);
-                                _s2 = (v4f32)__msa_ilvr_d((v2i64)_23l, (v2i64)_01l);
-                                _s3 = (v4f32)__msa_ilvl_d((v2i64)_23l, (v2i64)_01l);
-                            }
-
-                            if (tj * 6 + 4 < w) _r4 = _s0;
-                            if (tj * 6 + 5 < w) _r5 = _s1;
-                            if (tj * 6 + 6 < w) _r6 = _s2;
-                            if (tj * 6 + 7 < w) _r7 = _s3;
-                        }
+                        const int valid_cols = w - tj * 6;
+                        _r0 = load_bfloat4_rows_msa(r0, N, 0, valid_cols);
+                        _r1 = load_bfloat4_rows_msa(r0, N, 1, valid_cols);
+                        _r2 = load_bfloat4_rows_msa(r0, N, 2, valid_cols);
+                        _r3 = load_bfloat4_rows_msa(r0, N, 3, valid_cols);
+                        _r4 = load_bfloat4_rows_msa(r0, N, 4, valid_cols);
+                        _r5 = load_bfloat4_rows_msa(r0, N, 5, valid_cols);
+                        _r6 = load_bfloat4_rows_msa(r0, N, 6, valid_cols);
+                        _r7 = load_bfloat4_rows_msa(r0, N, 7, valid_cols);
                     }
                 }
 
@@ -2106,7 +2046,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
 
     int ii = 0;
 #if __mips_msa
-    for (; ii + 3 < max_ii; ii += 4)
+    for (; out_elempack == 4 && ii + 3 < max_ii; ii += 4)
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 

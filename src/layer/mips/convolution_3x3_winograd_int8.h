@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if __mips_msa
 static NCNN_FORCEINLINE v4i32 __msa_loadl_epi64(const void* ptr)
 {
     v2i64 _v = {0, 0};
@@ -25,8 +26,9 @@ static NCNN_FORCEINLINE v8i16 __msa_mulhi_s_h(v8i16 __a, v8i16 __b)
     v8i16 _sb = __msa_srai_h(__b, 15);
     v4i32 _lo = __msa_mulv_w((v4i32)__msa_ilvr_h(_sa, __a), (v4i32)__msa_ilvr_h(_sb, __b));
     v4i32 _hi = __msa_mulv_w((v4i32)__msa_ilvl_h(_sa, __a), (v4i32)__msa_ilvl_h(_sb, __b));
-    return (v8i16)__msa_pckod_h((v8i16)_hi, (v8i16)_lo);
+        return (v8i16)__msa_pckod_h((v8i16)_hi, (v8i16)_lo);
 }
+#endif // __mips_msa
 
 
 
@@ -1330,8 +1332,8 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                         _t2 = (v4i32)__msa_ilvr_w(_t1, _t0);
                         _t3 = (v4i32)__msa_ilvl_w(_t1, _t0);
 
-                        v4i32 _extt2 = (v16i8)__msa_srai_b((v16i8)_t2, 7);
-                        v4i32 _extt3 = (v16i8)__msa_srai_b((v16i8)_t3, 7);
+                        v4i32 _extt2 = (v4i32)(v16i8)__msa_srai_b((v16i8)_t2, 7);
+                        v4i32 _extt3 = (v4i32)(v16i8)__msa_srai_b((v16i8)_t3, 7);
 
                         _r0 = (v4i32)__msa_ilvr_b((v16i8)_extt2, (v16i8)_t2);
                         if (tj * 2 + 1 < w) _r1 = (v4i32)__msa_ilvl_b((v16i8)_extt2, (v16i8)_t2);
@@ -2105,15 +2107,15 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                         _t2 = (v4i32)__msa_ilvr_w(_t1, _t0);
                         _t3 = (v4i32)__msa_ilvl_w(_t1, _t0);
 
-                        v4i32 _extt2 = (v16i8)__msa_srai_b((v16i8)_t2, 7);
-                        v4i32 _extt3 = (v16i8)__msa_srai_b((v16i8)_t3, 7);
+                        v4i32 _extt2 = (v4i32)(v16i8)__msa_srai_b((v16i8)_t2, 7);
+                        v4i32 _extt3 = (v4i32)(v16i8)__msa_srai_b((v16i8)_t3, 7);
 
                         _r0 = (v4i32)__msa_ilvr_b((v16i8)_extt2, (v16i8)_t2);
                         if (tj * 4 + 1 < w) _r1 = (v4i32)__msa_ilvl_b((v16i8)_extt2, (v16i8)_t2);
                         if (tj * 4 + 2 < w) _r2 = (v4i32)__msa_ilvr_b((v16i8)_extt3, (v16i8)_t3);
                         if (tj * 4 + 3 < w) _r3 = (v4i32)__msa_ilvl_b((v16i8)_extt3, (v16i8)_t3);
-                        if (tj * 4 + 4 < w) _r4 = (v4i32){r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4]};
-                        if (tj * 4 + 5 < w) _r5 = (v4i32){r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5]};
+                        if (tj * 4 + 4 < w) _r4 = (v4i32)(v8i16){(short)r0[4], (short)r1[4], (short)r2[4], (short)r3[4], (short)r4[4], (short)r5[4], (short)r6[4], (short)r7[4]};
+                        if (tj * 4 + 5 < w) _r5 = (v4i32)(v8i16){(short)r0[5], (short)r1[5], (short)r2[5], (short)r3[5], (short)r4[5], (short)r5[5], (short)r6[5], (short)r7[5]};
                     }
                 }
 
