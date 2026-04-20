@@ -3927,8 +3927,6 @@ static int convolution_im2col_gemm_bf16s(const Mat& bottom_blob, Mat& top_blob, 
     const int N = top_blob.w * top_blob.h;
     const int K = bottom_blob.c * bottom_blob.elempack * maxk;
 
-    fprintf(stderr, "BF16S GEMM ENTRY: M=%d N=%d K=%d ep=%d out_ep=%d\n", M, N, K, bottom_blob.elempack, top_blob.elempack);
-
     int TILE_M, TILE_N, TILE_K;
     convolution_im2col_gemm_get_optimal_tile_mnk_bf16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
