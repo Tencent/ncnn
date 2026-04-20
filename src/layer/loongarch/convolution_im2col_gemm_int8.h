@@ -242,7 +242,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
-    NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const signed char* pAT = AT_tile;
     const signed char* pBT = BT_tile;
@@ -785,7 +785,7 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
     const int out_elempack = top_blob.elempack;
     const int out_hstep = (int)top_blob.cstep;
 
-    NCNN_LOGE("unpack_output_tile_int32 %d %d %d %d     %d %d", i, max_ii, j, max_jj, out_elempack, out_hstep);
+    // NCNN_LOGE("unpack_output_tile_int32 %d %d %d %d     %d %d", i, max_ii, j, max_jj, out_elempack, out_hstep);
 
     const int* pp = topT;
 

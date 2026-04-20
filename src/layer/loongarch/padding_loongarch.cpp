@@ -870,14 +870,7 @@ int Padding_loongarch::forward_int8(const Mat& bottom_blob, Mat& top_blob, const
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
-#if __loongarch_asx
-        if (elempack == 8)
-            out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-        else
-            out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#else
-        out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-#endif
+        out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : 1;
     }
 #endif
 
