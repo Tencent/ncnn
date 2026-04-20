@@ -616,13 +616,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                // HACK auto-vectorization leads to wrong result
+                asm volatile("" : : : "memory");
+
                 sum00 += pA[0] * pB[0];
                 sum01 += pA[1] * pB[0];
                 sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
-
-                // HACK
-                NCNN_LOGE("%d %d  x  %d %d", pA[0], pA[1], pB[0], pB[1]);
 
                 pA += 2;
                 pB += 2;
@@ -655,11 +655,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                // HACK auto-vectorization leads to wrong result
+                asm volatile("" : : : "memory");
+
                 sum0 += pA[0] * pB[0];
                 sum1 += pA[1] * pB[0];
-
-                // HACK
-                NCNN_LOGE("%d %d  x  %d", pA[0], pA[1], pB[0]);
 
                 pA += 2;
                 pB += 1;
@@ -734,11 +734,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                // HACK auto-vectorization leads to wrong result
+                asm volatile("" : : : "memory");
+
                 sum0 += pA[0] * pB[0];
                 sum1 += pA[0] * pB[1];
-
-                // HACK
-                NCNN_LOGE("%d  x  %d %d", pA[0], pB[0], pB[1]);
 
                 pA += 1;
                 pB += 2;
