@@ -36,24 +36,12 @@ namespace ncnn {
 #if NCNN_INT8
 #include "convolution_packed_int8.h"
 #include "convolution_im2col_gemm_int8.h"
-
-#include "convolution_winograd_transform_int8.h"
-#include "convolution_winograd_dot_int8.h"
-#include "convolution_3x3_int8.h"
+#include "convolution_3x3_winograd_int8.h"
 #endif // NCNN_INT8
 
 #if __loongarch_sx
 #include "convolution_3x3_pack1to4.h"
 #include "convolution_7x7_pack1to4.h"
-
-#if NCNN_INT8
-#include "convolution_winograd_transform_pack4_int8.h"
-#include "convolution_winograd_transform_pack8_int8.h"
-#include "convolution_winograd_dot_pack8to4_int8.h"
-#include "convolution_winograd_dot_pack8to1_int8.h"
-#include "convolution_3x3_pack8to4_int8.h"
-#include "convolution_3x3_pack8to1_int8.h"
-#endif // NCNN_INT8
 #endif // __loongarch_sx
 
 Convolution_loongarch::Convolution_loongarch()
@@ -796,24 +784,14 @@ int Convolution_loongarch::create_pipeline_int8_loongarch(const Option& opt)
     }
 #endif // __loongarch_sx
 
-    bool prefer_winograd = false; //opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-#if __loongarch_sx
-        if (elempack == 8 && out_elempack == 4)
-        {
-            conv3x3s1_winograd43_transform_kernel_pack8to4_int8_lsx(weight_data, weight_winograd43_data, num_input, num_output, opt);
-        }
-        else if (elempack == 8 && out_elempack == 1)
-        {
-            conv3x3s1_winograd43_transform_kernel_pack8to1_int8_lsx(weight_data, weight_winograd43_data, num_input, num_output, opt);
-        }
+        if (opt.use_winograd43_convolution)
+            conv3x3s1_winograd43_transform_kernel_int8(weight_data, weight_winograd43_data, num_input, num_output, opt);
         else
-#endif // __loongarch_sx
-        {
-            conv3x3s1_winograd43_transform_kernel_int8_lsx(weight_data, weight_winograd43_data, num_input, num_output, opt);
-        }
+            conv3x3s1_winograd23_transform_kernel_int8(weight_data, weight_winograd23_data, num_input, num_output, opt);
     }
     else if (opt.use_sgemm_convolution)
     {
@@ -903,44 +881,44 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
     if (top_blob_int32.empty())
         return -100;
 
-    bool prefer_winograd = false; //opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
-#if __loongarch_sx
-    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && !weight_winograd43_data.empty())
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-        if (elempack == 8 && out_elempack_int32 == 4)
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
         {
-            conv3x3s1_winograd43_pack8to4_int8_lsx(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
-        else if (elempack == 8 && out_elempack_int32 == 1)
-        {
-            conv3x3s1_winograd43_pack8to1_int8_lsx(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
-        }
+
+        int ret = 0;
+        if (!weight_winograd43_data.empty())
+            ret = conv3x3s1_winograd43_int8(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
         else
+            ret = conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else if (opt.use_sgemm_convolution && !weight_sgemm_data.empty())
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
         {
-            conv3x3s1_winograd43_int8_lsx(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
         }
+
+        int ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
     }
     else
-#endif // __loongarch_sx
-        if (opt.use_sgemm_convolution && !weight_sgemm_data.empty())
-        {
-            int _nT = nT ? nT : opt.num_threads;
-            if (nT != 0 && opt.num_threads != nT)
-            {
-                // force num_threads the same as in create_pipeline
-                // so we could use pre-packed A/B from the same tile config
-                NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
-            }
-
-            int ret = convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-        {
-            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-        }
+    {
+        convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+    }
 
 #if __loongarch_sx
     if (opt.use_packing_layout)
