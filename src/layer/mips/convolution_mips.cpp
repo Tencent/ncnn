@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-#include "convolution_sgemm.h"
-#include "convolution_1x1.h"
 #include "convolution_3x3_winograd.h"
 #include "convolution_packed.h"
 #include "convolution_im2col_gemm.h"
