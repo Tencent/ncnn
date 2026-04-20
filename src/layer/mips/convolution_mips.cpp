@@ -739,14 +739,9 @@ int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
     }
 #endif // __mips_msa
 
-    // FIXME winograd int8 pack8to1 has bugs, disable for now
-    bool prefer_winograd = false;
-    // bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
-    // FIXME winograd int8 pack8to1 has bugs, only use winograd when out_elempack >= 4
-    bool winograd_usable = (elempack == 1) || (elempack == 8 && out_elempack == 4);
-
-    if (opt.use_winograd_convolution && prefer_winograd && winograd_usable && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
 #if __mips_msa
         if (elempack == 8 && out_elempack == 4)
@@ -847,9 +842,7 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
     if (top_blob_int32.empty())
         return -100;
 
-    // FIXME winograd int8 pack8to1 has bugs, disable for now
-    bool prefer_winograd = false;
-    // bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
 #if __mips_msa
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && !weight_winograd43_data.empty())
