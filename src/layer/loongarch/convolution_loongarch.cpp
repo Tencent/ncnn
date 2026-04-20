@@ -796,7 +796,7 @@ int Convolution_loongarch::create_pipeline_int8_loongarch(const Option& opt)
     }
 #endif // __loongarch_sx
 
-    bool prefer_winograd = false;//opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = false; //opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
@@ -903,7 +903,7 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
     if (top_blob_int32.empty())
         return -100;
 
-    bool prefer_winograd = false;//opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = false; //opt.use_winograd43_convolution && (num_input > 8 || num_output > 8);
 
 #if __loongarch_sx
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && !weight_winograd43_data.empty())
