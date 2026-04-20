@@ -1,7 +1,7 @@
-// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// Copyright 2026 ihb2032 <hebome@foxmail.com>
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "dropout_riscv.h"
+#include "shrink_riscv.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -11,11 +11,11 @@
 
 namespace ncnn {
 
-Dropout_riscv::Dropout_riscv()
+Shrink_riscv::Shrink_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#endif
+#endif // __riscv_vector
 #if NCNN_ZFH
 #if __riscv_vector
     support_fp16_storage = cpu_support_riscv_zvfh();
@@ -25,15 +25,10 @@ Dropout_riscv::Dropout_riscv()
 #endif
 }
 
-int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Shrink_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (scale == 1.f)
-    {
-        return 0;
-    }
-
 #if NCNN_ZFH
-    int elembits = bottom_top_blob.elembits();
+    const int elembits = bottom_top_blob.elembits();
 
     if (opt.use_fp16_storage && elembits == 16)
     {
@@ -44,12 +39,12 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -63,8 +58,13 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             size_t vl = __riscv_vsetvl_e32m8(n);
 
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-            _p = __riscv_vfmul_vf_f32m8(_p, scale, vl);
-            __riscv_vse32_v_f32m8(ptr, _p, vl);
+            vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, -lambd, vl);
+            vbool4_t _higher = __riscv_vmfgt_vf_f32m8_b4(_p, lambd, vl);
+
+            vfloat32m8_t _out = __riscv_vfmv_v_f_f32m8(0.f, vl);
+            _out = __riscv_vfadd_vf_f32m8_mu(_lower, _out, _p, bias, vl);
+            _out = __riscv_vfsub_vf_f32m8_mu(_higher, _out, _p, bias, vl);
+            __riscv_vse32_v_f32m8(ptr, _out, vl);
 
             ptr += vl;
             n -= vl;
@@ -72,9 +72,7 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = *ptr * scale;
-
-            ptr++;
+            ptr[i] = ptr[i] < -lambd ? ptr[i] + bias : ptr[i] > lambd ? ptr[i] - bias : 0.f;
         }
 #endif // __riscv_vector
     }
