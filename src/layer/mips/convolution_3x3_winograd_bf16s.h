@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
@@ -761,10 +750,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
                         if (tj * 4 + 1 < w) _r1 = _t1;
                         if (tj * 4 + 2 < w) _r2 = _t2;
                         if (tj * 4 + 3 < w) _r3 = _t3;
+                        if (tj * 4 + 4 < w)
                         {
                             float __set_tmp[4] = {bfloat16_to_float32(r0[4]), bfloat16_to_float32(r1[4]), bfloat16_to_float32(r2[4]), bfloat16_to_float32(r3[4])};
                             _r4 = (v4f32)__msa_ld_w(__set_tmp, 0);
                         }
+                        if (tj * 4 + 5 < w)
                         {
                             float __set_tmp[4] = {bfloat16_to_float32(r0[5]), bfloat16_to_float32(r1[5]), bfloat16_to_float32(r2[5]), bfloat16_to_float32(r3[5])};
                             _r5 = (v4f32)__msa_ld_w(__set_tmp, 0);
@@ -1108,13 +1099,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
         __attribute__((aligned(16)))
         float tmp[4][6][4];
 
-        v4f32 _vsq2 = __msa_fill_w_f32(sq2);
-        v4f32 _vsq2_d2 = __msa_fill_w_f32(sq2_d2);
-        v4f32 _vsq2_d4 = __msa_fill_w_f32(sq2_d4);
-        v4f32 _vsq2_m2 = __msa_fill_w_f32(sq2_m2);
-        v4f32 _v0_5 = __msa_fill_w_f32(0.5f);
-        v4f32 _v2 = __msa_fill_w_f32(2.f);
-
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
@@ -1127,6 +1111,13 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
             const float* r3 = r0 + max_jj * 4 * 3;
             const float* r4 = r0 + max_jj * 4 * 4;
             const float* r5 = r0 + max_jj * 4 * 5;
+
+            v4f32 _vsq2 = __msa_fill_w_f32(sq2);
+            v4f32 _vsq2_d2 = __msa_fill_w_f32(sq2_d2);
+            v4f32 _vsq2_d4 = __msa_fill_w_f32(sq2_d4);
+            v4f32 _vsq2_m2 = __msa_fill_w_f32(sq2_m2);
+            v4f32 _v0_5 = __msa_fill_w_f32(0.5f);
+            v4f32 _v2 = __msa_fill_w_f32(2.f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -1179,10 +1170,10 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 v4f32 _tmp13a = __msa_fsub_w(_r1, _r2);
                 v4f32 _tmp13b = __msa_fsub_w(_r3, _r4);
 
-                v4f32 _tmp0 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fadd_w(_r0, _tmp02a), _tmp02b));
-                v4f32 _tmp1 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmul_w(_tmp13a, _vsq2_d2), _vsq2, _tmp13b));
-                v4f32 _tmp2 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmul_w(_tmp02a, _v0_5), _v2, _tmp02b));
-                v4f32 _tmp3 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmadd_w(_r5, _vsq2_d4, _tmp13a), _vsq2_m2, _tmp13b));
+                v4f32 _tmp0 = __msa_fadd_w(__msa_fadd_w(_r0, _tmp02a), __msa_fadd_w(_tmp02b, _bias0));
+                v4f32 _tmp1 = __msa_fmadd_w(__msa_fmadd_w(_bias0, _tmp13a, _vsq2_d2), _tmp13b, _vsq2);
+                v4f32 _tmp2 = __msa_fmadd_w(__msa_fmadd_w(_bias0, _tmp02a, _v0_5), _tmp02b, _v2);
+                v4f32 _tmp3 = __msa_fmadd_w(__msa_fmadd_w(__msa_fadd_w(_r5, _bias0), _tmp13a, _vsq2_d4), _tmp13b, _vsq2_m2);
 
                 _tmp0 = activation_msa(_tmp0, activation_type, activation_params);
                 _tmp1 = activation_msa(_tmp1, activation_type, activation_params);
@@ -1328,6 +1319,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 float tmp21 = bias1 + tmp02a1 * 0.5f + tmp02b1 * 2;
                 float tmp30 = bias0 + r50 + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
                 float tmp31 = bias1 + r51 + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
+
                 tmp00 = activation_ss(tmp00, activation_type, activation_params);
                 tmp01 = activation_ss(tmp01, activation_type, activation_params);
                 tmp10 = activation_ss(tmp10, activation_type, activation_params);
@@ -1426,6 +1418,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 float tmp1 = bias0 + tmp13a * sq2_d2 + tmp13b * sq2;
                 float tmp2 = bias0 + tmp02a * 0.5f + tmp02b * 2;
                 float tmp3 = bias0 + r5 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
+
                 tmp0 = activation_ss(tmp0, activation_type, activation_params);
                 tmp1 = activation_ss(tmp1, activation_type, activation_params);
                 tmp2 = activation_ss(tmp2, activation_type, activation_params);
@@ -1680,7 +1673,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                         if (tj * 6 + 1 < w) _r1 = _t1;
                         if (tj * 6 + 2 < w) _r2 = _t2;
                         if (tj * 6 + 3 < w) _r3 = _t3;
-
+                        if (tj * 6 + 4 < w)
                         {
                             v4f32 _s0 = bfloat2float_msa(r0 + 4);
                             v4f32 _s1 = bfloat2float_msa(r1 + 4);
@@ -1698,7 +1691,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                                 _s3 = (v4f32)__msa_ilvl_d((v2i64)_23l, (v2i64)_01l);
                             }
 
-                            if (tj * 6 + 4 < w) _r4 = _s0;
+                            _r4 = _s0;
                             if (tj * 6 + 5 < w) _r5 = _s1;
                             if (tj * 6 + 6 < w) _r6 = _s2;
                             if (tj * 6 + 7 < w) _r7 = _s3;

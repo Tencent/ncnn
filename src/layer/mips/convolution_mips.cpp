@@ -238,12 +238,6 @@ int Convolution_mips::create_pipeline(const Option& opt)
 #endif
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
-#if __mips_msa
-    prefer_winograd = prefer_winograd && opt.use_packing_layout && num_input % 4 == 0 && num_output % 4 == 0;
-#endif
-#if __mips_msa
-    prefer_winograd = prefer_winograd && opt.use_packing_layout && num_input % 4 == 0 && num_output % 4 == 0;
-#endif
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
@@ -487,12 +481,6 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int num_input = channels * elempack;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
-#if __mips_msa
-    prefer_winograd = prefer_winograd && bottom_blob.elempack == 4 && out_elempack == 4;
-#endif
-#if __mips_msa
-    prefer_winograd = prefer_winograd && bottom_blob.elempack == 4 && out_elempack == 4;
-#endif
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
