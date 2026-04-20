@@ -2912,10 +2912,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         if (tj * 4 + 1 < w) _r1 = _t1;
                         if (tj * 4 + 2 < w) _r2 = _t2;
                         if (tj * 4 + 3 < w) _r3 = _t3;
+                        if (tj * 4 + 4 < w)
                         {
                             float __set_tmp[4] = {r0[4], r1[4], r2[4], r3[4]};
                             _r4 = (__m128)__lsx_vld(__set_tmp, 0);
                         }
+                        if (tj * 4 + 5 < w)
                         {
                             float __set_tmp[4] = {r0[5], r1[5], r2[5], r3[5]};
                             _r5 = (__m128)__lsx_vld(__set_tmp, 0);
