@@ -11,6 +11,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
