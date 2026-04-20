@@ -38,8 +38,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[4][4][8];
+        __attribute__((aligned(32))) float tmp[4][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -174,8 +173,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[4][4][4];
+        __attribute__((aligned(16))) float tmp[4][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -438,7 +436,6 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     }
 }
 
-
 static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params)
 {
     // const float otm[2][4] = {
@@ -462,8 +459,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[2][4][8];
+        __attribute__((aligned(32))) float tmp[2][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -579,8 +575,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[2][4][4];
+        __attribute__((aligned(16))) float tmp[2][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -795,7 +790,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
     }
 }
 
-
 static int conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int outw = top_blob.w;
@@ -918,7 +912,6 @@ static int conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
-
 static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
     const float sq2 = 1.41421356237;
@@ -957,8 +950,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[6][6][8];
+        __attribute__((aligned(32))) float tmp[6][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1131,8 +1123,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[6][6][4];
+        __attribute__((aligned(16))) float tmp[6][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1509,7 +1500,6 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     }
 }
 
-
 static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params)
 {
     const float sq2 = 1.41421356237;
@@ -1545,8 +1535,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[4][6][8];
+        __attribute__((aligned(32))) float tmp[4][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1729,8 +1718,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[4][6][4];
+        __attribute__((aligned(16))) float tmp[4][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2069,7 +2057,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
     }
 }
 
-
 static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int outw = top_blob.w;
@@ -2192,7 +2179,6 @@ static int conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
-
 static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
     // const float itm[8][8] = {
@@ -2223,8 +2209,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[8][8][8];
+        __attribute__((aligned(32))) float tmp[8][8][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2468,8 +2453,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[8][8][4];
+        __attribute__((aligned(16))) float tmp[8][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2951,7 +2935,6 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     }
 }
 
-
 static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params)
 {
     // const float otm[6][8] = {
@@ -2979,8 +2962,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[6][8][8];
+        __attribute__((aligned(32))) float tmp[6][8][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3218,8 +3200,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[6][8][4];
+        __attribute__((aligned(16))) float tmp[6][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3651,7 +3632,6 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
     }
 }
 
-
 static int conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int outw = top_blob.w;
@@ -3773,5 +3753,3 @@ static int conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
-
-

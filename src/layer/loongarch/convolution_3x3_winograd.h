@@ -1,7 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-
 static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
     const int N = max_kk * batch;
@@ -1672,8 +1671,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[4][4][8];
+        __attribute__((aligned(32))) float tmp[4][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1808,8 +1806,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[4][4][4];
+        __attribute__((aligned(16))) float tmp[4][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2095,8 +2092,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[2][4][8];
+        __attribute__((aligned(32))) float tmp[2][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2209,8 +2205,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[2][4][4];
+        __attribute__((aligned(16))) float tmp[2][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2682,8 +2677,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[6][6][8];
+        __attribute__((aligned(32))) float tmp[6][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2856,8 +2850,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[6][6][4];
+        __attribute__((aligned(16))) float tmp[6][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3269,8 +3262,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[4][6][8];
+        __attribute__((aligned(32))) float tmp[4][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3448,8 +3440,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[4][6][4];
+        __attribute__((aligned(16))) float tmp[4][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -4036,8 +4027,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(32)))
-        float tmp[8][8][8];
+        __attribute__((aligned(32))) float tmp[8][8][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -4281,8 +4271,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[8][8][4];
+        __attribute__((aligned(16))) float tmp[8][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -4791,8 +4780,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     {
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
-        __attribute__((aligned(32)))
-        float tmp[6][8][8];
+        __attribute__((aligned(32))) float tmp[6][8][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -5023,8 +5011,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
 
-        __attribute__((aligned(16)))
-        float tmp[6][8][4];
+        __attribute__((aligned(16))) float tmp[6][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)

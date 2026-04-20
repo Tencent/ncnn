@@ -841,7 +841,7 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
             ret = conv3x3s1_winograd23_int8(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
         if (ret != 0)
             return ret;
-        }
+    }
     else if (opt.use_sgemm_convolution && !weight_sgemm_data.empty())
     {
         int _nT = nT ? nT : opt.num_threads;

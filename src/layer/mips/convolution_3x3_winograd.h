@@ -1269,8 +1269,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[4][4][4];
+        __attribute__((aligned(16))) float tmp[4][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1555,8 +1554,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 
-        __attribute__((aligned(16)))
-        float tmp[2][4][4];
+        __attribute__((aligned(16))) float tmp[2][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2027,8 +2025,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[6][6][4];
+        __attribute__((aligned(16))) float tmp[6][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2439,8 +2436,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 
-        __attribute__((aligned(16)))
-        float tmp[4][6][4];
+        __attribute__((aligned(16))) float tmp[4][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3026,8 +3022,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
-        __attribute__((aligned(16)))
-        float tmp[8][8][4];
+        __attribute__((aligned(16))) float tmp[8][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -3535,8 +3530,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     {
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + i + ii, 0) : (v4f32)__msa_fill_w(0);
 
-        __attribute__((aligned(16)))
-        float tmp[6][8][4];
+        __attribute__((aligned(16))) float tmp[6][8][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)

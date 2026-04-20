@@ -15,13 +15,9 @@ static NCNN_FORCEINLINE v8i16 __msa_mulhi_s_h(v8i16 __a, v8i16 __b)
     v8i16 _sb = __msa_srai_h(__b, 15);
     v4i32 _lo = __msa_mulv_w((v4i32)__msa_ilvr_h(_sa, __a), (v4i32)__msa_ilvr_h(_sb, __b));
     v4i32 _hi = __msa_mulv_w((v4i32)__msa_ilvl_h(_sa, __a), (v4i32)__msa_ilvl_h(_sb, __b));
-        return (v8i16)__msa_pckod_h((v8i16)_hi, (v8i16)_lo);
+    return (v8i16)__msa_pckod_h((v8i16)_hi, (v8i16)_lo);
 }
 #endif // __mips_msa
-
-
-
-
 
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
@@ -1193,7 +1189,6 @@ static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd23_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-
     const int M = outch;
     const int K = inch;
     const int B = 16;
@@ -1253,8 +1248,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(16)))
-        short tmp[4][4][8];
+        __attribute__((aligned(16))) short tmp[4][4][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1557,8 +1551,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 #if __mips_msa
     for (; ii + 3 < max_ii; ii += 4)
     {
-        __attribute__((aligned(16)))
-        int tmp[2][4][4];
+        __attribute__((aligned(16))) int tmp[2][4][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -1758,10 +1751,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 
 static int conv3x3s1_winograd23_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-
-
-
-
     int outw = top_blob.w;
     int outh = top_blob.h;
 
@@ -1950,7 +1939,6 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd43_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
-
     const int M = outch;
     const int K = inch;
     const int B = 36;
@@ -2012,8 +2000,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
-        __attribute__((aligned(16)))
-        short tmp[6][6][8];
+        __attribute__((aligned(16))) short tmp[6][6][8];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2103,8 +2090,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                         if (tj * 4 + 1 < w) _r1 = (v4i32)__msa_ilvl_b((v16i8)_extt2, (v16i8)_t2);
                         if (tj * 4 + 2 < w) _r2 = (v4i32)__msa_ilvr_b((v16i8)_extt3, (v16i8)_t3);
                         if (tj * 4 + 3 < w) _r3 = (v4i32)__msa_ilvl_b((v16i8)_extt3, (v16i8)_t3);
-                        if (tj * 4 + 4 < w) _r4 = (v4i32)(v8i16){(short)r0[4], (short)r1[4], (short)r2[4], (short)r3[4], (short)r4[4], (short)r5[4], (short)r6[4], (short)r7[4]};
-                        if (tj * 4 + 5 < w) _r5 = (v4i32)(v8i16){(short)r0[5], (short)r1[5], (short)r2[5], (short)r3[5], (short)r4[5], (short)r5[5], (short)r6[5], (short)r7[5]};
+                        if (tj * 4 + 4 < w) _r4 = (v4i32)(v8i16) {
+                            (short)r0[4], (short)r1[4], (short)r2[4], (short)r3[4], (short)r4[4], (short)r5[4], (short)r6[4], (short)r7[4]
+                        };
+                        if (tj * 4 + 5 < w) _r5 = (v4i32)(v8i16) {
+                            (short)r0[5], (short)r1[5], (short)r2[5], (short)r3[5], (short)r4[5], (short)r5[5], (short)r6[5], (short)r7[5]
+                        };
                     }
                 }
 
@@ -2432,8 +2423,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 #if __mips_msa
     for (; ii + 3 < max_ii; ii += 4)
     {
-        __attribute__((aligned(16)))
-        int tmp[4][6][4];
+        __attribute__((aligned(16))) int tmp[4][6][4];
 
         int jj = 0;
         for (; jj < max_jj; jj++)
@@ -2870,10 +2860,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 
 static int conv3x3s1_winograd43_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-
-
-
-
     int outw = top_blob.w;
     int outh = top_blob.h;
 
