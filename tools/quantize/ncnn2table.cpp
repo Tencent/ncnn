@@ -2248,6 +2248,7 @@ static void show_usage()
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  ncnn2table squeezenet.param squeezenet.bin filelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
     fprintf(stderr, "  ncnn2table test.param test.bin filelist.txt squeezenet.table shape=[227,227,3] method=kl type=1\n");
+    fprintf(stderr, "  ncnn2table rnn.param rnn.bin rnn.table method=kl\n");
 }
 
 int main(int argc, char** argv)
