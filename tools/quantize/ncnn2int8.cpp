@@ -1079,4 +1079,4 @@ int main(int argc, char** argv)
     quantizer.save(outparam, outbin);
 
     return 0;
-} 
+}

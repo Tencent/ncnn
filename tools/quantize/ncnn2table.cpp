@@ -158,7 +158,7 @@ int QuantNet::init()
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
-        
+
         // find embed layers
         else if (layer->type == "Embed")
         {
@@ -246,10 +246,10 @@ int QuantNet::save_table(const char* tablepath)
         }
         fprintf(fp, "\n");
     }
-    
+
     fprintf(stdout, "param:%d\n", embed_layer_count);
     for (int i = 0; i < embed_layer_count; i++)
-    {   
+    {
         fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
         fprintf(fp, "%f ", embed_weight_scales[i]);
         fprintf(fp, "\n");
@@ -257,7 +257,7 @@ int QuantNet::save_table(const char* tablepath)
 
     fprintf(stdout, "param:%d\n", mha_layer_count);
     for (int i = 0; i < mha_layer_count; i++)
-    {   
+    {
         // q_weight
         const ncnn::Mat q_weight_scales = mha_stats[i].q_weight_scales;
         fprintf(fp, "%s_param_0 ", layers[mha_layers[i]]->name.c_str());
@@ -265,8 +265,8 @@ int QuantNet::save_table(const char* tablepath)
         {
             fprintf(fp, "%f ", q_weight_scales[j]);
         }
-        fprintf(fp, "\n");   
-        
+        fprintf(fp, "\n");
+
         // k_weight
         const ncnn::Mat k_weight_scales = mha_stats[i].k_weight_scales;
         fprintf(fp, "%s_param_1 ", layers[mha_layers[i]]->name.c_str());
@@ -274,8 +274,8 @@ int QuantNet::save_table(const char* tablepath)
         {
             fprintf(fp, "%f ", k_weight_scales[j]);
         }
-        fprintf(fp, "\n");  
-        
+        fprintf(fp, "\n");
+
         // v_weight
         const ncnn::Mat v_weight_scales = mha_stats[i].v_weight_scales;
         fprintf(fp, "%s_param_2 ", layers[mha_layers[i]]->name.c_str());
@@ -283,12 +283,12 @@ int QuantNet::save_table(const char* tablepath)
         {
             fprintf(fp, "%f ", v_weight_scales[j]);
         }
-        fprintf(fp, "\n");   
-        
+        fprintf(fp, "\n");
+
         // out_weight
         fprintf(fp, "%s_param_3 ", layers[mha_layers[i]]->name.c_str());
         fprintf(fp, "%f ", mha_stats[i].out_weight_scale);
-        fprintf(fp, "\n");          
+        fprintf(fp, "\n");
     }
 
     fprintf(stdout, "param:%d\n", rnn_layer_count);
@@ -594,14 +594,13 @@ int QuantNet::quantize_KL()
             absmax = std::max(absmax, (float)fabs(ptr[j]));
         }
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-               
     }
 
     // initialize mha weight scales
     for (int i = 0; i < mha_layer_count; i++)
     {
         const ncnn::Layer* layer = layers[mha_layers[i]];
-        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*) layer;
+        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layer;
 
         const int qdim = mha->weight_data_size / mha->embed_dim;
         mha_stats[i].q_weight_scales.create(mha->embed_dim);
@@ -1275,7 +1274,6 @@ int QuantNet::quantize_ACIQ()
             absmax = std::max(absmax, (float)fabs(ptr[j]));
         }
         embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
-               
     }
 
     // initialize rnn weight scales
