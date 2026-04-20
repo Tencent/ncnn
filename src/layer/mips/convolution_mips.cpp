@@ -20,9 +20,9 @@
 
 namespace ncnn {
 
-#include "convolution_3x3_winograd.h"
 #include "convolution_packed.h"
 #include "convolution_im2col_gemm.h"
+#include "convolution_3x3_winograd.h"
 
 #if NCNN_BF16
 #include "convolution_packed_bf16s.h"
@@ -33,7 +33,6 @@ namespace ncnn {
 #if NCNN_INT8
 #include "convolution_packed_int8.h"
 #include "convolution_im2col_gemm_int8.h"
-
 #include "convolution_3x3_winograd_int8.h"
 #endif // NCNN_INT8
 
