@@ -297,10 +297,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _s2 = __lasx_xvmul_h(_pA, _pB2);
                 __m256i _s3 = __lasx_xvmul_h(_pA, _pB3);
 
-                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvhaddw_w_h(_s0, _s0));
-                _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvhaddw_w_h(_s1, _s1));
-                _sum2 = __lasx_xvadd_w(_sum2, __lasx_xvhaddw_w_h(_s2, _s2));
-                _sum3 = __lasx_xvadd_w(_sum3, __lasx_xvhaddw_w_h(_s3, _s3));
+                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvsext_w_h(_s0));
+                _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvsext_w_h(_s1));
+                _sum2 = __lasx_xvadd_w(_sum2, __lasx_xvsext_w_h(_s2));
+                _sum3 = __lasx_xvadd_w(_sum3, __lasx_xvsext_w_h(_s3));
 
                 pA += 8;
                 pB += 4;
@@ -343,8 +343,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _s0 = __lasx_xvmul_h(_pA, _pB0);
                 __m256i _s1 = __lasx_xvmul_h(_pA, _pB1);
 
-                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvhaddw_w_h(_s0, _s0));
-                _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvhaddw_w_h(_s1, _s1));
+                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvsext_w_h(_s0));
+                _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvsext_w_h(_s1));
 
                 pA += 8;
                 pB += 2;
@@ -380,7 +380,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 __m256i _s0 = __lasx_xvmul_h(_pA, _pB0);
 
-                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvhaddw_w_h(_s0, _s0));
+                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvsext_w_h(_s0));
 
                 pA += 8;
                 pB += 1;
@@ -815,38 +815,57 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
             if (out_elempack == 4)
             {
-                // ii+0 ii+1 ii+2 ii+3 | ii+4 ii+5 ii+6 ii+7  -> p0[0..3] p0[4..7] for jj+0
-                // need to deinterleave and store
-                __lsx_vst(__lasx_extract_lo128(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_hi128(_f0), p0 + 4, 0);
-                __lsx_vst(__lasx_extract_lo128(_f1), p0 + 8, 0);
-                __lsx_vst(__lasx_extract_hi128(_f1), p0 + 12, 0);
-                __lsx_vst(__lasx_extract_lo128(_f2), p0 + 16, 0);
-                __lsx_vst(__lasx_extract_hi128(_f2), p0 + 20, 0);
-                __lsx_vst(__lasx_extract_lo128(_f3), p0 + 24, 0);
-                __lsx_vst(__lasx_extract_hi128(_f3), p0 + 28, 0);
-                p0 += 32;
+                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, 0x20);
+                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, 0x20);
+                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, 0x31);
+                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, 0x31);
+
+                __lasx_xvst(_tmp0, p0, 0);
+                __lasx_xvst(_tmp1, p0 + 8, 0);
+                __lasx_xvst(_tmp2, p0 + out_hstep * 4, 0);
+                __lasx_xvst(_tmp3, p0 + out_hstep * 4 + 8, 0);
+                p0 += 16;
             }
             if (out_elempack == 1)
             {
-                // transpose 8x4
-                __m256i _tmp0 = __lasx_xvilvl_w(_f1, _f0);
-                __m256i _tmp1 = __lasx_xvilvh_w(_f1, _f0);
-                __m256i _tmp2 = __lasx_xvilvl_w(_f3, _f2);
-                __m256i _tmp3 = __lasx_xvilvh_w(_f3, _f2);
-                _f0 = __lasx_xvilvl_d(_tmp2, _tmp0);
-                _f1 = __lasx_xvilvh_d(_tmp2, _tmp0);
-                _f2 = __lasx_xvilvl_d(_tmp3, _tmp1);
-                _f3 = __lasx_xvilvh_d(_tmp3, _tmp1);
+                int tmp[32];
+                __lasx_xvst(_f0, tmp, 0);
+                __lasx_xvst(_f1, tmp + 8, 0);
+                __lasx_xvst(_f2, tmp + 16, 0);
+                __lasx_xvst(_f3, tmp + 24, 0);
 
-                __lsx_vst(__lasx_extract_lo128(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_hi128(_f0), p0 + 4, 0);
-                __lsx_vst(__lasx_extract_lo128(_f1), p0 + out_hstep, 0);
-                __lsx_vst(__lasx_extract_hi128(_f1), p0 + out_hstep + 4, 0);
-                __lsx_vst(__lasx_extract_lo128(_f2), p0 + out_hstep * 2, 0);
-                __lsx_vst(__lasx_extract_hi128(_f2), p0 + out_hstep * 2 + 4, 0);
-                __lsx_vst(__lasx_extract_lo128(_f3), p0 + out_hstep * 3, 0);
-                __lsx_vst(__lasx_extract_hi128(_f3), p0 + out_hstep * 3 + 4, 0);
+                p0[0] = tmp[0];
+                p0[1] = tmp[8];
+                p0[2] = tmp[16];
+                p0[3] = tmp[24];
+                p0[out_hstep] = tmp[1];
+                p0[out_hstep + 1] = tmp[9];
+                p0[out_hstep + 2] = tmp[17];
+                p0[out_hstep + 3] = tmp[25];
+                p0[out_hstep * 2] = tmp[2];
+                p0[out_hstep * 2 + 1] = tmp[10];
+                p0[out_hstep * 2 + 2] = tmp[18];
+                p0[out_hstep * 2 + 3] = tmp[26];
+                p0[out_hstep * 3] = tmp[3];
+                p0[out_hstep * 3 + 1] = tmp[11];
+                p0[out_hstep * 3 + 2] = tmp[19];
+                p0[out_hstep * 3 + 3] = tmp[27];
+                p0[out_hstep * 4] = tmp[4];
+                p0[out_hstep * 4 + 1] = tmp[12];
+                p0[out_hstep * 4 + 2] = tmp[20];
+                p0[out_hstep * 4 + 3] = tmp[28];
+                p0[out_hstep * 5] = tmp[5];
+                p0[out_hstep * 5 + 1] = tmp[13];
+                p0[out_hstep * 5 + 2] = tmp[21];
+                p0[out_hstep * 5 + 3] = tmp[29];
+                p0[out_hstep * 6] = tmp[6];
+                p0[out_hstep * 6 + 1] = tmp[14];
+                p0[out_hstep * 6 + 2] = tmp[22];
+                p0[out_hstep * 6 + 3] = tmp[30];
+                p0[out_hstep * 7] = tmp[7];
+                p0[out_hstep * 7 + 1] = tmp[15];
+                p0[out_hstep * 7 + 2] = tmp[23];
+                p0[out_hstep * 7 + 3] = tmp[31];
                 p0 += 4;
             }
 
@@ -859,11 +878,12 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
             if (out_elempack == 4)
             {
-                __lsx_vst(__lasx_extract_lo128(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_hi128(_f0), p0 + 4, 0);
-                __lsx_vst(__lasx_extract_lo128(_f1), p0 + 8, 0);
-                __lsx_vst(__lasx_extract_hi128(_f1), p0 + 12, 0);
-                p0 += 16;
+                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, 0x20);
+                __m256i _tmp1 = __lasx_xvpermi_q(_f1, _f0, 0x31);
+
+                __lasx_xvst(_tmp0, p0, 0);
+                __lasx_xvst(_tmp1, p0 + out_hstep * 4, 0);
+                p0 += 8;
             }
             if (out_elempack == 1)
             {
@@ -899,8 +919,8 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             if (out_elempack == 4)
             {
                 __lsx_vst(__lasx_extract_lo128(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_hi128(_f0), p0 + 4, 0);
-                p0 += 8;
+                __lsx_vst(__lasx_extract_hi128(_f0), p0 + out_hstep * 4, 0);
+                p0 += 4;
             }
             if (out_elempack == 1)
             {

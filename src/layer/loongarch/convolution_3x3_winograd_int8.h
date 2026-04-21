@@ -2128,11 +2128,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                     int* outptr1 = outptr0 + N;
 
                     __lsx_vst(__lasx_extract_lo128(_tmp0), outptr0, 0);
-                    __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp0, _tmp0, 0x11), outptr1, 0);
+                    __lsx_vst(__lasx_extract_hi128(_tmp0), outptr1, 0);
                     if (tj * 2 + 1 < outw)
                     {
                         __lsx_vst(__lasx_extract_lo128(_tmp1), outptr0 + 4, 0);
-                        __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp1, _tmp1, 0x11), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_hi128(_tmp1), outptr1 + 4, 0);
                     }
                 }
                 if (out_elempack == 1)
@@ -3567,21 +3567,21 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                     int* outptr1 = outptr0 + N;
 
                     __lsx_vst(__lasx_extract_lo128(_tmp0), outptr0, 0);
-                    __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp0, _tmp0, 0x11), outptr1, 0);
+                    __lsx_vst(__lasx_extract_hi128(_tmp0), outptr1, 0);
                     if (tj * 4 + 1 < outw)
                     {
                         __lsx_vst(__lasx_extract_lo128(_tmp1), outptr0 + 4, 0);
-                        __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp1, _tmp1, 0x11), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_hi128(_tmp1), outptr1 + 4, 0);
                     }
                     if (tj * 4 + 2 < outw)
                     {
                         __lsx_vst(__lasx_extract_lo128(_tmp2), outptr0 + 8, 0);
-                        __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp2, _tmp2, 0x11), outptr1 + 8, 0);
+                        __lsx_vst(__lasx_extract_hi128(_tmp2), outptr1 + 8, 0);
                     }
                     if (tj * 4 + 3 < outw)
                     {
                         __lsx_vst(__lasx_extract_lo128(_tmp3), outptr0 + 12, 0);
-                        __lsx_vst((__m128i)__lasx_xvpermi_q(_tmp3, _tmp3, 0x11), outptr1 + 12, 0);
+                        __lsx_vst(__lasx_extract_hi128(_tmp3), outptr1 + 12, 0);
                     }
                 }
                 if (out_elempack == 1)

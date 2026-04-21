@@ -3662,6 +3662,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 
                 const unsigned short* sptr = (const unsigned short*)img.row(y0) + x0 * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
                 if (elempack == 8)
                 {
@@ -3683,6 +3684,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __lsx_vstelm_d(float2bfloat_lsx(_tmp1, _tmp1), pp + 4, 0, 0);
                     pp += 8;
                 }
+#endif // __loongarch_sx
                 if (elempack == 1)
                 {
                     pp[0] = sptr[0];
@@ -3711,6 +3713,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 const unsigned short* sptr0 = (const unsigned short*)img.row(y0) + x0 * elempack;
                 const unsigned short* sptr1 = (const unsigned short*)img.row(y1) + x1 * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
                 if (elempack == 8)
                 {
@@ -3732,6 +3735,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __lsx_vstelm_d(float2bfloat_lsx(_tmp1, _tmp1), pp + 4, 0, 0);
                     pp += 8;
                 }
+#endif // __loongarch_sx
                 if (elempack == 1)
                 {
                     pp[0] = sptr0[0];
@@ -3761,6 +3765,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 
             const unsigned short* sptr = (const unsigned short*)img.row(y0) + x0 * elempack;
 
+#if __loongarch_sx
 #if __loongarch_asx
             if (elempack == 8)
             {
@@ -3773,6 +3778,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 __lsx_vstelm_d(__lsx_vld(sptr, 0), pp, 0, 0);
                 pp += 4;
             }
+#endif // __loongarch_sx
             if (elempack == 1)
             {
                 pp[0] = sptr[0];

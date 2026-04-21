@@ -43,7 +43,7 @@
 #endif // __loongarch_asx
 #endif // __loongarch_sx
 
-// Compat helpers for removed intrinsics
+// Compat helpers for removed or renamed intrinsics
 #if __loongarch_sx
 static NCNN_FORCEINLINE __m128i __lsx_extract_lo128(__m128i v)
 {
@@ -54,14 +54,55 @@ static NCNN_FORCEINLINE __m128 __lsx_extract_lo128f(__m128 v)
     return v;
 }
 #if __loongarch_asx
+static NCNN_FORCEINLINE __m256 __ncnn_lsx_to_lasx(__m128 v)
+{
+    __m256 dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+static NCNN_FORCEINLINE __m256d __ncnn_lsx_to_lasx(__m128d v)
+{
+    __m256d dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+static NCNN_FORCEINLINE __m256i __ncnn_lsx_to_lasx(__m128i v)
+{
+    __m256i dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+static NCNN_FORCEINLINE __m128 __ncnn_lasx_to_lsx(__m256 v)
+{
+    __m128 dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+static NCNN_FORCEINLINE __m128d __ncnn_lasx_to_lsx(__m256d v)
+{
+    __m128d dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+static NCNN_FORCEINLINE __m128i __ncnn_lasx_to_lsx(__m256i v)
+{
+    __m128i dest;
+    __asm__("" : "=f"(dest) : "0"(v));
+    return dest;
+}
+#define __lsx_to_lasx(v) __ncnn_lsx_to_lasx((v))
+#define __lasx_to_lsx(v) __ncnn_lasx_to_lsx((v))
+#define __lasx_xvsext_h_b __lasx_vext2xv_h_b
+#define __lasx_xvsext_w_h __lasx_vext2xv_w_h
+#define __lasx_xvsext_d_w __lasx_vext2xv_d_w
+
 static NCNN_FORCEINLINE __m128i __lasx_extract_lo128(__m256i v)
 {
-    return *(__m128i*)&v;
+    return __lasx_to_lsx(v);
 }
 static NCNN_FORCEINLINE __m128i __lasx_extract_hi128(__m256i v)
 {
-    __m256i hi = __lasx_xvpermi_q(v, v, 0x11);
-    return *(__m128i*)&hi;
+    return __lasx_to_lsx(__lasx_xvpermi_q(v, v, 0x11));
 }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
