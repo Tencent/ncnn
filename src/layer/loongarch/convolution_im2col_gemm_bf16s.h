@@ -2952,7 +2952,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 // 2x4 -> 4x2 transpose in bf16
                 __m128i _r0 = __lsx_vld(p0, 0);                               // 8 bf16 values: j0c0 j0c1 j0c2 j0c3 j1c0 j1c1 j1c2 j1c3
-                __m128i _t0 = __lsx_vilvl_h(__lsx_vshuf4i_h(_r0, 0x4E), _r0); // interleave to c0j0 c0j1 c1j0 c1j1
+                __m128i _t0 = __lsx_vilvl_h(__lsx_vshuf4i_h(_r0, _LSX_SHUFFLE(1, 0, 3, 2)), _r0); // interleave to c0j0 c0j1 c1j0 c1j1
                 // Actually just do scalar for 2x4
                 pp[0] = p0[0];
                 pp[1] = p0[4];

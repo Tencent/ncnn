@@ -11,6 +11,10 @@
 
 #include <stdint.h>
 
+#if __mips_msa
+#define _MSA_SHUFFLE(z, y, x, w) (((z) << 6) | ((y) << 4) | ((x) << 2) | (w))
+#endif // __mips_msa
+
 namespace ncnn {
 
 typedef union
@@ -37,10 +41,10 @@ static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)
 {
     // _v = {f0, f1, f2, f3}
     // swap pairs: {f2, f3, f0, f1}
-    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, 0x4E);
+    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(1, 0, 3, 2));
     _v = __msa_fmax_w(_v, _s); // {max(f0,f2), max(f1,f3), ...}
     // swap within pair: {max(f1,f3), max(f0,f2), ...}
-    _s = (v4f32)__msa_shf_w((v4i32)_v, 0xB1);
+    _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(2, 3, 0, 1));
     _v = __msa_fmax_w(_v, _s); // {max(f0,f1,f2,f3), ...}
     float result;
     __builtin_memcpy(&result, &_v, sizeof(float));
@@ -51,10 +55,10 @@ static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 {
     // _v = {f0, f1, f2, f3}
     // swap pairs: {f2, f3, f0, f1}
-    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, 0x4E);
+    v4f32 _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(1, 0, 3, 2));
     _v = __msa_fadd_w(_v, _s); // {f0+f2, f1+f3, ...}
     // swap within pair: {f1+f3, f0+f2, ...}
-    _s = (v4f32)__msa_shf_w((v4i32)_v, 0xB1);
+    _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(2, 3, 0, 1));
     _v = __msa_fadd_w(_v, _s); // {f0+f1+f2+f3, ...}
     float result;
     __builtin_memcpy(&result, &_v, sizeof(float));

@@ -815,10 +815,10 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
             if (out_elempack == 4)
             {
-                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, 0x20);
-                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, 0x20);
-                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, 0x31);
-                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, 0x31);
+                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
+                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 3, 0, 1));
 
                 __lasx_xvst(_tmp0, p0, 0);
                 __lasx_xvst(_tmp1, p0 + 8, 0);
@@ -878,8 +878,8 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
             if (out_elempack == 4)
             {
-                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, 0x20);
-                __m256i _tmp1 = __lasx_xvpermi_q(_f1, _f0, 0x31);
+                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp1 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
 
                 __lasx_xvst(_tmp0, p0, 0);
                 __lasx_xvst(_tmp1, p0 + out_hstep * 4, 0);

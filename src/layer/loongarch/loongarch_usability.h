@@ -13,6 +13,10 @@
 
 #include <stdint.h>
 
+#if __loongarch_sx
+#define _LSX_SHUFFLE(z, y, x, w) (((z) << 6) | ((y) << 4) | ((x) << 2) | (w))
+#endif // __loongarch_sx
+
 // GCC 15+ removed vilvr/vilvl old naming; vilvr → vilvl, old vilvl → vilvh
 #if __loongarch_sx
 #ifndef __lsx_vilvr_b
@@ -114,7 +118,7 @@ static NCNN_FORCEINLINE __m128i __lasx_extract_lo128(__m256i v)
 }
 static NCNN_FORCEINLINE __m128i __lasx_extract_hi128(__m256i v)
 {
-    return __lasx_to_lsx(__lasx_xvpermi_q(v, v, 0x11));
+    return __lasx_to_lsx(__lasx_xvpermi_q(v, v, _LSX_SHUFFLE(0, 1, 0, 1)));
 }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -194,7 +198,7 @@ static NCNN_FORCEINLINE float __lasx_reduce_fadd_s(__m256 _v)
 {
     __m256i _vi = (__m256i)_v;
     __m128 lo = (__m128) * (__m128i*)&_vi;
-    __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, 0x11);
+    __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, _LSX_SHUFFLE(0, 1, 0, 1));
     __m128 hi = (__m128) * (__m128i*)&_hi256;
     __m128 sum = __lsx_vfadd_s(lo, hi);
     return __lsx_reduce_fadd_s(sum);
@@ -203,7 +207,7 @@ static NCNN_FORCEINLINE float __lasx_reduce_fadd_s(__m256 _v)
 static NCNN_FORCEINLINE int __lasx_reduce_add_w(__m256i _v)
 {
     __m128i lo = *(__m128i*)&_v;
-    __m256i _hi256 = __lasx_xvpermi_q(_v, _v, 0x11);
+    __m256i _hi256 = __lasx_xvpermi_q(_v, _v, _LSX_SHUFFLE(0, 1, 0, 1));
     __m128i hi = *(__m128i*)&_hi256;
     __m128i sum = __lsx_vadd_w(lo, hi);
     return __lsx_reduce_add_w(sum);
@@ -213,7 +217,7 @@ static NCNN_FORCEINLINE float __lasx_reduce_fmax_s(__m256 _v)
 {
     __m256i _vi = (__m256i)_v;
     __m128 lo = (__m128) * (__m128i*)&_vi;
-    __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, 0x11);
+    __m256i _hi256 = __lasx_xvpermi_q(_vi, _vi, _LSX_SHUFFLE(0, 1, 0, 1));
     __m128 hi = (__m128) * (__m128i*)&_hi256;
     __m128 maxv = __lsx_vfmax_s(lo, hi);
     return __lsx_reduce_fmax_s(maxv);
@@ -846,7 +850,7 @@ static NCNN_FORCEINLINE void HorizontalSums(__m128& v0, __m128& v1, __m128& v2, 
 static NCNN_FORCEINLINE __m256 combine4x2_ps(const __m128& a, const __m128& b)
 {
     // combine two 128-bit into one 256-bit: low=a, high=b
-    __m256i _r = __lasx_xvpermi_q((__m256i)(__m256)__lasx_xvreplfr2vr_s(0.f), (__m256i)(__m256)__lasx_xvreplfr2vr_s(0.f), 0x20);
+    __m256i _r = __lasx_xvpermi_q((__m256i)(__m256)__lasx_xvreplfr2vr_s(0.f), (__m256i)(__m256)__lasx_xvreplfr2vr_s(0.f), _LSX_SHUFFLE(0, 2, 0, 0));
     _r = __lasx_xvinsgr2vr_w(_r, ((const int*)&a)[0], 0);
     _r = __lasx_xvinsgr2vr_w(_r, ((const int*)&a)[1], 1);
     _r = __lasx_xvinsgr2vr_w(_r, ((const int*)&a)[2], 2);
@@ -905,18 +909,18 @@ static NCNN_FORCEINLINE void transpose8x12_ps(__m256& _r0, __m256& _r1, __m256& 
     __m256 _tmpn = (__m256)__lasx_xvilvh_d((__m256i)_tmpb, (__m256i)_tmp9);
 
     // Step 3: cross-lane 128-bit permute
-    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmpg, (__m256i)_tmpc, 0x20);
-    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmpk, 0x20);
-    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmpl, (__m256i)_tmph, 0x20);
-    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmpi, (__m256i)_tmpe, 0x20);
-    _r4 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpm, 0x20);
-    _r5 = (__m256)__lasx_xvpermi_q((__m256i)_tmpn, (__m256i)_tmpj, 0x20);
-    _r6 = (__m256)__lasx_xvpermi_q((__m256i)_tmpg, (__m256i)_tmpc, 0x31);
-    _r7 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmpk, 0x31);
-    _r8 = (__m256)__lasx_xvpermi_q((__m256i)_tmpl, (__m256i)_tmph, 0x31);
-    _r9 = (__m256)__lasx_xvpermi_q((__m256i)_tmpi, (__m256i)_tmpe, 0x31);
-    _ra = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpm, 0x31);
-    _rb = (__m256)__lasx_xvpermi_q((__m256i)_tmpn, (__m256i)_tmpj, 0x31);
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmpg, (__m256i)_tmpc, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmpk, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmpl, (__m256i)_tmph, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmpi, (__m256i)_tmpe, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r4 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpm, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r5 = (__m256)__lasx_xvpermi_q((__m256i)_tmpn, (__m256i)_tmpj, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r6 = (__m256)__lasx_xvpermi_q((__m256i)_tmpg, (__m256i)_tmpc, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r7 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmpk, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r8 = (__m256)__lasx_xvpermi_q((__m256i)_tmpl, (__m256i)_tmph, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r9 = (__m256)__lasx_xvpermi_q((__m256i)_tmpi, (__m256i)_tmpe, _LSX_SHUFFLE(0, 3, 0, 1));
+    _ra = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpm, _LSX_SHUFFLE(0, 3, 0, 1));
+    _rb = (__m256)__lasx_xvpermi_q((__m256i)_tmpn, (__m256i)_tmpj, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // transpose8x8_ps - transpose 8x8 block of float (LASX)
@@ -943,14 +947,14 @@ static NCNN_FORCEINLINE void transpose8x8_ps(__m256& _r0, __m256& _r1, __m256& _
     __m256 _tmpf = (__m256)__lasx_xvilvh_d((__m256i)_tmp7, (__m256i)_tmp5);
 
     // step 3: cross-lane 128-bit permute
-    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, 0x20);
-    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, 0x20);
-    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, 0x20);
-    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, 0x20);
-    _r4 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, 0x31);
-    _r5 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, 0x31);
-    _r6 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, 0x31);
-    _r7 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, 0x31);
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r4 = (__m256)__lasx_xvpermi_q((__m256i)_tmpc, (__m256i)_tmp8, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r5 = (__m256)__lasx_xvpermi_q((__m256i)_tmpd, (__m256i)_tmp9, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r6 = (__m256)__lasx_xvpermi_q((__m256i)_tmpe, (__m256i)_tmpa, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r7 = (__m256)__lasx_xvpermi_q((__m256i)_tmpf, (__m256i)_tmpb, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // transpose8x4_ps - transpose 8x4 block of float (LASX)
@@ -969,10 +973,10 @@ static NCNN_FORCEINLINE void transpose8x4_ps(__m256& _r0, __m256& _r1, __m256& _
     __m256 _tmp7 = (__m256)__lasx_xvilvh_d((__m256i)_tmp3, (__m256i)_tmp1);
 
     // Step 3: cross-lane 128-bit permute
-    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, 0x20);
-    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, 0x20);
-    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, 0x31);
-    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, 0x31);
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r2 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp4, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r3 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp6, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // transpose8x2_ps - transpose 8x2 block of float (LASX)
@@ -981,18 +985,18 @@ static NCNN_FORCEINLINE void transpose8x2_ps(__m256& _r0, __m256& _r1)
     __m256 _tmp0 = (__m256)__lasx_xvilvr_w((__m256i)_r1, (__m256i)_r0);
     __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_r1, (__m256i)_r0);
 
-    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, 0x20);
-    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, 0x31);
+    _r0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp0, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // transpose2x8_ps - transpose 2x8 block of float (LASX)
 static NCNN_FORCEINLINE void transpose2x8_ps(__m256& _r0, __m256& _r1)
 {
-    __m256 _tmp0 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, 0x20);
-    __m256 _tmp1 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, 0x31);
+    __m256 _tmp0 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, _LSX_SHUFFLE(0, 2, 0, 0));
+    __m256 _tmp1 = (__m256)__lasx_xvpermi_q((__m256i)_r1, (__m256i)_r0, _LSX_SHUFFLE(0, 3, 0, 1));
 
-    _r0 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp0, 0x88);
-    _r1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, 0xDD);
+    _r0 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp0, _LSX_SHUFFLE(2, 0, 2, 0));
+    _r1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, _LSX_SHUFFLE(3, 1, 3, 1));
 }
 
 // transpose8x8_epi32 - transpose 8x8 block of int32 (LASX)
@@ -1114,14 +1118,14 @@ static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m
     _tmp6 = __lasx_xvilvr_d(_tmpj, _tmpn);
     _tmp7 = __lasx_xvilvh_d(_tmpj, _tmpn);
 
-    _r0 = __lasx_xvpermi_q(_tmp1, _tmp0, 0x20);
-    _r1 = __lasx_xvpermi_q(_tmp3, _tmp2, 0x20);
-    _r2 = __lasx_xvpermi_q(_tmp5, _tmp4, 0x20);
-    _r3 = __lasx_xvpermi_q(_tmp7, _tmp6, 0x20);
-    _r4 = __lasx_xvpermi_q(_tmp1, _tmp0, 0x31);
-    _r5 = __lasx_xvpermi_q(_tmp3, _tmp2, 0x31);
-    _r6 = __lasx_xvpermi_q(_tmp5, _tmp4, 0x31);
-    _r7 = __lasx_xvpermi_q(_tmp7, _tmp6, 0x31);
+    _r0 = __lasx_xvpermi_q(_tmp1, _tmp0, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = __lasx_xvpermi_q(_tmp3, _tmp2, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r2 = __lasx_xvpermi_q(_tmp5, _tmp4, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r3 = __lasx_xvpermi_q(_tmp7, _tmp6, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r4 = __lasx_xvpermi_q(_tmp1, _tmp0, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r5 = __lasx_xvpermi_q(_tmp3, _tmp2, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r6 = __lasx_xvpermi_q(_tmp5, _tmp4, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r7 = __lasx_xvpermi_q(_tmp7, _tmp6, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // HorizontalSums (LASX)

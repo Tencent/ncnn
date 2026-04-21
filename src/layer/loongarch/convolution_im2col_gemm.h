@@ -300,18 +300,18 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 }
                 if (out_elempack == 4)
                 {
-                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x20);
-                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x31);
-                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x20);
-                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x31);
-                    __m256i _tmp4l = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, 0x20);
-                    __m256i _tmp4h = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, 0x31);
-                    __m256i _tmp6l = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, 0x20);
-                    __m256i _tmp6h = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, 0x31);
-                    __m256i _tmp8l = __lasx_xvpermi_q((__m256i)_sum9, (__m256i)_sum8, 0x20);
-                    __m256i _tmp8h = __lasx_xvpermi_q((__m256i)_sum9, (__m256i)_sum8, 0x31);
-                    __m256i _tmp10l = __lasx_xvpermi_q((__m256i)_sum11, (__m256i)_sum10, 0x20);
-                    __m256i _tmp10h = __lasx_xvpermi_q((__m256i)_sum11, (__m256i)_sum10, 0x31);
+                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp4l = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp4h = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp6l = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp6h = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp8l = __lasx_xvpermi_q((__m256i)_sum9, (__m256i)_sum8, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp8h = __lasx_xvpermi_q((__m256i)_sum9, (__m256i)_sum8, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp10l = __lasx_xvpermi_q((__m256i)_sum11, (__m256i)_sum10, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp10h = __lasx_xvpermi_q((__m256i)_sum11, (__m256i)_sum10, _LSX_SHUFFLE(0, 3, 0, 1));
                     __lasx_xvst(_tmp0l, outptr0 + 0, 0);
                     __lasx_xvst(_tmp2l, outptr0 + 8, 0);
                     __lasx_xvst(_tmp4l, outptr0 + 16, 0);
@@ -552,14 +552,14 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 }
                 if (out_elempack == 4)
                 {
-                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x20);
-                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x31);
-                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x20);
-                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x31);
-                    __m256i _tmp4l = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, 0x20);
-                    __m256i _tmp4h = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, 0x31);
-                    __m256i _tmp6l = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, 0x20);
-                    __m256i _tmp6h = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, 0x31);
+                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp4l = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp4h = __lasx_xvpermi_q((__m256i)_sum5, (__m256i)_sum4, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp6l = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp6h = __lasx_xvpermi_q((__m256i)_sum7, (__m256i)_sum6, _LSX_SHUFFLE(0, 3, 0, 1));
 
                     __lasx_xvst(_tmp0l, outptr0 + 0, 0);
                     __lasx_xvst(_tmp2l, outptr0 + 8, 0);
@@ -729,10 +729,10 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 }
                 if (out_elempack == 4)
                 {
-                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x20);
-                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x31);
-                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x20);
-                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, 0x31);
+                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp2l = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp2h = __lasx_xvpermi_q((__m256i)_sum3, (__m256i)_sum2, _LSX_SHUFFLE(0, 3, 0, 1));
 
                     __lasx_xvst(_tmp0l, outptr0 + 0, 0);
                     __lasx_xvst(_tmp2l, outptr0 + 8, 0);
@@ -842,8 +842,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 }
                 if (out_elempack == 4)
                 {
-                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x20);
-                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, 0x31);
+                    __m256i _tmp0l = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp0h = __lasx_xvpermi_q((__m256i)_sum1, (__m256i)_sum0, _LSX_SHUFFLE(0, 3, 0, 1));
 
                     __lasx_xvst(_tmp0l, outptr0 + 0, 0);
                     __lasx_xvst(_tmp0h, outptr0 + out_hstep * 4 + 0, 0);

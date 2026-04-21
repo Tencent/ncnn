@@ -351,10 +351,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA0 = __lasx_xvld(pA, 0);
                     __m256i _pB0 = __lasx_xvld(pB, 0);
-                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 78);
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
-                    __m256i _pB2 = __lasx_xvshuf4i_w(_pB0, 78);
-                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, 147);
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m256i _pB2 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(2, 1, 0, 3));
 
                     _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB0), __lasx_xvmulwod_w_h(_pA0, _pB0)));
                     _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB1), __lasx_xvmulwod_w_h(_pA0, _pB1)));
@@ -372,10 +372,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
                     __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pB, 0)));
-                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 78);
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
-                    __m256i _pB2 = __lasx_xvpermi_d(_pB0, 177);
-                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, 147);
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m256i _pB2 = __lasx_xvpermi_d(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(2, 1, 0, 3));
 
                     _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvmul_w(_pA0, _pB0));
                     _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvmul_w(_pA0, _pB1));
@@ -411,12 +411,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      42 52 62 72 06 16 26 36
                     //      43 53 63 73 07 17 27 37
                     {
-                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
-                        _sum2 = __lasx_xvshuf4i_w(_sum2, 78);
-                        _sum3 = __lasx_xvshuf4i_w(_sum3, 57);
-                        _sum5 = __lasx_xvshuf4i_w(_sum5, 147);
-                        _sum6 = __lasx_xvshuf4i_w(_sum6, 78);
-                        _sum7 = __lasx_xvshuf4i_w(_sum7, 57);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum2 = __lasx_xvshuf4i_w(_sum2, _LSX_SHUFFLE(1, 0, 3, 2));
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, _LSX_SHUFFLE(0, 3, 2, 1));
+                        _sum5 = __lasx_xvshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum6 = __lasx_xvshuf4i_w(_sum6, _LSX_SHUFFLE(1, 0, 3, 2));
+                        _sum7 = __lasx_xvshuf4i_w(_sum7, _LSX_SHUFFLE(0, 3, 2, 1));
                         __m256i _tmp0 = __lasx_xvilvl_w(_sum3, _sum0);
                         __m256i _tmp1 = __lasx_xvilvh_w(_sum3, _sum0);
                         __m256i _tmp2 = __lasx_xvilvl_w(_sum1, _sum2);
@@ -433,20 +433,20 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         _sum5 = __lasx_xvilvh_d(_tmp6, _tmp4);
                         _sum6 = __lasx_xvilvl_d(_tmp5, _tmp7);
                         _sum7 = __lasx_xvilvh_d(_tmp5, _tmp7);
-                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
-                        _sum3 = __lasx_xvshuf4i_w(_sum3, 147);
-                        _sum5 = __lasx_xvshuf4i_w(_sum5, 147);
-                        _sum7 = __lasx_xvshuf4i_w(_sum7, 147);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum5 = __lasx_xvshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lasx_xvshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
 
-                    __m256i _tmp0 = __lasx_xvpermi_q(_sum0, _sum4, 0x02);
-                    __m256i _tmp1 = __lasx_xvpermi_q(_sum1, _sum5, 0x02);
-                    __m256i _tmp2 = __lasx_xvpermi_q(_sum2, _sum6, 0x02);
-                    __m256i _tmp3 = __lasx_xvpermi_q(_sum3, _sum7, 0x02);
-                    __m256i _tmp4 = __lasx_xvpermi_q(_sum4, _sum0, 0x13);
-                    __m256i _tmp5 = __lasx_xvpermi_q(_sum5, _sum1, 0x13);
-                    __m256i _tmp6 = __lasx_xvpermi_q(_sum6, _sum2, 0x13);
-                    __m256i _tmp7 = __lasx_xvpermi_q(_sum7, _sum3, 0x13);
+                    __m256i _tmp0 = __lasx_xvpermi_q(_sum0, _sum4, _LSX_SHUFFLE(0, 0, 0, 2));
+                    __m256i _tmp1 = __lasx_xvpermi_q(_sum1, _sum5, _LSX_SHUFFLE(0, 0, 0, 2));
+                    __m256i _tmp2 = __lasx_xvpermi_q(_sum2, _sum6, _LSX_SHUFFLE(0, 0, 0, 2));
+                    __m256i _tmp3 = __lasx_xvpermi_q(_sum3, _sum7, _LSX_SHUFFLE(0, 0, 0, 2));
+                    __m256i _tmp4 = __lasx_xvpermi_q(_sum4, _sum0, _LSX_SHUFFLE(0, 1, 0, 3));
+                    __m256i _tmp5 = __lasx_xvpermi_q(_sum5, _sum1, _LSX_SHUFFLE(0, 1, 0, 3));
+                    __m256i _tmp6 = __lasx_xvpermi_q(_sum6, _sum2, _LSX_SHUFFLE(0, 1, 0, 3));
+                    __m256i _tmp7 = __lasx_xvpermi_q(_sum7, _sum3, _LSX_SHUFFLE(0, 1, 0, 3));
                     _sum0 = _tmp0;
                     _sum1 = _tmp1;
                     _sum2 = _tmp2;
@@ -496,9 +496,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA0 = __lasx_xvld(pA, 0);
                     __m128i _pB = __lsx_vld(pB, 0);
-                    __m256i _pA1 = __lasx_xvshuf4i_w(_pA0, 78);
-                    __m256i _pB0 = __lasx_xvpermi_q(__lsx_to_lasx(_pB), __lsx_to_lasx(_pB), 0x00);
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
+                    __m256i _pA1 = __lasx_xvshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256i _pB0 = __lasx_xvpermi_q(__lsx_to_lasx(_pB), __lsx_to_lasx(_pB), _LSX_SHUFFLE(0, 0, 0, 0));
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
 
                     _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB0), __lasx_xvmulwod_w_h(_pA0, _pB0)));
                     _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB1), __lasx_xvmulwod_w_h(_pA0, _pB1)));
@@ -512,8 +512,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
                     __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vldrepl_d(pB, 0)));
-                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 177);
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
 
                     __m256i _s0 = __lasx_xvmul_w(_pA0, _pB0);
                     __m256i _s1 = __lasx_xvmul_w(_pA0, _pB1);
@@ -541,8 +541,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      02 12 22 32 42 52 62 72
                     //      03 13 23 33 43 53 63 73
                     {
-                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
-                        _sum3 = __lasx_xvshuf4i_w(_sum3, 147);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                         __m256i _tmp0 = __lasx_xvilvl_w(_sum3, _sum0);
                         __m256i _tmp1 = __lasx_xvilvh_w(_sum3, _sum0);
                         __m256i _tmp2 = __lasx_xvilvl_w(_sum1, _sum2);
@@ -551,8 +551,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         _sum1 = __lasx_xvilvh_d(_tmp2, _tmp0);
                         _sum2 = __lasx_xvilvl_d(_tmp1, _tmp3);
                         _sum3 = __lasx_xvilvh_d(_tmp1, _tmp3);
-                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
-                        _sum3 = __lasx_xvshuf4i_w(_sum3, 147);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
                 }
 
@@ -585,7 +585,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA = __lasx_xvld(pA, 0);
                     __m256i _pB0 = __lasx_xvldrepl_d(pB, 0);
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 177);
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
 
                     _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA, _pB0), __lasx_xvmulwod_w_h(_pA, _pB0)));
                     _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA, _pB1), __lasx_xvmulwod_w_h(_pA, _pB1)));
@@ -597,7 +597,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
                     __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vldrepl_w(pB, 0)));
-                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 177);
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
 
                     __m256i _s0 = __lasx_xvmul_w(_pA, _pB0);
                     __m256i _s1 = __lasx_xvmul_w(_pA, _pB1);
@@ -617,11 +617,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      00 10 20 30 40 50 60 70
                     //      01 11 21 31 41 51 61 71
                     {
-                        __m256i _tmp0 = __lasx_xvshuf4i_w(_sum0, 216);
-                        __m256i _tmp1 = __lasx_xvshuf4i_w(_sum1, 45);
+                        __m256i _tmp0 = __lasx_xvshuf4i_w(_sum0, _LSX_SHUFFLE(3, 1, 2, 0));
+                        __m256i _tmp1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(0, 2, 3, 1));
                         _sum0 = __lasx_xvilvl_w(_tmp1, _tmp0);
                         _sum1 = __lasx_xvilvh_w(_tmp1, _tmp0);
-                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
                 }
 
@@ -721,9 +721,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pB0 = __lsx_vld(pB, 0);
                     __m128i _pB1 = __lsx_vld((pB + 8), 0);
-                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, 78);
-                    __m128i _pB2 = __lsx_vshuf4i_w(_pB0, 57);
-                    __m128i _pB3 = __lsx_vshuf4i_w(_pB1, 57);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pB2 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m128i _pB3 = __lsx_vshuf4i_w(_pB1, _LSX_SHUFFLE(0, 3, 2, 1));
 
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
@@ -743,9 +743,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m128i _pB = __lsx_vld(pB, 0);
 
                     __m128i _pA0 = _pA;
-                    __m128i _pA1 = __lsx_vshuf4i_w(_pA, 177);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA, _LSX_SHUFFLE(2, 3, 0, 1));
                     __m128i _pB01 = _pB;
-                    __m128i _pB23 = __lsx_vshuf4i_h(_pB, 57);
+                    __m128i _pB23 = __lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 3, 2, 1));
                     __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
                     __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
                     __m128i _sl1 = __lsx_vmul_h(_pA0, _pB23);
@@ -788,10 +788,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      02 12 22 32  06 16 26 36
                     //      03 13 23 33  07 17 27 37
                     {
-                        _sum2 = __lsx_vshuf4i_w(_sum2, 147);
-                        _sum3 = __lsx_vshuf4i_w(_sum3, 147);
-                        _sum6 = __lsx_vshuf4i_w(_sum6, 147);
-                        _sum7 = __lsx_vshuf4i_w(_sum7, 147);
+                        _sum2 = __lsx_vshuf4i_w(_sum2, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum6 = __lsx_vshuf4i_w(_sum6, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
                         __m128i _tmp0 = __lsx_vilvl_w(_sum6, _sum0);
                         __m128i _tmp1 = __lsx_vilvh_w(_sum6, _sum0);
                         __m128i _tmp2 = __lsx_vilvl_w(_sum7, _sum1);
@@ -808,10 +808,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         _sum5 = __lsx_vilvh_d(_tmp6, _tmp2);
                         _sum6 = __lsx_vilvl_d(_tmp3, _tmp7);
                         _sum7 = __lsx_vilvh_d(_tmp3, _tmp7);
-                        _sum1 = __lsx_vshuf4i_w(_sum1, 147);
-                        _sum3 = __lsx_vshuf4i_w(_sum3, 147);
-                        _sum5 = __lsx_vshuf4i_w(_sum5, 147);
-                        _sum7 = __lsx_vshuf4i_w(_sum7, 147);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum5 = __lsx_vshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
                 }
 
@@ -854,8 +854,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pB0 = __lsx_vld(pB, 0);
-                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, 78);
-                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, 57);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
 
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
@@ -870,8 +870,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _pA0 = _pA;
-                    __m128i _pA1 = __lsx_vshuf4i_w(_pA, 177);
-                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, 57), _pB);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 3, 2, 1)), _pB);
                     __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
                     __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
                     __m128i _sl1 = __lsx_vmul_h(_pA1, _pB01);
@@ -902,8 +902,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      02 12 22 32
                     //      03 13 23 33
                     {
-                        _sum1 = __lsx_vshuf4i_w(_sum1, 147);
-                        _sum3 = __lsx_vshuf4i_w(_sum3, 147);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                         __m128i _tmp0 = __lsx_vilvl_w(_sum3, _sum0);
                         __m128i _tmp1 = __lsx_vilvh_w(_sum3, _sum0);
                         __m128i _tmp2 = __lsx_vilvl_w(_sum1, _sum2);
@@ -912,8 +912,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         _sum1 = __lsx_vilvh_d(_tmp2, _tmp0);
                         _sum2 = __lsx_vilvl_d(_tmp1, _tmp3);
                         _sum3 = __lsx_vilvh_d(_tmp1, _tmp3);
-                        _sum1 = __lsx_vshuf4i_w(_sum1, 147);
-                        _sum3 = __lsx_vshuf4i_w(_sum3, 147);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
                 }
 
@@ -946,7 +946,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
                     __m128i _pB0 = __lsx_vldrepl_d(pB, 0);
-                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, 177);
+                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
 
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB0), __lsx_vmulwod_w_h(_pA, _pB0)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB1), __lsx_vmulwod_w_h(_pA, _pB1)));
@@ -959,7 +959,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     __m128i _pB = __lsx_vreplgr2vr_w(*(int*)(pB));
 
-                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, 17), _pB);
+                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 1, 0, 1)), _pB);
                     __m128i _sl = __lsx_vmul_h(_pA, _pB01);
                     __m128i _sh = __lsx_vmuh_h(_pA, _pB01);
                     __m128i _s0 = __lsx_vilvl_h(_sh, _sl);
@@ -980,11 +980,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     //      00 10 20 30
                     //      01 11 21 31
                     {
-                        __m128i _tmp0 = __lsx_vshuf4i_w(_sum0, 216);
-                        __m128i _tmp1 = __lsx_vshuf4i_w(_sum1, 45);
+                        __m128i _tmp0 = __lsx_vshuf4i_w(_sum0, _LSX_SHUFFLE(3, 1, 2, 0));
+                        __m128i _tmp1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(0, 2, 3, 1));
                         _sum0 = __lsx_vilvl_w(_tmp1, _tmp0);
                         _sum1 = __lsx_vilvh_w(_tmp1, _tmp0);
-                        _sum1 = __lsx_vshuf4i_w(_sum1, 147);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                     }
                 }
 
