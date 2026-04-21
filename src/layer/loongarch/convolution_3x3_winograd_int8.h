@@ -310,6 +310,163 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const short* pB = BT_tile.row<const short>(b);
 
             int jj = 0;
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                const short* pA = pAT;
+
+                __m256i _sum0;
+                __m256i _sum1;
+                __m256i _sum2;
+                __m256i _sum3;
+                __m256i _sum4;
+                __m256i _sum5;
+                __m256i _sum6;
+                __m256i _sum7;
+
+                if (k == 0)
+                {
+                    _sum0 = __lasx_xvldi(0);
+                    _sum1 = __lasx_xvldi(0);
+                    _sum2 = __lasx_xvldi(0);
+                    _sum3 = __lasx_xvldi(0);
+                    _sum4 = __lasx_xvldi(0);
+                    _sum5 = __lasx_xvldi(0);
+                    _sum6 = __lasx_xvldi(0);
+                    _sum7 = __lasx_xvldi(0);
+                }
+                else
+                {
+                    _sum0 = __lasx_xvld(outptr, 0);
+                    _sum1 = __lasx_xvld(outptr + 8, 0);
+                    _sum2 = __lasx_xvld(outptr + 16, 0);
+                    _sum3 = __lasx_xvld(outptr + 24, 0);
+                    _sum4 = __lasx_xvld(outptr + 32, 0);
+                    _sum5 = __lasx_xvld(outptr + 40, 0);
+                    _sum6 = __lasx_xvld(outptr + 48, 0);
+                    _sum7 = __lasx_xvld(outptr + 56, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m256i _pA0 = __lasx_xvld(pA, 0);
+                    __m256i _pB0 = __lasx_xvld(pB, 0);
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 78);
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
+                    __m256i _pB2 = __lasx_xvshuf4i_w(_pB0, 78);
+                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, 147);
+
+                    _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB0), __lasx_xvmulwod_w_h(_pA0, _pB0)));
+                    _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB1), __lasx_xvmulwod_w_h(_pA0, _pB1)));
+                    _sum2 = __lasx_xvadd_w(_sum2, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB2), __lasx_xvmulwod_w_h(_pA0, _pB2)));
+                    _sum3 = __lasx_xvadd_w(_sum3, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB3), __lasx_xvmulwod_w_h(_pA0, _pB3)));
+                    _sum4 = __lasx_xvadd_w(_sum4, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA1, _pB0), __lasx_xvmulwod_w_h(_pA1, _pB0)));
+                    _sum5 = __lasx_xvadd_w(_sum5, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA1, _pB1), __lasx_xvmulwod_w_h(_pA1, _pB1)));
+                    _sum6 = __lasx_xvadd_w(_sum6, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA1, _pB2), __lasx_xvmulwod_w_h(_pA1, _pB2)));
+                    _sum7 = __lasx_xvadd_w(_sum7, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA1, _pB3), __lasx_xvmulwod_w_h(_pA1, _pB3)));
+
+                    pA += 16;
+                    pB += 16;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
+                    __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pB, 0)));
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 78);
+                    __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
+                    __m256i _pB2 = __lasx_xvpermi_d(_pB0, 177);
+                    __m256i _pB3 = __lasx_xvshuf4i_w(_pB0, 147);
+
+                    _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvmul_w(_pA0, _pB0));
+                    _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvmul_w(_pA0, _pB1));
+                    _sum2 = __lasx_xvadd_w(_sum2, __lasx_xvmul_w(_pA0, _pB2));
+                    _sum3 = __lasx_xvadd_w(_sum3, __lasx_xvmul_w(_pA0, _pB3));
+                    _sum4 = __lasx_xvadd_w(_sum4, __lasx_xvmul_w(_pA1, _pB0));
+                    _sum5 = __lasx_xvadd_w(_sum5, __lasx_xvmul_w(_pA1, _pB1));
+                    _sum6 = __lasx_xvadd_w(_sum6, __lasx_xvmul_w(_pA1, _pB2));
+                    _sum7 = __lasx_xvadd_w(_sum7, __lasx_xvmul_w(_pA1, _pB3));
+
+                    pA += 8;
+                    pB += 8;
+                }
+
+                if (k_end)
+                {
+                    // from
+                    //      00 11 22 33 44 55 66 77
+                    //      01 12 23 30 45 56 67 74
+                    //      02 13 20 31 46 57 64 75
+                    //      03 10 21 32 47 54 65 76
+                    //      40 51 62 73 04 15 26 37
+                    //      41 52 63 70 05 16 27 34
+                    //      42 53 60 71 06 17 24 35
+                    //      43 50 61 72 07 14 25 36
+                    // to
+                    //      00 10 20 30 44 54 64 74
+                    //      01 11 21 31 45 55 65 75
+                    //      02 12 22 32 46 56 66 76
+                    //      03 13 23 33 47 57 67 77
+                    //      40 50 60 70 04 14 24 34
+                    //      41 51 61 71 05 15 25 35
+                    //      42 52 62 72 06 16 26 36
+                    //      43 53 63 73 07 17 27 37
+                    {
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
+                        _sum2 = __lasx_xvshuf4i_w(_sum2, 78);
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, 57);
+                        _sum5 = __lasx_xvshuf4i_w(_sum5, 147);
+                        _sum6 = __lasx_xvshuf4i_w(_sum6, 78);
+                        _sum7 = __lasx_xvshuf4i_w(_sum7, 57);
+                        __m256i _tmp0 = __lasx_xvilvl_w(_sum3, _sum0);
+                        __m256i _tmp1 = __lasx_xvilvh_w(_sum3, _sum0);
+                        __m256i _tmp2 = __lasx_xvilvl_w(_sum1, _sum2);
+                        __m256i _tmp3 = __lasx_xvilvh_w(_sum1, _sum2);
+                        __m256i _tmp4 = __lasx_xvilvl_w(_sum7, _sum4);
+                        __m256i _tmp5 = __lasx_xvilvh_w(_sum7, _sum4);
+                        __m256i _tmp6 = __lasx_xvilvl_w(_sum5, _sum6);
+                        __m256i _tmp7 = __lasx_xvilvh_w(_sum5, _sum6);
+                        _sum0 = __lasx_xvilvl_d(_tmp2, _tmp0);
+                        _sum1 = __lasx_xvilvh_d(_tmp2, _tmp0);
+                        _sum2 = __lasx_xvilvl_d(_tmp1, _tmp3);
+                        _sum3 = __lasx_xvilvh_d(_tmp1, _tmp3);
+                        _sum4 = __lasx_xvilvl_d(_tmp6, _tmp4);
+                        _sum5 = __lasx_xvilvh_d(_tmp6, _tmp4);
+                        _sum6 = __lasx_xvilvl_d(_tmp5, _tmp7);
+                        _sum7 = __lasx_xvilvh_d(_tmp5, _tmp7);
+                        _sum1 = __lasx_xvshuf4i_w(_sum1, 147);
+                        _sum3 = __lasx_xvshuf4i_w(_sum3, 147);
+                        _sum5 = __lasx_xvshuf4i_w(_sum5, 147);
+                        _sum7 = __lasx_xvshuf4i_w(_sum7, 147);
+                    }
+
+                    __m256i _tmp0 = __lasx_xvpermi_q(_sum0, _sum4, 0x02);
+                    __m256i _tmp1 = __lasx_xvpermi_q(_sum1, _sum5, 0x02);
+                    __m256i _tmp2 = __lasx_xvpermi_q(_sum2, _sum6, 0x02);
+                    __m256i _tmp3 = __lasx_xvpermi_q(_sum3, _sum7, 0x02);
+                    __m256i _tmp4 = __lasx_xvpermi_q(_sum4, _sum0, 0x13);
+                    __m256i _tmp5 = __lasx_xvpermi_q(_sum5, _sum1, 0x13);
+                    __m256i _tmp6 = __lasx_xvpermi_q(_sum6, _sum2, 0x13);
+                    __m256i _tmp7 = __lasx_xvpermi_q(_sum7, _sum3, 0x13);
+                    _sum0 = _tmp0;
+                    _sum1 = _tmp1;
+                    _sum2 = _tmp2;
+                    _sum3 = _tmp3;
+                    _sum4 = _tmp4;
+                    _sum5 = _tmp5;
+                    _sum6 = _tmp6;
+                    _sum7 = _tmp7;
+                }
+
+                __lasx_xvst(_sum0, outptr, 0);
+                __lasx_xvst(_sum1, outptr + 8, 0);
+                __lasx_xvst(_sum2, outptr + 16, 0);
+                __lasx_xvst(_sum3, outptr + 24, 0);
+                __lasx_xvst(_sum4, outptr + 32, 0);
+                __lasx_xvst(_sum5, outptr + 40, 0);
+                __lasx_xvst(_sum6, outptr + 48, 0);
+                __lasx_xvst(_sum7, outptr + 56, 0);
+                outptr += 64;
+            }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const short* pA = pAT;
@@ -355,7 +512,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
                     __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vldrepl_d(pB, 0)));
-                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 78);
+                    __m256i _pA1 = __lasx_xvpermi_d(_pA0, 177);
                     __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, 57);
 
                     __m256i _s0 = __lasx_xvmul_w(_pA0, _pB0);
@@ -1489,274 +1646,8 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
     int nn_max_kk = 0;
     int remain_max_kk_start = 0;
 #if __loongarch_sx
-#if __loongarch_asx
-    nn_max_kk = (max_kk - remain_max_kk_start) / 16;
-    #pragma omp parallel for num_threads(nT)
-    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
-    {
-        const int kk = remain_max_kk_start + ppkk * 16;
-
-        __attribute__((aligned(32))) short tmp[4][4][16];
-
-        int jj = 0;
-        for (; jj < max_jj; jj++)
-        {
-            int ti = (j + jj) / w_tiles;
-            int tj = (j + jj) % w_tiles;
-
-            const signed char* r0 = bottom_blob.channel((k + kk) / elempack).row<const signed char>(ti * 2) + (tj * 2) * elempack;
-
-            for (int m = 0; m < 4; m++)
-            {
-                __m256i _r0 = __lasx_xvldi(0);
-                __m256i _r1 = __lasx_xvldi(0);
-                __m256i _r2 = __lasx_xvldi(0);
-                __m256i _r3 = __lasx_xvldi(0);
-
-                if (ti * 2 + m < h)
-                {
-                    if (elempack == 8)
-                    {
-                        const signed char* r1 = r0 + N;
-
-                        __m128i _t0 = __lsx_vld(r0, 0);
-                        __m128i _t1 = __lsx_vld(r1, 0);
-                        __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                        _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        if (tj * 2 + 1 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 8, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 8, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 2 + 2 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 16, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 16, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 2 + 3 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 24, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 24, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                    }
-                    if (elempack == 1)
-                    {
-                        const signed char* r1 = r0 + N;
-                        const signed char* r2 = r0 + N * 2;
-                        const signed char* r3 = r0 + N * 3;
-                        const signed char* r4 = r0 + N * 4;
-                        const signed char* r5 = r0 + N * 5;
-                        const signed char* r6 = r0 + N * 6;
-                        const signed char* r7 = r0 + N * 7;
-                        const signed char* r8 = r0 + N * 8;
-                        const signed char* r9 = r0 + N * 9;
-                        const signed char* ra = r0 + N * 10;
-                        const signed char* rb = r0 + N * 11;
-                        const signed char* rc = r0 + N * 12;
-                        const signed char* rd = r0 + N * 13;
-                        const signed char* re = r0 + N * 14;
-                        const signed char* rf = r0 + N * 15;
-
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 0, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 0, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 0, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 0, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 0, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 0, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 0, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 0, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 0, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 0, 0);
-                            __m128i _ta = __lsx_vld(ra + 0, 0);
-                            __m128i _tb = __lsx_vld(rb + 0, 0);
-                            __m128i _tc = __lsx_vld(rc + 0, 0);
-                            __m128i _td = __lsx_vld(rd + 0, 0);
-                            __m128i _te = __lsx_vld(re + 0, 0);
-                            __m128i _tf = __lsx_vld(rf + 0, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 2 + 1 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 1, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 1, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 1, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 1, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 1, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 1, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 1, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 1, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 1, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 1, 0);
-                            __m128i _ta = __lsx_vld(ra + 1, 0);
-                            __m128i _tb = __lsx_vld(rb + 1, 0);
-                            __m128i _tc = __lsx_vld(rc + 1, 0);
-                            __m128i _td = __lsx_vld(rd + 1, 0);
-                            __m128i _te = __lsx_vld(re + 1, 0);
-                            __m128i _tf = __lsx_vld(rf + 1, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 2 + 2 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 2, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 2, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 2, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 2, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 2, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 2, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 2, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 2, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 2, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 2, 0);
-                            __m128i _ta = __lsx_vld(ra + 2, 0);
-                            __m128i _tb = __lsx_vld(rb + 2, 0);
-                            __m128i _tc = __lsx_vld(rc + 2, 0);
-                            __m128i _td = __lsx_vld(rd + 2, 0);
-                            __m128i _te = __lsx_vld(re + 2, 0);
-                            __m128i _tf = __lsx_vld(rf + 2, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 2 + 3 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 3, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 3, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 3, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 3, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 3, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 3, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 3, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 3, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 3, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 3, 0);
-                            __m128i _ta = __lsx_vld(ra + 3, 0);
-                            __m128i _tb = __lsx_vld(rb + 3, 0);
-                            __m128i _tc = __lsx_vld(rc + 3, 0);
-                            __m128i _td = __lsx_vld(rd + 3, 0);
-                            __m128i _te = __lsx_vld(re + 3, 0);
-                            __m128i _tf = __lsx_vld(rf + 3, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                    }
-                }
-
-                __m256i _tmp0 = __lasx_xvsub_h(_r0, _r2);
-                __m256i _tmp1 = __lasx_xvadd_h(_r1, _r2);
-                __m256i _tmp2 = __lasx_xvsub_h(_r2, _r1);
-                __m256i _tmp3 = __lasx_xvsub_h(_r3, _r1);
-
-                __lasx_xvst(_tmp0, (short*)tmp[0][m], 0);
-                __lasx_xvst(_tmp1, (short*)tmp[1][m], 0);
-                __lasx_xvst(_tmp2, (short*)tmp[2][m], 0);
-                __lasx_xvst(_tmp3, (short*)tmp[3][m], 0);
-
-                r0 += w * elempack;
-            }
-
-            short* p0 = (short*)B + kk * max_jj * 16 + jj * 16;
-            short* p1 = p0 + max_jj * 16 * 1;
-            short* p2 = p0 + max_jj * 16 * 2;
-            short* p3 = p0 + max_jj * 16 * 3;
-
-            for (int m = 0; m < 4; m++)
-            {
-                __m256i _r0 = __lasx_xvld((const __m256i*)tmp[m][0], 0);
-                __m256i _r1 = __lasx_xvld((const __m256i*)tmp[m][1], 0);
-                __m256i _r2 = __lasx_xvld((const __m256i*)tmp[m][2], 0);
-                __m256i _r3 = __lasx_xvld((const __m256i*)tmp[m][3], 0);
-
-                __m256i _tmp0 = __lasx_xvsub_h(_r0, _r2);
-                __m256i _tmp1 = __lasx_xvadd_h(_r1, _r2);
-                __m256i _tmp2 = __lasx_xvsub_h(_r2, _r1);
-                __m256i _tmp3 = __lasx_xvsub_h(_r3, _r1);
-
-                __lasx_xvst(_tmp0, p0, 0);
-                __lasx_xvst(_tmp1, p1, 0);
-                __lasx_xvst(_tmp2, p2, 0);
-                __lasx_xvst(_tmp3, p3, 0);
-
-                p0 += max_jj * 4 * 16;
-                p1 += max_jj * 4 * 16;
-                p2 += max_jj * 4 * 16;
-                p3 += max_jj * 4 * 16;
-            }
-        }
-    }
-    remain_max_kk_start += nn_max_kk * 16;
-    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
-#else // __loongarch_asx
     nn_max_kk = (max_kk - remain_max_kk_start) / 8;
     #pragma omp parallel for num_threads(nT)
-#endif // __loongarch_asx
     for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
         const int kk = remain_max_kk_start + ppkk * 8;
@@ -2622,394 +2513,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
     int nn_max_kk = 0;
     int remain_max_kk_start = 0;
 #if __loongarch_sx
-#if __loongarch_asx
-    nn_max_kk = (max_kk - remain_max_kk_start) / 16;
-    #pragma omp parallel for num_threads(nT)
-    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
-    {
-        const int kk = remain_max_kk_start + ppkk * 16;
-
-        __attribute__((aligned(32))) short tmp[6][6][16];
-
-        int jj = 0;
-        for (; jj < max_jj; jj++)
-        {
-            int ti = (j + jj) / w_tiles;
-            int tj = (j + jj) % w_tiles;
-
-            const signed char* r0 = bottom_blob.channel((k + kk) / elempack).row<const signed char>(ti * 4) + (tj * 4) * elempack;
-
-            for (int m = 0; m < 6; m++)
-            {
-                __m256i _r0 = __lasx_xvldi(0);
-                __m256i _r1 = __lasx_xvldi(0);
-                __m256i _r2 = __lasx_xvldi(0);
-                __m256i _r3 = __lasx_xvldi(0);
-                __m256i _r4 = __lasx_xvldi(0);
-                __m256i _r5 = __lasx_xvldi(0);
-
-                if (ti * 4 + m < h)
-                {
-                    if (elempack == 8)
-                    {
-                        const signed char* r1 = r0 + N;
-
-                        __m128i _t0 = __lsx_vld(r0, 0);
-                        __m128i _t1 = __lsx_vld(r1, 0);
-                        __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                        _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        if (tj * 4 + 1 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 8, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 8, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 4 + 2 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 16, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 16, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 4 + 3 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 24, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 24, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 4 + 4 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 32, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 32, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r4 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                        if (tj * 4 + 5 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 40, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 40, 0);
-                            __m128i _t01 = __lsx_vilvl_d(_t1, _t0);
-                            _r5 = __lasx_xvsext_h_b(__lsx_to_lasx(_t01));
-                        }
-                    }
-                    if (elempack == 1)
-                    {
-                        const signed char* r1 = r0 + N;
-                        const signed char* r2 = r0 + N * 2;
-                        const signed char* r3 = r0 + N * 3;
-                        const signed char* r4 = r0 + N * 4;
-                        const signed char* r5 = r0 + N * 5;
-                        const signed char* r6 = r0 + N * 6;
-                        const signed char* r7 = r0 + N * 7;
-                        const signed char* r8 = r0 + N * 8;
-                        const signed char* r9 = r0 + N * 9;
-                        const signed char* ra = r0 + N * 10;
-                        const signed char* rb = r0 + N * 11;
-                        const signed char* rc = r0 + N * 12;
-                        const signed char* rd = r0 + N * 13;
-                        const signed char* re = r0 + N * 14;
-                        const signed char* rf = r0 + N * 15;
-
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 0, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 0, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 0, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 0, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 0, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 0, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 0, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 0, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 0, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 0, 0);
-                            __m128i _ta = __lsx_vld(ra + 0, 0);
-                            __m128i _tb = __lsx_vld(rb + 0, 0);
-                            __m128i _tc = __lsx_vld(rc + 0, 0);
-                            __m128i _td = __lsx_vld(rd + 0, 0);
-                            __m128i _te = __lsx_vld(re + 0, 0);
-                            __m128i _tf = __lsx_vld(rf + 0, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r0 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 4 + 1 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 1, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 1, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 1, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 1, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 1, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 1, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 1, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 1, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 1, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 1, 0);
-                            __m128i _ta = __lsx_vld(ra + 1, 0);
-                            __m128i _tb = __lsx_vld(rb + 1, 0);
-                            __m128i _tc = __lsx_vld(rc + 1, 0);
-                            __m128i _td = __lsx_vld(rd + 1, 0);
-                            __m128i _te = __lsx_vld(re + 1, 0);
-                            __m128i _tf = __lsx_vld(rf + 1, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r1 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 4 + 2 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 2, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 2, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 2, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 2, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 2, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 2, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 2, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 2, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 2, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 2, 0);
-                            __m128i _ta = __lsx_vld(ra + 2, 0);
-                            __m128i _tb = __lsx_vld(rb + 2, 0);
-                            __m128i _tc = __lsx_vld(rc + 2, 0);
-                            __m128i _td = __lsx_vld(rd + 2, 0);
-                            __m128i _te = __lsx_vld(re + 2, 0);
-                            __m128i _tf = __lsx_vld(rf + 2, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r2 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 4 + 3 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 3, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 3, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 3, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 3, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 3, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 3, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 3, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 3, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 3, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 3, 0);
-                            __m128i _ta = __lsx_vld(ra + 3, 0);
-                            __m128i _tb = __lsx_vld(rb + 3, 0);
-                            __m128i _tc = __lsx_vld(rc + 3, 0);
-                            __m128i _td = __lsx_vld(rd + 3, 0);
-                            __m128i _te = __lsx_vld(re + 3, 0);
-                            __m128i _tf = __lsx_vld(rf + 3, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r3 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 4 + 4 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 4, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 4, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 4, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 4, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 4, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 4, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 4, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 4, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 4, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 4, 0);
-                            __m128i _ta = __lsx_vld(ra + 4, 0);
-                            __m128i _tb = __lsx_vld(rb + 4, 0);
-                            __m128i _tc = __lsx_vld(rc + 4, 0);
-                            __m128i _td = __lsx_vld(rd + 4, 0);
-                            __m128i _te = __lsx_vld(re + 4, 0);
-                            __m128i _tf = __lsx_vld(rf + 4, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r4 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                        if (tj * 4 + 5 < w)
-                        {
-                            __m128i _t0 = __lsx_vld(r0 + 5, 0);
-                            __m128i _t1 = __lsx_vld(r1 + 5, 0);
-                            __m128i _t2 = __lsx_vld(r2 + 5, 0);
-                            __m128i _t3 = __lsx_vld(r3 + 5, 0);
-                            __m128i _t4 = __lsx_vld(r4 + 5, 0);
-                            __m128i _t5 = __lsx_vld(r5 + 5, 0);
-                            __m128i _t6 = __lsx_vld(r6 + 5, 0);
-                            __m128i _t7 = __lsx_vld(r7 + 5, 0);
-                            __m128i _t8 = __lsx_vld(r8 + 5, 0);
-                            __m128i _t9 = __lsx_vld(r9 + 5, 0);
-                            __m128i _ta = __lsx_vld(ra + 5, 0);
-                            __m128i _tb = __lsx_vld(rb + 5, 0);
-                            __m128i _tc = __lsx_vld(rc + 5, 0);
-                            __m128i _td = __lsx_vld(rd + 5, 0);
-                            __m128i _te = __lsx_vld(re + 5, 0);
-                            __m128i _tf = __lsx_vld(rf + 5, 0);
-
-                            __m128i _t01 = __lsx_vilvl_b(_t1, _t0);
-                            __m128i _t23 = __lsx_vilvl_b(_t3, _t2);
-                            __m128i _t45 = __lsx_vilvl_b(_t5, _t4);
-                            __m128i _t67 = __lsx_vilvl_b(_t7, _t6);
-                            __m128i _t89 = __lsx_vilvl_b(_t9, _t8);
-                            __m128i _tab = __lsx_vilvl_b(_tb, _ta);
-                            __m128i _tcd = __lsx_vilvl_b(_td, _tc);
-                            __m128i _tef = __lsx_vilvl_b(_tf, _te);
-                            __m128i _u0 = __lsx_vilvl_h(_t23, _t01);
-                            __m128i _u1 = __lsx_vilvl_h(_t67, _t45);
-                            __m128i _u2 = __lsx_vilvl_h(_tab, _t89);
-                            __m128i _u3 = __lsx_vilvl_h(_tef, _tcd);
-                            __m128i _v0 = __lsx_vilvl_w(_u1, _u0);
-                            __m128i _v1 = __lsx_vilvl_w(_u3, _u2);
-                            __m128i _val = __lsx_vilvl_d(_v1, _v0);
-                            _r5 = __lasx_xvsext_h_b(__lsx_to_lasx(_val));
-                        }
-                    }
-                }
-
-                __m256i _v4 = __lasx_xvreplgr2vr_h(4);
-                __m256i _v5 = __lasx_xvreplgr2vr_h(5);
-                __m256i _v2 = __lasx_xvreplgr2vr_h(2);
-
-                __m256i _tmp12a = __lasx_xvsub_h(_r3, __lasx_xvmul_h(_r1, _v4));
-                __m256i _tmp12b = __lasx_xvsub_h(_r4, __lasx_xvmul_h(_r2, _v4));
-                __m256i _tmp34a = __lasx_xvmul_h(__lasx_xvsub_h(_r3, _r1), _v2);
-                __m256i _tmp34b = __lasx_xvsub_h(_r4, _r2);
-
-                __m256i _tmp0 = __lasx_xvadd_h(_r4, __lasx_xvsub_h(__lasx_xvmul_h(_r0, _v4), __lasx_xvmul_h(_r2, _v5)));
-                __m256i _tmp1 = __lasx_xvadd_h(_tmp12b, _tmp12a);
-                __m256i _tmp2 = __lasx_xvsub_h(_tmp12b, _tmp12a);
-                __m256i _tmp3 = __lasx_xvadd_h(_tmp34b, _tmp34a);
-                __m256i _tmp4 = __lasx_xvsub_h(_tmp34b, _tmp34a);
-                __m256i _tmp5 = __lasx_xvadd_h(_r5, __lasx_xvsub_h(__lasx_xvmul_h(_r1, _v4), __lasx_xvmul_h(_r3, _v5)));
-
-                __lasx_xvst(_tmp0, (short*)tmp[0][m], 0);
-                __lasx_xvst(_tmp1, (short*)tmp[1][m], 0);
-                __lasx_xvst(_tmp2, (short*)tmp[2][m], 0);
-                __lasx_xvst(_tmp3, (short*)tmp[3][m], 0);
-                __lasx_xvst(_tmp4, (short*)tmp[4][m], 0);
-                __lasx_xvst(_tmp5, (short*)tmp[5][m], 0);
-
-                r0 += w * elempack;
-            }
-
-            short* p0 = (short*)B + kk * max_jj * 36 + jj * 16;
-            short* p1 = p0 + max_jj * 16 * 1;
-            short* p2 = p0 + max_jj * 16 * 2;
-            short* p3 = p0 + max_jj * 16 * 3;
-            short* p4 = p0 + max_jj * 16 * 4;
-            short* p5 = p0 + max_jj * 16 * 5;
-
-            for (int m = 0; m < 6; m++)
-            {
-                __m256i _r0 = __lasx_xvld((const __m256i*)tmp[m][0], 0);
-                __m256i _r1 = __lasx_xvld((const __m256i*)tmp[m][1], 0);
-                __m256i _r2 = __lasx_xvld((const __m256i*)tmp[m][2], 0);
-                __m256i _r3 = __lasx_xvld((const __m256i*)tmp[m][3], 0);
-                __m256i _r4 = __lasx_xvld((const __m256i*)tmp[m][4], 0);
-                __m256i _r5 = __lasx_xvld((const __m256i*)tmp[m][5], 0);
-
-                __m256i _v4 = __lasx_xvreplgr2vr_h(4);
-                __m256i _v5 = __lasx_xvreplgr2vr_h(5);
-                __m256i _v2 = __lasx_xvreplgr2vr_h(2);
-
-                __m256i _tmp12a = __lasx_xvsub_h(_r3, __lasx_xvmul_h(_r1, _v4));
-                __m256i _tmp12b = __lasx_xvsub_h(_r4, __lasx_xvmul_h(_r2, _v4));
-                __m256i _tmp34a = __lasx_xvmul_h(__lasx_xvsub_h(_r3, _r1), _v2);
-                __m256i _tmp34b = __lasx_xvsub_h(_r4, _r2);
-
-                __m256i _tmp0 = __lasx_xvadd_h(_r4, __lasx_xvsub_h(__lasx_xvmul_h(_r0, _v4), __lasx_xvmul_h(_r2, _v5)));
-                __m256i _tmp1 = __lasx_xvadd_h(_tmp12b, _tmp12a);
-                __m256i _tmp2 = __lasx_xvsub_h(_tmp12b, _tmp12a);
-                __m256i _tmp3 = __lasx_xvadd_h(_tmp34b, _tmp34a);
-                __m256i _tmp4 = __lasx_xvsub_h(_tmp34b, _tmp34a);
-                __m256i _tmp5 = __lasx_xvadd_h(_r5, __lasx_xvsub_h(__lasx_xvmul_h(_r1, _v4), __lasx_xvmul_h(_r3, _v5)));
-
-                __lasx_xvst(_tmp0, p0, 0);
-                __lasx_xvst(_tmp1, p1, 0);
-                __lasx_xvst(_tmp2, p2, 0);
-                __lasx_xvst(_tmp3, p3, 0);
-                __lasx_xvst(_tmp4, p4, 0);
-                __lasx_xvst(_tmp5, p5, 0);
-
-                p0 += max_jj * 6 * 16;
-                p1 += max_jj * 6 * 16;
-                p2 += max_jj * 6 * 16;
-                p3 += max_jj * 6 * 16;
-                p4 += max_jj * 6 * 16;
-                p5 += max_jj * 6 * 16;
-            }
-        }
-    }
-    remain_max_kk_start += nn_max_kk * 16;
-    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
-#else // __loongarch_asx
     nn_max_kk = (max_kk - remain_max_kk_start) / 8;
     #pragma omp parallel for num_threads(nT)
-#endif // __loongarch_asx
     for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
         const int kk = remain_max_kk_start + ppkk * 8;
