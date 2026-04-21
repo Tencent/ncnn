@@ -57,41 +57,53 @@ static NCNN_FORCEINLINE __m128 __lsx_extract_lo128f(__m128 v)
 static NCNN_FORCEINLINE __m256 __ncnn_lsx_to_lasx(__m128 v)
 {
     __m256 dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
 static NCNN_FORCEINLINE __m256d __ncnn_lsx_to_lasx(__m128d v)
 {
     __m256d dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
 static NCNN_FORCEINLINE __m256i __ncnn_lsx_to_lasx(__m128i v)
 {
     __m256i dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
 static NCNN_FORCEINLINE __m128 __ncnn_lasx_to_lsx(__m256 v)
 {
     __m128 dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
 static NCNN_FORCEINLINE __m128d __ncnn_lasx_to_lsx(__m256d v)
 {
     __m128d dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
 static NCNN_FORCEINLINE __m128i __ncnn_lasx_to_lsx(__m256i v)
 {
     __m128i dest;
-    __asm__("" : "=f"(dest) : "0"(v));
+    __asm__(""
+            : "=f"(dest)
+            : "0"(v));
     return dest;
 }
-#define __lsx_to_lasx(v) __ncnn_lsx_to_lasx((v))
-#define __lasx_to_lsx(v) __ncnn_lasx_to_lsx((v))
+#define __lsx_to_lasx(v)  __ncnn_lsx_to_lasx((v))
+#define __lasx_to_lsx(v)  __ncnn_lasx_to_lsx((v))
 #define __lasx_xvsext_h_b __lasx_vext2xv_h_b
 #define __lasx_xvsext_w_h __lasx_vext2xv_w_h
 #define __lasx_xvsext_d_w __lasx_vext2xv_d_w
