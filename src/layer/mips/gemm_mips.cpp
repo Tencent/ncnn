@@ -18,6 +18,10 @@ Gemm_mips::Gemm_mips()
     support_packing = true;
 #endif // __mips_msa
 
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+
     nT = 0;
 }
 
@@ -191,6 +195,565 @@ static void add_matrix_C_fp32(const Mat& C, Mat& top_blob, int output_transpose)
         }
     }
 }
+
+static NCNN_FORCEINLINE float get_matrix_element_fp32_scalar(const Mat& m, int row, int col)
+{
+    const int elempack = m.elempack;
+    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
+
+    return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
+}
+
+#if NCNN_BF16
+static NCNN_FORCEINLINE unsigned short get_matrix_element_bf16_scalar(const Mat& m, int row, int col)
+{
+    const int elempack = m.elempack;
+    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
+
+    return ((const unsigned short*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
+}
+#endif
+
+static NCNN_FORCEINLINE float get_vector_element_fp32_scalar(const Mat& m, int idx)
+{
+    const int elempack = m.elempack;
+
+    if (m.dims == 1)
+        return ((const float*)m)[(size_t)(idx / elempack) * elempack + idx % elempack];
+
+    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
+    return ((const float*)m)[(size_t)(idx / elempack) * hstep * elempack + idx % elempack];
+}
+
+static NCNN_FORCEINLINE float get_broadcast_value_fp32_scalar(const Mat& C, int broadcast_type_C, int row, int col)
+{
+    if (C.empty())
+        return 0.f;
+
+    if (broadcast_type_C == 0)
+        return ((const float*)C)[0];
+
+    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+        return C.dims == 1 ? get_vector_element_fp32_scalar(C, row) : get_matrix_element_fp32_scalar(C, row, 0);
+
+    if (broadcast_type_C == 3)
+        return get_matrix_element_fp32_scalar(C, row, col);
+
+    return C.dims == 1 ? get_vector_element_fp32_scalar(C, col) : get_matrix_element_fp32_scalar(C, 0, col);
+}
+
+static NCNN_FORCEINLINE void set_output_element_fp32_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
+{
+    const int out_elempack = top_blob.elempack;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
+
+    size_t offset;
+    if (output_transpose)
+        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
+    else
+        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
+
+    ((float*)top_blob)[offset] = v;
+}
+
+#if NCNN_BF16
+static NCNN_FORCEINLINE void set_output_element_bf16_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
+{
+    const int out_elempack = top_blob.elempack;
+    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
+
+    size_t offset;
+    if (output_transpose)
+        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
+    else
+        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
+
+    ((unsigned short*)top_blob)[offset] = float32_to_bfloat16(v);
+}
+#endif
+
+static void pack_A_tile_fp32_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
+{
+    float* pp = AT;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[ii * tile_k + kk] = get_matrix_element_fp32_scalar(A, i + ii, k + kk);
+        }
+    }
+}
+
+static void transpose_pack_A_tile_fp32_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
+{
+    float* pp = AT;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[ii * tile_k + kk] = get_matrix_element_fp32_scalar(A, k + kk, i + ii);
+        }
+    }
+}
+
+static void pack_B_tile_fp32_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
+{
+    float* pp = BT;
+
+    for (int jj = 0; jj < max_jj; jj++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[jj * tile_k + kk] = get_matrix_element_fp32_scalar(B, j + jj, k + kk);
+        }
+    }
+}
+
+static void transpose_pack_B_tile_fp32_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
+{
+    float* pp = BT;
+
+    for (int jj = 0; jj < max_jj; jj++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[jj * tile_k + kk] = get_matrix_element_fp32_scalar(B, k + kk, j + jj);
+        }
+    }
+}
+
+#if NCNN_BF16
+static NCNN_FORCEINLINE unsigned short get_matrix_element_bf16_or_convert_scalar(const Mat& m, int row, int col)
+{
+    return m.elembits() == 16 ? get_matrix_element_bf16_scalar(m, row, col) : float32_to_bfloat16(get_matrix_element_fp32_scalar(m, row, col));
+}
+
+static void pack_A_tile_bf16_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
+{
+    unsigned short* pp = AT;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[ii * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(A, i + ii, k + kk);
+        }
+    }
+}
+
+static void transpose_pack_A_tile_bf16_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
+{
+    unsigned short* pp = AT;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[ii * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(A, k + kk, i + ii);
+        }
+    }
+}
+
+static void pack_B_tile_bf16_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
+{
+    unsigned short* pp = BT;
+
+    for (int jj = 0; jj < max_jj; jj++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[jj * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(B, j + jj, k + kk);
+        }
+    }
+}
+
+static void transpose_pack_B_tile_bf16_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
+{
+    unsigned short* pp = BT;
+
+    for (int jj = 0; jj < max_jj; jj++)
+    {
+        for (int kk = 0; kk < max_kk; kk++)
+        {
+            pp[jj * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(B, k + kk, j + jj);
+        }
+    }
+}
+#endif
+
+static void gemm_transB_tile_fp32_scalar(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& topT_tile, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, int tile_n, int tile_k)
+{
+    const float* pAT = AT_tile;
+    const float* pBT = BT_tile;
+    float* outptr = topT_tile;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int jj = 0; jj < max_jj; jj++)
+        {
+            float sum = k == 0 ? get_broadcast_value_fp32_scalar(C, broadcast_type_C, i + ii, j + jj) : outptr[ii * tile_n + jj];
+
+            const float* pA = pAT + ii * tile_k;
+            const float* pB = pBT + jj * tile_k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                sum += pA[kk] * pB[kk];
+            }
+
+            outptr[ii * tile_n + jj] = sum;
+        }
+    }
+}
+
+#if NCNN_BF16
+static void gemm_transB_tile_bf16_scalar(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& topT_tile, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, int tile_n, int tile_k)
+{
+    const unsigned short* pAT = AT_tile;
+    const unsigned short* pBT = BT_tile;
+    float* outptr = topT_tile;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int jj = 0; jj < max_jj; jj++)
+        {
+            float sum = k == 0 ? get_broadcast_value_fp32_scalar(C, broadcast_type_C, i + ii, j + jj) : outptr[ii * tile_n + jj];
+
+            const unsigned short* pA = pAT + ii * tile_k;
+            const unsigned short* pB = pBT + jj * tile_k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                sum += bfloat16_to_float32(pA[kk]) * bfloat16_to_float32(pB[kk]);
+            }
+
+            outptr[ii * tile_n + jj] = sum;
+        }
+    }
+}
+#endif
+
+static void store_output_tile_fp32_scalar(const Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int tile_n, int output_transpose, float alpha)
+{
+    const float* ptr = topT_tile;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int jj = 0; jj < max_jj; jj++)
+        {
+            set_output_element_fp32_scalar(top_blob, i + ii, j + jj, ptr[ii * tile_n + jj] * alpha, output_transpose);
+        }
+    }
+}
+
+#if NCNN_BF16
+static void store_output_tile_bf16_scalar(const Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int tile_n, int output_transpose, float alpha, int output_elemtype)
+{
+    const float* ptr = topT_tile;
+
+    for (int ii = 0; ii < max_ii; ii++)
+    {
+        for (int jj = 0; jj < max_jj; jj++)
+        {
+            const float v = ptr[ii * tile_n + jj] * alpha;
+
+            if (output_elemtype == 1)
+                set_output_element_fp32_scalar(top_blob, i + ii, j + jj, v, output_transpose);
+            else
+                set_output_element_bf16_scalar(top_blob, i + ii, j + jj, v, output_transpose);
+        }
+    }
+}
+#endif
+
+static void get_optimal_tile_mnk_scalar(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+{
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
+    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
+
+    TILE_M = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 12 * 12);
+    TILE_K = std::max(4, tile_size / 4 * 4);
+
+    if (K > 0)
+    {
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+
+        if (nn_K == 1)
+        {
+            tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
+            TILE_M = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 12 * 12);
+        }
+    }
+
+    TILE_M *= std::min(nT, get_physical_cpu_count());
+
+    if (M > 0)
+    {
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+    }
+
+    if (N > 0)
+    {
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+    }
+
+    if (nT > 1)
+    {
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+    }
+
+    if (constant_TILE_M > 0)
+        TILE_M = (constant_TILE_M + 3) / 4 * 4;
+    if (constant_TILE_N > 0)
+        TILE_N = (constant_TILE_N + 11) / 12 * 12;
+    if (constant_TILE_K > 0)
+        TILE_K = (constant_TILE_K + 3) / 4 * 4;
+}
+
+static bool support_fp32_tiled_gemm_scalar(const Mat& A, const Mat& B, int output_elempack)
+{
+    if (A.elembits() != 32 || B.elembits() != 32)
+        return false;
+
+#if __mips_msa
+    if (A.elempack != 1 && A.elempack != 4)
+        return false;
+    if (B.elempack != 1 && B.elempack != 4)
+        return false;
+    if (output_elempack != 0 && output_elempack != 1 && output_elempack != 4)
+        return false;
+#else
+    if (A.elempack != 1 || B.elempack != 1)
+        return false;
+    if (output_elempack != 0 && output_elempack != 1)
+        return false;
+#endif
+
+    return true;
+}
+
+#if NCNN_BF16
+static bool support_bf16_tiled_gemm_scalar(const Mat& A, const Mat& B, int output_elempack)
+{
+    if ((A.elembits() != 16 && A.elembits() != 32) || (B.elembits() != 16 && B.elembits() != 32))
+        return false;
+
+#if __mips_msa
+    if (A.elempack != 1 && A.elempack != 4)
+        return false;
+    if (B.elempack != 1 && B.elempack != 4)
+        return false;
+    if (output_elempack != 0 && output_elempack != 1 && output_elempack != 4)
+        return false;
+#else
+    if (A.elempack != 1 || B.elempack != 1)
+        return false;
+    if (output_elempack != 0 && output_elempack != 1)
+        return false;
+#endif
+
+    return true;
+}
+#endif
+
+static int gemm_tiled_fp32_scalar(const Mat& A, const Mat& B, const Mat& AT_data, const Mat& BT_data, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    int TILE_M;
+    int TILE_N;
+    int TILE_K;
+    get_optimal_tile_mnk_scalar(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat ATX;
+    if (AT_data.empty())
+    {
+        ATX.create(TILE_K * TILE_M, nn_K, nT, 4u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+    }
+
+    Mat BTX = BT_data;
+    if (BTX.empty())
+    {
+        BTX.create(TILE_K * TILE_N, nn_K, nn_N, 4u, opt.workspace_allocator);
+        if (BTX.empty())
+            return -100;
+
+        const int nn_NK = nn_N * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+            const int max_jj = std::min(N - j, TILE_N);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat BT_tile = BTX.channel(ppj).row_range(ppk, 1);
+            if (transB)
+                pack_B_tile_fp32_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
+            else
+                transpose_pack_B_tile_fp32_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
+        }
+    }
+
+    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+        const int max_ii = std::min(M - i, TILE_M);
+        Mat topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min(N - j, TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+
+                Mat AT_tile;
+                if (AT_data.empty())
+                {
+                    AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                    if (j == 0)
+                    {
+                        if (transA)
+                            transpose_pack_A_tile_fp32_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
+                        else
+                            pack_A_tile_fp32_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
+                    }
+                }
+                else
+                {
+                    AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+                }
+
+                Mat BT_tile = BTX.channel(j / TILE_N).row_range(k / TILE_K, 1);
+                gemm_transB_tile_fp32_scalar(AT_tile, BT_tile, C, topT_tile, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, TILE_N, TILE_K);
+            }
+
+            store_output_tile_fp32_scalar(topT_tile, top_blob, i, max_ii, j, max_jj, TILE_N, output_transpose, alpha);
+        }
+    }
+
+    return 0;
+}
+
+#if NCNN_BF16
+static int gemm_tiled_bf16s_scalar(const Mat& A, const Mat& B, const Mat& AT_data, const Mat& BT_data, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
+{
+    int TILE_M;
+    int TILE_N;
+    int TILE_K;
+    get_optimal_tile_mnk_scalar(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat ATX;
+    if (AT_data.empty())
+    {
+        ATX.create(TILE_K * TILE_M, nn_K, nT, 2u, opt.workspace_allocator);
+        if (ATX.empty())
+            return -100;
+    }
+
+    Mat BTX = BT_data;
+    if (BTX.empty())
+    {
+        BTX.create(TILE_K * TILE_N, nn_K, nn_N, 2u, opt.workspace_allocator);
+        if (BTX.empty())
+            return -100;
+
+        const int nn_NK = nn_N * nn_K;
+        #pragma omp parallel for num_threads(nT)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+            const int max_jj = std::min(N - j, TILE_N);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat BT_tile = BTX.channel(ppj).row_range(ppk, 1);
+            if (transB)
+                pack_B_tile_bf16_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
+            else
+                transpose_pack_B_tile_bf16_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
+        }
+    }
+
+    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+        const int max_ii = std::min(M - i, TILE_M);
+        Mat topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min(N - j, TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+
+                Mat AT_tile;
+                if (AT_data.empty())
+                {
+                    AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                    if (j == 0)
+                    {
+                        if (transA)
+                            transpose_pack_A_tile_bf16_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
+                        else
+                            pack_A_tile_bf16_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
+                    }
+                }
+                else
+                {
+                    AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+                }
+
+                Mat BT_tile = BTX.channel(j / TILE_N).row_range(k / TILE_K, 1);
+                gemm_transB_tile_bf16_scalar(AT_tile, BT_tile, C, topT_tile, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, TILE_N, TILE_K);
+            }
+
+            store_output_tile_bf16_scalar(topT_tile, top_blob, i, max_ii, j, max_jj, TILE_N, output_transpose, alpha, output_elemtype);
+        }
+    }
+
+    return 0;
+}
+#endif
 
 #if __mips_msa
 static NCNN_FORCEINLINE void transpose4x4_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2, v4f32& _r3)
@@ -3344,7 +3907,6 @@ static int gemm_AT_BT_mips(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_
 
 int Gemm_mips::create_pipeline(const Option& opt)
 {
-#if __mips_msa
     AT_data.release();
     BT_data.release();
     CT_data.release();
@@ -3353,6 +3915,12 @@ int Gemm_mips::create_pipeline(const Option& opt)
     if (int8_scale_term)
         return 0;
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        return create_pipeline_bf16s(opt);
+#endif
+
+#if __mips_msa
     if (constantA && A_data.elembits() == 32 && support_fp32_tiled_gemm(A_data, A_data, output_elempack))
     {
         const int M = constantM;
@@ -3455,7 +4023,103 @@ int Gemm_mips::create_pipeline(const Option& opt)
     if (!AT_data.empty() || !BT_data.empty() || !CT_data.empty())
         nT = opt.num_threads;
 #else
-    (void)opt;
+    if (constantA && support_fp32_tiled_gemm_scalar(A_data, A_data, output_elempack))
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M;
+        int TILE_N;
+        int TILE_K;
+        get_optimal_tile_mnk_scalar(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        AT_data.create(TILE_K * TILE_M, nn_K, nn_M, 4u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat AT_tile = AT_data.channel(ppi).row_range(ppk, 1);
+            if (transA)
+                transpose_pack_A_tile_fp32_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
+            else
+                pack_A_tile_fp32_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
+        }
+    }
+
+    if (constantB && support_fp32_tiled_gemm_scalar(B_data, B_data, output_elempack))
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M;
+        int TILE_N;
+        int TILE_K;
+        get_optimal_tile_mnk_scalar(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        BT_data.create(TILE_K * TILE_N, nn_K, nn_N, 4u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        const int nn_NK = nn_N * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+            const int max_jj = std::min(N - j, TILE_N);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat BT_tile = BT_data.channel(ppj).row_range(ppk, 1);
+            if (transB)
+                pack_B_tile_fp32_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
+            else
+                transpose_pack_B_tile_fp32_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
+        }
+    }
+
+    if (constantC && constant_broadcast_type_C != -1 && C_data.elembits() == 32)
+    {
+        CT_data = C_data;
+
+        if (beta != 1.f)
+        {
+            Mat C2;
+            C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
+
+            const int size = CT_data.total() * CT_data.elempack;
+            for (int i = 0; i < size; i++)
+            {
+                C2[i] = CT_data[i] * beta;
+            }
+
+            CT_data = C2;
+        }
+    }
+
+    if (!AT_data.empty() || !BT_data.empty() || !CT_data.empty())
+        nT = opt.num_threads;
 #endif // __mips_msa
 
     return 0;
@@ -3537,11 +4201,18 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     }
 #endif
 
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
+
 #if __mips_msa
     if (output_elemtype == 0 || output_elemtype == 1)
     {
         Mat A_fp32 = constantA ? A_data : bottom_blobs[0];
         Mat B_fp32 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+        Mat AT_data_fp32 = AT_data.elembits() == 32 ? AT_data : Mat();
+        Mat BT_data_fp32 = BT_data.elembits() == 32 ? BT_data : Mat();
 
         if (support_fp32_tiled_gemm(A_fp32, B_fp32, output_elempack))
         {
@@ -3578,11 +4249,11 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             if (constantC)
             {
                 const bool need_matrix_post = constant_broadcast_type_C == 3 && output_transpose;
-                const Mat& C_src = !need_matrix_post && !CT_data.empty() ? CT_data : C_data;
+                const Mat& C_src = !need_matrix_post && !CT_data.empty() && CT_data.elembits() == 32 ? CT_data : C_data;
                 if (!C_src.empty() && (C_src.elembits() != 32 || (C_src.elempack != 1 && C_src.elempack != 4)))
                     goto fallback_wrapper;
 
-                if (CT_data.empty() || need_matrix_post)
+                if (C_src.data == C_data.data || need_matrix_post)
                 {
                     int ret = prepare_C_fp32(C_src, C, broadcast_type_C, M, N, beta, opt);
                     if (ret != 0)
@@ -3667,21 +4338,21 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             int ret = 0;
             if (constantA && constantB)
             {
-                if (AT_data.empty() || BT_data.empty())
+                if (AT_data_fp32.empty() || BT_data_fp32.empty())
                     goto fallback_wrapper;
-                ret = gemm_AT_BT_mips(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+                ret = gemm_AT_BT_mips(AT_data_fp32, BT_data_fp32, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
             }
             else if (constantA)
             {
-                if (AT_data.empty())
+                if (AT_data_fp32.empty())
                     goto fallback_wrapper;
-                ret = gemm_AT_mips(AT_data, bottom_blobs[0], C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+                ret = gemm_AT_mips(AT_data_fp32, bottom_blobs[0], C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
             }
             else if (constantB)
             {
-                if (BT_data.empty())
+                if (BT_data_fp32.empty())
                     goto fallback_wrapper;
-                ret = gemm_BT_mips(bottom_blobs[0], BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+                ret = gemm_BT_mips(bottom_blobs[0], BT_data_fp32, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
             }
             else
             {
@@ -3711,8 +4382,128 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 #endif // __mips_msa
 
 #if !__mips_msa
-    if (false)
-        goto fallback_wrapper;
+    if (output_elemtype == 0 || output_elemtype == 1)
+    {
+        Mat A_fp32 = constantA ? A_data : bottom_blobs[0];
+        Mat B_fp32 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+        Mat AT_data_fp32 = AT_data.elembits() == 32 ? AT_data : Mat();
+        Mat BT_data_fp32 = BT_data.elembits() == 32 ? BT_data : Mat();
+
+        if (support_fp32_tiled_gemm_scalar(A_fp32, B_fp32, output_elempack))
+        {
+            int M;
+            int N;
+            if (constantA && constantB)
+            {
+                M = constantM;
+                N = constantN;
+            }
+            else if (constantA)
+            {
+                const Mat& B = bottom_blobs[0];
+                M = constantM;
+                N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+            }
+            else if (constantB)
+            {
+                const Mat& A = bottom_blobs[0];
+                M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+                N = constantN;
+            }
+            else
+            {
+                const Mat& A = bottom_blobs[0];
+                const Mat& B = bottom_blobs[1];
+                M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+                N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+            }
+
+            Mat C;
+            int broadcast_type_C = 0;
+            if (constantC)
+            {
+                const Mat& C_src = !CT_data.empty() && CT_data.elembits() == 32 ? CT_data : C_data;
+                if (!C_src.empty() && C_src.elembits() != 32)
+                    goto fallback_wrapper;
+
+                if (C_src.data == C_data.data)
+                {
+                    int ret = prepare_C_fp32(C_src, C, broadcast_type_C, M, N, beta, opt);
+                    if (ret != 0)
+                    {
+                        if (ret == -100)
+                            return -100;
+                        goto fallback_wrapper;
+                    }
+                }
+                else
+                {
+                    C = C_src;
+                    broadcast_type_C = constant_broadcast_type_C;
+                }
+            }
+            else
+            {
+                Mat C_src;
+                if (constantA && constantB)
+                    C_src = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+                else if (constantA || constantB)
+                    C_src = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+                else
+                    C_src = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+
+                if (!C_src.empty() && C_src.elembits() != 32)
+                    goto fallback_wrapper;
+
+                int ret = prepare_C_fp32(C_src, C, broadcast_type_C, M, N, beta, opt);
+                if (ret != 0)
+                {
+                    if (ret == -100)
+                        return -100;
+                    goto fallback_wrapper;
+                }
+            }
+
+            int out_elempack = 1;
+            if (output_elempack)
+                out_elempack = output_elempack;
+
+            Mat& top_blob = top_blobs[0];
+            const size_t out_elemsize = 4u * out_elempack;
+            if (output_transpose)
+            {
+                if (output_N1M)
+                    top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                else
+                    top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            }
+            else
+            {
+                if (output_N1M)
+                    top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                else
+                    top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            }
+            if (top_blob.empty())
+                return -100;
+
+            const int _nT = nT ? nT : opt.num_threads;
+            if (nT != 0 && opt.num_threads != nT)
+            {
+                NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+            }
+
+            const Mat& A_src = constantA ? A_data : bottom_blobs[0];
+            const Mat& B_src = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+            const int K_dim = constantA || constantB ? constantK : (transA ? (A_src.dims == 3 ? A_src.c : A_src.h) * A_src.elempack : A_src.w);
+
+            int ret = gemm_tiled_fp32_scalar(A_src, B_src, AT_data_fp32, BT_data_fp32, C, top_blob, broadcast_type_C, M, N, K_dim, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+            if (ret != 0)
+                return ret;
+
+            return 0;
+        }
+    }
 #endif
 
 fallback_wrapper:
@@ -3747,11 +4538,10 @@ fallback_wrapper:
             return ret;
     }
 
-    const Mat& A0 = constantA ? A_data_fp32 : bottom_blobs_fp32[0];
-    const Mat& B0 = constantB ? B_data_fp32 : constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
-
     int out_elempack = 1;
 #if __mips_msa
+    const Mat& A0 = constantA ? A_data_fp32 : bottom_blobs_fp32[0];
+    const Mat& B0 = constantB ? B_data_fp32 : constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
     const int M = transA == 0 ? (A0.dims == 3 ? A0.c : A0.h) : A0.w;
     const int N = transB == 0 ? B0.w : (B0.dims == 3 ? B0.c : B0.h);
     if (output_elempack == 0 && opt.use_packing_layout)
@@ -3806,5 +4596,329 @@ fallback_wrapper:
 
     return assign_or_copy_top_blob(top_blob_final, top_blobs[0]);
 }
+
+#if NCNN_BF16
+static int forward_bf16s_fallback(const Gemm_mips* self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
+{
+    std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
+    {
+        int ret = unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt);
+        if (ret != 0)
+            return ret;
+    }
+
+    Mat A_data_fp32 = self->A_data;
+    Mat B_data_fp32 = self->B_data;
+    Mat C_data_fp32 = self->C_data;
+
+    if (self->constantA)
+    {
+        int ret = unpack_or_cast_to_float32(self->A_data, A_data_fp32, opt);
+        if (ret != 0)
+            return ret;
+    }
+    if (self->constantB)
+    {
+        int ret = unpack_or_cast_to_float32(self->B_data, B_data_fp32, opt);
+        if (ret != 0)
+            return ret;
+    }
+    if (self->constantC && self->constant_broadcast_type_C != -1)
+    {
+        int ret = unpack_or_cast_to_float32(self->C_data, C_data_fp32, opt);
+        if (ret != 0)
+            return ret;
+    }
+
+    Gemm gemm;
+    gemm.alpha = self->alpha;
+    gemm.beta = self->beta;
+    gemm.transA = self->transA;
+    gemm.transB = self->transB;
+    gemm.constantA = self->constantA;
+    gemm.constantB = self->constantB;
+    gemm.constantC = self->constantC;
+    gemm.constantM = self->constantM;
+    gemm.constantN = self->constantN;
+    gemm.constantK = self->constantK;
+    gemm.constant_broadcast_type_C = self->constant_broadcast_type_C;
+    gemm.output_N1M = self->output_N1M;
+    gemm.output_elempack = 1;
+    gemm.output_elemtype = 1;
+    gemm.output_transpose = self->output_transpose;
+    gemm.int8_scale_term = 0;
+    gemm.constant_TILE_M = self->constant_TILE_M;
+    gemm.constant_TILE_N = self->constant_TILE_N;
+    gemm.constant_TILE_K = self->constant_TILE_K;
+    gemm.A_data = A_data_fp32;
+    gemm.B_data = B_data_fp32;
+    gemm.C_data = C_data_fp32;
+
+    std::vector<Mat> top_blobs_unpacked(1);
+    int ret = gemm.forward(bottom_blobs_fp32, top_blobs_unpacked, opt);
+    if (ret != 0)
+        return ret;
+
+    if (self->output_elemtype == 1)
+        return assign_or_copy_top_blob(top_blobs_unpacked[0], top_blobs[0]);
+
+    Mat top_blob_bf16;
+    cast_float32_to_bfloat16(top_blobs_unpacked[0], top_blob_bf16, opt);
+    if (top_blob_bf16.empty())
+        return -100;
+
+    return assign_or_copy_top_blob(top_blob_bf16, top_blobs[0]);
+}
+
+int Gemm_mips::create_pipeline_bf16s(const Option& opt)
+{
+    if (constantA && support_bf16_tiled_gemm_scalar(A_data, A_data, output_elempack))
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M;
+        int TILE_N;
+        int TILE_K;
+        get_optimal_tile_mnk_scalar(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        AT_data.create(TILE_K * TILE_M, nn_K, nn_M, 2u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat AT_tile = AT_data.channel(ppi).row_range(ppk, 1);
+            if (transA)
+                transpose_pack_A_tile_bf16_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
+            else
+                pack_A_tile_bf16_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
+        }
+    }
+
+    if (constantB && support_bf16_tiled_gemm_scalar(B_data, B_data, output_elempack))
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M;
+        int TILE_N;
+        int TILE_K;
+        get_optimal_tile_mnk_scalar(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        BT_data.create(TILE_K * TILE_N, nn_K, nn_N, 2u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        const int nn_NK = nn_N * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+            const int max_jj = std::min(N - j, TILE_N);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat BT_tile = BT_data.channel(ppj).row_range(ppk, 1);
+            if (transB)
+                pack_B_tile_bf16_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
+            else
+                transpose_pack_B_tile_bf16_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
+        }
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        CT_data = C_data;
+
+        if (beta != 1.f)
+        {
+            if (CT_data.elembits() == 16)
+            {
+                Mat C_fp32;
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+                cast_bfloat16_to_float32(CT_data, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+                CT_data = C_fp32;
+            }
+
+            Mat C2;
+            C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
+
+            const int size = CT_data.total() * CT_data.elempack;
+            for (int i = 0; i < size; i++)
+            {
+                C2[i] = CT_data[i] * beta;
+            }
+
+            CT_data = C2;
+        }
+    }
+
+    if (!AT_data.empty() || !BT_data.empty() || !CT_data.empty())
+        nT = opt.num_threads;
+
+    return 0;
+}
+
+int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A_src = constantA ? A_data : bottom_blobs[0];
+    const Mat& B_src = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
+
+    if (!support_bf16_tiled_gemm_scalar(A_src, B_src, output_elempack))
+        return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+
+    int M;
+    int N;
+    if (constantA && constantB)
+    {
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = constantN;
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = CT_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+        else if (constantA || constantB)
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        else
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+
+        if (!C.empty())
+        {
+            broadcast_type_C = resolve_broadcast_type_C(C, M, N);
+
+            if (C.elembits() == 16)
+            {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+                C = C_fp32;
+            }
+            else if (C.elembits() != 32)
+            {
+                return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+            }
+
+            if (beta != 1.f)
+            {
+                Mat C_beta;
+                C_beta.create_like(C, opt.workspace_allocator);
+                if (C_beta.empty())
+                    return -100;
+
+                const int size = C.total() * C.elempack;
+                for (int i = 0; i < size; i++)
+                {
+                    C_beta[i] = C[i] * beta;
+                }
+
+                C = C_beta;
+            }
+        }
+    }
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        const int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+#endif
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    size_t out_elemsize = (output_elemtype == 1 ? 4u : 2u) * out_elempack;
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    const int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
+    const int K_dim = constantA || constantB ? constantK : (transA ? (A_src.dims == 3 ? A_src.c : A_src.h) * A_src.elempack : A_src.w);
+
+    int ret = gemm_tiled_bf16s_scalar(A_src, B_src, AT_data, BT_data, C, top_blob, broadcast_type_C, M, N, K_dim, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+#endif
 
 } // namespace ncnn
