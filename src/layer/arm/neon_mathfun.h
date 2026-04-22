@@ -499,6 +499,45 @@ static inline float32x4_t remainder_ps(const float32x4_t& x, const float32x4_t& 
 
 #include "neon_mathfun_tanh.h"
 
+#define c_erf_threshold 0.927734375f
+
+static inline float32x4_t erf_ps(float32x4_t a)
+{
+    float32x4_t t = vabsq_f32(a);
+    float32x4_t s = vmulq_f32(a, a);
+
+    uint32x4_t large_mask = vcgtq_f32(t, vdupq_n_f32(c_erf_threshold));
+
+    float32x4_t r_large, r_small;
+
+    {
+        r_large = VFMAQ_F32(vdupq_n_f32(3.83197126e-4f), vdupq_n_f32(-1.72853470e-5f), t);
+        float32x4_t u = VFMAQ_F32(vdupq_n_f32(2.42546219e-2f), vdupq_n_f32(-3.88396438e-3f), t);
+        r_large = VFMAQ_F32(u, r_large, s);
+        r_large = VFMAQ_F32(vdupq_n_f32(-1.06777877e-1f), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(-6.34846687e-1f), r_large, t);
+        r_large = VFMAQ_F32(vdupq_n_f32(-1.28717512e-1f), r_large, t);
+        r_large = VFMAQ_F32(vnegq_f32(t), r_large, t);
+        r_large = vsubq_f32(vdupq_n_f32(1.0f), exp_ps(r_large));
+        uint32x4_t sign_mask = vdupq_n_u32(0x80000000u);
+        r_large = vreinterpretq_f32_u32(vbslq_u32(sign_mask, vreinterpretq_u32_f32(a), vreinterpretq_u32_f32(r_large)));
+    }
+
+    {
+        r_small = vdupq_n_f32(-5.96761703e-4f);
+        r_small = VFMAQ_F32(vdupq_n_f32(4.99119423e-3f), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(-2.67681349e-2f), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(1.12819925e-1f), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(-3.76125336e-1f), r_small, s);
+        r_small = VFMAQ_F32(vdupq_n_f32(1.28379166e-1f), r_small, s);
+        r_small = VFMAQ_F32(a, r_small, a);
+    }
+
+    float32x4_t r = vbslq_f32(large_mask, r_large, r_small);
+
+    return r;
+}
+
 // Clean up macros
 #undef VFMAQ_F32
 #undef VFMSQ_F32
