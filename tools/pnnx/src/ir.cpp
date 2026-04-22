@@ -1479,6 +1479,34 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
     fprintf(pyfp, "\n");
 
+    // output custom layer classes for pnnx operators
+    {
+        bool has_topk = false;
+        for (const Operator* op : ops)
+        {
+            if (op->type == "TopK")
+            {
+                has_topk = true;
+                break;
+            }
+        }
+
+        if (has_topk)
+        {
+            fprintf(pyfp, "class TopK(nn.Module):\n");
+            fprintf(pyfp, "    def __init__(self, k=1, axis=1, largest=1, sorted=1):\n");
+            fprintf(pyfp, "        super(TopK, self).__init__()\n");
+            fprintf(pyfp, "        self.k = k\n");
+            fprintf(pyfp, "        self.axis = axis\n");
+            fprintf(pyfp, "        self.largest = largest\n");
+            fprintf(pyfp, "        self.sorted = sorted\n");
+            fprintf(pyfp, "    def forward(self, x):\n");
+            fprintf(pyfp, "        # Torch topk returns (values, indices)\n");
+            fprintf(pyfp, "        return torch.topk(x, self.k, dim=self.axis, largest=bool(self.largest), sorted=bool(self.sorted))\n");
+            fprintf(pyfp, "\n");
+        }
+    }
+
     fprintf(pyfp, "class Model(nn.Module):\n");
     fprintf(pyfp, "    def __init__(self):\n");
     fprintf(pyfp, "        super(Model, self).__init__()\n");
@@ -1602,6 +1630,28 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             }
 
             fprintf(pyfp, ")\n");
+        }
+    }
+
+    // TopK modules
+    {
+        for (const Operator* op : ops)
+        {
+            if (op->type != "TopK")
+                continue;
+
+            // TopK param ids: "0"=axis "1"=largest "2"=sorted "3"=k
+            int k_val = 1;
+            int axis_val = -1;
+            int largest_val = 1;
+            int sorted_val = 1;
+            if (op->params.count("3")) k_val = op->params.at("3").i;
+            if (op->params.count("0")) axis_val = op->params.at("0").i;
+            if (op->params.count("1")) largest_val = op->params.at("1").i;
+            if (op->params.count("2")) sorted_val = op->params.at("2").i;
+
+            fprintf(pyfp, "        self.%s = TopK(k=%d, axis=%d, largest=%d, sorted=%d)\n",
+                    sanitize_identifier(op->name).c_str(), k_val, axis_val, largest_val, sorted_val);
         }
     }
 
@@ -2171,6 +2221,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
+                for (size_t i = 0; i < op->outputs.size(); i++)
+                {
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
+                    if (i + 1 != op->outputs.size())
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                {
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                    if (i + 1 != op->inputs.size())
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "TopK")
+            {
+                // self.topk_name()
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
