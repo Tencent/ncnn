@@ -5659,7 +5659,6 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
                 pack_A_tile_bf16(A_data_bf16, AT_tile, i, max_ii, k, max_kk);
             }
         }
-
     }
 
     if (constantB)
@@ -5705,7 +5704,6 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
                 transpose_pack_B_tile_bf16(B_data_bf16, BT_tile, j, max_jj, k, max_kk);
             }
         }
-
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -5723,14 +5721,13 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
             if (CT_data.empty())
                 return -100;
         }
-
     }
 
     if (constantA || constantB || constantC)
     {
         nT = opt.num_threads;
     }
-#else  // __loongarch_sx
+#else // __loongarch_sx
     if (constantA && support_bf16_tiled_gemm_scalar(A_data, A_data, output_elempack))
     {
         const int M = constantM;

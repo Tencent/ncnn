@@ -4876,7 +4876,8 @@ fallback_wrapper:
 #if __mips_msa && defined(__GNUC__)
 __attribute__((optimize("no-tree-vectorize")))
 #endif
-static int forward_bf16s_fallback(const Gemm_mips* self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
+static int
+forward_bf16s_fallback(const Gemm_mips* self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
 {
     std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
     for (size_t i = 0; i < bottom_blobs.size(); i++)
@@ -5068,7 +5069,6 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
                 pack_A_tile_bf16(A_data_bf16, AT_tile, i, max_ii, k, max_kk);
             }
         }
-
     }
 
     if (constantB)
@@ -5114,7 +5114,6 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
                 transpose_pack_B_tile_bf16(B_data_bf16, BT_tile, j, max_jj, k, max_kk);
             }
         }
-
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -5128,14 +5127,13 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
             if (CT_data.empty())
                 return -100;
         }
-
     }
 
     if (constantA || constantB || constantC)
     {
         nT = opt.num_threads;
     }
-#else  // __mips_msa
+#else // __mips_msa
     if (constantA && support_bf16_tiled_gemm_scalar(A_data, A_data, output_elempack))
     {
         const int M = constantM;
