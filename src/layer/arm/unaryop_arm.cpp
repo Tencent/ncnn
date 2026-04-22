@@ -460,6 +460,164 @@ struct unary_op_trunc
 #endif // __ARM_NEON
 };
 
+struct unary_op_sign
+{
+    float func(const float& x) const
+    {
+        return x > 0.f ? 1.f : x < 0.f ? -1.f : 0.f;
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float32x4_t zero = vdupq_n_f32(0.f);
+        float32x4_t one = vdupq_n_f32(1.f);
+        uint32x4_t pos = vcgtq_f32(x, zero);
+        uint32x4_t neg = vcltq_f32(x, zero);
+        return vsubq_f32(vreinterpretq_f32_u32(vandq_u32(pos, vreinterpretq_u32_f32(one))), vreinterpretq_f32_u32(vandq_u32(neg, vreinterpretq_u32_f32(one))));
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_expm1
+{
+    float func(const float& x) const
+    {
+        return (float)expm1f(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = expm1f(tmp[0]);
+        tmp[1] = expm1f(tmp[1]);
+        tmp[2] = expm1f(tmp[2]);
+        tmp[3] = expm1f(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_sinh
+{
+    float func(const float& x) const
+    {
+        return (float)sinhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = sinhf(tmp[0]);
+        tmp[1] = sinhf(tmp[1]);
+        tmp[2] = sinhf(tmp[2]);
+        tmp[3] = sinhf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_asinh
+{
+    float func(const float& x) const
+    {
+        return (float)asinhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = asinhf(tmp[0]);
+        tmp[1] = asinhf(tmp[1]);
+        tmp[2] = asinhf(tmp[2]);
+        tmp[3] = asinhf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_cosh
+{
+    float func(const float& x) const
+    {
+        return (float)coshf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = coshf(tmp[0]);
+        tmp[1] = coshf(tmp[1]);
+        tmp[2] = coshf(tmp[2]);
+        tmp[3] = coshf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_acosh
+{
+    float func(const float& x) const
+    {
+        return (float)acoshf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = acoshf(tmp[0]);
+        tmp[1] = acoshf(tmp[1]);
+        tmp[2] = acoshf(tmp[2]);
+        tmp[3] = acoshf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_atanh
+{
+    float func(const float& x) const
+    {
+        return (float)atanhf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = atanhf(tmp[0]);
+        tmp[1] = atanhf(tmp[1]);
+        tmp[2] = atanhf(tmp[2]);
+        tmp[3] = atanhf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_log1p
+{
+    float func(const float& x) const
+    {
+        return (float)log1pf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        tmp[0] = log1pf(tmp[0]);
+        tmp[1] = log1pf(tmp[1]);
+        tmp[2] = log1pf(tmp[2]);
+        tmp[3] = log1pf(tmp[3]);
+        return vld1q_f32(tmp);
+    }
+#endif // __ARM_NEON
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -537,6 +695,30 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }
@@ -673,6 +855,30 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 }

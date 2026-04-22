@@ -422,6 +422,152 @@ struct unary_op_trunc_fp16s
 #endif // __riscv_zvfh
 };
 
+struct unary_op_sign_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        vbool2_t pos = __riscv_vmfgt_vf_f16m8_b2(x, (__fp16)0.f, vl);
+        vbool2_t neg = __riscv_vmflt_vf_f16m8_b2(x, (__fp16)0.f, vl);
+        vfloat16m8_t zero = __riscv_vfmv_v_f_f16m8((__fp16)0.f, vl);
+        vfloat16m8_t one = __riscv_vfmv_v_f_f16m8((__fp16)1.f, vl);
+        vfloat16m8_t negone = __riscv_vfmv_v_f_f16m8((__fp16)-1.f, vl);
+        return __riscv_vmerge_vvm_f16m8(__riscv_vmerge_vvm_f16m8(zero, one, pos, vl), negone, neg, vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return x > (__fp16)0.f ? (__fp16)1.f : x < (__fp16)0.f ? (__fp16)-1.f : (__fp16)0.f;
+    }
+#endif
+};
+
+struct unary_op_expm1_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)expm1f((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)expm1f((float)x);
+    }
+#endif
+};
+
+struct unary_op_sinh_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)sinhf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)sinhf((float)x);
+    }
+#endif
+};
+
+struct unary_op_asinh_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)asinhf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)asinhf((float)x);
+    }
+#endif
+};
+
+struct unary_op_cosh_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)coshf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)coshf((float)x);
+    }
+#endif
+};
+
+struct unary_op_acosh_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)acoshf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)acoshf((float)x);
+    }
+#endif
+};
+
+struct unary_op_atanh_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)atanhf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)atanhf((float)x);
+    }
+#endif
+};
+
+struct unary_op_log1p_fp16s
+{
+#if __riscv_zvfh
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        std::vector<__fp16> tmp(vl);
+        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++) tmp[i] = (__fp16)log1pf((float)tmp[i]);
+        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+    }
+#else
+    __fp16 operator()(const __fp16& x) const
+    {
+        return (__fp16)log1pf((float)x);
+    }
+#endif
+};
+
 } // namespace UnaryOp_riscv_functor
 
 int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -498,6 +644,30 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_fp16s<unary_op_sign_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_fp16s<unary_op_expm1_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_fp16s<unary_op_sinh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_fp16s<unary_op_asinh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_fp16s<unary_op_cosh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_fp16s<unary_op_acosh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_fp16s<unary_op_atanh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_fp16s<unary_op_log1p_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }
