@@ -38,6 +38,11 @@
 #include "layer/convolution.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/innerproduct.h"
+#include "layer/embed.h"
+#include "layer/multiheadattention.h"
+#include "layer/rnn.h"
+#include "layer/lstm.h"
+#include "layer/gru.h"
 
 class QuantBlobStat
 {
@@ -59,6 +64,23 @@ public:
     // KL
     std::vector<uint64_t> histogram;
     std::vector<float> histogram_normed;
+};
+
+class QuantMHAStat
+{
+public:
+    ncnn::Mat q_weight_scales;
+    ncnn::Mat k_weight_scales;
+    ncnn::Mat v_weight_scales;
+    float out_weight_scale;
+};
+
+// rnn, gru, lstm
+class QuantRecurrentStat
+{
+public:
+    ncnn::Mat weight_xc_scales;
+    ncnn::Mat weight_hc_scales;
 };
 
 class QuantNet : public ncnn::Net
@@ -91,11 +113,21 @@ public:
     std::vector<int> conv_layers;
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
+    std::vector<int> embed_layers;
+    std::vector<int> mha_layers;
+    std::vector<int> rnn_layers;
+    std::vector<int> lstm_layers;
+    std::vector<int> gru_layers;
 
     // result
     std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blob_scales;
+    std::vector<float> embed_weight_scales;
+    std::vector<QuantMHAStat> mha_stats;
+    std::vector<QuantRecurrentStat> rnn_stats;
+    std::vector<QuantRecurrentStat> lstm_stats;
+    std::vector<QuantRecurrentStat> gru_stats;
 };
 
 QuantNet::QuantNet()
@@ -126,14 +158,48 @@ int QuantNet::init()
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
+
+        // find embed layers
+        else if (layer->type == "Embed")
+        {
+            embed_layers.push_back(i);
+        }
+
+        // find all mha layers
+        else if (layer->type == "MultiHeadAttention")
+        {
+            mha_layers.push_back(i);
+        }
+        else if (layer->type == "RNN")
+        {
+            rnn_layers.push_back(i);
+        }
+        else if (layer->type == "LSTM")
+        {
+            lstm_layers.push_back(i);
+        }
+        else if (layer->type == "GRU")
+        {
+            gru_layers.push_back(i);
+        }
     }
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
 
     quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
     bottom_blob_scales.resize(conv_bottom_blob_count);
+    embed_weight_scales.resize(embed_layer_count);
+    mha_stats.resize(mha_layer_count);
+    rnn_stats.resize(rnn_layer_count);
+    lstm_stats.resize(lstm_layer_count);
+    gru_stats.resize(gru_layer_count);
 
     return 0;
 }
@@ -149,6 +215,11 @@ int QuantNet::save_table(const char* tablepath)
 
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
 
     fprintf(stdout, "param:%d\n", conv_layer_count);
 
@@ -172,6 +243,110 @@ int QuantNet::save_table(const char* tablepath)
         for (int j = 0; j < bottom_blob_scale.w; j++)
         {
             fprintf(fp, "%f ", bottom_blob_scale[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", embed_layer_count);
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        fprintf(fp, "%s_param_0 ", layers[embed_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", embed_weight_scales[i]);
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", mha_layer_count);
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        // q_weight
+        const ncnn::Mat q_weight_scales = mha_stats[i].q_weight_scales;
+        fprintf(fp, "%s_param_0 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < q_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", q_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // k_weight
+        const ncnn::Mat k_weight_scales = mha_stats[i].k_weight_scales;
+        fprintf(fp, "%s_param_1 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < k_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", k_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // v_weight
+        const ncnn::Mat v_weight_scales = mha_stats[i].v_weight_scales;
+        fprintf(fp, "%s_param_2 ", layers[mha_layers[i]]->name.c_str());
+        for (int j = 0; j < v_weight_scales.w; j++)
+        {
+            fprintf(fp, "%f ", v_weight_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        // out_weight
+        fprintf(fp, "%s_param_3 ", layers[mha_layers[i]]->name.c_str());
+        fprintf(fp, "%f ", mha_stats[i].out_weight_scale);
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", rnn_layer_count);
+    for (int i = 0; i < rnn_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = rnn_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[rnn_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = rnn_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[rnn_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", lstm_layer_count);
+    for (int i = 0; i < lstm_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = lstm_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[lstm_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = lstm_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[lstm_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
+        }
+        fprintf(fp, "\n");
+    }
+
+    fprintf(stdout, "param:%d\n", gru_layer_count);
+    for (int i = 0; i < gru_layer_count; i++)
+    {
+        const ncnn::Mat weight_xc_scales = gru_stats[i].weight_xc_scales;
+        fprintf(fp, "%s_param_0 ", layers[gru_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_xc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_xc_scales[j]);
+        }
+        fprintf(fp, "\n");
+
+        const ncnn::Mat weight_hc_scales = gru_stats[i].weight_hc_scales;
+        fprintf(fp, "%s_param_1 ", layers[gru_layers[i]]->name.c_str());
+        for (int j = 0; j < weight_hc_scales.w; j++)
+        {
+            fprintf(fp, "%f ", weight_hc_scales[j]);
         }
         fprintf(fp, "\n");
     }
@@ -302,12 +477,11 @@ int QuantNet::quantize_KL()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int file_count = (int)listspaths[0].size();
-
-    const int num_histogram_bins = 2048;
-
-    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
-    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+    const int embed_layer_count = (int)embed_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
 
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -406,6 +580,205 @@ int QuantNet::quantize_KL()
             }
         }
     }
+
+    // initialize embed weight scales
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[embed_layers[i]];
+        const ncnn::Embed* embed = (const ncnn::Embed*)layer;
+        const float* ptr = embed->weight_data;
+
+        float absmax = 0.f;
+        for (int j = 0; j < embed->weight_data.w; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[j]));
+        }
+        embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+    }
+
+    // initialize mha weight scales
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[mha_layers[i]];
+        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layer;
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+        mha_stats[i].q_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float q_absmax = 0.f;
+
+            const float* q_ptr = (const float*)mha->q_weight_data + j * qdim;
+            for (int k = 0; k < qdim; k++)
+            {
+                q_absmax = std::max(q_absmax, (float)fabs(q_ptr[k]));
+            }
+            mha_stats[i].q_weight_scales[j] = q_absmax == 0.f ? 1.f : 127 / q_absmax;
+        }
+
+        const int kdim = mha->kdim;
+        mha_stats[i].k_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float k_absmax = 0.f;
+
+            const float* k_ptr = (const float*)mha->k_weight_data + j * kdim;
+            for (int k = 0; k < kdim; k++)
+            {
+                k_absmax = std::max(k_absmax, (float)fabs(k_ptr[k]));
+            }
+            mha_stats[i].k_weight_scales[j] = k_absmax == 0.f ? 1.f : 127 / k_absmax;
+        }
+
+        const int vdim = mha->vdim;
+        mha_stats[i].v_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float v_absmax = 0.f;
+
+            const float* v_ptr = (const float*)mha->v_weight_data + j * vdim;
+            for (int k = 0; k < vdim; k++)
+            {
+                v_absmax = std::max(v_absmax, (float)fabs(v_ptr[k]));
+            }
+            mha_stats[i].v_weight_scales[j] = v_absmax == 0.f ? 1.f : 127 / v_absmax;
+        }
+
+        const float* o_ptr = (const float*)mha->out_weight_data;
+        float o_absmax = 0.f;
+        for (int k = 0; k < mha->out_weight_data.w; k++)
+        {
+            o_absmax = std::max(o_absmax, (float)fabs(o_ptr[k]));
+        }
+        mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
+    }
+
+    // initialize rnn weight scales
+    for (int i = 0; i < rnn_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[rnn_layers[i]];
+        const ncnn::RNN* rnn = (const ncnn::RNN*)layer;
+
+        const int num_directions = rnn->direction == 2 ? 2 : 1;
+        const int size = rnn->weight_data_size / num_directions / rnn->num_output;
+
+        rnn_stats[i].weight_xc_scales.create(rnn->num_output * num_directions);
+        rnn_stats[i].weight_hc_scales.create(rnn->num_output * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < rnn->num_output; q++)
+            {
+                {
+                    const float* weight_xc_ptr = rnn->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_xc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = rnn->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < rnn->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_hc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize lstm weight scales
+    for (int i = 0; i < lstm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[lstm_layers[i]];
+        const ncnn::LSTM* lstm = (const ncnn::LSTM*)layer;
+
+        const int num_directions = lstm->direction == 2 ? 2 : 1;
+        const int size = lstm->weight_data_size / num_directions / lstm->hidden_size / 4;
+
+        lstm_stats[i].weight_xc_scales.create(lstm->hidden_size * 4 * num_directions);
+        lstm_stats[i].weight_hc_scales.create(lstm->hidden_size * 4 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < lstm->hidden_size * 4; q++)
+            {
+                {
+                    const float* weight_xc_ptr = lstm->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_xc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = lstm->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < lstm->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_hc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize gru weight scales
+    for (int i = 0; i < gru_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gru_layers[i]];
+        const ncnn::GRU* gru = (const ncnn::GRU*)layer;
+
+        const int num_directions = gru->direction == 2 ? 2 : 1;
+        const int size = gru->weight_data_size / num_directions / gru->num_output / 3;
+
+        gru_stats[i].weight_xc_scales.create(gru->num_output * 3 * num_directions);
+        gru_stats[i].weight_hc_scales.create(gru->num_output * 3 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < gru->num_output * 3; q++)
+            {
+                {
+                    const float* weight_xc_ptr = gru->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    gru_stats[i].weight_xc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = gru->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < gru->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    gru_stats[i].weight_hc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    if (conv_layer_count == 0)
+        return 0;
+
+    const int file_count = (int)listspaths[0].size();
+
+    const int num_histogram_bins = 2048;
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
@@ -780,10 +1153,11 @@ int QuantNet::quantize_ACIQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int file_count = (int)listspaths[0].size();
-
-    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
-    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+    const int embed_layer_count = (int)embed_layers.size();
+    const int rnn_layer_count = (int)rnn_layers.size();
+    const int lstm_layer_count = (int)lstm_layers.size();
+    const int gru_layer_count = (int)gru_layers.size();
+    const int mha_layer_count = (int)mha_layers.size();
 
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -886,6 +1260,203 @@ int QuantNet::quantize_ACIQ()
             }
         }
     }
+
+    // initialize embed weight scales
+    for (int i = 0; i < embed_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[embed_layers[i]];
+        const ncnn::Embed* embed = (const ncnn::Embed*)layer;
+        const float* ptr = embed->weight_data;
+
+        float absmax = 0.f;
+        for (int j = 0; j < embed->weight_data.w; j++)
+        {
+            absmax = std::max(absmax, (float)fabs(ptr[j]));
+        }
+        embed_weight_scales[i] = absmax == 0.f ? 1.f : 127 / absmax;
+    }
+
+    // initialize rnn weight scales
+    for (int i = 0; i < rnn_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[rnn_layers[i]];
+        const ncnn::RNN* rnn = (const ncnn::RNN*)layer;
+
+        const int num_directions = rnn->direction == 2 ? 2 : 1;
+        const int size = rnn->weight_data_size / num_directions / rnn->num_output;
+
+        rnn_stats[i].weight_xc_scales.create(rnn->num_output * num_directions);
+        rnn_stats[i].weight_hc_scales.create(rnn->num_output * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < rnn->num_output; q++)
+            {
+                {
+                    const float* weight_xc_ptr = rnn->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_xc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = rnn->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < rnn->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    rnn_stats[i].weight_hc_scales[d * rnn->num_output + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize lstm weight scales
+    for (int i = 0; i < lstm_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[lstm_layers[i]];
+        const ncnn::LSTM* lstm = (const ncnn::LSTM*)layer;
+
+        const int num_directions = lstm->direction == 2 ? 2 : 1;
+        const int size = lstm->weight_data_size / num_directions / lstm->hidden_size / 4;
+
+        lstm_stats[i].weight_xc_scales.create(lstm->hidden_size * 4 * num_directions);
+        lstm_stats[i].weight_hc_scales.create(lstm->hidden_size * 4 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < lstm->hidden_size * 4; q++)
+            {
+                {
+                    const float* weight_xc_ptr = lstm->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_xc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = lstm->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < lstm->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    lstm_stats[i].weight_hc_scales[d * lstm->hidden_size * 4 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize gru weight scales
+    for (int i = 0; i < gru_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[gru_layers[i]];
+        const ncnn::GRU* gru = (const ncnn::GRU*)layer;
+
+        const int num_directions = gru->direction == 2 ? 2 : 1;
+        const int size = gru->weight_data_size / num_directions / gru->num_output / 3;
+
+        gru_stats[i].weight_xc_scales.create(gru->num_output * 3 * num_directions);
+        gru_stats[i].weight_hc_scales.create(gru->num_output * 3 * num_directions);
+
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < gru->num_output * 3; q++)
+            {
+                {
+                    const float* weight_xc_ptr = gru->weight_xc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < size; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_xc_ptr[j]));
+                    }
+                    gru_stats[i].weight_xc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+
+                {
+                    const float* weight_hc_ptr = gru->weight_hc_data.channel(d).row(q);
+                    float absmax = 0.f;
+                    for (int j = 0; j < gru->num_output; j++)
+                    {
+                        absmax = std::max(absmax, (float)fabs(weight_hc_ptr[j]));
+                    }
+                    gru_stats[i].weight_hc_scales[d * gru->num_output * 3 + q] = absmax == 0.f ? 1.f : 127 / absmax;
+                }
+            }
+        }
+    }
+
+    // initialize mha weight scales
+    for (int i = 0; i < mha_layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[mha_layers[i]];
+        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layer;
+
+        const int qdim = mha->weight_data_size / mha->embed_dim;
+        mha_stats[i].q_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float q_absmax = 0.f;
+
+            const float* q_ptr = (const float*)mha->q_weight_data + j * qdim;
+            for (int k = 0; k < qdim; k++)
+            {
+                q_absmax = std::max(q_absmax, (float)fabs(q_ptr[k]));
+            }
+            mha_stats[i].q_weight_scales[j] = q_absmax == 0.f ? 1.f : 127 / q_absmax;
+        }
+
+        const int kdim = mha->kdim;
+        mha_stats[i].k_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float k_absmax = 0.f;
+
+            const float* k_ptr = (const float*)mha->k_weight_data + j * kdim;
+            for (int k = 0; k < kdim; k++)
+            {
+                k_absmax = std::max(k_absmax, (float)fabs(k_ptr[k]));
+            }
+            mha_stats[i].k_weight_scales[j] = k_absmax == 0.f ? 1.f : 127 / k_absmax;
+        }
+
+        const int vdim = mha->vdim;
+        mha_stats[i].v_weight_scales.create(mha->embed_dim);
+        for (int j = 0; j < mha->embed_dim; j++)
+        {
+            float v_absmax = 0.f;
+
+            const float* v_ptr = (const float*)mha->v_weight_data + j * vdim;
+            for (int k = 0; k < vdim; k++)
+            {
+                v_absmax = std::max(v_absmax, (float)fabs(v_ptr[k]));
+            }
+            mha_stats[i].v_weight_scales[j] = v_absmax == 0.f ? 1.f : 127 / v_absmax;
+        }
+
+        const float* o_ptr = (const float*)mha->out_weight_data;
+        float o_absmax = 0.f;
+        for (int k = 0; k < mha->out_weight_data.w; k++)
+        {
+            o_absmax = std::max(o_absmax, (float)fabs(o_ptr[k]));
+        }
+        mha_stats[i].out_weight_scale = o_absmax == 0.f ? 1.f : 127 / o_absmax;
+    }
+
+    if (conv_layer_count == 0)
+        return 0;
+
+    const int file_count = (int)listspaths[0].size();
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // count the absmax
     #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
@@ -1111,6 +1682,9 @@ int QuantNet::quantize_EQ()
     const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    if (conv_layer_count == 0)
+        return 0;
 
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
@@ -1661,6 +2235,7 @@ static void print_pixel_type_list(const std::vector<int>& list)
 static void show_usage()
 {
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
+    fprintf(stderr, "       ncnn2table [ncnnparam] [ncnnbin] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
     fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
@@ -1671,11 +2246,12 @@ static void show_usage()
     fprintf(stderr, "Sample usage:\n");
     fprintf(stderr, "  ncnn2table squeezenet.param squeezenet.bin filelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
     fprintf(stderr, "  ncnn2table test.param test.bin filelist.txt squeezenet.table shape=[227,227,3] method=kl type=1\n");
+    fprintf(stderr, "  ncnn2table rnn.param rnn.bin rnn.table method=kl\n");
 }
 
 int main(int argc, char** argv)
 {
-    if (argc < 5)
+    if (argc < 4)
     {
         show_usage();
         return -1;
@@ -1692,8 +2268,6 @@ int main(int argc, char** argv)
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
-    char* lists = argv[3];
-    const char* outtable = argv[4];
 
     ncnn::Option opt;
     opt.num_threads = 1;
@@ -1709,13 +2283,47 @@ int main(int argc, char** argv)
 
     net.init();
 
-    // load lists
-    net.listspaths = parse_comma_path_list(lists);
+    const bool need_calibration_dataset = !net.conv_layers.empty();
+
+    const char* outtable = 0;
+    int kv_start = 0;
+
+    if (need_calibration_dataset)
+    {
+        if (argc < 5)
+        {
+            show_usage();
+            return -1;
+        }
+
+        net.listspaths = parse_comma_path_list(argv[3]);
+        outtable = argv[4];
+        kv_start = 5;
+    }
+    else
+    {
+        if (argc >= 5 && strchr(argv[4], '='))
+        {
+            outtable = argv[3];
+            kv_start = 4;
+        }
+        else if (argc >= 5)
+        {
+            net.listspaths = parse_comma_path_list(argv[3]);
+            outtable = argv[4];
+            kv_start = 5;
+        }
+        else
+        {
+            outtable = argv[3];
+            kv_start = 4;
+        }
+    }
 
     std::string method = "kl";
     net.file_type = 0;
 
-    for (int i = 5; i < argc; i++)
+    for (int i = kv_start; i < argc; i++)
     {
         // key=value
         char* kv = argv[i];
@@ -1751,27 +2359,27 @@ int main(int argc, char** argv)
 
     // sanity check
     const size_t input_blob_count = net.input_blobs.size();
-    if (net.listspaths.size() != input_blob_count)
+    if (need_calibration_dataset && net.listspaths.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d lists, but got %d\n", (int)input_blob_count, (int)net.listspaths.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.means.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.means.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d means, but got %d\n", (int)input_blob_count, (int)net.means.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.norms.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.norms.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d norms, but got %d\n", (int)input_blob_count, (int)net.norms.size());
         return -1;
     }
-    if (net.shapes.size() != input_blob_count)
+    if (need_calibration_dataset && net.shapes.size() != input_blob_count)
     {
         fprintf(stderr, "expect %d shapes, but got %d\n", (int)input_blob_count, (int)net.shapes.size());
         return -1;
     }
-    if ((0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
+    if (need_calibration_dataset && (0 == net.file_type) && (net.type_to_pixels.size() != input_blob_count))
     {
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;

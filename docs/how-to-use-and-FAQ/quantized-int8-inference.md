@@ -89,16 +89,16 @@ filelist_in2.txt
 ```
 **Here shape is WHC, because the order of the arguments to `ncnn::Mat`.**
 
+For RNN,GRU,LSTM,MultiHeadAttention and Embed layers,ncnn2table also supports tableless quantization.
+
+```shell
+./ncnn2table rnn.param rnn.bin rnn.table method=kl
+```
+
 ### 3. Quantize model
 
 ```shell
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
-```
-
-If you don’t need static quantization, ncnn supports RNN/LSTM/GRU dynamic quantization. In this case, you can omit the table file.
-
-```shell
-./ncnn2int8 rnn-model.param rnn-model.bin rnn-model-int8.param rnn-model-int8.bin
 ```
 
 ## use ncnn int8 inference
