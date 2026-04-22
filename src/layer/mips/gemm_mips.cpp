@@ -4852,7 +4852,8 @@ fallback_wrapper:
 #if __mips_msa && defined(__GNUC__)
 __attribute__((optimize("no-tree-vectorize")))
 #endif
-int Gemm_mips::create_pipeline_bf16s(const Option& opt)
+int
+Gemm_mips::create_pipeline_bf16s(const Option& opt)
 {
 #if __mips_msa
     if (constantA)
