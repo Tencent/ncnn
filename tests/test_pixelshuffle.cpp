@@ -47,17 +47,15 @@ static int test_pixelshuffle_1()
            || test_pixelshuffle(RandomMat(7, 7, 90), 3, 1);
 }
 
-static int test_pixelshuffle_x86()
+static int test_pixelshuffle_2()
 {
     return 0
-           // r=2 x86 kernel covers AVX(8), SSE(4), and scalar tail.
            || test_pixelshuffle(RandomMat(8, 3, 8), 2, 0)
            || test_pixelshuffle(RandomMat(12, 3, 8), 2, 0)
            || test_pixelshuffle(RandomMat(13, 3, 8), 2, 0)
            || test_pixelshuffle(RandomMat(8, 3, 8), 2, 1)
            || test_pixelshuffle(RandomMat(12, 3, 8), 2, 1)
            || test_pixelshuffle(RandomMat(13, 3, 8), 2, 1)
-           // r=4 x86 kernel covers 4-wide transpose and scalar tail.
            || test_pixelshuffle(RandomMat(4, 3, 64), 4, 0)
            || test_pixelshuffle(RandomMat(5, 3, 64), 4, 0)
            || test_pixelshuffle(RandomMat(4, 3, 64), 4, 1)
@@ -68,5 +66,5 @@ int main()
 {
     SRAND(7767517);
 
-    return test_pixelshuffle_0() || test_pixelshuffle_1() || test_pixelshuffle_x86();
+    return test_pixelshuffle_0() || test_pixelshuffle_1() || test_pixelshuffle_2();
 }
