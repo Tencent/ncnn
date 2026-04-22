@@ -1445,23 +1445,24 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     // C is stored in topT_tile in pack_A_tile order: jj-major, 4 floats per jj
                     if (c_elempack == 4)
                     {
-                        const float* pCj = (const float*)C + (j + jj) * c_hstep + (i + ii) * 4;
+                        const float* pCj = (const float*)C + (size_t)((i + ii) / 4) * c_hstep * 4 + (j + jj) * 4;
                         _sum0 = __msa_fmadd_w(_sum0, _beta, (v4f32)__msa_ld_w(pCj, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4, 0));
-                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 2, 0));
-                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 3, 0));
-                        _sum4 = __msa_fmadd_w(_sum4, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 4, 0));
-                        _sum5 = __msa_fmadd_w(_sum5, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 5, 0));
-                        _sum6 = __msa_fmadd_w(_sum6, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 6, 0));
-                        _sum7 = __msa_fmadd_w(_sum7, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 7, 0));
-                        _sum8 = __msa_fmadd_w(_sum8, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 8, 0));
-                        _sum9 = __msa_fmadd_w(_sum9, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 9, 0));
-                        _suma = __msa_fmadd_w(_suma, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 10, 0));
-                        _sumb = __msa_fmadd_w(_sumb, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 11, 0));
+                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + 4, 0));
+                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + 8, 0));
+                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + 12, 0));
+                        _sum4 = __msa_fmadd_w(_sum4, _beta, (v4f32)__msa_ld_w(pCj + 16, 0));
+                        _sum5 = __msa_fmadd_w(_sum5, _beta, (v4f32)__msa_ld_w(pCj + 20, 0));
+                        _sum6 = __msa_fmadd_w(_sum6, _beta, (v4f32)__msa_ld_w(pCj + 24, 0));
+                        _sum7 = __msa_fmadd_w(_sum7, _beta, (v4f32)__msa_ld_w(pCj + 28, 0));
+                        _sum8 = __msa_fmadd_w(_sum8, _beta, (v4f32)__msa_ld_w(pCj + 32, 0));
+                        _sum9 = __msa_fmadd_w(_sum9, _beta, (v4f32)__msa_ld_w(pCj + 36, 0));
+                        _suma = __msa_fmadd_w(_suma, _beta, (v4f32)__msa_ld_w(pCj + 40, 0));
+                        _sumb = __msa_fmadd_w(_sumb, _beta, (v4f32)__msa_ld_w(pCj + 44, 0));
                     }
                     if (c_elempack == 1)
                     {
                         const float* pCj = (const float*)C + (i + ii) * c_hstep + (j + jj);
+                        v4f32* sums[12] = {&_sum0, &_sum1, &_sum2, &_sum3, &_sum4, &_sum5, &_sum6, &_sum7, &_sum8, &_sum9, &_suma, &_sumb};
                         for (int c = 0; c < 12; c++)
                         {
                             float tmp[4];
@@ -1470,8 +1471,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                             tmp[2] = pCj[c_hstep * 2];
                             tmp[3] = pCj[c_hstep * 3];
                             v4f32 _cv = (v4f32)__msa_ld_w(tmp, 0);
-                            v4f32* _sump = &_sum0 + c;
-                            *_sump = __msa_fmadd_w(*_sump, _beta, _cv);
+                            *sums[c] = __msa_fmadd_w(*sums[c], _beta, _cv);
                             pCj += 1;
                         }
                     }
@@ -1691,19 +1691,20 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (c_elempack == 4)
                     {
-                        const float* pCj = (const float*)C + (j + jj) * c_hstep + (i + ii) * 4;
+                        const float* pCj = (const float*)C + (size_t)((i + ii) / 4) * c_hstep * 4 + (j + jj) * 4;
                         _sum0 = __msa_fmadd_w(_sum0, _beta, (v4f32)__msa_ld_w(pCj, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4, 0));
-                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 2, 0));
-                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 3, 0));
-                        _sum4 = __msa_fmadd_w(_sum4, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 4, 0));
-                        _sum5 = __msa_fmadd_w(_sum5, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 5, 0));
-                        _sum6 = __msa_fmadd_w(_sum6, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 6, 0));
-                        _sum7 = __msa_fmadd_w(_sum7, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 7, 0));
+                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + 4, 0));
+                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + 8, 0));
+                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + 12, 0));
+                        _sum4 = __msa_fmadd_w(_sum4, _beta, (v4f32)__msa_ld_w(pCj + 16, 0));
+                        _sum5 = __msa_fmadd_w(_sum5, _beta, (v4f32)__msa_ld_w(pCj + 20, 0));
+                        _sum6 = __msa_fmadd_w(_sum6, _beta, (v4f32)__msa_ld_w(pCj + 24, 0));
+                        _sum7 = __msa_fmadd_w(_sum7, _beta, (v4f32)__msa_ld_w(pCj + 28, 0));
                     }
                     if (c_elempack == 1)
                     {
                         const float* pCj = (const float*)C + (i + ii) * c_hstep + (j + jj);
+                        v4f32* sums[8] = {&_sum0, &_sum1, &_sum2, &_sum3, &_sum4, &_sum5, &_sum6, &_sum7};
                         for (int c = 0; c < 8; c++)
                         {
                             float tmp[4];
@@ -1712,8 +1713,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                             tmp[2] = pCj[c_hstep * 2];
                             tmp[3] = pCj[c_hstep * 3];
                             v4f32 _cv = (v4f32)__msa_ld_w(tmp, 0);
-                            v4f32* _sump = &_sum0 + c;
-                            *_sump = __msa_fmadd_w(*_sump, _beta, _cv);
+                            *sums[c] = __msa_fmadd_w(*sums[c], _beta, _cv);
                             pCj += 1;
                         }
                     }
@@ -1858,15 +1858,16 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (c_elempack == 4)
                     {
-                        const float* pCj = (const float*)C + (j + jj) * c_hstep + (i + ii) * 4;
+                        const float* pCj = (const float*)C + (size_t)((i + ii) / 4) * c_hstep * 4 + (j + jj) * 4;
                         _sum0 = __msa_fmadd_w(_sum0, _beta, (v4f32)__msa_ld_w(pCj, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4, 0));
-                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 2, 0));
-                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4 * 3, 0));
+                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + 4, 0));
+                        _sum2 = __msa_fmadd_w(_sum2, _beta, (v4f32)__msa_ld_w(pCj + 8, 0));
+                        _sum3 = __msa_fmadd_w(_sum3, _beta, (v4f32)__msa_ld_w(pCj + 12, 0));
                     }
                     if (c_elempack == 1)
                     {
                         const float* pCj = (const float*)C + (i + ii) * c_hstep + (j + jj);
+                        v4f32* sums[4] = {&_sum0, &_sum1, &_sum2, &_sum3};
                         for (int c = 0; c < 4; c++)
                         {
                             float tmp[4];
@@ -1875,8 +1876,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                             tmp[2] = pCj[c_hstep * 2];
                             tmp[3] = pCj[c_hstep * 3];
                             v4f32 _cv = (v4f32)__msa_ld_w(tmp, 0);
-                            v4f32* _sump = &_sum0 + c;
-                            *_sump = __msa_fmadd_w(*_sump, _beta, _cv);
+                            *sums[c] = __msa_fmadd_w(*sums[c], _beta, _cv);
                             pCj += 1;
                         }
                     }
@@ -1986,9 +1986,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (c_elempack == 4)
                     {
-                        const float* pCj = (const float*)C + (j + jj) * c_hstep + (i + ii) * 4;
+                        const float* pCj = (const float*)C + (size_t)((i + ii) / 4) * c_hstep * 4 + (j + jj) * 4;
                         _sum0 = __msa_fmadd_w(_sum0, _beta, (v4f32)__msa_ld_w(pCj, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + c_hstep * 4, 0));
+                        _sum1 = __msa_fmadd_w(_sum1, _beta, (v4f32)__msa_ld_w(pCj + 4, 0));
                     }
                     if (c_elempack == 1)
                     {
@@ -2107,7 +2107,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (c_elempack == 4)
                     {
-                        const float* pCj = (const float*)C + (j + jj) * c_hstep + (i + ii) * 4;
+                        const float* pCj = (const float*)C + (size_t)((i + ii) / 4) * c_hstep * 4 + (j + jj) * 4;
                         _sum0 = __msa_fmadd_w(_sum0, _beta, (v4f32)__msa_ld_w(pCj, 0));
                     }
                     if (c_elempack == 1)

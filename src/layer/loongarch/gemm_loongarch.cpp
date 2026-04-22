@@ -516,42 +516,6 @@ static bool support_fp32_tiled_gemm_scalar(const Mat& A, const Mat& B, int outpu
     return true;
 }
 
-#if NCNN_BF16
-static bool support_bf16_tiled_gemm_scalar(const Mat& A, const Mat& B, int output_elempack)
-{
-    if ((A.elembits() != 16 && A.elembits() != 32) || (B.elembits() != 16 && B.elembits() != 32))
-        return false;
-
-#if __loongarch_sx
-    if (A.elempack != 1 && A.elempack != 4
-#if __loongarch_asx
-            && A.elempack != 8
-#endif
-       )
-        return false;
-    if (B.elempack != 1 && B.elempack != 4
-#if __loongarch_asx
-            && B.elempack != 8
-#endif
-       )
-        return false;
-    if (output_elempack != 0 && output_elempack != 1 && output_elempack != 4
-#if __loongarch_asx
-            && output_elempack != 8
-#endif
-       )
-        return false;
-#else
-    if (A.elempack != 1 || B.elempack != 1)
-        return false;
-    if (output_elempack != 0 && output_elempack != 1)
-        return false;
-#endif
-
-    return true;
-}
-#endif
-
 static int gemm_tiled_fp32_scalar(const Mat& A, const Mat& B, const Mat& AT_data, const Mat& BT_data, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     int TILE_M;
@@ -5483,136 +5447,6 @@ fallback_wrapper:
 }
 
 #if NCNN_BF16
-static int forward_bf16s_fallback(const Gemm_loongarch* self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
-{
-    std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-    for (size_t i = 0; i < bottom_blobs.size(); i++)
-    {
-        int ret = unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    Mat A_data_fp32 = self->A_data;
-    Mat B_data_fp32 = self->B_data;
-    Mat C_data_fp32 = self->C_data;
-
-    if (self->constantA)
-    {
-        int ret = unpack_or_cast_to_float32(self->A_data, A_data_fp32, opt);
-        if (ret != 0)
-            return ret;
-    }
-    if (self->constantB)
-    {
-        int ret = unpack_or_cast_to_float32(self->B_data, B_data_fp32, opt);
-        if (ret != 0)
-            return ret;
-    }
-    if (self->constantC && self->constant_broadcast_type_C != -1)
-    {
-        int ret = unpack_or_cast_to_float32(self->C_data, C_data_fp32, opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    const Mat& A_fp32 = self->constantA ? A_data_fp32 : bottom_blobs_fp32[0];
-    const Mat& B_fp32 = self->constantB ? B_data_fp32 : self->constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
-
-    int M;
-    int N;
-    if (self->constantA && self->constantB)
-    {
-        M = self->constantM;
-        N = self->constantN;
-    }
-    else if (self->constantA)
-    {
-        M = self->constantM;
-        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
-    }
-    else if (self->constantB)
-    {
-        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
-        N = self->constantN;
-    }
-    else
-    {
-        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
-        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
-    }
-
-    int out_elempack = 1;
-#if __loongarch_sx
-    if (self->output_elempack == 0 && opt.use_packing_layout)
-    {
-        const int outh = self->output_transpose ? N : M;
-        out_elempack =
-#if __loongarch_asx
-            outh % 8 == 0 ? 8 :
-#endif
-            outh % 4 == 0 ? 4 : 1;
-    }
-    if (self->output_elempack == 8)
-        out_elempack = 8;
-    if (self->output_elempack == 4)
-        out_elempack = 4;
-#endif
-    if (self->output_elempack == 1)
-        out_elempack = 1;
-
-    Gemm gemm;
-    gemm.alpha = self->alpha;
-    gemm.beta = self->beta;
-    gemm.transA = self->transA;
-    gemm.transB = self->transB;
-    gemm.constantA = self->constantA;
-    gemm.constantB = self->constantB;
-    gemm.constantC = self->constantC;
-    gemm.constantM = self->constantM;
-    gemm.constantN = self->constantN;
-    gemm.constantK = self->constantK;
-    gemm.constant_broadcast_type_C = self->constant_broadcast_type_C;
-    gemm.output_N1M = self->output_N1M;
-    gemm.output_elempack = 1;
-    gemm.output_elemtype = 1;
-    gemm.output_transpose = self->output_transpose;
-    gemm.int8_scale_term = 0;
-    gemm.constant_TILE_M = self->constant_TILE_M;
-    gemm.constant_TILE_N = self->constant_TILE_N;
-    gemm.constant_TILE_K = self->constant_TILE_K;
-    gemm.A_data = A_data_fp32;
-    gemm.B_data = B_data_fp32;
-    gemm.C_data = C_data_fp32;
-
-    std::vector<Mat> top_blobs_unpacked(1);
-    int ret = gemm.forward(bottom_blobs_fp32, top_blobs_unpacked, opt);
-    if (ret != 0)
-        return ret;
-
-    Mat top_blob_final;
-    if (out_elempack == 1)
-    {
-        top_blob_final = top_blobs_unpacked[0];
-    }
-    else
-    {
-        convert_packing(top_blobs_unpacked[0], top_blob_final, out_elempack, opt);
-        if (top_blob_final.empty())
-            return -100;
-    }
-
-    if (self->output_elemtype == 1)
-        return assign_or_copy_top_blob(top_blob_final, top_blobs[0]);
-
-    Mat top_blob_bf16;
-    cast_float32_to_bfloat16(top_blob_final, top_blob_bf16, opt);
-    if (top_blob_bf16.empty())
-        return -100;
-
-    return assign_or_copy_top_blob(top_blob_bf16, top_blobs[0]);
-}
-
 int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
 {
 #if __loongarch_sx
@@ -5728,7 +5562,7 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
         nT = opt.num_threads;
     }
 #else // __loongarch_sx
-    if (constantA && support_bf16_tiled_gemm_scalar(A_data, A_data, output_elempack))
+    if (constantA)
     {
         const int M = constantM;
         const int K = constantK;
@@ -5765,7 +5599,7 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
         }
     }
 
-    if (constantB && support_bf16_tiled_gemm_scalar(B_data, B_data, output_elempack))
+    if (constantB)
     {
         const int N = constantN;
         const int K = constantK;
@@ -6122,11 +5956,8 @@ static int gemm_loongarch_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& t
 
 int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& A_src = constantA ? A_data : bottom_blobs[0];
-    const Mat& B_src = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
-
-    if (!support_bf16_tiled_gemm_scalar(A_src, B_src, output_elempack))
-        return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+    const Mat& A_input = constantA ? A_data : bottom_blobs[0];
+    const Mat& B_input = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     int M;
     int N;
@@ -6149,18 +5980,28 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     }
     else
     {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+        M = transA ? A_input.w : (A_input.dims == 3 ? A_input.c : A_input.h) * A_input.elempack;
+        N = transB ? (B_input.dims == 3 ? B_input.c : B_input.h) * B_input.elempack : B_input.w;
     }
 
     Mat C;
     int broadcast_type_C = 0;
     if (constantC)
     {
-        C = CT_data;
+        C = !CT_data.empty() ? CT_data : C_data;
         broadcast_type_C = constant_broadcast_type_C;
+
+        if (!C.empty() && C.elembits() == 16)
+        {
+            Option opt_cast = opt;
+            opt_cast.blob_allocator = opt.workspace_allocator;
+
+            Mat C_fp32;
+            cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+            if (C_fp32.empty())
+                return -100;
+            C = C_fp32;
+        }
     }
     else
     {
@@ -6186,10 +6027,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
                     return -100;
                 C = C_fp32;
             }
-            else if (C.elembits() != 32)
-            {
-                return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
-            }
 
             if (beta != 1.f)
             {
@@ -6210,11 +6047,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
             }
         }
     }
-
-#if __loongarch_sx
-    if (broadcast_type_C == 3 && output_transpose)
-        return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
-#endif
 
     int out_elempack = 1;
 #if __loongarch_sx
@@ -6257,7 +6089,7 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
         NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
     }
 
-    const int K_dim = constantA || constantB ? constantK : (transA ? (A_src.dims == 3 ? A_src.c : A_src.h) * A_src.elempack : A_src.w);
+    const int K_dim = constantA || constantB ? constantK : (transA ? (A_input.dims == 3 ? A_input.c : A_input.h) * A_input.elempack : A_input.w);
 
 #if __loongarch_sx
     int ret = 0;
@@ -6267,22 +6099,18 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     }
     else if (constantA)
     {
-        const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_loongarch_bf16s(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        ret = gemm_AT_loongarch_bf16s(AT_data, B_input, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else if (constantB)
     {
-        const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_loongarch_bf16s(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        ret = gemm_BT_loongarch_bf16s(A_input, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
     else
     {
-        const Mat& A = bottom_blobs[0];
-        const Mat& B = bottom_blobs[1];
-        ret = gemm_loongarch_bf16s(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+        ret = gemm_loongarch_bf16s(A_input, B_input, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
 #else  // __loongarch_sx
-    int ret = gemm_tiled_bf16s_scalar(A_src, B_src, AT_data, BT_data, C, top_blob, broadcast_type_C, M, N, K_dim, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
+    int ret = gemm_tiled_bf16s_scalar(A_input, B_input, AT_data, BT_data, C, top_blob, broadcast_type_C, M, N, K_dim, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
 #endif // __loongarch_sx
     if (ret != 0)
         return ret;
