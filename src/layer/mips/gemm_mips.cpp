@@ -260,6 +260,29 @@ static NCNN_FORCEINLINE void set_output_element_fp32_scalar(Mat& top_blob, int r
     ((float*)top_blob)[offset] = v;
 }
 
+static int gemm_fp32_reference_scalar(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, int nT)
+{
+    #pragma omp parallel for num_threads(nT)
+    for (int i = 0; i < M; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            float sum = get_broadcast_value_fp32_scalar(C, broadcast_type_C, i, j);
+
+            for (int k = 0; k < K; k++)
+            {
+                const float a = transA ? get_matrix_element_fp32_scalar(A, k, i) : get_matrix_element_fp32_scalar(A, i, k);
+                const float b = transB ? get_matrix_element_fp32_scalar(B, j, k) : get_matrix_element_fp32_scalar(B, k, j);
+                sum += a * b;
+            }
+
+            set_output_element_fp32_scalar(top_blob, i, j, sum * alpha, output_transpose);
+        }
+    }
+
+    return 0;
+}
+
 #if NCNN_BF16
 static NCNN_FORCEINLINE void set_output_element_bf16_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
 {
@@ -1200,36 +1223,190 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     int jj = 0;
     for (; jj + 11 < max_jj; jj += 12)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+        if (elempack == 4)
         {
-            pp[0] = get_packed_matrix_element(B, j + jj, k + kk);
-            pp[1] = get_packed_matrix_element(B, j + jj + 1, k + kk);
-            pp[2] = get_packed_matrix_element(B, j + jj + 2, k + kk);
-            pp[3] = get_packed_matrix_element(B, j + jj + 3, k + kk);
-            pp[4] = get_packed_matrix_element(B, j + jj + 4, k + kk);
-            pp[5] = get_packed_matrix_element(B, j + jj + 5, k + kk);
-            pp[6] = get_packed_matrix_element(B, j + jj + 6, k + kk);
-            pp[7] = get_packed_matrix_element(B, j + jj + 7, k + kk);
-            pp[8] = get_packed_matrix_element(B, j + jj + 8, k + kk);
-            pp[9] = get_packed_matrix_element(B, j + jj + 9, k + kk);
-            pp[10] = get_packed_matrix_element(B, j + jj + 10, k + kk);
-            pp[11] = get_packed_matrix_element(B, j + jj + 11, k + kk);
-            pp += 12;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+            const float* p2 = (const float*)B + (j + jj + 8) * B_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                __msa_st_w(__msa_ld_w(p1, 0), pp + 4, 0);
+                __msa_st_w(__msa_ld_w(p2, 0), pp + 8, 0);
+                pp += 12;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+            }
+        }
+        else
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+            const float* p8 = (const float*)B + (j + jj + 8) * B_hstep + k;
+            const float* p9 = (const float*)B + (j + jj + 9) * B_hstep + k;
+            const float* pa = (const float*)B + (j + jj + 10) * B_hstep + k;
+            const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
+                v4f32 _r4 = (v4f32)__msa_ld_w(p4, 0);
+                v4f32 _r5 = (v4f32)__msa_ld_w(p5, 0);
+                v4f32 _r6 = (v4f32)__msa_ld_w(p6, 0);
+                v4f32 _r7 = (v4f32)__msa_ld_w(p7, 0);
+                v4f32 _r8 = (v4f32)__msa_ld_w(p8, 0);
+                v4f32 _r9 = (v4f32)__msa_ld_w(p9, 0);
+                v4f32 _ra = (v4f32)__msa_ld_w(pa, 0);
+                v4f32 _rb = (v4f32)__msa_ld_w(pb, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                transpose4x4_ps(_r8, _r9, _ra, _rb);
+                __msa_st_w((v4i32)_r0, pp, 0);
+                __msa_st_w((v4i32)_r4, pp + 4, 0);
+                __msa_st_w((v4i32)_r8, pp + 8, 0);
+                __msa_st_w((v4i32)_r1, pp + 12, 0);
+                __msa_st_w((v4i32)_r5, pp + 16, 0);
+                __msa_st_w((v4i32)_r9, pp + 20, 0);
+                __msa_st_w((v4i32)_r2, pp + 24, 0);
+                __msa_st_w((v4i32)_r6, pp + 28, 0);
+                __msa_st_w((v4i32)_ra, pp + 32, 0);
+                __msa_st_w((v4i32)_r3, pp + 36, 0);
+                __msa_st_w((v4i32)_r7, pp + 40, 0);
+                __msa_st_w((v4i32)_rb, pp + 44, 0);
+                pp += 48;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+                p8 += 4;
+                p9 += 4;
+                pa += 4;
+                pb += 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p4[0];
+                pp[5] = p5[0];
+                pp[6] = p6[0];
+                pp[7] = p7[0];
+                pp[8] = p8[0];
+                pp[9] = p9[0];
+                pp[10] = pa[0];
+                pp[11] = pb[0];
+                pp += 12;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+                p8++;
+                p9++;
+                pa++;
+                pb++;
+            }
         }
     }
     for (; jj + 7 < max_jj; jj += 8)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+        if (elempack == 4)
         {
-            pp[0] = get_packed_matrix_element(B, j + jj, k + kk);
-            pp[1] = get_packed_matrix_element(B, j + jj + 1, k + kk);
-            pp[2] = get_packed_matrix_element(B, j + jj + 2, k + kk);
-            pp[3] = get_packed_matrix_element(B, j + jj + 3, k + kk);
-            pp[4] = get_packed_matrix_element(B, j + jj + 4, k + kk);
-            pp[5] = get_packed_matrix_element(B, j + jj + 5, k + kk);
-            pp[6] = get_packed_matrix_element(B, j + jj + 6, k + kk);
-            pp[7] = get_packed_matrix_element(B, j + jj + 7, k + kk);
-            pp += 8;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                __msa_st_w(__msa_ld_w(p1, 0), pp + 4, 0);
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+        }
+        else
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
+                v4f32 _r4 = (v4f32)__msa_ld_w(p4, 0);
+                v4f32 _r5 = (v4f32)__msa_ld_w(p5, 0);
+                v4f32 _r6 = (v4f32)__msa_ld_w(p6, 0);
+                v4f32 _r7 = (v4f32)__msa_ld_w(p7, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                __msa_st_w((v4i32)_r0, pp, 0);
+                __msa_st_w((v4i32)_r4, pp + 4, 0);
+                __msa_st_w((v4i32)_r1, pp + 8, 0);
+                __msa_st_w((v4i32)_r5, pp + 12, 0);
+                __msa_st_w((v4i32)_r2, pp + 16, 0);
+                __msa_st_w((v4i32)_r6, pp + 20, 0);
+                __msa_st_w((v4i32)_r3, pp + 24, 0);
+                __msa_st_w((v4i32)_r7, pp + 28, 0);
+                pp += 32;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p4[0];
+                pp[5] = p5[0];
+                pp[6] = p6[0];
+                pp[7] = p7[0];
+                pp += 8;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+            }
         }
     }
     for (; jj + 3 < max_jj; jj += 4)
@@ -1330,36 +1507,130 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     int jj = 0;
     for (; jj + 11 < max_jj; jj += 12)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+        if (elempack == 4)
         {
-            pp[0] = get_packed_matrix_element(B, k + kk, j + jj);
-            pp[1] = get_packed_matrix_element(B, k + kk, j + jj + 1);
-            pp[2] = get_packed_matrix_element(B, k + kk, j + jj + 2);
-            pp[3] = get_packed_matrix_element(B, k + kk, j + jj + 3);
-            pp[4] = get_packed_matrix_element(B, k + kk, j + jj + 4);
-            pp[5] = get_packed_matrix_element(B, k + kk, j + jj + 5);
-            pp[6] = get_packed_matrix_element(B, k + kk, j + jj + 6);
-            pp[7] = get_packed_matrix_element(B, k + kk, j + jj + 7);
-            pp[8] = get_packed_matrix_element(B, k + kk, j + jj + 8);
-            pp[9] = get_packed_matrix_element(B, k + kk, j + jj + 9);
-            pp[10] = get_packed_matrix_element(B, k + kk, j + jj + 10);
-            pp[11] = get_packed_matrix_element(B, k + kk, j + jj + 11);
-            pp += 12;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(p0 + 12, 0);
+                v4f32 _r4 = (v4f32)__msa_ld_w(p0 + 16, 0);
+                v4f32 _r5 = (v4f32)__msa_ld_w(p0 + 20, 0);
+                v4f32 _r6 = (v4f32)__msa_ld_w(p0 + 24, 0);
+                v4f32 _r7 = (v4f32)__msa_ld_w(p0 + 28, 0);
+                v4f32 _r8 = (v4f32)__msa_ld_w(p0 + 32, 0);
+                v4f32 _r9 = (v4f32)__msa_ld_w(p0 + 36, 0);
+                v4f32 _ra = (v4f32)__msa_ld_w(p0 + 40, 0);
+                v4f32 _rb = (v4f32)__msa_ld_w(p0 + 44, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                transpose4x4_ps(_r8, _r9, _ra, _rb);
+                __msa_st_w((v4i32)_r0, pp, 0);
+                __msa_st_w((v4i32)_r4, pp + 4, 0);
+                __msa_st_w((v4i32)_r8, pp + 8, 0);
+                __msa_st_w((v4i32)_r1, pp + 12, 0);
+                __msa_st_w((v4i32)_r5, pp + 16, 0);
+                __msa_st_w((v4i32)_r9, pp + 20, 0);
+                __msa_st_w((v4i32)_r2, pp + 24, 0);
+                __msa_st_w((v4i32)_r6, pp + 28, 0);
+                __msa_st_w((v4i32)_ra, pp + 32, 0);
+                __msa_st_w((v4i32)_r3, pp + 36, 0);
+                __msa_st_w((v4i32)_r7, pp + 40, 0);
+                __msa_st_w((v4i32)_rb, pp + 44, 0);
+                pp += 48;
+                p0 += B_hstep * 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[4];
+                pp[2] = p0[8];
+                pp[3] = p0[12];
+                pp[4] = p0[16];
+                pp[5] = p0[20];
+                pp[6] = p0[24];
+                pp[7] = p0[28];
+                pp[8] = p0[32];
+                pp[9] = p0[36];
+                pp[10] = p0[40];
+                pp[11] = p0[44];
+                pp += 12;
+                p0++;
+            }
+        }
+        else
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
+                __msa_st_w(__msa_ld_w(p0 + 8, 0), pp + 8, 0);
+                pp += 12;
+                p0 += B_hstep;
+            }
         }
     }
     for (; jj + 7 < max_jj; jj += 8)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+        if (elempack == 4)
         {
-            pp[0] = get_packed_matrix_element(B, k + kk, j + jj);
-            pp[1] = get_packed_matrix_element(B, k + kk, j + jj + 1);
-            pp[2] = get_packed_matrix_element(B, k + kk, j + jj + 2);
-            pp[3] = get_packed_matrix_element(B, k + kk, j + jj + 3);
-            pp[4] = get_packed_matrix_element(B, k + kk, j + jj + 4);
-            pp[5] = get_packed_matrix_element(B, k + kk, j + jj + 5);
-            pp[6] = get_packed_matrix_element(B, k + kk, j + jj + 6);
-            pp[7] = get_packed_matrix_element(B, k + kk, j + jj + 7);
-            pp += 8;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(p0 + 12, 0);
+                v4f32 _r4 = (v4f32)__msa_ld_w(p0 + 16, 0);
+                v4f32 _r5 = (v4f32)__msa_ld_w(p0 + 20, 0);
+                v4f32 _r6 = (v4f32)__msa_ld_w(p0 + 24, 0);
+                v4f32 _r7 = (v4f32)__msa_ld_w(p0 + 28, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                __msa_st_w((v4i32)_r0, pp, 0);
+                __msa_st_w((v4i32)_r4, pp + 4, 0);
+                __msa_st_w((v4i32)_r1, pp + 8, 0);
+                __msa_st_w((v4i32)_r5, pp + 12, 0);
+                __msa_st_w((v4i32)_r2, pp + 16, 0);
+                __msa_st_w((v4i32)_r6, pp + 20, 0);
+                __msa_st_w((v4i32)_r3, pp + 24, 0);
+                __msa_st_w((v4i32)_r7, pp + 28, 0);
+                pp += 32;
+                p0 += B_hstep * 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[4];
+                pp[2] = p0[8];
+                pp[3] = p0[12];
+                pp[4] = p0[16];
+                pp[5] = p0[20];
+                pp[6] = p0[24];
+                pp[7] = p0[28];
+                pp += 8;
+                p0++;
+            }
+        }
+        else
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
+                pp += 8;
+                p0 += B_hstep;
+            }
         }
     }
     for (; jj + 3 < max_jj; jj += 4)
@@ -4602,6 +4873,9 @@ fallback_wrapper:
 }
 
 #if NCNN_BF16
+#if __mips_msa && defined(__GNUC__)
+__attribute__((optimize("no-tree-vectorize")))
+#endif
 static int forward_bf16s_fallback(const Gemm_mips* self, const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt)
 {
     std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
@@ -4635,40 +4909,113 @@ static int forward_bf16s_fallback(const Gemm_mips* self, const std::vector<Mat>&
             return ret;
     }
 
-    Gemm gemm;
-    gemm.alpha = self->alpha;
-    gemm.beta = self->beta;
-    gemm.transA = self->transA;
-    gemm.transB = self->transB;
-    gemm.constantA = self->constantA;
-    gemm.constantB = self->constantB;
-    gemm.constantC = self->constantC;
-    gemm.constantM = self->constantM;
-    gemm.constantN = self->constantN;
-    gemm.constantK = self->constantK;
-    gemm.constant_broadcast_type_C = self->constant_broadcast_type_C;
-    gemm.output_N1M = self->output_N1M;
-    gemm.output_elempack = 1;
-    gemm.output_elemtype = 1;
-    gemm.output_transpose = self->output_transpose;
-    gemm.int8_scale_term = 0;
-    gemm.constant_TILE_M = self->constant_TILE_M;
-    gemm.constant_TILE_N = self->constant_TILE_N;
-    gemm.constant_TILE_K = self->constant_TILE_K;
-    gemm.A_data = A_data_fp32;
-    gemm.B_data = B_data_fp32;
-    gemm.C_data = C_data_fp32;
+    const Mat& A_fp32 = self->constantA ? A_data_fp32 : bottom_blobs_fp32[0];
+    const Mat& B_fp32 = self->constantB ? B_data_fp32 : self->constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
 
-    std::vector<Mat> top_blobs_unpacked(1);
-    int ret = gemm.forward(bottom_blobs_fp32, top_blobs_unpacked, opt);
+    int M;
+    int N;
+    if (self->constantA && self->constantB)
+    {
+        M = self->constantM;
+        N = self->constantN;
+    }
+    else if (self->constantA)
+    {
+        M = self->constantM;
+        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
+    }
+    else if (self->constantB)
+    {
+        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
+        N = self->constantN;
+    }
+    else
+    {
+        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
+        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
+    }
+
+    Mat C_src_fp32;
+    if (self->constantC)
+    {
+        if (self->constant_broadcast_type_C != -1)
+            C_src_fp32 = C_data_fp32;
+    }
+    else
+    {
+        if (self->constantA && self->constantB)
+            C_src_fp32 = bottom_blobs_fp32.size() == 1 ? bottom_blobs_fp32[0] : Mat();
+        else if (self->constantA || self->constantB)
+            C_src_fp32 = bottom_blobs_fp32.size() == 2 ? bottom_blobs_fp32[1] : Mat();
+        else
+            C_src_fp32 = bottom_blobs_fp32.size() == 3 ? bottom_blobs_fp32[2] : Mat();
+    }
+
+    Mat C;
+    int broadcast_type_C = 0;
+    int ret = prepare_C_fp32(C_src_fp32, C, broadcast_type_C, M, N, self->beta, opt);
+    if (ret != 0)
+    {
+        if (ret == -100)
+            return -100;
+        return -1;
+    }
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (self->output_elempack == 0 && opt.use_packing_layout)
+    {
+        const int outh = self->output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+    if (self->output_elempack == 4)
+        out_elempack = 4;
+#endif
+    if (self->output_elempack == 1)
+        out_elempack = 1;
+
+    const size_t out_elemsize = 4u;
+    Mat top_blob_fp32;
+    if (self->output_transpose)
+    {
+        if (self->output_N1M)
+            top_blob_fp32.create(M, 1, N, out_elemsize, 1, opt.workspace_allocator);
+        else
+            top_blob_fp32.create(M, N, out_elemsize, 1, opt.workspace_allocator);
+    }
+    else
+    {
+        if (self->output_N1M)
+            top_blob_fp32.create(N, 1, M, out_elemsize, 1, opt.workspace_allocator);
+        else
+            top_blob_fp32.create(N, M, out_elemsize, 1, opt.workspace_allocator);
+    }
+    if (top_blob_fp32.empty())
+        return -100;
+
+    const int K = self->constantA || self->constantB ? self->constantK : (self->transA ? (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack : A_fp32.w);
+    const int nT = self->nT ? self->nT : opt.num_threads;
+    ret = gemm_fp32_reference_scalar(A_fp32, B_fp32, C, top_blob_fp32, broadcast_type_C, M, N, K, self->transA, self->transB, self->output_transpose, self->alpha, nT);
     if (ret != 0)
         return ret;
 
+    Mat top_blob_final;
+    if (out_elempack == 4)
+    {
+        convert_packing(top_blob_fp32, top_blob_final, 4, opt);
+        if (top_blob_final.empty())
+            return -100;
+    }
+    else
+    {
+        top_blob_final = top_blob_fp32;
+    }
+
     if (self->output_elemtype == 1)
-        return assign_or_copy_top_blob(top_blobs_unpacked[0], top_blobs[0]);
+        return assign_or_copy_top_blob(top_blob_final, top_blobs[0]);
 
     Mat top_blob_bf16;
-    cast_float32_to_bfloat16(top_blobs_unpacked[0], top_blob_bf16, opt);
+    cast_float32_to_bfloat16(top_blob_final, top_blob_bf16, opt);
     if (top_blob_bf16.empty())
         return -100;
 
@@ -4722,8 +5069,6 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-            A_data.release();
     }
 
     if (constantB)
@@ -4770,8 +5115,6 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-            B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -4786,8 +5129,6 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
                 return -100;
         }
 
-        if (opt.lightmode)
-            C_data.release();
     }
 
     if (constantA || constantB || constantC)
@@ -5226,8 +5567,27 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
     int broadcast_type_C = 0;
     if (constantC)
     {
-        C = CT_data;
+        C = !CT_data.empty() ? CT_data : C_data;
         broadcast_type_C = constant_broadcast_type_C;
+
+        if (!C.empty())
+        {
+            if (C.elembits() == 16)
+            {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+                C = C_fp32;
+            }
+            else if (C.elembits() != 32)
+            {
+                return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+            }
+        }
     }
     else
     {
@@ -5277,6 +5637,11 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             }
         }
     }
+
+#if __mips_msa && __mips_isa_rev >= 6
+    if (broadcast_type_C == 3 && output_transpose)
+        return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+#endif
 
     int out_elempack = 1;
 #if __mips_msa

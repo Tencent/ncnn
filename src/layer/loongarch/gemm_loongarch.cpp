@@ -5516,6 +5516,51 @@ static int forward_bf16s_fallback(const Gemm_loongarch* self, const std::vector<
             return ret;
     }
 
+    const Mat& A_fp32 = self->constantA ? A_data_fp32 : bottom_blobs_fp32[0];
+    const Mat& B_fp32 = self->constantB ? B_data_fp32 : self->constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
+
+    int M;
+    int N;
+    if (self->constantA && self->constantB)
+    {
+        M = self->constantM;
+        N = self->constantN;
+    }
+    else if (self->constantA)
+    {
+        M = self->constantM;
+        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
+    }
+    else if (self->constantB)
+    {
+        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
+        N = self->constantN;
+    }
+    else
+    {
+        M = self->transA ? A_fp32.w : (A_fp32.dims == 3 ? A_fp32.c : A_fp32.h) * A_fp32.elempack;
+        N = self->transB ? (B_fp32.dims == 3 ? B_fp32.c : B_fp32.h) * B_fp32.elempack : B_fp32.w;
+    }
+
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (self->output_elempack == 0 && opt.use_packing_layout)
+    {
+        const int outh = self->output_transpose ? N : M;
+        out_elempack =
+#if __loongarch_asx
+            outh % 8 == 0 ? 8 :
+#endif
+            outh % 4 == 0 ? 4 : 1;
+    }
+    if (self->output_elempack == 8)
+        out_elempack = 8;
+    if (self->output_elempack == 4)
+        out_elempack = 4;
+#endif
+    if (self->output_elempack == 1)
+        out_elempack = 1;
+
     Gemm gemm;
     gemm.alpha = self->alpha;
     gemm.beta = self->beta;
@@ -5545,11 +5590,23 @@ static int forward_bf16s_fallback(const Gemm_loongarch* self, const std::vector<
     if (ret != 0)
         return ret;
 
+    Mat top_blob_final;
+    if (out_elempack == 1)
+    {
+        top_blob_final = top_blobs_unpacked[0];
+    }
+    else
+    {
+        convert_packing(top_blobs_unpacked[0], top_blob_final, out_elempack, opt);
+        if (top_blob_final.empty())
+            return -100;
+    }
+
     if (self->output_elemtype == 1)
-        return assign_or_copy_top_blob(top_blobs_unpacked[0], top_blobs[0]);
+        return assign_or_copy_top_blob(top_blob_final, top_blobs[0]);
 
     Mat top_blob_bf16;
-    cast_float32_to_bfloat16(top_blobs_unpacked[0], top_blob_bf16, opt);
+    cast_float32_to_bfloat16(top_blob_final, top_blob_bf16, opt);
     if (top_blob_bf16.empty())
         return -100;
 
@@ -5603,8 +5660,6 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-            A_data.release();
     }
 
     if (constantB)
@@ -5651,8 +5706,6 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-            B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -5671,8 +5724,6 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
                 return -100;
         }
 
-        if (opt.lightmode)
-            C_data.release();
     }
 
     if (constantA || constantB || constantC)
@@ -6162,6 +6213,11 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
             }
         }
     }
+
+#if __loongarch_sx
+    if (broadcast_type_C == 3 && output_transpose)
+        return forward_bf16s_fallback(this, bottom_blobs, top_blobs, opt);
+#endif
 
     int out_elempack = 1;
 #if __loongarch_sx
