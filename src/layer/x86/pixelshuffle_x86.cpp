@@ -20,10 +20,6 @@ PixelShuffle_x86::PixelShuffle_x86()
 
 int PixelShuffle_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int elembits = bottom_blob.elembits();
-    if (elembits != 32)
-        return PixelShuffle::forward(bottom_blob, top_blob, opt);
-
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
     const int channels = bottom_blob.c;
@@ -33,9 +29,6 @@ int PixelShuffle_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     const int outw = w * r;
     const int outh = h * r;
     const int outc = channels / (r * r);
-
-    if (bottom_blob.elempack != 1)
-        return PixelShuffle::forward(bottom_blob, top_blob, opt);
 
     if (r != 2 && r != 4)
         return PixelShuffle::forward(bottom_blob, top_blob, opt);
