@@ -113,56 +113,6 @@ static void add_matrix_C_fp32(const Mat& C, Mat& top_blob, int output_transpose)
     }
 }
 
-static NCNN_FORCEINLINE float get_matrix_element_fp32_scalar(const Mat& m, int row, int col)
-{
-    const int elempack = m.elempack;
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-
-    return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
-}
-
-static NCNN_FORCEINLINE float get_vector_element_fp32_scalar(const Mat& m, int idx)
-{
-    const int elempack = m.elempack;
-
-    if (m.dims == 1)
-        return ((const float*)m)[(size_t)(idx / elempack) * elempack + idx % elempack];
-
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-    return ((const float*)m)[(size_t)(idx / elempack) * hstep * elempack + idx % elempack];
-}
-
-static NCNN_FORCEINLINE float get_broadcast_value_fp32_scalar(const Mat& C, int broadcast_type_C, int row, int col)
-{
-    if (C.empty())
-        return 0.f;
-
-    if (broadcast_type_C == 0)
-        return ((const float*)C)[0];
-
-    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-        return C.dims == 1 ? get_vector_element_fp32_scalar(C, row) : get_matrix_element_fp32_scalar(C, row, 0);
-
-    if (broadcast_type_C == 3)
-        return get_matrix_element_fp32_scalar(C, row, col);
-
-    return C.dims == 1 ? get_vector_element_fp32_scalar(C, col) : get_matrix_element_fp32_scalar(C, 0, col);
-}
-
-static NCNN_FORCEINLINE void set_output_element_fp32_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
-{
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    size_t offset;
-    if (output_transpose)
-        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-    else
-        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
-
-    ((float*)top_blob)[offset] = v;
-}
-
 #if __loongarch_sx
 static NCNN_FORCEINLINE void transpose4x4_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3)
 {
@@ -4485,7 +4435,7 @@ static int gemm_loongarch(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     return 0;
 }
 
-static int gemm_AT_mips(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_loongarch(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
@@ -4580,7 +4530,7 @@ static int gemm_AT_mips(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob
     return 0;
 }
 
-static int gemm_BT_mips(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_BT_loongarch(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
@@ -4676,7 +4626,7 @@ static int gemm_BT_mips(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob
     return 0;
 }
 
-static int gemm_AT_BT_mips(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_AT_BT_loongarch(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     int TILE_M;
     int TILE_N;
@@ -5091,17 +5041,17 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_mips(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_BT_loongarch(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_mips(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_loongarch(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_mips(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_BT_loongarch(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {

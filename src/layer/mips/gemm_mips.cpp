@@ -63,14 +63,6 @@ static NCNN_FORCEINLINE void transpose4x4_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2,
 }
 #endif // __mips_msa
 
-static NCNN_FORCEINLINE float get_packed_matrix_element(const Mat& m, int row, int col)
-{
-    const int elempack = m.elempack;
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-
-    return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
-}
-
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
