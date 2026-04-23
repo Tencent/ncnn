@@ -148,7 +148,10 @@ int DeformableConv2D_mips::create_pipeline(const Option& opt)
             gemm->load_model(ModelBinFromMatArray(weights));
         }
 
-        gemm->create_pipeline(opt);
+        Option opt_gemm = opt;
+        opt_gemm.use_bf16_packed = false;
+        opt_gemm.use_bf16_storage = false;
+        gemm->create_pipeline(opt_gemm);
     }
     else
     {

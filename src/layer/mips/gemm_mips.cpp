@@ -71,44 +71,6 @@ static NCNN_FORCEINLINE float get_packed_matrix_element(const Mat& m, int row, i
     return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
 }
 
-static NCNN_FORCEINLINE void set_packed_output_element(Mat& top_blob, int row, int col, float v, bool output_transpose)
-{
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    size_t offset;
-    if (output_transpose)
-        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-    else
-        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
-
-    ((float*)top_blob)[offset] = v;
-}
-
-static NCNN_FORCEINLINE void store_output_block(Mat& top_blob, int i, int rows, int j, int cols, const float* block, bool output_transpose, bool rowmajor)
-{
-    if (rowmajor)
-    {
-        for (int r = 0; r < rows; r++)
-        {
-            for (int c = 0; c < cols; c++)
-            {
-                set_packed_output_element(top_blob, i + r, j + c, block[r * cols + c], output_transpose);
-            }
-        }
-    }
-    else
-    {
-        for (int c = 0; c < cols; c++)
-        {
-            for (int r = 0; r < rows; r++)
-            {
-                set_packed_output_element(top_blob, i + r, j + c, block[c * rows + r], output_transpose);
-            }
-        }
-    }
-}
-
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
@@ -1081,41 +1043,215 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
-        int jj = 0;
-        for (; jj + 11 < max_jj; jj += 12)
+        if (out_elempack == 4)
         {
-            float block[96];
-            memcpy(block, pp, sizeof(block));
-            store_output_block(top_blob, i + ii, 8, j + jj, 12, block, true, false);
-            pp += 96;
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                for (int kk = 0; kk < 3; kk++)
+                {
+                    const float* ppk = pp + kk * 32;
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
+                    v4f32 _r4 = (v4f32)__msa_ld_w(ppk + 4, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 8, 0);
+                    v4f32 _r5 = (v4f32)__msa_ld_w(ppk + 12, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 16, 0);
+                    v4f32 _r6 = (v4f32)__msa_ld_w(ppk + 20, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 24, 0);
+                    v4f32 _r7 = (v4f32)__msa_ld_w(ppk + 28, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __msa_st_w((v4i32)_r0, p0, 0);
+                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
+                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
+                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
+                    __msa_st_w((v4i32)_r4, p0 + 16, 0);
+                    __msa_st_w((v4i32)_r5, p0 + 20, 0);
+                    __msa_st_w((v4i32)_r6, p0 + 24, 0);
+                    __msa_st_w((v4i32)_r7, p0 + 28, 0);
+                    p0 += out_hstep * 4;
+                }
+                pp += 96;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                for (int kk = 0; kk < 2; kk++)
+                {
+                    const float* ppk = pp + kk * 32;
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
+                    v4f32 _r4 = (v4f32)__msa_ld_w(ppk + 4, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 8, 0);
+                    v4f32 _r5 = (v4f32)__msa_ld_w(ppk + 12, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 16, 0);
+                    v4f32 _r6 = (v4f32)__msa_ld_w(ppk + 20, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 24, 0);
+                    v4f32 _r7 = (v4f32)__msa_ld_w(ppk + 28, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __msa_st_w((v4i32)_r0, p0, 0);
+                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
+                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
+                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
+                    __msa_st_w((v4i32)_r4, p0 + 16, 0);
+                    __msa_st_w((v4i32)_r5, p0 + 20, 0);
+                    __msa_st_w((v4i32)_r6, p0 + 24, 0);
+                    __msa_st_w((v4i32)_r7, p0 + 28, 0);
+                    p0 += out_hstep * 4;
+                }
+                pp += 64;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                v4f32 _r0 = (v4f32)__msa_ld_w(pp, 0);
+                v4f32 _r4 = (v4f32)__msa_ld_w(pp + 4, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(pp + 8, 0);
+                v4f32 _r5 = (v4f32)__msa_ld_w(pp + 12, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(pp + 16, 0);
+                v4f32 _r6 = (v4f32)__msa_ld_w(pp + 20, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(pp + 24, 0);
+                v4f32 _r7 = (v4f32)__msa_ld_w(pp + 28, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                __msa_st_w((v4i32)_r0, p0, 0);
+                __msa_st_w((v4i32)_r1, p0 + 4, 0);
+                __msa_st_w((v4i32)_r2, p0 + 8, 0);
+                __msa_st_w((v4i32)_r3, p0 + 12, 0);
+                __msa_st_w((v4i32)_r4, p0 + 16, 0);
+                __msa_st_w((v4i32)_r5, p0 + 20, 0);
+                __msa_st_w((v4i32)_r6, p0 + 24, 0);
+                __msa_st_w((v4i32)_r7, p0 + 28, 0);
+                pp += 32;
+                p0 += out_hstep * 4;
+            }
+            for (; jj + 1 < max_jj; jj += 2)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[8];
+                p0[4] = pp[1];
+                p0[5] = pp[9];
+                p0[8] = pp[2];
+                p0[9] = pp[10];
+                p0[12] = pp[3];
+                p0[13] = pp[11];
+                p0[16] = pp[4];
+                p0[17] = pp[12];
+                p0[20] = pp[5];
+                p0[21] = pp[13];
+                p0[24] = pp[6];
+                p0[25] = pp[14];
+                p0[28] = pp[7];
+                p0[29] = pp[15];
+                pp += 16;
+                p0 += out_hstep * 2;
+            }
+            for (; jj < max_jj; jj++)
+            {
+                p0[0] = pp[0];
+                p0[4] = pp[1];
+                p0[8] = pp[2];
+                p0[12] = pp[3];
+                p0[16] = pp[4];
+                p0[20] = pp[5];
+                p0[24] = pp[6];
+                p0[28] = pp[7];
+                pp += 8;
+                p0 += out_hstep;
+            }
         }
-        for (; jj + 7 < max_jj; jj += 8)
+        else
         {
-            float block[64];
-            memcpy(block, pp, sizeof(block));
-            store_output_block(top_blob, i + ii, 8, j + jj, 8, block, true, false);
-            pp += 64;
-        }
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            float block[32];
-            memcpy(block, pp, sizeof(block));
-            store_output_block(top_blob, i + ii, 8, j + jj, 4, block, true, false);
-            pp += 32;
-        }
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            float block[16];
-            memcpy(block, pp, sizeof(block));
-            store_output_block(top_blob, i + ii, 8, j + jj, 2, block, true, false);
-            pp += 16;
-        }
-        for (; jj < max_jj; jj++)
-        {
-            float block[8];
-            memcpy(block, pp, sizeof(block));
-            store_output_block(top_blob, i + ii, 8, j + jj, 1, block, true, false);
-            pp += 8;
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            int jj = 0;
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                for (int c = 0; c < 12; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 8];
+                    p[1] = pp[c * 8 + 1];
+                    p[2] = pp[c * 8 + 2];
+                    p[3] = pp[c * 8 + 3];
+                    p[4] = pp[c * 8 + 4];
+                    p[5] = pp[c * 8 + 5];
+                    p[6] = pp[c * 8 + 6];
+                    p[7] = pp[c * 8 + 7];
+                }
+                pp += 96;
+                p0 += out_hstep * 12;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                for (int c = 0; c < 8; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 8];
+                    p[1] = pp[c * 8 + 1];
+                    p[2] = pp[c * 8 + 2];
+                    p[3] = pp[c * 8 + 3];
+                    p[4] = pp[c * 8 + 4];
+                    p[5] = pp[c * 8 + 5];
+                    p[6] = pp[c * 8 + 6];
+                    p[7] = pp[c * 8 + 7];
+                }
+                pp += 64;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                for (int c = 0; c < 4; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 8];
+                    p[1] = pp[c * 8 + 1];
+                    p[2] = pp[c * 8 + 2];
+                    p[3] = pp[c * 8 + 3];
+                    p[4] = pp[c * 8 + 4];
+                    p[5] = pp[c * 8 + 5];
+                    p[6] = pp[c * 8 + 6];
+                    p[7] = pp[c * 8 + 7];
+                }
+                pp += 32;
+                p0 += out_hstep * 4;
+            }
+            for (; jj + 1 < max_jj; jj += 2)
+            {
+                float* p = p0;
+                p[0] = pp[0];
+                p[1] = pp[1];
+                p[2] = pp[2];
+                p[3] = pp[3];
+                p[4] = pp[4];
+                p[5] = pp[5];
+                p[6] = pp[6];
+                p[7] = pp[7];
+                p += out_hstep;
+                p[0] = pp[8];
+                p[1] = pp[9];
+                p[2] = pp[10];
+                p[3] = pp[11];
+                p[4] = pp[12];
+                p[5] = pp[13];
+                p[6] = pp[14];
+                p[7] = pp[15];
+                pp += 16;
+                p0 += out_hstep * 2;
+            }
+            for (; jj < max_jj; jj++)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[1];
+                p0[2] = pp[2];
+                p0[3] = pp[3];
+                p0[4] = pp[4];
+                p0[5] = pp[5];
+                p0[6] = pp[6];
+                p0[7] = pp[7];
+                pp += 8;
+                p0 += out_hstep;
+            }
         }
     }
 #endif // __mips_msa
@@ -1131,19 +1267,39 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[48];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, true, false);
+                for (int kk = 0; kk < 3; kk++)
+                {
+                    const float* ppk = pp + kk * 16;
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 8, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __msa_st_w((v4i32)_r0, p0, 0);
+                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
+                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
+                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
+                    p0 += out_hstep * 4;
+                }
                 pp += 48;
-                p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[32];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, true, false);
+                for (int kk = 0; kk < 2; kk++)
+                {
+                    const float* ppk = pp + kk * 16;
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 8, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __msa_st_w((v4i32)_r0, p0, 0);
+                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
+                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
+                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
+                    p0 += out_hstep * 4;
+                }
                 pp += 32;
-                p0 += out_hstep * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -1168,17 +1324,27 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[48];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, true, false);
+                for (int c = 0; c < 12; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 4];
+                    p[1] = pp[c * 4 + 1];
+                    p[2] = pp[c * 4 + 2];
+                    p[3] = pp[c * 4 + 3];
+                }
                 pp += 48;
                 p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[32];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 4];
+                    p[1] = pp[c * 4 + 1];
+                    p[2] = pp[c * 4 + 2];
+                    p[3] = pp[c * 4 + 3];
+                }
                 pp += 32;
                 p0 += out_hstep * 8;
             }
@@ -1205,19 +1371,37 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[24];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, true, false);
+                for (int kk = 0; kk < 3; kk++)
+                {
+                    const float* ppk = pp + kk * 8;
+                    p0[0] = ppk[0];
+                    p0[1] = ppk[2];
+                    p0[2] = ppk[4];
+                    p0[3] = ppk[6];
+                    p0[4] = ppk[1];
+                    p0[5] = ppk[3];
+                    p0[6] = ppk[5];
+                    p0[7] = ppk[7];
+                    p0 += out_hstep * 4;
+                }
                 pp += 24;
-                p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[16];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, true, false);
+                for (int kk = 0; kk < 2; kk++)
+                {
+                    const float* ppk = pp + kk * 8;
+                    p0[0] = ppk[0];
+                    p0[1] = ppk[2];
+                    p0[2] = ppk[4];
+                    p0[3] = ppk[6];
+                    p0[4] = ppk[1];
+                    p0[5] = ppk[3];
+                    p0[6] = ppk[5];
+                    p0[7] = ppk[7];
+                    p0 += out_hstep * 4;
+                }
                 pp += 16;
-                p0 += out_hstep * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -1241,17 +1425,23 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[24];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, true, false);
+                for (int c = 0; c < 12; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 2];
+                    p[1] = pp[c * 2 + 1];
+                }
                 pp += 24;
                 p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[16];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* p = p0 + out_hstep * c;
+                    p[0] = pp[c * 2];
+                    p[1] = pp[c * 2 + 1];
+                }
                 pp += 16;
                 p0 += out_hstep * 8;
             }
@@ -1275,17 +1465,16 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[12];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 12, block, true, false);
+                __msa_st_w((v4i32)__msa_ld_w(pp, 0), p0, 0);
+                __msa_st_w((v4i32)__msa_ld_w(pp + 4, 0), p0 + out_hstep * 4, 0);
+                __msa_st_w((v4i32)__msa_ld_w(pp + 8, 0), p0 + out_hstep * 8, 0);
                 pp += 12;
                 p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[8];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, block, true, false);
+                __msa_st_w((v4i32)__msa_ld_w(pp, 0), p0, 0);
+                __msa_st_w((v4i32)__msa_ld_w(pp + 4, 0), p0 + out_hstep * 4, 0);
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -1304,17 +1493,15 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 11 < max_jj; jj += 12)
             {
-                float block[12];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 12, block, true, false);
+                for (int c = 0; c < 12; c++)
+                    p0[out_hstep * c] = pp[c];
                 pp += 12;
                 p0 += out_hstep * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[8];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                    p0[out_hstep * c] = pp[c];
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -1437,13 +1624,36 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[96];
-                for (int c = 0; c < 12; c++)
+                if (out_elempack == 4)
                 {
-                    __msa_st_w((v4i32)_sum0[c], block + c * 8, 0);
-                    __msa_st_w((v4i32)_sum1[c], block + c * 8 + 4, 0);
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        __msa_st_w((v4i32)_sum0[c], outptr0 + c * 4, 0);
+                        __msa_st_w((v4i32)_sum1[c], outptr1 + c * 4, 0);
+                    }
                 }
-                store_output_block(top_blob, i + ii, 8, j + jj, 12, block, false, false);
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    float* outptr2 = outptr0 + out_hstep * 2;
+                    float* outptr3 = outptr0 + out_hstep * 3;
+                    float* outptr4 = outptr0 + out_hstep * 4;
+                    float* outptr5 = outptr0 + out_hstep * 5;
+                    float* outptr6 = outptr0 + out_hstep * 6;
+                    float* outptr7 = outptr0 + out_hstep * 7;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        outptr0[c] = _sum0[c][0];
+                        outptr1[c] = _sum0[c][1];
+                        outptr2[c] = _sum0[c][2];
+                        outptr3[c] = _sum0[c][3];
+                        outptr4[c] = _sum1[c][0];
+                        outptr5[c] = _sum1[c][1];
+                        outptr6[c] = _sum1[c][2];
+                        outptr7[c] = _sum1[c][3];
+                    }
+                }
                 outptr0 += 12 * out_elempack;
             }
             else
@@ -1538,13 +1748,36 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[64];
-                for (int c = 0; c < 8; c++)
+                if (out_elempack == 4)
                 {
-                    __msa_st_w((v4i32)_sum0[c], block + c * 8, 0);
-                    __msa_st_w((v4i32)_sum1[c], block + c * 8 + 4, 0);
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        __msa_st_w((v4i32)_sum0[c], outptr0 + c * 4, 0);
+                        __msa_st_w((v4i32)_sum1[c], outptr1 + c * 4, 0);
+                    }
                 }
-                store_output_block(top_blob, i + ii, 8, j + jj, 8, block, false, false);
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    float* outptr2 = outptr0 + out_hstep * 2;
+                    float* outptr3 = outptr0 + out_hstep * 3;
+                    float* outptr4 = outptr0 + out_hstep * 4;
+                    float* outptr5 = outptr0 + out_hstep * 5;
+                    float* outptr6 = outptr0 + out_hstep * 6;
+                    float* outptr7 = outptr0 + out_hstep * 7;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        outptr0[c] = _sum0[c][0];
+                        outptr1[c] = _sum0[c][1];
+                        outptr2[c] = _sum0[c][2];
+                        outptr3[c] = _sum0[c][3];
+                        outptr4[c] = _sum1[c][0];
+                        outptr5[c] = _sum1[c][1];
+                        outptr6[c] = _sum1[c][2];
+                        outptr7[c] = _sum1[c][3];
+                    }
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -1987,10 +2220,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[48];
-                for (int c = 0; c < 12; c++)
-                    __msa_st_w((v4i32)_sum[c], block + c * 4, 0);
-                store_output_block(top_blob, i + ii, 4, j + jj, 12, block, false, false);
+                if (out_elempack == 4)
+                {
+                    for (int c = 0; c < 12; c++)
+                        __msa_st_w((v4i32)_sum[c], outptr0 + c * 4, 0);
+                }
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    float* outptr2 = outptr0 + out_hstep * 2;
+                    float* outptr3 = outptr0 + out_hstep * 3;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        outptr0[c] = _sum[c][0];
+                        outptr1[c] = _sum[c][1];
+                        outptr2[c] = _sum[c][2];
+                        outptr3[c] = _sum[c][3];
+                    }
+                }
                 outptr0 += 12 * out_elempack;
             }
             else
@@ -2060,10 +2307,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[32];
-                for (int c = 0; c < 8; c++)
-                    __msa_st_w((v4i32)_sum[c], block + c * 4, 0);
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, false, false);
+                if (out_elempack == 4)
+                {
+                    for (int c = 0; c < 8; c++)
+                        __msa_st_w((v4i32)_sum[c], outptr0 + c * 4, 0);
+                }
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    float* outptr2 = outptr0 + out_hstep * 2;
+                    float* outptr3 = outptr0 + out_hstep * 3;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        outptr0[c] = _sum[c][0];
+                        outptr1[c] = _sum[c][1];
+                        outptr2[c] = _sum[c][2];
+                        outptr3[c] = _sum[c][3];
+                    }
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -2422,13 +2683,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[24];
-                for (int c = 0; c < 12; c++)
+                if (out_elempack == 4)
                 {
-                    block[c * 2] = sum0[c];
-                    block[c * 2 + 1] = sum1[c];
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        outptr0[c * 4] = sum0[c];
+                        outptr1[c * 4] = sum1[c];
+                    }
                 }
-                store_output_block(top_blob, i + ii, 2, j + jj, 12, block, false, false);
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    for (int c = 0; c < 12; c++)
+                    {
+                        outptr0[c] = sum0[c];
+                        outptr1[c] = sum1[c];
+                    }
+                }
                 outptr0 += 12;
             }
             else
@@ -2520,13 +2792,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                float block[16];
-                for (int c = 0; c < 8; c++)
+                if (out_elempack == 4)
                 {
-                    block[c * 2] = sum0[c];
-                    block[c * 2 + 1] = sum1[c];
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        outptr0[c * 4] = sum0[c];
+                        outptr1[c * 4] = sum1[c];
+                    }
                 }
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, false, false);
+                else
+                {
+                    float* outptr1 = outptr0 + out_hstep;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        outptr0[c] = sum0[c];
+                        outptr1[c] = sum1[c];
+                    }
+                }
                 outptr0 += 8;
             }
             else
@@ -2881,7 +3164,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 12, sum, false, false);
+                for (int c = 0; c < 12; c++)
+                    outptr0[c] = sum[c];
                 outptr0 += 12;
             }
             else
@@ -2936,7 +3220,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, sum, false, false);
+                for (int c = 0; c < 8; c++)
+                    outptr0[c] = sum[c];
                 outptr0 += 8;
             }
             else

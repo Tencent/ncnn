@@ -185,44 +185,6 @@ static NCNN_FORCEINLINE float get_packed_matrix_element(const Mat& m, int row, i
     return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
 }
 
-static NCNN_FORCEINLINE void set_packed_output_element(Mat& top_blob, int row, int col, float v, bool output_transpose)
-{
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    size_t offset;
-    if (output_transpose)
-        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-    else
-        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
-
-    ((float*)top_blob)[offset] = v;
-}
-
-static NCNN_FORCEINLINE void store_output_block(Mat& top_blob, int i, int rows, int j, int cols, const float* block, bool output_transpose, bool rowmajor)
-{
-    if (rowmajor)
-    {
-        for (int r = 0; r < rows; r++)
-        {
-            for (int c = 0; c < cols; c++)
-            {
-                set_packed_output_element(top_blob, i + r, j + c, block[r * cols + c], output_transpose);
-            }
-        }
-    }
-    else
-    {
-        for (int c = 0; c < cols; c++)
-        {
-            for (int r = 0; r < rows; r++)
-            {
-                set_packed_output_element(top_blob, i + r, j + c, block[c * rows + r], output_transpose);
-            }
-        }
-    }
-}
-
 #if __loongarch_sx
 static NCNN_FORCEINLINE bool use_8row_packed_kernel(int out_elempack)
 {
@@ -1369,34 +1331,261 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
     {
         for (; ii + 7 < max_ii; ii += 8)
         {
-            int jj = 0;
-            for (; jj + 7 < max_jj; jj += 8)
+            if (out_elempack == 8)
             {
-                float block[64];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 8, j + jj, 8, block, true, false);
-                pp += 64;
+                int jj = 0;
+                for (; jj + 7 < max_jj; jj += 8)
+                {
+                    for (int kk = 0; kk < 2; kk++)
+                    {
+                        const int col = j + jj + kk * 4;
+                        const int lane = col & 7;
+                        float* p0 = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                        const float* ppk = pp + kk * 32;
+
+                        __m128 _r0 = (__m128)__lsx_vld(ppk, 0);
+                        __m128 _r4 = (__m128)__lsx_vld(ppk + 4, 0);
+                        __m128 _r1 = (__m128)__lsx_vld(ppk + 8, 0);
+                        __m128 _r5 = (__m128)__lsx_vld(ppk + 12, 0);
+                        __m128 _r2 = (__m128)__lsx_vld(ppk + 16, 0);
+                        __m128 _r6 = (__m128)__lsx_vld(ppk + 20, 0);
+                        __m128 _r3 = (__m128)__lsx_vld(ppk + 24, 0);
+                        __m128 _r7 = (__m128)__lsx_vld(ppk + 28, 0);
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+                        __lsx_vst((__m128i)_r0, p0 + lane, 0);
+                        __lsx_vst((__m128i)_r1, p0 + 8 + lane, 0);
+                        __lsx_vst((__m128i)_r2, p0 + 16 + lane, 0);
+                        __lsx_vst((__m128i)_r3, p0 + 24 + lane, 0);
+                        __lsx_vst((__m128i)_r4, p0 + 32 + lane, 0);
+                        __lsx_vst((__m128i)_r5, p0 + 40 + lane, 0);
+                        __lsx_vst((__m128i)_r6, p0 + 48 + lane, 0);
+                        __lsx_vst((__m128i)_r7, p0 + 56 + lane, 0);
+                    }
+                    pp += 64;
+                }
+                for (; jj + 3 < max_jj; jj += 4)
+                {
+                    const int col = j + jj;
+                    const int lane = col & 7;
+                    float* p0 = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+
+                    __m128 _r0 = (__m128)__lsx_vld(pp, 0);
+                    __m128 _r4 = (__m128)__lsx_vld(pp + 4, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(pp + 8, 0);
+                    __m128 _r5 = (__m128)__lsx_vld(pp + 12, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(pp + 16, 0);
+                    __m128 _r6 = (__m128)__lsx_vld(pp + 20, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(pp + 24, 0);
+                    __m128 _r7 = (__m128)__lsx_vld(pp + 28, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __lsx_vst((__m128i)_r0, p0 + lane, 0);
+                    __lsx_vst((__m128i)_r1, p0 + 8 + lane, 0);
+                    __lsx_vst((__m128i)_r2, p0 + 16 + lane, 0);
+                    __lsx_vst((__m128i)_r3, p0 + 24 + lane, 0);
+                    __lsx_vst((__m128i)_r4, p0 + 32 + lane, 0);
+                    __lsx_vst((__m128i)_r5, p0 + 40 + lane, 0);
+                    __lsx_vst((__m128i)_r6, p0 + 48 + lane, 0);
+                    __lsx_vst((__m128i)_r7, p0 + 56 + lane, 0);
+                    pp += 32;
+                }
+                for (; jj + 1 < max_jj; jj += 2)
+                {
+                    for (int c = 0; c < 2; c++)
+                    {
+                        const int col = j + jj + c;
+                        const int lane = col % 8;
+                        float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                        outptr[lane] = pp[c * 8];
+                        outptr[8 + lane] = pp[c * 8 + 1];
+                        outptr[16 + lane] = pp[c * 8 + 2];
+                        outptr[24 + lane] = pp[c * 8 + 3];
+                        outptr[32 + lane] = pp[c * 8 + 4];
+                        outptr[40 + lane] = pp[c * 8 + 5];
+                        outptr[48 + lane] = pp[c * 8 + 6];
+                        outptr[56 + lane] = pp[c * 8 + 7];
+                    }
+                    pp += 16;
+                }
+                for (; jj < max_jj; jj++)
+                {
+                    const int lane = (j + jj) % 8;
+                    float* outptr = (float*)top_blob + (size_t)((j + jj) / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[0];
+                    outptr[8 + lane] = pp[1];
+                    outptr[16 + lane] = pp[2];
+                    outptr[24 + lane] = pp[3];
+                    outptr[32 + lane] = pp[4];
+                    outptr[40 + lane] = pp[5];
+                    outptr[48 + lane] = pp[6];
+                    outptr[56 + lane] = pp[7];
+                    pp += 8;
+                }
             }
-            for (; jj + 3 < max_jj; jj += 4)
+            else if (out_elempack == 4)
             {
-                float block[32];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 8, j + jj, 4, block, true, false);
-                pp += 32;
+                int jj = 0;
+                for (; jj + 7 < max_jj; jj += 8)
+                {
+                    for (int kk = 0; kk < 2; kk++)
+                    {
+                        float* p0 = (float*)top_blob + (j + jj + kk * 4) * out_hstep + (i + ii) * 4;
+                        const float* ppk = pp + kk * 32;
+
+                        __m128 _r0 = (__m128)__lsx_vld(ppk, 0);
+                        __m128 _r4 = (__m128)__lsx_vld(ppk + 4, 0);
+                        __m128 _r1 = (__m128)__lsx_vld(ppk + 8, 0);
+                        __m128 _r5 = (__m128)__lsx_vld(ppk + 12, 0);
+                        __m128 _r2 = (__m128)__lsx_vld(ppk + 16, 0);
+                        __m128 _r6 = (__m128)__lsx_vld(ppk + 20, 0);
+                        __m128 _r3 = (__m128)__lsx_vld(ppk + 24, 0);
+                        __m128 _r7 = (__m128)__lsx_vld(ppk + 28, 0);
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+                        __lsx_vst((__m128i)_r0, p0, 0);
+                        __lsx_vst((__m128i)_r1, p0 + 4, 0);
+                        __lsx_vst((__m128i)_r2, p0 + 8, 0);
+                        __lsx_vst((__m128i)_r3, p0 + 12, 0);
+                        __lsx_vst((__m128i)_r4, p0 + 16, 0);
+                        __lsx_vst((__m128i)_r5, p0 + 20, 0);
+                        __lsx_vst((__m128i)_r6, p0 + 24, 0);
+                        __lsx_vst((__m128i)_r7, p0 + 28, 0);
+                    }
+                    pp += 64;
+                }
+                for (; jj + 3 < max_jj; jj += 4)
+                {
+                    float* p0 = (float*)top_blob + (j + jj) * out_hstep + (i + ii) * 4;
+
+                    __m128 _r0 = (__m128)__lsx_vld(pp, 0);
+                    __m128 _r4 = (__m128)__lsx_vld(pp + 4, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(pp + 8, 0);
+                    __m128 _r5 = (__m128)__lsx_vld(pp + 12, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(pp + 16, 0);
+                    __m128 _r6 = (__m128)__lsx_vld(pp + 20, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(pp + 24, 0);
+                    __m128 _r7 = (__m128)__lsx_vld(pp + 28, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __lsx_vst((__m128i)_r0, p0, 0);
+                    __lsx_vst((__m128i)_r1, p0 + 4, 0);
+                    __lsx_vst((__m128i)_r2, p0 + 8, 0);
+                    __lsx_vst((__m128i)_r3, p0 + 12, 0);
+                    __lsx_vst((__m128i)_r4, p0 + 16, 0);
+                    __lsx_vst((__m128i)_r5, p0 + 20, 0);
+                    __lsx_vst((__m128i)_r6, p0 + 24, 0);
+                    __lsx_vst((__m128i)_r7, p0 + 28, 0);
+                    pp += 32;
+                }
+                for (; jj + 1 < max_jj; jj += 2)
+                {
+                    for (int c = 0; c < 2; c++)
+                    {
+                        const int col = j + jj + c;
+                        const int lane = col % 4;
+                        float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                        outptr[lane] = pp[c * 8];
+                        outptr[4 + lane] = pp[c * 8 + 1];
+                        outptr[8 + lane] = pp[c * 8 + 2];
+                        outptr[12 + lane] = pp[c * 8 + 3];
+                        outptr[16 + lane] = pp[c * 8 + 4];
+                        outptr[20 + lane] = pp[c * 8 + 5];
+                        outptr[24 + lane] = pp[c * 8 + 6];
+                        outptr[28 + lane] = pp[c * 8 + 7];
+                    }
+                    pp += 16;
+                }
+                for (; jj < max_jj; jj++)
+                {
+                    const int lane = (j + jj) % 4;
+                    float* outptr = (float*)top_blob + (size_t)((j + jj) / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[0];
+                    outptr[4 + lane] = pp[1];
+                    outptr[8 + lane] = pp[2];
+                    outptr[12 + lane] = pp[3];
+                    outptr[16 + lane] = pp[4];
+                    outptr[20 + lane] = pp[5];
+                    outptr[24 + lane] = pp[6];
+                    outptr[28 + lane] = pp[7];
+                    pp += 8;
+                }
             }
-            for (; jj + 1 < max_jj; jj += 2)
+            else
             {
-                float block[16];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 8, j + jj, 2, block, true, false);
-                pp += 16;
-            }
-            for (; jj < max_jj; jj++)
-            {
-                float block[8];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 8, j + jj, 1, block, true, false);
-                pp += 8;
+                float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+                int jj = 0;
+                for (; jj + 7 < max_jj; jj += 8)
+                {
+                    for (int c = 0; c < 8; c++)
+                    {
+                        float* outptr = p0 + out_hstep * c;
+                        outptr[0] = pp[c * 8];
+                        outptr[1] = pp[c * 8 + 1];
+                        outptr[2] = pp[c * 8 + 2];
+                        outptr[3] = pp[c * 8 + 3];
+                        outptr[4] = pp[c * 8 + 4];
+                        outptr[5] = pp[c * 8 + 5];
+                        outptr[6] = pp[c * 8 + 6];
+                        outptr[7] = pp[c * 8 + 7];
+                    }
+                    pp += 64;
+                    p0 += out_hstep * 8;
+                }
+                for (; jj + 3 < max_jj; jj += 4)
+                {
+                    for (int c = 0; c < 4; c++)
+                    {
+                        float* outptr = p0 + out_hstep * c;
+                        outptr[0] = pp[c * 8];
+                        outptr[1] = pp[c * 8 + 1];
+                        outptr[2] = pp[c * 8 + 2];
+                        outptr[3] = pp[c * 8 + 3];
+                        outptr[4] = pp[c * 8 + 4];
+                        outptr[5] = pp[c * 8 + 5];
+                        outptr[6] = pp[c * 8 + 6];
+                        outptr[7] = pp[c * 8 + 7];
+                    }
+                    pp += 32;
+                    p0 += out_hstep * 4;
+                }
+                for (; jj + 1 < max_jj; jj += 2)
+                {
+                    float* outptr = p0;
+                    outptr[0] = pp[0];
+                    outptr[1] = pp[1];
+                    outptr[2] = pp[2];
+                    outptr[3] = pp[3];
+                    outptr[4] = pp[4];
+                    outptr[5] = pp[5];
+                    outptr[6] = pp[6];
+                    outptr[7] = pp[7];
+                    outptr += out_hstep;
+                    outptr[0] = pp[8];
+                    outptr[1] = pp[9];
+                    outptr[2] = pp[10];
+                    outptr[3] = pp[11];
+                    outptr[4] = pp[12];
+                    outptr[5] = pp[13];
+                    outptr[6] = pp[14];
+                    outptr[7] = pp[15];
+                    pp += 16;
+                    p0 += out_hstep * 2;
+                }
+                for (; jj < max_jj; jj++)
+                {
+                    p0[0] = pp[0];
+                    p0[1] = pp[1];
+                    p0[2] = pp[2];
+                    p0[3] = pp[3];
+                    p0[4] = pp[4];
+                    p0[5] = pp[5];
+                    p0[6] = pp[6];
+                    p0[7] = pp[7];
+                    pp += 8;
+                    p0 += out_hstep;
+                }
             }
         }
     }
@@ -1412,23 +1601,58 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c];
+                    outptr[8 + lane] = pp[16 + c];
+                    outptr[16 + lane] = pp[32 + c];
+                    outptr[24 + lane] = pp[48 + c];
+                }
                 pp += 64;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c];
+                    outptr[8 + lane] = pp[8 + c];
+                    outptr[16 + lane] = pp[16 + c];
+                    outptr[24 + lane] = pp[24 + c];
+                }
                 pp += 32;
             }
 #endif
             for (; jj + 3 < max_jj; jj += 4)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 4, pp, true, false);
+                const int col = j + jj;
+                const int lane = col & 7;
+                float* p0 = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+
+                __m128 _r0 = (__m128)__lsx_vld(pp, 0);
+                __m128 _r1 = (__m128)__lsx_vld(pp + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(pp + 8, 0);
+                __m128 _r3 = (__m128)__lsx_vld(pp + 12, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                __lsx_vst((__m128i)_r0, p0 + lane, 0);
+                __lsx_vst((__m128i)_r1, p0 + 8 + lane, 0);
+                __lsx_vst((__m128i)_r2, p0 + 16 + lane, 0);
+                __lsx_vst((__m128i)_r3, p0 + 24 + lane, 0);
                 pp += 16;
             }
             for (; jj < max_jj; jj++)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 1, pp, true, false);
+                const int lane = (j + jj) % 8;
+                float* outptr = (float*)top_blob + (size_t)((j + jj) / 8 * 8) * out_hstep + (i + ii) * 8;
+                outptr[lane] = pp[0];
+                outptr[8 + lane] = pp[1];
+                outptr[16 + lane] = pp[2];
+                outptr[24 + lane] = pp[3];
                 pp += 4;
             }
         }
@@ -1440,24 +1664,52 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 4;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[c];
+                    outptr[4 + lane] = pp[16 + c];
+                    outptr[8 + lane] = pp[32 + c];
+                    outptr[12 + lane] = pp[48 + c];
+                }
                 pp += 64;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 4;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[c];
+                    outptr[4 + lane] = pp[8 + c];
+                    outptr[8 + lane] = pp[16 + c];
+                    outptr[12 + lane] = pp[24 + c];
+                }
                 pp += 32;
                 p0 += out_hstep * 8;
             }
 #endif
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[32];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, true, false);
+                for (int kk = 0; kk < 2; kk++)
+                {
+                    const float* ppk = pp + kk * 16;
+                    __m128 _r0 = (__m128)__lsx_vld(ppk, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(ppk + 4, 0);
+                    __m128 _r2 = (__m128)__lsx_vld(ppk + 8, 0);
+                    __m128 _r3 = (__m128)__lsx_vld(ppk + 12, 0);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __lsx_vst((__m128i)_r0, p0, 0);
+                    __lsx_vst((__m128i)_r1, p0 + 4, 0);
+                    __lsx_vst((__m128i)_r2, p0 + 8, 0);
+                    __lsx_vst((__m128i)_r3, p0 + 12, 0);
+                    p0 += out_hstep * 4;
+                }
                 pp += 32;
-                p0 += out_hstep * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -1483,13 +1735,27 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c];
+                    outptr[1] = pp[16 + c];
+                    outptr[2] = pp[32 + c];
+                    outptr[3] = pp[48 + c];
+                }
                 pp += 64;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c];
+                    outptr[1] = pp[8 + c];
+                    outptr[2] = pp[16 + c];
+                    outptr[3] = pp[24 + c];
+                }
                 pp += 32;
                 p0 += out_hstep * 8;
             }
@@ -1506,9 +1772,14 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[32];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c * 4];
+                    outptr[1] = pp[c * 4 + 1];
+                    outptr[2] = pp[c * 4 + 2];
+                    outptr[3] = pp[c * 4 + 3];
+                }
                 pp += 32;
                 p0 += out_hstep * 8;
             }
@@ -1534,28 +1805,59 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c];
+                    outptr[8 + lane] = pp[16 + c];
+                }
                 pp += 32;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c];
+                    outptr[8 + lane] = pp[8 + c];
+                }
                 pp += 16;
             }
 #endif
             for (; jj + 3 < max_jj; jj += 4)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 4, pp, true, false);
+                for (int c = 0; c < 4; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c * 2];
+                    outptr[8 + lane] = pp[c * 2 + 1];
+                }
                 pp += 8;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 2, pp, true, false);
+                for (int c = 0; c < 2; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 8;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[lane] = pp[c * 2];
+                    outptr[8 + lane] = pp[c * 2 + 1];
+                }
                 pp += 4;
             }
             for (; jj < max_jj; jj++)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 1, pp, true, false);
+                const int lane = (j + jj) % 8;
+                float* outptr = (float*)top_blob + (size_t)((j + jj) / 8 * 8) * out_hstep + (i + ii) * 8;
+                outptr[lane] = pp[0];
+                outptr[8 + lane] = pp[1];
                 pp += 2;
             }
         }
@@ -1567,22 +1869,41 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 4;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[c];
+                    outptr[4 + lane] = pp[16 + c];
+                }
                 pp += 32;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 4;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[c];
+                    outptr[4 + lane] = pp[8 + c];
+                }
                 pp += 16;
                 p0 += out_hstep * 8;
             }
 #endif
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[16];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    const int lane = col % 4;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[lane] = pp[c * 2];
+                    outptr[4 + lane] = pp[c * 2 + 1];
+                }
                 pp += 16;
                 p0 += out_hstep * 8;
             }
@@ -1609,13 +1930,23 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c];
+                    outptr[1] = pp[16 + c];
+                }
                 pp += 32;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c];
+                    outptr[1] = pp[8 + c];
+                }
                 pp += 16;
                 p0 += out_hstep * 8;
             }
@@ -1630,9 +1961,12 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[16];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* outptr = p0 + out_hstep * c;
+                    outptr[0] = pp[c * 2];
+                    outptr[1] = pp[c * 2 + 1];
+                }
                 pp += 16;
                 p0 += out_hstep * 8;
             }
@@ -1656,28 +1990,46 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[col % 8] = pp[c];
+                }
                 pp += 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    float* outptr = (float*)top_blob + (size_t)((j + jj + c) / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[(j + jj + c) % 8] = pp[c];
+                }
                 pp += 8;
             }
 #endif
             for (; jj + 3 < max_jj; jj += 4)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 4, pp, true, false);
+                for (int c = 0; c < 4; c++)
+                {
+                    float* outptr = (float*)top_blob + (size_t)((j + jj + c) / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[(j + jj + c) % 8] = pp[c];
+                }
                 pp += 4;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 2, pp, true, false);
+                for (int c = 0; c < 2; c++)
+                {
+                    float* outptr = (float*)top_blob + (size_t)((j + jj + c) / 8 * 8) * out_hstep + (i + ii) * 8;
+                    outptr[(j + jj + c) % 8] = pp[c];
+                }
                 pp += 2;
             }
             for (; jj < max_jj; jj++)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 1, pp, true, false);
+                float* outptr = (float*)top_blob + (size_t)((j + jj) / 8 * 8) * out_hstep + (i + ii) * 8;
+                outptr[(j + jj) % 8] = pp[0];
                 pp += 1;
             }
         }
@@ -1689,22 +2041,35 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 #if __loongarch_asx
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[col % 4] = pp[c];
+                }
                 pp += 16;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[col % 4] = pp[c];
+                }
                 pp += 8;
                 p0 += out_hstep * 8;
             }
 #endif
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[8];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
+                    outptr[col % 4] = pp[c];
+                }
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -1724,13 +2089,15 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 15 < max_jj; jj += 16)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 16, pp, true, true);
+                for (int c = 0; c < 16; c++)
+                    p0[out_hstep * c] = pp[c];
                 pp += 16;
                 p0 += out_hstep * 16;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, pp, true, true);
+                for (int c = 0; c < 8; c++)
+                    p0[out_hstep * c] = pp[c];
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -1744,9 +2111,8 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             int jj = 0;
             for (; jj + 7 < max_jj; jj += 8)
             {
-                float block[8];
-                memcpy(block, pp, sizeof(block));
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, block, true, false);
+                for (int c = 0; c < 8; c++)
+                    p0[out_hstep * c] = pp[c];
                 pp += 8;
                 p0 += out_hstep * 8;
             }
@@ -1879,7 +2245,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                         __lsx_vst((__m128i)_sum0[c], block + c * 8, 0);
                         __lsx_vst((__m128i)_sum1[c], block + c * 8 + 4, 0);
                     }
-                    store_output_block(top_blob, i + ii, 8, j + jj, 8, block, false, false);
+                    float* outptr1 = (float*)top_blob;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        const int col = j + jj + c;
+                        for (int r = 0; r < 8; r++)
+                        {
+                            const int row = i + ii + r;
+                            outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = block[c * 8 + r];
+                        }
+                    }
                     outptr0 += 8 * out_elempack;
                 }
                 else
@@ -2391,7 +2766,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __lasx_xvst(_sum21, tmp + 40, 0);
                 __lasx_xvst(_sum30, tmp + 48, 0);
                 __lasx_xvst(_sum31, tmp + 56, 0);
-                store_output_block(top_blob, i + ii, 4, j + jj, 16, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                for (int r = 0; r < 4; r++)
+                {
+                    const int row = i + ii + r;
+                    for (int c = 0; c < 16; c++)
+                    {
+                        const int col = j + jj + c;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 16 + c];
+                    }
+                }
                 outptr0 += 16 * out_elempack;
             }
             else
@@ -2493,7 +2877,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __lasx_xvst(_sum1, tmp + 8, 0);
                 __lasx_xvst(_sum2, tmp + 16, 0);
                 __lasx_xvst(_sum3, tmp + 24, 0);
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                for (int r = 0; r < 4; r++)
+                {
+                    const int row = i + ii + r;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        const int col = j + jj + c;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 8 + c];
+                    }
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -2569,7 +2962,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 float block[32];
                 for (int c = 0; c < 8; c++)
                     __lsx_vst((__m128i)_sum[c], block + c * 4, 0);
-                store_output_block(top_blob, i + ii, 4, j + jj, 8, block, false, false);
+                float* outptr1 = (float*)top_blob;
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    for (int r = 0; r < 4; r++)
+                    {
+                        const int row = i + ii + r;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = block[c * 4 + r];
+                    }
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -2657,7 +3059,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     __lsx_vst((__m128i)_sum1, tmp + 4, 0);
                     __lsx_vst((__m128i)_sum2, tmp + 8, 0);
                     __lsx_vst((__m128i)_sum3, tmp + 12, 0);
-                    store_output_block(top_blob, i + ii, 4, j + jj, 4, tmp, false, false);
+                    float* outptr1 = (float*)top_blob;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        const int col = j + jj + c;
+                        for (int r = 0; r < 4; r++)
+                        {
+                            const int row = i + ii + r;
+                            outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c * 4 + r];
+                        }
+                    }
                     outptr0 += 4;
                 }
                 else if (out_elempack == 4)
@@ -2752,7 +3163,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     float tmp[8];
                     __lsx_vst((__m128i)_sum0, tmp, 0);
                     __lsx_vst((__m128i)_sum1, tmp + 4, 0);
-                    store_output_block(top_blob, i + ii, 4, j + jj, 2, tmp, false, false);
+                    float* outptr1 = (float*)top_blob;
+                    for (int c = 0; c < 2; c++)
+                    {
+                        const int col = j + jj + c;
+                        for (int r = 0; r < 4; r++)
+                        {
+                            const int row = i + ii + r;
+                            outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c * 4 + r];
+                        }
+                    }
                     outptr0 += 2;
                 }
                 else if (out_elempack == 4)
@@ -2830,7 +3250,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 {
                     float tmp[4];
                     __lsx_vst((__m128i)_sum0, tmp, 0);
-                    store_output_block(top_blob, i + ii, 4, j + jj, 1, tmp, false, false);
+                    float* outptr1 = (float*)top_blob;
+                    for (int r = 0; r < 4; r++)
+                    {
+                        const int row = i + ii + r;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)(j + jj) * out_elempack + row % out_elempack] = tmp[r];
+                    }
                     outptr0 += 1;
                 }
                 else if (out_elempack == 4)
@@ -2967,7 +3392,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __lasx_xvst(_sum01, tmp + 8, 0);
                 __lasx_xvst(_sum10, tmp + 16, 0);
                 __lasx_xvst(_sum11, tmp + 24, 0);
-                store_output_block(top_blob, i + ii, 2, j + jj, 16, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                for (int r = 0; r < 2; r++)
+                {
+                    const int row = i + ii + r;
+                    for (int c = 0; c < 16; c++)
+                    {
+                        const int col = j + jj + c;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 16 + c];
+                    }
+                }
                 outptr0 += 16 * out_elempack;
             }
             else
@@ -3047,7 +3481,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __attribute__((aligned(32))) float tmp[16];
                 __lasx_xvst(_sum0, tmp, 0);
                 __lasx_xvst(_sum1, tmp + 8, 0);
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                for (int r = 0; r < 2; r++)
+                {
+                    const int row = i + ii + r;
+                    for (int c = 0; c < 8; c++)
+                    {
+                        const int col = j + jj + c;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 8 + c];
+                    }
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -3142,7 +3585,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     block[c * 2] = sum0[c];
                     block[c * 2 + 1] = sum1[c];
                 }
-                store_output_block(top_blob, i + ii, 2, j + jj, 8, block, false, false);
+                float* outptr1 = (float*)top_blob;
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    for (int r = 0; r < 2; r++)
+                    {
+                        const int row = i + ii + r;
+                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = block[c * 2 + r];
+                    }
+                }
                 outptr0 += 8;
             }
             else
@@ -3505,7 +3957,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 __attribute__((aligned(32))) float tmp[16];
                 __lasx_xvst(_sum0, tmp, 0);
                 __lasx_xvst(_sum1, tmp + 8, 0);
-                store_output_block(top_blob, i + ii, 1, j + jj, 16, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                const int row = i + ii;
+                for (int c = 0; c < 16; c++)
+                {
+                    const int col = j + jj + c;
+                    outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c];
+                }
                 outptr0 += 16 * out_elempack;
             }
             else
@@ -3560,7 +4018,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 __attribute__((aligned(32))) float tmp[8];
                 __lasx_xvst(_sum0, tmp, 0);
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, tmp, false, true);
+                float* outptr1 = (float*)top_blob;
+                const int row = i + ii;
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c];
+                }
                 outptr0 += 8 * out_elempack;
             }
             else
@@ -3614,7 +4078,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             if (k_end)
             {
-                store_output_block(top_blob, i + ii, 1, j + jj, 8, sum, false, false);
+                float* outptr1 = (float*)top_blob;
+                const int row = i + ii;
+                for (int c = 0; c < 8; c++)
+                {
+                    const int col = j + jj + c;
+                    outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = sum[c];
+                }
                 outptr0 += 8;
             }
             else
