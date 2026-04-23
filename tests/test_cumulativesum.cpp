@@ -49,6 +49,23 @@ static int test_cumulativesum_3d()
            || test_cumulativesum(RandomMat(303, 200, 103), -2);
 }
 
+static int test_cumulativesum_boundary()
+{
+    return 0
+           || test_cumulativesum(RandomMat(7), 0)
+           || test_cumulativesum(RandomMat(8), 0)
+           || test_cumulativesum(RandomMat(9), 0)
+           || test_cumulativesum(RandomMat(15), 0)
+           || test_cumulativesum(RandomMat(16), 0)
+           || test_cumulativesum(RandomMat(32), 0)
+           || test_cumulativesum(RandomMat(8, 5), 1)
+           || test_cumulativesum(RandomMat(16, 5), 1)
+           || test_cumulativesum(RandomMat(17, 5), 1)
+           || test_cumulativesum(RandomMat(8, 5, 3), 2)
+           || test_cumulativesum(RandomMat(16, 5, 3), 2)
+           || test_cumulativesum(RandomMat(17, 5, 3), 2);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -56,5 +73,6 @@ int main()
     return 0
            || test_cumulativesum_1d()
            || test_cumulativesum_2d()
-           || test_cumulativesum_3d();
+           || test_cumulativesum_3d()
+           || test_cumulativesum_boundary();
 }
