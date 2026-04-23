@@ -48,71 +48,6 @@ static int resolve_broadcast_type_C(const Mat& C, int M, int N)
     return broadcast_type_C;
 }
 
-static void add_matrix_C_fp32(const Mat& C, Mat& top_blob, int output_transpose)
-{
-    const int M = C.h;
-    const int N = C.w;
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    if (output_transpose)
-    {
-        if (top_blob.dims == 3)
-        {
-            for (int j = 0; j < N; j++)
-            {
-                float* outptr = top_blob.channel(j / out_elempack);
-                const int lane = j % out_elempack;
-                for (int i = 0; i < M; i++)
-                {
-                    outptr[i * out_elempack + lane] += C.row(i)[j];
-                }
-            }
-        }
-        else
-        {
-            for (int j = 0; j < N; j++)
-            {
-                float* outptr = (float*)top_blob + (j / out_elempack) * out_hstep * out_elempack;
-                const int lane = j % out_elempack;
-                for (int i = 0; i < M; i++)
-                {
-                    outptr[i * out_elempack + lane] += C.row(i)[j];
-                }
-            }
-        }
-    }
-    else
-    {
-        if (top_blob.dims == 3)
-        {
-            for (int i = 0; i < M; i++)
-            {
-                float* outptr = top_blob.channel(i / out_elempack);
-                const int lane = i % out_elempack;
-                const float* cptr = C.row(i);
-                for (int j = 0; j < N; j++)
-                {
-                    outptr[j * out_elempack + lane] += cptr[j];
-                }
-            }
-        }
-        else
-        {
-            for (int i = 0; i < M; i++)
-            {
-                float* outptr = (float*)top_blob + (i / out_elempack) * out_hstep * out_elempack;
-                const int lane = i % out_elempack;
-                const float* cptr = C.row(i);
-                for (int j = 0; j < N; j++)
-                {
-                    outptr[j * out_elempack + lane] += cptr[j];
-                }
-            }
-        }
-    }
-}
-
 #if __loongarch_sx
 static NCNN_FORCEINLINE void transpose4x4_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3)
 {
@@ -135,8 +70,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     float* pp = AT;
 
     int ii = 0;
-#if __loongarch_asx
-    for (; ii + 7 < max_ii && (((i + ii) & 7) == 0); ii += 8)
+#if __loongarch_sx
+    for (; ii + 7 < max_ii; ii += 8)
     {
 #if __loongarch_asx
         if (elempack == 8)
@@ -230,7 +165,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
                 }
             }
     }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 #if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -346,8 +281,8 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
     float* pp = AT;
 
     int ii = 0;
-#if __loongarch_asx
-    for (; ii + 7 < max_ii && (((i + ii) & 7) == 0); ii += 8)
+#if __loongarch_sx
+    for (; ii + 7 < max_ii; ii += 8)
     {
 #if __loongarch_asx
         if (elempack == 8)
@@ -424,7 +359,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 }
             }
     }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 #if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -599,30 +534,6 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
     int jj = 0;
 #if __loongarch_asx
-    for (; jj + 15 < max_jj; jj += 16)
-    {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            const float* pB0 = (const float*)B + (size_t)(k + kk) * elempack;
-            pp[0] = pB0[(size_t)((j + jj) / elempack) * B_hstep * elempack + (j + jj) % elempack];
-            pp[1] = pB0[(size_t)((j + jj + 1) / elempack) * B_hstep * elempack + (j + jj + 1) % elempack];
-            pp[2] = pB0[(size_t)((j + jj + 2) / elempack) * B_hstep * elempack + (j + jj + 2) % elempack];
-            pp[3] = pB0[(size_t)((j + jj + 3) / elempack) * B_hstep * elempack + (j + jj + 3) % elempack];
-            pp[4] = pB0[(size_t)((j + jj + 4) / elempack) * B_hstep * elempack + (j + jj + 4) % elempack];
-            pp[5] = pB0[(size_t)((j + jj + 5) / elempack) * B_hstep * elempack + (j + jj + 5) % elempack];
-            pp[6] = pB0[(size_t)((j + jj + 6) / elempack) * B_hstep * elempack + (j + jj + 6) % elempack];
-            pp[7] = pB0[(size_t)((j + jj + 7) / elempack) * B_hstep * elempack + (j + jj + 7) % elempack];
-            pp[8] = pB0[(size_t)((j + jj + 8) / elempack) * B_hstep * elempack + (j + jj + 8) % elempack];
-            pp[9] = pB0[(size_t)((j + jj + 9) / elempack) * B_hstep * elempack + (j + jj + 9) % elempack];
-            pp[10] = pB0[(size_t)((j + jj + 10) / elempack) * B_hstep * elempack + (j + jj + 10) % elempack];
-            pp[11] = pB0[(size_t)((j + jj + 11) / elempack) * B_hstep * elempack + (j + jj + 11) % elempack];
-            pp[12] = pB0[(size_t)((j + jj + 12) / elempack) * B_hstep * elempack + (j + jj + 12) % elempack];
-            pp[13] = pB0[(size_t)((j + jj + 13) / elempack) * B_hstep * elempack + (j + jj + 13) % elempack];
-            pp[14] = pB0[(size_t)((j + jj + 14) / elempack) * B_hstep * elempack + (j + jj + 14) % elempack];
-            pp[15] = pB0[(size_t)((j + jj + 15) / elempack) * B_hstep * elempack + (j + jj + 15) % elempack];
-            pp += 16;
-        }
-    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -776,31 +687,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     int jj = 0;
 #if __loongarch_asx
-    for (; jj + 15 < max_jj; jj += 16)
-    {
-        for (int kk = 0; kk < max_kk; kk++)
-        {
-            const int row = k + kk;
-            const float* pB0 = (const float*)B + (size_t)(row / elempack) * B_hstep * elempack + row % elempack;
-            pp[0] = pB0[(size_t)(j + jj) * elempack];
-            pp[1] = pB0[(size_t)(j + jj + 1) * elempack];
-            pp[2] = pB0[(size_t)(j + jj + 2) * elempack];
-            pp[3] = pB0[(size_t)(j + jj + 3) * elempack];
-            pp[4] = pB0[(size_t)(j + jj + 4) * elempack];
-            pp[5] = pB0[(size_t)(j + jj + 5) * elempack];
-            pp[6] = pB0[(size_t)(j + jj + 6) * elempack];
-            pp[7] = pB0[(size_t)(j + jj + 7) * elempack];
-            pp[8] = pB0[(size_t)(j + jj + 8) * elempack];
-            pp[9] = pB0[(size_t)(j + jj + 9) * elempack];
-            pp[10] = pB0[(size_t)(j + jj + 10) * elempack];
-            pp[11] = pB0[(size_t)(j + jj + 11) * elempack];
-            pp[12] = pB0[(size_t)(j + jj + 12) * elempack];
-            pp[13] = pB0[(size_t)(j + jj + 13) * elempack];
-            pp[14] = pB0[(size_t)(j + jj + 14) * elempack];
-            pp[15] = pB0[(size_t)(j + jj + 15) * elempack];
-            pp += 16;
-        }
-    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         for (int kk = 0; kk < max_kk; kk++)
@@ -997,8 +883,8 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
     const float* pp = topT;
 
     int ii = 0;
-#if __loongarch_asx
-    for (; ii + 7 < max_ii && (((i + ii) & 7) == 0); ii += 8)
+#if __loongarch_sx
+    for (; ii + 7 < max_ii; ii += 8)
     {
             if (out_elempack == 8)
             {
@@ -1267,20 +1153,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
         {
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    const int lane = col % 8;
-                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
-                    outptr[lane] = pp[c];
-                    outptr[8 + lane] = pp[16 + c];
-                    outptr[16 + lane] = pp[32 + c];
-                    outptr[24 + lane] = pp[48 + c];
-                }
-                pp += 64;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1330,21 +1202,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    const int lane = col % 4;
-                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
-                    outptr[lane] = pp[c];
-                    outptr[4 + lane] = pp[16 + c];
-                    outptr[8 + lane] = pp[32 + c];
-                    outptr[12 + lane] = pp[48 + c];
-                }
-                pp += 64;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1401,19 +1258,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
 #if __loongarch_asx
             int jj = 0;
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    float* outptr = p0 + out_hstep * c;
-                    outptr[0] = pp[c];
-                    outptr[1] = pp[16 + c];
-                    outptr[2] = pp[32 + c];
-                    outptr[3] = pp[48 + c];
-                }
-                pp += 64;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1471,18 +1315,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
         {
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    const int lane = col % 8;
-                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
-                    outptr[lane] = pp[c];
-                    outptr[8 + lane] = pp[16 + c];
-                }
-                pp += 32;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1535,19 +1367,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    const int lane = col % 4;
-                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
-                    outptr[lane] = pp[c];
-                    outptr[4 + lane] = pp[16 + c];
-                }
-                pp += 32;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1596,17 +1415,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
 #if __loongarch_asx
             int jj = 0;
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    float* outptr = p0 + out_hstep * c;
-                    outptr[0] = pp[c];
-                    outptr[1] = pp[16 + c];
-                }
-                pp += 32;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1656,16 +1464,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
         {
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    float* outptr = (float*)top_blob + (size_t)(col / 8 * 8) * out_hstep + (i + ii) * 8;
-                    outptr[col % 8] = pp[c];
-                }
-                pp += 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1707,17 +1505,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             int jj = 0;
 #if __loongarch_asx
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    float* outptr = (float*)top_blob + (size_t)(col / 4 * 4) * out_hstep + (i + ii) * 4;
-                    outptr[col % 4] = pp[c];
-                }
-                pp += 16;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1755,13 +1542,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
 #if __loongarch_asx
             int jj = 0;
-            for (; jj + 15 < max_jj; jj += 16)
-            {
-                for (int c = 0; c < 16; c++)
-                    p0[out_hstep * c] = pp[c];
-                pp += 16;
-                p0 += out_hstep * 16;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1807,8 +1587,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     float* outptr = topT_tile;
 
     int ii = 0;
-#if __loongarch_asx
-    for (; ii + 7 < max_ii && (((i + ii) & 7) == 0); ii += 8)
+#if __loongarch_sx
+    for (; ii + 7 < max_ii; ii += 8)
     {
             float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
@@ -1826,84 +1606,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             int jj = 0;
 #if __loongarch_asx
             {
-                for (; jj + 15 < max_jj; jj += 16)
-                {
-                    __m256 _sum[16];
-
-                    if (k == 0)
-                    {
-                        for (int c = 0; c < 16; c++)
-                            _sum[c] = (__m256)__lasx_xvreplgr2vr_w(0);
-
-                        if (pCi)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                __m256 _c0 = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                                for (int c = 0; c < 16; c++)
-                                    _sum[c] = _c0;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                __m256 _c0 = (__m256)__lasx_xvld(pCi, 0);
-                                for (int c = 0; c < 16; c++)
-                                    _sum[c] = _c0;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                for (int c = 0; c < 16; c++)
-                                    _sum[c] = (__m256)__lasx_xvld(pCi + c * 8, 0);
-                                pCi += 128;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                for (int c = 0; c < 16; c++)
-                                    _sum[c] = (__m256)__lasx_xvreplfr2vr_s(pCi[c]);
-                                pCi += 16;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for (int c = 0; c < 16; c++)
-                            _sum[c] = (__m256)__lasx_xvld(outptr + c * 8, 0);
-                    }
-
-                    const float* pA = pAT;
-                    for (int kk = 0; kk < max_kk; kk++)
-                    {
-                        __m256 _pA = (__m256)__lasx_xvld(pA, 0);
-                        for (int c = 0; c < 16; c++)
-                            _sum[c] = __lasx_xvfmadd_s((__m256)__lasx_xvreplfr2vr_s(pB[c]), _pA, _sum[c]);
-                        pA += 8;
-                        pB += 16;
-                    }
-
-                    if (k_end)
-                    {
-                        __attribute__((aligned(32))) float tmp[128];
-                        for (int c = 0; c < 16; c++)
-                            __lasx_xvst(_sum[c], tmp + c * 8, 0);
-                        float* outptr1 = (float*)top_blob;
-                        for (int c = 0; c < 16; c++)
-                        {
-                            const int col = j + jj + c;
-                            for (int r = 0; r < 8; r++)
-                            {
-                                const int row = i + ii + r;
-                                outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c * 8 + r];
-                            }
-                        }
-                        outptr0 += 16 * out_elempack;
-                    }
-                    else
-                    {
-                        for (int c = 0; c < 16; c++)
-                            __lasx_xvst(_sum[c], outptr + c * 8, 0);
-                    }
-
-                    outptr += 128;
-                }
                 for (; jj + 7 < max_jj; jj += 8)
                 {
                     __m256 _sum0;
@@ -2280,6 +1982,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                     outptr += 8;
                 }
+
+                if (broadcast_type_C == 3)
+                    pC = pCi;
 
                 pAT += max_kk * 8;
                 continue;
@@ -2745,9 +2450,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 outptr += 8;
             }
 
+            if (broadcast_type_C == 3)
+                pC = pCi;
+
             pAT += max_kk * 8;
     }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 #if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -2766,159 +2474,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __loongarch_asx
-        for (; jj + 15 < max_jj; jj += 16)
-        {
-            __m256 _sum00;
-            __m256 _sum01;
-            __m256 _sum10;
-            __m256 _sum11;
-            __m256 _sum20;
-            __m256 _sum21;
-            __m256 _sum30;
-            __m256 _sum31;
-
-            if (k == 0)
-            {
-                _sum00 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum01 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum10 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum11 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum20 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum21 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum30 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum31 = (__m256)__lasx_xvreplgr2vr_w(0);
-
-                if (pCi)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum00 = _c;
-                        _sum01 = _c;
-                        _sum10 = _c;
-                        _sum11 = _c;
-                        _sum20 = _c;
-                        _sum21 = _c;
-                        _sum30 = _c;
-                        _sum31 = _c;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum01 = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum10 = (__m256)__lasx_xvreplfr2vr_s(pCi[1]);
-                        _sum11 = (__m256)__lasx_xvreplfr2vr_s(pCi[1]);
-                        _sum20 = (__m256)__lasx_xvreplfr2vr_s(pCi[2]);
-                        _sum21 = (__m256)__lasx_xvreplfr2vr_s(pCi[2]);
-                        _sum30 = (__m256)__lasx_xvreplfr2vr_s(pCi[3]);
-                        _sum31 = (__m256)__lasx_xvreplfr2vr_s(pCi[3]);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        __attribute__((aligned(32))) float ctmp[64];
-                        for (int r = 0; r < 4; r++)
-                        {
-                            for (int c = 0; c < 16; c++)
-                            {
-                                ctmp[r * 16 + c] = pCi[c * 4 + r];
-                            }
-                        }
-                        _sum00 = (__m256)__lasx_xvld(ctmp, 0);
-                        _sum01 = (__m256)__lasx_xvld(ctmp + 8, 0);
-                        _sum10 = (__m256)__lasx_xvld(ctmp + 16, 0);
-                        _sum11 = (__m256)__lasx_xvld(ctmp + 24, 0);
-                        _sum20 = (__m256)__lasx_xvld(ctmp + 32, 0);
-                        _sum21 = (__m256)__lasx_xvld(ctmp + 40, 0);
-                        _sum30 = (__m256)__lasx_xvld(ctmp + 48, 0);
-                        _sum31 = (__m256)__lasx_xvld(ctmp + 56, 0);
-                        pCi += 64;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        __m256 _c0 = (__m256)__lasx_xvld(pCi, 0);
-                        __m256 _c1 = (__m256)__lasx_xvld(pCi + 8, 0);
-                        _sum00 = _c0;
-                        _sum01 = _c1;
-                        _sum10 = _c0;
-                        _sum11 = _c1;
-                        _sum20 = _c0;
-                        _sum21 = _c1;
-                        _sum30 = _c0;
-                        _sum31 = _c1;
-                        pCi += 16;
-                    }
-                }
-            }
-            else
-            {
-                _sum00 = (__m256)__lasx_xvld(outptr, 0);
-                _sum01 = (__m256)__lasx_xvld(outptr + 8, 0);
-                _sum10 = (__m256)__lasx_xvld(outptr + 16, 0);
-                _sum11 = (__m256)__lasx_xvld(outptr + 24, 0);
-                _sum20 = (__m256)__lasx_xvld(outptr + 32, 0);
-                _sum21 = (__m256)__lasx_xvld(outptr + 40, 0);
-                _sum30 = (__m256)__lasx_xvld(outptr + 48, 0);
-                _sum31 = (__m256)__lasx_xvld(outptr + 56, 0);
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
-                __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
-                __m256 _a0 = (__m256)__lasx_xvreplfr2vr_s(pA[0]);
-                __m256 _a1 = (__m256)__lasx_xvreplfr2vr_s(pA[1]);
-                __m256 _a2 = (__m256)__lasx_xvreplfr2vr_s(pA[2]);
-                __m256 _a3 = (__m256)__lasx_xvreplfr2vr_s(pA[3]);
-                _sum00 = __lasx_xvfmadd_s(_a0, _pB0, _sum00);
-                _sum01 = __lasx_xvfmadd_s(_a0, _pB1, _sum01);
-                _sum10 = __lasx_xvfmadd_s(_a1, _pB0, _sum10);
-                _sum11 = __lasx_xvfmadd_s(_a1, _pB1, _sum11);
-                _sum20 = __lasx_xvfmadd_s(_a2, _pB0, _sum20);
-                _sum21 = __lasx_xvfmadd_s(_a2, _pB1, _sum21);
-                _sum30 = __lasx_xvfmadd_s(_a3, _pB0, _sum30);
-                _sum31 = __lasx_xvfmadd_s(_a3, _pB1, _sum31);
-                pA += 4;
-                pB += 16;
-            }
-
-            if (k_end)
-            {
-                __attribute__((aligned(32))) float tmp[64];
-                __lasx_xvst(_sum00, tmp, 0);
-                __lasx_xvst(_sum01, tmp + 8, 0);
-                __lasx_xvst(_sum10, tmp + 16, 0);
-                __lasx_xvst(_sum11, tmp + 24, 0);
-                __lasx_xvst(_sum20, tmp + 32, 0);
-                __lasx_xvst(_sum21, tmp + 40, 0);
-                __lasx_xvst(_sum30, tmp + 48, 0);
-                __lasx_xvst(_sum31, tmp + 56, 0);
-                float* outptr1 = (float*)top_blob;
-                for (int r = 0; r < 4; r++)
-                {
-                    const int row = i + ii + r;
-                    for (int c = 0; c < 16; c++)
-                    {
-                        const int col = j + jj + c;
-                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 16 + c];
-                    }
-                }
-                outptr0 += 16 * out_elempack;
-            }
-            else
-            {
-                __lasx_xvst(_sum00, outptr, 0);
-                __lasx_xvst(_sum01, outptr + 8, 0);
-                __lasx_xvst(_sum10, outptr + 16, 0);
-                __lasx_xvst(_sum11, outptr + 24, 0);
-                __lasx_xvst(_sum20, outptr + 32, 0);
-                __lasx_xvst(_sum21, outptr + 40, 0);
-                __lasx_xvst(_sum30, outptr + 48, 0);
-                __lasx_xvst(_sum31, outptr + 56, 0);
-            }
-
-            outptr += 64;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _sum0;
@@ -3409,6 +2964,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             outptr += 4;
         }
 
+        if (broadcast_type_C == 3)
+            pC = pCi;
+
         pAT += max_kk * 4;
     }
 #endif // __loongarch_sx
@@ -3430,117 +2988,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __loongarch_asx
-        for (; jj + 15 < max_jj; jj += 16)
-        {
-            __m256 _sum00;
-            __m256 _sum01;
-            __m256 _sum10;
-            __m256 _sum11;
-
-            if (k == 0)
-            {
-                _sum00 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum01 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum10 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum11 = (__m256)__lasx_xvreplgr2vr_w(0);
-
-                if (pCi)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum00 = _c;
-                        _sum01 = _c;
-                        _sum10 = _c;
-                        _sum11 = _c;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        _sum00 = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum01 = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum10 = (__m256)__lasx_xvreplfr2vr_s(pCi[1]);
-                        _sum11 = (__m256)__lasx_xvreplfr2vr_s(pCi[1]);
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        __attribute__((aligned(32))) float ctmp[32];
-                        for (int r = 0; r < 2; r++)
-                        {
-                            for (int c = 0; c < 16; c++)
-                            {
-                                ctmp[r * 16 + c] = pCi[c * 2 + r];
-                            }
-                        }
-                        _sum00 = (__m256)__lasx_xvld(ctmp, 0);
-                        _sum01 = (__m256)__lasx_xvld(ctmp + 8, 0);
-                        _sum10 = (__m256)__lasx_xvld(ctmp + 16, 0);
-                        _sum11 = (__m256)__lasx_xvld(ctmp + 24, 0);
-                        pCi += 32;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        __m256 _c0 = (__m256)__lasx_xvld(pCi, 0);
-                        __m256 _c1 = (__m256)__lasx_xvld(pCi + 8, 0);
-                        _sum00 = _c0;
-                        _sum01 = _c1;
-                        _sum10 = _c0;
-                        _sum11 = _c1;
-                        pCi += 16;
-                    }
-                }
-            }
-            else
-            {
-                _sum00 = (__m256)__lasx_xvld(outptr, 0);
-                _sum01 = (__m256)__lasx_xvld(outptr + 8, 0);
-                _sum10 = (__m256)__lasx_xvld(outptr + 16, 0);
-                _sum11 = (__m256)__lasx_xvld(outptr + 24, 0);
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
-                __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
-                __m256 _a0 = (__m256)__lasx_xvreplfr2vr_s(pA[0]);
-                __m256 _a1 = (__m256)__lasx_xvreplfr2vr_s(pA[1]);
-                _sum00 = __lasx_xvfmadd_s(_a0, _pB0, _sum00);
-                _sum01 = __lasx_xvfmadd_s(_a0, _pB1, _sum01);
-                _sum10 = __lasx_xvfmadd_s(_a1, _pB0, _sum10);
-                _sum11 = __lasx_xvfmadd_s(_a1, _pB1, _sum11);
-                pA += 2;
-                pB += 16;
-            }
-
-            if (k_end)
-            {
-                __attribute__((aligned(32))) float tmp[32];
-                __lasx_xvst(_sum00, tmp, 0);
-                __lasx_xvst(_sum01, tmp + 8, 0);
-                __lasx_xvst(_sum10, tmp + 16, 0);
-                __lasx_xvst(_sum11, tmp + 24, 0);
-                float* outptr1 = (float*)top_blob;
-                for (int r = 0; r < 2; r++)
-                {
-                    const int row = i + ii + r;
-                    for (int c = 0; c < 16; c++)
-                    {
-                        const int col = j + jj + c;
-                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[r * 16 + c];
-                    }
-                }
-                outptr0 += 16 * out_elempack;
-            }
-            else
-            {
-                __lasx_xvst(_sum00, outptr, 0);
-                __lasx_xvst(_sum01, outptr + 8, 0);
-                __lasx_xvst(_sum10, outptr + 16, 0);
-                __lasx_xvst(_sum11, outptr + 24, 0);
-            }
-
-            outptr += 32;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _sum0;
@@ -4015,6 +3462,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             outptr += 2;
         }
 
+        if (broadcast_type_C == 3)
+            pC = pCi;
+
         pAT += max_kk * 2;
     }
 
@@ -4035,72 +3485,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __loongarch_asx
-        for (; jj + 15 < max_jj; jj += 16)
-        {
-            __m256 _sum0;
-            __m256 _sum1;
-
-            if (k == 0)
-            {
-                _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
-                _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
-
-                if (pCi)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pCi[0]);
-                        _sum0 = _c;
-                        _sum1 = _c;
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        _sum0 = (__m256)__lasx_xvld(pCi, 0);
-                        _sum1 = (__m256)__lasx_xvld(pCi + 8, 0);
-                        pCi += 16;
-                    }
-                }
-            }
-            else
-            {
-                _sum0 = (__m256)__lasx_xvld(outptr, 0);
-                _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
-                __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
-                __m256 _a0 = (__m256)__lasx_xvreplfr2vr_s(pA[0]);
-                _sum0 = __lasx_xvfmadd_s(_a0, _pB0, _sum0);
-                _sum1 = __lasx_xvfmadd_s(_a0, _pB1, _sum1);
-                pA += 1;
-                pB += 16;
-            }
-
-            if (k_end)
-            {
-                __attribute__((aligned(32))) float tmp[16];
-                __lasx_xvst(_sum0, tmp, 0);
-                __lasx_xvst(_sum1, tmp + 8, 0);
-                float* outptr1 = (float*)top_blob;
-                const int row = i + ii;
-                for (int c = 0; c < 16; c++)
-                {
-                    const int col = j + jj + c;
-                    outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c];
-                }
-                outptr0 += 16 * out_elempack;
-            }
-            else
-            {
-                __lasx_xvst(_sum0, outptr, 0);
-                __lasx_xvst(_sum1, outptr + 8, 0);
-            }
-
-            outptr += 16;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _sum0;
@@ -4395,6 +3779,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 1;
         }
+
+        if (broadcast_type_C == 3)
+            pC = pCi;
 
         pAT += max_kk;
     }
@@ -5080,29 +4467,6 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         }
     }
 
-    // HACK workaround broadcast_type_C == 3
-    // tiled kernel does not handle this combination correctly
-    // add C post-hoc instead
-    Mat C_matrix_post;
-    if (broadcast_type_C == 3)
-    {
-        if (C.elempack != 1)
-        {
-            // unpack C to elempack 1 for add_matrix_C_fp32
-            Mat C_unpacked;
-            convert_packing(C, C_unpacked, 1, opt);
-            if (C_unpacked.empty())
-                return -100;
-            C_matrix_post = C_unpacked;
-        }
-        else
-        {
-            C_matrix_post = C;
-        }
-        C = Mat();
-        broadcast_type_C = 0;
-    }
-
     int out_elempack = 1;
 #if __loongarch_sx
     if (opt.use_packing_layout)
@@ -5168,12 +4532,6 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
     if (ret != 0)
         return ret;
-
-    // apply C_matrix_post workaround
-    if (!C_matrix_post.empty())
-    {
-        add_matrix_C_fp32(C_matrix_post, top_blob, output_transpose);
-    }
 
     // multiply top_blob with alpha
     if (alpha != 1.f)
