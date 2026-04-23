@@ -207,16 +207,6 @@ static NCNN_FORCEINLINE float get_matrix_element_fp32_scalar(const Mat& m, int r
     return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
 }
 
-#if NCNN_BF16
-static NCNN_FORCEINLINE unsigned short get_matrix_element_bf16_scalar(const Mat& m, int row, int col)
-{
-    const int elempack = m.elempack;
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-
-    return ((const unsigned short*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
-}
-#endif
-
 static NCNN_FORCEINLINE float get_vector_element_fp32_scalar(const Mat& m, int idx)
 {
     const int elempack = m.elempack;
@@ -259,22 +249,6 @@ static NCNN_FORCEINLINE void set_output_element_fp32_scalar(Mat& top_blob, int r
     ((float*)top_blob)[offset] = v;
 }
 
-#if NCNN_BF16
-static NCNN_FORCEINLINE void set_output_element_bf16_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
-{
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    size_t offset;
-    if (output_transpose)
-        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-    else
-        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
-
-    ((unsigned short*)top_blob)[offset] = float32_to_bfloat16(v);
-}
-#endif
-
 static void pack_A_tile_fp32_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
 {
     float* pp = AT;
@@ -311,49 +285,6 @@ static void transpose_pack_B_tile_fp32_scalar(const Mat& B, Mat& BT, int j, int 
             pp[jj * tile_k + kk] = get_matrix_element_fp32_scalar(B, k + kk, j + jj);
 }
 
-#if NCNN_BF16
-static NCNN_FORCEINLINE unsigned short get_matrix_element_bf16_or_convert_scalar(const Mat& m, int row, int col)
-{
-    return m.elembits() == 16 ? get_matrix_element_bf16_scalar(m, row, col) : float32_to_bfloat16(get_matrix_element_fp32_scalar(m, row, col));
-}
-
-static void pack_A_tile_bf16_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
-{
-    unsigned short* pp = AT;
-
-    for (int ii = 0; ii < max_ii; ii++)
-        for (int kk = 0; kk < max_kk; kk++)
-            pp[ii * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(A, i + ii, k + kk);
-}
-
-static void transpose_pack_A_tile_bf16_scalar(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int tile_k)
-{
-    unsigned short* pp = AT;
-
-    for (int ii = 0; ii < max_ii; ii++)
-        for (int kk = 0; kk < max_kk; kk++)
-            pp[ii * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(A, k + kk, i + ii);
-}
-
-static void pack_B_tile_bf16_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
-{
-    unsigned short* pp = BT;
-
-    for (int jj = 0; jj < max_jj; jj++)
-        for (int kk = 0; kk < max_kk; kk++)
-            pp[jj * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(B, j + jj, k + kk);
-}
-
-static void transpose_pack_B_tile_bf16_scalar(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, int tile_k)
-{
-    unsigned short* pp = BT;
-
-    for (int jj = 0; jj < max_jj; jj++)
-        for (int kk = 0; kk < max_kk; kk++)
-            pp[jj * tile_k + kk] = get_matrix_element_bf16_or_convert_scalar(B, k + kk, j + jj);
-}
-#endif
-
 static void gemm_transB_tile_fp32_scalar(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& topT_tile, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, int tile_n, int tile_k)
 {
     const float* pAT = AT_tile;
@@ -376,30 +307,6 @@ static void gemm_transB_tile_fp32_scalar(const Mat& AT_tile, const Mat& BT_tile,
     }
 }
 
-#if NCNN_BF16
-static void gemm_transB_tile_bf16_scalar(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& topT_tile, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, int tile_n, int tile_k)
-{
-    const unsigned short* pAT = AT_tile;
-    const unsigned short* pBT = BT_tile;
-    float* outptr = topT_tile;
-
-    for (int ii = 0; ii < max_ii; ii++)
-    {
-        for (int jj = 0; jj < max_jj; jj++)
-        {
-            float sum = k == 0 ? get_broadcast_value_fp32_scalar(C, broadcast_type_C, i + ii, j + jj) : outptr[ii * tile_n + jj];
-            const unsigned short* pA = pAT + ii * tile_k;
-            const unsigned short* pB = pBT + jj * tile_k;
-
-            for (int kk = 0; kk < max_kk; kk++)
-                sum += bfloat16_to_float32(pA[kk]) * bfloat16_to_float32(pB[kk]);
-
-            outptr[ii * tile_n + jj] = sum;
-        }
-    }
-}
-#endif
-
 static void store_output_tile_fp32_scalar(const Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int tile_n, int output_transpose, float alpha)
 {
     const float* ptr = topT_tile;
@@ -408,26 +315,6 @@ static void store_output_tile_fp32_scalar(const Mat& topT_tile, Mat& top_blob, i
         for (int jj = 0; jj < max_jj; jj++)
             set_output_element_fp32_scalar(top_blob, i + ii, j + jj, ptr[ii * tile_n + jj] * alpha, output_transpose);
 }
-
-#if NCNN_BF16
-static void store_output_tile_bf16_scalar(const Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int tile_n, int output_transpose, float alpha, int output_elemtype)
-{
-    const float* ptr = topT_tile;
-
-    for (int ii = 0; ii < max_ii; ii++)
-    {
-        for (int jj = 0; jj < max_jj; jj++)
-        {
-            const float v = ptr[ii * tile_n + jj] * alpha;
-
-            if (output_elemtype == 1)
-                set_output_element_fp32_scalar(top_blob, i + ii, j + jj, v, output_transpose);
-            else
-                set_output_element_bf16_scalar(top_blob, i + ii, j + jj, v, output_transpose);
-        }
-    }
-}
-#endif
 
 static void get_optimal_tile_mnk_scalar(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
@@ -608,101 +495,6 @@ static int gemm_tiled_fp32_scalar(const Mat& A, const Mat& B, const Mat& AT_data
 
     return 0;
 }
-
-#if NCNN_BF16
-static int gemm_tiled_bf16s_scalar(const Mat& A, const Mat& B, const Mat& AT_data, const Mat& BT_data, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
-{
-    int TILE_M;
-    int TILE_N;
-    int TILE_K;
-    get_optimal_tile_mnk_scalar(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-    const int nn_M = (M + TILE_M - 1) / TILE_M;
-    const int nn_N = (N + TILE_N - 1) / TILE_N;
-    const int nn_K = (K + TILE_K - 1) / TILE_K;
-
-    Mat ATX;
-    if (AT_data.empty())
-    {
-        ATX.create(TILE_K * TILE_M, nn_K, nT, 2u, opt.workspace_allocator);
-        if (ATX.empty())
-            return -100;
-    }
-
-    Mat BTX = BT_data;
-    if (BTX.empty())
-    {
-        BTX.create(TILE_K * TILE_N, nn_K, nn_N, 2u, opt.workspace_allocator);
-        if (BTX.empty())
-            return -100;
-
-        const int nn_NK = nn_N * nn_K;
-        #pragma omp parallel for num_threads(nT)
-        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
-        {
-            const int ppj = ppjk / nn_K;
-            const int ppk = ppjk % nn_K;
-
-            const int j = ppj * TILE_N;
-            const int k = ppk * TILE_K;
-            const int max_jj = std::min(N - j, TILE_N);
-            const int max_kk = std::min(K - k, TILE_K);
-
-            Mat BT_tile = BTX.channel(ppj).row_range(ppk, 1);
-            if (transB)
-                pack_B_tile_bf16_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
-            else
-                transpose_pack_B_tile_bf16_scalar(B, BT_tile, j, max_jj, k, max_kk, TILE_K);
-        }
-    }
-
-    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
-    if (topT.empty())
-        return -100;
-
-    #pragma omp parallel for num_threads(nT)
-    for (int ppi = 0; ppi < nn_M; ppi++)
-    {
-        const int i = ppi * TILE_M;
-        const int max_ii = std::min(M - i, TILE_M);
-        Mat topT_tile = topT.channel(get_omp_thread_num());
-
-        for (int j = 0; j < N; j += TILE_N)
-        {
-            const int max_jj = std::min(N - j, TILE_N);
-
-            for (int k = 0; k < K; k += TILE_K)
-            {
-                const int max_kk = std::min(K - k, TILE_K);
-
-                Mat AT_tile;
-                if (AT_data.empty())
-                {
-                    AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-                    if (j == 0)
-                    {
-                        if (transA)
-                            transpose_pack_A_tile_bf16_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
-                        else
-                            pack_A_tile_bf16_scalar(A, AT_tile, i, max_ii, k, max_kk, TILE_K);
-                    }
-                }
-                else
-                {
-                    AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
-                }
-
-                Mat BT_tile = BTX.channel(j / TILE_N).row_range(k / TILE_K, 1);
-                gemm_transB_tile_bf16_scalar(AT_tile, BT_tile, C, topT_tile, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, TILE_N, TILE_K);
-            }
-
-            store_output_tile_bf16_scalar(topT_tile, top_blob, i, max_ii, j, max_jj, TILE_N, output_transpose, alpha, output_elemtype);
-        }
-    }
-
-    return 0;
-}
-#endif
 
 #if __loongarch_sx
 static NCNN_FORCEINLINE void transpose4x4_ps(__m128& _r0, __m128& _r1, __m128& _r2, __m128& _r3)
@@ -5449,7 +5241,6 @@ fallback_wrapper:
 #if NCNN_BF16
 int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
 {
-#if __loongarch_sx
     if (constantA)
     {
         const int M = constantM;
@@ -5544,6 +5335,7 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
     {
         CT_data = C_data;
 
+#if __loongarch_sx
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
 #if __loongarch_asx
@@ -5555,127 +5347,17 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
             if (CT_data.empty())
                 return -100;
         }
+#endif // __loongarch_sx
     }
 
     if (constantA || constantB || constantC)
     {
         nT = opt.num_threads;
     }
-#else // __loongarch_sx
-    if (constantA)
-    {
-        const int M = constantM;
-        const int K = constantK;
-
-        int TILE_M;
-        int TILE_N;
-        int TILE_K;
-        get_optimal_tile_mnk_scalar(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_M = (M + TILE_M - 1) / TILE_M;
-        const int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        AT_data.create(TILE_K * TILE_M, nn_K, nn_M, 2u, (Allocator*)0);
-        if (AT_data.empty())
-            return -100;
-
-        const int nn_MK = nn_M * nn_K;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppik = 0; ppik < nn_MK; ppik++)
-        {
-            const int ppi = ppik / nn_K;
-            const int ppk = ppik % nn_K;
-
-            const int i = ppi * TILE_M;
-            const int k = ppk * TILE_K;
-            const int max_ii = std::min(M - i, TILE_M);
-            const int max_kk = std::min(K - k, TILE_K);
-
-            Mat AT_tile = AT_data.channel(ppi).row_range(ppk, 1);
-            if (transA)
-                transpose_pack_A_tile_bf16_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
-            else
-                pack_A_tile_bf16_scalar(A_data, AT_tile, i, max_ii, k, max_kk, TILE_K);
-        }
-    }
-
-    if (constantB)
-    {
-        const int N = constantN;
-        const int K = constantK;
-
-        int TILE_M;
-        int TILE_N;
-        int TILE_K;
-        get_optimal_tile_mnk_scalar(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
-
-        const int nn_N = (N + TILE_N - 1) / TILE_N;
-        const int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        BT_data.create(TILE_K * TILE_N, nn_K, nn_N, 2u, (Allocator*)0);
-        if (BT_data.empty())
-            return -100;
-
-        const int nn_NK = nn_N * nn_K;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
-        {
-            const int ppj = ppjk / nn_K;
-            const int ppk = ppjk % nn_K;
-
-            const int j = ppj * TILE_N;
-            const int k = ppk * TILE_K;
-            const int max_jj = std::min(N - j, TILE_N);
-            const int max_kk = std::min(K - k, TILE_K);
-
-            Mat BT_tile = BT_data.channel(ppj).row_range(ppk, 1);
-            if (transB)
-                pack_B_tile_bf16_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
-            else
-                transpose_pack_B_tile_bf16_scalar(B_data, BT_tile, j, max_jj, k, max_kk, TILE_K);
-        }
-    }
-
-    if (constantC && constant_broadcast_type_C != -1)
-    {
-        CT_data = C_data;
-
-        if (beta != 1.f)
-        {
-            if (CT_data.elembits() == 16)
-            {
-                Mat C_fp32;
-                Option opt_cast = opt;
-                opt_cast.blob_allocator = opt.workspace_allocator;
-                cast_bfloat16_to_float32(CT_data, C_fp32, opt_cast);
-                if (C_fp32.empty())
-                    return -100;
-                CT_data = C_fp32;
-            }
-
-            Mat C2;
-            C2.create_like(CT_data);
-            if (C2.empty())
-                return -100;
-
-            const int size = CT_data.total() * CT_data.elempack;
-            for (int i = 0; i < size; i++)
-            {
-                C2[i] = CT_data[i] * beta;
-            }
-
-            CT_data = C2;
-        }
-    }
-
-    if (!AT_data.empty() || !BT_data.empty() || !CT_data.empty())
-        nT = opt.num_threads;
-#endif // __loongarch_sx
 
     return 0;
 }
 
-#if __loongarch_sx
 static int gemm_AT_BT_loongarch_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, int output_elemtype, const Option& opt)
 {
     int TILE_M, TILE_N, TILE_K;
@@ -5952,7 +5634,6 @@ static int gemm_loongarch_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& t
 
     return 0;
 }
-#endif // __loongarch_sx
 
 int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -5991,16 +5672,19 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
         C = !CT_data.empty() ? CT_data : C_data;
         broadcast_type_C = constant_broadcast_type_C;
 
-        if (!C.empty() && C.elembits() == 16)
+        if (!C.empty())
         {
-            Option opt_cast = opt;
-            opt_cast.blob_allocator = opt.workspace_allocator;
+            if (C.elembits() == 16)
+            {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
 
-            Mat C_fp32;
-            cast_bfloat16_to_float32(C, C_fp32, opt_cast);
-            if (C_fp32.empty())
-                return -100;
-            C = C_fp32;
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+                C = C_fp32;
+            }
         }
     }
     else
@@ -6028,23 +5712,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
                 C = C_fp32;
             }
 
-            if (beta != 1.f)
-            {
-#if !__loongarch_sx
-                Mat C_beta;
-                C_beta.create_like(C, opt.workspace_allocator);
-                if (C_beta.empty())
-                    return -100;
-
-                const int size = C.total() * C.elempack;
-                for (int i = 0; i < size; i++)
-                {
-                    C_beta[i] = C[i] * beta;
-                }
-
-                C = C_beta;
-#endif // !__loongarch_sx
-            }
         }
     }
 
@@ -6089,9 +5756,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
         NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
     }
 
-    const int K_dim = constantA || constantB ? constantK : (transA ? (A_input.dims == 3 ? A_input.c : A_input.h) * A_input.elempack : A_input.w);
-
-#if __loongarch_sx
     int ret = 0;
     if (constantA && constantB)
     {
@@ -6109,9 +5773,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
     {
         ret = gemm_loongarch_bf16s(A_input, B_input, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
     }
-#else  // __loongarch_sx
-    int ret = gemm_tiled_bf16s_scalar(A_input, B_input, AT_data, BT_data, C, top_blob, broadcast_type_C, M, N, K_dim, transA, transB, output_transpose, alpha, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, output_elemtype, opt);
-#endif // __loongarch_sx
     if (ret != 0)
         return ret;
 

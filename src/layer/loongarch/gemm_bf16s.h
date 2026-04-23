@@ -1919,6 +1919,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         const unsigned short* pB = pBT;
 
         int jj = 0;
+#if __loongarch_sx
         for (; jj + 11 < max_jj; jj += 12)
         {
             float sum0[12];
@@ -2011,6 +2012,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             outptr += 16;
         }
+#endif // __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum00 = 0.f;
@@ -2136,6 +2138,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         const unsigned short* pB = pBT;
 
         int jj = 0;
+#if __loongarch_sx
         for (; jj + 11 < max_jj; jj += 12)
         {
             float sum[12];
@@ -2198,6 +2201,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             outptr += 8;
         }
+#endif // __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
         {
             float sum0 = 0.f;
