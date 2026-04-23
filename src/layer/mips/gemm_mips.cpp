@@ -29,57 +29,6 @@ Gemm_mips::Gemm_mips()
     nT = 0;
 }
 
-static int unpack_or_cast_to_float32(const Mat& src, Mat& dst, const Option& opt)
-{
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat unpacked = src;
-    if (src.elempack != 1)
-    {
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(src, unpacked, 1, opt_unpack);
-        if (unpacked.empty())
-            return -100;
-    }
-
-#if NCNN_BF16
-    if (unpacked.elembits() == 16)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = opt.workspace_allocator;
-
-        cast_bfloat16_to_float32(unpacked, dst, opt_cast);
-        if (dst.empty())
-            return -100;
-        return 0;
-    }
-#endif
-
-    dst = unpacked;
-    return 0;
-}
-
-static int assign_or_copy_top_blob(const Mat& src, Mat& dst)
-{
-    if (dst.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    if (dst.dims != src.dims || dst.w != src.w || dst.h != src.h || dst.d != src.d || dst.c != src.c || dst.elemsize != src.elemsize || dst.elempack != src.elempack)
-        return -100;
-
-    memcpy((void*)dst, (const void*)src, src.total() * src.elemsize);
-    return 0;
-}
-
 static int resolve_broadcast_type_C(const Mat& C, int M, int N)
 {
     int broadcast_type_C = 0;
@@ -98,156 +47,6 @@ static int resolve_broadcast_type_C(const Mat& C, int M, int N)
         broadcast_type_C = 4;
 
     return broadcast_type_C;
-}
-
-static int prepare_C_fp32(const Mat& C_src, Mat& C, int& broadcast_type_C, int M, int N, float beta, const Option& opt)
-{
-    C = C_src;
-    broadcast_type_C = 0;
-
-    if (C.empty())
-        return 0;
-
-    if (C.elembits() != 32)
-        return -1;
-
-    broadcast_type_C = resolve_broadcast_type_C(C, M, N);
-
-    if (beta != 1.f)
-    {
-        Option opt_c = opt;
-        opt_c.blob_allocator = opt.workspace_allocator;
-
-        Mat C2;
-        C2.create_like(C, opt_c.blob_allocator);
-        if (C2.empty())
-            return -100;
-
-        const int size = C.total() * C.elempack;
-        for (int i = 0; i < size; i++)
-        {
-            C2[i] = C[i] * beta;
-        }
-
-        C = C2;
-    }
-
-    return 0;
-}
-
-static void add_matrix_C_fp32(const Mat& C, Mat& top_blob, int output_transpose)
-{
-    const int M = C.h;
-    const int N = C.w;
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    if (output_transpose)
-    {
-        if (top_blob.dims == 3)
-        {
-            for (int j = 0; j < N; j++)
-            {
-                float* outptr = top_blob.channel(j / out_elempack);
-                const int lane = j % out_elempack;
-                for (int i = 0; i < M; i++)
-                {
-                    outptr[i * out_elempack + lane] += C.row(i)[j];
-                }
-            }
-        }
-        else
-        {
-            for (int j = 0; j < N; j++)
-            {
-                float* outptr = (float*)top_blob + (j / out_elempack) * out_hstep * out_elempack;
-                const int lane = j % out_elempack;
-                for (int i = 0; i < M; i++)
-                {
-                    outptr[i * out_elempack + lane] += C.row(i)[j];
-                }
-            }
-        }
-    }
-    else
-    {
-        if (top_blob.dims == 3)
-        {
-            for (int i = 0; i < M; i++)
-            {
-                float* outptr = top_blob.channel(i / out_elempack);
-                const int lane = i % out_elempack;
-                const float* cptr = C.row(i);
-                for (int j = 0; j < N; j++)
-                {
-                    outptr[j * out_elempack + lane] += cptr[j];
-                }
-            }
-        }
-        else
-        {
-            for (int i = 0; i < M; i++)
-            {
-                float* outptr = (float*)top_blob + (i / out_elempack) * out_hstep * out_elempack;
-                const int lane = i % out_elempack;
-                const float* cptr = C.row(i);
-                for (int j = 0; j < N; j++)
-                {
-                    outptr[j * out_elempack + lane] += cptr[j];
-                }
-            }
-        }
-    }
-}
-
-static NCNN_FORCEINLINE float get_matrix_element_fp32_scalar(const Mat& m, int row, int col)
-{
-    const int elempack = m.elempack;
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-
-    return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
-}
-
-static NCNN_FORCEINLINE float get_vector_element_fp32_scalar(const Mat& m, int idx)
-{
-    const int elempack = m.elempack;
-
-    if (m.dims == 1)
-        return ((const float*)m)[(size_t)(idx / elempack) * elempack + idx % elempack];
-
-    const size_t hstep = m.dims == 3 ? m.cstep : (size_t)m.w;
-    return ((const float*)m)[(size_t)(idx / elempack) * hstep * elempack + idx % elempack];
-}
-
-static NCNN_FORCEINLINE float get_broadcast_value_fp32_scalar(const Mat& C, int broadcast_type_C, int row, int col)
-{
-    if (C.empty())
-        return 0.f;
-
-    if (broadcast_type_C == 0)
-        return ((const float*)C)[0];
-
-    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-        return C.dims == 1 ? get_vector_element_fp32_scalar(C, row) : get_matrix_element_fp32_scalar(C, row, 0);
-
-    if (broadcast_type_C == 3)
-        return get_matrix_element_fp32_scalar(C, row, col);
-
-    return C.dims == 1 ? get_vector_element_fp32_scalar(C, col) : get_matrix_element_fp32_scalar(C, 0, col);
-}
-
-static NCNN_FORCEINLINE void set_output_element_fp32_scalar(Mat& top_blob, int row, int col, float v, int output_transpose)
-{
-    const int out_elempack = top_blob.elempack;
-    const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-
-    size_t offset;
-    if (output_transpose)
-        offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-    else
-        offset = (size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack;
-
-    ((float*)top_blob)[offset] = v;
 }
 
 #if __mips_msa
@@ -1547,14 +1346,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const float* pB = pBT;
-        const float* pCi = pC;
 
-        if (pCi)
+        if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)CT_tile + i + ii;
+                pC = (const float*)CT_tile + i + ii;
             if (broadcast_type_C == 4)
-                pCi = (const float*)CT_tile + j;
+                pC = (const float*)CT_tile + j;
         }
 
         int jj = 0;
@@ -1571,11 +1369,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     _sum1[c] = (v4f32)__msa_fill_w(0);
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
                         for (int c = 0; c < 12; c++)
                         {
                             _sum0[c] = _c0;
@@ -1584,8 +1382,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
+                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
                         for (int c = 0; c < 12; c++)
                         {
                             _sum0[c] = _c0;
@@ -1596,20 +1394,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            _sum0[c] = (v4f32)__msa_ld_w(pCi + c * 8, 0);
-                            _sum1[c] = (v4f32)__msa_ld_w(pCi + c * 8 + 4, 0);
+                            _sum0[c] = (v4f32)__msa_ld_w(pC + c * 8, 0);
+                            _sum1[c] = (v4f32)__msa_ld_w(pC + c * 8 + 4, 0);
                         }
-                        pCi += 96;
+                        pC += 96;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            v4f32 _c0 = __msa_fill_w_f32(pCi[c]);
+                            v4f32 _c0 = __msa_fill_w_f32(pC[c]);
                             _sum0[c] = _c0;
                             _sum1[c] = _c0;
                         }
-                        pCi += 12;
+                        pC += 12;
                     }
                 }
             }
@@ -1672,11 +1470,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     _sum1[c] = (v4f32)__msa_fill_w(0);
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
                         for (int c = 0; c < 8; c++)
                         {
                             _sum0[c] = _c0;
@@ -1685,8 +1483,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
+                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
                         for (int c = 0; c < 8; c++)
                         {
                             _sum0[c] = _c0;
@@ -1697,20 +1495,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            _sum0[c] = (v4f32)__msa_ld_w(pCi + c * 8, 0);
-                            _sum1[c] = (v4f32)__msa_ld_w(pCi + c * 8 + 4, 0);
+                            _sum0[c] = (v4f32)__msa_ld_w(pC + c * 8, 0);
+                            _sum1[c] = (v4f32)__msa_ld_w(pC + c * 8 + 4, 0);
                         }
-                        pCi += 64;
+                        pC += 64;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            v4f32 _c0 = __msa_fill_w_f32(pCi[c]);
+                            v4f32 _c0 = __msa_fill_w_f32(pC[c]);
                             _sum0[c] = _c0;
                             _sum1[c] = _c0;
                         }
-                        pCi += 8;
+                        pC += 8;
                     }
                 }
             }
@@ -1782,11 +1580,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum30 = (v4f32)__msa_fill_w(0);
                 _sum31 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
                         _sum01 = _sum00;
                         _sum10 = _sum00;
                         _sum11 = _sum00;
@@ -1797,8 +1595,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
                         _sum10 = _sum00;
                         _sum11 = _sum01;
                         _sum20 = _sum00;
@@ -1808,27 +1606,27 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
-                        _sum10 = (v4f32)__msa_ld_w(pCi + 8, 0);
-                        _sum11 = (v4f32)__msa_ld_w(pCi + 12, 0);
-                        _sum20 = (v4f32)__msa_ld_w(pCi + 16, 0);
-                        _sum21 = (v4f32)__msa_ld_w(pCi + 20, 0);
-                        _sum30 = (v4f32)__msa_ld_w(pCi + 24, 0);
-                        _sum31 = (v4f32)__msa_ld_w(pCi + 28, 0);
-                        pCi += 32;
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        _sum10 = (v4f32)__msa_ld_w(pC + 8, 0);
+                        _sum11 = (v4f32)__msa_ld_w(pC + 12, 0);
+                        _sum20 = (v4f32)__msa_ld_w(pC + 16, 0);
+                        _sum21 = (v4f32)__msa_ld_w(pC + 20, 0);
+                        _sum30 = (v4f32)__msa_ld_w(pC + 24, 0);
+                        _sum31 = (v4f32)__msa_ld_w(pC + 28, 0);
+                        pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
-                        _sum10 = __msa_fill_w_f32(pCi[1]);
-                        _sum20 = __msa_fill_w_f32(pCi[2]);
-                        _sum30 = __msa_fill_w_f32(pCi[3]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
+                        _sum10 = __msa_fill_w_f32(pC[1]);
+                        _sum20 = __msa_fill_w_f32(pC[2]);
+                        _sum30 = __msa_fill_w_f32(pC[3]);
                         _sum01 = _sum00;
                         _sum11 = _sum10;
                         _sum21 = _sum20;
                         _sum31 = _sum30;
-                        pCi += 4;
+                        pC += 4;
                     }
                 }
             }
@@ -1928,37 +1726,37 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum10 = (v4f32)__msa_fill_w(0);
                 _sum11 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
                         _sum01 = _sum00;
                         _sum10 = _sum00;
                         _sum11 = _sum00;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
                         _sum10 = _sum00;
                         _sum11 = _sum01;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
-                        _sum10 = (v4f32)__msa_ld_w(pCi + 8, 0);
-                        _sum11 = (v4f32)__msa_ld_w(pCi + 12, 0);
-                        pCi += 16;
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        _sum10 = (v4f32)__msa_ld_w(pC + 8, 0);
+                        _sum11 = (v4f32)__msa_ld_w(pC + 12, 0);
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
-                        _sum10 = __msa_fill_w_f32(pCi[1]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
+                        _sum10 = __msa_fill_w_f32(pC[1]);
                         _sum01 = _sum00;
                         _sum11 = _sum10;
-                        pCi += 2;
+                        pC += 2;
                     }
                 }
             }
@@ -2035,29 +1833,29 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum00 = (v4f32)__msa_fill_w(0);
                 _sum01 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
                         _sum01 = _sum00;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum00 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum01 = (v4f32)__msa_ld_w(pCi + 4, 0);
-                        pCi += 8;
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum00 = __msa_fill_w_f32(pCi[0]);
+                        _sum00 = __msa_fill_w_f32(pC[0]);
                         _sum01 = _sum00;
-                        pCi += 1;
+                        pC += 1;
                     }
                 }
             }
@@ -2120,14 +1918,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const float* pB = pBT;
-        const float* pCi = pC;
 
-        if (pCi)
+        if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)CT_tile + i + ii;
+                pC = (const float*)CT_tile + i + ii;
             if (broadcast_type_C == 4)
-                pCi = (const float*)CT_tile + j;
+                pC = (const float*)CT_tile + j;
         }
 
         int jj = 0;
@@ -2142,31 +1939,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     _sum[c] = (v4f32)__msa_fill_w(0);
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
                         for (int c = 0; c < 12; c++)
                             _sum[c] = _c0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
                         for (int c = 0; c < 12; c++)
                             _sum[c] = _c0;
                     }
                     if (broadcast_type_C == 3)
                     {
                         for (int c = 0; c < 12; c++)
-                            _sum[c] = (v4f32)__msa_ld_w(pCi + c * 4, 0);
-                        pCi += 48;
+                            _sum[c] = (v4f32)__msa_ld_w(pC + c * 4, 0);
+                        pC += 48;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 12; c++)
-                            _sum[c] = __msa_fill_w_f32(pCi[c]);
-                        pCi += 12;
+                            _sum[c] = __msa_fill_w_f32(pC[c]);
+                        pC += 12;
                     }
                 }
             }
@@ -2215,31 +2012,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     _sum[c] = (v4f32)__msa_fill_w(0);
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        v4f32 _c0 = __msa_fill_w_f32(pCi[0]);
+                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
                         for (int c = 0; c < 8; c++)
                             _sum[c] = _c0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pCi, 0);
+                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
                         for (int c = 0; c < 8; c++)
                             _sum[c] = _c0;
                     }
                     if (broadcast_type_C == 3)
                     {
                         for (int c = 0; c < 8; c++)
-                            _sum[c] = (v4f32)__msa_ld_w(pCi + c * 4, 0);
-                        pCi += 32;
+                            _sum[c] = (v4f32)__msa_ld_w(pC + c * 4, 0);
+                        pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 8; c++)
-                            _sum[c] = __msa_fill_w_f32(pCi[c]);
-                        pCi += 8;
+                            _sum[c] = __msa_fill_w_f32(pC[c]);
+                        pC += 8;
                     }
                 }
             }
@@ -2291,37 +2088,37 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum2 = (v4f32)__msa_fill_w(0);
                 _sum3 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
+                        _sum0 = __msa_fill_w_f32(pC[0]);
                         _sum1 = _sum0;
                         _sum2 = _sum0;
                         _sum3 = _sum0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
                         _sum1 = _sum0;
                         _sum2 = _sum0;
                         _sum3 = _sum0;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum1 = (v4f32)__msa_ld_w(pCi + 4, 0);
-                        _sum2 = (v4f32)__msa_ld_w(pCi + 8, 0);
-                        _sum3 = (v4f32)__msa_ld_w(pCi + 12, 0);
-                        pCi += 16;
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum1 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        _sum2 = (v4f32)__msa_ld_w(pC + 8, 0);
+                        _sum3 = (v4f32)__msa_ld_w(pC + 12, 0);
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
-                        _sum1 = __msa_fill_w_f32(pCi[1]);
-                        _sum2 = __msa_fill_w_f32(pCi[2]);
-                        _sum3 = __msa_fill_w_f32(pCi[3]);
-                        pCi += 4;
+                        _sum0 = __msa_fill_w_f32(pC[0]);
+                        _sum1 = __msa_fill_w_f32(pC[1]);
+                        _sum2 = __msa_fill_w_f32(pC[2]);
+                        _sum3 = __msa_fill_w_f32(pC[3]);
+                        pC += 4;
                     }
                 }
             }
@@ -2390,29 +2187,29 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum0 = (v4f32)__msa_fill_w(0);
                 _sum1 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
+                        _sum0 = __msa_fill_w_f32(pC[0]);
                         _sum1 = _sum0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
                         _sum1 = _sum0;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
-                        _sum1 = (v4f32)__msa_ld_w(pCi + 4, 0);
-                        pCi += 8;
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum1 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
-                        _sum1 = __msa_fill_w_f32(pCi[1]);
-                        pCi += 2;
+                        _sum0 = __msa_fill_w_f32(pC[0]);
+                        _sum1 = __msa_fill_w_f32(pC[1]);
+                        pC += 2;
                     }
                 }
             }
@@ -2471,21 +2268,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 _sum0 = (v4f32)__msa_fill_w(0);
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
+                        _sum0 = __msa_fill_w_f32(pC[0]);
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
                     if (broadcast_type_C == 3)
                     {
-                        _sum0 = (v4f32)__msa_ld_w(pCi, 0);
-                        pCi += 4;
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
+                        pC += 4;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        _sum0 = __msa_fill_w_f32(pCi[0]);
-                        pCi += 1;
+                        _sum0 = __msa_fill_w_f32(pC[0]);
+                        pC += 1;
                     }
                 }
             }
@@ -2538,14 +2335,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
         const float* pB = pBT;
-        const float* pCi = pC;
 
-        if (pCi)
+        if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)CT_tile + i + ii;
+                pC = (const float*)CT_tile + i + ii;
             if (broadcast_type_C == 4)
-                pCi = (const float*)CT_tile + j;
+                pC = (const float*)CT_tile + j;
         }
 
         int jj = 0;
@@ -2563,41 +2359,41 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     sum1[c] = 0.f;
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            sum0[c] = pCi[0];
-                            sum1[c] = pCi[0];
+                            sum0[c] = pC[0];
+                            sum1[c] = pC[0];
                         }
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            sum0[c] = pCi[0];
-                            sum1[c] = pCi[1];
+                            sum0[c] = pC[0];
+                            sum1[c] = pC[1];
                         }
                     }
                     if (broadcast_type_C == 3)
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            sum0[c] = pCi[c * 2];
-                            sum1[c] = pCi[c * 2 + 1];
+                            sum0[c] = pC[c * 2];
+                            sum1[c] = pC[c * 2 + 1];
                         }
-                        pCi += 24;
+                        pC += 24;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 12; c++)
                         {
-                            sum0[c] = pCi[c];
-                            sum1[c] = pCi[c];
+                            sum0[c] = pC[c];
+                            sum1[c] = pC[c];
                         }
-                        pCi += 12;
+                        pC += 12;
                     }
                 }
             }
@@ -2661,41 +2457,41 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     sum1[c] = 0.f;
                 }
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            sum0[c] = pCi[0];
-                            sum1[c] = pCi[0];
+                            sum0[c] = pC[0];
+                            sum1[c] = pC[0];
                         }
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            sum0[c] = pCi[0];
-                            sum1[c] = pCi[1];
+                            sum0[c] = pC[0];
+                            sum1[c] = pC[1];
                         }
                     }
                     if (broadcast_type_C == 3)
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            sum0[c] = pCi[c * 2];
-                            sum1[c] = pCi[c * 2 + 1];
+                            sum0[c] = pC[c * 2];
+                            sum1[c] = pC[c * 2 + 1];
                         }
-                        pCi += 16;
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 8; c++)
                         {
-                            sum0[c] = pCi[c];
-                            sum1[c] = pCi[c];
+                            sum0[c] = pC[c];
+                            sum1[c] = pC[c];
                         }
-                        pCi += 8;
+                        pC += 8;
                     }
                 }
             }
@@ -2767,12 +2563,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum30 = 0.f;
                 sum31 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[0];
+                        sum00 = pC[0];
+                        sum01 = pC[0];
                         sum10 = sum00;
                         sum11 = sum00;
                         sum20 = sum00;
@@ -2782,8 +2578,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[1];
+                        sum00 = pC[0];
+                        sum01 = pC[1];
                         sum10 = sum00;
                         sum11 = sum01;
                         sum20 = sum00;
@@ -2793,27 +2589,27 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[1];
-                        sum10 = pCi[2];
-                        sum11 = pCi[3];
-                        sum20 = pCi[4];
-                        sum21 = pCi[5];
-                        sum30 = pCi[6];
-                        sum31 = pCi[7];
-                        pCi += 8;
+                        sum00 = pC[0];
+                        sum01 = pC[1];
+                        sum10 = pC[2];
+                        sum11 = pC[3];
+                        sum20 = pC[4];
+                        sum21 = pC[5];
+                        sum30 = pC[6];
+                        sum31 = pC[7];
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        sum00 = pCi[0];
-                        sum10 = pCi[1];
-                        sum20 = pCi[2];
-                        sum30 = pCi[3];
+                        sum00 = pC[0];
+                        sum10 = pC[1];
+                        sum20 = pC[2];
+                        sum30 = pC[3];
                         sum01 = sum00;
                         sum11 = sum10;
                         sum21 = sum20;
                         sum31 = sum30;
-                        pCi += 4;
+                        pC += 4;
                     }
                 }
             }
@@ -2887,37 +2683,37 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum10 = 0.f;
                 sum11 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[0];
+                        sum00 = pC[0];
+                        sum01 = pC[0];
                         sum10 = sum00;
                         sum11 = sum00;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[1];
+                        sum00 = pC[0];
+                        sum01 = pC[1];
                         sum10 = sum00;
                         sum11 = sum01;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        sum00 = pCi[0];
-                        sum01 = pCi[1];
-                        sum10 = pCi[2];
-                        sum11 = pCi[3];
-                        pCi += 4;
+                        sum00 = pC[0];
+                        sum01 = pC[1];
+                        sum10 = pC[2];
+                        sum11 = pC[3];
+                        pC += 4;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        sum00 = pCi[0];
-                        sum10 = pCi[1];
+                        sum00 = pC[0];
+                        sum10 = pC[1];
                         sum01 = sum00;
                         sum11 = sum10;
-                        pCi += 2;
+                        pC += 2;
                     }
                 }
             }
@@ -2971,24 +2767,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum0 = 0.f;
                 sum1 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum0 = pCi[0];
-                        sum1 = broadcast_type_C == 0 ? pCi[0] : pCi[1];
+                        sum0 = pC[0];
+                        sum1 = broadcast_type_C == 0 ? pC[0] : pC[1];
                     }
                     if (broadcast_type_C == 3)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[1];
-                        pCi += 2;
+                        sum0 = pC[0];
+                        sum1 = pC[1];
+                        pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[0];
-                        pCi += 1;
+                        sum0 = pC[0];
+                        sum1 = pC[0];
+                        pC += 1;
                     }
                 }
             }
@@ -3032,14 +2828,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
         const float* pB = pBT;
-        const float* pCi = pC;
 
-        if (pCi)
+        if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)CT_tile + i + ii;
+                pC = (const float*)CT_tile + i + ii;
             if (broadcast_type_C == 4)
-                pCi = (const float*)CT_tile + j;
+                pC = (const float*)CT_tile + j;
         }
 
         int jj = 0;
@@ -3053,18 +2848,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 for (int c = 0; c < 12; c++)
                     sum[c] = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         for (int c = 0; c < 12; c++)
-                            sum[c] = pCi[0];
+                            sum[c] = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 12; c++)
-                            sum[c] = pCi[c];
-                        pCi += 12;
+                            sum[c] = pC[c];
+                        pC += 12;
                     }
                 }
             }
@@ -3108,18 +2903,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 for (int c = 0; c < 8; c++)
                     sum[c] = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         for (int c = 0; c < 8; c++)
-                            sum[c] = pCi[0];
+                            sum[c] = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
                         for (int c = 0; c < 8; c++)
-                            sum[c] = pCi[c];
-                        pCi += 8;
+                            sum[c] = pC[c];
+                        pC += 8;
                     }
                 }
             }
@@ -3167,22 +2962,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum2 = 0.f;
                 sum3 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[0];
-                        sum2 = pCi[0];
-                        sum3 = pCi[0];
+                        sum0 = pC[0];
+                        sum1 = pC[0];
+                        sum2 = pC[0];
+                        sum3 = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[1];
-                        sum2 = pCi[2];
-                        sum3 = pCi[3];
-                        pCi += 4;
+                        sum0 = pC[0];
+                        sum1 = pC[1];
+                        sum2 = pC[2];
+                        sum3 = pC[3];
+                        pC += 4;
                     }
                 }
             }
@@ -3235,18 +3030,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum0 = 0.f;
                 sum1 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[0];
+                        sum0 = pC[0];
+                        sum1 = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        sum0 = pCi[0];
-                        sum1 = pCi[1];
-                        pCi += 2;
+                        sum0 = pC[0];
+                        sum1 = pC[1];
+                        pC += 2;
                     }
                 }
             }
@@ -3289,14 +3084,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 sum0 = 0.f;
 
-                if (pCi)
+                if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                        sum0 = pCi[0];
+                        sum0 = pC[0];
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        sum0 = pCi[0];
-                        pCi += 1;
+                        sum0 = pC[0];
+                        pC += 1;
                     }
                 }
             }
@@ -3417,30 +3212,6 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (constant_TILE_K > 0)
         TILE_K = (constant_TILE_K + 1) / 2 * 2;
 #endif
-}
-
-static bool support_fp32_tiled_gemm(const Mat& A, const Mat& B, int output_elempack)
-{
-    if (A.elembits() != 32 || B.elembits() != 32)
-        return false;
-
-#if __mips_msa
-    if (A.elempack != 1 && A.elempack != 4)
-        return false;
-    if (B.elempack != 1 && B.elempack != 4)
-        return false;
-    if (output_elempack != 0 && output_elempack != 1 && output_elempack != 4)
-        return false;
-#else
-    if (A.elempack != 1)
-        return false;
-    if (B.elempack != 1)
-        return false;
-    if (output_elempack != 0 && output_elempack != 1)
-        return false;
-#endif
-
-    return true;
 }
 
 static int gemm_mips(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
@@ -3762,21 +3533,23 @@ int Gemm_mips::create_pipeline(const Option& opt)
     nT = 0;
 
     if (int8_scale_term)
+    {
+        support_packing = false;
+        support_bf16_storage = false;
         return 0;
+    }
 
 #if NCNN_BF16
     if (opt.use_bf16_storage)
         return create_pipeline_bf16s(opt);
 #endif
 
-    if (constantA && A_data.elembits() == 32 && support_fp32_tiled_gemm(A_data, A_data, output_elempack))
+    if (constantA)
     {
         const int M = constantM;
         const int K = constantK;
 
-        int TILE_M;
-        int TILE_N;
-        int TILE_K;
+        int TILE_M, TILE_N, TILE_K;
         get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -3796,26 +3569,28 @@ int Gemm_mips::create_pipeline(const Option& opt)
             const int i = ppi * TILE_M;
             const int k = ppk * TILE_K;
 
-            const int max_ii = std::min(M - i, TILE_M);
-            const int max_kk = std::min(K - k, TILE_K);
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
 
-            Mat AT_tile = AT_data.channel(ppi).row_range(ppk, 1);
+            Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
             if (transA)
+            {
                 transpose_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
+            }
             else
+            {
                 pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
+            }
         }
     }
 
-    if (constantB && B_data.elembits() == 32 && support_fp32_tiled_gemm(B_data, B_data, output_elempack))
+    if (constantB)
     {
         const int N = constantN;
         const int K = constantK;
 
-        int TILE_M;
-        int TILE_N;
-        int TILE_K;
+        int TILE_M, TILE_N, TILE_K;
         get_optimal_tile_mnk(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -3835,19 +3610,23 @@ int Gemm_mips::create_pipeline(const Option& opt)
             const int j = ppj * TILE_N;
             const int k = ppk * TILE_K;
 
-            const int max_jj = std::min(N - j, TILE_N);
-            const int max_kk = std::min(K - k, TILE_K);
+            const int max_jj = std::min((N - j), TILE_N);
+            const int max_kk = std::min((K - k), TILE_K);
 
-            Mat BT_tile = BT_data.channel(ppj).row_range(ppk, 1);
+            Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
             if (transB)
+            {
                 pack_B_tile(B_data, BT_tile, j, max_jj, k, max_kk);
+            }
             else
+            {
                 transpose_pack_B_tile(B_data, BT_tile, j, max_jj, k, max_kk);
+            }
         }
     }
 
-    if (constantC && constant_broadcast_type_C != -1 && C_data.elembits() == 32)
+    if (constantC && constant_broadcast_type_C != -1)
     {
         CT_data = C_data;
 
@@ -3861,6 +3640,7 @@ int Gemm_mips::create_pipeline(const Option& opt)
         }
 #endif // __mips_msa
 
+        // pre-multiply C with beta
         if (beta != 1.f)
         {
             Mat C2;
@@ -3878,8 +3658,10 @@ int Gemm_mips::create_pipeline(const Option& opt)
         }
     }
 
-    if (!AT_data.empty() || !BT_data.empty() || !CT_data.empty())
+    if (constantA || constantB || constantC)
+    {
         nT = opt.num_threads;
+    }
 
     return 0;
 }
@@ -3889,346 +3671,169 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            int ret = unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_unpacked[i], opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        Mat A_data_unpacked = A_data;
-        Mat B_data_unpacked = B_data;
-        Mat C_data_unpacked = C_data;
-
-        if (constantA)
-        {
-            int ret = unpack_or_cast_to_float32(A_data, A_data_unpacked, opt);
-            if (ret != 0)
-                return ret;
-        }
-        if (constantB)
-        {
-            int ret = unpack_or_cast_to_float32(B_data, B_data_unpacked, opt);
-            if (ret != 0)
-                return ret;
-        }
-        if (constantC && constant_broadcast_type_C != -1)
-        {
-            int ret = unpack_or_cast_to_float32(C_data, C_data_unpacked, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        Gemm gemm;
-        gemm.alpha = alpha;
-        gemm.beta = beta;
-        gemm.transA = transA;
-        gemm.transB = transB;
-        gemm.constantA = constantA;
-        gemm.constantB = constantB;
-        gemm.constantC = constantC;
-        gemm.constantM = constantM;
-        gemm.constantN = constantN;
-        gemm.constantK = constantK;
-        gemm.constant_broadcast_type_C = constant_broadcast_type_C;
-        gemm.output_N1M = output_N1M;
-        gemm.output_elempack = 1;
-        gemm.output_elemtype = output_elemtype;
-        gemm.output_transpose = output_transpose;
-        gemm.int8_scale_term = int8_scale_term;
-        gemm.constant_TILE_M = constant_TILE_M;
-        gemm.constant_TILE_N = constant_TILE_N;
-        gemm.constant_TILE_K = constant_TILE_K;
-        gemm.A_data = A_data_unpacked;
-        gemm.B_data = B_data_unpacked;
-        gemm.C_data = C_data_unpacked;
-#if NCNN_INT8
-        gemm.A_data_int8_scales = A_data_int8_scales;
-        gemm.B_data_int8_scale = B_data_int8_scale;
-#endif
-
-        Option opt_int8 = opt;
-        opt_int8.use_packing_layout = false;
-
-        std::vector<Mat> top_blobs_unpacked(1);
-        int ret = gemm.forward(bottom_blobs_unpacked, top_blobs_unpacked, opt_int8);
-        if (ret != 0)
-            return ret;
-
-        return assign_or_copy_top_blob(top_blobs_unpacked[0], top_blobs[0]);
+        return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
     }
 #endif
 
+    const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];
+    int elembits = bottom_blob.elembits();
+
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    if (output_elemtype == 0 || output_elemtype == 1)
+    int M;
+    int N;
+    if (constantA && constantB)
     {
-        Mat A_fp32 = constantA ? A_data : bottom_blobs[0];
-        Mat B_fp32 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
-        Mat AT_data_fp32 = AT_data.elembits() == 32 ? AT_data : Mat();
-        Mat BT_data_fp32 = BT_data.elembits() == 32 ? BT_data : Mat();
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = constantN;
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
 
-        if (support_fp32_tiled_gemm(A_fp32, B_fp32, output_elempack))
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = CT_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
         {
-            int M;
-            int N;
-            if (constantA && constantB)
-            {
-                M = constantM;
-                N = constantN;
-            }
-            else if (constantA)
-            {
-                const Mat& B = bottom_blobs[0];
-                M = constantM;
-                N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-            }
-            else if (constantB)
-            {
-                const Mat& A = bottom_blobs[0];
-                M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-                N = constantN;
-            }
-            else
-            {
-                const Mat& A = bottom_blobs[0];
-                const Mat& B = bottom_blobs[1];
-                M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
-                N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
-            }
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+        }
+        else if (constantA)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else if (constantB)
+        {
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        }
+        else
+        {
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+        }
 
-            Mat C;
-            Mat C_matrix_post;
-            int broadcast_type_C = 0;
-            if (constantC)
-            {
-                const bool need_matrix_post = constant_broadcast_type_C == 3 && output_transpose;
-                const Mat& C_src = !need_matrix_post && !CT_data.empty() && CT_data.elembits() == 32 ? CT_data : C_data;
-                if (!C_src.empty() && (C_src.elembits() != 32 || (C_src.elempack != 1 && C_src.elempack != 4)))
-                    goto fallback_wrapper;
+        if (!C.empty())
+        {
+            broadcast_type_C = resolve_broadcast_type_C(C, M, N);
 
-                if (C_src.data == C_data.data || need_matrix_post)
-                {
-                    int ret = prepare_C_fp32(C_src, C, broadcast_type_C, M, N, beta, opt);
-                    if (ret != 0)
-                    {
-                        if (ret == -100)
-                            return -100;
-                        goto fallback_wrapper;
-                    }
-                }
-                else
-                {
-                    C = C_src;
-                    broadcast_type_C = constant_broadcast_type_C;
-                }
-            }
-            else
+            // pre-multiply C with beta
+            if (beta != 1.f)
             {
-                Mat C_src;
-                if (constantA && constantB)
-                    C_src = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
-                else if (constantA || constantB)
-                    C_src = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
-                else
-                    C_src = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+                Mat C2;
+                C2.create_like(C, opt.workspace_allocator);
+                if (C2.empty())
+                    return -100;
 
-                if (!C_src.empty() && (C_src.elembits() != 32 || (C_src.elempack != 1 && C_src.elempack != 4)))
-                    goto fallback_wrapper;
-
-                int ret = prepare_C_fp32(C_src, C, broadcast_type_C, M, N, beta, opt);
-                if (ret != 0)
-                {
-                    if (ret == -100)
-                        return -100;
-                    goto fallback_wrapper;
-                }
-            }
-
-            if (broadcast_type_C == 3)
-            {
-                if (C.elempack != 1 || C.dims != 2)
-                    goto fallback_wrapper;
-
-                C_matrix_post = C;
-                C = Mat();
-                broadcast_type_C = 0;
-            }
-
-            int out_elempack = 1;
-#if __mips_msa
-            if (opt.use_packing_layout)
-            {
-                const int outh = output_transpose ? N : M;
-                out_elempack = outh % 4 == 0 ? 4 : 1;
-            }
-#endif
-            if (output_elempack)
-                out_elempack = output_elempack;
-
-            Mat& top_blob = top_blobs[0];
-            const size_t out_elemsize = 4u * out_elempack;
-            if (output_transpose)
-            {
-                if (output_N1M)
-                    top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                else
-                    top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            }
-            else
-            {
-                if (output_N1M)
-                    top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                else
-                    top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            }
-            if (top_blob.empty())
-                return -100;
-
-            const int _nT = nT ? nT : opt.num_threads;
-            if (nT != 0 && opt.num_threads != nT)
-            {
-                NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
-            }
-
-            int ret = 0;
-            if (constantA && constantB)
-            {
-                if (AT_data_fp32.empty() || BT_data_fp32.empty())
-                    goto fallback_wrapper;
-                ret = gemm_AT_BT_mips(AT_data_fp32, BT_data_fp32, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-            }
-            else if (constantA)
-            {
-                if (AT_data_fp32.empty())
-                    goto fallback_wrapper;
-                ret = gemm_AT_mips(AT_data_fp32, bottom_blobs[0], C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-            }
-            else if (constantB)
-            {
-                if (BT_data_fp32.empty())
-                    goto fallback_wrapper;
-                ret = gemm_BT_mips(bottom_blobs[0], BT_data_fp32, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-            }
-            else
-            {
-                ret = gemm_mips(bottom_blobs[0], bottom_blobs[1], C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
-            }
-            if (ret != 0)
-                return ret;
-
-            if (!C_matrix_post.empty())
-            {
-                add_matrix_C_fp32(C_matrix_post, top_blob, output_transpose);
-            }
-
-            if (alpha != 1.f)
-            {
-                const int size = top_blob.total() * out_elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
+                const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
                 {
-                    top_blob[i] *= alpha;
+                    C2[i] = C[i] * beta;
                 }
+
+                C = C2;
             }
-
-            return 0;
         }
-    }
-
-fallback_wrapper:
-    std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-    for (size_t i = 0; i < bottom_blobs.size(); i++)
-    {
-        int ret = unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    Mat A_data_fp32 = A_data;
-    Mat B_data_fp32 = B_data;
-    Mat C_data_fp32 = C_data;
-
-    if (constantA)
-    {
-        int ret = unpack_or_cast_to_float32(A_data, A_data_fp32, opt);
-        if (ret != 0)
-            return ret;
-    }
-    if (constantB)
-    {
-        int ret = unpack_or_cast_to_float32(B_data, B_data_fp32, opt);
-        if (ret != 0)
-            return ret;
-    }
-    if (constantC && constant_broadcast_type_C != -1)
-    {
-        int ret = unpack_or_cast_to_float32(C_data, C_data_fp32, opt);
-        if (ret != 0)
-            return ret;
     }
 
     int out_elempack = 1;
 #if __mips_msa
-    const Mat& A0 = constantA ? A_data_fp32 : bottom_blobs_fp32[0];
-    const Mat& B0 = constantB ? B_data_fp32 : constantA ? bottom_blobs_fp32[0] : bottom_blobs_fp32[1];
-    const int M = transA == 0 ? (A0.dims == 3 ? A0.c : A0.h) : A0.w;
-    const int N = transB == 0 ? B0.w : (B0.dims == 3 ? B0.c : B0.h);
-    if (output_elempack == 0 && opt.use_packing_layout)
+    if (opt.use_packing_layout)
     {
-        const int outh = output_transpose ? N : M;
+        int outh = output_transpose ? N : M;
         out_elempack = outh % 4 == 0 ? 4 : 1;
     }
-    if (output_elempack == 4)
-        out_elempack = 4;
 #endif // __mips_msa
+    if (output_elempack)
+        out_elempack = output_elempack;
+    size_t out_elemsize = 4u * out_elempack;
 
-    Gemm gemm;
-    gemm.alpha = alpha;
-    gemm.beta = beta;
-    gemm.transA = transA;
-    gemm.transB = transB;
-    gemm.constantA = constantA;
-    gemm.constantB = constantB;
-    gemm.constantC = constantC;
-    gemm.constantM = constantM;
-    gemm.constantN = constantN;
-    gemm.constantK = constantK;
-    gemm.constant_broadcast_type_C = constant_broadcast_type_C;
-    gemm.output_N1M = output_N1M;
-    gemm.output_elempack = 1;
-    gemm.output_elemtype = 1;
-    gemm.output_transpose = output_transpose;
-    gemm.int8_scale_term = 0;
-    gemm.constant_TILE_M = constant_TILE_M;
-    gemm.constant_TILE_N = constant_TILE_N;
-    gemm.constant_TILE_K = constant_TILE_K;
-    gemm.A_data = A_data_fp32;
-    gemm.B_data = B_data_fp32;
-    gemm.C_data = C_data_fp32;
-
-    std::vector<Mat> top_blobs_unpacked(1);
-    int ret = gemm.forward(bottom_blobs_fp32, top_blobs_unpacked, opt);
-    if (ret != 0)
-        return ret;
-
-    Mat top_blob_final;
-    if (out_elempack == 4)
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
     {
-        convert_packing(top_blobs_unpacked[0], top_blob_final, 4, opt);
-        if (top_blob_final.empty())
-            return -100;
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
-        top_blob_final = top_blobs_unpacked[0];
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
     }
 
-    return assign_or_copy_top_blob(top_blob_final, top_blobs[0]);
+    int ret = 0;
+    if (constantA && constantB)
+    {
+        ret = gemm_AT_BT_mips(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        ret = gemm_AT_mips(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        ret = gemm_BT_mips(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_mips(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    if (ret != 0)
+        return ret;
+
+    // multiply top_blob with alpha
+    if (alpha != 1.f)
+    {
+        const int size = top_blob.total() * out_elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            top_blob[i] *= alpha;
+        }
+    }
+
+    return 0;
 }
 
 #if NCNN_BF16
