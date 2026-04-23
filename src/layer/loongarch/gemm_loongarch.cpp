@@ -5358,7 +5358,6 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
                     return -100;
                 C = C_fp32;
             }
-
         }
     }
 

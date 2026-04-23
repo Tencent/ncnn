@@ -208,7 +208,6 @@ static NCNN_FORCEINLINE float get_matrix_element_fp32_scalar(const Mat& m, int r
     return ((const float*)m)[(size_t)(row / elempack) * hstep * elempack + (size_t)col * elempack + row % elempack];
 }
 
-
 static NCNN_FORCEINLINE float get_vector_element_fp32_scalar(const Mat& m, int idx)
 {
     const int elempack = m.elempack;
@@ -4705,7 +4704,6 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
                     return -100;
                 C = C_fp32;
             }
-
         }
     }
 
