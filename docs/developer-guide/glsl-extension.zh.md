@@ -354,6 +354,46 @@ void main()
 
 在运行时，`NCNN_LOGE` 将打印出 `gx` 的值
 
+#### RenderDoc 集成
+
+当启用验证层时，ncnn 还支持 RenderDoc 集成，用于 GPU 调试和性能分析。启用 RenderDoc 支持需要：
+
+* 构建时启用 RenderDoc 支持：
+   ```bash
+   cmake -DNCNN_VULKAN=ON -DNCNN_SIMPLEVK=OFF -DNCNN_ENABLE_RENDERDOC_PROFILING=ON ..
+   ```
+
+* 在程序中添加捕获调用：
+   ```cpp
+   int main() {
+       // 开始RenderDoc捕获
+       ncnn::start_renderdoc_capture();
+       
+       // ... 推理操作 ...
+       
+       // 结束RenderDoc捕获
+       ncnn::end_renderdoc_capture();
+       return 0;
+   }
+   ```
+* 指定捕获文件路径（可选）：
+   ```bash
+   export NCNN_RENDERDOC_CAPTURE_PATH="/path/to/capture_file"
+   ```
+
+* 捕获 GPU 操作：
+   ```bash
+   renderdoccmd capture your_ncnn_application
+   ```
+
+当启用 RenderDoc 集成时，ncnn 将会：
+- 在运行时自动检测 RenderDoc 库
+- 在 GPU 操作开始时开始捕获
+- 在 GPU 实例销毁时结束捕获
+- 保存捕获文件供 RenderDoc 分析
+
+生成的 `.rdc` 文件可以在 RenderDoc GUI 中打开，用于分析 ncnn 推理操作的 Vulkan API 调用、着色器执行、内存使用情况和 GPU 性能指标。
+
 ### 选项宏
 
 仅当用户启用某些选项时才启用 GLSL 扩展
