@@ -2029,66 +2029,145 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #endif
         for (; jj + 7 < max_jj; jj += 8)
         {
-            __m128 _sum0[8];
-            __m128 _sum1[8];
+            __m128 _sum00;
+            __m128 _sum01;
+            __m128 _sum10;
+            __m128 _sum11;
+            __m128 _sum20;
+            __m128 _sum21;
+            __m128 _sum30;
+            __m128 _sum31;
+            __m128 _sum40;
+            __m128 _sum41;
+            __m128 _sum50;
+            __m128 _sum51;
+            __m128 _sum60;
+            __m128 _sum61;
+            __m128 _sum70;
+            __m128 _sum71;
 
             if (k == 0)
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum0[c] = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum1[c] = (__m128)__lsx_vreplgr2vr_w(0);
-                }
+                _sum00 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum01 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum10 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum11 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum20 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum21 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum30 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum31 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum40 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum41 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum50 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum51 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum60 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum61 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum70 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum71 = (__m128)__lsx_vreplgr2vr_w(0);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
                         __m128 _c0 = __lsx_vreplfr2vr_s(pC[0]);
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
+                        _sum00 = _c0;
+                        _sum01 = _c0;
+                        _sum10 = _c0;
+                        _sum11 = _c0;
+                        _sum20 = _c0;
+                        _sum21 = _c0;
+                        _sum30 = _c0;
+                        _sum31 = _c0;
+                        _sum40 = _c0;
+                        _sum41 = _c0;
+                        _sum50 = _c0;
+                        _sum51 = _c0;
+                        _sum60 = _c0;
+                        _sum61 = _c0;
+                        _sum70 = _c0;
+                        _sum71 = _c0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         __m128 _c0 = (__m128)__lsx_vld(pC, 0);
                         __m128 _c1 = (__m128)__lsx_vld(pC + 4, 0);
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c1;
-                        }
+                        _sum00 = _c0;
+                        _sum01 = _c1;
+                        _sum10 = _c0;
+                        _sum11 = _c1;
+                        _sum20 = _c0;
+                        _sum21 = _c1;
+                        _sum30 = _c0;
+                        _sum31 = _c1;
+                        _sum40 = _c0;
+                        _sum41 = _c1;
+                        _sum50 = _c0;
+                        _sum51 = _c1;
+                        _sum60 = _c0;
+                        _sum61 = _c1;
+                        _sum70 = _c0;
+                        _sum71 = _c1;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = (__m128)__lsx_vld(pC + c * 8, 0);
-                            _sum1[c] = (__m128)__lsx_vld(pC + c * 8 + 4, 0);
-                        }
+                        _sum00 = (__m128)__lsx_vld(pC, 0);
+                        _sum01 = (__m128)__lsx_vld(pC + 4, 0);
+                        _sum10 = (__m128)__lsx_vld(pC + 8, 0);
+                        _sum11 = (__m128)__lsx_vld(pC + 12, 0);
+                        _sum20 = (__m128)__lsx_vld(pC + 16, 0);
+                        _sum21 = (__m128)__lsx_vld(pC + 20, 0);
+                        _sum30 = (__m128)__lsx_vld(pC + 24, 0);
+                        _sum31 = (__m128)__lsx_vld(pC + 28, 0);
+                        _sum40 = (__m128)__lsx_vld(pC + 32, 0);
+                        _sum41 = (__m128)__lsx_vld(pC + 36, 0);
+                        _sum50 = (__m128)__lsx_vld(pC + 40, 0);
+                        _sum51 = (__m128)__lsx_vld(pC + 44, 0);
+                        _sum60 = (__m128)__lsx_vld(pC + 48, 0);
+                        _sum61 = (__m128)__lsx_vld(pC + 52, 0);
+                        _sum70 = (__m128)__lsx_vld(pC + 56, 0);
+                        _sum71 = (__m128)__lsx_vld(pC + 60, 0);
                         pC += 64;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            __m128 _c0 = __lsx_vreplfr2vr_s(pC[c]);
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
+                        _sum00 = __lsx_vreplfr2vr_s(pC[0]);
+                        _sum01 = _sum00;
+                        _sum10 = __lsx_vreplfr2vr_s(pC[1]);
+                        _sum11 = _sum10;
+                        _sum20 = __lsx_vreplfr2vr_s(pC[2]);
+                        _sum21 = _sum20;
+                        _sum30 = __lsx_vreplfr2vr_s(pC[3]);
+                        _sum31 = _sum30;
+                        _sum40 = __lsx_vreplfr2vr_s(pC[4]);
+                        _sum41 = _sum40;
+                        _sum50 = __lsx_vreplfr2vr_s(pC[5]);
+                        _sum51 = _sum50;
+                        _sum60 = __lsx_vreplfr2vr_s(pC[6]);
+                        _sum61 = _sum60;
+                        _sum70 = __lsx_vreplfr2vr_s(pC[7]);
+                        _sum71 = _sum70;
                         pC += 8;
                     }
                 }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum0[c] = (__m128)__lsx_vld(outptr + c * 8, 0);
-                    _sum1[c] = (__m128)__lsx_vld(outptr + c * 8 + 4, 0);
-                }
+                _sum00 = (__m128)__lsx_vld(outptr, 0);
+                _sum01 = (__m128)__lsx_vld(outptr + 4, 0);
+                _sum10 = (__m128)__lsx_vld(outptr + 8, 0);
+                _sum11 = (__m128)__lsx_vld(outptr + 12, 0);
+                _sum20 = (__m128)__lsx_vld(outptr + 16, 0);
+                _sum21 = (__m128)__lsx_vld(outptr + 20, 0);
+                _sum30 = (__m128)__lsx_vld(outptr + 24, 0);
+                _sum31 = (__m128)__lsx_vld(outptr + 28, 0);
+                _sum40 = (__m128)__lsx_vld(outptr + 32, 0);
+                _sum41 = (__m128)__lsx_vld(outptr + 36, 0);
+                _sum50 = (__m128)__lsx_vld(outptr + 40, 0);
+                _sum51 = (__m128)__lsx_vld(outptr + 44, 0);
+                _sum60 = (__m128)__lsx_vld(outptr + 48, 0);
+                _sum61 = (__m128)__lsx_vld(outptr + 52, 0);
+                _sum70 = (__m128)__lsx_vld(outptr + 56, 0);
+                _sum71 = (__m128)__lsx_vld(outptr + 60, 0);
             }
 
             const float* pA = pAT;
@@ -2096,43 +2175,144 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 __m128 _pA0 = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA1 = (__m128)__lsx_vld(pA + 4, 0);
-                for (int c = 0; c < 8; c++)
-                {
-                    __m128 _pB = __lsx_vreplfr2vr_s(pB[c]);
-                    _sum0[c] = __lsx_vfmadd_s(_pB, _pA0, _sum0[c]);
-                    _sum1[c] = __lsx_vfmadd_s(_pB, _pA1, _sum1[c]);
-                }
+
+                __m128 _pB0 = __lsx_vreplfr2vr_s(pB[0]);
+                __m128 _pB1 = __lsx_vreplfr2vr_s(pB[1]);
+                __m128 _pB2 = __lsx_vreplfr2vr_s(pB[2]);
+                __m128 _pB3 = __lsx_vreplfr2vr_s(pB[3]);
+                __m128 _pB4 = __lsx_vreplfr2vr_s(pB[4]);
+                __m128 _pB5 = __lsx_vreplfr2vr_s(pB[5]);
+                __m128 _pB6 = __lsx_vreplfr2vr_s(pB[6]);
+                __m128 _pB7 = __lsx_vreplfr2vr_s(pB[7]);
+
+                _sum00 = __lsx_vfmadd_s(_pB0, _pA0, _sum00);
+                _sum01 = __lsx_vfmadd_s(_pB0, _pA1, _sum01);
+                _sum10 = __lsx_vfmadd_s(_pB1, _pA0, _sum10);
+                _sum11 = __lsx_vfmadd_s(_pB1, _pA1, _sum11);
+                _sum20 = __lsx_vfmadd_s(_pB2, _pA0, _sum20);
+                _sum21 = __lsx_vfmadd_s(_pB2, _pA1, _sum21);
+                _sum30 = __lsx_vfmadd_s(_pB3, _pA0, _sum30);
+                _sum31 = __lsx_vfmadd_s(_pB3, _pA1, _sum31);
+                _sum40 = __lsx_vfmadd_s(_pB4, _pA0, _sum40);
+                _sum41 = __lsx_vfmadd_s(_pB4, _pA1, _sum41);
+                _sum50 = __lsx_vfmadd_s(_pB5, _pA0, _sum50);
+                _sum51 = __lsx_vfmadd_s(_pB5, _pA1, _sum51);
+                _sum60 = __lsx_vfmadd_s(_pB6, _pA0, _sum60);
+                _sum61 = __lsx_vfmadd_s(_pB6, _pA1, _sum61);
+                _sum70 = __lsx_vfmadd_s(_pB7, _pA0, _sum70);
+                _sum71 = __lsx_vfmadd_s(_pB7, _pA1, _sum71);
+
                 pA += 8;
                 pB += 8;
             }
 
             if (k_end)
             {
-                float block[64];
-                for (int c = 0; c < 8; c++)
+                if (out_elempack == 8)
                 {
-                    __lsx_vst((__m128i)_sum0[c], block + c * 8, 0);
-                    __lsx_vst((__m128i)_sum1[c], block + c * 8 + 4, 0);
+                    __lsx_vst((__m128i)_sum00, outptr0, 0);
+                    __lsx_vst((__m128i)_sum01, outptr0 + 4, 0);
+                    __lsx_vst((__m128i)_sum10, outptr0 + 8, 0);
+                    __lsx_vst((__m128i)_sum11, outptr0 + 12, 0);
+                    __lsx_vst((__m128i)_sum20, outptr0 + 16, 0);
+                    __lsx_vst((__m128i)_sum21, outptr0 + 20, 0);
+                    __lsx_vst((__m128i)_sum30, outptr0 + 24, 0);
+                    __lsx_vst((__m128i)_sum31, outptr0 + 28, 0);
+                    __lsx_vst((__m128i)_sum40, outptr0 + 32, 0);
+                    __lsx_vst((__m128i)_sum41, outptr0 + 36, 0);
+                    __lsx_vst((__m128i)_sum50, outptr0 + 40, 0);
+                    __lsx_vst((__m128i)_sum51, outptr0 + 44, 0);
+                    __lsx_vst((__m128i)_sum60, outptr0 + 48, 0);
+                    __lsx_vst((__m128i)_sum61, outptr0 + 52, 0);
+                    __lsx_vst((__m128i)_sum70, outptr0 + 56, 0);
+                    __lsx_vst((__m128i)_sum71, outptr0 + 60, 0);
+                    outptr0 += 64;
                 }
-                float* outptr1 = (float*)top_blob;
-                for (int c = 0; c < 8; c++)
+                if (out_elempack == 4)
                 {
-                    const int col = j + jj + c;
-                    for (int r = 0; r < 8; r++)
-                    {
-                        const int row = i + ii + r;
-                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = block[c * 8 + r];
-                    }
+                    float* outptr1 = outptr0 + out_hstep * 4;
+
+                    __lsx_vst((__m128i)_sum00, outptr0, 0);
+                    __lsx_vst((__m128i)_sum10, outptr0 + 4, 0);
+                    __lsx_vst((__m128i)_sum20, outptr0 + 8, 0);
+                    __lsx_vst((__m128i)_sum30, outptr0 + 12, 0);
+                    __lsx_vst((__m128i)_sum40, outptr0 + 16, 0);
+                    __lsx_vst((__m128i)_sum50, outptr0 + 20, 0);
+                    __lsx_vst((__m128i)_sum60, outptr0 + 24, 0);
+                    __lsx_vst((__m128i)_sum70, outptr0 + 28, 0);
+
+                    __lsx_vst((__m128i)_sum01, outptr1, 0);
+                    __lsx_vst((__m128i)_sum11, outptr1 + 4, 0);
+                    __lsx_vst((__m128i)_sum21, outptr1 + 8, 0);
+                    __lsx_vst((__m128i)_sum31, outptr1 + 12, 0);
+                    __lsx_vst((__m128i)_sum41, outptr1 + 16, 0);
+                    __lsx_vst((__m128i)_sum51, outptr1 + 20, 0);
+                    __lsx_vst((__m128i)_sum61, outptr1 + 24, 0);
+                    __lsx_vst((__m128i)_sum71, outptr1 + 28, 0);
+
+                    outptr0 += 32;
                 }
-                outptr0 += 8 * out_elempack;
+                if (out_elempack == 1)
+                {
+                    __m128 _r0 = _sum00;
+                    __m128 _r1 = _sum10;
+                    __m128 _r2 = _sum20;
+                    __m128 _r3 = _sum30;
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    __m128 _r4 = _sum40;
+                    __m128 _r5 = _sum50;
+                    __m128 _r6 = _sum60;
+                    __m128 _r7 = _sum70;
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    __m128 _r8 = _sum01;
+                    __m128 _r9 = _sum11;
+                    __m128 _ra = _sum21;
+                    __m128 _rb = _sum31;
+                    transpose4x4_ps(_r8, _r9, _ra, _rb);
+                    __m128 _rc = _sum41;
+                    __m128 _rd = _sum51;
+                    __m128 _re = _sum61;
+                    __m128 _rf = _sum71;
+                    transpose4x4_ps(_rc, _rd, _re, _rf);
+
+                    __lsx_vst((__m128i)_r0, outptr0, 0);
+                    __lsx_vst((__m128i)_r4, outptr0 + 4, 0);
+                    __lsx_vst((__m128i)_r1, outptr0 + out_hstep, 0);
+                    __lsx_vst((__m128i)_r5, outptr0 + out_hstep + 4, 0);
+                    __lsx_vst((__m128i)_r2, outptr0 + out_hstep * 2, 0);
+                    __lsx_vst((__m128i)_r6, outptr0 + out_hstep * 2 + 4, 0);
+                    __lsx_vst((__m128i)_r3, outptr0 + out_hstep * 3, 0);
+                    __lsx_vst((__m128i)_r7, outptr0 + out_hstep * 3 + 4, 0);
+                    __lsx_vst((__m128i)_r8, outptr0 + out_hstep * 4, 0);
+                    __lsx_vst((__m128i)_rc, outptr0 + out_hstep * 4 + 4, 0);
+                    __lsx_vst((__m128i)_r9, outptr0 + out_hstep * 5, 0);
+                    __lsx_vst((__m128i)_rd, outptr0 + out_hstep * 5 + 4, 0);
+                    __lsx_vst((__m128i)_ra, outptr0 + out_hstep * 6, 0);
+                    __lsx_vst((__m128i)_re, outptr0 + out_hstep * 6 + 4, 0);
+                    __lsx_vst((__m128i)_rb, outptr0 + out_hstep * 7, 0);
+                    __lsx_vst((__m128i)_rf, outptr0 + out_hstep * 7 + 4, 0);
+
+                    outptr0 += 8;
+                }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    __lsx_vst((__m128i)_sum0[c], outptr + c * 8, 0);
-                    __lsx_vst((__m128i)_sum1[c], outptr + c * 8 + 4, 0);
-                }
+                __lsx_vst((__m128i)_sum00, outptr, 0);
+                __lsx_vst((__m128i)_sum01, outptr + 4, 0);
+                __lsx_vst((__m128i)_sum10, outptr + 8, 0);
+                __lsx_vst((__m128i)_sum11, outptr + 12, 0);
+                __lsx_vst((__m128i)_sum20, outptr + 16, 0);
+                __lsx_vst((__m128i)_sum21, outptr + 20, 0);
+                __lsx_vst((__m128i)_sum30, outptr + 24, 0);
+                __lsx_vst((__m128i)_sum31, outptr + 28, 0);
+                __lsx_vst((__m128i)_sum40, outptr + 32, 0);
+                __lsx_vst((__m128i)_sum41, outptr + 36, 0);
+                __lsx_vst((__m128i)_sum50, outptr + 40, 0);
+                __lsx_vst((__m128i)_sum51, outptr + 44, 0);
+                __lsx_vst((__m128i)_sum60, outptr + 48, 0);
+                __lsx_vst((__m128i)_sum61, outptr + 52, 0);
+                __lsx_vst((__m128i)_sum70, outptr + 56, 0);
+                __lsx_vst((__m128i)_sum71, outptr + 60, 0);
             }
 
             outptr += 64;
