@@ -468,116 +468,6 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
     int jj = 0;
 #if __mips_msa
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
-            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
-            const float* p2 = (const float*)B + (j + jj + 8) * B_hstep + k * 4;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
-                __msa_st_w(__msa_ld_w(p1, 0), pp + 4, 0);
-                __msa_st_w(__msa_ld_w(p2, 0), pp + 8, 0);
-                pp += 12;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
-            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
-            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
-            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
-            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
-            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
-            const float* p8 = (const float*)B + (j + jj + 8) * B_hstep + k;
-            const float* p9 = (const float*)B + (j + jj + 9) * B_hstep + k;
-            const float* pa = (const float*)B + (j + jj + 10) * B_hstep + k;
-            const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
-                v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
-                v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
-                v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
-                v4f32 _r4 = (v4f32)__msa_ld_w(p4, 0);
-                v4f32 _r5 = (v4f32)__msa_ld_w(p5, 0);
-                v4f32 _r6 = (v4f32)__msa_ld_w(p6, 0);
-                v4f32 _r7 = (v4f32)__msa_ld_w(p7, 0);
-                v4f32 _r8 = (v4f32)__msa_ld_w(p8, 0);
-                v4f32 _r9 = (v4f32)__msa_ld_w(p9, 0);
-                v4f32 _ra = (v4f32)__msa_ld_w(pa, 0);
-                v4f32 _rb = (v4f32)__msa_ld_w(pb, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                transpose4x4_ps(_r8, _r9, _ra, _rb);
-                __msa_st_w((v4i32)_r0, pp, 0);
-                __msa_st_w((v4i32)_r4, pp + 4, 0);
-                __msa_st_w((v4i32)_r8, pp + 8, 0);
-                __msa_st_w((v4i32)_r1, pp + 12, 0);
-                __msa_st_w((v4i32)_r5, pp + 16, 0);
-                __msa_st_w((v4i32)_r9, pp + 20, 0);
-                __msa_st_w((v4i32)_r2, pp + 24, 0);
-                __msa_st_w((v4i32)_r6, pp + 28, 0);
-                __msa_st_w((v4i32)_ra, pp + 32, 0);
-                __msa_st_w((v4i32)_r3, pp + 36, 0);
-                __msa_st_w((v4i32)_r7, pp + 40, 0);
-                __msa_st_w((v4i32)_rb, pp + 44, 0);
-                pp += 48;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-                p4 += 4;
-                p5 += 4;
-                p6 += 4;
-                p7 += 4;
-                p8 += 4;
-                p9 += 4;
-                pa += 4;
-                pb += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp[8] = p8[0];
-                pp[9] = p9[0];
-                pp[10] = pa[0];
-                pp[11] = pb[0];
-                pp += 12;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-                p8++;
-                p9++;
-                pa++;
-                pb++;
-            }
-        }
-    }
-#endif // __mips_msa
-#if __mips_msa
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 4)
@@ -761,79 +651,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     float* pp = BT;
 
     int jj = 0;
-#if __mips_msa
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
-                v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
-                v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
-                v4f32 _r3 = (v4f32)__msa_ld_w(p0 + 12, 0);
-                v4f32 _r4 = (v4f32)__msa_ld_w(p0 + 16, 0);
-                v4f32 _r5 = (v4f32)__msa_ld_w(p0 + 20, 0);
-                v4f32 _r6 = (v4f32)__msa_ld_w(p0 + 24, 0);
-                v4f32 _r7 = (v4f32)__msa_ld_w(p0 + 28, 0);
-                v4f32 _r8 = (v4f32)__msa_ld_w(p0 + 32, 0);
-                v4f32 _r9 = (v4f32)__msa_ld_w(p0 + 36, 0);
-                v4f32 _ra = (v4f32)__msa_ld_w(p0 + 40, 0);
-                v4f32 _rb = (v4f32)__msa_ld_w(p0 + 44, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                transpose4x4_ps(_r8, _r9, _ra, _rb);
-                __msa_st_w((v4i32)_r0, pp, 0);
-                __msa_st_w((v4i32)_r4, pp + 4, 0);
-                __msa_st_w((v4i32)_r8, pp + 8, 0);
-                __msa_st_w((v4i32)_r1, pp + 12, 0);
-                __msa_st_w((v4i32)_r5, pp + 16, 0);
-                __msa_st_w((v4i32)_r9, pp + 20, 0);
-                __msa_st_w((v4i32)_r2, pp + 24, 0);
-                __msa_st_w((v4i32)_r6, pp + 28, 0);
-                __msa_st_w((v4i32)_ra, pp + 32, 0);
-                __msa_st_w((v4i32)_r3, pp + 36, 0);
-                __msa_st_w((v4i32)_r7, pp + 40, 0);
-                __msa_st_w((v4i32)_rb, pp + 44, 0);
-                pp += 48;
-                p0 += B_hstep * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp[8] = p0[32];
-                pp[9] = p0[36];
-                pp[10] = p0[40];
-                pp[11] = p0[44];
-                pp += 12;
-                p0++;
-            }
-        }
-        else
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
-                __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
-                __msa_st_w(__msa_ld_w(p0 + 8, 0), pp + 8, 0);
-                pp += 12;
-                p0 += B_hstep;
-            }
-        }
-    }
-#endif // __mips_msa
 #if __mips_msa
     for (; jj + 7 < max_jj; jj += 8)
     {
@@ -1044,33 +861,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int kk = 0; kk < 3; kk++)
-                {
-                    const float* ppk = pp + kk * 32;
-                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
-                    v4f32 _r4 = (v4f32)__msa_ld_w(ppk + 4, 0);
-                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 8, 0);
-                    v4f32 _r5 = (v4f32)__msa_ld_w(ppk + 12, 0);
-                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 16, 0);
-                    v4f32 _r6 = (v4f32)__msa_ld_w(ppk + 20, 0);
-                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 24, 0);
-                    v4f32 _r7 = (v4f32)__msa_ld_w(ppk + 28, 0);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __msa_st_w((v4i32)_r0, p0, 0);
-                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
-                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
-                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
-                    __msa_st_w((v4i32)_r4, p0 + 16, 0);
-                    __msa_st_w((v4i32)_r5, p0 + 20, 0);
-                    __msa_st_w((v4i32)_r6, p0 + 24, 0);
-                    __msa_st_w((v4i32)_r7, p0 + 28, 0);
-                    p0 += out_hstep * 4;
-                }
-                pp += 96;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int kk = 0; kk < 2; kk++)
@@ -1161,23 +951,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    float* p = p0 + out_hstep * c;
-                    p[0] = pp[c * 8];
-                    p[1] = pp[c * 8 + 1];
-                    p[2] = pp[c * 8 + 2];
-                    p[3] = pp[c * 8 + 3];
-                    p[4] = pp[c * 8 + 4];
-                    p[5] = pp[c * 8 + 5];
-                    p[6] = pp[c * 8 + 6];
-                    p[7] = pp[c * 8 + 7];
-                }
-                pp += 96;
-                p0 += out_hstep * 12;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1261,24 +1034,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int kk = 0; kk < 3; kk++)
-                {
-                    const float* ppk = pp + kk * 16;
-                    v4f32 _r0 = (v4f32)__msa_ld_w(ppk, 0);
-                    v4f32 _r1 = (v4f32)__msa_ld_w(ppk + 4, 0);
-                    v4f32 _r2 = (v4f32)__msa_ld_w(ppk + 8, 0);
-                    v4f32 _r3 = (v4f32)__msa_ld_w(ppk + 12, 0);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __msa_st_w((v4i32)_r0, p0, 0);
-                    __msa_st_w((v4i32)_r1, p0 + 4, 0);
-                    __msa_st_w((v4i32)_r2, p0 + 8, 0);
-                    __msa_st_w((v4i32)_r3, p0 + 12, 0);
-                    p0 += out_hstep * 4;
-                }
-                pp += 48;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int kk = 0; kk < 2; kk++)
@@ -1318,19 +1073,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    float* p = p0 + out_hstep * c;
-                    p[0] = pp[c * 4];
-                    p[1] = pp[c * 4 + 1];
-                    p[2] = pp[c * 4 + 2];
-                    p[3] = pp[c * 4 + 3];
-                }
-                pp += 48;
-                p0 += out_hstep * 12;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1365,23 +1107,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int kk = 0; kk < 3; kk++)
-                {
-                    const float* ppk = pp + kk * 8;
-                    p0[0] = ppk[0];
-                    p0[1] = ppk[2];
-                    p0[2] = ppk[4];
-                    p0[3] = ppk[6];
-                    p0[4] = ppk[1];
-                    p0[5] = ppk[3];
-                    p0[6] = ppk[5];
-                    p0[7] = ppk[7];
-                    p0 += out_hstep * 4;
-                }
-                pp += 24;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int kk = 0; kk < 2; kk++)
@@ -1419,17 +1144,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    float* p = p0 + out_hstep * c;
-                    p[0] = pp[c * 2];
-                    p[1] = pp[c * 2 + 1];
-                }
-                pp += 24;
-                p0 += out_hstep * 12;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1459,14 +1173,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                __msa_st_w((v4i32)__msa_ld_w(pp, 0), p0, 0);
-                __msa_st_w((v4i32)__msa_ld_w(pp + 4, 0), p0 + out_hstep * 4, 0);
-                __msa_st_w((v4i32)__msa_ld_w(pp + 8, 0), p0 + out_hstep * 8, 0);
-                pp += 12;
-                p0 += out_hstep * 12;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 __msa_st_w((v4i32)__msa_ld_w(pp, 0), p0, 0);
@@ -1487,13 +1193,6 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
 
             int jj = 0;
-            for (; jj + 11 < max_jj; jj += 12)
-            {
-                for (int c = 0; c < 12; c++)
-                    p0[out_hstep * c] = pp[c];
-                pp += 12;
-                p0 += out_hstep * 12;
-            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 for (int c = 0; c < 8; c++)
@@ -1539,130 +1238,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            v4f32 _sum0[12];
-            v4f32 _sum1[12];
-
-            if (k == 0)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    _sum0[c] = (v4f32)__msa_fill_w(0);
-                    _sum1[c] = (v4f32)__msa_fill_w(0);
-                }
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
-                        for (int c = 0; c < 12; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        for (int c = 0; c < 12; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c1;
-                        }
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            _sum0[c] = (v4f32)__msa_ld_w(pC + c * 8, 0);
-                            _sum1[c] = (v4f32)__msa_ld_w(pC + c * 8 + 4, 0);
-                        }
-                        pC += 96;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            v4f32 _c0 = __msa_fill_w_f32(pC[c]);
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
-                        pC += 12;
-                    }
-                }
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    _sum0[c] = (v4f32)__msa_ld_w(outptr + c * 8, 0);
-                    _sum1[c] = (v4f32)__msa_ld_w(outptr + c * 8 + 4, 0);
-                }
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
-                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
-                for (int c = 0; c < 12; c++)
-                {
-                    v4f32 _pB = __msa_fill_w_f32(pB[c]);
-                    _sum0[c] = __msa_fmadd_w(_sum0[c], _pA0, _pB);
-                    _sum1[c] = __msa_fmadd_w(_sum1[c], _pA1, _pB);
-                }
-                pA += 8;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    float* outptr1 = outptr0 + out_hstep * 4;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        __msa_st_w((v4i32)_sum0[c], outptr0 + c * 4, 0);
-                        __msa_st_w((v4i32)_sum1[c], outptr1 + c * 4, 0);
-                    }
-                }
-                else
-                {
-                    float* outptr1 = outptr0 + out_hstep;
-                    float* outptr2 = outptr0 + out_hstep * 2;
-                    float* outptr3 = outptr0 + out_hstep * 3;
-                    float* outptr4 = outptr0 + out_hstep * 4;
-                    float* outptr5 = outptr0 + out_hstep * 5;
-                    float* outptr6 = outptr0 + out_hstep * 6;
-                    float* outptr7 = outptr0 + out_hstep * 7;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        outptr0[c] = _sum0[c][0];
-                        outptr1[c] = _sum0[c][1];
-                        outptr2[c] = _sum0[c][2];
-                        outptr3[c] = _sum0[c][3];
-                        outptr4[c] = _sum1[c][0];
-                        outptr5[c] = _sum1[c][1];
-                        outptr6[c] = _sum1[c][2];
-                        outptr7[c] = _sum1[c][3];
-                    }
-                }
-                outptr0 += 12 * out_elempack;
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    __msa_st_w((v4i32)_sum0[c], outptr + c * 8, 0);
-                    __msa_st_w((v4i32)_sum1[c], outptr + c * 8 + 4, 0);
-                }
-            }
-
-            outptr += 96;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum0[8];
@@ -2157,93 +1732,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            v4f32 _sum[12];
-
-            if (k == 0)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    _sum[c] = (v4f32)__msa_fill_w(0);
-                }
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        v4f32 _c0 = __msa_fill_w_f32(pC[0]);
-                        for (int c = 0; c < 12; c++)
-                            _sum[c] = _c0;
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        for (int c = 0; c < 12; c++)
-                            _sum[c] = _c0;
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        for (int c = 0; c < 12; c++)
-                            _sum[c] = (v4f32)__msa_ld_w(pC + c * 4, 0);
-                        pC += 48;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        for (int c = 0; c < 12; c++)
-                            _sum[c] = __msa_fill_w_f32(pC[c]);
-                        pC += 12;
-                    }
-                }
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                    _sum[c] = (v4f32)__msa_ld_w(outptr + c * 4, 0);
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
-                for (int c = 0; c < 12; c++)
-                {
-                    _sum[c] = __msa_fmadd_w(_sum[c], _pA, __msa_fill_w_f32(pB[c]));
-                }
-                pA += 4;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    for (int c = 0; c < 12; c++)
-                        __msa_st_w((v4i32)_sum[c], outptr0 + c * 4, 0);
-                }
-                else
-                {
-                    float* outptr1 = outptr0 + out_hstep;
-                    float* outptr2 = outptr0 + out_hstep * 2;
-                    float* outptr3 = outptr0 + out_hstep * 3;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        outptr0[c] = _sum[c][0];
-                        outptr1[c] = _sum[c][1];
-                        outptr2[c] = _sum[c][2];
-                        outptr3[c] = _sum[c][3];
-                    }
-                }
-                outptr0 += 12 * out_elempack;
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                    __msa_st_w((v4i32)_sum[c], outptr + c * 4, 0);
-            }
-
-            outptr += 48;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum[8];
@@ -2602,115 +2090,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
-#if __mips_msa
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            float sum0[12];
-            float sum1[12];
-
-            if (k == 0)
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    sum0[c] = 0.f;
-                    sum1[c] = 0.f;
-                }
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            sum0[c] = pC[0];
-                            sum1[c] = pC[0];
-                        }
-                    }
-                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            sum0[c] = pC[0];
-                            sum1[c] = pC[1];
-                        }
-                    }
-                    if (broadcast_type_C == 3)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            sum0[c] = pC[c * 2];
-                            sum1[c] = pC[c * 2 + 1];
-                        }
-                        pC += 24;
-                    }
-                    if (broadcast_type_C == 4)
-                    {
-                        for (int c = 0; c < 12; c++)
-                        {
-                            sum0[c] = pC[c];
-                            sum1[c] = pC[c];
-                        }
-                        pC += 12;
-                    }
-                }
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    sum0[c] = outptr[c * 2];
-                    sum1[c] = outptr[c * 2 + 1];
-                }
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const float a0 = pA[0];
-                const float a1 = pA[1];
-                for (int c = 0; c < 12; c++)
-                {
-                    sum0[c] += a0 * pB[c];
-                    sum1[c] += a1 * pB[c];
-                }
-                pA += 2;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                if (out_elempack == 4)
-                {
-                    float* outptr1 = outptr0 + out_hstep * 4;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        outptr0[c * 4] = sum0[c];
-                        outptr1[c * 4] = sum1[c];
-                    }
-                }
-                else
-                {
-                    float* outptr1 = outptr0 + out_hstep;
-                    for (int c = 0; c < 12; c++)
-                    {
-                        outptr0[c] = sum0[c];
-                        outptr1[c] = sum1[c];
-                    }
-                }
-                outptr0 += 12;
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                {
-                    outptr[c * 2] = sum0[c];
-                    outptr[c * 2 + 1] = sum1[c];
-                }
-            }
-
-            outptr += 24;
-        }
-#endif // __mips_msa
 #if __mips_msa
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -3118,62 +2497,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __mips_msa
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            float sum[12];
-
-            if (k == 0)
-            {
-                for (int c = 0; c < 12; c++)
-                    sum[c] = 0.f;
-
-                if (pC)
-                {
-                    if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
-                    {
-                        for (int c = 0; c < 12; c++)
-                            sum[c] = pC[0];
-                    }
-                    if (broadcast_type_C == 3 || broadcast_type_C == 4)
-                    {
-                        for (int c = 0; c < 12; c++)
-                            sum[c] = pC[c];
-                        pC += 12;
-                    }
-                }
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                    sum[c] = outptr[c];
-            }
-
-            const float* pA = pAT;
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const float a0 = pA[0];
-                for (int c = 0; c < 12; c++)
-                    sum[c] += a0 * pB[c];
-                pA += 1;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                for (int c = 0; c < 12; c++)
-                    outptr0[c] = sum[c];
-                outptr0 += 12;
-            }
-            else
-            {
-                for (int c = 0; c < 12; c++)
-                    outptr[c] = sum[c];
-            }
-
-            outptr += 12;
-        }
-#endif // __mips_msa
-#if __mips_msa
         for (; jj + 7 < max_jj; jj += 8)
         {
             float sum[8];
@@ -3416,8 +2739,8 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
 #if __mips_msa
-    TILE_M = std::max(4, tile_size / 4 * 4);
-    TILE_N = std::max(4, tile_size / 12 * 12);
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(8, tile_size / 8 * 8);
     TILE_K = std::max(4, tile_size / 4 * 4);
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
@@ -3438,8 +2761,8 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
 #if __mips_msa
-            TILE_M = std::max(4, tile_size / 4 * 4);
-            TILE_N = std::max(4, tile_size / 12 * 12);
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(8, tile_size / 8 * 8);
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
             TILE_N = std::max(4, tile_size / 4 * 4);
@@ -3453,7 +2776,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __mips_msa
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -3463,7 +2786,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __mips_msa
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #endif
@@ -3472,7 +2795,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (nT > 1)
     {
 #if __mips_msa
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #else
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
@@ -3480,9 +2803,9 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
 #if __mips_msa
     if (constant_TILE_M > 0)
-        TILE_M = (constant_TILE_M + 3) / 4 * 4;
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
     if (constant_TILE_N > 0)
-        TILE_N = (constant_TILE_N + 11) / 12 * 12;
+        TILE_N = (constant_TILE_N + 7) / 8 * 8;
     if (constant_TILE_K > 0)
         TILE_K = (constant_TILE_K + 3) / 4 * 4;
 #else
