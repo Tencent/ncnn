@@ -63,6 +63,10 @@ static NCNN_FORCEINLINE void transpose4x4_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2,
 }
 #endif // __mips_msa
 
+#if NCNN_INT8
+#include "gemm_int8.h"
+#endif
+
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
@@ -3811,9 +3815,7 @@ int Gemm_mips::create_pipeline(const Option& opt)
 
     if (int8_scale_term)
     {
-        support_packing = false;
-        support_bf16_storage = false;
-        return 0;
+        return create_pipeline_int8(opt);
     }
 
 #if NCNN_BF16
@@ -3948,7 +3950,7 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 #if NCNN_INT8
     if (int8_scale_term)
     {
-        return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
+        return forward_int8(bottom_blobs, top_blobs, opt);
     }
 #endif
 
@@ -4112,6 +4114,223 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
     return 0;
 }
+
+#if NCNN_INT8
+int Gemm_mips::create_pipeline_int8(const Option& opt)
+{
+    support_packing = false;
+    support_bf16_storage = false;
+
+    if (constantA)
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_int8(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        AT_data.create(TILE_K * TILE_M, nn_K, nn_M, 1u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        const int nn_MK = nn_M * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppik = 0; ppik < nn_MK; ppik++)
+        {
+            const int ppi = ppik / nn_K;
+            const int ppk = ppik % nn_K;
+
+            const int i = ppi * TILE_M;
+            const int k = ppk * TILE_K;
+
+            const int max_ii = std::min(M - i, TILE_M);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat AT_tile = AT_data.channel(ppi).row_range(ppk, 1);
+
+            if (transA)
+                transpose_pack_A_tile_int8(A_data, AT_tile, i, max_ii, k, max_kk);
+            else
+                pack_A_tile_int8(A_data, AT_tile, i, max_ii, k, max_kk);
+        }
+
+        if (opt.lightmode)
+            A_data.release();
+    }
+
+    if (constantB)
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk_int8(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+        const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        BT_data.create(TILE_K * TILE_N, nn_K, nn_N, 1u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        const int nn_NK = nn_N * nn_K;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+
+            const int max_jj = std::min(N - j, TILE_N);
+            const int max_kk = std::min(K - k, TILE_K);
+
+            Mat BT_tile = BT_data.channel(ppj).row_range(ppk, 1);
+
+            if (transB)
+                pack_B_tile_int8(B_data, BT_tile, j, max_jj, k, max_kk);
+            else
+                transpose_pack_B_tile_int8(B_data, BT_tile, j, max_jj, k, max_kk);
+        }
+
+        if (opt.lightmode)
+            B_data.release();
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        CT_data = C_data;
+
+        if (opt.lightmode)
+            C_data.release();
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
+    }
+
+    return 0;
+}
+
+int Gemm_mips::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int M;
+    int N;
+    if (constantA && constantB)
+    {
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+        N = constantN;
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+        N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+    }
+
+    Mat C;
+    int broadcast_type_C = 0;
+    if (constantC)
+    {
+        C = CT_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
+        else if (constantA || constantB)
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
+        else
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+
+        if (!C.empty())
+            broadcast_type_C = resolve_broadcast_type_C(C, M, N);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, 4u, opt.blob_allocator);
+        else
+            top_blob.create(M, N, 4u, opt.blob_allocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, 4u, opt.blob_allocator);
+        else
+            top_blob.create(N, M, 4u, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
+    int ret = 0;
+    if (constantA && constantB)
+    {
+        ret = gemm_AT_BT_mips_int8(AT_data, A_data_int8_scales, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        ret = gemm_AT_mips_int8(AT_data, A_data_int8_scales, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        ret = gemm_BT_mips_int8(A, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_mips_int8(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+
+    return ret;
+}
+
+#endif
+
+namespace Gemm_mips_utility {
+#if NCNN_INT8
+void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+{
+    ncnn::pack_A_tile_int8(A, AT, i, max_ii, k, max_kk);
+}
+
+void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
+{
+    ncnn::gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+}
+#endif
+} // namespace Gemm_mips_utility
+
 
 #if NCNN_BF16
 #if __mips_msa && defined(__GNUC__)
