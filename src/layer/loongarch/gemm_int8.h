@@ -17,7 +17,6 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
@@ -51,7 +50,6 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             p7++;
         }
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
@@ -111,7 +109,6 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
@@ -131,7 +128,6 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             p0 += A_hstep;
         }
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
@@ -183,6 +179,39 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const signed char* p0 = (const signed char*)B + (j + jj) * B_hstep + k;
+        const signed char* p1 = (const signed char*)B + (j + jj + 1) * B_hstep + k;
+        const signed char* p2 = (const signed char*)B + (j + jj + 2) * B_hstep + k;
+        const signed char* p3 = (const signed char*)B + (j + jj + 3) * B_hstep + k;
+        const signed char* p4 = (const signed char*)B + (j + jj + 4) * B_hstep + k;
+        const signed char* p5 = (const signed char*)B + (j + jj + 5) * B_hstep + k;
+        const signed char* p6 = (const signed char*)B + (j + jj + 6) * B_hstep + k;
+        const signed char* p7 = (const signed char*)B + (j + jj + 7) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp[4] = p4[0];
+            pp[5] = p5[0];
+            pp[6] = p6[0];
+            pp[7] = p7[0];
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         const signed char* p0 = (const signed char*)B + (j + jj) * B_hstep + k;
@@ -242,6 +271,25 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p0[2];
+            pp[3] = p0[3];
+            pp[4] = p0[4];
+            pp[5] = p0[5];
+            pp[6] = p0[6];
+            pp[7] = p0[7];
+            pp += 8;
+            p0 += B_hstep;
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j + jj;
@@ -333,7 +381,6 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -375,7 +422,6 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
             p7++;
         }
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -442,7 +488,6 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
@@ -470,7 +515,6 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
             p0 += A_hstep;
         }
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
@@ -546,6 +590,39 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+        const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+        const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+        const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+        const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+        const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p1[0] * scale);
+            pp[2] = gemm_float2int8(p2[0] * scale);
+            pp[3] = gemm_float2int8(p3[0] * scale);
+            pp[4] = gemm_float2int8(p4[0] * scale);
+            pp[5] = gemm_float2int8(p5[0] * scale);
+            pp[6] = gemm_float2int8(p6[0] * scale);
+            pp[7] = gemm_float2int8(p7[0] * scale);
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
@@ -605,6 +682,25 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const float* p0 = (const float*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p0[1] * scale);
+            pp[2] = gemm_float2int8(p0[2] * scale);
+            pp[3] = gemm_float2int8(p0[3] * scale);
+            pp[4] = gemm_float2int8(p0[4] * scale);
+            pp[5] = gemm_float2int8(p0[5] * scale);
+            pp[6] = gemm_float2int8(p0[6] * scale);
+            pp[7] = gemm_float2int8(p0[7] * scale);
+            pp += 8;
+            p0 += B_hstep;
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         const float* p0 = (const float*)B + (size_t)k * B_hstep + j + jj;
@@ -665,6 +761,95 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         const signed char* pB = pBT;
 
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pA = pAT;
+
+            __m256i _sum0;
+            __m256i _sum1;
+            __m256i _sum2;
+            __m256i _sum3;
+            __m256i _sum4;
+            __m256i _sum5;
+            __m256i _sum6;
+            __m256i _sum7;
+
+            if (k == 0)
+            {
+                _sum0 = __lasx_xvreplgr2vr_w(0);
+                _sum1 = __lasx_xvreplgr2vr_w(0);
+                _sum2 = __lasx_xvreplgr2vr_w(0);
+                _sum3 = __lasx_xvreplgr2vr_w(0);
+                _sum4 = __lasx_xvreplgr2vr_w(0);
+                _sum5 = __lasx_xvreplgr2vr_w(0);
+                _sum6 = __lasx_xvreplgr2vr_w(0);
+                _sum7 = __lasx_xvreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = __lasx_xvld(outptr, 0);
+                _sum1 = __lasx_xvld(outptr + 8, 0);
+                _sum2 = __lasx_xvld(outptr + 16, 0);
+                _sum3 = __lasx_xvld(outptr + 24, 0);
+                _sum4 = __lasx_xvld(outptr + 32, 0);
+                _sum5 = __lasx_xvld(outptr + 40, 0);
+                _sum6 = __lasx_xvld(outptr + 48, 0);
+                _sum7 = __lasx_xvld(outptr + 56, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m256i _pA = __lasx_xvldrepl_d(pA, 0);
+                _pA = __lasx_xvilvl_b(__lasx_xvslti_b(_pA, 0), _pA);
+
+                __m256i _pB0 = __lasx_xvreplgr2vr_h(pB[0]);
+                __m256i _s0 = __lasx_xvmul_h(_pA, _pB0);
+                _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvsext_w_h(_s0));
+
+                __m256i _pB1 = __lasx_xvreplgr2vr_h(pB[1]);
+                __m256i _s1 = __lasx_xvmul_h(_pA, _pB1);
+                _sum1 = __lasx_xvadd_w(_sum1, __lasx_xvsext_w_h(_s1));
+
+                __m256i _pB2 = __lasx_xvreplgr2vr_h(pB[2]);
+                __m256i _s2 = __lasx_xvmul_h(_pA, _pB2);
+                _sum2 = __lasx_xvadd_w(_sum2, __lasx_xvsext_w_h(_s2));
+
+                __m256i _pB3 = __lasx_xvreplgr2vr_h(pB[3]);
+                __m256i _s3 = __lasx_xvmul_h(_pA, _pB3);
+                _sum3 = __lasx_xvadd_w(_sum3, __lasx_xvsext_w_h(_s3));
+
+                __m256i _pB4 = __lasx_xvreplgr2vr_h(pB[4]);
+                __m256i _s4 = __lasx_xvmul_h(_pA, _pB4);
+                _sum4 = __lasx_xvadd_w(_sum4, __lasx_xvsext_w_h(_s4));
+
+                __m256i _pB5 = __lasx_xvreplgr2vr_h(pB[5]);
+                __m256i _s5 = __lasx_xvmul_h(_pA, _pB5);
+                _sum5 = __lasx_xvadd_w(_sum5, __lasx_xvsext_w_h(_s5));
+
+                __m256i _pB6 = __lasx_xvreplgr2vr_h(pB[6]);
+                __m256i _s6 = __lasx_xvmul_h(_pA, _pB6);
+                _sum6 = __lasx_xvadd_w(_sum6, __lasx_xvsext_w_h(_s6));
+
+                __m256i _pB7 = __lasx_xvreplgr2vr_h(pB[7]);
+                __m256i _s7 = __lasx_xvmul_h(_pA, _pB7);
+                _sum7 = __lasx_xvadd_w(_sum7, __lasx_xvsext_w_h(_s7));
+
+                pA += 8;
+                pB += 8;
+            }
+
+            __lasx_xvst(_sum0, outptr, 0);
+            __lasx_xvst(_sum1, outptr + 8, 0);
+            __lasx_xvst(_sum2, outptr + 16, 0);
+            __lasx_xvst(_sum3, outptr + 24, 0);
+            __lasx_xvst(_sum4, outptr + 32, 0);
+            __lasx_xvst(_sum5, outptr + 40, 0);
+            __lasx_xvst(_sum6, outptr + 48, 0);
+            __lasx_xvst(_sum7, outptr + 56, 0);
+
+            outptr += 64;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT;
@@ -802,11 +987,421 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         pAT += max_kk * 8;
     }
 #endif // __loongarch_asx
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        const signed char* pB = pBT;
+
+        int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pA = pAT;
+
+            __m128i _sum00;
+            __m128i _sum01;
+            __m128i _sum10;
+            __m128i _sum11;
+            __m128i _sum20;
+            __m128i _sum21;
+            __m128i _sum30;
+            __m128i _sum31;
+            __m128i _sum40;
+            __m128i _sum41;
+            __m128i _sum50;
+            __m128i _sum51;
+            __m128i _sum60;
+            __m128i _sum61;
+            __m128i _sum70;
+            __m128i _sum71;
+
+            if (k == 0)
+            {
+                _sum00 = __lsx_vreplgr2vr_w(0);
+                _sum01 = __lsx_vreplgr2vr_w(0);
+                _sum10 = __lsx_vreplgr2vr_w(0);
+                _sum11 = __lsx_vreplgr2vr_w(0);
+                _sum20 = __lsx_vreplgr2vr_w(0);
+                _sum21 = __lsx_vreplgr2vr_w(0);
+                _sum30 = __lsx_vreplgr2vr_w(0);
+                _sum31 = __lsx_vreplgr2vr_w(0);
+                _sum40 = __lsx_vreplgr2vr_w(0);
+                _sum41 = __lsx_vreplgr2vr_w(0);
+                _sum50 = __lsx_vreplgr2vr_w(0);
+                _sum51 = __lsx_vreplgr2vr_w(0);
+                _sum60 = __lsx_vreplgr2vr_w(0);
+                _sum61 = __lsx_vreplgr2vr_w(0);
+                _sum70 = __lsx_vreplgr2vr_w(0);
+                _sum71 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum00 = __lsx_vld(outptr, 0);
+                _sum01 = __lsx_vld(outptr + 4, 0);
+                _sum10 = __lsx_vld(outptr + 8, 0);
+                _sum11 = __lsx_vld(outptr + 12, 0);
+                _sum20 = __lsx_vld(outptr + 16, 0);
+                _sum21 = __lsx_vld(outptr + 20, 0);
+                _sum30 = __lsx_vld(outptr + 24, 0);
+                _sum31 = __lsx_vld(outptr + 28, 0);
+                _sum40 = __lsx_vld(outptr + 32, 0);
+                _sum41 = __lsx_vld(outptr + 36, 0);
+                _sum50 = __lsx_vld(outptr + 40, 0);
+                _sum51 = __lsx_vld(outptr + 44, 0);
+                _sum60 = __lsx_vld(outptr + 48, 0);
+                _sum61 = __lsx_vld(outptr + 52, 0);
+                _sum70 = __lsx_vld(outptr + 56, 0);
+                _sum71 = __lsx_vld(outptr + 60, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                _pA0 = __lsx_vilvl_b(__lsx_vslti_b(_pA0, 0), _pA0);
+                __m128i _pA1 = __lsx_vldrepl_w(pA + 4, 0);
+                _pA1 = __lsx_vilvl_b(__lsx_vslti_b(_pA1, 0), _pA1);
+
+                __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB0);
+                _sum00 = __lsx_vadd_w(_sum00, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum01 = __lsx_vadd_w(_sum01, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB1 = __lsx_vreplgr2vr_h(pB[1]);
+                _s0 = __lsx_vmul_h(_pA0, _pB1);
+                _s1 = __lsx_vmul_h(_pA1, _pB1);
+                _sum10 = __lsx_vadd_w(_sum10, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum11 = __lsx_vadd_w(_sum11, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB2 = __lsx_vreplgr2vr_h(pB[2]);
+                _s0 = __lsx_vmul_h(_pA0, _pB2);
+                _s1 = __lsx_vmul_h(_pA1, _pB2);
+                _sum20 = __lsx_vadd_w(_sum20, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum21 = __lsx_vadd_w(_sum21, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB3 = __lsx_vreplgr2vr_h(pB[3]);
+                _s0 = __lsx_vmul_h(_pA0, _pB3);
+                _s1 = __lsx_vmul_h(_pA1, _pB3);
+                _sum30 = __lsx_vadd_w(_sum30, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum31 = __lsx_vadd_w(_sum31, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB4 = __lsx_vreplgr2vr_h(pB[4]);
+                _s0 = __lsx_vmul_h(_pA0, _pB4);
+                _s1 = __lsx_vmul_h(_pA1, _pB4);
+                _sum40 = __lsx_vadd_w(_sum40, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum41 = __lsx_vadd_w(_sum41, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB5 = __lsx_vreplgr2vr_h(pB[5]);
+                _s0 = __lsx_vmul_h(_pA0, _pB5);
+                _s1 = __lsx_vmul_h(_pA1, _pB5);
+                _sum50 = __lsx_vadd_w(_sum50, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum51 = __lsx_vadd_w(_sum51, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB6 = __lsx_vreplgr2vr_h(pB[6]);
+                _s0 = __lsx_vmul_h(_pA0, _pB6);
+                _s1 = __lsx_vmul_h(_pA1, _pB6);
+                _sum60 = __lsx_vadd_w(_sum60, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum61 = __lsx_vadd_w(_sum61, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB7 = __lsx_vreplgr2vr_h(pB[7]);
+                _s0 = __lsx_vmul_h(_pA0, _pB7);
+                _s1 = __lsx_vmul_h(_pA1, _pB7);
+                _sum70 = __lsx_vadd_w(_sum70, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum71 = __lsx_vadd_w(_sum71, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                pA += 8;
+                pB += 8;
+            }
+
+            __lsx_vst(_sum00, outptr, 0);
+            __lsx_vst(_sum01, outptr + 4, 0);
+            __lsx_vst(_sum10, outptr + 8, 0);
+            __lsx_vst(_sum11, outptr + 12, 0);
+            __lsx_vst(_sum20, outptr + 16, 0);
+            __lsx_vst(_sum21, outptr + 20, 0);
+            __lsx_vst(_sum30, outptr + 24, 0);
+            __lsx_vst(_sum31, outptr + 28, 0);
+            __lsx_vst(_sum40, outptr + 32, 0);
+            __lsx_vst(_sum41, outptr + 36, 0);
+            __lsx_vst(_sum50, outptr + 40, 0);
+            __lsx_vst(_sum51, outptr + 44, 0);
+            __lsx_vst(_sum60, outptr + 48, 0);
+            __lsx_vst(_sum61, outptr + 52, 0);
+            __lsx_vst(_sum70, outptr + 56, 0);
+            __lsx_vst(_sum71, outptr + 60, 0);
+
+            outptr += 64;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            const signed char* pA = pAT;
+
+            __m128i _sum00;
+            __m128i _sum01;
+            __m128i _sum10;
+            __m128i _sum11;
+            __m128i _sum20;
+            __m128i _sum21;
+            __m128i _sum30;
+            __m128i _sum31;
+
+            if (k == 0)
+            {
+                _sum00 = __lsx_vreplgr2vr_w(0);
+                _sum01 = __lsx_vreplgr2vr_w(0);
+                _sum10 = __lsx_vreplgr2vr_w(0);
+                _sum11 = __lsx_vreplgr2vr_w(0);
+                _sum20 = __lsx_vreplgr2vr_w(0);
+                _sum21 = __lsx_vreplgr2vr_w(0);
+                _sum30 = __lsx_vreplgr2vr_w(0);
+                _sum31 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum00 = __lsx_vld(outptr, 0);
+                _sum01 = __lsx_vld(outptr + 4, 0);
+                _sum10 = __lsx_vld(outptr + 8, 0);
+                _sum11 = __lsx_vld(outptr + 12, 0);
+                _sum20 = __lsx_vld(outptr + 16, 0);
+                _sum21 = __lsx_vld(outptr + 20, 0);
+                _sum30 = __lsx_vld(outptr + 24, 0);
+                _sum31 = __lsx_vld(outptr + 28, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                _pA0 = __lsx_vilvl_b(__lsx_vslti_b(_pA0, 0), _pA0);
+                __m128i _pA1 = __lsx_vldrepl_w(pA + 4, 0);
+                _pA1 = __lsx_vilvl_b(__lsx_vslti_b(_pA1, 0), _pA1);
+
+                __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB0);
+                _sum00 = __lsx_vadd_w(_sum00, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum01 = __lsx_vadd_w(_sum01, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB1 = __lsx_vreplgr2vr_h(pB[1]);
+                _s0 = __lsx_vmul_h(_pA0, _pB1);
+                _s1 = __lsx_vmul_h(_pA1, _pB1);
+                _sum10 = __lsx_vadd_w(_sum10, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum11 = __lsx_vadd_w(_sum11, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB2 = __lsx_vreplgr2vr_h(pB[2]);
+                _s0 = __lsx_vmul_h(_pA0, _pB2);
+                _s1 = __lsx_vmul_h(_pA1, _pB2);
+                _sum20 = __lsx_vadd_w(_sum20, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum21 = __lsx_vadd_w(_sum21, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB3 = __lsx_vreplgr2vr_h(pB[3]);
+                _s0 = __lsx_vmul_h(_pA0, _pB3);
+                _s1 = __lsx_vmul_h(_pA1, _pB3);
+                _sum30 = __lsx_vadd_w(_sum30, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum31 = __lsx_vadd_w(_sum31, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                pA += 8;
+                pB += 4;
+            }
+
+            __lsx_vst(_sum00, outptr, 0);
+            __lsx_vst(_sum01, outptr + 4, 0);
+            __lsx_vst(_sum10, outptr + 8, 0);
+            __lsx_vst(_sum11, outptr + 12, 0);
+            __lsx_vst(_sum20, outptr + 16, 0);
+            __lsx_vst(_sum21, outptr + 20, 0);
+            __lsx_vst(_sum30, outptr + 24, 0);
+            __lsx_vst(_sum31, outptr + 28, 0);
+
+            outptr += 32;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            const signed char* pA = pAT;
+
+            __m128i _sum00;
+            __m128i _sum01;
+            __m128i _sum10;
+            __m128i _sum11;
+
+            if (k == 0)
+            {
+                _sum00 = __lsx_vreplgr2vr_w(0);
+                _sum01 = __lsx_vreplgr2vr_w(0);
+                _sum10 = __lsx_vreplgr2vr_w(0);
+                _sum11 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum00 = __lsx_vld(outptr, 0);
+                _sum01 = __lsx_vld(outptr + 4, 0);
+                _sum10 = __lsx_vld(outptr + 8, 0);
+                _sum11 = __lsx_vld(outptr + 12, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                _pA0 = __lsx_vilvl_b(__lsx_vslti_b(_pA0, 0), _pA0);
+                __m128i _pA1 = __lsx_vldrepl_w(pA + 4, 0);
+                _pA1 = __lsx_vilvl_b(__lsx_vslti_b(_pA1, 0), _pA1);
+
+                __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB0);
+                _sum00 = __lsx_vadd_w(_sum00, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum01 = __lsx_vadd_w(_sum01, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                __m128i _pB1 = __lsx_vreplgr2vr_h(pB[1]);
+                _s0 = __lsx_vmul_h(_pA0, _pB1);
+                _s1 = __lsx_vmul_h(_pA1, _pB1);
+                _sum10 = __lsx_vadd_w(_sum10, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum11 = __lsx_vadd_w(_sum11, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                pA += 8;
+                pB += 2;
+            }
+
+            __lsx_vst(_sum00, outptr, 0);
+            __lsx_vst(_sum01, outptr + 4, 0);
+            __lsx_vst(_sum10, outptr + 8, 0);
+            __lsx_vst(_sum11, outptr + 12, 0);
+
+            outptr += 16;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            const signed char* pA = pAT;
+
+            __m128i _sum00;
+            __m128i _sum01;
+
+            if (k == 0)
+            {
+                _sum00 = __lsx_vreplgr2vr_w(0);
+                _sum01 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum00 = __lsx_vld(outptr, 0);
+                _sum01 = __lsx_vld(outptr + 4, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                _pA0 = __lsx_vilvl_b(__lsx_vslti_b(_pA0, 0), _pA0);
+                __m128i _pA1 = __lsx_vldrepl_w(pA + 4, 0);
+                _pA1 = __lsx_vilvl_b(__lsx_vslti_b(_pA1, 0), _pA1);
+
+                __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB0);
+                _sum00 = __lsx_vadd_w(_sum00, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum01 = __lsx_vadd_w(_sum01, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                pA += 8;
+                pB += 1;
+            }
+
+            __lsx_vst(_sum00, outptr, 0);
+            __lsx_vst(_sum01, outptr + 4, 0);
+
+            outptr += 8;
+        }
+
+        pAT += max_kk * 8;
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         const signed char* pB = pBT;
 
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            const signed char* pA = pAT;
+
+            __m128i _sum0;
+            __m128i _sum1;
+            __m128i _sum2;
+            __m128i _sum3;
+            __m128i _sum4;
+            __m128i _sum5;
+            __m128i _sum6;
+            __m128i _sum7;
+
+            if (k == 0)
+            {
+                _sum0 = __lsx_vreplgr2vr_w(0);
+                _sum1 = __lsx_vreplgr2vr_w(0);
+                _sum2 = __lsx_vreplgr2vr_w(0);
+                _sum3 = __lsx_vreplgr2vr_w(0);
+                _sum4 = __lsx_vreplgr2vr_w(0);
+                _sum5 = __lsx_vreplgr2vr_w(0);
+                _sum6 = __lsx_vreplgr2vr_w(0);
+                _sum7 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = __lsx_vld(outptr, 0);
+                _sum1 = __lsx_vld(outptr + 4, 0);
+                _sum2 = __lsx_vld(outptr + 8, 0);
+                _sum3 = __lsx_vld(outptr + 12, 0);
+                _sum4 = __lsx_vld(outptr + 16, 0);
+                _sum5 = __lsx_vld(outptr + 20, 0);
+                _sum6 = __lsx_vld(outptr + 24, 0);
+                _sum7 = __lsx_vld(outptr + 28, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA = __lsx_vldrepl_w(pA, 0);
+                _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
+
+                __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
+                __m128i _pB1 = __lsx_vreplgr2vr_h(pB[1]);
+                __m128i _pB2 = __lsx_vreplgr2vr_h(pB[2]);
+                __m128i _pB3 = __lsx_vreplgr2vr_h(pB[3]);
+                __m128i _pB4 = __lsx_vreplgr2vr_h(pB[4]);
+                __m128i _pB5 = __lsx_vreplgr2vr_h(pB[5]);
+                __m128i _pB6 = __lsx_vreplgr2vr_h(pB[6]);
+                __m128i _pB7 = __lsx_vreplgr2vr_h(pB[7]);
+
+                __m128i _s0 = __lsx_vmul_h(_pA, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA, _pB1);
+                __m128i _s2 = __lsx_vmul_h(_pA, _pB2);
+                __m128i _s3 = __lsx_vmul_h(_pA, _pB3);
+                __m128i _s4 = __lsx_vmul_h(_pA, _pB4);
+                __m128i _s5 = __lsx_vmul_h(_pA, _pB5);
+                __m128i _s6 = __lsx_vmul_h(_pA, _pB6);
+                __m128i _s7 = __lsx_vmul_h(_pA, _pB7);
+
+                _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+                _sum2 = __lsx_vadd_w(_sum2, __lsx_vilvl_h(__lsx_vslti_h(_s2, 0), _s2));
+                _sum3 = __lsx_vadd_w(_sum3, __lsx_vilvl_h(__lsx_vslti_h(_s3, 0), _s3));
+                _sum4 = __lsx_vadd_w(_sum4, __lsx_vilvl_h(__lsx_vslti_h(_s4, 0), _s4));
+                _sum5 = __lsx_vadd_w(_sum5, __lsx_vilvl_h(__lsx_vslti_h(_s5, 0), _s5));
+                _sum6 = __lsx_vadd_w(_sum6, __lsx_vilvl_h(__lsx_vslti_h(_s6, 0), _s6));
+                _sum7 = __lsx_vadd_w(_sum7, __lsx_vilvl_h(__lsx_vslti_h(_s7, 0), _s7));
+
+                pA += 4;
+                pB += 8;
+            }
+
+            __lsx_vst(_sum0, outptr, 0);
+            __lsx_vst(_sum1, outptr + 4, 0);
+            __lsx_vst(_sum2, outptr + 8, 0);
+            __lsx_vst(_sum3, outptr + 12, 0);
+            __lsx_vst(_sum4, outptr + 16, 0);
+            __lsx_vst(_sum5, outptr + 20, 0);
+            __lsx_vst(_sum6, outptr + 24, 0);
+            __lsx_vst(_sum7, outptr + 28, 0);
+
+            outptr += 32;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT;
@@ -950,6 +1545,71 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m128i _sum0;
+            __m128i _sum1;
+            __m128i _sum2;
+            __m128i _sum3;
+
+            if (k == 0)
+            {
+                _sum0 = __lsx_vreplgr2vr_w(0);
+                _sum1 = __lsx_vreplgr2vr_w(0);
+                _sum2 = __lsx_vreplgr2vr_w(0);
+                _sum3 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                __m128i _s0 = __lsx_vld(outptr, 0);
+                __m128i _s1 = __lsx_vld(outptr + 4, 0);
+                __m128i _s2 = __lsx_vld(outptr + 8, 0);
+                __m128i _s3 = __lsx_vld(outptr + 12, 0);
+
+                _sum0 = __lsx_vpickev_w(_s1, _s0);
+                _sum1 = __lsx_vpickod_w(_s1, _s0);
+                _sum2 = __lsx_vpickev_w(_s3, _s2);
+                _sum3 = __lsx_vpickod_w(_s3, _s2);
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pB0 = __lsx_vldrepl_w(pB, 0);
+                _pB0 = __lsx_vilvl_b(__lsx_vslti_b(_pB0, 0), _pB0);
+                __m128i _pB1 = __lsx_vldrepl_w(pB + 4, 0);
+                _pB1 = __lsx_vilvl_b(__lsx_vslti_b(_pB1, 0), _pB1);
+
+                __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
+                __m128i _pA1 = __lsx_vreplgr2vr_h(pA[1]);
+
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA1, _pB0);
+                __m128i _s2 = __lsx_vmul_h(_pA0, _pB1);
+                __m128i _s3 = __lsx_vmul_h(_pA1, _pB1);
+
+                _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+                _sum2 = __lsx_vadd_w(_sum2, __lsx_vilvl_h(__lsx_vslti_h(_s2, 0), _s2));
+                _sum3 = __lsx_vadd_w(_sum3, __lsx_vilvl_h(__lsx_vslti_h(_s3, 0), _s3));
+
+                pA += 2;
+                pB += 8;
+            }
+
+            __m128i _s0 = __lsx_vilvl_w(_sum1, _sum0);
+            __m128i _s1 = __lsx_vilvh_w(_sum1, _sum0);
+            __m128i _s2 = __lsx_vilvl_w(_sum3, _sum2);
+            __m128i _s3 = __lsx_vilvh_w(_sum3, _sum2);
+
+            __lsx_vst(_s0, outptr, 0);
+            __lsx_vst(_s1, outptr + 4, 0);
+            __lsx_vst(_s2, outptr + 8, 0);
+            __lsx_vst(_s3, outptr + 12, 0);
+
+            outptr += 16;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128i _sum0;
@@ -1091,6 +1751,48 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m128i _sum0;
+            __m128i _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = __lsx_vreplgr2vr_w(0);
+                _sum1 = __lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = __lsx_vld(outptr, 0);
+                _sum1 = __lsx_vld(outptr + 4, 0);
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pB0 = __lsx_vldrepl_w(pB, 0);
+                _pB0 = __lsx_vilvl_b(__lsx_vslti_b(_pB0, 0), _pB0);
+                __m128i _pB1 = __lsx_vldrepl_w(pB + 4, 0);
+                _pB1 = __lsx_vilvl_b(__lsx_vslti_b(_pB1, 0), _pB1);
+
+                __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
+
+                __m128i _s0 = __lsx_vmul_h(_pA0, _pB0);
+                __m128i _s1 = __lsx_vmul_h(_pA0, _pB1);
+
+                _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0));
+                _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvl_h(__lsx_vslti_h(_s1, 0), _s1));
+
+                pA += 1;
+                pB += 8;
+            }
+
+            __lsx_vst(_sum0, outptr, 0);
+            __lsx_vst(_sum1, outptr + 4, 0);
+
+            outptr += 8;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128i _sum0;
@@ -1212,6 +1914,35 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     for (; ii + 7 < max_ii; ii += 8)
     {
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 64;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             for (int c = 0; c < 4; c++)
@@ -1298,9 +2029,155 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
     }
 #endif // __loongarch_asx
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 64;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 32;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            for (int c = 0; c < 2; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 16;
+        }
+        for (; jj < max_jj; jj++)
+        {
+            for (int r = 0; r < 8; r++)
+            {
+                const int row = i + ii + r;
+                const int col = j + jj;
+                float v = pp[r] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 8;
+        }
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                for (int r = 0; r < 4; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 4 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 32;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             for (int c = 0; c < 4; c++)
@@ -1391,6 +2268,35 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     {
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                for (int r = 0; r < 2; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 2 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 16;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             for (int c = 0; c < 4; c++)
@@ -1481,6 +2387,32 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     {
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            for (int c = 0; c < 8; c++)
+            {
+                const int row = i + ii;
+                const int col = j + jj + c;
+                float v = pp[c] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 8;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             for (int c = 0; c < 4; c++)
@@ -1576,9 +2508,9 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     TILE_N = std::max(8, tile_size / 8 * 8);
     TILE_K = std::max(8, tile_size / 8 * 8);
 #else
-    TILE_M = std::max(4, tile_size / 4 * 4);
-    TILE_N = std::max(4, tile_size / 4 * 4);
-    TILE_K = std::max(4, tile_size / 4 * 4);
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(8, tile_size / 8 * 8);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #endif
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
@@ -1593,7 +2525,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #endif
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
@@ -1608,8 +2540,8 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
             TILE_M = std::max(8, tile_size / 8 * 8);
             TILE_N = std::max(8, tile_size / 8 * 8);
 #else
-            TILE_M = std::max(4, tile_size / 4 * 4);
-            TILE_N = std::max(4, tile_size / 4 * 4);
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(8, tile_size / 8 * 8);
 #endif
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
@@ -1627,7 +2559,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #endif
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
@@ -1641,7 +2573,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #else
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #endif
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
@@ -1654,7 +2586,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #else
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #endif
 #else
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
@@ -1668,7 +2600,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_M = (constant_TILE_M + 7) / 8 * 8;
 #else
-        TILE_M = (constant_TILE_M + 3) / 4 * 4;
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
 #endif
 #else
         TILE_M = (constant_TILE_M + 1) / 2 * 2;
@@ -1680,7 +2612,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
 #else
-        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+        TILE_N = (constant_TILE_N + 7) / 8 * 8;
 #endif
 #else
         TILE_N = constant_TILE_N;
@@ -1692,7 +2624,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_K = (constant_TILE_K + 7) / 8 * 8;
 #else
-        TILE_K = (constant_TILE_K + 3) / 4 * 4;
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
 #endif
 #else
         TILE_K = (constant_TILE_K + 1) / 2 * 2;

@@ -55,6 +55,66 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m256i _f0 = __lasx_xvld(pp, 0);
+            __m256i _f1 = __lasx_xvld(pp + 8, 0);
+            __m256i _f2 = __lasx_xvld(pp + 16, 0);
+            __m256i _f3 = __lasx_xvld(pp + 24, 0);
+            __m256i _f4 = __lasx_xvld(pp + 32, 0);
+            __m256i _f5 = __lasx_xvld(pp + 40, 0);
+            __m256i _f6 = __lasx_xvld(pp + 48, 0);
+            __m256i _f7 = __lasx_xvld(pp + 56, 0);
+
+            if (out_elempack == 4)
+            {
+                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
+                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 3, 0, 1));
+                __m256i _tmp4 = __lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp5 = __lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 2, 0, 0));
+                __m256i _tmp6 = __lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 3, 0, 1));
+                __m256i _tmp7 = __lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 3, 0, 1));
+
+                __lasx_xvst(_tmp0, p0, 0);
+                __lasx_xvst(_tmp1, p0 + 8, 0);
+                __lasx_xvst(_tmp2, p0 + out_hstep * 4, 0);
+                __lasx_xvst(_tmp3, p0 + out_hstep * 4 + 8, 0);
+                __lasx_xvst(_tmp4, p0 + 16, 0);
+                __lasx_xvst(_tmp5, p0 + 24, 0);
+                __lasx_xvst(_tmp6, p0 + out_hstep * 4 + 16, 0);
+                __lasx_xvst(_tmp7, p0 + out_hstep * 4 + 24, 0);
+                p0 += 32;
+            }
+            if (out_elempack == 1)
+            {
+                int tmp[64];
+                __lasx_xvst(_f0, tmp, 0);
+                __lasx_xvst(_f1, tmp + 8, 0);
+                __lasx_xvst(_f2, tmp + 16, 0);
+                __lasx_xvst(_f3, tmp + 24, 0);
+                __lasx_xvst(_f4, tmp + 32, 0);
+                __lasx_xvst(_f5, tmp + 40, 0);
+                __lasx_xvst(_f6, tmp + 48, 0);
+                __lasx_xvst(_f7, tmp + 56, 0);
+
+                for (int r = 0; r < 8; r++)
+                {
+                    p0[out_hstep * r] = tmp[r];
+                    p0[out_hstep * r + 1] = tmp[8 + r];
+                    p0[out_hstep * r + 2] = tmp[16 + r];
+                    p0[out_hstep * r + 3] = tmp[24 + r];
+                    p0[out_hstep * r + 4] = tmp[32 + r];
+                    p0[out_hstep * r + 5] = tmp[40 + r];
+                    p0[out_hstep * r + 6] = tmp[48 + r];
+                    p0[out_hstep * r + 7] = tmp[56 + r];
+                }
+                p0 += 8;
+            }
+
+            pp += 64;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m256i _f0 = __lasx_xvld(pp, 0);
@@ -191,11 +251,240 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         }
     }
 #endif // __loongarch_asx
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+
+        int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m128i _f00 = __lsx_vld(pp, 0);
+            __m128i _f01 = __lsx_vld(pp + 4, 0);
+            __m128i _f10 = __lsx_vld(pp + 8, 0);
+            __m128i _f11 = __lsx_vld(pp + 12, 0);
+            __m128i _f20 = __lsx_vld(pp + 16, 0);
+            __m128i _f21 = __lsx_vld(pp + 20, 0);
+            __m128i _f30 = __lsx_vld(pp + 24, 0);
+            __m128i _f31 = __lsx_vld(pp + 28, 0);
+            __m128i _f40 = __lsx_vld(pp + 32, 0);
+            __m128i _f41 = __lsx_vld(pp + 36, 0);
+            __m128i _f50 = __lsx_vld(pp + 40, 0);
+            __m128i _f51 = __lsx_vld(pp + 44, 0);
+            __m128i _f60 = __lsx_vld(pp + 48, 0);
+            __m128i _f61 = __lsx_vld(pp + 52, 0);
+            __m128i _f70 = __lsx_vld(pp + 56, 0);
+            __m128i _f71 = __lsx_vld(pp + 60, 0);
+
+            if (out_elempack == 4)
+            {
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f10, p0 + 4, 0);
+                __lsx_vst(_f20, p0 + 8, 0);
+                __lsx_vst(_f30, p0 + 12, 0);
+                __lsx_vst(_f40, p0 + 16, 0);
+                __lsx_vst(_f50, p0 + 20, 0);
+                __lsx_vst(_f60, p0 + 24, 0);
+                __lsx_vst(_f70, p0 + 28, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                __lsx_vst(_f11, p0 + out_hstep * 4 + 4, 0);
+                __lsx_vst(_f21, p0 + out_hstep * 4 + 8, 0);
+                __lsx_vst(_f31, p0 + out_hstep * 4 + 12, 0);
+                __lsx_vst(_f41, p0 + out_hstep * 4 + 16, 0);
+                __lsx_vst(_f51, p0 + out_hstep * 4 + 20, 0);
+                __lsx_vst(_f61, p0 + out_hstep * 4 + 24, 0);
+                __lsx_vst(_f71, p0 + out_hstep * 4 + 28, 0);
+                p0 += 32;
+            }
+            if (out_elempack == 1)
+            {
+                transpose4x4_ps((__m128&)_f00, (__m128&)_f10, (__m128&)_f20, (__m128&)_f30);
+                transpose4x4_ps((__m128&)_f01, (__m128&)_f11, (__m128&)_f21, (__m128&)_f31);
+                transpose4x4_ps((__m128&)_f40, (__m128&)_f50, (__m128&)_f60, (__m128&)_f70);
+                transpose4x4_ps((__m128&)_f41, (__m128&)_f51, (__m128&)_f61, (__m128&)_f71);
+
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f10, p0 + out_hstep, 0);
+                __lsx_vst(_f20, p0 + out_hstep * 2, 0);
+                __lsx_vst(_f30, p0 + out_hstep * 3, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                __lsx_vst(_f11, p0 + out_hstep * 5, 0);
+                __lsx_vst(_f21, p0 + out_hstep * 6, 0);
+                __lsx_vst(_f31, p0 + out_hstep * 7, 0);
+                __lsx_vst(_f40, p0 + 4, 0);
+                __lsx_vst(_f50, p0 + out_hstep + 4, 0);
+                __lsx_vst(_f60, p0 + out_hstep * 2 + 4, 0);
+                __lsx_vst(_f70, p0 + out_hstep * 3 + 4, 0);
+                __lsx_vst(_f41, p0 + out_hstep * 4 + 4, 0);
+                __lsx_vst(_f51, p0 + out_hstep * 5 + 4, 0);
+                __lsx_vst(_f61, p0 + out_hstep * 6 + 4, 0);
+                __lsx_vst(_f71, p0 + out_hstep * 7 + 4, 0);
+                p0 += 8;
+            }
+
+            pp += 64;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            __m128i _f00 = __lsx_vld(pp, 0);
+            __m128i _f01 = __lsx_vld(pp + 4, 0);
+            __m128i _f10 = __lsx_vld(pp + 8, 0);
+            __m128i _f11 = __lsx_vld(pp + 12, 0);
+            __m128i _f20 = __lsx_vld(pp + 16, 0);
+            __m128i _f21 = __lsx_vld(pp + 20, 0);
+            __m128i _f30 = __lsx_vld(pp + 24, 0);
+            __m128i _f31 = __lsx_vld(pp + 28, 0);
+
+            if (out_elempack == 4)
+            {
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f10, p0 + 4, 0);
+                __lsx_vst(_f20, p0 + 8, 0);
+                __lsx_vst(_f30, p0 + 12, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                __lsx_vst(_f11, p0 + out_hstep * 4 + 4, 0);
+                __lsx_vst(_f21, p0 + out_hstep * 4 + 8, 0);
+                __lsx_vst(_f31, p0 + out_hstep * 4 + 12, 0);
+                p0 += 16;
+            }
+            if (out_elempack == 1)
+            {
+                transpose4x4_ps((__m128&)_f00, (__m128&)_f10, (__m128&)_f20, (__m128&)_f30);
+                transpose4x4_ps((__m128&)_f01, (__m128&)_f11, (__m128&)_f21, (__m128&)_f31);
+
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f10, p0 + out_hstep, 0);
+                __lsx_vst(_f20, p0 + out_hstep * 2, 0);
+                __lsx_vst(_f30, p0 + out_hstep * 3, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                __lsx_vst(_f11, p0 + out_hstep * 5, 0);
+                __lsx_vst(_f21, p0 + out_hstep * 6, 0);
+                __lsx_vst(_f31, p0 + out_hstep * 7, 0);
+                p0 += 4;
+            }
+
+            pp += 32;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            __m128i _f00 = __lsx_vld(pp, 0);
+            __m128i _f01 = __lsx_vld(pp + 4, 0);
+            __m128i _f10 = __lsx_vld(pp + 8, 0);
+            __m128i _f11 = __lsx_vld(pp + 12, 0);
+
+            if (out_elempack == 4)
+            {
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f10, p0 + 4, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                __lsx_vst(_f11, p0 + out_hstep * 4 + 4, 0);
+                p0 += 8;
+            }
+            if (out_elempack == 1)
+            {
+                int tmp[16];
+                __lsx_vst(_f00, tmp, 0);
+                __lsx_vst(_f01, tmp + 4, 0);
+                __lsx_vst(_f10, tmp + 8, 0);
+                __lsx_vst(_f11, tmp + 12, 0);
+
+                p0[0] = tmp[0];
+                p0[1] = tmp[8];
+                p0[out_hstep] = tmp[1];
+                p0[out_hstep + 1] = tmp[9];
+                p0[out_hstep * 2] = tmp[2];
+                p0[out_hstep * 2 + 1] = tmp[10];
+                p0[out_hstep * 3] = tmp[3];
+                p0[out_hstep * 3 + 1] = tmp[11];
+                p0[out_hstep * 4] = tmp[4];
+                p0[out_hstep * 4 + 1] = tmp[12];
+                p0[out_hstep * 5] = tmp[5];
+                p0[out_hstep * 5 + 1] = tmp[13];
+                p0[out_hstep * 6] = tmp[6];
+                p0[out_hstep * 6 + 1] = tmp[14];
+                p0[out_hstep * 7] = tmp[7];
+                p0[out_hstep * 7 + 1] = tmp[15];
+                p0 += 2;
+            }
+
+            pp += 16;
+        }
+        for (; jj < max_jj; jj++)
+        {
+            __m128i _f00 = __lsx_vld(pp, 0);
+            __m128i _f01 = __lsx_vld(pp + 4, 0);
+
+            if (out_elempack == 4)
+            {
+                __lsx_vst(_f00, p0, 0);
+                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
+                p0 += 4;
+            }
+            if (out_elempack == 1)
+            {
+                int tmp[8];
+                __lsx_vst(_f00, tmp, 0);
+                __lsx_vst(_f01, tmp + 4, 0);
+
+                p0[0] = tmp[0];
+                p0[out_hstep] = tmp[1];
+                p0[out_hstep * 2] = tmp[2];
+                p0[out_hstep * 3] = tmp[3];
+                p0[out_hstep * 4] = tmp[4];
+                p0[out_hstep * 5] = tmp[5];
+                p0[out_hstep * 6] = tmp[6];
+                p0[out_hstep * 7] = tmp[7];
+                p0++;
+            }
+
+            pp += 8;
+        }
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __m128i _f0 = __lsx_vld(pp, 0);
+            __m128i _f1 = __lsx_vld(pp + 4, 0);
+            __m128i _f2 = __lsx_vld(pp + 8, 0);
+            __m128i _f3 = __lsx_vld(pp + 12, 0);
+            __m128i _f4 = __lsx_vld(pp + 16, 0);
+            __m128i _f5 = __lsx_vld(pp + 20, 0);
+            __m128i _f6 = __lsx_vld(pp + 24, 0);
+            __m128i _f7 = __lsx_vld(pp + 28, 0);
+
+            if (out_elempack == 4)
+            {
+                __lsx_vst(_f0, p0, 0);
+                __lsx_vst(_f1, p0 + 4, 0);
+                __lsx_vst(_f2, p0 + 8, 0);
+                __lsx_vst(_f3, p0 + 12, 0);
+                __lsx_vst(_f4, p0 + 16, 0);
+                __lsx_vst(_f5, p0 + 20, 0);
+                __lsx_vst(_f6, p0 + 24, 0);
+                __lsx_vst(_f7, p0 + 28, 0);
+                p0 += 32;
+            }
+            if (out_elempack == 1)
+            {
+                transpose4x4_ps((__m128&)_f0, (__m128&)_f1, (__m128&)_f2, (__m128&)_f3);
+                transpose4x4_ps((__m128&)_f4, (__m128&)_f5, (__m128&)_f6, (__m128&)_f7);
+
+                __lsx_vst(_f0, p0, 0);
+                __lsx_vst(_f1, p0 + out_hstep, 0);
+                __lsx_vst(_f2, p0 + out_hstep * 2, 0);
+                __lsx_vst(_f3, p0 + out_hstep * 3, 0);
+                __lsx_vst(_f4, p0 + 4, 0);
+                __lsx_vst(_f5, p0 + out_hstep + 4, 0);
+                __lsx_vst(_f6, p0 + out_hstep * 2 + 4, 0);
+                __lsx_vst(_f7, p0 + out_hstep * 3 + 4, 0);
+                p0 += 8;
+            }
+
+            pp += 32;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128i _f0 = __lsx_vld(pp, 0);
@@ -285,6 +574,28 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            p0[0] = pp[0];
+            p0[1] = pp[2];
+            p0[2] = pp[4];
+            p0[3] = pp[6];
+            p0[4] = pp[8];
+            p0[5] = pp[10];
+            p0[6] = pp[12];
+            p0[7] = pp[14];
+            p0[out_hstep] = pp[1];
+            p0[out_hstep + 1] = pp[3];
+            p0[out_hstep + 2] = pp[5];
+            p0[out_hstep + 3] = pp[7];
+            p0[out_hstep + 4] = pp[9];
+            p0[out_hstep + 5] = pp[11];
+            p0[out_hstep + 6] = pp[13];
+            p0[out_hstep + 7] = pp[15];
+            p0 += 8;
+
+            pp += 16;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             p0[0] = pp[0];
@@ -325,6 +636,20 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
         int jj = 0;
 #if __loongarch_sx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            p0[0] = pp[0];
+            p0[1] = pp[1];
+            p0[2] = pp[2];
+            p0[3] = pp[3];
+            p0[4] = pp[4];
+            p0[5] = pp[5];
+            p0[6] = pp[6];
+            p0[7] = pp[7];
+            p0 += 8;
+
+            pp += 8;
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             p0[0] = pp[0];
@@ -477,6 +802,50 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                for (int n = 0; n < 8; n++)
+                {
+                    pp[0] = p0[n];
+                    pp[1] = p0[8 + n];
+                    pp[2] = p0[16 + n];
+                    pp[3] = p0[24 + n];
+                    pp[4] = p0[32 + n];
+                    pp[5] = p0[40 + n];
+                    pp[6] = p0[48 + n];
+                    pp[7] = p0[56 + n];
+                    pp += 8;
+                }
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+        if (elempack == 1)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
+
+            int kk = 0;
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp[4] = p0[4];
+                pp[5] = p0[5];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
+                pp += 8;
+                p0 += bottom_blob.cstep;
+            }
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         if (elempack == 8)
@@ -603,6 +972,190 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 
     int jj = 0;
 #if __loongarch_sx
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dy2 = (j + jj + 2) / outw;
+        int dy3 = (j + jj + 3) / outw;
+        int dy4 = (j + jj + 4) / outw;
+        int dy5 = (j + jj + 5) / outw;
+        int dy6 = (j + jj + 6) / outw;
+        int dy7 = (j + jj + 7) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+        int dx2 = (j + jj + 2) % outw;
+        int dx3 = (j + jj + 3) % outw;
+        int dx4 = (j + jj + 4) % outw;
+        int dx5 = (j + jj + 5) % outw;
+        int dx6 = (j + jj + 6) % outw;
+        int dx7 = (j + jj + 7) % outw;
+
+        if (dy0 == dy7)
+        {
+            int kk = 0;
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                    pp[0] = sptr[n];
+                    pp[1] = sptr[stride_w * 8 + n];
+                    pp[2] = sptr[stride_w * 16 + n];
+                    pp[3] = sptr[stride_w * 24 + n];
+                    pp[4] = sptr[stride_w * 32 + n];
+                    pp[5] = sptr[stride_w * 40 + n];
+                    pp[6] = sptr[stride_w * 48 + n];
+                    pp[7] = sptr[stride_w * 56 + n];
+                    pp += 8;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                if (elempack == 1)
+                {
+                    pp[0] = sptr[0];
+                    pp[1] = sptr[stride_w];
+                    pp[2] = sptr[stride_w * 2];
+                    pp[3] = sptr[stride_w * 3];
+                    pp[4] = sptr[stride_w * 4];
+                    pp[5] = sptr[stride_w * 5];
+                    pp[6] = sptr[stride_w * 6];
+                    pp[7] = sptr[stride_w * 7];
+                    pp += 8;
+                }
+            }
+        }
+        else
+        {
+            int kk = 0;
+            if (elempack == 8)
+            {
+                for (; kk < max_kk; kk++)
+                {
+                    int raw_ch = kk / maxk;
+                    int kpos = kk % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+                    int x4 = stride_w * dx4 + dilation_w * v;
+                    int x5 = stride_w * dx5 + dilation_w * v;
+                    int x6 = stride_w * dx6 + dilation_w * v;
+                    int x7 = stride_w * dx7 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+                    int y4 = stride_h * dy4 + dilation_h * u;
+                    int y5 = stride_h * dy5 + dilation_h * u;
+                    int y6 = stride_h * dy6 + dilation_h * u;
+                    int y7 = stride_h * dy7 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+                    const signed char* sptr4 = img.row<const signed char>(y4) + x4 * 8;
+                    const signed char* sptr5 = img.row<const signed char>(y5) + x5 * 8;
+                    const signed char* sptr6 = img.row<const signed char>(y6) + x6 * 8;
+                    const signed char* sptr7 = img.row<const signed char>(y7) + x7 * 8;
+
+                    pp[0] = sptr0[n];
+                    pp[1] = sptr1[n];
+                    pp[2] = sptr2[n];
+                    pp[3] = sptr3[n];
+                    pp[4] = sptr4[n];
+                    pp[5] = sptr5[n];
+                    pp[6] = sptr6[n];
+                    pp[7] = sptr7[n];
+                    pp += 8;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int x1 = stride_w * dx1 + dilation_w * v;
+                int x2 = stride_w * dx2 + dilation_w * v;
+                int x3 = stride_w * dx3 + dilation_w * v;
+                int x4 = stride_w * dx4 + dilation_w * v;
+                int x5 = stride_w * dx5 + dilation_w * v;
+                int x6 = stride_w * dx6 + dilation_w * v;
+                int x7 = stride_w * dx7 + dilation_w * v;
+
+                int y0 = stride_h * dy0 + dilation_h * u;
+                int y1 = stride_h * dy1 + dilation_h * u;
+                int y2 = stride_h * dy2 + dilation_h * u;
+                int y3 = stride_h * dy3 + dilation_h * u;
+                int y4 = stride_h * dy4 + dilation_h * u;
+                int y5 = stride_h * dy5 + dilation_h * u;
+                int y6 = stride_h * dy6 + dilation_h * u;
+                int y7 = stride_h * dy7 + dilation_h * u;
+
+                const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+                const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
+                const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
+                const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
+                const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
+
+                if (elempack == 1)
+                {
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr4[0];
+                    pp[5] = sptr5[0];
+                    pp[6] = sptr6[0];
+                    pp[7] = sptr7[0];
+                    pp += 8;
+                }
+            }
+        }
+    }
     for (; jj + 3 < max_jj; jj += 4)
     {
         int dy0 = (j + jj) / outw;
