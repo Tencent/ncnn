@@ -9,142 +9,280 @@ static NCNN_FORCEINLINE signed char gemm_float2int8(float v)
     return (signed char)int32;
 }
 
-static NCNN_FORCEINLINE void pack_A_tile_int8_block(const Mat& A, signed char*& pp, int i, int rows, int k, int max_kk)
-{
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const signed char* ptrs[8];
-    for (int r = 0; r < rows; r++)
-        ptrs[r] = (const signed char*)A + (i + r) * A_hstep + k;
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int r = 0; r < rows; r++)
-        {
-            pp[r] = ptrs[r][0];
-            ptrs[r]++;
-        }
-        pp += rows;
-    }
-}
-
-static NCNN_FORCEINLINE void transpose_pack_A_tile_int8_block(const Mat& A, signed char*& pp, int i, int rows, int k, int max_kk)
-{
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i;
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int r = 0; r < rows; r++)
-            pp[r] = p0[r];
-        pp += rows;
-        p0 += A_hstep;
-    }
-}
-
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     signed char* pp = AT;
 
     int ii = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-    // unroll 8 loop
     for (; ii + 7 < max_ii; ii += 8)
-        pack_A_tile_int8_block(A, pp, i + ii, 8, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
+        const signed char* p1 = (const signed char*)A + (i + ii + 1) * A_hstep + k;
+        const signed char* p2 = (const signed char*)A + (i + ii + 2) * A_hstep + k;
+        const signed char* p3 = (const signed char*)A + (i + ii + 3) * A_hstep + k;
+        const signed char* p4 = (const signed char*)A + (i + ii + 4) * A_hstep + k;
+        const signed char* p5 = (const signed char*)A + (i + ii + 5) * A_hstep + k;
+        const signed char* p6 = (const signed char*)A + (i + ii + 6) * A_hstep + k;
+        const signed char* p7 = (const signed char*)A + (i + ii + 7) * A_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp[4] = p4[0];
+            pp[5] = p5[0];
+            pp[6] = p6[0];
+            pp[7] = p7[0];
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+        }
+    }
 #endif // __loongarch_asx
-    // unroll 4 loop
     for (; ii + 3 < max_ii; ii += 4)
-        pack_A_tile_int8_block(A, pp, i + ii, 4, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
+        const signed char* p1 = (const signed char*)A + (i + ii + 1) * A_hstep + k;
+        const signed char* p2 = (const signed char*)A + (i + ii + 2) * A_hstep + k;
+        const signed char* p3 = (const signed char*)A + (i + ii + 3) * A_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+        }
+    }
 #endif // __loongarch_sx
-    // scalar loop for remaining
     for (; ii + 1 < max_ii; ii += 2)
-        pack_A_tile_int8_block(A, pp, i + ii, 2, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
+        const signed char* p1 = (const signed char*)A + (i + ii + 1) * A_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0++;
+            p1++;
+        }
+    }
     for (; ii < max_ii; ii++)
-        pack_A_tile_int8_block(A, pp, i + ii, 1, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)A + (i + ii) * A_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0++;
+        }
+    }
 }
 
 static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     signed char* pp = AT;
 
     int ii = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-    // unroll 8 loop
     for (; ii + 7 < max_ii; ii += 8)
-        transpose_pack_A_tile_int8_block(A, pp, i + ii, 8, k, max_kk);
-#endif // __loongarch_asx
-    // unroll 4 loop
-    for (; ii + 3 < max_ii; ii += 4)
-        transpose_pack_A_tile_int8_block(A, pp, i + ii, 4, k, max_kk);
-#endif // __loongarch_sx
-    // scalar loop for remaining
-    for (; ii + 1 < max_ii; ii += 2)
-        transpose_pack_A_tile_int8_block(A, pp, i + ii, 2, k, max_kk);
-    for (; ii < max_ii; ii++)
-        transpose_pack_A_tile_int8_block(A, pp, i + ii, 1, k, max_kk);
-}
-
-static NCNN_FORCEINLINE void pack_B_tile_int8_block(const Mat& B, signed char*& pp, int j, int cols, int k, int max_kk)
-{
-    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    const signed char* ptrs[4];
-    for (int c = 0; c < cols; c++)
-        ptrs[c] = (const signed char*)B + (j + c) * B_hstep + k;
-
-    for (int kk = 0; kk < max_kk; kk++)
     {
-        for (int c = 0; c < cols; c++)
+        const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            pp[c] = ptrs[c][0];
-            ptrs[c]++;
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p0[2];
+            pp[3] = p0[3];
+            pp[4] = p0[4];
+            pp[5] = p0[5];
+            pp[6] = p0[6];
+            pp[7] = p0[7];
+            pp += 8;
+            p0 += A_hstep;
         }
-        pp += cols;
     }
-}
-
-static NCNN_FORCEINLINE void transpose_pack_B_tile_int8_block(const Mat& B, signed char*& pp, int j, int cols, int k, int max_kk)
-{
-    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j;
-
-    for (int kk = 0; kk < max_kk; kk++)
+#endif // __loongarch_asx
+    for (; ii + 3 < max_ii; ii += 4)
     {
-        for (int c = 0; c < cols; c++)
-            pp[c] = p0[c];
-        pp += cols;
-        p0 += B_hstep;
+        const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p0[2];
+            pp[3] = p0[3];
+            pp += 4;
+            p0 += A_hstep;
+        }
+    }
+#endif // __loongarch_sx
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp += 2;
+            p0 += A_hstep;
+        }
+    }
+    for (; ii < max_ii; ii++)
+    {
+        const signed char* p0 = (const signed char*)A + (size_t)k * A_hstep + i + ii;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0 += A_hstep;
+        }
     }
 }
 
 static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
+
     signed char* pp = BT;
 
     int jj = 0;
 #if __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
-        pack_B_tile_int8_block(B, pp, j + jj, 4, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (j + jj) * B_hstep + k;
+        const signed char* p1 = (const signed char*)B + (j + jj + 1) * B_hstep + k;
+        const signed char* p2 = (const signed char*)B + (j + jj + 2) * B_hstep + k;
+        const signed char* p3 = (const signed char*)B + (j + jj + 3) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+        }
+    }
 #endif // __loongarch_sx
     for (; jj + 1 < max_jj; jj += 2)
-        pack_B_tile_int8_block(B, pp, j + jj, 2, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (j + jj) * B_hstep + k;
+        const signed char* p1 = (const signed char*)B + (j + jj + 1) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0++;
+            p1++;
+        }
+    }
     for (; jj < max_jj; jj++)
-        pack_B_tile_int8_block(B, pp, j + jj, 1, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (j + jj) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0++;
+        }
+    }
 }
 
 static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
+
     signed char* pp = BT;
 
     int jj = 0;
 #if __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
-        transpose_pack_B_tile_int8_block(B, pp, j + jj, 4, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp[2] = p0[2];
+            pp[3] = p0[3];
+            pp += 4;
+            p0 += B_hstep;
+        }
+    }
 #endif // __loongarch_sx
     for (; jj + 1 < max_jj; jj += 2)
-        transpose_pack_B_tile_int8_block(B, pp, j + jj, 2, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p0[1];
+            pp += 2;
+            p0 += B_hstep;
+        }
+    }
     for (; jj < max_jj; jj++)
-        transpose_pack_B_tile_int8_block(B, pp, j + jj, 1, k, max_kk);
+    {
+        const signed char* p0 = (const signed char*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0 += B_hstep;
+        }
+    }
 }
 
 static void compute_A_tile_int8_scales(const Mat& A, Mat& scales, float B_scale, Mat& out_descales, int i, int max_ii)
@@ -187,81 +325,200 @@ static void transpose_compute_A_tile_int8_scales(const Mat& A, Mat& scales, floa
     }
 }
 
-static NCNN_FORCEINLINE void pack_A_tile_fp32_to_int8_block(const Mat& A, signed char*& pp, int i, int rows, int k, int max_kk, const Mat& scales)
-{
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const float* ptrs[8];
-    float scale[8];
-    for (int r = 0; r < rows; r++)
-    {
-        ptrs[r] = (const float*)A + (i + r) * A_hstep + k;
-        scale[r] = scales[i + r];
-    }
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int r = 0; r < rows; r++)
-        {
-            pp[r] = gemm_float2int8(ptrs[r][0] * scale[r]);
-            ptrs[r]++;
-        }
-        pp += rows;
-    }
-}
-
-static NCNN_FORCEINLINE void transpose_pack_A_tile_fp32_to_int8_block(const Mat& A, signed char*& pp, int i, int rows, int k, int max_kk, const Mat& scales)
-{
-    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
-    const float* p0 = (const float*)A + (size_t)k * A_hstep + i;
-    float scale[8];
-    for (int r = 0; r < rows; r++)
-        scale[r] = scales[i + r];
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int r = 0; r < rows; r++)
-            pp[r] = gemm_float2int8(p0[r] * scale[r]);
-        pp += rows;
-        p0 += A_hstep;
-    }
-}
-
 static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     signed char* pp = AT;
 
     int ii = 0;
 #if __loongarch_sx
 #if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
-        pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 8, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+        const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+        const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+        const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+        const float scale2 = scales[i + ii + 2];
+        const float scale3 = scales[i + ii + 3];
+        const float scale4 = scales[i + ii + 4];
+        const float scale5 = scales[i + ii + 5];
+        const float scale6 = scales[i + ii + 6];
+        const float scale7 = scales[i + ii + 7];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p1[0] * scale1);
+            pp[2] = gemm_float2int8(p2[0] * scale2);
+            pp[3] = gemm_float2int8(p3[0] * scale3);
+            pp[4] = gemm_float2int8(p4[0] * scale4);
+            pp[5] = gemm_float2int8(p5[0] * scale5);
+            pp[6] = gemm_float2int8(p6[0] * scale6);
+            pp[7] = gemm_float2int8(p7[0] * scale7);
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+        }
+    }
 #endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
-        pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 4, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+        const float scale2 = scales[i + ii + 2];
+        const float scale3 = scales[i + ii + 3];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p1[0] * scale1);
+            pp[2] = gemm_float2int8(p2[0] * scale2);
+            pp[3] = gemm_float2int8(p3[0] * scale3);
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+        }
+    }
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
-        pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 2, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p1[0] * scale1);
+            pp += 2;
+            p0++;
+            p1++;
+        }
+    }
     for (; ii < max_ii; ii++)
-        pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 1, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float scale0 = scales[i + ii];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp += 1;
+            p0++;
+        }
+    }
 }
 
 static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
+    const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
+
     signed char* pp = AT;
 
     int ii = 0;
 #if __loongarch_sx
 #if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
-        transpose_pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 8, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+        const float scale2 = scales[i + ii + 2];
+        const float scale3 = scales[i + ii + 3];
+        const float scale4 = scales[i + ii + 4];
+        const float scale5 = scales[i + ii + 5];
+        const float scale6 = scales[i + ii + 6];
+        const float scale7 = scales[i + ii + 7];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p0[1] * scale1);
+            pp[2] = gemm_float2int8(p0[2] * scale2);
+            pp[3] = gemm_float2int8(p0[3] * scale3);
+            pp[4] = gemm_float2int8(p0[4] * scale4);
+            pp[5] = gemm_float2int8(p0[5] * scale5);
+            pp[6] = gemm_float2int8(p0[6] * scale6);
+            pp[7] = gemm_float2int8(p0[7] * scale7);
+            pp += 8;
+            p0 += A_hstep;
+        }
+    }
 #endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
-        transpose_pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 4, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+        const float scale2 = scales[i + ii + 2];
+        const float scale3 = scales[i + ii + 3];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p0[1] * scale1);
+            pp[2] = gemm_float2int8(p0[2] * scale2);
+            pp[3] = gemm_float2int8(p0[3] * scale3);
+            pp += 4;
+            p0 += A_hstep;
+        }
+    }
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
-        transpose_pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 2, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+        const float scale0 = scales[i + ii];
+        const float scale1 = scales[i + ii + 1];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[1] = gemm_float2int8(p0[1] * scale1);
+            pp += 2;
+            p0 += A_hstep;
+        }
+    }
     for (; ii < max_ii; ii++)
-        transpose_pack_A_tile_fp32_to_int8_block(A, pp, i + ii, 1, k, max_kk, scales);
+    {
+        const float* p0 = (const float*)A + (size_t)k * A_hstep + i + ii;
+        const float scale0 = scales[i + ii];
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp += 1;
+            p0 += A_hstep;
+        }
+    }
 }
 
 static void compute_B_int8_scale(const Mat& B, float& scale)
@@ -281,66 +538,114 @@ static void compute_B_int8_scale(const Mat& B, float& scale)
     scale = absmax == 0.f ? 1.f : 127.f / absmax;
 }
 
-static NCNN_FORCEINLINE void pack_B_tile_fp32_to_int8_block(const Mat& B, signed char*& pp, int j, int cols, int k, int max_kk, float scale)
-{
-    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    const float* ptrs[4];
-    for (int c = 0; c < cols; c++)
-        ptrs[c] = (const float*)B + (j + c) * B_hstep + k;
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int c = 0; c < cols; c++)
-        {
-            pp[c] = gemm_float2int8(ptrs[c][0] * scale);
-            ptrs[c]++;
-        }
-        pp += cols;
-    }
-}
-
-static NCNN_FORCEINLINE void transpose_pack_B_tile_fp32_to_int8_block(const Mat& B, signed char*& pp, int j, int cols, int k, int max_kk, float scale)
-{
-    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
-    const float* p0 = (const float*)B + (size_t)k * B_hstep + j;
-
-    for (int kk = 0; kk < max_kk; kk++)
-    {
-        for (int c = 0; c < cols; c++)
-            pp[c] = gemm_float2int8(p0[c] * scale);
-        pp += cols;
-        p0 += B_hstep;
-    }
-}
-
 static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
+
     signed char* pp = BT;
 
     int jj = 0;
 #if __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
-        pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 4, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+        const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p1[0] * scale);
+            pp[2] = gemm_float2int8(p2[0] * scale);
+            pp[3] = gemm_float2int8(p3[0] * scale);
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+        }
+    }
 #endif // __loongarch_sx
     for (; jj + 1 < max_jj; jj += 2)
-        pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 2, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p1[0] * scale);
+            pp += 2;
+            p0++;
+            p1++;
+        }
+    }
     for (; jj < max_jj; jj++)
-        pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 1, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp += 1;
+            p0++;
+        }
+    }
 }
 
 static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
+    const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
+
     signed char* pp = BT;
 
     int jj = 0;
 #if __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
-        transpose_pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 4, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p0[1] * scale);
+            pp[2] = gemm_float2int8(p0[2] * scale);
+            pp[3] = gemm_float2int8(p0[3] * scale);
+            pp += 4;
+            p0 += B_hstep;
+        }
+    }
 #endif // __loongarch_sx
     for (; jj + 1 < max_jj; jj += 2)
-        transpose_pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 2, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[1] = gemm_float2int8(p0[1] * scale);
+            pp += 2;
+            p0 += B_hstep;
+        }
+    }
     for (; jj < max_jj; jj++)
-        transpose_pack_B_tile_fp32_to_int8_block(B, pp, j + jj, 1, k, max_kk, scale);
+    {
+        const float* p0 = (const float*)B + (size_t)k * B_hstep + j + jj;
+
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp += 1;
+            p0 += B_hstep;
+        }
+    }
 }
 
 static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
@@ -387,7 +692,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m256i _pA = __lasx_xvreplgr2vr_d(*(long long*)pA);
+                __m256i _pA = __lasx_xvldrepl_d(pA, 0);
                 _pA = __lasx_xvilvl_b(__lasx_xvslti_b(_pA, 0), _pA);
 
                 __m256i _pB0 = __lasx_xvreplgr2vr_h(pB[0]);
@@ -437,7 +742,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m256i _pA = __lasx_xvreplgr2vr_d(*(long long*)pA);
+                __m256i _pA = __lasx_xvldrepl_d(pA, 0);
                 _pA = __lasx_xvilvl_b(__lasx_xvslti_b(_pA, 0), _pA);
 
                 __m256i _pB0 = __lasx_xvreplgr2vr_h(pB[0]);
@@ -476,7 +781,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m256i _pA = __lasx_xvreplgr2vr_d(*(long long*)pA);
+                __m256i _pA = __lasx_xvldrepl_d(pA, 0);
                 _pA = __lasx_xvilvl_b(__lasx_xvslti_b(_pA, 0), _pA);
 
                 __m256i _pB0 = __lasx_xvreplgr2vr_h(pB[0]);
@@ -529,7 +834,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m128i _pA = __lsx_vreplgr2vr_d(*(int*)pA);
+                __m128i _pA = __lsx_vldrepl_w(pA, 0);
                 _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
 
                 __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
@@ -579,7 +884,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m128i _pA = __lsx_vreplgr2vr_d(*(int*)pA);
+                __m128i _pA = __lsx_vldrepl_w(pA, 0);
                 _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
 
                 __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
@@ -618,7 +923,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m128i _pA = __lsx_vreplgr2vr_d(*(int*)pA);
+                __m128i _pA = __lsx_vldrepl_w(pA, 0);
                 _pA = __lsx_vilvl_b(__lsx_vslti_b(_pA, 0), _pA);
 
                 __m128i _pB0 = __lsx_vreplgr2vr_h(pB[0]);
@@ -668,7 +973,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m128i _pB = __lsx_vreplgr2vr_d(*(int*)pB);
+                __m128i _pB = __lsx_vldrepl_w(pB, 0);
                 _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
 
                 __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
@@ -805,7 +1110,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                __m128i _pB = __lsx_vreplgr2vr_d(*(int*)pB);
+                __m128i _pB = __lsx_vldrepl_w(pB, 0);
                 _pB = __lsx_vilvl_b(__lsx_vslti_b(_pB, 0), _pB);
 
                 __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
@@ -945,7 +1250,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     int ii = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-    // unroll 8 loop
     for (; ii + 7 < max_ii; ii += 8)
     {
         int jj = 0;
@@ -957,7 +1261,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 8, j + jj, 1, descales, alpha, beta, output_transpose);
     }
 #endif // __loongarch_asx
-    // unroll 4 loop
     for (; ii + 3 < max_ii; ii += 4)
     {
         int jj = 0;
@@ -969,7 +1272,6 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 4, j + jj, 1, descales, alpha, beta, output_transpose);
     }
 #endif // __loongarch_sx
-    // scalar loop for remaining
     for (; ii + 1 < max_ii; ii += 2)
     {
         int jj = 0;
@@ -998,89 +1300,106 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
 static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
-    const int l2_cache_size_int8 = (int)(get_cpu_level2_cache_size() / sizeof(signed char));
+    // resolve optimal tile size from cache size
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
 
     if (nT == 0)
         nT = get_physical_big_cpu_count();
 
-    {
+    int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(signed char) + sizeof(int)));
+
 #if __loongarch_sx
-        int tile_size = (l2_cache_size_int8 - 16) / 8;
-        TILE_K = std::max(4, tile_size / 4 * 4);
+#if __loongarch_asx
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(8, tile_size / 8 * 8);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #else
-        int tile_size = (l2_cache_size_int8 - 2) / 3;
-        TILE_K = std::max(2, tile_size / 2 * 2);
+    TILE_M = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(4, tile_size / 4 * 4);
+#endif
+#else
+    TILE_M = std::max(2, tile_size / 2 * 2);
+    TILE_N = std::max(1, tile_size);
+    TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
-        if (K > 0)
-        {
-            int nn_K = (K + TILE_K - 1) / TILE_K;
+    if (K > 0)
+    {
+        int nn_K = (K + TILE_K - 1) / TILE_K;
 #if __loongarch_sx
-            TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+#if __loongarch_asx
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
-            TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+#endif
+#else
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+#endif
+
+        if (nn_K == 1)
+        {
+            tile_size = (int)((float)l2_cache_size / 2 / sizeof(signed char) / TILE_K);
+
+#if __loongarch_sx
+#if __loongarch_asx
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(8, tile_size / 8 * 8);
+#else
+            TILE_M = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 4 * 4);
+#endif
+#else
+            TILE_M = std::max(2, tile_size / 2 * 2);
+            TILE_N = std::max(1, tile_size);
 #endif
         }
     }
 
-#if __loongarch_sx
-#if __loongarch_asx
-    TILE_M = 8;
-#else
-    TILE_M = 4;
-#endif
-#else
-    TILE_M = 2;
-#endif
+    TILE_M *= std::min(nT, get_physical_cpu_count());
+
     if (M > 0)
     {
-        TILE_M *= std::min(nT, get_physical_cpu_count());
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __loongarch_sx
 #if __loongarch_asx
-        TILE_M = std::max(8, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8));
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
-        TILE_M = std::max(4, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4));
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #endif
 #else
-        TILE_M = std::max(2, std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2));
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
-        if (nT > 1)
-        {
-#if __loongarch_sx
-#if __loongarch_asx
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
-#else
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
-#endif
-#else
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
-#endif
-        }
     }
 
     if (N > 0)
     {
-        int tile_size = TILE_K >= K ? (l2_cache_size_int8 - TILE_M * TILE_K) / std::max(1, TILE_K) : (l2_cache_size_int8 - TILE_M * TILE_K) / std::max(1, TILE_M + TILE_K);
+        int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __loongarch_sx
-        TILE_N = std::max(4, tile_size / 4 * 4);
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::max(4, std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4));
+#if __loongarch_asx
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
 #else
-        TILE_N = std::max(1, tile_size);
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::max(1, std::min(TILE_N, (N + nn_N - 1) / nn_N));
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #endif
-    }
-    else
-    {
-#if __loongarch_sx
-        TILE_N = 4;
 #else
-        TILE_N = 1;
+        TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
 #endif
     }
 
+    if (nT > 1)
+    {
+#if __loongarch_sx
+#if __loongarch_asx
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#else
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+#endif
+#else
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
+#endif
+    }
+
+    // always take constant TILE_M/N/K value when provided
     if (constant_TILE_M > 0)
     {
 #if __loongarch_sx
@@ -1096,7 +1415,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     if (constant_TILE_N > 0)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        TILE_N = (constant_TILE_N + 7) / 8 * 8;
+#else
         TILE_N = (constant_TILE_N + 3) / 4 * 4;
+#endif
 #else
         TILE_N = constant_TILE_N;
 #endif
@@ -1104,7 +1427,11 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
     if (constant_TILE_K > 0)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
+#else
         TILE_K = (constant_TILE_K + 3) / 4 * 4;
+#endif
 #else
         TILE_K = (constant_TILE_K + 1) / 2 * 2;
 #endif
@@ -1121,11 +1448,14 @@ struct gemm_loongarch_int8_omp_args
     int output_transpose;
     float alpha;
     float beta;
-    bool A_packed;
 };
 
-static int gemm_loongarch_int8_impl(const Mat& A, const Mat& A_int8_scales_data, bool A_packed, const Mat& B, float B_int8_scale_data, bool B_packed, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int transA, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+static int gemm_loongarch_int8(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk_int8(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
@@ -1133,69 +1463,51 @@ static int gemm_loongarch_int8_impl(const Mat& A, const Mat& A_int8_scales_data,
     const int nn_N = (N + TILE_N - 1) / TILE_N;
     const int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX;
-    if (!A_packed)
-    {
-        ATX.create(TILE_K * TILE_M, nn_K, nT, 1u, opt.workspace_allocator);
-        if (ATX.empty())
-            return -100;
-    }
+    Mat ATX(TILE_K * TILE_M, nn_K, nT, 1u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
 
-    float B_int8_scale = B_int8_scale_data;
-    Mat BTX = B;
-    if (!B_packed)
-    {
-        compute_B_int8_scale(B, B_int8_scale);
+    Mat BT(TILE_K * TILE_N, nn_K, nn_N, 1u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
-        BTX.create(TILE_K * TILE_N, nn_K, nn_N, 1u, opt.workspace_allocator);
-        if (BTX.empty())
-            return -100;
+    Mat A_int8_scales(M, 4u, opt.workspace_allocator);
+    if (A_int8_scales.empty())
+        return -100;
 
-        const int nn_NK = nn_N * nn_K;
-        #pragma omp parallel for num_threads(nT)
-        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
-        {
-            const int ppj = ppjk / nn_K;
-            const int ppk = ppjk % nn_K;
-
-            const int j = ppj * TILE_N;
-            const int k = ppk * TILE_K;
-
-            const int max_jj = std::min(N - j, TILE_N);
-            const int max_kk = std::min(K - k, TILE_K);
-
-            Mat BT_tile = BTX.channel(ppj).row_range(ppk, 1);
-
-            if (transB)
-                pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
-            else
-                transpose_pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
-        }
-    }
-
-    Mat A_int8_scales = A_int8_scales_data;
-    if (!A_packed)
-    {
-        A_int8_scales.create(M, 4u, opt.workspace_allocator);
-        if (A_int8_scales.empty())
-            return -100;
-    }
+    float B_int8_scale;
+    compute_B_int8_scale(B, B_int8_scale);
 
     Mat output_descales(M, 4u, opt.workspace_allocator);
     if (output_descales.empty())
         return -100;
 
-    if (A_packed)
+    const int nn_NK = nn_N * nn_K;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppjk = 0; ppjk < nn_NK; ppjk++)
     {
-        for (int i = 0; i < M; i++)
-            output_descales[i] = 1.f / (A_int8_scales[i] * B_int8_scale);
+        const int ppj = ppjk / nn_K;
+        const int ppk = ppjk % nn_K;
+
+        const int j = ppj * TILE_N;
+        const int k = ppk * TILE_K;
+
+        const int max_jj = std::min(N - j, TILE_N);
+        const int max_kk = std::min(K - k, TILE_K);
+
+        Mat BT_tile = BT.channel(ppj).row_range(ppk, 1);
+
+        if (transB)
+            pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
+        else
+            transpose_pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
     }
 
     Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
     if (topT.empty())
         return -100;
 
-    const struct gemm_loongarch_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta, A_packed};
+    const struct gemm_loongarch_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta};
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1208,7 +1520,6 @@ static int gemm_loongarch_int8_impl(const Mat& A, const Mat& A_int8_scales_data,
         const int output_transpose = args.output_transpose;
         const float alpha = args.alpha;
         const float beta = args.beta;
-        const bool A_packed = args.A_packed;
 
         const int i = ppi * TILE_M;
         const int max_ii = std::min(M - i, TILE_M);
@@ -1223,10 +1534,10 @@ static int gemm_loongarch_int8_impl(const Mat& A, const Mat& A_int8_scales_data,
             {
                 const int max_kk = std::min(K - k, TILE_K);
 
-                Mat AT_tile = A_packed ? A.channel(i / TILE_M).row_range(k / TILE_K, 1) : ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
-                Mat BT_tile = BTX.channel(j / TILE_N).row_range(k / TILE_K, 1);
+                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                if (!A_packed && j == 0)
+                if (j == 0)
                 {
                     if (k == 0)
                     {
@@ -1241,6 +1552,238 @@ static int gemm_loongarch_int8_impl(const Mat& A, const Mat& A_int8_scales_data,
                     else
                         pack_A_tile_fp32_to_int8(A, AT_tile, i, max_ii, k, max_kk, A_int8_scales);
                 }
+
+                gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+            }
+
+            unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta, output_transpose);
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_loongarch_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_int8(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat BT(TILE_K * TILE_N, nn_K, nn_N, 1u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
+
+    float B_int8_scale;
+    compute_B_int8_scale(B, B_int8_scale);
+
+    Mat output_descales(M, 4u, opt.workspace_allocator);
+    if (output_descales.empty())
+        return -100;
+
+    for (int i = 0; i < M; i++)
+    {
+        output_descales[i] = 1.f / (A_int8_scales[i] * B_int8_scale);
+    }
+
+    const int nn_NK = nn_N * nn_K;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+    {
+        const int ppj = ppjk / nn_K;
+        const int ppk = ppjk % nn_K;
+
+        const int j = ppj * TILE_N;
+        const int k = ppk * TILE_K;
+
+        const int max_jj = std::min(N - j, TILE_N);
+        const int max_kk = std::min(K - k, TILE_K);
+
+        Mat BT_tile = BT.channel(ppj).row_range(ppk, 1);
+
+        if (transB)
+            pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
+        else
+            transpose_pack_B_tile_fp32_to_int8(B, BT_tile, j, max_jj, k, max_kk, B_int8_scale);
+    }
+
+    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    const struct gemm_loongarch_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta};
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int TILE_M = args.TILE_M;
+        const int TILE_N = args.TILE_N;
+        const int TILE_K = args.TILE_K;
+        const int broadcast_type_C = args.broadcast_type_C;
+        const int output_transpose = args.output_transpose;
+        const float alpha = args.alpha;
+        const float beta = args.beta;
+
+        const int i = ppi * TILE_M;
+        const int max_ii = std::min(M - i, TILE_M);
+
+        Mat topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min(N - j, TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+            }
+
+            unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta, output_transpose);
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_BT_loongarch_int8(const Mat& A, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_int8(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat A_int8_scales(M, 4u, opt.workspace_allocator);
+    if (A_int8_scales.empty())
+        return -100;
+
+    Mat output_descales(M, 4u, opt.workspace_allocator);
+    if (output_descales.empty())
+        return -100;
+
+    Mat ATX(TILE_K * TILE_M, nn_K, nT, 1u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
+
+    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    const struct gemm_loongarch_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, transA, output_transpose, alpha, beta};
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int TILE_M = args.TILE_M;
+        const int TILE_N = args.TILE_N;
+        const int TILE_K = args.TILE_K;
+        const int broadcast_type_C = args.broadcast_type_C;
+        const int transA = args.transA;
+        const int output_transpose = args.output_transpose;
+        const float alpha = args.alpha;
+        const float beta = args.beta;
+
+        const int i = ppi * TILE_M;
+        const int max_ii = std::min(M - i, TILE_M);
+
+        Mat topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min(N - j, TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+
+                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (j == 0)
+                {
+                    if (k == 0)
+                    {
+                        if (transA)
+                            transpose_compute_A_tile_int8_scales(A, A_int8_scales, B_int8_scale, output_descales, i, max_ii);
+                        else
+                            compute_A_tile_int8_scales(A, A_int8_scales, B_int8_scale, output_descales, i, max_ii);
+                    }
+
+                    if (transA)
+                        transpose_pack_A_tile_fp32_to_int8(A, AT_tile, i, max_ii, k, max_kk, A_int8_scales);
+                    else
+                        pack_A_tile_fp32_to_int8(A, AT_tile, i, max_ii, k, max_kk, A_int8_scales);
+                }
+
+                gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+            }
+
+            unpack_output_tile_int32_to_fp32(topT_tile, C, top_blob, broadcast_type_C, i, max_ii, j, max_jj, output_descales, alpha, beta, output_transpose);
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_BT_loongarch_int8(const Mat& AT, const Mat& A_int8_scales, const Mat& BT, float B_int8_scale, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, float alpha, float beta, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk_int8(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+
+    Mat output_descales(M, 4u, opt.workspace_allocator);
+    if (output_descales.empty())
+        return -100;
+
+    for (int i = 0; i < M; i++)
+    {
+        output_descales[i] = 1.f / (A_int8_scales[i] * B_int8_scale);
+    }
+
+    Mat topT(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+    if (topT.empty())
+        return -100;
+
+    const struct gemm_loongarch_int8_omp_args args = {TILE_M, TILE_N, TILE_K, broadcast_type_C, 0, output_transpose, alpha, beta};
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int TILE_M = args.TILE_M;
+        const int TILE_N = args.TILE_N;
+        const int TILE_K = args.TILE_K;
+        const int broadcast_type_C = args.broadcast_type_C;
+        const int output_transpose = args.output_transpose;
+        const float alpha = args.alpha;
+        const float beta = args.beta;
+
+        const int i = ppi * TILE_M;
+        const int max_ii = std::min(M - i, TILE_M);
+
+        Mat topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min(N - j, TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min(K - k, TILE_K);
+
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 gemm_transB_packed_tile_int8(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
             }

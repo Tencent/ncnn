@@ -4778,24 +4778,29 @@ int Gemm_loongarch::forward_int8(const std::vector<Mat>& bottom_blobs, std::vect
         NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
     }
 
+    int ret = 0;
     if (constantA && constantB)
     {
-        return gemm_loongarch_int8_impl(AT_data, A_data_int8_scales, true, BT_data, B_data_int8_scale, true, C, top_blob, broadcast_type_C, constantM, constantN, constantK, 0, 0, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_BT_loongarch_int8(AT_data, A_data_int8_scales, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
-    if (constantA)
+    else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        return gemm_loongarch_int8_impl(AT_data, A_data_int8_scales, true, B, 0.f, false, C, top_blob, broadcast_type_C, constantM, N, constantK, 0, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_AT_loongarch_int8(AT_data, A_data_int8_scales, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
-    if (constantB)
+    else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        return gemm_loongarch_int8_impl(A, Mat(), false, BT_data, B_data_int8_scale, true, C, top_blob, broadcast_type_C, M, constantN, constantK, transA, 0, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+        ret = gemm_BT_loongarch_int8(A, BT_data, B_data_int8_scale, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_loongarch_int8(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
 
-    const Mat& A = bottom_blobs[0];
-    const Mat& B = bottom_blobs[1];
-    return gemm_loongarch_int8_impl(A, Mat(), false, B, 0.f, false, C, top_blob, broadcast_type_C, M, N, transA ? (A.dims == 3 ? A.c : A.h) : A.w, transA, transB, output_transpose, alpha, beta, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    return ret;
 }
 
 #endif
