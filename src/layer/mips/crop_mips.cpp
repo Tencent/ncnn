@@ -3,6 +3,8 @@
 
 #include "crop_mips.h"
 
+#include <stdint.h>
+
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
@@ -14,6 +16,9 @@ Crop_mips::Crop_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 #if __mips_msa
@@ -40,6 +45,30 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+
+#if NCNN_BF16
+static void crop_pack4_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 4;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            *(int64_t*)outptr = *(const int64_t*)ptr;
+            ptr += 4;
+            outptr += 4;
+        }
+
+        ptr += (left + right) * 4;
+    }
+}
+#endif // NCNN_BF16
 #endif // __mips_msa
 
 int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -85,7 +114,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -108,7 +140,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -146,7 +181,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -187,7 +225,10 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_msa(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -268,7 +309,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -291,7 +335,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -329,7 +376,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -370,7 +420,10 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_msa(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_msa(m, borderm, _hoffset, _woffset);
                     }
                 }
 

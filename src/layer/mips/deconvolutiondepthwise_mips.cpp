@@ -263,7 +263,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_msa(_sum, activation_type, activation_params);
 
                             __msa_st_w((v4i32)_sum, outptr + j * 4, 0);
                         }

@@ -371,8 +371,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmul_w(_v0, _scale_in0);
             _v1 = __msa_fmul_w(_v1, _scale_in1);
-            _v0 = activation_ps(_v0, activation_type, activation_params);
-            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = activation_msa(_v0, activation_type, activation_params);
+            _v1 = activation_msa(_v1, activation_type, activation_params);
             _v0 = __msa_fmul_w(_v0, _scale_out0);
             _v1 = __msa_fmul_w(_v1, _scale_out1);
             *((int64_t*)ptr) = float2int8(_v0, _v1);
@@ -383,7 +383,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale_in0);
-            _v = activation_ps(_v, activation_type, activation_params);
+            _v = activation_msa(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
             v16i8 v = float2int8(_v);
             ptr[0] = v[0];
@@ -428,8 +428,8 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
             _v0 = __msa_fmadd_w(_bias0, _v0, _scale_in0);
             _v1 = __msa_fmadd_w(_bias1, _v1, _scale_in1);
-            _v0 = activation_ps(_v0, activation_type, activation_params);
-            _v1 = activation_ps(_v1, activation_type, activation_params);
+            _v0 = activation_msa(_v0, activation_type, activation_params);
+            _v1 = activation_msa(_v1, activation_type, activation_params);
             _v0 = __msa_fmul_w(_v0, _scale_out0);
             _v1 = __msa_fmul_w(_v1, _scale_out1);
             *((int64_t*)ptr) = float2int8(_v0, _v1);
@@ -440,7 +440,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmadd_w(_bias0, _v, _scale_in0);
-            _v = activation_ps(_v, activation_type, activation_params);
+            _v = activation_msa(_v, activation_type, activation_params);
             _v = __msa_fmul_w(_v, _scale_out0);
             v16i8 v = float2int8(_v);
             ptr[0] = v[0];

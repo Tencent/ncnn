@@ -601,4 +601,32 @@ static inline __m256 sigmoid256_ps(__m256 _v)
     return __lasx_xvfdiv_s(_one, _v);
 }
 
+static inline __m256 fmod256_ps(__m256 a, __m256 b)
+{
+    __m128 lo = fmod_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
+    __m128 hi = fmod_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
+    return combine4x2_ps(lo, hi);
+}
+
+static inline __m256 logaddexp256_ps(__m256 a, __m256 b)
+{
+    __m128 lo = logaddexp_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
+    __m128 hi = logaddexp_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
+    return combine4x2_ps(lo, hi);
+}
+
+static inline __m256 floor_divide256_ps(__m256 a, __m256 b)
+{
+    __m128 lo = floor_divide_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
+    __m128 hi = floor_divide_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
+    return combine4x2_ps(lo, hi);
+}
+
+static inline __m256 remainder256_ps(__m256 a, __m256 b)
+{
+    __m128 lo = remainder_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
+    __m128 hi = remainder_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
+    return combine4x2_ps(lo, hi);
+}
+
 #endif // LASX_MATHFUN_H
