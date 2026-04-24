@@ -1024,7 +1024,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                // HACK auto-vectorization leads to wrong result
                 asm volatile(""
                              :
                              :
@@ -1066,7 +1065,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                // HACK auto-vectorization leads to wrong result
                 asm volatile(""
                              :
                              :
@@ -1148,7 +1146,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                // HACK auto-vectorization leads to wrong result
                 asm volatile(""
                              :
                              :
@@ -1198,53 +1195,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 }
 
 
-static NCNN_FORCEINLINE float gemm_int8_get_C(const Mat& C, int broadcast_type_C, int i, int j)
-{
-    const float* pC = C;
-    if (!pC)
-        return 0.f;
-
-    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
-
-    if (broadcast_type_C == 0) return pC[0];
-    if (broadcast_type_C == 1 || broadcast_type_C == 2) return pC[i];
-    if (broadcast_type_C == 3) return pC[(size_t)i * c_hstep + j];
-    if (broadcast_type_C == 4) return pC[j];
-
-    return 0.f;
-}
-
-static NCNN_FORCEINLINE void gemm_int8_store_output(float* outptr, size_t out_hstep, int output_transpose, int i, int j, float v)
-{
-    if (output_transpose)
-        outptr[(size_t)j * out_hstep + i] = v;
-    else
-        outptr[(size_t)i * out_hstep + j] = v;
-}
-
-static NCNN_FORCEINLINE void unpack_output_tile_int32_to_fp32_block(const int*& pp, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int rows, int j, int cols, const Mat& descales, float alpha, float beta, int output_transpose)
+static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta, int output_transpose)
 {
     float* outptr = top_blob;
     const size_t out_hstep = top_blob.dims == 3 ? top_blob.cstep : (size_t)top_blob.w;
-    const float* descale_ptr = (const float*)descales + i;
 
-    for (int jj = 0; jj < cols; jj++)
-    {
-        for (int ii = 0; ii < rows; ii++)
-        {
-            float v = pp[jj * rows + ii] * descale_ptr[ii];
-            if (!C.empty())
-                v += gemm_int8_get_C(C, broadcast_type_C, i + ii, j + jj) * beta;
-            v *= alpha;
-            gemm_int8_store_output(outptr, out_hstep, output_transpose, i + ii, j + jj, v);
-        }
-    }
+    const size_t c_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
+    const float* pC = C;
+    const float* descale_ptr = descales;
 
-    pp += rows * cols;
-}
-
-static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, const Mat& descales, float alpha, float beta, int output_transpose)
-{
     const int* pp = topT;
 
     int ii = 0;
@@ -1254,22 +1213,178 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
     {
         int jj = 0;
         for (; jj + 3 < max_jj; jj += 4)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 8, j + jj, 4, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 32;
+        }
         for (; jj + 1 < max_jj; jj += 2)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 8, j + jj, 2, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 2; c++)
+            {
+                for (int r = 0; r < 8; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 8 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 16;
+        }
         for (; jj < max_jj; jj++)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 8, j + jj, 1, descales, alpha, beta, output_transpose);
+        {
+            for (int r = 0; r < 8; r++)
+            {
+                const int row = i + ii + r;
+                const int col = j + jj;
+                float v = pp[r] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 8;
+        }
     }
 #endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         int jj = 0;
         for (; jj + 3 < max_jj; jj += 4)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 4, j + jj, 4, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                for (int r = 0; r < 4; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 4 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 16;
+        }
         for (; jj + 1 < max_jj; jj += 2)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 4, j + jj, 2, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 2; c++)
+            {
+                for (int r = 0; r < 4; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 4 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 8;
+        }
         for (; jj < max_jj; jj++)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 4, j + jj, 1, descales, alpha, beta, output_transpose);
+        {
+            for (int r = 0; r < 4; r++)
+            {
+                const int row = i + ii + r;
+                const int col = j + jj;
+                float v = pp[r] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 4;
+        }
     }
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
@@ -1277,24 +1392,171 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         int jj = 0;
 #if __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 2, j + jj, 4, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                for (int r = 0; r < 2; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 2 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 8;
+        }
 #endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 2, j + jj, 2, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 2; c++)
+            {
+                for (int r = 0; r < 2; r++)
+                {
+                    const int row = i + ii + r;
+                    const int col = j + jj + c;
+                    float v = pp[c * 2 + r] * descale_ptr[row];
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 0)
+                            v += pC[0] * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            v += pC[row] * beta;
+                        if (broadcast_type_C == 3)
+                            v += pC[(size_t)row * c_hstep + col] * beta;
+                        if (broadcast_type_C == 4)
+                            v += pC[col] * beta;
+                    }
+                    v *= alpha;
+                    if (output_transpose)
+                        outptr[(size_t)col * out_hstep + row] = v;
+                    else
+                        outptr[(size_t)row * out_hstep + col] = v;
+                }
+            }
+            pp += 4;
+        }
         for (; jj < max_jj; jj++)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 2, j + jj, 1, descales, alpha, beta, output_transpose);
+        {
+            for (int r = 0; r < 2; r++)
+            {
+                const int row = i + ii + r;
+                const int col = j + jj;
+                float v = pp[r] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 2;
+        }
     }
     for (; ii < max_ii; ii++)
     {
         int jj = 0;
 #if __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 1, j + jj, 4, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                const int row = i + ii;
+                const int col = j + jj + c;
+                float v = pp[c] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 4;
+        }
 #endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 1, j + jj, 2, descales, alpha, beta, output_transpose);
+        {
+            for (int c = 0; c < 2; c++)
+            {
+                const int row = i + ii;
+                const int col = j + jj + c;
+                float v = pp[c] * descale_ptr[row];
+                if (pC)
+                {
+                    if (broadcast_type_C == 0)
+                        v += pC[0] * beta;
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        v += pC[row] * beta;
+                    if (broadcast_type_C == 3)
+                        v += pC[(size_t)row * c_hstep + col] * beta;
+                    if (broadcast_type_C == 4)
+                        v += pC[col] * beta;
+                }
+                v *= alpha;
+                if (output_transpose)
+                    outptr[(size_t)col * out_hstep + row] = v;
+                else
+                    outptr[(size_t)row * out_hstep + col] = v;
+            }
+            pp += 2;
+        }
         for (; jj < max_jj; jj++)
-            unpack_output_tile_int32_to_fp32_block(pp, C, top_blob, broadcast_type_C, i + ii, 1, j + jj, 1, descales, alpha, beta, output_transpose);
+        {
+            const int row = i + ii;
+            const int col = j + jj;
+            float v = pp[0] * descale_ptr[row];
+            if (pC)
+            {
+                if (broadcast_type_C == 0)
+                    v += pC[0] * beta;
+                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    v += pC[row] * beta;
+                if (broadcast_type_C == 3)
+                    v += pC[(size_t)row * c_hstep + col] * beta;
+                if (broadcast_type_C == 4)
+                    v += pC[col] * beta;
+            }
+            v *= alpha;
+            if (output_transpose)
+                outptr[(size_t)col * out_hstep + row] = v;
+            else
+                outptr[(size_t)row * out_hstep + col] = v;
+            pp += 1;
+        }
     }
 }
 

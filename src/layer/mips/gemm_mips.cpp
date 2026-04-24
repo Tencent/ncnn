@@ -1240,66 +1240,145 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
-            v4f32 _sum0[8];
-            v4f32 _sum1[8];
+            v4f32 _sum00;
+            v4f32 _sum01;
+            v4f32 _sum10;
+            v4f32 _sum11;
+            v4f32 _sum20;
+            v4f32 _sum21;
+            v4f32 _sum30;
+            v4f32 _sum31;
+            v4f32 _sum40;
+            v4f32 _sum41;
+            v4f32 _sum50;
+            v4f32 _sum51;
+            v4f32 _sum60;
+            v4f32 _sum61;
+            v4f32 _sum70;
+            v4f32 _sum71;
 
             if (k == 0)
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum0[c] = (v4f32)__msa_fill_w(0);
-                    _sum1[c] = (v4f32)__msa_fill_w(0);
-                }
+                _sum00 = (v4f32)__msa_fill_w(0);
+                _sum01 = (v4f32)__msa_fill_w(0);
+                _sum10 = (v4f32)__msa_fill_w(0);
+                _sum11 = (v4f32)__msa_fill_w(0);
+                _sum20 = (v4f32)__msa_fill_w(0);
+                _sum21 = (v4f32)__msa_fill_w(0);
+                _sum30 = (v4f32)__msa_fill_w(0);
+                _sum31 = (v4f32)__msa_fill_w(0);
+                _sum40 = (v4f32)__msa_fill_w(0);
+                _sum41 = (v4f32)__msa_fill_w(0);
+                _sum50 = (v4f32)__msa_fill_w(0);
+                _sum51 = (v4f32)__msa_fill_w(0);
+                _sum60 = (v4f32)__msa_fill_w(0);
+                _sum61 = (v4f32)__msa_fill_w(0);
+                _sum70 = (v4f32)__msa_fill_w(0);
+                _sum71 = (v4f32)__msa_fill_w(0);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
                         v4f32 _c0 = __msa_fill_w_f32(pC[0]);
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
+                        _sum00 = _c0;
+                        _sum01 = _c0;
+                        _sum10 = _c0;
+                        _sum11 = _c0;
+                        _sum20 = _c0;
+                        _sum21 = _c0;
+                        _sum30 = _c0;
+                        _sum31 = _c0;
+                        _sum40 = _c0;
+                        _sum41 = _c0;
+                        _sum50 = _c0;
+                        _sum51 = _c0;
+                        _sum60 = _c0;
+                        _sum61 = _c0;
+                        _sum70 = _c0;
+                        _sum71 = _c0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
                         v4f32 _c1 = (v4f32)__msa_ld_w(pC + 4, 0);
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c1;
-                        }
+                        _sum00 = _c0;
+                        _sum01 = _c1;
+                        _sum10 = _c0;
+                        _sum11 = _c1;
+                        _sum20 = _c0;
+                        _sum21 = _c1;
+                        _sum30 = _c0;
+                        _sum31 = _c1;
+                        _sum40 = _c0;
+                        _sum41 = _c1;
+                        _sum50 = _c0;
+                        _sum51 = _c1;
+                        _sum60 = _c0;
+                        _sum61 = _c1;
+                        _sum70 = _c0;
+                        _sum71 = _c1;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            _sum0[c] = (v4f32)__msa_ld_w(pC + c * 8, 0);
-                            _sum1[c] = (v4f32)__msa_ld_w(pC + c * 8 + 4, 0);
-                        }
+                        _sum00 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum01 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        _sum10 = (v4f32)__msa_ld_w(pC + 8, 0);
+                        _sum11 = (v4f32)__msa_ld_w(pC + 12, 0);
+                        _sum20 = (v4f32)__msa_ld_w(pC + 16, 0);
+                        _sum21 = (v4f32)__msa_ld_w(pC + 20, 0);
+                        _sum30 = (v4f32)__msa_ld_w(pC + 24, 0);
+                        _sum31 = (v4f32)__msa_ld_w(pC + 28, 0);
+                        _sum40 = (v4f32)__msa_ld_w(pC + 32, 0);
+                        _sum41 = (v4f32)__msa_ld_w(pC + 36, 0);
+                        _sum50 = (v4f32)__msa_ld_w(pC + 40, 0);
+                        _sum51 = (v4f32)__msa_ld_w(pC + 44, 0);
+                        _sum60 = (v4f32)__msa_ld_w(pC + 48, 0);
+                        _sum61 = (v4f32)__msa_ld_w(pC + 52, 0);
+                        _sum70 = (v4f32)__msa_ld_w(pC + 56, 0);
+                        _sum71 = (v4f32)__msa_ld_w(pC + 60, 0);
                         pC += 64;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            v4f32 _c0 = __msa_fill_w_f32(pC[c]);
-                            _sum0[c] = _c0;
-                            _sum1[c] = _c0;
-                        }
+                        _sum00 = __msa_fill_w_f32(pC[0]);
+                        _sum01 = _sum00;
+                        _sum10 = __msa_fill_w_f32(pC[1]);
+                        _sum11 = _sum10;
+                        _sum20 = __msa_fill_w_f32(pC[2]);
+                        _sum21 = _sum20;
+                        _sum30 = __msa_fill_w_f32(pC[3]);
+                        _sum31 = _sum30;
+                        _sum40 = __msa_fill_w_f32(pC[4]);
+                        _sum41 = _sum40;
+                        _sum50 = __msa_fill_w_f32(pC[5]);
+                        _sum51 = _sum50;
+                        _sum60 = __msa_fill_w_f32(pC[6]);
+                        _sum61 = _sum60;
+                        _sum70 = __msa_fill_w_f32(pC[7]);
+                        _sum71 = _sum70;
                         pC += 8;
                     }
                 }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum0[c] = (v4f32)__msa_ld_w(outptr + c * 8, 0);
-                    _sum1[c] = (v4f32)__msa_ld_w(outptr + c * 8 + 4, 0);
-                }
+                _sum00 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum01 = (v4f32)__msa_ld_w(outptr + 4, 0);
+                _sum10 = (v4f32)__msa_ld_w(outptr + 8, 0);
+                _sum11 = (v4f32)__msa_ld_w(outptr + 12, 0);
+                _sum20 = (v4f32)__msa_ld_w(outptr + 16, 0);
+                _sum21 = (v4f32)__msa_ld_w(outptr + 20, 0);
+                _sum30 = (v4f32)__msa_ld_w(outptr + 24, 0);
+                _sum31 = (v4f32)__msa_ld_w(outptr + 28, 0);
+                _sum40 = (v4f32)__msa_ld_w(outptr + 32, 0);
+                _sum41 = (v4f32)__msa_ld_w(outptr + 36, 0);
+                _sum50 = (v4f32)__msa_ld_w(outptr + 40, 0);
+                _sum51 = (v4f32)__msa_ld_w(outptr + 44, 0);
+                _sum60 = (v4f32)__msa_ld_w(outptr + 48, 0);
+                _sum61 = (v4f32)__msa_ld_w(outptr + 52, 0);
+                _sum70 = (v4f32)__msa_ld_w(outptr + 56, 0);
+                _sum71 = (v4f32)__msa_ld_w(outptr + 60, 0);
             }
 
             const float* pA = pAT;
@@ -1307,12 +1386,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
-                for (int c = 0; c < 8; c++)
-                {
-                    v4f32 _pB = __msa_fill_w_f32(pB[c]);
-                    _sum0[c] = __msa_fmadd_w(_sum0[c], _pA0, _pB);
-                    _sum1[c] = __msa_fmadd_w(_sum1[c], _pA1, _pB);
-                }
+                _sum00 = __msa_fmadd_w(_sum00, _pA0, __msa_fill_w_f32(pB[0]));
+                _sum01 = __msa_fmadd_w(_sum01, _pA1, __msa_fill_w_f32(pB[0]));
+                _sum10 = __msa_fmadd_w(_sum10, _pA0, __msa_fill_w_f32(pB[1]));
+                _sum11 = __msa_fmadd_w(_sum11, _pA1, __msa_fill_w_f32(pB[1]));
+                _sum20 = __msa_fmadd_w(_sum20, _pA0, __msa_fill_w_f32(pB[2]));
+                _sum21 = __msa_fmadd_w(_sum21, _pA1, __msa_fill_w_f32(pB[2]));
+                _sum30 = __msa_fmadd_w(_sum30, _pA0, __msa_fill_w_f32(pB[3]));
+                _sum31 = __msa_fmadd_w(_sum31, _pA1, __msa_fill_w_f32(pB[3]));
+                _sum40 = __msa_fmadd_w(_sum40, _pA0, __msa_fill_w_f32(pB[4]));
+                _sum41 = __msa_fmadd_w(_sum41, _pA1, __msa_fill_w_f32(pB[4]));
+                _sum50 = __msa_fmadd_w(_sum50, _pA0, __msa_fill_w_f32(pB[5]));
+                _sum51 = __msa_fmadd_w(_sum51, _pA1, __msa_fill_w_f32(pB[5]));
+                _sum60 = __msa_fmadd_w(_sum60, _pA0, __msa_fill_w_f32(pB[6]));
+                _sum61 = __msa_fmadd_w(_sum61, _pA1, __msa_fill_w_f32(pB[6]));
+                _sum70 = __msa_fmadd_w(_sum70, _pA0, __msa_fill_w_f32(pB[7]));
+                _sum71 = __msa_fmadd_w(_sum71, _pA1, __msa_fill_w_f32(pB[7]));
                 pA += 8;
                 pB += 8;
             }
@@ -1322,11 +1411,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 if (out_elempack == 4)
                 {
                     float* outptr1 = outptr0 + out_hstep * 4;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        __msa_st_w((v4i32)_sum0[c], outptr0 + c * 4, 0);
-                        __msa_st_w((v4i32)_sum1[c], outptr1 + c * 4, 0);
-                    }
+                    __msa_st_w((v4i32)_sum00, outptr0, 0);
+                    __msa_st_w((v4i32)_sum10, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum20, outptr0 + 8, 0);
+                    __msa_st_w((v4i32)_sum30, outptr0 + 12, 0);
+                    __msa_st_w((v4i32)_sum40, outptr0 + 16, 0);
+                    __msa_st_w((v4i32)_sum50, outptr0 + 20, 0);
+                    __msa_st_w((v4i32)_sum60, outptr0 + 24, 0);
+                    __msa_st_w((v4i32)_sum70, outptr0 + 28, 0);
+                    __msa_st_w((v4i32)_sum01, outptr1, 0);
+                    __msa_st_w((v4i32)_sum11, outptr1 + 4, 0);
+                    __msa_st_w((v4i32)_sum21, outptr1 + 8, 0);
+                    __msa_st_w((v4i32)_sum31, outptr1 + 12, 0);
+                    __msa_st_w((v4i32)_sum41, outptr1 + 16, 0);
+                    __msa_st_w((v4i32)_sum51, outptr1 + 20, 0);
+                    __msa_st_w((v4i32)_sum61, outptr1 + 24, 0);
+                    __msa_st_w((v4i32)_sum71, outptr1 + 28, 0);
                 }
                 else
                 {
@@ -1337,27 +1437,47 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     float* outptr5 = outptr0 + out_hstep * 5;
                     float* outptr6 = outptr0 + out_hstep * 6;
                     float* outptr7 = outptr0 + out_hstep * 7;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        outptr0[c] = _sum0[c][0];
-                        outptr1[c] = _sum0[c][1];
-                        outptr2[c] = _sum0[c][2];
-                        outptr3[c] = _sum0[c][3];
-                        outptr4[c] = _sum1[c][0];
-                        outptr5[c] = _sum1[c][1];
-                        outptr6[c] = _sum1[c][2];
-                        outptr7[c] = _sum1[c][3];
-                    }
+                    transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
+                    transpose4x4_ps(_sum40, _sum50, _sum60, _sum70);
+                    transpose4x4_ps(_sum01, _sum11, _sum21, _sum31);
+                    transpose4x4_ps(_sum41, _sum51, _sum61, _sum71);
+                    __msa_st_w((v4i32)_sum00, outptr0, 0);
+                    __msa_st_w((v4i32)_sum40, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum10, outptr1, 0);
+                    __msa_st_w((v4i32)_sum50, outptr1 + 4, 0);
+                    __msa_st_w((v4i32)_sum20, outptr2, 0);
+                    __msa_st_w((v4i32)_sum60, outptr2 + 4, 0);
+                    __msa_st_w((v4i32)_sum30, outptr3, 0);
+                    __msa_st_w((v4i32)_sum70, outptr3 + 4, 0);
+                    __msa_st_w((v4i32)_sum01, outptr4, 0);
+                    __msa_st_w((v4i32)_sum41, outptr4 + 4, 0);
+                    __msa_st_w((v4i32)_sum11, outptr5, 0);
+                    __msa_st_w((v4i32)_sum51, outptr5 + 4, 0);
+                    __msa_st_w((v4i32)_sum21, outptr6, 0);
+                    __msa_st_w((v4i32)_sum61, outptr6 + 4, 0);
+                    __msa_st_w((v4i32)_sum31, outptr7, 0);
+                    __msa_st_w((v4i32)_sum71, outptr7 + 4, 0);
                 }
                 outptr0 += 8 * out_elempack;
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    __msa_st_w((v4i32)_sum0[c], outptr + c * 8, 0);
-                    __msa_st_w((v4i32)_sum1[c], outptr + c * 8 + 4, 0);
-                }
+                __msa_st_w((v4i32)_sum00, outptr, 0);
+                __msa_st_w((v4i32)_sum01, outptr + 4, 0);
+                __msa_st_w((v4i32)_sum10, outptr + 8, 0);
+                __msa_st_w((v4i32)_sum11, outptr + 12, 0);
+                __msa_st_w((v4i32)_sum20, outptr + 16, 0);
+                __msa_st_w((v4i32)_sum21, outptr + 20, 0);
+                __msa_st_w((v4i32)_sum30, outptr + 24, 0);
+                __msa_st_w((v4i32)_sum31, outptr + 28, 0);
+                __msa_st_w((v4i32)_sum40, outptr + 32, 0);
+                __msa_st_w((v4i32)_sum41, outptr + 36, 0);
+                __msa_st_w((v4i32)_sum50, outptr + 40, 0);
+                __msa_st_w((v4i32)_sum51, outptr + 44, 0);
+                __msa_st_w((v4i32)_sum60, outptr + 48, 0);
+                __msa_st_w((v4i32)_sum61, outptr + 52, 0);
+                __msa_st_w((v4i32)_sum70, outptr + 56, 0);
+                __msa_st_w((v4i32)_sum71, outptr + 60, 0);
             }
 
             outptr += 64;
@@ -1734,57 +1854,102 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
-            v4f32 _sum[8];
+            v4f32 _sum0;
+            v4f32 _sum1;
+            v4f32 _sum2;
+            v4f32 _sum3;
+            v4f32 _sum4;
+            v4f32 _sum5;
+            v4f32 _sum6;
+            v4f32 _sum7;
 
             if (k == 0)
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum[c] = (v4f32)__msa_fill_w(0);
-                }
+                _sum0 = (v4f32)__msa_fill_w(0);
+                _sum1 = (v4f32)__msa_fill_w(0);
+                _sum2 = (v4f32)__msa_fill_w(0);
+                _sum3 = (v4f32)__msa_fill_w(0);
+                _sum4 = (v4f32)__msa_fill_w(0);
+                _sum5 = (v4f32)__msa_fill_w(0);
+                _sum6 = (v4f32)__msa_fill_w(0);
+                _sum7 = (v4f32)__msa_fill_w(0);
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
                         v4f32 _c0 = __msa_fill_w_f32(pC[0]);
-                        for (int c = 0; c < 8; c++)
-                            _sum[c] = _c0;
+                        _sum0 = _c0;
+                        _sum1 = _c0;
+                        _sum2 = _c0;
+                        _sum3 = _c0;
+                        _sum4 = _c0;
+                        _sum5 = _c0;
+                        _sum6 = _c0;
+                        _sum7 = _c0;
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         v4f32 _c0 = (v4f32)__msa_ld_w(pC, 0);
-                        for (int c = 0; c < 8; c++)
-                            _sum[c] = _c0;
+                        _sum0 = _c0;
+                        _sum1 = _c0;
+                        _sum2 = _c0;
+                        _sum3 = _c0;
+                        _sum4 = _c0;
+                        _sum5 = _c0;
+                        _sum6 = _c0;
+                        _sum7 = _c0;
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int c = 0; c < 8; c++)
-                            _sum[c] = (v4f32)__msa_ld_w(pC + c * 4, 0);
+                        _sum0 = (v4f32)__msa_ld_w(pC, 0);
+                        _sum1 = (v4f32)__msa_ld_w(pC + 4, 0);
+                        _sum2 = (v4f32)__msa_ld_w(pC + 8, 0);
+                        _sum3 = (v4f32)__msa_ld_w(pC + 12, 0);
+                        _sum4 = (v4f32)__msa_ld_w(pC + 16, 0);
+                        _sum5 = (v4f32)__msa_ld_w(pC + 20, 0);
+                        _sum6 = (v4f32)__msa_ld_w(pC + 24, 0);
+                        _sum7 = (v4f32)__msa_ld_w(pC + 28, 0);
                         pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        for (int c = 0; c < 8; c++)
-                            _sum[c] = __msa_fill_w_f32(pC[c]);
+                        _sum0 = __msa_fill_w_f32(pC[0]);
+                        _sum1 = __msa_fill_w_f32(pC[1]);
+                        _sum2 = __msa_fill_w_f32(pC[2]);
+                        _sum3 = __msa_fill_w_f32(pC[3]);
+                        _sum4 = __msa_fill_w_f32(pC[4]);
+                        _sum5 = __msa_fill_w_f32(pC[5]);
+                        _sum6 = __msa_fill_w_f32(pC[6]);
+                        _sum7 = __msa_fill_w_f32(pC[7]);
                         pC += 8;
                     }
                 }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                    _sum[c] = (v4f32)__msa_ld_w(outptr + c * 4, 0);
+                _sum0 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum1 = (v4f32)__msa_ld_w(outptr + 4, 0);
+                _sum2 = (v4f32)__msa_ld_w(outptr + 8, 0);
+                _sum3 = (v4f32)__msa_ld_w(outptr + 12, 0);
+                _sum4 = (v4f32)__msa_ld_w(outptr + 16, 0);
+                _sum5 = (v4f32)__msa_ld_w(outptr + 20, 0);
+                _sum6 = (v4f32)__msa_ld_w(outptr + 24, 0);
+                _sum7 = (v4f32)__msa_ld_w(outptr + 28, 0);
             }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
-                for (int c = 0; c < 8; c++)
-                {
-                    _sum[c] = __msa_fmadd_w(_sum[c], _pA, __msa_fill_w_f32(pB[c]));
-                }
+                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
+                _sum1 = __msa_fmadd_w(_sum1, _pA, __msa_fill_w_f32(pB[1]));
+                _sum2 = __msa_fmadd_w(_sum2, _pA, __msa_fill_w_f32(pB[2]));
+                _sum3 = __msa_fmadd_w(_sum3, _pA, __msa_fill_w_f32(pB[3]));
+                _sum4 = __msa_fmadd_w(_sum4, _pA, __msa_fill_w_f32(pB[4]));
+                _sum5 = __msa_fmadd_w(_sum5, _pA, __msa_fill_w_f32(pB[5]));
+                _sum6 = __msa_fmadd_w(_sum6, _pA, __msa_fill_w_f32(pB[6]));
+                _sum7 = __msa_fmadd_w(_sum7, _pA, __msa_fill_w_f32(pB[7]));
                 pA += 4;
                 pB += 8;
             }
@@ -1793,28 +1958,43 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 if (out_elempack == 4)
                 {
-                    for (int c = 0; c < 8; c++)
-                        __msa_st_w((v4i32)_sum[c], outptr0 + c * 4, 0);
+                    __msa_st_w((v4i32)_sum0, outptr0, 0);
+                    __msa_st_w((v4i32)_sum1, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum2, outptr0 + 8, 0);
+                    __msa_st_w((v4i32)_sum3, outptr0 + 12, 0);
+                    __msa_st_w((v4i32)_sum4, outptr0 + 16, 0);
+                    __msa_st_w((v4i32)_sum5, outptr0 + 20, 0);
+                    __msa_st_w((v4i32)_sum6, outptr0 + 24, 0);
+                    __msa_st_w((v4i32)_sum7, outptr0 + 28, 0);
                 }
                 else
                 {
                     float* outptr1 = outptr0 + out_hstep;
                     float* outptr2 = outptr0 + out_hstep * 2;
                     float* outptr3 = outptr0 + out_hstep * 3;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        outptr0[c] = _sum[c][0];
-                        outptr1[c] = _sum[c][1];
-                        outptr2[c] = _sum[c][2];
-                        outptr3[c] = _sum[c][3];
-                    }
+                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                    transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                    __msa_st_w((v4i32)_sum0, outptr0, 0);
+                    __msa_st_w((v4i32)_sum4, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum1, outptr1, 0);
+                    __msa_st_w((v4i32)_sum5, outptr1 + 4, 0);
+                    __msa_st_w((v4i32)_sum2, outptr2, 0);
+                    __msa_st_w((v4i32)_sum6, outptr2 + 4, 0);
+                    __msa_st_w((v4i32)_sum3, outptr3, 0);
+                    __msa_st_w((v4i32)_sum7, outptr3 + 4, 0);
                 }
                 outptr0 += 8 * out_elempack;
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                    __msa_st_w((v4i32)_sum[c], outptr + c * 4, 0);
+                __msa_st_w((v4i32)_sum0, outptr, 0);
+                __msa_st_w((v4i32)_sum1, outptr + 4, 0);
+                __msa_st_w((v4i32)_sum2, outptr + 8, 0);
+                __msa_st_w((v4i32)_sum3, outptr + 12, 0);
+                __msa_st_w((v4i32)_sum4, outptr + 16, 0);
+                __msa_st_w((v4i32)_sum5, outptr + 20, 0);
+                __msa_st_w((v4i32)_sum6, outptr + 24, 0);
+                __msa_st_w((v4i32)_sum7, outptr + 28, 0);
             }
 
             outptr += 32;
@@ -2093,62 +2273,142 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #if __mips_msa
         for (; jj + 7 < max_jj; jj += 8)
         {
-            float sum0[8];
-            float sum1[8];
+            float sum00;
+            float sum01;
+            float sum10;
+            float sum11;
+            float sum20;
+            float sum21;
+            float sum30;
+            float sum31;
+            float sum40;
+            float sum41;
+            float sum50;
+            float sum51;
+            float sum60;
+            float sum61;
+            float sum70;
+            float sum71;
 
             if (k == 0)
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    sum0[c] = 0.f;
-                    sum1[c] = 0.f;
-                }
+                sum00 = 0.f;
+                sum01 = 0.f;
+                sum10 = 0.f;
+                sum11 = 0.f;
+                sum20 = 0.f;
+                sum21 = 0.f;
+                sum30 = 0.f;
+                sum31 = 0.f;
+                sum40 = 0.f;
+                sum41 = 0.f;
+                sum50 = 0.f;
+                sum51 = 0.f;
+                sum60 = 0.f;
+                sum61 = 0.f;
+                sum70 = 0.f;
+                sum71 = 0.f;
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            sum0[c] = pC[0];
-                            sum1[c] = pC[0];
-                        }
+                        sum00 = pC[0];
+                        sum01 = pC[0];
+                        sum10 = pC[0];
+                        sum11 = pC[0];
+                        sum20 = pC[0];
+                        sum21 = pC[0];
+                        sum30 = pC[0];
+                        sum31 = pC[0];
+                        sum40 = pC[0];
+                        sum41 = pC[0];
+                        sum50 = pC[0];
+                        sum51 = pC[0];
+                        sum60 = pC[0];
+                        sum61 = pC[0];
+                        sum70 = pC[0];
+                        sum71 = pC[0];
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            sum0[c] = pC[0];
-                            sum1[c] = pC[1];
-                        }
+                        sum00 = pC[0];
+                        sum01 = pC[1];
+                        sum10 = pC[0];
+                        sum11 = pC[1];
+                        sum20 = pC[0];
+                        sum21 = pC[1];
+                        sum30 = pC[0];
+                        sum31 = pC[1];
+                        sum40 = pC[0];
+                        sum41 = pC[1];
+                        sum50 = pC[0];
+                        sum51 = pC[1];
+                        sum60 = pC[0];
+                        sum61 = pC[1];
+                        sum70 = pC[0];
+                        sum71 = pC[1];
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            sum0[c] = pC[c * 2];
-                            sum1[c] = pC[c * 2 + 1];
-                        }
+                        sum00 = pC[0];
+                        sum01 = pC[1];
+                        sum10 = pC[2];
+                        sum11 = pC[3];
+                        sum20 = pC[4];
+                        sum21 = pC[5];
+                        sum30 = pC[6];
+                        sum31 = pC[7];
+                        sum40 = pC[8];
+                        sum41 = pC[9];
+                        sum50 = pC[10];
+                        sum51 = pC[11];
+                        sum60 = pC[12];
+                        sum61 = pC[13];
+                        sum70 = pC[14];
+                        sum71 = pC[15];
                         pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        for (int c = 0; c < 8; c++)
-                        {
-                            sum0[c] = pC[c];
-                            sum1[c] = pC[c];
-                        }
+                        sum00 = pC[0];
+                        sum01 = pC[0];
+                        sum10 = pC[1];
+                        sum11 = pC[1];
+                        sum20 = pC[2];
+                        sum21 = pC[2];
+                        sum30 = pC[3];
+                        sum31 = pC[3];
+                        sum40 = pC[4];
+                        sum41 = pC[4];
+                        sum50 = pC[5];
+                        sum51 = pC[5];
+                        sum60 = pC[6];
+                        sum61 = pC[6];
+                        sum70 = pC[7];
+                        sum71 = pC[7];
                         pC += 8;
                     }
                 }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    sum0[c] = outptr[c * 2];
-                    sum1[c] = outptr[c * 2 + 1];
-                }
+                sum00 = outptr[0];
+                sum01 = outptr[1];
+                sum10 = outptr[2];
+                sum11 = outptr[3];
+                sum20 = outptr[4];
+                sum21 = outptr[5];
+                sum30 = outptr[6];
+                sum31 = outptr[7];
+                sum40 = outptr[8];
+                sum41 = outptr[9];
+                sum50 = outptr[10];
+                sum51 = outptr[11];
+                sum60 = outptr[12];
+                sum61 = outptr[13];
+                sum70 = outptr[14];
+                sum71 = outptr[15];
             }
 
             const float* pA = pAT;
@@ -2156,11 +2416,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 const float a0 = pA[0];
                 const float a1 = pA[1];
-                for (int c = 0; c < 8; c++)
-                {
-                    sum0[c] += a0 * pB[c];
-                    sum1[c] += a1 * pB[c];
-                }
+                sum00 += a0 * pB[0];
+                sum01 += a1 * pB[0];
+                sum10 += a0 * pB[1];
+                sum11 += a1 * pB[1];
+                sum20 += a0 * pB[2];
+                sum21 += a1 * pB[2];
+                sum30 += a0 * pB[3];
+                sum31 += a1 * pB[3];
+                sum40 += a0 * pB[4];
+                sum41 += a1 * pB[4];
+                sum50 += a0 * pB[5];
+                sum51 += a1 * pB[5];
+                sum60 += a0 * pB[6];
+                sum61 += a1 * pB[6];
+                sum70 += a0 * pB[7];
+                sum71 += a1 * pB[7];
                 pA += 2;
                 pB += 8;
             }
@@ -2170,30 +2441,63 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 if (out_elempack == 4)
                 {
                     float* outptr1 = outptr0 + out_hstep * 4;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        outptr0[c * 4] = sum0[c];
-                        outptr1[c * 4] = sum1[c];
-                    }
+                    outptr0[0] = sum00;
+                    outptr0[4] = sum10;
+                    outptr0[8] = sum20;
+                    outptr0[12] = sum30;
+                    outptr0[16] = sum40;
+                    outptr0[20] = sum50;
+                    outptr0[24] = sum60;
+                    outptr0[28] = sum70;
+                    outptr1[0] = sum01;
+                    outptr1[4] = sum11;
+                    outptr1[8] = sum21;
+                    outptr1[12] = sum31;
+                    outptr1[16] = sum41;
+                    outptr1[20] = sum51;
+                    outptr1[24] = sum61;
+                    outptr1[28] = sum71;
                 }
                 else
                 {
                     float* outptr1 = outptr0 + out_hstep;
-                    for (int c = 0; c < 8; c++)
-                    {
-                        outptr0[c] = sum0[c];
-                        outptr1[c] = sum1[c];
-                    }
+                    outptr0[0] = sum00;
+                    outptr0[1] = sum10;
+                    outptr0[2] = sum20;
+                    outptr0[3] = sum30;
+                    outptr0[4] = sum40;
+                    outptr0[5] = sum50;
+                    outptr0[6] = sum60;
+                    outptr0[7] = sum70;
+                    outptr1[0] = sum01;
+                    outptr1[1] = sum11;
+                    outptr1[2] = sum21;
+                    outptr1[3] = sum31;
+                    outptr1[4] = sum41;
+                    outptr1[5] = sum51;
+                    outptr1[6] = sum61;
+                    outptr1[7] = sum71;
                 }
                 outptr0 += 8;
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                {
-                    outptr[c * 2] = sum0[c];
-                    outptr[c * 2 + 1] = sum1[c];
-                }
+                outptr[0] = sum00;
+                outptr[1] = sum01;
+                outptr[2] = sum10;
+                outptr[3] = sum11;
+                outptr[4] = sum20;
+                outptr[5] = sum21;
+                outptr[6] = sum30;
+                outptr[7] = sum31;
+                outptr[8] = sum40;
+                outptr[9] = sum41;
+                outptr[10] = sum50;
+                outptr[11] = sum51;
+                outptr[12] = sum60;
+                outptr[13] = sum61;
+                outptr[14] = sum70;
+                outptr[15] = sum71;
             }
 
             outptr += 16;
@@ -2499,54 +2803,103 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #if __mips_msa
         for (; jj + 7 < max_jj; jj += 8)
         {
-            float sum[8];
+            float sum0;
+            float sum1;
+            float sum2;
+            float sum3;
+            float sum4;
+            float sum5;
+            float sum6;
+            float sum7;
 
             if (k == 0)
             {
-                for (int c = 0; c < 8; c++)
-                    sum[c] = 0.f;
+                sum0 = 0.f;
+                sum1 = 0.f;
+                sum2 = 0.f;
+                sum3 = 0.f;
+                sum4 = 0.f;
+                sum5 = 0.f;
+                sum6 = 0.f;
+                sum7 = 0.f;
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        for (int c = 0; c < 8; c++)
-                            sum[c] = pC[0];
+                        sum0 = pC[0];
+                        sum1 = pC[0];
+                        sum2 = pC[0];
+                        sum3 = pC[0];
+                        sum4 = pC[0];
+                        sum5 = pC[0];
+                        sum6 = pC[0];
+                        sum7 = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        for (int c = 0; c < 8; c++)
-                            sum[c] = pC[c];
+                        sum0 = pC[0];
+                        sum1 = pC[1];
+                        sum2 = pC[2];
+                        sum3 = pC[3];
+                        sum4 = pC[4];
+                        sum5 = pC[5];
+                        sum6 = pC[6];
+                        sum7 = pC[7];
                         pC += 8;
                     }
                 }
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                    sum[c] = outptr[c];
+                sum0 = outptr[0];
+                sum1 = outptr[1];
+                sum2 = outptr[2];
+                sum3 = outptr[3];
+                sum4 = outptr[4];
+                sum5 = outptr[5];
+                sum6 = outptr[6];
+                sum7 = outptr[7];
             }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
                 const float a0 = pA[0];
-                for (int c = 0; c < 8; c++)
-                    sum[c] += a0 * pB[c];
+                sum0 += a0 * pB[0];
+                sum1 += a0 * pB[1];
+                sum2 += a0 * pB[2];
+                sum3 += a0 * pB[3];
+                sum4 += a0 * pB[4];
+                sum5 += a0 * pB[5];
+                sum6 += a0 * pB[6];
+                sum7 += a0 * pB[7];
                 pA += 1;
                 pB += 8;
             }
 
             if (k_end)
             {
-                for (int c = 0; c < 8; c++)
-                    outptr0[c] = sum[c];
+                outptr0[0] = sum0;
+                outptr0[1] = sum1;
+                outptr0[2] = sum2;
+                outptr0[3] = sum3;
+                outptr0[4] = sum4;
+                outptr0[5] = sum5;
+                outptr0[6] = sum6;
+                outptr0[7] = sum7;
                 outptr0 += 8;
             }
             else
             {
-                for (int c = 0; c < 8; c++)
-                    outptr[c] = sum[c];
+                outptr[0] = sum0;
+                outptr[1] = sum1;
+                outptr[2] = sum2;
+                outptr[3] = sum3;
+                outptr[4] = sum4;
+                outptr[5] = sum5;
+                outptr[6] = sum6;
+                outptr[7] = sum7;
             }
 
             outptr += 8;
@@ -3136,10 +3489,12 @@ int Gemm_mips::create_pipeline(const Option& opt)
     CT_data.release();
     nT = 0;
 
+#if NCNN_INT8
     if (int8_scale_term)
     {
         return create_pipeline_int8(opt);
     }
+#endif
 
 #if NCNN_BF16
     if (opt.use_bf16_storage)
@@ -3271,10 +3626,12 @@ int Gemm_mips::create_pipeline(const Option& opt)
 int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if NCNN_INT8
+#if NCNN_INT8
     if (int8_scale_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
+#endif
 #endif
 
     const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];
@@ -3656,11 +4013,7 @@ void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& t
 
 
 #if NCNN_BF16
-#if __mips_msa && defined(__GNUC__)
-__attribute__((optimize("no-tree-vectorize")))
-#endif
-int
-Gemm_mips::create_pipeline_bf16s(const Option& opt)
+int Gemm_mips::create_pipeline_bf16s(const Option& opt)
 {
     if (constantA)
     {

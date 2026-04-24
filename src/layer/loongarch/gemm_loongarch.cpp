@@ -1937,28 +1937,26 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (out_elempack == 1)
                     {
-                        float sum0[8];
-                        float sum1[8];
-                        __lasx_xvst(_sum0, sum0, 0);
-                        __lasx_xvst(_sum1, sum1, 0);
+                        const float* ptr0 = (const float*)&_sum0;
+                        const float* ptr1 = (const float*)&_sum1;
 
-                        outptr0[0] = sum0[0];
-                        outptr0[out_hstep] = sum0[1];
-                        outptr0[out_hstep * 2] = sum0[2];
-                        outptr0[out_hstep * 3] = sum0[3];
-                        outptr0[out_hstep * 4] = sum0[4];
-                        outptr0[out_hstep * 5] = sum0[5];
-                        outptr0[out_hstep * 6] = sum0[6];
-                        outptr0[out_hstep * 7] = sum0[7];
+                        outptr0[0] = ptr0[0];
+                        outptr0[out_hstep] = ptr0[1];
+                        outptr0[out_hstep * 2] = ptr0[2];
+                        outptr0[out_hstep * 3] = ptr0[3];
+                        outptr0[out_hstep * 4] = ptr0[4];
+                        outptr0[out_hstep * 5] = ptr0[5];
+                        outptr0[out_hstep * 6] = ptr0[6];
+                        outptr0[out_hstep * 7] = ptr0[7];
 
-                        outptr0[1] = sum1[0];
-                        outptr0[out_hstep + 1] = sum1[1];
-                        outptr0[out_hstep * 2 + 1] = sum1[2];
-                        outptr0[out_hstep * 3 + 1] = sum1[3];
-                        outptr0[out_hstep * 4 + 1] = sum1[4];
-                        outptr0[out_hstep * 5 + 1] = sum1[5];
-                        outptr0[out_hstep * 6 + 1] = sum1[6];
-                        outptr0[out_hstep * 7 + 1] = sum1[7];
+                        outptr0[1] = ptr1[0];
+                        outptr0[out_hstep + 1] = ptr1[1];
+                        outptr0[out_hstep * 2 + 1] = ptr1[2];
+                        outptr0[out_hstep * 3 + 1] = ptr1[3];
+                        outptr0[out_hstep * 4 + 1] = ptr1[4];
+                        outptr0[out_hstep * 5 + 1] = ptr1[5];
+                        outptr0[out_hstep * 6 + 1] = ptr1[6];
+                        outptr0[out_hstep * 7 + 1] = ptr1[7];
                         outptr0 += 2;
                     }
                 }
@@ -2025,17 +2023,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (out_elempack == 1)
                     {
-                        float sum0[8];
-                        __lasx_xvst(_sum0, sum0, 0);
+                        const float* ptr0 = (const float*)&_sum0;
 
-                        outptr0[0] = sum0[0];
-                        outptr0[out_hstep] = sum0[1];
-                        outptr0[out_hstep * 2] = sum0[2];
-                        outptr0[out_hstep * 3] = sum0[3];
-                        outptr0[out_hstep * 4] = sum0[4];
-                        outptr0[out_hstep * 5] = sum0[5];
-                        outptr0[out_hstep * 6] = sum0[6];
-                        outptr0[out_hstep * 7] = sum0[7];
+                        outptr0[0] = ptr0[0];
+                        outptr0[out_hstep] = ptr0[1];
+                        outptr0[out_hstep * 2] = ptr0[2];
+                        outptr0[out_hstep * 3] = ptr0[3];
+                        outptr0[out_hstep * 4] = ptr0[4];
+                        outptr0[out_hstep * 5] = ptr0[5];
+                        outptr0[out_hstep * 6] = ptr0[6];
+                        outptr0[out_hstep * 7] = ptr0[7];
                         outptr0++;
                     }
                 }
@@ -3043,21 +3040,23 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 if (out_elempack == 8)
                 {
-                    float tmp[16];
-                    __lsx_vst((__m128i)_sum0, tmp, 0);
-                    __lsx_vst((__m128i)_sum1, tmp + 4, 0);
-                    __lsx_vst((__m128i)_sum2, tmp + 8, 0);
-                    __lsx_vst((__m128i)_sum3, tmp + 12, 0);
-                    float* outptr1 = (float*)top_blob;
-                    for (int c = 0; c < 4; c++)
-                    {
-                        const int col = j + jj + c;
-                        for (int r = 0; r < 4; r++)
-                        {
-                            const int row = i + ii + r;
-                            outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c * 4 + r];
-                        }
-                    }
+                    int* outptr1 = (int*)top_blob + (size_t)((i + ii) / out_elempack) * out_hstep * out_elempack + (size_t)(j + jj) * out_elempack + (i + ii) % out_elempack;
+                    outptr1[0] = __lsx_vpickve2gr_w((__m128i)_sum0, 0);
+                    outptr1[1] = __lsx_vpickve2gr_w((__m128i)_sum0, 1);
+                    outptr1[2] = __lsx_vpickve2gr_w((__m128i)_sum0, 2);
+                    outptr1[3] = __lsx_vpickve2gr_w((__m128i)_sum0, 3);
+                    outptr1[8] = __lsx_vpickve2gr_w((__m128i)_sum1, 0);
+                    outptr1[9] = __lsx_vpickve2gr_w((__m128i)_sum1, 1);
+                    outptr1[10] = __lsx_vpickve2gr_w((__m128i)_sum1, 2);
+                    outptr1[11] = __lsx_vpickve2gr_w((__m128i)_sum1, 3);
+                    outptr1[16] = __lsx_vpickve2gr_w((__m128i)_sum2, 0);
+                    outptr1[17] = __lsx_vpickve2gr_w((__m128i)_sum2, 1);
+                    outptr1[18] = __lsx_vpickve2gr_w((__m128i)_sum2, 2);
+                    outptr1[19] = __lsx_vpickve2gr_w((__m128i)_sum2, 3);
+                    outptr1[24] = __lsx_vpickve2gr_w((__m128i)_sum3, 0);
+                    outptr1[25] = __lsx_vpickve2gr_w((__m128i)_sum3, 1);
+                    outptr1[26] = __lsx_vpickve2gr_w((__m128i)_sum3, 2);
+                    outptr1[27] = __lsx_vpickve2gr_w((__m128i)_sum3, 3);
                     outptr0 += 4;
                 }
                 else if (out_elempack == 4)
@@ -3149,19 +3148,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 if (out_elempack == 8)
                 {
-                    float tmp[8];
-                    __lsx_vst((__m128i)_sum0, tmp, 0);
-                    __lsx_vst((__m128i)_sum1, tmp + 4, 0);
-                    float* outptr1 = (float*)top_blob;
-                    for (int c = 0; c < 2; c++)
-                    {
-                        const int col = j + jj + c;
-                        for (int r = 0; r < 4; r++)
-                        {
-                            const int row = i + ii + r;
-                            outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)col * out_elempack + row % out_elempack] = tmp[c * 4 + r];
-                        }
-                    }
+                    int* outptr1 = (int*)top_blob + (size_t)((i + ii) / out_elempack) * out_hstep * out_elempack + (size_t)(j + jj) * out_elempack + (i + ii) % out_elempack;
+                    outptr1[0] = __lsx_vpickve2gr_w((__m128i)_sum0, 0);
+                    outptr1[1] = __lsx_vpickve2gr_w((__m128i)_sum0, 1);
+                    outptr1[2] = __lsx_vpickve2gr_w((__m128i)_sum0, 2);
+                    outptr1[3] = __lsx_vpickve2gr_w((__m128i)_sum0, 3);
+                    outptr1[8] = __lsx_vpickve2gr_w((__m128i)_sum1, 0);
+                    outptr1[9] = __lsx_vpickve2gr_w((__m128i)_sum1, 1);
+                    outptr1[10] = __lsx_vpickve2gr_w((__m128i)_sum1, 2);
+                    outptr1[11] = __lsx_vpickve2gr_w((__m128i)_sum1, 3);
                     outptr0 += 2;
                 }
                 else if (out_elempack == 4)
@@ -3172,15 +3167,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 else
                 {
-                    float tmp0[4];
-                    float tmp1[4];
-                    __lsx_vst((__m128i)_sum0, tmp0, 0);
-                    __lsx_vst((__m128i)_sum1, tmp1, 0);
-                    for (int r = 0; r < 4; r++)
-                    {
-                        outptr0[out_hstep * r] = tmp0[r];
-                        outptr0[out_hstep * r + 1] = tmp1[r];
-                    }
+                    int* outptr1 = (int*)outptr0;
+                    outptr1[0] = __lsx_vpickve2gr_w((__m128i)_sum0, 0);
+                    outptr1[1] = __lsx_vpickve2gr_w((__m128i)_sum1, 0);
+                    outptr1[out_hstep] = __lsx_vpickve2gr_w((__m128i)_sum0, 1);
+                    outptr1[out_hstep + 1] = __lsx_vpickve2gr_w((__m128i)_sum1, 1);
+                    outptr1[out_hstep * 2] = __lsx_vpickve2gr_w((__m128i)_sum0, 2);
+                    outptr1[out_hstep * 2 + 1] = __lsx_vpickve2gr_w((__m128i)_sum1, 2);
+                    outptr1[out_hstep * 3] = __lsx_vpickve2gr_w((__m128i)_sum0, 3);
+                    outptr1[out_hstep * 3 + 1] = __lsx_vpickve2gr_w((__m128i)_sum1, 3);
                     outptr0 += 2;
                 }
             }
@@ -3237,14 +3232,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 if (out_elempack == 8)
                 {
-                    float tmp[4];
-                    __lsx_vst((__m128i)_sum0, tmp, 0);
-                    float* outptr1 = (float*)top_blob;
-                    for (int r = 0; r < 4; r++)
-                    {
-                        const int row = i + ii + r;
-                        outptr1[(size_t)(row / out_elempack) * out_hstep * out_elempack + (size_t)(j + jj) * out_elempack + row % out_elempack] = tmp[r];
-                    }
+                    int* outptr1 = (int*)top_blob + (size_t)((i + ii) / out_elempack) * out_hstep * out_elempack + (size_t)(j + jj) * out_elempack + (i + ii) % out_elempack;
+                    outptr1[0] = __lsx_vpickve2gr_w((__m128i)_sum0, 0);
+                    outptr1[1] = __lsx_vpickve2gr_w((__m128i)_sum0, 1);
+                    outptr1[2] = __lsx_vpickve2gr_w((__m128i)_sum0, 2);
+                    outptr1[3] = __lsx_vpickve2gr_w((__m128i)_sum0, 3);
                     outptr0 += 1;
                 }
                 else if (out_elempack == 4)
@@ -3254,12 +3246,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 else
                 {
-                    float tmp0[4];
-                    __lsx_vst((__m128i)_sum0, tmp0, 0);
-                    for (int r = 0; r < 4; r++)
-                    {
-                        outptr0[out_hstep * r] = tmp0[r];
-                    }
+                    int* outptr1 = (int*)outptr0;
+                    outptr1[0] = __lsx_vpickve2gr_w((__m128i)_sum0, 0);
+                    outptr1[out_hstep] = __lsx_vpickve2gr_w((__m128i)_sum0, 1);
+                    outptr1[out_hstep * 2] = __lsx_vpickve2gr_w((__m128i)_sum0, 2);
+                    outptr1[out_hstep * 3] = __lsx_vpickve2gr_w((__m128i)_sum0, 3);
                     outptr0 += 1;
                 }
             }
@@ -4517,10 +4508,12 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
     CT_data.release();
     nT = 0;
 
+#if NCNN_INT8
     if (int8_scale_term)
     {
         return create_pipeline_int8(opt);
     }
+#endif
 
 #if NCNN_BF16
     if (opt.use_bf16_storage)
@@ -4666,10 +4659,12 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if NCNN_INT8
+#if NCNN_INT8
     if (int8_scale_term)
     {
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
+#endif
 #endif
 
     const Mat& bottom_blob = bottom_blobs.empty() ? AT_data : bottom_blobs[0];

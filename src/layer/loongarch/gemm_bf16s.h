@@ -2653,16 +2653,16 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             p0f32 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
 
-        const float* pCi = pC;
-        if (pCi)
+        const float* pC0 = pC;
+        if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pCi = (const float*)C + (i + ii);
+                pC0 = (const float*)C + (i + ii);
             }
             if (broadcast_type_C == 4)
             {
-                pCi = (const float*)C + j;
+                pC0 = (const float*)C + j;
             }
         }
 
@@ -2689,12 +2689,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum71 = (__m128)__lsx_vld(pp + 60, 0);
             pp += 64;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c);
                     _sum01 = __lsx_vfadd_s(_sum01, _c);
                     _sum10 = __lsx_vfadd_s(_sum10, _c);
@@ -2714,8 +2714,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
-                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pCi + 4, 0), _beta);
+                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
+                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pC0 + 4, 0), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c0);
                     _sum01 = __lsx_vfadd_s(_sum01, _c1);
                     _sum10 = __lsx_vfadd_s(_sum10, _c0);
@@ -2804,10 +2804,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c0 = __lsx_vreplfr2vr_s(pCi[0]);
-                    __m128 _c1 = __lsx_vreplfr2vr_s(pCi[1]);
-                    __m128 _c2 = __lsx_vreplfr2vr_s(pCi[2]);
-                    __m128 _c3 = __lsx_vreplfr2vr_s(pCi[3]);
+                    __m128 _c0 = __lsx_vreplfr2vr_s(pC0[0]);
+                    __m128 _c1 = __lsx_vreplfr2vr_s(pC0[1]);
+                    __m128 _c2 = __lsx_vreplfr2vr_s(pC0[2]);
+                    __m128 _c3 = __lsx_vreplfr2vr_s(pC0[3]);
                     _sum00 = __lsx_vfmadd_s(_beta, _c0, _sum00);
                     _sum01 = __lsx_vfmadd_s(_beta, _c0, _sum01);
                     _sum10 = __lsx_vfmadd_s(_beta, _c1, _sum10);
@@ -2816,10 +2816,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _sum21 = __lsx_vfmadd_s(_beta, _c2, _sum21);
                     _sum30 = __lsx_vfmadd_s(_beta, _c3, _sum30);
                     _sum31 = __lsx_vfmadd_s(_beta, _c3, _sum31);
-                    _c0 = __lsx_vreplfr2vr_s(pCi[4]);
-                    _c1 = __lsx_vreplfr2vr_s(pCi[5]);
-                    _c2 = __lsx_vreplfr2vr_s(pCi[6]);
-                    _c3 = __lsx_vreplfr2vr_s(pCi[7]);
+                    _c0 = __lsx_vreplfr2vr_s(pC0[4]);
+                    _c1 = __lsx_vreplfr2vr_s(pC0[5]);
+                    _c2 = __lsx_vreplfr2vr_s(pC0[6]);
+                    _c3 = __lsx_vreplfr2vr_s(pC0[7]);
                     _sum40 = __lsx_vfmadd_s(_beta, _c0, _sum40);
                     _sum41 = __lsx_vfmadd_s(_beta, _c0, _sum41);
                     _sum50 = __lsx_vfmadd_s(_beta, _c1, _sum50);
@@ -2828,7 +2828,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _sum61 = __lsx_vfmadd_s(_beta, _c2, _sum61);
                     _sum70 = __lsx_vfmadd_s(_beta, _c3, _sum70);
                     _sum71 = __lsx_vfmadd_s(_beta, _c3, _sum71);
-                    pCi += 8;
+                    pC0 += 8;
                 }
             }
 
@@ -3077,12 +3077,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum31 = (__m128)__lsx_vld(pp + 28, 0);
             pp += 32;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c);
                     _sum01 = __lsx_vfadd_s(_sum01, _c);
                     _sum10 = __lsx_vfadd_s(_sum10, _c);
@@ -3094,8 +3094,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
-                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pCi + 4, 0), _beta);
+                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
+                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pC0 + 4, 0), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c0);
                     _sum01 = __lsx_vfadd_s(_sum01, _c1);
                     _sum10 = __lsx_vfadd_s(_sum10, _c0);
@@ -3146,10 +3146,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c0 = __lsx_vreplfr2vr_s(pCi[0]);
-                    __m128 _c1 = __lsx_vreplfr2vr_s(pCi[1]);
-                    __m128 _c2 = __lsx_vreplfr2vr_s(pCi[2]);
-                    __m128 _c3 = __lsx_vreplfr2vr_s(pCi[3]);
+                    __m128 _c0 = __lsx_vreplfr2vr_s(pC0[0]);
+                    __m128 _c1 = __lsx_vreplfr2vr_s(pC0[1]);
+                    __m128 _c2 = __lsx_vreplfr2vr_s(pC0[2]);
+                    __m128 _c3 = __lsx_vreplfr2vr_s(pC0[3]);
                     _sum00 = __lsx_vfmadd_s(_beta, _c0, _sum00);
                     _sum01 = __lsx_vfmadd_s(_beta, _c0, _sum01);
                     _sum10 = __lsx_vfmadd_s(_beta, _c1, _sum10);
@@ -3158,7 +3158,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     _sum21 = __lsx_vfmadd_s(_beta, _c2, _sum21);
                     _sum30 = __lsx_vfmadd_s(_beta, _c3, _sum30);
                     _sum31 = __lsx_vfmadd_s(_beta, _c3, _sum31);
-                    pCi += 4;
+                    pC0 += 4;
                 }
             }
 
@@ -3312,12 +3312,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum11 = (__m128)__lsx_vld(pp + 12, 0);
             pp += 16;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c);
                     _sum01 = __lsx_vfadd_s(_sum01, _c);
                     _sum10 = __lsx_vfadd_s(_sum10, _c);
@@ -3325,8 +3325,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
-                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pCi + 4, 0), _beta);
+                    __m128 _c0 = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
+                    __m128 _c1 = __lsx_vfmul_s((__m128)__lsx_vld(pC0 + 4, 0), _beta);
                     _sum00 = __lsx_vfadd_s(_sum00, _c0);
                     _sum01 = __lsx_vfadd_s(_sum01, _c1);
                     _sum10 = __lsx_vfadd_s(_sum10, _c0);
@@ -3371,13 +3371,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c0 = __lsx_vreplfr2vr_s(pCi[0]);
-                    __m128 _c1 = __lsx_vreplfr2vr_s(pCi[1]);
+                    __m128 _c0 = __lsx_vreplfr2vr_s(pC0[0]);
+                    __m128 _c1 = __lsx_vreplfr2vr_s(pC0[1]);
                     _sum00 = __lsx_vfmadd_s(_beta, _c0, _sum00);
                     _sum01 = __lsx_vfmadd_s(_beta, _c0, _sum01);
                     _sum10 = __lsx_vfmadd_s(_beta, _c1, _sum10);
                     _sum11 = __lsx_vfmadd_s(_beta, _c1, _sum11);
-                    pCi += 2;
+                    pC0 += 2;
                 }
             }
 
@@ -3538,19 +3538,19 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum1 = (__m128)__lsx_vld(pp + 4, 0);
             pp += 8;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta));
-                    _sum1 = __lsx_vfadd_s(_sum1, __lsx_vfmul_s((__m128)__lsx_vld(pCi + 4, 0), _beta));
+                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta));
+                    _sum1 = __lsx_vfadd_s(_sum1, __lsx_vfmul_s((__m128)__lsx_vld(pC0 + 4, 0), _beta));
                 }
                 if (broadcast_type_C == 3)
                 {
@@ -3579,10 +3579,10 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    __m128 _c = __lsx_vreplfr2vr_s(pCi[0]);
+                    __m128 _c = __lsx_vreplfr2vr_s(pC0[0]);
                     _sum0 = __lsx_vfmadd_s(_beta, _c, _sum0);
                     _sum1 = __lsx_vfmadd_s(_beta, _c, _sum1);
-                    pCi += 1;
+                    pC0 += 1;
                 }
             }
 
@@ -3683,16 +3683,16 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             p0f32 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
 
-        const float* pCi = pC;
-        if (pCi)
+        const float* pC0 = pC;
+        if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pCi = (const float*)C + (i + ii);
+                pC0 = (const float*)C + (i + ii);
             }
             if (broadcast_type_C == 4)
             {
-                pCi = (const float*)C + j;
+                pC0 = (const float*)C + j;
             }
         }
 
@@ -3711,12 +3711,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum7 = (__m128)__lsx_vld(pp + 4 * 7, 0);
             pp += 32;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                     _sum2 = __lsx_vfadd_s(_sum2, _c);
@@ -3728,7 +3728,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
+                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                     _sum2 = __lsx_vfadd_s(_sum2, _c);
@@ -3779,15 +3779,15 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[0]), _sum0);
-                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[1]), _sum1);
-                    _sum2 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[2]), _sum2);
-                    _sum3 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[3]), _sum3);
-                    _sum4 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[4]), _sum4);
-                    _sum5 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[5]), _sum5);
-                    _sum6 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[6]), _sum6);
-                    _sum7 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[7]), _sum7);
-                    pCi += 8;
+                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[0]), _sum0);
+                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[1]), _sum1);
+                    _sum2 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[2]), _sum2);
+                    _sum3 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[3]), _sum3);
+                    _sum4 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[4]), _sum4);
+                    _sum5 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[5]), _sum5);
+                    _sum6 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[6]), _sum6);
+                    _sum7 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[7]), _sum7);
+                    pC0 += 8;
                 }
             }
 
@@ -3957,12 +3957,12 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum3 = (__m128)__lsx_vld(pp + 12, 0);
             pp += 16;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                     _sum2 = __lsx_vfadd_s(_sum2, _c);
@@ -3970,7 +3970,7 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
+                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                     _sum2 = __lsx_vfadd_s(_sum2, _c);
@@ -4002,11 +4002,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[0]), _sum0);
-                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[1]), _sum1);
-                    _sum2 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[2]), _sum2);
-                    _sum3 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[3]), _sum3);
-                    pCi += 4;
+                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[0]), _sum0);
+                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[1]), _sum1);
+                    _sum2 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[2]), _sum2);
+                    _sum3 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[3]), _sum3);
+                    pC0 += 4;
                 }
             }
 
@@ -4121,18 +4121,18 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum1 = (__m128)__lsx_vld(pp + 4, 0);
             pp += 8;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta);
+                    __m128 _c = __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta);
+                    __m128 _c = __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta);
                     _sum0 = __lsx_vfadd_s(_sum0, _c);
                     _sum1 = __lsx_vfadd_s(_sum1, _c);
                 }
@@ -4162,9 +4162,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[0]), _sum0);
-                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[1]), _sum1);
-                    pCi += 2;
+                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[0]), _sum0);
+                    _sum1 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[1]), _sum1);
+                    pC0 += 2;
                 }
             }
 
@@ -4246,16 +4246,16 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             __m128 _sum0 = (__m128)__lsx_vld(pp, 0);
             pp += 4;
 
-            if (pCi)
+            if (pC0)
             {
                 __m128 _beta = __lsx_vreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
-                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s(__lsx_vreplfr2vr_s(pCi[0]), _beta));
+                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s(__lsx_vreplfr2vr_s(pC0[0]), _beta));
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s((__m128)__lsx_vld(pCi, 0), _beta));
+                    _sum0 = __lsx_vfadd_s(_sum0, __lsx_vfmul_s((__m128)__lsx_vld(pC0, 0), _beta));
                 }
                 if (broadcast_type_C == 3)
                 {
@@ -4277,8 +4277,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pCi[0]), _sum0);
-                    pCi += 1;
+                    _sum0 = __lsx_vfmadd_s(_beta, __lsx_vreplfr2vr_s(pC0[0]), _sum0);
+                    pC0 += 1;
                 }
             }
 
@@ -4341,13 +4341,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const float* pCi = pC;
-        if (pCi)
+        const float* pC0 = pC;
+        if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)C + (i + ii);
+                pC0 = (const float*)C + (i + ii);
             if (broadcast_type_C == 4)
-                pCi = (const float*)C + j;
+                pC0 = (const float*)C + j;
         }
 
         int jj = 0;
@@ -4357,17 +4357,17 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             float sum1 = pp[1];
             pp += 2;
 
-            if (pCi)
+            if (pC0)
             {
                 if (broadcast_type_C == 0)
                 {
-                    sum0 += pCi[0] * beta;
-                    sum1 += pCi[0] * beta;
+                    sum0 += pC0[0] * beta;
+                    sum1 += pC0[0] * beta;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    sum0 += pCi[0] * beta;
-                    sum1 += pCi[1] * beta;
+                    sum0 += pC0[0] * beta;
+                    sum1 += pC0[1] * beta;
                 }
                 if (broadcast_type_C == 3)
                 {
@@ -4384,9 +4384,9 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    sum0 += pCi[0] * beta;
-                    sum1 += pCi[0] * beta;
-                    pCi += 1;
+                    sum0 += pC0[0] * beta;
+                    sum1 += pC0[0] * beta;
+                    pC0 += 1;
                 }
             }
 
@@ -4429,13 +4429,13 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
     }
     for (; ii < max_ii; ii++)
     {
-        const float* pCi = pC;
-        if (pCi)
+        const float* pC0 = pC;
+        if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                pCi = (const float*)C + (i + ii);
+                pC0 = (const float*)C + (i + ii);
             if (broadcast_type_C == 4)
-                pCi = (const float*)C + j;
+                pC0 = (const float*)C + j;
         }
 
         int jj = 0;
@@ -4444,15 +4444,15 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
             float sum = pp[0];
             pp += 1;
 
-            if (pCi)
+            if (pC0)
             {
                 if (broadcast_type_C == 0)
                 {
-                    sum += pCi[0] * beta;
+                    sum += pC0[0] * beta;
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
-                    sum += pCi[0] * beta;
+                    sum += pC0[0] * beta;
                 }
                 if (broadcast_type_C == 3)
                 {
@@ -4467,8 +4467,8 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 }
                 if (broadcast_type_C == 4)
                 {
-                    sum += pCi[0] * beta;
-                    pCi += 1;
+                    sum += pC0[0] * beta;
+                    pC0 += 1;
                 }
             }
 
