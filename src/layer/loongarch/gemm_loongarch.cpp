@@ -5078,7 +5078,6 @@ void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& t
 #endif
 } // namespace Gemm_loongarch_utility
 
-
 #if NCNN_BF16
 int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
 {

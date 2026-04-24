@@ -4011,7 +4011,6 @@ void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& t
 #endif
 } // namespace Gemm_mips_utility
 
-
 #if NCNN_BF16
 int Gemm_mips::create_pipeline_bf16s(const Option& opt)
 {
