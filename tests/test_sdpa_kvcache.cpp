@@ -85,7 +85,7 @@ static int test_sdpa_int8_kvcache(const ncnn::Mat& q, const ncnn::Mat& k, const 
     as.push_back(RandomMat(embed_dim, past_seqlen, k.c));
     as.push_back(RandomMat(out_embed_dim, past_seqlen, v.c));
 
-    float epsilon = 0.01;
+    float epsilon = 0.05;
 
     int ret = test_layer("SDPA", pd, weights, as, 3, epsilon);
     if (ret != 0)

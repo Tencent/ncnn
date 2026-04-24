@@ -5,6 +5,11 @@
 
 #include "layer_type.h"
 
+#include "cpu.h"
+
+#include <float.h>
+#include <math.h>
+
 namespace ncnn {
 
 SDPA_x86::SDPA_x86()
@@ -12,124 +17,54 @@ SDPA_x86::SDPA_x86()
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-
-    qk_gemm = 0;
-    qkv_gemm = 0;
-    qk_softmax = 0;
 }
 
-int SDPA_x86::create_pipeline(const Option& _opt)
+int SDPA_x86::create_pipeline(const Option& /*_opt*/)
 {
-    Option opt = _opt;
     if (int8_scale_term)
     {
-        opt.use_packing_layout = false; // TODO enable packing
         support_bf16_storage = false;
     }
 
-    {
-        qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
-        ncnn::ParamDict pd;
-        pd.set(0, -1); // axis
-        pd.set(1, 1);
-        qk_softmax->load_param(pd);
-        qk_softmax->load_model(ModelBinFromMatArray(0));
-        qk_softmax->create_pipeline(opt);
-    }
-
-    // Q * K^T
-    if (scale != 0.f)
-    {
-        qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-
-        pd.set(0, scale);               // alpha
-        pd.set(1, 1.f / scale);         // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        qk_gemm->load_param(pd);
-        qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        qk_gemm->create_pipeline(opt1);
-    }
-
-    // Attn * V
-    {
-        qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-        pd.set(0, 1.f); // alpha
-        pd.set(1, 1.f); // beta
-        pd.set(2, 0);   // transA (Attn: Seq x Seq)
-        pd.set(3, 0);   // transB (V: Seq x Embed) => Attn * V
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC (None)
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
-        pd.set(13, 1);  // output_elemtype = fp32
-        pd.set(14, 0);  // output_transpose
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        qkv_gemm->load_param(pd);
-        qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        qkv_gemm->create_pipeline(opt1);
-    }
-
     return 0;
 }
 
-int SDPA_x86::destroy_pipeline(const Option& _opt)
+int SDPA_x86::destroy_pipeline(const Option& /*_opt*/)
 {
-    Option opt = _opt;
-    if (int8_scale_term)
-    {
-        opt.use_packing_layout = false; // TODO enable packing
-    }
-
-    if (qk_softmax)
-    {
-        qk_softmax->destroy_pipeline(opt);
-        delete qk_softmax;
-        qk_softmax = 0;
-    }
-
-    if (qk_gemm)
-    {
-        qk_gemm->destroy_pipeline(opt);
-        delete qk_gemm;
-        qk_gemm = 0;
-    }
-
-    if (qkv_gemm)
-    {
-        qkv_gemm->destroy_pipeline(opt);
-        delete qkv_gemm;
-        qkv_gemm = 0;
-    }
-
     return 0;
 }
+
+#if NCNN_INT8
+static inline signed char float2int8(float v)
+{
+    int int32 = static_cast<int>(round(v));
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
+static void dynamic_quantize_blockwise(const float* src, signed char* dst, float* scales, int width)
+{
+    const int block_size = 32;
+    int num_blocks = (width + block_size - 1) / block_size;
+    for (int b = 0; b < num_blocks; b++)
+    {
+        int start = b * block_size;
+        int end = start + block_size < width ? start + block_size : width;
+        float absmax = 0.f;
+        for (int i = start; i < end; i++)
+        {
+            absmax = std::max(absmax, (float)fabs(src[i]));
+        }
+        float scale = absmax == 0.f ? 1.f : 127.f / absmax;
+        scales[b] = scale;
+        for (int i = start; i < end; i++)
+        {
+            dst[i] = float2int8(src[i] * scale);
+        }
+    }
+}
+#endif // NCNN_INT8
 
 int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
@@ -204,138 +139,341 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     const int num_heads_per_group = num_heads / num_group;
+    const float _scale = scale == 0.f ? 1.f / sqrtf((float)embed_dim) : scale;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
-    if (qk_cross.empty())
-        return -100;
-
-    std::vector<int> retqks(num_heads);
-
-    // Dynamic Scale Calculation and Beta Correction
-    Layer* _qk_gemm = qk_gemm;
-    if (scale == 0.f)
-    {
-        float _scale = 1.f / sqrt(embed_dim);
-
-        _qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
-        ncnn::ParamDict pd;
-
-        pd.set(0, _scale);              // alpha
-        pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA (Q: Seq x Embed)
-        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
-        pd.set(4, 0);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
-        pd.set(7, 0);                   // M
-        pd.set(8, 0);                   // N
-        pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
-        pd.set(11, 0);                  // output_N1M
-        pd.set(12, 1);                  // output_elempack
-        pd.set(13, 1);                  // output_elemtype = fp32
-#if NCNN_INT8
-        pd.set(18, int8_scale_term);
-#endif
-        _qk_gemm->load_param(pd);
-        _qk_gemm->load_model(ModelBinFromMatArray(0));
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->create_pipeline(opt1);
-    }
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_heads; i++)
-    {
-        // 1. Q * K^T
-        std::vector<Mat> qk_bottom_blobs;
-        qk_bottom_blobs.push_back(query.channel(i));                     // Q: [Seq, Embed]
-        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group)); // K: [DstSeq, Embed]
-
-        if (attn_mask)
-        {
-            // Ensure mask is 2D for Gemm auto-broadcast detection
-            Mat maskm = attn_mask_blob;
-            if (maskm.dims == 3)
-            {
-                // If c > 1, pick i-th head mask. If c == 1, pick 0-th (broadcast)
-                maskm = maskm.channel(maskm.c > 1 ? i : 0);
-            }
-            qk_bottom_blobs.push_back(maskm);
-        }
-
-        std::vector<Mat> qk_top_blobs(1);
-        qk_top_blobs[0] = qk_cross.channel(i);
-
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        opt1.blob_allocator = qk_cross.allocator;
-        retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
-    }
-
-    if (scale == 0.f)
-    {
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        _qk_gemm->destroy_pipeline(opt1);
-
-        delete _qk_gemm;
-        _qk_gemm = 0;
-    }
-
-    for (int i = 0; i < num_heads; i++)
-    {
-        if (retqks[i] != 0)
-            return retqks[i];
-    }
-
-    // 2. Softmax
-    int retqk = qk_softmax->forward_inplace(qk_cross, opt);
-    if (retqk != 0)
-        return retqk;
-
-    Mat value_fp32 = value;
-#if NCNN_BF16
-    if (opt.use_bf16_storage && value.elembits() == 16)
-    {
-        // qkv_gemm need fp32 inputs
-        cast_bfloat16_to_float32(value, value_fp32, opt);
-        if (value_fp32.empty())
-            return -100;
-    }
-#endif
+    const int BLOCK_M = 64;
+    const int BLOCK_N = 64;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // 3. Attn * V
-    std::vector<int> retqkvs(num_heads);
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        const int qk_num_blocks = (embed_dim + 31) / 32;
+        const int v_num_blocks = (out_embed_dim + 31) / 32;
+
+        Mat key_int8(embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
+        Mat key_scales(qk_num_blocks, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        Mat value_int8(out_embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
+        Mat value_scales(v_num_blocks, dst_seqlen, num_group, 4u, opt.blob_allocator);
+
+        if (key_int8.empty() || key_scales.empty() || value_int8.empty() || value_scales.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < num_group; g++)
+        {
+            const Mat key_head = key.channel(g);
+            Mat key_int8_head = key_int8.channel(g);
+            Mat key_scales_head = key_scales.channel(g);
+            for (int j = 0; j < dst_seqlen; j++)
+            {
+                dynamic_quantize_blockwise(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
+            }
+
+            const Mat value_head = value.channel(g);
+            Mat value_int8_head = value_int8.channel(g);
+            Mat value_scales_head = value_scales.channel(g);
+            for (int j = 0; j < dst_seqlen; j++)
+            {
+                dynamic_quantize_blockwise(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
+            }
+        }
+
+        Mat o_accum(out_embed_dim, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat s_vec(BLOCK_N, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat q_int8_tile(embed_dim, BLOCK_M, opt.num_threads, 1u, opt.workspace_allocator);
+        Mat q_scales_tile(qk_num_blocks, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+
+        if (o_accum.empty() || s_vec.empty() || q_int8_tile.empty() || q_scales_tile.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < num_heads; q++)
+        {
+            const Mat query_head = query.channel(q);
+            const Mat key_int8_head = key_int8.channel(q / num_heads_per_group);
+            const Mat key_scales_head = key_scales.channel(q / num_heads_per_group);
+            const Mat value_int8_head = value_int8.channel(q / num_heads_per_group);
+            const Mat value_scales_head = value_scales.channel(q / num_heads_per_group);
+            Mat top_blob_head = top_blob.channel(q);
+
+            Mat mask_head;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_blob;
+                if (maskm.dims == 3)
+                {
+                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                }
+                else
+                {
+                    mask_head = maskm;
+                }
+            }
+
+            Mat o_accum_head = o_accum.channel(get_omp_thread_num());
+            float* s_vec_ptr = s_vec.row(get_omp_thread_num());
+            Mat q_int8_tile_head = q_int8_tile.channel(get_omp_thread_num());
+            Mat q_scales_tile_head = q_scales_tile.channel(get_omp_thread_num());
+
+            for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
+            {
+                int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
+                int block_m = m_end - m_start;
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    dynamic_quantize_blockwise(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                }
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    float* optr = o_accum_head.row(i);
+                    for (int k = 0; k < out_embed_dim; k++)
+                    {
+                        optr[k] = 0.f;
+                    }
+                }
+
+                float m_vec[64];
+                float l_vec[64];
+                for (int i = 0; i < block_m; i++)
+                {
+                    m_vec[i] = -FLT_MAX;
+                    l_vec[i] = 0.f;
+                }
+
+                for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                {
+                    int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+                    int block_n = n_end - n_start;
+
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        const signed char* qptr = q_int8_tile_head.row<const signed char>(i);
+                        const float* qscales = q_scales_tile_head.row(i);
+
+                        for (int j = 0; j < block_n; j++)
+                        {
+                            const signed char* kptr = key_int8_head.row<const signed char>(n_start + j);
+                            const float* kscales = key_scales_head.row(n_start + j);
+
+                            float sum = 0.f;
+                            for (int b = 0; b < qk_num_blocks; b++)
+                            {
+                                int k_start = b * 32;
+                                int k_end = k_start + 32 < embed_dim ? k_start + 32 : embed_dim;
+                                int block_sum = 0;
+                                for (int k = k_start; k < k_end; k++)
+                                {
+                                    block_sum += qptr[k] * kptr[k];
+                                }
+                                sum += (float)block_sum / (qscales[b] * kscales[b]);
+                            }
+                            s_vec_ptr[j] = sum * _scale;
+                        }
+
+                        if (attn_mask)
+                        {
+                            const float* mptr = mask_head.row(m_start + i) + n_start;
+                            for (int j = 0; j < block_n; j++)
+                            {
+                                s_vec_ptr[j] += mptr[j];
+                            }
+                        }
+
+                        float m_new = m_vec[i];
+                        for (int j = 0; j < block_n; j++)
+                        {
+                            m_new = std::max(m_new, s_vec_ptr[j]);
+                        }
+
+                        float scale_factor = expf(m_vec[i] - m_new);
+                        float l_new = l_vec[i] * scale_factor;
+
+                        float* optr = o_accum_head.row(i);
+                        for (int k = 0; k < out_embed_dim; k++)
+                        {
+                            optr[k] *= scale_factor;
+                        }
+
+                        for (int j = 0; j < block_n; j++)
+                        {
+                            float p = expf(s_vec_ptr[j] - m_new);
+                            l_new += p;
+
+                            const signed char* vptr = value_int8_head.row<const signed char>(n_start + j);
+                            const float* vscales = value_scales_head.row(n_start + j);
+                            for (int vb = 0; vb < v_num_blocks; vb++)
+                            {
+                                float inv_scale = 1.f / vscales[vb];
+                                int k_start = vb * 32;
+                                int k_end = k_start + 32 < out_embed_dim ? k_start + 32 : out_embed_dim;
+                                for (int k = k_start; k < k_end; k++)
+                                {
+                                    optr[k] += p * (float)vptr[k] * inv_scale;
+                                }
+                            }
+                        }
+
+                        m_vec[i] = m_new;
+                        l_vec[i] = l_new;
+                    }
+                }
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    float* optr = o_accum_head.row(i);
+                    float* outptr = top_blob_head.row(m_start + i);
+                    float inv_l = 1.f / l_vec[i];
+                    for (int k = 0; k < out_embed_dim; k++)
+                    {
+                        outptr[k] = optr[k] * inv_l;
+                    }
+                }
+            }
+        }
+
+        if (kv_cache)
+        {
+            top_blobs[1] = key;
+            top_blobs[2] = value;
+        }
+
+        return 0;
+    }
+#endif // NCNN_INT8
+
+    Mat o_accum(out_embed_dim, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat s_vec(BLOCK_N, opt.num_threads, 4u, opt.workspace_allocator);
+
+    if (o_accum.empty() || s_vec.empty())
+        return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_heads; i++)
+    for (int q = 0; q < num_heads; q++)
     {
-        std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);                         // Attn: [DstSeq, Seq]
-        qkv_bottom_blobs[1] = value_fp32.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
+        const Mat query_head = query.channel(q);
+        const Mat key_head = key.channel(q / num_heads_per_group);
+        const Mat value_head = value.channel(q / num_heads_per_group);
+        Mat top_blob_head = top_blob.channel(q);
 
-        std::vector<Mat> qkv_top_blobs(1);
-        qkv_top_blobs[0] = top_blob.channel(i); // Output
+        Mat mask_head;
+        if (attn_mask)
+        {
+            const Mat& maskm = attn_mask_blob;
+            if (maskm.dims == 3)
+            {
+                mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+            }
+            else
+            {
+                mask_head = maskm;
+            }
+        }
 
-        Option opt1 = opt;
-        opt1.num_threads = 1;
-        retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
+        Mat o_accum_head = o_accum.channel(get_omp_thread_num());
+        float* s_vec_ptr = s_vec.row(get_omp_thread_num());
+
+        for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
+        {
+            int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
+            int block_m = m_end - m_start;
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* optr = o_accum_head.row(i);
+                for (int k = 0; k < out_embed_dim; k++)
+                {
+                    optr[k] = 0.f;
+                }
+            }
+
+            float m_vec[64];
+            float l_vec[64];
+            for (int i = 0; i < block_m; i++)
+            {
+                m_vec[i] = -FLT_MAX;
+                l_vec[i] = 0.f;
+            }
+
+            for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+            {
+                int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+                int block_n = n_end - n_start;
+
+                for (int i = 0; i < block_m; i++)
+                {
+                    const float* qptr = query_head.row(m_start + i);
+
+                    for (int j = 0; j < block_n; j++)
+                    {
+                        const float* kptr = key_head.row(n_start + j);
+                        float sum = 0.f;
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            sum += qptr[k] * kptr[k];
+                        }
+                        s_vec_ptr[j] = sum * _scale;
+                    }
+
+                    if (attn_mask)
+                    {
+                        const float* mptr = mask_head.row(m_start + i) + n_start;
+                        for (int j = 0; j < block_n; j++)
+                        {
+                            s_vec_ptr[j] += mptr[j];
+                        }
+                    }
+
+                    float m_new = m_vec[i];
+                    for (int j = 0; j < block_n; j++)
+                    {
+                        m_new = std::max(m_new, s_vec_ptr[j]);
+                    }
+
+                    float scale_factor = expf(m_vec[i] - m_new);
+                    float l_new = l_vec[i] * scale_factor;
+
+                    float* optr = o_accum_head.row(i);
+                    for (int k = 0; k < out_embed_dim; k++)
+                    {
+                        optr[k] *= scale_factor;
+                    }
+
+                    for (int j = 0; j < block_n; j++)
+                    {
+                        float p = expf(s_vec_ptr[j] - m_new);
+                        l_new += p;
+
+                        const float* vptr = value_head.row(n_start + j);
+                        for (int k = 0; k < out_embed_dim; k++)
+                        {
+                            optr[k] += p * vptr[k];
+                        }
+                    }
+
+                    m_vec[i] = m_new;
+                    l_vec[i] = l_new;
+                }
+            }
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* optr = o_accum_head.row(i);
+                float* outptr = top_blob_head.row(m_start + i);
+                float inv_l = 1.f / l_vec[i];
+                for (int k = 0; k < out_embed_dim; k++)
+                {
+                    outptr[k] = optr[k] * inv_l;
+                }
+            }
+        }
     }
-
-    for (int i = 0; i < num_heads; i++)
-    {
-        if (retqkvs[i] != 0)
-            return retqkvs[i];
-    }
-
-    value_fp32.release();
 
     if (kv_cache)
     {

@@ -52,33 +52,20 @@ int main()
 
     // larger model (e.g., 7B scale)
     perf_sdpa_decode(4096, 32, 32, 0);
-    perf_sdpa_decode(4096, 32, 32, 128);
-    perf_sdpa_decode(4096, 32, 32, 512);
-    perf_sdpa_decode(4096, 32, 32, 1024);
-    perf_sdpa_decode(4096, 32, 32, 2048);
-    perf_sdpa_decode(4096, 32, 32, 4096);
-    perf_sdpa_decode(4096, 32, 32, 8192);
+    perf_sdpa_decode(4096, 32, 32, 16);
+    perf_sdpa_decode(4096, 32, 32, 32);
+    perf_sdpa_decode(4096, 32, 32, 64);
 
     // GQA/MQA configurations
     // GQA: num_groups < num_heads
-    perf_sdpa_decode(4096, 32, 4, 128);
-    perf_sdpa_decode(4096, 32, 4, 512);
-    perf_sdpa_decode(4096, 32, 4, 1024);
-    perf_sdpa_decode(4096, 32, 4, 2048);
-    perf_sdpa_decode(4096, 32, 4, 4096);
+    perf_sdpa_decode(4096, 32, 4, 16);
+    perf_sdpa_decode(4096, 32, 4, 32);
+    perf_sdpa_decode(4096, 32, 4, 64);
 
     // MQA: num_groups = 1
-    perf_sdpa_decode(4096, 32, 1, 128);
-    perf_sdpa_decode(4096, 32, 1, 512);
-    perf_sdpa_decode(4096, 32, 1, 1024);
-    perf_sdpa_decode(4096, 32, 1, 2048);
-    perf_sdpa_decode(4096, 32, 1, 4096);
-
-    // very large context lengths
-    perf_sdpa_decode(4096, 32, 32, 16384);
-    perf_sdpa_decode(4096, 32, 32, 32768);
-    perf_sdpa_decode(4096, 32, 4, 16384);
-    perf_sdpa_decode(4096, 32, 4, 32768);
+    perf_sdpa_decode(4096, 32, 1, 16);
+    perf_sdpa_decode(4096, 32, 1, 32);
+    perf_sdpa_decode(4096, 32, 1, 64);
 
     return 0;
 }
