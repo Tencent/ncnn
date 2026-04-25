@@ -30,7 +30,7 @@ namespace ncnn {
 SDPA_x86::SDPA_x86()
 {
 #if NCNN_BF16
-    support_bf16_storage = true;
+    support_bf16_storage = false;
 #endif
 }
 
