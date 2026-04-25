@@ -47,7 +47,13 @@ static int test_sdpa_0()
            || test_sdpa(RandomMat(44, 128, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
            || test_sdpa(RandomMat(12, 127, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f)
            || test_sdpa(RandomMat(28, 17, 15), RandomMat(28, 127, 5), RandomMat(32, 127, 5), 0, 0.1f)
-           || test_sdpa(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f);
+           || test_sdpa(RandomMat(28, 17, 15), RandomMat(28, 32, 5), RandomMat(11, 32, 5), 1, -0.4f)
+           || test_sdpa(RandomMat(32, 1, 8), RandomMat(32, 66, 8), RandomMat(20, 66, 8), 0)
+           || test_sdpa(RandomMat(26, 1, 8), RandomMat(26, 61, 8), RandomMat(18, 61, 8), 1)
+           || test_sdpa(RandomMat(64, 1, 12), RandomMat(64, 128, 2), RandomMat(64, 128, 2), 0)
+           || test_sdpa(RandomMat(64, 1, 12), RandomMat(64, 127, 2), RandomMat(48, 127, 2), 1)
+           || test_sdpa(RandomMat(44, 1, 4), RandomMat(44, 123, 4), RandomMat(55, 123, 4), 0, 1.f)
+           || test_sdpa(RandomMat(12, 1, 4), RandomMat(12, 127, 4), RandomMat(55, 127, 4), 1, 1.f);
 }
 
 #if NCNN_INT8
