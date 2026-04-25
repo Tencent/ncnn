@@ -2471,30 +2471,30 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             float* s_vec_ptr = s_vec.row(get_omp_thread_num());
             float* p_vec_ptr = p_vec.row(get_omp_thread_num());
 
-            // Allocate per-row m_vec/l_vec on stack or heap
-            float m_vec_all[1024];
-            float l_vec_all[1024];
-            for (int i = 0; i < src_seqlen; i++)
+            for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
             {
-                m_vec_all[i] = -FLT_MAX;
-                l_vec_all[i] = 0.f;
-            }
+                int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
+                int block_m = m_end - m_start;
 
-            // Zero output accumulator
-            for (int i = 0; i < src_seqlen; i++)
-            {
-                vec_zero_dispatch(top_blob_head.row(i), out_embed_dim);
-            }
-
-            for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
-            {
-                int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
-                int block_n = n_end - n_start;
-
-                for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
+                // Per-M-tile softmax statistics
+                float m_vec[BLOCK_M];
+                float l_vec[BLOCK_M];
+                for (int i = 0; i < block_m; i++)
                 {
-                    int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
-                    int block_m = m_end - m_start;
+                    m_vec[i] = -FLT_MAX;
+                    l_vec[i] = 0.f;
+                }
+
+                // Zero output accumulator for this M tile
+                for (int i = 0; i < block_m; i++)
+                {
+                    vec_zero_dispatch(top_blob_head.row(m_start + i), out_embed_dim);
+                }
+
+                for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                {
+                    int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+                    int block_n = n_end - n_start;
 
                     // Step 1: Compute Q * K^T -> S tile
                     qk_gemm_dispatch(s_vec_ptr,
@@ -2545,14 +2545,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float m_old[BLOCK_M];
                     for (int i = 0; i < block_m; i++)
                     {
-                        m_old[i] = m_vec_all[m_start + i];
+                        m_old[i] = m_vec[i];
                     }
-                    softmax_tile_dispatch(p_vec_ptr, s_vec_ptr, m_vec_all + m_start, l_vec_all + m_start, block_m, block_n);
+                    softmax_tile_dispatch(p_vec_ptr, s_vec_ptr, m_vec, l_vec, block_m, block_n);
 
                     // Rescale O accumulator when max increases
                     for (int i = 0; i < block_m; i++)
                     {
-                        float scale_factor = expf(m_old[i] - m_vec_all[m_start + i]);
+                        float scale_factor = expf(m_old[i] - m_vec[i]);
                         if (scale_factor != 1.f)
                         {
                             vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factor, out_embed_dim);
@@ -2562,42 +2562,42 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     // Step 4: O += P * V_tile
                     pv_gemm_dispatch(top_blob_head.row(m_start), p_vec_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
                 }
-            }
 
-            // Normalize all rows
-            for (int i = 0; i < src_seqlen; i++)
-            {
-                float* outptr = top_blob_head.row(i);
-                float inv_l = 1.f / l_vec_all[i];
-                int k = 0;
+                // Normalize this M tile
+                for (int i = 0; i < block_m; i++)
+                {
+                    float* outptr = top_blob_head.row(m_start + i);
+                    float inv_l = 1.f / l_vec[i];
+                    int k = 0;
 #if __AVX512F__
-                __m512 vinv_l = _mm512_set1_ps(inv_l);
-                for (; k + 15 < out_embed_dim; k += 16)
-                {
-                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
-                }
-                if (k < out_embed_dim)
-                {
-                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
-                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
-                    k = out_embed_dim;
-                }
+                    __m512 vinv_l = _mm512_set1_ps(inv_l);
+                    for (; k + 15 < out_embed_dim; k += 16)
+                    {
+                        _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
+                    }
+                    if (k < out_embed_dim)
+                    {
+                        __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                        _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
+                        k = out_embed_dim;
+                    }
 #elif __AVX__
-                __m256 vinv_l = _mm256_set1_ps(inv_l);
-                for (; k + 7 < out_embed_dim; k += 8)
-                {
-                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(outptr + k), vinv_l));
-                }
+                    __m256 vinv_l = _mm256_set1_ps(inv_l);
+                    for (; k + 7 < out_embed_dim; k += 8)
+                    {
+                        _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(outptr + k), vinv_l));
+                    }
 #elif __SSE2__
-                __m128 vinv_l = _mm_set1_ps(inv_l);
-                for (; k + 3 < out_embed_dim; k += 4)
-                {
-                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(outptr + k), vinv_l));
-                }
+                    __m128 vinv_l = _mm_set1_ps(inv_l);
+                    for (; k + 3 < out_embed_dim; k += 4)
+                    {
+                        _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(outptr + k), vinv_l));
+                    }
 #endif
-                for (; k < out_embed_dim; k++)
-                {
-                    outptr[k] *= inv_l;
+                    for (; k < out_embed_dim; k++)
+                    {
+                        outptr[k] *= inv_l;
+                    }
                 }
             }
         }
