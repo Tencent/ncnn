@@ -2474,8 +2474,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const Mat key_head = key.channel(g);
         const Mat value_head = value.channel(g);
 
-        float* s_vec_ptr = s_vec.row(get_omp_thread_num());
-        float* p_vec_ptr = p_vec.row(get_omp_thread_num());
+        float* s_vec_ptr = s_vec.channel(get_omp_thread_num()).row(0);
+        float* p_vec_ptr = p_vec.channel(get_omp_thread_num()).row(0);
 
         Mat m_state_tile = m_state.channel(idx);
         Mat l_state_tile = l_state.channel(idx);
@@ -2500,17 +2500,22 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
 
-        // N-outer loop: each K/V N-tile is loaded once and reused by all Q heads in this group
+        // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group
         for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
         {
             int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
             int block_n = n_end - n_start;
 
+            // Process one Q head at a time with a single-head scratch buffer,
+            // keeping K/V tile resident in cache across hq iterations.
             for (int hq = 0; hq < num_heads_per_group; hq++)
             {
                 int q = g * num_heads_per_group + hq;
                 const Mat query_head = query.channel(q);
                 Mat top_blob_head = top_blob.channel(q);
+
+                float* m_vec = m_state_tile.row(hq);
+                float* l_vec = l_state_tile.row(hq);
 
                 Mat mask_head;
                 if (attn_mask)
@@ -2526,16 +2531,12 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     }
                 }
 
-                float* m_vec = m_state_tile.row(hq);
-                float* l_vec = l_state_tile.row(hq);
-
-                // Step 1: Compute Q * K^T -> S tile
                 qk_gemm_dispatch(s_vec_ptr,
                                  query_head.row(m_start),
                                  key_head.row(n_start),
                                  block_m, block_n, embed_dim, _scale);
 
-                // Step 2: Apply attention mask
+                // Apply attention mask
                 if (attn_mask)
                 {
                     for (int i = 0; i < block_m; i++)
@@ -2574,7 +2575,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     }
                 }
 
-                // Step 3: Online softmax, compute P = exp(S - m_new)
                 float m_old[BLOCK_M];
                 for (int i = 0; i < block_m; i++)
                 {
@@ -2592,7 +2592,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     }
                 }
 
-                // Step 4: O += P * V_tile
                 pv_gemm_dispatch(top_blob_head.row(m_start), p_vec_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
             }
         }
