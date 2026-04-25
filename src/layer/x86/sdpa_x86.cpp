@@ -161,10 +161,13 @@ static void sdpa_decode_scalar(float* out, const float* q,
             tile_m = std::max(tile_m, s[j]);
 
         float new_m = std::max(m, tile_m);
-        float scale_factor = expf(m - new_m);
-        l *= scale_factor;
-        for (int k = 0; k < out_d; k++)
-            out[k] *= scale_factor;
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            for (int k = 0; k < out_d; k++)
+                out[k] *= scale_factor;
+        }
 
         float l_add = 0.f;
         for (int j = 0; j < block_n; j++)
@@ -931,9 +934,12 @@ static void sdpa_decode_avx512(float* out, const float* q,
         float tile_m = _mm512_comp_reduce_max_ps(vmax);
 
         float new_m = std::max(m, tile_m);
-        float scale_factor = expf(m - new_m);
-        l *= scale_factor;
-        vec_scale_avx512(out, scale_factor, out_d);
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            vec_scale_avx512(out, scale_factor, out_d);
+        }
 
         __m512 vm_new = _mm512_set1_ps(new_m);
         __m512 vsum = _mm512_setzero_ps();
@@ -1474,9 +1480,12 @@ static void sdpa_decode_avx(float* out, const float* q,
             tile_m = std::max(tile_m, s[j]);
 
         float new_m = std::max(m, tile_m);
-        float scale_factor = expf(m - new_m);
-        l *= scale_factor;
-        vec_scale_avx(out, scale_factor, out_d);
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            vec_scale_avx(out, scale_factor, out_d);
+        }
 
         __m256 vm_new = _mm256_set1_ps(new_m);
         __m256 vsum = _mm256_setzero_ps();
@@ -1906,9 +1915,12 @@ static void sdpa_decode_sse2(float* out, const float* q,
             tile_m = std::max(tile_m, s[j]);
 
         float new_m = std::max(m, tile_m);
-        float scale_factor = expf(m - new_m);
-        l *= scale_factor;
-        vec_scale_sse2(out, scale_factor, out_d);
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            vec_scale_sse2(out, scale_factor, out_d);
+        }
 
         __m128 vm_new = _mm_set1_ps(new_m);
         __m128 vsum = _mm_setzero_ps();
@@ -2552,9 +2564,9 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     // Rescale O accumulator when max increases
                     for (int i = 0; i < block_m; i++)
                     {
-                        float scale_factor = expf(m_old[i] - m_vec[i]);
-                        if (scale_factor != 1.f)
+                        if (m_old[i] != m_vec[i])
                         {
+                            float scale_factor = expf(m_old[i] - m_vec[i]);
                             vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factor, out_embed_dim);
                         }
                     }
