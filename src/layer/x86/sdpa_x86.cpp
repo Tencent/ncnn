@@ -182,24 +182,20 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                     acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
                 }
 
-                float sum0 = _mm512_comp_reduce_add_ps(acc0);
-                float sum1 = _mm512_comp_reduce_add_ps(acc1);
-                float sum2 = _mm512_comp_reduce_add_ps(acc2);
-                float sum3 = _mm512_comp_reduce_add_ps(acc3);
-
-                for (; k < d; k++)
+                if (k < d)
                 {
-                    float qv = qptr[k];
-                    sum0 += qv * k0[k];
-                    sum1 += qv * k1[k];
-                    sum2 += qv * k2[k];
-                    sum3 += qv * k3[k];
+                    __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
+                    __m512 qvec = _mm512_maskz_loadu_ps(mask, qptr + k);
+                    acc0 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k0 + k), acc0);
+                    acc1 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k1 + k), acc1);
+                    acc2 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k2 + k), acc2);
+                    acc3 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k3 + k), acc3);
                 }
 
-                S[(i + mi) * n + j + 0] = sum0 * scale;
-                S[(i + mi) * n + j + 1] = sum1 * scale;
-                S[(i + mi) * n + j + 2] = sum2 * scale;
-                S[(i + mi) * n + j + 3] = sum3 * scale;
+                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+                S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+                S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
             }
         }
 
@@ -214,10 +210,12 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 __m512 vacc = _mm512_setzero_ps();
                 for (; k + 15 < d; k += 16)
                     vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
-                sum = _mm512_comp_reduce_add_ps(vacc);
-                for (; k < d; k++)
-                    sum += qptr[k] * kptr[k];
-                S[(i + mi) * n + j] = sum * scale;
+                if (k < d)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
+                    vacc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, qptr + k), _mm512_maskz_loadu_ps(mask, kptr + k), vacc);
+                }
+                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
             }
         }
     }
@@ -248,24 +246,20 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
                 acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
             }
 
-            float sum0 = _mm512_comp_reduce_add_ps(acc0);
-            float sum1 = _mm512_comp_reduce_add_ps(acc1);
-            float sum2 = _mm512_comp_reduce_add_ps(acc2);
-            float sum3 = _mm512_comp_reduce_add_ps(acc3);
-
-            for (; k < d; k++)
+            if (k < d)
             {
-                float qv = qptr[k];
-                sum0 += qv * k0[k];
-                sum1 += qv * k1[k];
-                sum2 += qv * k2[k];
-                sum3 += qv * k3[k];
+                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
+                __m512 qvec = _mm512_maskz_loadu_ps(mask, qptr + k);
+                acc0 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qvec, _mm512_maskz_loadu_ps(mask, k3 + k), acc3);
             }
 
-            S[i * n + j + 0] = sum0 * scale;
-            S[i * n + j + 1] = sum1 * scale;
-            S[i * n + j + 2] = sum2 * scale;
-            S[i * n + j + 3] = sum3 * scale;
+            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            S[i * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            S[i * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
         }
 
         for (; j < n; j++)
@@ -277,10 +271,12 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
             __m512 vacc = _mm512_setzero_ps();
             for (; k + 15 < d; k += 16)
                 vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
-            sum = _mm512_comp_reduce_add_ps(vacc);
-            for (; k < d; k++)
-                sum += qptr[k] * kptr[k];
-            S[i * n + j] = sum * scale;
+            if (k < d)
+            {
+                __mmask16 mask = (__mmask16)((1u << (d - k)) - 1);
+                vacc = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, qptr + k), _mm512_maskz_loadu_ps(mask, kptr + k), vacc);
+            }
+            S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
         }
     }
 }
@@ -461,14 +457,18 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
                 _mm512_storeu_ps(op[mi] + dd, acc[mi]);
         }
 
-        for (; dd < d; dd++)
+        if (dd < d)
         {
+            __mmask16 mask = (__mmask16)((1u << (d - dd)) - 1);
             for (int mi = 0; mi < M_BLOCK; mi++)
             {
-                float acc = op[mi][dd];
+                __m512 acc = _mm512_maskz_loadu_ps(mask, op[mi] + dd);
                 for (int j = 0; j < n; j++)
-                    acc += pptr[mi][j] * V[j * d + dd];
-                op[mi][dd] = acc;
+                {
+                    __m512 vvec = _mm512_maskz_loadu_ps(mask, V + j * d + dd);
+                    acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc);
+                }
+                _mm512_mask_storeu_ps(op[mi] + dd, mask, acc);
             }
         }
     }
@@ -504,19 +504,23 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
             _mm512_storeu_ps(optr + dd, acc);
         }
 
-        for (; dd < d; dd++)
+        if (dd < d)
         {
-            float acc = optr[dd];
+            __mmask16 mask = (__mmask16)((1u << (d - dd)) - 1);
+            __m512 acc = _mm512_maskz_loadu_ps(mask, optr + dd);
             for (int j = 0; j < n; j++)
-                acc += pptr[j] * V[j * d + dd];
-            optr[dd] = acc;
+            {
+                __m512 vvec = _mm512_maskz_loadu_ps(mask, V + j * d + dd);
+                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), vvec, acc);
+            }
+            _mm512_mask_storeu_ps(optr + dd, mask, acc);
         }
     }
 }
 
 
 template<int M_BLOCK, int D>
-static __attribute__((noinline)) void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n)
+static void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n)
 {
     const int VEC_PER_D = D / 16;
     int i = 0;
@@ -684,9 +688,13 @@ static inline void softmax_tile_avx512(float* P, const float* S,
         int j = 0;
         for (; j + 15 < n; j += 16)
             vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(sptr + j));
+        if (j < n)
+        {
+            __mmask16 mask = (__mmask16)((1u << (n - j)) - 1);
+            __m512 tail = _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask, sptr + j);
+            vmax = _mm512_max_ps(vmax, tail);
+        }
         float m_new = _mm512_comp_reduce_max_ps(vmax);
-        for (; j < n; j++)
-            m_new = std::max(m_new, sptr[j]);
 
         float scale_factor = expf(m_vec[i] - m_new);
         l_vec[i] *= scale_factor;
@@ -701,12 +709,15 @@ static inline void softmax_tile_avx512(float* P, const float* S,
             _mm512_storeu_ps(pptr + j, evec);
             vsum = _mm512_add_ps(vsum, evec);
         }
-        float l_add = _mm512_comp_reduce_add_ps(vsum);
-        for (; j < n; j++)
+        if (j < n)
         {
-            pptr[j] = expf(sptr[j] - m_new);
-            l_add += pptr[j];
+            __mmask16 mask = (__mmask16)((1u << (n - j)) - 1);
+            __m512 svec = _mm512_maskz_loadu_ps(mask, sptr + j);
+            __m512 evec = exp512_ps(_mm512_sub_ps(svec, vm_new));
+            _mm512_mask_storeu_ps(pptr + j, mask, evec);
+            vsum = _mm512_mask_add_ps(vsum, mask, vsum, evec);
         }
+        float l_add = _mm512_comp_reduce_add_ps(vsum);
         l_vec[i] += l_add;
         m_vec[i] = m_new;
     }
@@ -718,8 +729,11 @@ static inline void vec_scale_avx512(float* x, float s, int n)
     int i = 0;
     for (; i + 15 < n; i += 16)
         _mm512_storeu_ps(x + i, _mm512_mul_ps(_mm512_loadu_ps(x + i), vscale));
-    for (; i < n; i++)
-        x[i] *= s;
+    if (i < n)
+    {
+        __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
+        _mm512_mask_storeu_ps(x + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, x + i), vscale));
+    }
 }
 
 static inline void vec_zero_avx512(float* x, int n)
@@ -728,8 +742,11 @@ static inline void vec_zero_avx512(float* x, int n)
     int i = 0;
     for (; i + 15 < n; i += 16)
         _mm512_storeu_ps(x + i, zero);
-    for (; i < n; i++)
-        x[i] = 0.f;
+    if (i < n)
+    {
+        __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
+        _mm512_mask_storeu_ps(x + i, mask, zero);
+    }
 }
 
 #endif // __AVX512F__
@@ -1994,6 +2011,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             {
                                 _mm512_storeu_ps(sptr + j, _mm512_add_ps(_mm512_loadu_ps(sptr + j), _mm512_loadu_ps(mptr + j)));
                             }
+                            if (j < block_n)
+                            {
+                                __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
+                                __m512 _s = _mm512_maskz_loadu_ps(mask, sptr + j);
+                                __m512 _m = _mm512_maskz_loadu_ps(mask, mptr + j);
+                                _mm512_mask_storeu_ps(sptr + j, mask, _mm512_add_ps(_s, _m));
+                                j = block_n;
+                            }
 #elif __AVX__
                             for (; j + 7 < block_n; j += 8)
                             {
@@ -2046,6 +2071,12 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 for (; k + 15 < out_embed_dim; k += 16)
                 {
                     _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
+                }
+                if (k < out_embed_dim)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
+                    k = out_embed_dim;
                 }
 #elif __AVX__
                 __m256 vinv_l = _mm256_set1_ps(inv_l);
