@@ -2454,162 +2454,189 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (s_vec.empty() || p_vec.empty())
         return -100;
 
+    int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
+
+    // Per-head per-M-tile softmax state for cross-N-tile accumulation
+    Mat m_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+    Mat l_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+
+    if (m_state.empty() || l_state.empty())
+        return -100;
+
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < num_group; g++)
+    for (int idx = 0; idx < num_group * num_m_tiles; idx++)
     {
+        int g = idx / num_m_tiles;
+        int m_tile = idx % num_m_tiles;
+        int m_start = m_tile * BLOCK_M;
+        int block_m = m_start + BLOCK_M < src_seqlen ? BLOCK_M : src_seqlen - m_start;
+
         const Mat key_head = key.channel(g);
         const Mat value_head = value.channel(g);
 
+        float* s_vec_ptr = s_vec.row(get_omp_thread_num());
+        float* p_vec_ptr = p_vec.row(get_omp_thread_num());
+
+        Mat m_state_tile = m_state.channel(idx);
+        Mat l_state_tile = l_state.channel(idx);
+
+        // Initialize softmax state and zero output accumulator for all Q heads in this group
         for (int hq = 0; hq < num_heads_per_group; hq++)
         {
             int q = g * num_heads_per_group + hq;
-            const Mat query_head = query.channel(q);
             Mat top_blob_head = top_blob.channel(q);
 
-            Mat mask_head;
-            if (attn_mask)
+            float* m_vec = m_state_tile.row(hq);
+            float* l_vec = l_state_tile.row(hq);
+            for (int i = 0; i < block_m; i++)
             {
-                const Mat& maskm = attn_mask_blob;
-                if (maskm.dims == 3)
-                {
-                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
-                }
-                else
-                {
-                    mask_head = maskm;
-                }
+                m_vec[i] = -FLT_MAX;
+                l_vec[i] = 0.f;
             }
 
-            float* s_vec_ptr = s_vec.row(get_omp_thread_num());
-            float* p_vec_ptr = p_vec.row(get_omp_thread_num());
-
-            for (int m_start = 0; m_start < src_seqlen; m_start += BLOCK_M)
+            for (int i = 0; i < block_m; i++)
             {
-                int m_end = m_start + BLOCK_M < src_seqlen ? m_start + BLOCK_M : src_seqlen;
-                int block_m = m_end - m_start;
+                vec_zero_dispatch(top_blob_head.row(m_start + i), out_embed_dim);
+            }
+        }
 
-                // Per-M-tile softmax statistics
-                float m_vec[BLOCK_M];
-                float l_vec[BLOCK_M];
-                for (int i = 0; i < block_m; i++)
+        // N-outer loop: each K/V N-tile is loaded once and reused by all Q heads in this group
+        for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+        {
+            int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+            int block_n = n_end - n_start;
+
+            for (int hq = 0; hq < num_heads_per_group; hq++)
+            {
+                int q = g * num_heads_per_group + hq;
+                const Mat query_head = query.channel(q);
+                Mat top_blob_head = top_blob.channel(q);
+
+                Mat mask_head;
+                if (attn_mask)
                 {
-                    m_vec[i] = -FLT_MAX;
-                    l_vec[i] = 0.f;
-                }
-
-                // Zero output accumulator for this M tile
-                for (int i = 0; i < block_m; i++)
-                {
-                    vec_zero_dispatch(top_blob_head.row(m_start + i), out_embed_dim);
-                }
-
-                for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
-                {
-                    int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
-                    int block_n = n_end - n_start;
-
-                    // Step 1: Compute Q * K^T -> S tile
-                    qk_gemm_dispatch(s_vec_ptr,
-                                     query_head.row(m_start),
-                                     key_head.row(n_start),
-                                     block_m, block_n, embed_dim, _scale);
-
-                    // Step 2: Apply attention mask
-                    if (attn_mask)
+                    const Mat& maskm = attn_mask_blob;
+                    if (maskm.dims == 3)
                     {
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            const float* mptr = mask_head.row(m_start + i) + n_start;
-                            float* sptr = s_vec_ptr + i * block_n;
-                            int j = 0;
-#if __AVX512F__
-                            for (; j + 15 < block_n; j += 16)
-                            {
-                                _mm512_storeu_ps(sptr + j, _mm512_add_ps(_mm512_loadu_ps(sptr + j), _mm512_loadu_ps(mptr + j)));
-                            }
-                            if (j < block_n)
-                            {
-                                __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
-                                __m512 _s = _mm512_maskz_loadu_ps(mask, sptr + j);
-                                __m512 _m = _mm512_maskz_loadu_ps(mask, mptr + j);
-                                _mm512_mask_storeu_ps(sptr + j, mask, _mm512_add_ps(_s, _m));
-                                j = block_n;
-                            }
-#elif __AVX__
-                            for (; j + 7 < block_n; j += 8)
-                            {
-                                _mm256_storeu_ps(sptr + j, _mm256_add_ps(_mm256_loadu_ps(sptr + j), _mm256_loadu_ps(mptr + j)));
-                            }
-#elif __SSE2__
-                            for (; j + 3 < block_n; j += 4)
-                            {
-                                _mm_storeu_ps(sptr + j, _mm_add_ps(_mm_loadu_ps(sptr + j), _mm_loadu_ps(mptr + j)));
-                            }
-#endif
-                            for (; j < block_n; j++)
-                            {
-                                sptr[j] += mptr[j];
-                            }
-                        }
+                        mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
                     }
+                    else
+                    {
+                        mask_head = maskm;
+                    }
+                }
 
-                    // Step 3: Online softmax, compute P = exp(S - m_new)
-                    float m_old[BLOCK_M];
+                float* m_vec = m_state_tile.row(hq);
+                float* l_vec = l_state_tile.row(hq);
+
+                // Step 1: Compute Q * K^T -> S tile
+                qk_gemm_dispatch(s_vec_ptr,
+                                 query_head.row(m_start),
+                                 key_head.row(n_start),
+                                 block_m, block_n, embed_dim, _scale);
+
+                // Step 2: Apply attention mask
+                if (attn_mask)
+                {
                     for (int i = 0; i < block_m; i++)
                     {
-                        m_old[i] = m_vec[i];
-                    }
-                    softmax_tile_dispatch(p_vec_ptr, s_vec_ptr, m_vec, l_vec, block_m, block_n);
-
-                    // Rescale O accumulator when max increases
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        if (m_old[i] != m_vec[i])
+                        const float* mptr = mask_head.row(m_start + i) + n_start;
+                        float* sptr = s_vec_ptr + i * block_n;
+                        int j = 0;
+#if __AVX512F__
+                        for (; j + 15 < block_n; j += 16)
                         {
-                            float scale_factor = expf(m_old[i] - m_vec[i]);
-                            vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factor, out_embed_dim);
+                            _mm512_storeu_ps(sptr + j, _mm512_add_ps(_mm512_loadu_ps(sptr + j), _mm512_loadu_ps(mptr + j)));
+                        }
+                        if (j < block_n)
+                        {
+                            __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
+                            __m512 _s = _mm512_maskz_loadu_ps(mask, sptr + j);
+                            __m512 _m = _mm512_maskz_loadu_ps(mask, mptr + j);
+                            _mm512_mask_storeu_ps(sptr + j, mask, _mm512_add_ps(_s, _m));
+                            j = block_n;
+                        }
+#elif __AVX__
+                        for (; j + 7 < block_n; j += 8)
+                        {
+                            _mm256_storeu_ps(sptr + j, _mm256_add_ps(_mm256_loadu_ps(sptr + j), _mm256_loadu_ps(mptr + j)));
+                        }
+#elif __SSE2__
+                        for (; j + 3 < block_n; j += 4)
+                        {
+                            _mm_storeu_ps(sptr + j, _mm_add_ps(_mm_loadu_ps(sptr + j), _mm_loadu_ps(mptr + j)));
+                        }
+#endif
+                        for (; j < block_n; j++)
+                        {
+                            sptr[j] += mptr[j];
                         }
                     }
-
-                    // Step 4: O += P * V_tile
-                    pv_gemm_dispatch(top_blob_head.row(m_start), p_vec_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
                 }
 
-                // Normalize this M tile
+                // Step 3: Online softmax, compute P = exp(S - m_new)
+                float m_old[BLOCK_M];
                 for (int i = 0; i < block_m; i++)
                 {
-                    float* outptr = top_blob_head.row(m_start + i);
-                    float inv_l = 1.f / l_vec[i];
-                    int k = 0;
+                    m_old[i] = m_vec[i];
+                }
+                softmax_tile_dispatch(p_vec_ptr, s_vec_ptr, m_vec, l_vec, block_m, block_n);
+
+                // Rescale O accumulator when max increases
+                for (int i = 0; i < block_m; i++)
+                {
+                    if (m_old[i] != m_vec[i])
+                    {
+                        float scale_factor = expf(m_old[i] - m_vec[i]);
+                        vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factor, out_embed_dim);
+                    }
+                }
+
+                // Step 4: O += P * V_tile
+                pv_gemm_dispatch(top_blob_head.row(m_start), p_vec_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
+            }
+        }
+
+        // Normalize all Q heads for this M tile
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            int q = g * num_heads_per_group + hq;
+            Mat top_blob_head = top_blob.channel(q);
+            float* l_vec = l_state_tile.row(hq);
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* outptr = top_blob_head.row(m_start + i);
+                float inv_l = 1.f / l_vec[i];
+                int k = 0;
 #if __AVX512F__
-                    __m512 vinv_l = _mm512_set1_ps(inv_l);
-                    for (; k + 15 < out_embed_dim; k += 16)
-                    {
-                        _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
-                    }
-                    if (k < out_embed_dim)
-                    {
-                        __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
-                        _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
-                        k = out_embed_dim;
-                    }
+                __m512 vinv_l = _mm512_set1_ps(inv_l);
+                for (; k + 15 < out_embed_dim; k += 16)
+                {
+                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
+                }
+                if (k < out_embed_dim)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
+                    k = out_embed_dim;
+                }
 #elif __AVX__
-                    __m256 vinv_l = _mm256_set1_ps(inv_l);
-                    for (; k + 7 < out_embed_dim; k += 8)
-                    {
-                        _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(outptr + k), vinv_l));
-                    }
+                __m256 vinv_l = _mm256_set1_ps(inv_l);
+                for (; k + 7 < out_embed_dim; k += 8)
+                {
+                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(outptr + k), vinv_l));
+                }
 #elif __SSE2__
-                    __m128 vinv_l = _mm_set1_ps(inv_l);
-                    for (; k + 3 < out_embed_dim; k += 4)
-                    {
-                        _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(outptr + k), vinv_l));
-                    }
+                __m128 vinv_l = _mm_set1_ps(inv_l);
+                for (; k + 3 < out_embed_dim; k += 4)
+                {
+                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(outptr + k), vinv_l));
+                }
 #endif
-                    for (; k < out_embed_dim; k++)
-                    {
-                        outptr[k] *= inv_l;
-                    }
+                for (; k < out_embed_dim; k++)
+                {
+                    outptr[k] *= inv_l;
                 }
             }
         }
