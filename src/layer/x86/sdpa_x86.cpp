@@ -192,7 +192,7 @@ static void sdpa_decode_scalar(float* out, const float* q,
 }
 
 static inline void softmax_tile_scalar(float* P, const float* S,
-        float* m_vec, float* l_vec, int m, int n)
+        float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -201,6 +201,7 @@ static inline void softmax_tile_scalar(float* P, const float* S,
         float m_new = m_vec[i];
         for (int j = 0; j < n; j++) m_new = std::max(m_new, sptr[j]);
         float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
         l_vec[i] *= scale_factor;
         float l_add = 0.f;
         for (int j = 0; j < n; j++)
@@ -619,88 +620,52 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 16;
-    int i = 0;
-    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
     {
-        float* op[M_BLOCK];
-        const float* pptr[M_BLOCK];
-        for (int mi = 0; mi < M_BLOCK; mi++)
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            op[mi] = O + (i + mi) * d;
-            pptr[mi] = P + (i + mi) * n;
-        }
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
 
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             __m512 acc[M_BLOCK][VEC_PER_UNROLL];
             for (int mi = 0; mi < M_BLOCK; mi++)
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    acc[mi][vi] = _mm512_loadu_ps(op[mi] + dd + vi * 16);
+                    acc[mi][vi] = _mm512_loadu_ps(op[mi] + vi * 16);
 
             for (int j = 0; j < n; j++)
             {
-                __m512 pvec[M_BLOCK];
-                for (int mi = 0; mi < M_BLOCK; mi++)
-                    pvec[mi] = _mm512_set1_ps(pptr[mi][j]);
-
+                __m512 vvec[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm512_loadu_ps(V + j * d + dd + vi * 16);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
                 {
-                    __m512 vvec = _mm512_loadu_ps(V + j * d + dd + vi * 16);
-                    for (int mi = 0; mi < M_BLOCK; mi++)
-                        acc[mi][vi] = _mm512_fmadd_ps(pvec[mi], vvec, acc[mi][vi]);
+                    __m512 pvec = _mm512_set1_ps(pptr[mi][j]);
+                    for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                        acc[mi][vi] = _mm512_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
                 }
             }
 
             for (int mi = 0; mi < M_BLOCK; mi++)
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    _mm512_storeu_ps(op[mi] + dd + vi * 16, acc[mi][vi]);
+                    _mm512_storeu_ps(op[mi] + vi * 16, acc[mi][vi]);
         }
 
-        for (; dd + 15 < d; dd += 16)
+        for (; i < m; i++)
         {
-            __m512 acc[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-                acc[mi] = _mm512_loadu_ps(op[mi] + dd);
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
 
-            for (int j = 0; j < n; j++)
-            {
-                __m512 vvec = _mm512_loadu_ps(V + j * d + dd);
-                for (int mi = 0; mi < M_BLOCK; mi++)
-                    acc[mi] = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc[mi]);
-            }
-
-            for (int mi = 0; mi < M_BLOCK; mi++)
-                _mm512_storeu_ps(op[mi] + dd, acc[mi]);
-        }
-
-        if (dd < d)
-        {
-            __mmask16 mask = (__mmask16)((1u << (d - dd)) - 1);
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m512 acc = _mm512_maskz_loadu_ps(mask, op[mi] + dd);
-                for (int j = 0; j < n; j++)
-                {
-                    __m512 vvec = _mm512_maskz_loadu_ps(mask, V + j * d + dd);
-                    acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc);
-                }
-                _mm512_mask_storeu_ps(op[mi] + dd, mask, acc);
-            }
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        float* optr = O + i * d;
-        const float* pptr = P + i * n;
-
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             __m512 acc[VEC_PER_UNROLL];
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                acc[vi] = _mm512_loadu_ps(optr + dd + vi * 16);
+                acc[vi] = _mm512_loadu_ps(optr + vi * 16);
 
             for (int j = 0; j < n; j++)
             {
@@ -710,27 +675,73 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
             }
 
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                _mm512_storeu_ps(optr + dd + vi * 16, acc[vi]);
+                _mm512_storeu_ps(optr + vi * 16, acc[vi]);
         }
+    }
 
-        for (; dd + 15 < d; dd += 16)
+    for (; dd + 15 < d; dd += 16)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            __m512 acc = _mm512_loadu_ps(optr + dd);
-            for (int j = 0; j < n; j++)
-                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), _mm512_loadu_ps(V + j * d + dd), acc);
-            _mm512_storeu_ps(optr + dd, acc);
-        }
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
 
-        if (dd < d)
-        {
-            __mmask16 mask = (__mmask16)((1u << (d - dd)) - 1);
-            __m512 acc = _mm512_maskz_loadu_ps(mask, optr + dd);
+            __m512 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm512_loadu_ps(op[mi]);
+
             for (int j = 0; j < n; j++)
             {
-                __m512 vvec = _mm512_maskz_loadu_ps(mask, V + j * d + dd);
-                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), vvec, acc);
+                __m512 vvec = _mm512_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm512_fmadd_ps(_mm512_set1_ps(pptr[mi][j]), vvec, acc[mi]);
             }
-            _mm512_mask_storeu_ps(optr + dd, mask, acc);
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm512_storeu_ps(op[mi], acc[mi]);
+        }
+
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            __m512 acc = _mm512_loadu_ps(optr);
+            for (int j = 0; j < n; j++)
+                acc = _mm512_fmadd_ps(_mm512_set1_ps(pptr[j]), _mm512_loadu_ps(V + j * d + dd), acc);
+            _mm512_storeu_ps(optr, acc);
+        }
+    }
+
+    for (; dd < d; dd++)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+            for (int j = 0; j < n; j++)
+            {
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
+            }
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            for (int j = 0; j < n; j++)
+                optr[0] += pptr[j] * V[j * d + dd];
         }
     }
 }
@@ -894,7 +905,7 @@ static void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int 
 
 
 static inline void softmax_tile_avx512(float* P, const float* S,
-        float* m_vec, float* l_vec, int m, int n)
+        float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -914,6 +925,7 @@ static inline void softmax_tile_avx512(float* P, const float* S,
         float m_new = _mm512_comp_reduce_max_ps(vmax);
 
         float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
         l_vec[i] *= scale_factor;
 
         __m512 vm_new = _mm512_set1_ps(m_new);
@@ -1321,25 +1333,25 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 8;
-    int i = 0;
-    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
     {
-        float* op[M_BLOCK];
-        const float* pptr[M_BLOCK];
-        for (int mi = 0; mi < M_BLOCK; mi++)
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            op[mi] = O + (i + mi) * d;
-            pptr[mi] = P + (i + mi) * n;
-        }
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
 
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             for (int mi = 0; mi < M_BLOCK; mi++)
             {
                 __m256 acc[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    acc[vi] = _mm256_loadu_ps(op[mi] + dd + vi * 8);
+                    acc[vi] = _mm256_loadu_ps(op[mi] + vi * 8);
 
                 for (int j = 0; j < n; j++)
                 {
@@ -1349,44 +1361,18 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
                 }
 
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    _mm256_storeu_ps(op[mi] + dd + vi * 8, acc[vi]);
+                    _mm256_storeu_ps(op[mi] + vi * 8, acc[vi]);
             }
         }
 
-        for (; dd + 7 < d; dd += 8)
+        for (; i < m; i++)
         {
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m256 acc = _mm256_loadu_ps(op[mi] + dd);
-                for (int j = 0; j < n; j++)
-                    acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[mi][j]), _mm256_loadu_ps(V + j * d + dd), acc);
-                _mm256_storeu_ps(op[mi] + dd, acc);
-            }
-        }
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
 
-        for (; dd < d; dd++)
-        {
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                float acc = op[mi][dd];
-                for (int j = 0; j < n; j++)
-                    acc += pptr[mi][j] * V[j * d + dd];
-                op[mi][dd] = acc;
-            }
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        float* optr = O + i * d;
-        const float* pptr = P + i * n;
-
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             __m256 acc[VEC_PER_UNROLL];
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                acc[vi] = _mm256_loadu_ps(optr + dd + vi * 8);
+                acc[vi] = _mm256_loadu_ps(optr + vi * 8);
 
             for (int j = 0; j < n; j++)
             {
@@ -1396,23 +1382,67 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
             }
 
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                _mm256_storeu_ps(optr + dd + vi * 8, acc[vi]);
+                _mm256_storeu_ps(optr + vi * 8, acc[vi]);
+        }
+    }
+
+    for (; dd + 7 < d; dd += 8)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                __m256 acc = _mm256_loadu_ps(op[mi]);
+                for (int j = 0; j < n; j++)
+                    acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[mi][j]), _mm256_loadu_ps(V + j * d + dd), acc);
+                _mm256_storeu_ps(op[mi], acc);
+            }
         }
 
-        for (; dd + 7 < d; dd += 8)
+        for (; i < m; i++)
         {
-            __m256 acc = _mm256_loadu_ps(optr + dd);
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            __m256 acc = _mm256_loadu_ps(optr);
             for (int j = 0; j < n; j++)
                 acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[j]), _mm256_loadu_ps(V + j * d + dd), acc);
-            _mm256_storeu_ps(optr + dd, acc);
+            _mm256_storeu_ps(optr, acc);
         }
+    }
 
-        for (; dd < d; dd++)
+    for (; dd < d; dd++)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            float acc = optr[dd];
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
             for (int j = 0; j < n; j++)
-                acc += pptr[j] * V[j * d + dd];
-            optr[dd] = acc;
+            {
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
+            }
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            for (int j = 0; j < n; j++)
+                optr[0] += pptr[j] * V[j * d + dd];
         }
     }
 }
@@ -1474,7 +1504,7 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
 
 
 static inline void softmax_tile_avx(float* P, const float* S,
-        float* m_vec, float* l_vec, int m, int n)
+        float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -1490,6 +1520,7 @@ static inline void softmax_tile_avx(float* P, const float* S,
             m_new = std::max(m_new, sptr[j]);
 
         float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
         l_vec[i] *= scale_factor;
 
         __m256 vm_new = _mm256_set1_ps(m_new);
@@ -1787,25 +1818,25 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 4;
-    int i = 0;
-    for (; i + M_BLOCK <= m; i += M_BLOCK)
+    int dd = 0;
+    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
     {
-        float* op[M_BLOCK];
-        const float* pptr[M_BLOCK];
-        for (int mi = 0; mi < M_BLOCK; mi++)
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            op[mi] = O + (i + mi) * d;
-            pptr[mi] = P + (i + mi) * n;
-        }
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
 
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             for (int mi = 0; mi < M_BLOCK; mi++)
             {
                 __m128 acc[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    acc[vi] = _mm_loadu_ps(op[mi] + dd + vi * 4);
+                    acc[vi] = _mm_loadu_ps(op[mi] + vi * 4);
 
                 for (int j = 0; j < n; j++)
                 {
@@ -1815,44 +1846,18 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
                 }
 
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    _mm_storeu_ps(op[mi] + dd + vi * 4, acc[vi]);
+                    _mm_storeu_ps(op[mi] + vi * 4, acc[vi]);
             }
         }
 
-        for (; dd + 3 < d; dd += 4)
+        for (; i < m; i++)
         {
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m128 acc = _mm_loadu_ps(op[mi] + dd);
-                for (int j = 0; j < n; j++)
-                    acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[mi][j]), _mm_loadu_ps(V + j * d + dd), acc);
-                _mm_storeu_ps(op[mi] + dd, acc);
-            }
-        }
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
 
-        for (; dd < d; dd++)
-        {
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                float acc = op[mi][dd];
-                for (int j = 0; j < n; j++)
-                    acc += pptr[mi][j] * V[j * d + dd];
-                op[mi][dd] = acc;
-            }
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        float* optr = O + i * d;
-        const float* pptr = P + i * n;
-
-        int dd = 0;
-        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
-        {
             __m128 acc[VEC_PER_UNROLL];
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                acc[vi] = _mm_loadu_ps(optr + dd + vi * 4);
+                acc[vi] = _mm_loadu_ps(optr + vi * 4);
 
             for (int j = 0; j < n; j++)
             {
@@ -1862,23 +1867,67 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
             }
 
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                _mm_storeu_ps(optr + dd + vi * 4, acc[vi]);
+                _mm_storeu_ps(optr + vi * 4, acc[vi]);
+        }
+    }
+
+    for (; dd + 3 < d; dd += 4)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        {
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                __m128 acc = _mm_loadu_ps(op[mi]);
+                for (int j = 0; j < n; j++)
+                    acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[mi][j]), _mm_loadu_ps(V + j * d + dd), acc);
+                _mm_storeu_ps(op[mi], acc);
+            }
         }
 
-        for (; dd + 3 < d; dd += 4)
+        for (; i < m; i++)
         {
-            __m128 acc = _mm_loadu_ps(optr + dd);
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            __m128 acc = _mm_loadu_ps(optr);
             for (int j = 0; j < n; j++)
                 acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[j]), _mm_loadu_ps(V + j * d + dd), acc);
-            _mm_storeu_ps(optr + dd, acc);
+            _mm_storeu_ps(optr, acc);
         }
+    }
 
-        for (; dd < d; dd++)
+    for (; dd < d; dd++)
+    {
+        int i = 0;
+        for (; i + M_BLOCK <= m; i += M_BLOCK)
         {
-            float acc = optr[dd];
+            float* op[M_BLOCK];
+            const float* pptr[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                op[mi] = O + (i + mi) * d + dd;
+                pptr[mi] = P + (i + mi) * n;
+            }
             for (int j = 0; j < n; j++)
-                acc += pptr[j] * V[j * d + dd];
-            optr[dd] = acc;
+            {
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
+            }
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            const float* pptr = P + i * n;
+            for (int j = 0; j < n; j++)
+                optr[0] += pptr[j] * V[j * d + dd];
         }
     }
 }
@@ -1940,7 +1989,7 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
 
 
 static inline void softmax_tile_sse2(float* P, const float* S,
-        float* m_vec, float* l_vec, int m, int n)
+        float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -1956,6 +2005,7 @@ static inline void softmax_tile_sse2(float* P, const float* S,
             m_new = std::max(m_new, sptr[j]);
 
         float scale_factor = expf(m_vec[i] - m_new);
+        scale_out[i] = scale_factor;
         l_vec[i] *= scale_factor;
 
         __m128 vm_new = _mm_set1_ps(m_new);
@@ -2160,52 +2210,12 @@ static inline void qk_gemm_dispatch(float* S, const float* Q, const float* K,
 static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         int m, int n, int d)
 {
-    if (d == 128)
-    {
 #if __AVX512F__
-        pv_gemm_avx512<2, 128>(O, P, V, m, n);
-        return;
+    pv_gemm_avx512<4, 64>(O, P, V, m, n, d);
 #elif __AVX__
-        pv_gemm_avx<2, 128>(O, P, V, m, n);
-        return;
+    pv_gemm_avx<4, 32>(O, P, V, m, n, d);
 #elif __SSE2__
-        pv_gemm_sse2<4, 128>(O, P, V, m, n);
-        return;
-#endif
-    }
-    if (d == 64)
-    {
-#if __AVX512F__
-        pv_gemm_avx512<2, 64>(O, P, V, m, n);
-        return;
-#elif __AVX__
-        pv_gemm_avx<2, 64>(O, P, V, m, n);
-        return;
-#elif __SSE2__
-        pv_gemm_sse2<4, 64>(O, P, V, m, n);
-        return;
-#endif
-    }
-    if (d == 512)
-    {
-#if __AVX512F__
-        pv_gemm_avx512<2, 512>(O, P, V, m, n);
-        return;
-#elif __AVX__
-        pv_gemm_avx<2, 512>(O, P, V, m, n);
-        return;
-#elif __SSE2__
-        pv_gemm_sse2<4, 512>(O, P, V, m, n);
-        return;
-#endif
-    }
-
-#if __AVX512F__
-    pv_gemm_avx512<2, 128>(O, P, V, m, n, d);
-#elif __AVX__
-    pv_gemm_avx<2, 32>(O, P, V, m, n, d);
-#elif __SSE2__
-    pv_gemm_sse2<4, 4>(O, P, V, m, n, d);
+    pv_gemm_sse2<4, 16>(O, P, V, m, n, d);
 #else
     pv_gemm_scalar(O, P, V, m, n, d);
 #endif
@@ -2238,16 +2248,16 @@ static inline void vec_zero_dispatch(float* x, int n)
 }
 
 static inline void softmax_tile_dispatch(float* P, const float* S,
-        float* m_vec, float* l_vec, int m, int n)
+        float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
 #if __AVX512F__
-    softmax_tile_avx512(P, S, m_vec, l_vec, m, n);
+    softmax_tile_avx512(P, S, m_vec, l_vec, scale_out, m, n);
 #elif __AVX__
-    softmax_tile_avx(P, S, m_vec, l_vec, m, n);
+    softmax_tile_avx(P, S, m_vec, l_vec, scale_out, m, n);
 #elif __SSE2__
-    softmax_tile_sse2(P, S, m_vec, l_vec, m, n);
+    softmax_tile_sse2(P, S, m_vec, l_vec, scale_out, m, n);
 #else
-    softmax_tile_scalar(P, S, m_vec, l_vec, m, n);
+    softmax_tile_scalar(P, S, m_vec, l_vec, scale_out, m, n);
 #endif
 }
 
@@ -2600,8 +2610,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return 0;
     }
 
-    Mat s_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
-    Mat p_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat s_vec(BLOCK_N * BLOCK_M, num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat p_vec(BLOCK_N * BLOCK_M, num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
 
     if (s_vec.empty() || p_vec.empty())
         return -100;
@@ -2626,8 +2636,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const Mat key_head = key.channel(g);
         const Mat value_head = value.channel(g);
 
-        float* s_vec_ptr = s_vec.channel(get_omp_thread_num()).row(0);
-        float* p_vec_ptr = p_vec.channel(get_omp_thread_num()).row(0);
+        Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
+        Mat p_vec_thread = p_vec.channel(get_omp_thread_num());
 
         Mat m_state_tile = m_state.channel(idx);
         Mat l_state_tile = l_state.channel(idx);
@@ -2658,32 +2668,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
             int block_n = n_end - n_start;
 
-            // Process one Q head at a time with a single-head scratch buffer,
-            // keeping K/V tile resident in cache across hq iterations.
+            // Phase A: All heads compute QK GEMM while K tile is hot in cache
             for (int hq = 0; hq < num_heads_per_group; hq++)
             {
                 int q = g * num_heads_per_group + hq;
                 const Mat query_head = query.channel(q);
-                Mat top_blob_head = top_blob.channel(q);
+                float* s_ptr = s_vec_thread.row(hq);
 
-                float* m_vec = m_state_tile.row(hq);
-                float* l_vec = l_state_tile.row(hq);
-
-                Mat mask_head;
-                if (attn_mask)
-                {
-                    const Mat& maskm = attn_mask_blob;
-                    if (maskm.dims == 3)
-                    {
-                        mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
-                    }
-                    else
-                    {
-                        mask_head = maskm;
-                    }
-                }
-
-                qk_gemm_dispatch(s_vec_ptr,
+                qk_gemm_dispatch(s_ptr,
                                  query_head.row(m_start),
                                  key_head.row(n_start),
                                  block_m, block_n, embed_dim, _scale);
@@ -2691,10 +2683,22 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 // Apply attention mask
                 if (attn_mask)
                 {
+                    Mat mask_head;
+                    {
+                        const Mat& maskm = attn_mask_blob;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                    }
                     for (int i = 0; i < block_m; i++)
                     {
                         const float* mptr = mask_head.row(m_start + i) + n_start;
-                        float* sptr = s_vec_ptr + i * block_n;
+                        float* sptr = s_ptr + i * block_n;
                         int j = 0;
 #if __AVX512F__
                         for (; j + 15 < block_n; j += 16)
@@ -2726,25 +2730,37 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         }
                     }
                 }
+            }
+
+            // Phase B: Each head does softmax + O rescale + PV GEMM
+            for (int hq = 0; hq < num_heads_per_group; hq++)
+            {
+                int q = g * num_heads_per_group + hq;
+                Mat top_blob_head = top_blob.channel(q);
+
+                float* m_vec = m_state_tile.row(hq);
+                float* l_vec = l_state_tile.row(hq);
+                float* s_ptr = s_vec_thread.row(hq);
+                float* p_ptr = p_vec_thread.row(hq);
 
                 float m_old[BLOCK_M];
+                float scale_factors[BLOCK_M];
                 for (int i = 0; i < block_m; i++)
                 {
                     m_old[i] = m_vec[i];
                 }
-                softmax_tile_dispatch(p_vec_ptr, s_vec_ptr, m_vec, l_vec, block_m, block_n);
+                softmax_tile_dispatch(p_ptr, s_ptr, m_vec, l_vec, scale_factors, block_m, block_n);
 
                 // Rescale O accumulator when max increases
                 for (int i = 0; i < block_m; i++)
                 {
                     if (m_old[i] != m_vec[i])
                     {
-                        float scale_factor = expf(m_old[i] - m_vec[i]);
-                        vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factor, out_embed_dim);
+                        vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factors[i], out_embed_dim);
                     }
                 }
 
-                pv_gemm_dispatch(top_blob_head.row(m_start), p_vec_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
+                pv_gemm_dispatch(top_blob_head.row(m_start), p_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
             }
         }
 
