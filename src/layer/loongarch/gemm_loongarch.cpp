@@ -3831,9 +3831,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if __loongarch_sx
     for (; ii + 7 < max_ii; ii += 8)
     {
-
         const float* pB = pBT;
-
 
         int jj = 0;
 #if __loongarch_asx
@@ -3859,7 +3857,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _sum5 = (__m256)__lasx_xvreplgr2vr_w(0);
                     _sum6 = (__m256)__lasx_xvreplgr2vr_w(0);
                     _sum7 = (__m256)__lasx_xvreplgr2vr_w(0);
-
                 }
                 else
                 {
@@ -3921,7 +3918,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
                     _sum2 = (__m256)__lasx_xvreplgr2vr_w(0);
                     _sum3 = (__m256)__lasx_xvreplgr2vr_w(0);
-
                 }
                 else
                 {
@@ -3964,7 +3960,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 {
                     _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
                     _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
-
                 }
                 else
                 {
@@ -3997,7 +3992,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 if (k == 0)
                 {
                     _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
-
                 }
                 else
                 {
@@ -4059,7 +4053,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum61 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum70 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum71 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4081,7 +4074,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum71 = (__m128)__lsx_vld(outptr + 60, 0);
             }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -4133,8 +4126,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 64;
                 continue;
-                }
-
+            }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
@@ -4172,23 +4164,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 8;
             }
 
-                __lsx_vst((__m128i)_sum00, outptr, 0);
-                __lsx_vst((__m128i)_sum01, outptr + 4, 0);
-                __lsx_vst((__m128i)_sum10, outptr + 8, 0);
-                __lsx_vst((__m128i)_sum11, outptr + 12, 0);
-                __lsx_vst((__m128i)_sum20, outptr + 16, 0);
-                __lsx_vst((__m128i)_sum21, outptr + 20, 0);
-                __lsx_vst((__m128i)_sum30, outptr + 24, 0);
-                __lsx_vst((__m128i)_sum31, outptr + 28, 0);
-                __lsx_vst((__m128i)_sum40, outptr + 32, 0);
-                __lsx_vst((__m128i)_sum41, outptr + 36, 0);
-                __lsx_vst((__m128i)_sum50, outptr + 40, 0);
-                __lsx_vst((__m128i)_sum51, outptr + 44, 0);
-                __lsx_vst((__m128i)_sum60, outptr + 48, 0);
-                __lsx_vst((__m128i)_sum61, outptr + 52, 0);
-                __lsx_vst((__m128i)_sum70, outptr + 56, 0);
-                __lsx_vst((__m128i)_sum71, outptr + 60, 0);
-
+            __lsx_vst((__m128i)_sum00, outptr, 0);
+            __lsx_vst((__m128i)_sum01, outptr + 4, 0);
+            __lsx_vst((__m128i)_sum10, outptr + 8, 0);
+            __lsx_vst((__m128i)_sum11, outptr + 12, 0);
+            __lsx_vst((__m128i)_sum20, outptr + 16, 0);
+            __lsx_vst((__m128i)_sum21, outptr + 20, 0);
+            __lsx_vst((__m128i)_sum30, outptr + 24, 0);
+            __lsx_vst((__m128i)_sum31, outptr + 28, 0);
+            __lsx_vst((__m128i)_sum40, outptr + 32, 0);
+            __lsx_vst((__m128i)_sum41, outptr + 36, 0);
+            __lsx_vst((__m128i)_sum50, outptr + 40, 0);
+            __lsx_vst((__m128i)_sum51, outptr + 44, 0);
+            __lsx_vst((__m128i)_sum60, outptr + 48, 0);
+            __lsx_vst((__m128i)_sum61, outptr + 52, 0);
+            __lsx_vst((__m128i)_sum70, outptr + 56, 0);
+            __lsx_vst((__m128i)_sum71, outptr + 60, 0);
 
             outptr += 64;
         }
@@ -4213,7 +4204,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum21 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum30 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum31 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4227,7 +4217,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum31 = (__m128)__lsx_vld(outptr + 28, 0);
             }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -4261,8 +4251,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 32;
                 continue;
-                }
-
+            }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
@@ -4281,15 +4270,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 4;
             }
 
-                __lsx_vst((__m128i)_sum00, outptr, 0);
-                __lsx_vst((__m128i)_sum01, outptr + 4, 0);
-                __lsx_vst((__m128i)_sum10, outptr + 8, 0);
-                __lsx_vst((__m128i)_sum11, outptr + 12, 0);
-                __lsx_vst((__m128i)_sum20, outptr + 16, 0);
-                __lsx_vst((__m128i)_sum21, outptr + 20, 0);
-                __lsx_vst((__m128i)_sum30, outptr + 24, 0);
-                __lsx_vst((__m128i)_sum31, outptr + 28, 0);
-
+            __lsx_vst((__m128i)_sum00, outptr, 0);
+            __lsx_vst((__m128i)_sum01, outptr + 4, 0);
+            __lsx_vst((__m128i)_sum10, outptr + 8, 0);
+            __lsx_vst((__m128i)_sum11, outptr + 12, 0);
+            __lsx_vst((__m128i)_sum20, outptr + 16, 0);
+            __lsx_vst((__m128i)_sum21, outptr + 20, 0);
+            __lsx_vst((__m128i)_sum30, outptr + 24, 0);
+            __lsx_vst((__m128i)_sum31, outptr + 28, 0);
 
             outptr += 32;
         }
@@ -4307,7 +4295,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum01 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum10 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum11 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4317,7 +4304,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum11 = (__m128)__lsx_vld(outptr + 12, 0);
             }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -4341,8 +4328,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 16;
                 continue;
-                }
-
+            }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
@@ -4357,11 +4343,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 2;
             }
 
-                __lsx_vst((__m128i)_sum00, outptr, 0);
-                __lsx_vst((__m128i)_sum01, outptr + 4, 0);
-                __lsx_vst((__m128i)_sum10, outptr + 8, 0);
-                __lsx_vst((__m128i)_sum11, outptr + 12, 0);
-
+            __lsx_vst((__m128i)_sum00, outptr, 0);
+            __lsx_vst((__m128i)_sum01, outptr + 4, 0);
+            __lsx_vst((__m128i)_sum10, outptr + 8, 0);
+            __lsx_vst((__m128i)_sum11, outptr + 12, 0);
 
             outptr += 16;
         }
@@ -4375,7 +4360,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 _sum00 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum01 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4394,9 +4378,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 1;
             }
 
-                __lsx_vst((__m128i)_sum00, outptr, 0);
-                __lsx_vst((__m128i)_sum01, outptr + 4, 0);
-
+            __lsx_vst((__m128i)_sum00, outptr, 0);
+            __lsx_vst((__m128i)_sum01, outptr + 4, 0);
 
             outptr += 8;
         }
@@ -4405,9 +4388,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-
         const float* pB = pBT;
-
 
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
@@ -4431,7 +4412,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum5 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum6 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum7 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4445,7 +4425,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum7 = (__m128)__lsx_vld(outptr + 28, 0);
             }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -4479,8 +4459,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 32;
                 continue;
-                }
-
+            }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
@@ -4498,15 +4477,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 8;
             }
 
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-                __lsx_vst((__m128i)_sum2, outptr + 8, 0);
-                __lsx_vst((__m128i)_sum3, outptr + 12, 0);
-                __lsx_vst((__m128i)_sum4, outptr + 16, 0);
-                __lsx_vst((__m128i)_sum5, outptr + 20, 0);
-                __lsx_vst((__m128i)_sum6, outptr + 24, 0);
-                __lsx_vst((__m128i)_sum7, outptr + 28, 0);
-
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+            __lsx_vst((__m128i)_sum1, outptr + 4, 0);
+            __lsx_vst((__m128i)_sum2, outptr + 8, 0);
+            __lsx_vst((__m128i)_sum3, outptr + 12, 0);
+            __lsx_vst((__m128i)_sum4, outptr + 16, 0);
+            __lsx_vst((__m128i)_sum5, outptr + 20, 0);
+            __lsx_vst((__m128i)_sum6, outptr + 24, 0);
+            __lsx_vst((__m128i)_sum7, outptr + 28, 0);
 
             outptr += 32;
         }
@@ -4523,7 +4501,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4533,7 +4510,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum3 = (__m128)__lsx_vld(outptr + 12, 0);
             }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -4557,8 +4534,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 16;
                 continue;
-                }
-
+            }
 
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
@@ -4572,11 +4548,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 4;
             }
 
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-                __lsx_vst((__m128i)_sum2, outptr + 8, 0);
-                __lsx_vst((__m128i)_sum3, outptr + 12, 0);
-
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+            __lsx_vst((__m128i)_sum1, outptr + 4, 0);
+            __lsx_vst((__m128i)_sum2, outptr + 8, 0);
+            __lsx_vst((__m128i)_sum3, outptr + 12, 0);
 
             outptr += 16;
         }
@@ -4600,26 +4575,25 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
 
                 {
-                const float* pA = pAT;
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    __m128 _pA = (__m128)__lsx_vld(pA, 0);
-                    __m128 _pB = (__m128)__lsx_vldrepl_d(pB, 0);
-                    __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
+                    const float* pA = pAT;
+                    for (int kk = 0; kk < max_kk; kk++)
+                    {
+                        __m128 _pA = (__m128)__lsx_vld(pA, 0);
+                        __m128 _pB = (__m128)__lsx_vldrepl_d(pB, 0);
+                        __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
-                    _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
-                    _sum1 = __lsx_vfmadd_s(_pA, _pB1, _sum1);
-                    pA += 4;
-                    pB += 2;
+                        _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
+                        _sum1 = __lsx_vfmadd_s(_pA, _pB1, _sum1);
+                        pA += 4;
+                        pB += 2;
+                    }
+
+                    __lsx_vst((__m128i)_sum0, outptr, 0);
+                    __lsx_vst((__m128i)_sum1, outptr + 4, 0);
+
+                    outptr += 8;
+                    continue;
                 }
-
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-
-                outptr += 8;
-                continue;
-                }
-
             }
 #endif // __loongarch_sx
             __m128 _sum0;
@@ -4629,7 +4603,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4647,9 +4620,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 2;
             }
 
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+            __lsx_vst((__m128i)_sum1, outptr + 4, 0);
 
             outptr += 8;
         }
@@ -4661,7 +4633,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             if (k == 0)
             {
                 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4677,8 +4648,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 1;
             }
 
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-
+            __lsx_vst((__m128i)_sum0, outptr, 0);
 
             outptr += 4;
         }
@@ -4689,35 +4659,33 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
     for (; ii + 1 < max_ii; ii += 2)
     {
-
         const float* pB = pBT;
-
 
         int jj = 0;
 #if __loongarch_sx
         for (; jj + 7 < max_jj; jj += 8)
         {
-                __m128 _sum0;
-                __m128 _sum1;
-                __m128 _sum2;
-                __m128 _sum3;
+            __m128 _sum0;
+            __m128 _sum1;
+            __m128 _sum2;
+            __m128 _sum3;
 
-                if (k == 0)
-                {
-                    _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
-                }
-                else
-                {
-                    _sum0 = (__m128)__lsx_vld(outptr, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
-                    _sum2 = (__m128)__lsx_vld(outptr + 8, 0);
-                    _sum3 = (__m128)__lsx_vld(outptr + 12, 0);
-                }
+            if (k == 0)
+            {
+                _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m128)__lsx_vld(outptr, 0);
+                _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
+                _sum2 = (__m128)__lsx_vld(outptr + 8, 0);
+                _sum3 = (__m128)__lsx_vld(outptr + 12, 0);
+            }
 
-                {
+            {
                 const float* pA = pAT;
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
@@ -4780,8 +4748,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 16;
                 continue;
-                }
-
+            }
 
             __m128 _sum00;
             __m128 _sum01;
@@ -4794,7 +4761,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 _sum01 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum10 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum11 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -4825,15 +4791,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 8;
             }
 
-                __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum10, (__m128i)_sum00);
-                __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum10, (__m128i)_sum00);
-                __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum11, (__m128i)_sum01);
-                __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum11, (__m128i)_sum01);
-                __lsx_vst((__m128i)_tmp0, outptr, 0);
-                __lsx_vst((__m128i)_tmp1, outptr + 4, 0);
-                __lsx_vst((__m128i)_tmp2, outptr + 8, 0);
-                __lsx_vst((__m128i)_tmp3, outptr + 12, 0);
-
+            __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum10, (__m128i)_sum00);
+            __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum10, (__m128i)_sum00);
+            __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum11, (__m128i)_sum01);
+            __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum11, (__m128i)_sum01);
+            __lsx_vst((__m128i)_tmp0, outptr, 0);
+            __lsx_vst((__m128i)_tmp1, outptr + 4, 0);
+            __lsx_vst((__m128i)_tmp2, outptr + 8, 0);
+            __lsx_vst((__m128i)_tmp3, outptr + 12, 0);
 
             outptr += 16;
         }
@@ -4841,21 +4806,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
         for (; jj + 3 < max_jj; jj += 4)
         {
 #if __loongarch_sx
-                __m128 _sum0;
-                __m128 _sum1;
+            __m128 _sum0;
+            __m128 _sum1;
 
-                if (k == 0)
-                {
-                    _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
-                }
-                else
-                {
-                    _sum0 = (__m128)__lsx_vld(outptr, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
-                }
+            if (k == 0)
+            {
+                _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m128)__lsx_vld(outptr, 0);
+                _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
+            }
 
-                {
+            {
                 const float* pA = pAT;
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
@@ -4898,7 +4863,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 8;
                 continue;
-                }
+            }
 
 #endif // __loongarch_sx
             float sum00;
@@ -4920,7 +4885,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 sum21 = 0.f;
                 sum30 = 0.f;
                 sum31 = 0.f;
-
             }
             else
             {
@@ -4951,15 +4915,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 4;
             }
 
-                outptr[0] = sum00;
-                outptr[1] = sum01;
-                outptr[2] = sum10;
-                outptr[3] = sum11;
-                outptr[4] = sum20;
-                outptr[5] = sum21;
-                outptr[6] = sum30;
-                outptr[7] = sum31;
-
+            outptr[0] = sum00;
+            outptr[1] = sum01;
+            outptr[2] = sum10;
+            outptr[3] = sum11;
+            outptr[4] = sum20;
+            outptr[5] = sum21;
+            outptr[6] = sum30;
+            outptr[7] = sum31;
 
             outptr += 8;
         }
@@ -4977,7 +4940,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 sum01 = 0.f;
                 sum10 = 0.f;
                 sum11 = 0.f;
-
             }
             else
             {
@@ -5000,11 +4962,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 2;
             }
 
-                outptr[0] = sum00;
-                outptr[1] = sum01;
-                outptr[2] = sum10;
-                outptr[3] = sum11;
-
+            outptr[0] = sum00;
+            outptr[1] = sum01;
+            outptr[2] = sum10;
+            outptr[3] = sum11;
 
             outptr += 4;
         }
@@ -5018,7 +4979,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 sum0 = 0.f;
                 sum1 = 0.f;
-
             }
             else
             {
@@ -5037,9 +4997,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 1;
             }
 
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-
+            outptr[0] = sum0;
+            outptr[1] = sum1;
 
             outptr += 2;
         }
@@ -5049,9 +5008,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
     for (; ii < max_ii; ii += 1)
     {
-
         const float* pB = pBT;
-
 
         int jj = 0;
 #if __loongarch_asx
@@ -5062,7 +5019,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             if (k == 0)
             {
                 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
-
             }
             else
             {
@@ -5078,8 +5034,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 8;
             }
 
-                __lasx_xvst(_sum0, outptr, 0);
-
+            __lasx_xvst(_sum0, outptr, 0);
 
             outptr += 8;
         }
@@ -5094,7 +5049,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
                 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
-
             }
             else
             {
@@ -5114,9 +5068,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 8;
             }
 
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+            __lsx_vst((__m128i)_sum1, outptr + 4, 0);
 
             outptr += 8;
         }
@@ -5124,18 +5077,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
         for (; jj + 3 < max_jj; jj += 4)
         {
 #if __loongarch_sx
-                __m128 _sum0;
+            __m128 _sum0;
 
-                if (k == 0)
-                {
-                    _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-                }
-                else
-                {
-                    _sum0 = (__m128)__lsx_vld(outptr, 0);
-                }
+            if (k == 0)
+            {
+                _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m128)__lsx_vld(outptr, 0);
+            }
 
-                {
+            {
                 const float* pA = pAT;
                 for (int kk = 0; kk < max_kk; kk++)
                 {
@@ -5150,7 +5103,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 outptr += 4;
                 continue;
-                }
+            }
 
 #endif // __loongarch_sx
             float sum0;
@@ -5164,7 +5117,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 sum1 = 0.f;
                 sum2 = 0.f;
                 sum3 = 0.f;
-
             }
             else
             {
@@ -5186,11 +5138,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 4;
             }
 
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-                outptr[2] = sum2;
-                outptr[3] = sum3;
-
+            outptr[0] = sum0;
+            outptr[1] = sum1;
+            outptr[2] = sum2;
+            outptr[3] = sum3;
 
             outptr += 4;
         }
@@ -5204,7 +5155,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 sum0 = 0.f;
                 sum1 = 0.f;
-
             }
             else
             {
@@ -5222,9 +5172,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 2;
             }
 
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-
+            outptr[0] = sum0;
+            outptr[1] = sum1;
 
             outptr += 2;
         }
@@ -5236,7 +5185,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             if (k == 0)
             {
                 sum0 = 0.f;
-
             }
             else
             {
@@ -5251,8 +5199,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 pB += 1;
             }
 
-                outptr[0] = sum0;
-
+            outptr[0] = sum0;
 
             outptr += 1;
         }
