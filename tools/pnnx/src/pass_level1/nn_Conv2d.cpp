@@ -6,6 +6,27 @@
 
 namespace pnnx {
 
+static void normalize_conv2d_padding(Parameter& padding_param)
+{
+    std::vector<int>& padding = padding_param.ai;
+    if (padding.size() != 4)
+        return;
+
+    // aten::pad uses (left, right, top, bottom), while nn.Conv2d
+    // stores padding as (top/bottom, left/right).
+    if (padding[0] == padding[1] && padding[2] == padding[3])
+    {
+        padding = {padding[2], padding[0]};
+        return;
+    }
+
+    if (padding[0] == padding[2] && padding[1] == padding[3] && padding[0] != padding[1])
+    {
+        padding.resize(0);
+        padding_param.s = "same";
+    }
+}
+
 class Conv2d : public FuseModulePass
 {
 public:
@@ -53,58 +74,19 @@ public:
         {
             op->params["padding_mode"] = pad->namedInput("mode");
             op->params["padding"] = pad->namedInput("pad");
-            std::vector<int>& padding = op->params["padding"].ai;
-            if (padding.size() == 4)
-            {
-                // Conv2d only accepts tuple of two integers
-                if (padding[0] == padding[1] && padding[1] == padding[2] && padding[2] == padding[3])
-                {
-                    padding.resize(2);
-                }
-                else if (padding[0] == padding[2] && padding[1] == padding[3] && padding[0] != padding[1])
-                {
-                    padding.resize(0);
-                    op->params["padding"].s = "same";
-                }
-            }
+            normalize_conv2d_padding(op->params["padding"]);
         }
         else if (reflection_pad2d)
         {
             op->params["padding_mode"] = "reflect";
             op->params["padding"] = reflection_pad2d->namedInput("padding");
-            std::vector<int>& padding = op->params["padding"].ai;
-            if (padding.size() == 4)
-            {
-                // Conv2d only accepts tuple of two integers
-                if (padding[0] == padding[1] && padding[1] == padding[2] && padding[2] == padding[3])
-                {
-                    padding.resize(2);
-                }
-                else if (padding[0] == padding[2] && padding[1] == padding[3] && padding[0] != padding[1])
-                {
-                    padding.resize(0);
-                    op->params["padding"].s = "same";
-                }
-            }
+            normalize_conv2d_padding(op->params["padding"]);
         }
         else if (replication_pad2d)
         {
             op->params["padding_mode"] = "replicate";
             op->params["padding"] = replication_pad2d->namedInput("padding");
-            std::vector<int>& padding = op->params["padding"].ai;
-            if (padding.size() == 4)
-            {
-                // Conv2d only accepts tuple of two integers
-                if (padding[0] == padding[1] && padding[1] == padding[2] && padding[2] == padding[3])
-                {
-                    padding.resize(2);
-                }
-                else if (padding[0] == padding[2] && padding[1] == padding[3] && padding[0] != padding[1])
-                {
-                    padding.resize(0);
-                    op->params["padding"].s = "same";
-                }
-            }
+            normalize_conv2d_padding(op->params["padding"]);
         }
         else
         {
