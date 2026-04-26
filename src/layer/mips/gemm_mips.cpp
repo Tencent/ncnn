@@ -849,8 +849,8 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         }
         else
         {
-            p0 = (unsigned short*)top_blob + (i + ii) / out_elempack * out_hstep * out_elempack + j * out_elempack;
-            p0f = (float*)top_blob + (i + ii) / out_elempack * out_hstep * out_elempack + j * out_elempack;
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
 
         const float* pC0 = pC;
@@ -1939,8 +1939,8 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         }
         else
         {
-            p0 = (unsigned short*)top_blob + (i + ii) / out_elempack * out_hstep * out_elempack + j * out_elempack;
-            p0f = (float*)top_blob + (i + ii) / out_elempack * out_hstep * out_elempack + j * out_elempack;
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
         }
 
         const float* pC0 = pC;
@@ -2632,6 +2632,19 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
+        unsigned short* p0;
+        float* p0f;
+        if (output_transpose)
+        {
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+            p0f = (float*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        }
+        else
+        {
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+        }
+
         const float* pC0 = pC;
         if (pC0)
         {
@@ -2642,72 +2655,183 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         }
 
         int jj = 0;
-        for (; jj < max_jj; jj++)
+        if (output_elemtype == 1)
         {
-            // topT layout: jj-major, 2 floats per jj (ii0, ii1)
-            float sum0 = pp[0];
-            float sum1 = pp[1];
-            pp += 2;
-
-            if (pC0)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    sum0 += pC0[0] * beta;
-                    sum1 += pC0[0] * beta;
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum0 += pC0[0] * beta;
-                    sum1 += pC0[1] * beta;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum0 += pC0[0] * beta;
-                    sum1 += pC0[1] * beta;
-                    pC0 += 2;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum0 += pC0[0] * beta;
-                    sum1 += pC0[0] * beta;
-                    pC0 += 1;
-                }
-            }
-
-            sum0 *= alpha;
-            sum1 *= alpha;
-
             if (output_transpose)
             {
-                if (output_elemtype == 1)
+                for (; jj < max_jj; jj += out_elempack)
                 {
-                    int col = j + jj;
-                    size_t offset0 = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)(i + ii) * out_elempack + col % out_elempack;
-                    size_t offset1 = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)(i + ii + 1) * out_elempack + col % out_elempack;
-                    ((float*)top_blob)[offset0] = sum0;
-                    ((float*)top_blob)[offset1] = sum1;
-                }
-                else
-                {
-                    int col = j + jj;
-                    size_t offset0 = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)(i + ii) * out_elempack + col % out_elempack;
-                    size_t offset1 = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)(i + ii + 1) * out_elempack + col % out_elempack;
-                    ((unsigned short*)top_blob)[offset0] = float32_to_bfloat16(sum0);
-                    ((unsigned short*)top_blob)[offset1] = float32_to_bfloat16(sum1);
+                    for (int q = 0; q < out_elempack; q++)
+                    {
+                        float sum0 = pp[0];
+                        float sum1 = pp[1];
+                        pp += 2;
+
+                        if (pC0)
+                        {
+                            if (broadcast_type_C == 0)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[1] * beta;
+                            }
+                            if (broadcast_type_C == 3)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[1] * beta;
+                                pC0 += 2;
+                            }
+                            if (broadcast_type_C == 4)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                        }
+
+                        sum0 *= alpha;
+                        sum1 *= alpha;
+
+                        p0f[q] = sum0;
+                        p0f[q + out_elempack] = sum1;
+                    }
+                    p0f += out_hstep * out_elempack;
                 }
             }
             else
             {
-                if (output_elemtype == 1)
+                for (; jj < max_jj; jj++)
                 {
-                    ((float*)top_blob)[(i + ii) * out_hstep + (j + jj)] = sum0;
-                    ((float*)top_blob)[(i + ii + 1) * out_hstep + (j + jj)] = sum1;
+                    float sum0 = pp[0];
+                    float sum1 = pp[1];
+                    pp += 2;
+
+                    if (pC0)
+                    {
+                        if (broadcast_type_C == 0)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[1] * beta;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[1] * beta;
+                            pC0 += 2;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                    }
+
+                    sum0 *= alpha;
+                    sum1 *= alpha;
+
+                    p0f[0] = sum0;
+                    p0f[out_hstep] = sum1;
+                    p0f++;
                 }
-                else
+            }
+        }
+        else
+        {
+            if (output_transpose)
+            {
+                for (; jj < max_jj; jj += out_elempack)
                 {
-                    ((unsigned short*)top_blob)[(i + ii) * out_hstep + (j + jj)] = float32_to_bfloat16(sum0);
-                    ((unsigned short*)top_blob)[(i + ii + 1) * out_hstep + (j + jj)] = float32_to_bfloat16(sum1);
+                    for (int q = 0; q < out_elempack; q++)
+                    {
+                        float sum0 = pp[0];
+                        float sum1 = pp[1];
+                        pp += 2;
+
+                        if (pC0)
+                        {
+                            if (broadcast_type_C == 0)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[1] * beta;
+                            }
+                            if (broadcast_type_C == 3)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[1] * beta;
+                                pC0 += 2;
+                            }
+                            if (broadcast_type_C == 4)
+                            {
+                                sum0 += pC0[0] * beta;
+                                sum1 += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                        }
+
+                        sum0 *= alpha;
+                        sum1 *= alpha;
+
+                        p0[q] = float32_to_bfloat16(sum0);
+                        p0[q + out_elempack] = float32_to_bfloat16(sum1);
+                    }
+                    p0 += out_hstep * out_elempack;
+                }
+            }
+            else
+            {
+                for (; jj < max_jj; jj++)
+                {
+                    float sum0 = pp[0];
+                    float sum1 = pp[1];
+                    pp += 2;
+
+                    if (pC0)
+                    {
+                        if (broadcast_type_C == 0)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[1] * beta;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[1] * beta;
+                            pC0 += 2;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            sum0 += pC0[0] * beta;
+                            sum1 += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                    }
+
+                    sum0 *= alpha;
+                    sum1 *= alpha;
+
+                    p0[0] = float32_to_bfloat16(sum0);
+                    p0[out_hstep] = float32_to_bfloat16(sum1);
+                    p0++;
                 }
             }
         }
@@ -2716,6 +2840,19 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
     }
     for (; ii < max_ii; ii++)
     {
+        unsigned short* p0;
+        float* p0f;
+        if (output_transpose)
+        {
+            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+            p0f = (float*)top_blob + j * out_hstep + (i + ii) * out_elempack;
+        }
+        else
+        {
+            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+        }
+
         const float* pC0 = pC;
         if (pC0)
         {
@@ -2726,51 +2863,156 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         }
 
         int jj = 0;
-        for (; jj < max_jj; jj++)
+        if (output_elemtype == 1)
         {
-            float sum = pp[0];
-            pp += 1;
-
-            if (pC0)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    sum += pC0[0] * beta;
-                }
-                if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                {
-                    sum += pC0[0] * beta;
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum += pC0[0] * beta;
-                    pC0 += 1;
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum += pC0[0] * beta;
-                    pC0 += 1;
-                }
-            }
-
-            sum *= alpha;
-
             if (output_transpose)
             {
-                int col = j + jj;
-                int row = i + ii;
-                size_t offset = (size_t)(col / out_elempack) * out_hstep * out_elempack + (size_t)row * out_elempack + col % out_elempack;
-                if (output_elemtype == 1)
-                    ((float*)top_blob)[offset] = sum;
-                else
-                    ((unsigned short*)top_blob)[offset] = float32_to_bfloat16(sum);
+                for (; jj < max_jj; jj += out_elempack)
+                {
+                    for (int q = 0; q < out_elempack; q++)
+                    {
+                        float sum = pp[0];
+                        pp += 1;
+
+                        if (pC0)
+                        {
+                            if (broadcast_type_C == 0)
+                            {
+                                sum += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            {
+                                sum += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 3)
+                            {
+                                sum += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                            if (broadcast_type_C == 4)
+                            {
+                                sum += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                        }
+
+                        sum *= alpha;
+
+                        p0f[q] = sum;
+                    }
+                    p0f += out_hstep * out_elempack;
+                }
             }
             else
             {
-                if (output_elemtype == 1)
-                    ((float*)top_blob)[(i + ii) * out_hstep + (j + jj)] = sum;
-                else
-                    ((unsigned short*)top_blob)[(i + ii) * out_hstep + (j + jj)] = float32_to_bfloat16(sum);
+                for (; jj < max_jj; jj++)
+                {
+                    float sum = pp[0];
+                    pp += 1;
+
+                    if (pC0)
+                    {
+                        if (broadcast_type_C == 0)
+                        {
+                            sum += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            sum += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            sum += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            sum += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                    }
+
+                    sum *= alpha;
+
+                    p0f[0] = sum;
+                    p0f++;
+                }
+            }
+        }
+        else
+        {
+            if (output_transpose)
+            {
+                for (; jj < max_jj; jj += out_elempack)
+                {
+                    for (int q = 0; q < out_elempack; q++)
+                    {
+                        float sum = pp[0];
+                        pp += 1;
+
+                        if (pC0)
+                        {
+                            if (broadcast_type_C == 0)
+                            {
+                                sum += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                            {
+                                sum += pC0[0] * beta;
+                            }
+                            if (broadcast_type_C == 3)
+                            {
+                                sum += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                            if (broadcast_type_C == 4)
+                            {
+                                sum += pC0[0] * beta;
+                                pC0 += 1;
+                            }
+                        }
+
+                        sum *= alpha;
+
+                        p0[q] = float32_to_bfloat16(sum);
+                    }
+                    p0 += out_hstep * out_elempack;
+                }
+            }
+            else
+            {
+                for (; jj < max_jj; jj++)
+                {
+                    float sum = pp[0];
+                    pp += 1;
+
+                    if (pC0)
+                    {
+                        if (broadcast_type_C == 0)
+                        {
+                            sum += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            sum += pC0[0] * beta;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            sum += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            sum += pC0[0] * beta;
+                            pC0 += 1;
+                        }
+                    }
+
+                    sum *= alpha;
+
+                    p0[0] = float32_to_bfloat16(sum);
+                    p0++;
+                }
             }
         }
         if (broadcast_type_C == 3)
