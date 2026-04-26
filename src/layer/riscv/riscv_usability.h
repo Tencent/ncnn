@@ -35,6 +35,38 @@ static inline vint8m1_t float2int8(vfloat32m4_t v, size_t vl)
     return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
 }
 
+static inline vint8m2_t float2int8relu(vfloat32m8_t v, size_t vl)
+{
+    vint32m8_t v32 = __riscv_vfcvt_x_f_v_i32m8_rm(v, __RISCV_FRM_RMM, vl);
+    v32 = __riscv_vmax_vx_i32m8(v32, 0, vl);
+    v32 = __riscv_vmin_vx_i32m8(v32, 127, vl);
+    vint16m4_t v16 = __riscv_vnclip_wx_i16m4(v32, 0, __RISCV_VXRM_RNU, vl);
+    return __riscv_vnclip_wx_i8m2(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
+static inline vint8m1_t float2int8relu(vfloat32m4_t v, size_t vl)
+{
+    vint32m4_t v32 = __riscv_vfcvt_x_f_v_i32m4_rm(v, __RISCV_FRM_RMM, vl);
+    v32 = __riscv_vmax_vx_i32m4(v32, 0, vl);
+    v32 = __riscv_vmin_vx_i32m4(v32, 127, vl);
+    vint16m2_t v16 = __riscv_vnclip_wx_i16m2(v32, 0, __RISCV_VXRM_RNU, vl);
+    return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
+static inline vint8m2_t float2int8leakyrelu(vfloat32m8_t v, float slope, size_t vl)
+{
+    vint8m2_t v8 = float2int8(v, vl);
+    vint8m2_t v8_leaky = float2int8(__riscv_vfmul_vf_f32m8(v, slope, vl), vl);
+    return __riscv_vmax_vv_i8m2(v8, v8_leaky, vl);
+}
+
+static inline vint8m1_t float2int8leakyrelu(vfloat32m4_t v, float slope, size_t vl)
+{
+    vint8m1_t v8 = float2int8(v, vl);
+    vint8m1_t v8_leaky = float2int8(__riscv_vfmul_vf_f32m4(v, slope, vl), vl);
+    return __riscv_vmax_vv_i8m1(v8, v8_leaky, vl);
+}
+
 #if __riscv_zvfh
 static inline vint8m4_t float2int8(vfloat16m8_t v, size_t vl)
 {
