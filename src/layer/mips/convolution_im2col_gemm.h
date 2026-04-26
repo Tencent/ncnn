@@ -193,23 +193,57 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 _sumb = (v4f32)__msa_ld_w(outptr + 4 * 11, 0);
             }
 
+            if (k == 0)
+            {
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
+
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(0, 3, 2, 1));
+                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(1, 0, 3, 2));
+
+                transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
+                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(0, 3, 2, 1));
+                _suma = (v4f32)__msa_shf_w((v4i32)_suma, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
+                _suma = (v4f32)__msa_shf_w((v4i32)_suma, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(1, 0, 3, 2));
+            }
+
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
+                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
+                v4f32 _pB2 = (v4f32)__msa_ld_w(pB + 8, 0);
+                v4f32 _pB0r = (v4f32)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
+                v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
+                v4f32 _pB2r = (v4f32)__msa_shf_w((v4i32)_pB2, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
-                _sum1 = __msa_fmadd_w(_sum1, _pA, __msa_fill_w_f32(pB[1]));
-                _sum2 = __msa_fmadd_w(_sum2, _pA, __msa_fill_w_f32(pB[2]));
-                _sum3 = __msa_fmadd_w(_sum3, _pA, __msa_fill_w_f32(pB[3]));
-                _sum4 = __msa_fmadd_w(_sum4, _pA, __msa_fill_w_f32(pB[4]));
-                _sum5 = __msa_fmadd_w(_sum5, _pA, __msa_fill_w_f32(pB[5]));
-                _sum6 = __msa_fmadd_w(_sum6, _pA, __msa_fill_w_f32(pB[6]));
-                _sum7 = __msa_fmadd_w(_sum7, _pA, __msa_fill_w_f32(pB[7]));
-                _sum8 = __msa_fmadd_w(_sum8, _pA, __msa_fill_w_f32(pB[8]));
-                _sum9 = __msa_fmadd_w(_sum9, _pA, __msa_fill_w_f32(pB[9]));
-                _suma = __msa_fmadd_w(_suma, _pA, __msa_fill_w_f32(pB[10]));
-                _sumb = __msa_fmadd_w(_sumb, _pA, __msa_fill_w_f32(pB[11]));
+                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB0);
+                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB0r);
+                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB0);
+                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB0r);
+                _sum4 = __msa_fmadd_w(_sum4, _pA, _pB1);
+                _sum5 = __msa_fmadd_w(_sum5, _pA, _pB1r);
+                _sum6 = __msa_fmadd_w(_sum6, _pA1, _pB1);
+                _sum7 = __msa_fmadd_w(_sum7, _pA1, _pB1r);
+                _sum8 = __msa_fmadd_w(_sum8, _pA, _pB2);
+                _sum9 = __msa_fmadd_w(_sum9, _pA, _pB2r);
+                _suma = __msa_fmadd_w(_suma, _pA1, _pB2);
+                _sumb = __msa_fmadd_w(_sumb, _pA1, _pB2r);
 
                 pA += 4;
                 pB += 12;
@@ -217,6 +251,50 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
             if (k_end)
             {
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum1, (v4i32)_sum2);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum1, (v4i32)_sum2);
+                    _sum0 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum1 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum2 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum3 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum7, (v4i32)_sum4);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum7, (v4i32)_sum4);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum5, (v4i32)_sum6);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum5, (v4i32)_sum6);
+                    _sum4 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum5 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum6 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum7 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sumb, (v4i32)_sum8);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sumb, (v4i32)_sum8);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum9, (v4i32)_suma);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum9, (v4i32)_suma);
+                    _sum8 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum9 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _suma = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sumb = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
                 if (out_elempack == 4)
                 {
                     __msa_st_w((v4i32)_sum0, outptr0, 0);
@@ -322,19 +400,43 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 _sum7 = (v4f32)__msa_ld_w(outptr + 4 * 7, 0);
             }
 
+            if (k == 0)
+            {
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
+
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(0, 3, 2, 1));
+                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(1, 0, 3, 2));
+            }
+
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
+                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
+                v4f32 _pB0r = (v4f32)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
+                v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
-                _sum1 = __msa_fmadd_w(_sum1, _pA, __msa_fill_w_f32(pB[1]));
-                _sum2 = __msa_fmadd_w(_sum2, _pA, __msa_fill_w_f32(pB[2]));
-                _sum3 = __msa_fmadd_w(_sum3, _pA, __msa_fill_w_f32(pB[3]));
-                _sum4 = __msa_fmadd_w(_sum4, _pA, __msa_fill_w_f32(pB[4]));
-                _sum5 = __msa_fmadd_w(_sum5, _pA, __msa_fill_w_f32(pB[5]));
-                _sum6 = __msa_fmadd_w(_sum6, _pA, __msa_fill_w_f32(pB[6]));
-                _sum7 = __msa_fmadd_w(_sum7, _pA, __msa_fill_w_f32(pB[7]));
+                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB0);
+                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB0r);
+                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB0);
+                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB0r);
+                _sum4 = __msa_fmadd_w(_sum4, _pA, _pB1);
+                _sum5 = __msa_fmadd_w(_sum5, _pA, _pB1r);
+                _sum6 = __msa_fmadd_w(_sum6, _pA1, _pB1);
+                _sum7 = __msa_fmadd_w(_sum7, _pA1, _pB1r);
 
                 pA += 4;
                 pB += 8;
@@ -342,6 +444,35 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
             if (k_end)
             {
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum1, (v4i32)_sum2);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum1, (v4i32)_sum2);
+                    _sum0 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum1 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum2 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum3 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum7, (v4i32)_sum4);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum7, (v4i32)_sum4);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum5, (v4i32)_sum6);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum5, (v4i32)_sum6);
+                    _sum4 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum5 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum6 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum7 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
                 if (out_elempack == 4)
                 {
                     __msa_st_w((v4i32)_sum0, outptr0, 0);
@@ -418,15 +549,29 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 _sum3 = (v4f32)__msa_ld_w(outptr + 4 * 3, 0);
             }
 
+            if (k == 0)
+            {
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
+            }
+
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
+                v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
-                _sum1 = __msa_fmadd_w(_sum1, _pA, __msa_fill_w_f32(pB[1]));
-                _sum2 = __msa_fmadd_w(_sum2, _pA, __msa_fill_w_f32(pB[2]));
-                _sum3 = __msa_fmadd_w(_sum3, _pA, __msa_fill_w_f32(pB[3]));
+                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB);
+                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB1);
+                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB);
+                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB1);
 
                 pA += 4;
                 pB += 4;
@@ -434,6 +579,20 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
             if (k_end)
             {
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum3, (v4i32)_sum0);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum1, (v4i32)_sum2);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum1, (v4i32)_sum2);
+                    _sum0 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum1 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum2 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum3 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
                 if (out_elempack == 4)
                 {
                     __msa_st_w((v4i32)_sum0, outptr0, 0);
@@ -489,13 +648,26 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 _sum1 = (v4f32)__msa_ld_w(outptr + 4, 0);
             }
 
+            if (k == 0)
+            {
+                {
+                    v4f32 _sum1r = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
+                    v4f32 _tmp0 = (v4f32)__msa_pckev_w((v4i32)_sum1r, (v4i32)_sum0);
+                    v4f32 _tmp1 = (v4f32)__msa_pckod_w((v4i32)_sum1r, (v4i32)_sum0);
+                    _sum0 = (v4f32)__msa_shf_w((v4i32)_tmp0, _MSA_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = (v4f32)__msa_shf_w((v4i32)_tmp1, _MSA_SHUFFLE(1, 2, 0, 3));
+                }
+            }
+
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pB = (v4f32)__msa_fill_d(*(const int64_t*)pB);
+                v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(2, 3, 0, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
-                _sum1 = __msa_fmadd_w(_sum1, _pA, __msa_fill_w_f32(pB[1]));
+                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB);
+                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB1);
 
                 pA += 4;
                 pB += 2;
@@ -503,6 +675,13 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
             if (k_end)
             {
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_shf_w((v4i32)_sum0, _MSA_SHUFFLE(3, 1, 2, 0));
+                    v4f32 _tmp1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 2, 3, 1));
+                    _sum0 = (v4f32)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum1 = (v4f32)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                }
                 if (out_elempack == 4)
                 {
                     __msa_st_w((v4i32)_sum0, outptr0, 0);
