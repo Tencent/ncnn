@@ -4385,10 +4385,10 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 128>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 128>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 128>(O, P, V, m, n);
         return;
 #endif
     }
@@ -4398,10 +4398,10 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<4, 64>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<4, 64>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<4, 64>(O, P, V, m, n);
         return;
 #endif
     }
@@ -4411,10 +4411,23 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 256>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 256>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 256>(O, P, V, m, n);
+        return;
+#endif
+    }
+    if (d == 512)
+    {
+#if __AVX512F__
+        pv_gemm_avx512<2, 512>(O, P, V, m, n);
+        return;
+#elif __AVX__
+        pv_gemm_avx<2, 512>(O, P, V, m, n);
+        return;
+#elif __SSE2__
+        pv_gemm_sse2<2, 512>(O, P, V, m, n);
         return;
 #endif
     }
@@ -4424,10 +4437,10 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 1024>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 1024>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 1024>(O, P, V, m, n);
         return;
 #endif
     }
@@ -4437,10 +4450,10 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 2048>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 2048>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 2048>(O, P, V, m, n);
         return;
 #endif
     }
@@ -4450,10 +4463,10 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 4096>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 4096>(O, P, V, m, n);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 4096>(O, P, V, m, n);
         return;
 #endif
     }
