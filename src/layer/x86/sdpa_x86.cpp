@@ -1374,26 +1374,35 @@ static void qk_gemm_avx(float* S, const float* Q, const float* K,
             const float* k0 = K + (j + 0) * d;
             const float* k1 = K + (j + 1) * d;
 
+            __m256 acc[6][2];
             for (int mi = 0; mi < 6; mi++)
             {
-                const float* qptr = Q + (i + mi) * d;
-                __m256 acc0 = _mm256_setzero_ps();
-                __m256 acc1 = _mm256_setzero_ps();
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+            }
 
-                int k = 0;
-                for (; k + 7 < d; k += 8)
+            int k = 0;
+            for (; k + 7 < d; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 6; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(qptr + k);
-                    acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
-                    acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
+            }
 
-                float sum0 = _mm256_reduce_add_ps(acc0);
-                float sum1 = _mm256_reduce_add_ps(acc1);
+            for (int mi = 0; mi < 6; mi++)
+            {
+                float sum0 = _mm256_reduce_add_ps(acc[mi][0]);
+                float sum1 = _mm256_reduce_add_ps(acc[mi][1]);
 
                 for (; k < d; k++)
                 {
-                    float qv = qptr[k];
+                    float qv = Q[(i + mi) * d + k];
                     sum0 += qv * k0[k];
                     sum1 += qv * k1[k];
                 }
@@ -1405,18 +1414,28 @@ static void qk_gemm_avx(float* S, const float* Q, const float* K,
 
         for (; j < n; j++)
         {
+            const float* kptr = K + j * d;
+
+            __m256 acc[6];
+            for (int mi = 0; mi < 6; mi++)
+                acc[mi] = _mm256_setzero_ps();
+
+            int k = 0;
+            for (; k + 7 < d; k += 8)
+            {
+                __m256 kvec = _mm256_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
             for (int mi = 0; mi < 6; mi++)
             {
-                const float* qptr = Q + (i + mi) * d;
-                const float* kptr = K + j * d;
-                float sum = 0.f;
-                int k = 0;
-                __m256 vacc = _mm256_setzero_ps();
-                for (; k + 7 < d; k += 8)
-                    vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
-                sum = _mm256_reduce_add_ps(vacc);
+                float sum = _mm256_reduce_add_ps(acc[mi]);
                 for (; k < d; k++)
-                    sum += qptr[k] * kptr[k];
+                    sum += Q[(i + mi) * d + k] * kptr[k];
                 S[(i + mi) * n + j] = sum * scale;
             }
         }
@@ -1487,35 +1506,53 @@ static inline void qk_gemm_specialized_avx(float* S, const float* Q, const float
             const float* k0 = K + (j + 0) * D;
             const float* k1 = K + (j + 1) * D;
 
+            __m256 acc[6][2];
             for (int mi = 0; mi < 6; mi++)
             {
-                const float* qptr = Q + (i + mi) * D;
-                __m256 acc0 = _mm256_setzero_ps();
-                __m256 acc1 = _mm256_setzero_ps();
+                acc[mi][0] = _mm256_setzero_ps();
+                acc[mi][1] = _mm256_setzero_ps();
+            }
 
-                for (int k = 0; k < D; k += 8)
+            for (int k = 0; k < D; k += 8)
+            {
+                __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                for (int mi = 0; mi < 6; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(qptr + k);
-                    acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
-                    acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
+            }
 
-                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
-                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
+            for (int mi = 0; mi < 6; mi++)
+            {
+                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
             }
         }
 
         for (; j < n; j++)
         {
+            const float* kptr = K + j * D;
+
+            __m256 acc[6];
             for (int mi = 0; mi < 6; mi++)
+                acc[mi] = _mm256_setzero_ps();
+
+            for (int k = 0; k < D; k += 8)
             {
-                const float* qptr = Q + (i + mi) * D;
-                const float* kptr = K + j * D;
-                __m256 vacc = _mm256_setzero_ps();
-                for (int k = 0; k < D; k += 8)
-                    vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
-                S[(i + mi) * n + j] = _mm256_reduce_add_ps(vacc) * scale;
+                __m256 kvec = _mm256_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 6; mi++)
+                {
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
             }
+
+            for (int mi = 0; mi < 6; mi++)
+                S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
         }
     }
 
@@ -1559,46 +1596,84 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 8;
-    int dd = 0;
-    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
     {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
         {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
+            op[mi] = O + (i + mi) * d;
+            pptr[mi] = P + (i + mi) * n;
+        }
 
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m256 acc[M_BLOCK][VEC_PER_UNROLL];
             for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m256 acc[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    acc[vi] = _mm256_loadu_ps(op[mi] + vi * 8);
+                    acc[mi][vi] = _mm256_loadu_ps(op[mi] + dd + vi * 8);
 
-                for (int j = 0; j < n; j++)
+            for (int j = 0; j < n; j++)
+            {
+                __m256 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm256_loadu_ps(V + j * d + dd + vi * 8);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
                 {
                     __m256 pvec = _mm256_set1_ps(pptr[mi][j]);
                     for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                        acc[vi] = _mm256_comp_fmadd_ps(pvec, _mm256_loadu_ps(V + j * d + dd + vi * 8), acc[vi]);
+                        acc[mi][vi] = _mm256_comp_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
                 }
-
-                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    _mm256_storeu_ps(op[mi] + vi * 8, acc[vi]);
             }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    _mm256_storeu_ps(op[mi] + dd + vi * 8, acc[mi][vi]);
         }
 
-        for (; i < m; i++)
+        for (; dd + 7 < d; dd += 8)
         {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
+            __m256 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm256_loadu_ps(op[mi] + dd);
 
+            for (int j = 0; j < n; j++)
+            {
+                __m256 vvec = _mm256_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm256_storeu_ps(op[mi] + dd, acc[mi]);
+        }
+
+        for (; dd < d; dd++)
+        {
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                float acc = op[mi][dd];
+                for (int j = 0; j < n; j++)
+                    acc += pptr[mi][j] * V[j * d + dd];
+                op[mi][dd] = acc;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * d;
+        const float* pptr = P + i * n;
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
             __m256 acc[VEC_PER_UNROLL];
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                acc[vi] = _mm256_loadu_ps(optr + vi * 8);
+                acc[vi] = _mm256_loadu_ps(optr + dd + vi * 8);
 
             for (int j = 0; j < n; j++)
             {
@@ -1608,67 +1683,23 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
             }
 
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                _mm256_storeu_ps(optr + vi * 8, acc[vi]);
-        }
-    }
-
-    for (; dd + 7 < d; dd += 8)
-    {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
-        {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
-
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m256 acc = _mm256_loadu_ps(op[mi]);
-                for (int j = 0; j < n; j++)
-                    acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[mi][j]), _mm256_loadu_ps(V + j * d + dd), acc);
-                _mm256_storeu_ps(op[mi], acc);
-            }
+                _mm256_storeu_ps(optr + dd + vi * 8, acc[vi]);
         }
 
-        for (; i < m; i++)
+        for (; dd + 7 < d; dd += 8)
         {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
-            __m256 acc = _mm256_loadu_ps(optr);
+            __m256 acc = _mm256_loadu_ps(optr + dd);
             for (int j = 0; j < n; j++)
                 acc = _mm256_comp_fmadd_ps(_mm256_set1_ps(pptr[j]), _mm256_loadu_ps(V + j * d + dd), acc);
-            _mm256_storeu_ps(optr, acc);
+            _mm256_storeu_ps(optr + dd, acc);
         }
-    }
 
-    for (; dd < d; dd++)
-    {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        for (; dd < d; dd++)
         {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
+            float acc = optr[dd];
             for (int j = 0; j < n; j++)
-            {
-                for (int mi = 0; mi < M_BLOCK; mi++)
-                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
-            }
-        }
-        for (; i < m; i++)
-        {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
-            for (int j = 0; j < n; j++)
-                optr[0] += pptr[j] * V[j * d + dd];
+                acc += pptr[j] * V[j * d + dd];
+            optr[dd] = acc;
         }
     }
 }
@@ -1937,25 +1968,27 @@ static void qk_gemm_sse2(float* S, const float* Q, const float* K,
         {
             const float* kptr = K + j * d;
 
+            __m128 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm_setzero_ps();
+
+            int k = 0;
+            for (; k + 3 < d; k += 4)
+            {
+                __m128 kvec = _mm_loadu_ps(kptr + k);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * d + k);
+                    acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                }
+            }
+
             for (int mi = 0; mi < 4; mi++)
             {
-                const float* qptr = Q + (i + mi) * d;
-                __m128 acc0 = _mm_setzero_ps();
-
-                int k = 0;
-                for (; k + 3 < d; k += 4)
-                {
-                    acc0 = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), acc0);
-                }
-
-                float sum0 = _mm_reduce_add_ps(acc0);
-
+                float sum = _mm_reduce_add_ps(acc[mi]);
                 for (; k < d; k++)
-                {
-                    sum0 += qptr[k] * kptr[k];
-                }
-
-                S[(i + mi) * n + j] = sum0 * scale;
+                    sum += Q[(i + mi) * d + k] * kptr[k];
+                S[(i + mi) * n + j] = sum * scale;
             }
         }
     }
@@ -2044,46 +2077,84 @@ template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n, int d)
 {
     const int VEC_PER_UNROLL = D_UNROLL / 4;
-    int dd = 0;
-    for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+    int i = 0;
+    for (; i + M_BLOCK <= m; i += M_BLOCK)
     {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        float* op[M_BLOCK];
+        const float* pptr[M_BLOCK];
+        for (int mi = 0; mi < M_BLOCK; mi++)
         {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
+            op[mi] = O + (i + mi) * d;
+            pptr[mi] = P + (i + mi) * n;
+        }
 
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
+            __m128 acc[M_BLOCK][VEC_PER_UNROLL];
             for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m128 acc[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    acc[vi] = _mm_loadu_ps(op[mi] + vi * 4);
+                    acc[mi][vi] = _mm_loadu_ps(op[mi] + dd + vi * 4);
 
-                for (int j = 0; j < n; j++)
+            for (int j = 0; j < n; j++)
+            {
+                __m128 vvec[VEC_PER_UNROLL];
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    vvec[vi] = _mm_loadu_ps(V + j * d + dd + vi * 4);
+
+                for (int mi = 0; mi < M_BLOCK; mi++)
                 {
                     __m128 pvec = _mm_set1_ps(pptr[mi][j]);
                     for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                        acc[vi] = _mm_comp_fmadd_ps(pvec, _mm_loadu_ps(V + j * d + dd + vi * 4), acc[vi]);
+                        acc[mi][vi] = _mm_comp_fmadd_ps(pvec, vvec[vi], acc[mi][vi]);
                 }
-
-                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                    _mm_storeu_ps(op[mi] + vi * 4, acc[vi]);
             }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
+                    _mm_storeu_ps(op[mi] + dd + vi * 4, acc[mi][vi]);
         }
 
-        for (; i < m; i++)
+        for (; dd + 3 < d; dd += 4)
         {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
+            __m128 acc[M_BLOCK];
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                acc[mi] = _mm_loadu_ps(op[mi] + dd);
 
+            for (int j = 0; j < n; j++)
+            {
+                __m128 vvec = _mm_loadu_ps(V + j * d + dd);
+                for (int mi = 0; mi < M_BLOCK; mi++)
+                    acc[mi] = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[mi][j]), vvec, acc[mi]);
+            }
+
+            for (int mi = 0; mi < M_BLOCK; mi++)
+                _mm_storeu_ps(op[mi] + dd, acc[mi]);
+        }
+
+        for (; dd < d; dd++)
+        {
+            for (int mi = 0; mi < M_BLOCK; mi++)
+            {
+                float acc = op[mi][dd];
+                for (int j = 0; j < n; j++)
+                    acc += pptr[mi][j] * V[j * d + dd];
+                op[mi][dd] = acc;
+            }
+        }
+    }
+
+    for (; i < m; i++)
+    {
+        float* optr = O + i * d;
+        const float* pptr = P + i * n;
+
+        int dd = 0;
+        for (; dd + D_UNROLL - 1 < d; dd += D_UNROLL)
+        {
             __m128 acc[VEC_PER_UNROLL];
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                acc[vi] = _mm_loadu_ps(optr + vi * 4);
+                acc[vi] = _mm_loadu_ps(optr + dd + vi * 4);
 
             for (int j = 0; j < n; j++)
             {
@@ -2093,67 +2164,23 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
             }
 
             for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
-                _mm_storeu_ps(optr + vi * 4, acc[vi]);
-        }
-    }
-
-    for (; dd + 3 < d; dd += 4)
-    {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
-        {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
-
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                __m128 acc = _mm_loadu_ps(op[mi]);
-                for (int j = 0; j < n; j++)
-                    acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[mi][j]), _mm_loadu_ps(V + j * d + dd), acc);
-                _mm_storeu_ps(op[mi], acc);
-            }
+                _mm_storeu_ps(optr + dd + vi * 4, acc[vi]);
         }
 
-        for (; i < m; i++)
+        for (; dd + 3 < d; dd += 4)
         {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
-            __m128 acc = _mm_loadu_ps(optr);
+            __m128 acc = _mm_loadu_ps(optr + dd);
             for (int j = 0; j < n; j++)
                 acc = _mm_comp_fmadd_ps(_mm_set1_ps(pptr[j]), _mm_loadu_ps(V + j * d + dd), acc);
-            _mm_storeu_ps(optr, acc);
+            _mm_storeu_ps(optr + dd, acc);
         }
-    }
 
-    for (; dd < d; dd++)
-    {
-        int i = 0;
-        for (; i + M_BLOCK <= m; i += M_BLOCK)
+        for (; dd < d; dd++)
         {
-            float* op[M_BLOCK];
-            const float* pptr[M_BLOCK];
-            for (int mi = 0; mi < M_BLOCK; mi++)
-            {
-                op[mi] = O + (i + mi) * d + dd;
-                pptr[mi] = P + (i + mi) * n;
-            }
+            float acc = optr[dd];
             for (int j = 0; j < n; j++)
-            {
-                for (int mi = 0; mi < M_BLOCK; mi++)
-                    op[mi][0] += pptr[mi][j] * V[j * d + dd];
-            }
-        }
-        for (; i < m; i++)
-        {
-            float* optr = O + i * d + dd;
-            const float* pptr = P + i * n;
-            for (int j = 0; j < n; j++)
-                optr[0] += pptr[j] * V[j * d + dd];
+                acc += pptr[j] * V[j * d + dd];
+            optr[dd] = acc;
         }
     }
 }
@@ -2421,6 +2448,71 @@ static inline void qk_gemm_dispatch(float* S, const float* Q, const float* K,
         return;
 #endif
     }
+    if (d == 256)
+    {
+#if __AVX512F__
+        qk_gemm_specialized_avx512<256>(S, Q, K, m, n, scale);
+        return;
+#elif __AVX__
+        qk_gemm_specialized_avx<256>(S, Q, K, m, n, scale);
+        return;
+#elif __SSE2__
+        qk_gemm_specialized_sse2<256>(S, Q, K, m, n, scale);
+        return;
+#endif
+    }
+    if (d == 32)
+    {
+#if __AVX512F__
+        qk_gemm_specialized_avx512<32>(S, Q, K, m, n, scale);
+        return;
+#elif __AVX__
+        qk_gemm_specialized_avx<32>(S, Q, K, m, n, scale);
+        return;
+#elif __SSE2__
+        qk_gemm_specialized_sse2<32>(S, Q, K, m, n, scale);
+        return;
+#endif
+    }
+    if (d == 80)
+    {
+#if __AVX512F__
+        qk_gemm_specialized_avx512<80>(S, Q, K, m, n, scale);
+        return;
+#elif __AVX__
+        qk_gemm_specialized_avx<80>(S, Q, K, m, n, scale);
+        return;
+#elif __SSE2__
+        qk_gemm_specialized_sse2<80>(S, Q, K, m, n, scale);
+        return;
+#endif
+    }
+    if (d == 96)
+    {
+#if __AVX512F__
+        qk_gemm_specialized_avx512<96>(S, Q, K, m, n, scale);
+        return;
+#elif __AVX__
+        qk_gemm_specialized_avx<96>(S, Q, K, m, n, scale);
+        return;
+#elif __SSE2__
+        qk_gemm_specialized_sse2<96>(S, Q, K, m, n, scale);
+        return;
+#endif
+    }
+    if (d == 160)
+    {
+#if __AVX512F__
+        qk_gemm_specialized_avx512<160>(S, Q, K, m, n, scale);
+        return;
+#elif __AVX__
+        qk_gemm_specialized_avx<160>(S, Q, K, m, n, scale);
+        return;
+#elif __SSE2__
+        qk_gemm_specialized_sse2<160>(S, Q, K, m, n, scale);
+        return;
+#endif
+    }
 
 #if __AVX512F__
     qk_gemm_avx512(S, Q, K, m, n, d, scale);
@@ -2442,10 +2534,36 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
         pv_gemm_avx512<2, 128>(O, P, V, m, n);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 64>(O, P, V, m, n, d);
+        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 32>(O, P, V, m, n, d);
+        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        return;
+#endif
+    }
+    if (d == 64)
+    {
+#if __AVX512F__
+        pv_gemm_avx512<4, 64>(O, P, V, m, n);
+        return;
+#elif __AVX__
+        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        return;
+#elif __SSE2__
+        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
+        return;
+#endif
+    }
+    if (d == 256)
+    {
+#if __AVX512F__
+        pv_gemm_avx512<2, 256>(O, P, V, m, n);
+        return;
+#elif __AVX__
+        pv_gemm_avx<2, 32>(O, P, V, m, n, d);
+        return;
+#elif __SSE2__
+        pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
         return;
 #endif
     }
@@ -2453,9 +2571,9 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
 #if __AVX512F__
     pv_gemm_avx512<4, 64>(O, P, V, m, n, d);
 #elif __AVX__
-    pv_gemm_avx<4, 32>(O, P, V, m, n, d);
+    pv_gemm_avx<2, 32>(O, P, V, m, n, d);
 #elif __SSE2__
-    pv_gemm_sse2<4, 16>(O, P, V, m, n, d);
+    pv_gemm_sse2<2, 16>(O, P, V, m, n, d);
 #else
     pv_gemm_scalar(O, P, V, m, n, d);
 #endif
@@ -2851,9 +2969,9 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 
     Mat s_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
-    Mat p_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat o_accum(out_embed_dim, BLOCK_M, num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
 
-    if (s_vec.empty() || p_vec.empty())
+    if (s_vec.empty() || o_accum.empty())
         return -100;
 
     int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
@@ -2877,7 +2995,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const Mat value_head = value.channel(g);
 
         Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
-        Mat p_vec_thread = p_vec.channel(get_omp_thread_num());
+        Mat o_accum_thread = o_accum.channel(get_omp_thread_num());
 
         // Pre-resolve mask pointers for all heads in this group
         const float* mask_data[num_heads_per_group];
@@ -2903,9 +3021,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         // Initialize softmax state and zero output accumulator for all Q heads in this group
         for (int hq = 0; hq < num_heads_per_group; hq++)
         {
-            int q = g * num_heads_per_group + hq;
-            Mat top_blob_head = top_blob.channel(q);
-
             float* m_vec = m_state_tile.row(hq);
             float* l_vec = l_state_tile.row(hq);
             for (int i = 0; i < block_m; i++)
@@ -2914,10 +3029,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 l_vec[i] = 0.f;
             }
 
-            for (int i = 0; i < block_m; i++)
-            {
-                vec_zero_dispatch(top_blob_head.row(m_start + i), out_embed_dim);
-            }
+            float* o_ptr = o_accum_thread.channel(hq).row(0);
+            vec_zero_dispatch(o_ptr, out_embed_dim * BLOCK_M);
         }
 
         // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group
@@ -2934,7 +3047,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 Mat top_blob_head = top_blob.channel(q);
 
                 float* s_ptr = s_vec_thread.row(0);
-                float* p_ptr = p_vec_thread.row(0);
 
                 qk_gemm_dispatch(s_ptr,
                                  query_head.row(m_start),
@@ -2982,6 +3094,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 float* m_vec = m_state_tile.row(hq);
                 float* l_vec = l_state_tile.row(hq);
+                float* o_ptr = o_accum_thread.channel(hq).row(0);
 
                 float m_old[BLOCK_M];
                 float scale_factors[BLOCK_M];
@@ -2989,27 +3102,28 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     m_old[i] = m_vec[i];
                 }
-                softmax_tile_dispatch(p_ptr, s_ptr, m_vec, l_vec, scale_factors, block_m, block_n);
+                softmax_tile_dispatch(s_ptr, s_ptr, m_vec, l_vec, scale_factors, block_m, block_n);
 
                 // Rescale O accumulator when max increases
                 for (int i = 0; i < block_m; i++)
                 {
                     if (m_old[i] != m_vec[i])
                     {
-                        vec_scale_dispatch(top_blob_head.row(m_start + i), scale_factors[i], out_embed_dim);
+                        vec_scale_dispatch(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                     }
                 }
 
-                pv_gemm_dispatch(top_blob_head.row(m_start), p_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
+                pv_gemm_dispatch(o_ptr, s_ptr, value_head.row(n_start), block_m, block_n, out_embed_dim);
             }
         }
 
-        // Normalize all Q heads for this M tile
+        // Normalize all Q heads for this M tile and write back to top_blob
         for (int hq = 0; hq < num_heads_per_group; hq++)
         {
             int q = g * num_heads_per_group + hq;
             Mat top_blob_head = top_blob.channel(q);
             float* l_vec = l_state_tile.row(hq);
+            float* o_ptr = o_accum_thread.channel(hq).row(0);
 
             for (int i = 0; i < block_m; i++)
             {
@@ -3020,30 +3134,30 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 __m512 vinv_l = _mm512_set1_ps(inv_l);
                 for (; k + 15 < out_embed_dim; k += 16)
                 {
-                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(outptr + k), vinv_l));
+                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
                 }
                 if (k < out_embed_dim)
                 {
                     __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
-                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, outptr + k), vinv_l));
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, o_ptr + i * out_embed_dim + k), vinv_l));
                     k = out_embed_dim;
                 }
 #elif __AVX__
                 __m256 vinv_l = _mm256_set1_ps(inv_l);
                 for (; k + 7 < out_embed_dim; k += 8)
                 {
-                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(outptr + k), vinv_l));
+                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
                 }
 #elif __SSE2__
                 __m128 vinv_l = _mm_set1_ps(inv_l);
                 for (; k + 3 < out_embed_dim; k += 4)
                 {
-                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(outptr + k), vinv_l));
+                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
                 }
 #endif
                 for (; k < out_embed_dim; k++)
                 {
-                    outptr[k] *= inv_l;
+                    outptr[k] = o_ptr[i * out_embed_dim + k] * inv_l;
                 }
             }
         }
