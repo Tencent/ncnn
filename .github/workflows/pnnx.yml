@@ -73,21 +73,21 @@ jobs:
 
     - name: local-cache-libtorch
       id: local-cache-libtorch
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: local-cache-torchvision
       id: local-cache-torchvision
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: local-cache-onnxruntime
       id: local-cache-onnxruntime
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
@@ -269,21 +269,21 @@ jobs:
 
     - name: local-cache-libtorch
       id: local-cache-libtorch
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: libtorch-${{ env.LIBTORCH_VERSION }}-install
         key: libtorch-${{ env.LIBTORCH_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: local-cache-torchvision
       id: local-cache-torchvision
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: torchvision-${{ env.TORCHVISION_VERSION }}-install
         key: torchvision-${{ env.TORCHVISION_VERSION }}-linux-install-${{ env.CACHE_DATE }}
 
     - name: local-cache-onnxruntime
       id: local-cache-onnxruntime
-      uses: maxnowack/local-cache@v2
+      uses: maxnowack/local-cache@v3
       with:
         path: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-install
         key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-install-${{ env.CACHE_DATE }}
