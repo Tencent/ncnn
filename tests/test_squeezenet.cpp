@@ -404,6 +404,95 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     return check_top2(cls_scores, epsilon);
 }
 
+static int test_squeezenet_batch(const ncnn::Option& opt, float epsilon = 0.001)
+{
+    ncnn::Net squeezenet;
+
+    squeezenet.opt = opt;
+
+    squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+    squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
+
+    ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
+
+    const float mean_vals[3] = {104.f, 117.f, 123.f};
+    in.substract_mean_normalize(mean_vals, 0);
+
+    // single inference for reference
+    ncnn::Mat ref_out;
+    {
+        ncnn::Extractor ex = squeezenet.create_extractor();
+        ex.input("data", in);
+        ex.extract("prob", ref_out);
+    }
+
+    if (ref_out.empty() || ref_out.w != 1000)
+    {
+        fprintf(stderr, "test_squeezenet_batch reference output invalid w=%d\n", ref_out.w);
+        return -1;
+    }
+
+    // create batch input (3 copies of the same image)
+    const int B = 3;
+    ncnn::Mat in_batch;
+    in_batch.create_batch(in.w, in.h, in.c, B, in.elemsize, in.elempack);
+    if (in_batch.empty())
+    {
+        fprintf(stderr, "test_squeezenet_batch create_batch failed\n");
+        return -1;
+    }
+
+    size_t single_size = in.cstep * in.c * in.elemsize;
+    for (int b = 0; b < B; b++)
+    {
+        memcpy(in_batch.batch(b).data, in.data, single_size);
+    }
+
+    // batch inference
+    ncnn::Mat out_batch;
+    {
+        ncnn::Extractor ex = squeezenet.create_extractor();
+        ex.input("data", in_batch);
+        int ret = ex.extract("prob", out_batch);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch extract failed ret=%d\n", ret);
+            return -1;
+        }
+    }
+
+    if (out_batch.n != B)
+    {
+        fprintf(stderr, "test_squeezenet_batch output n expect %d got %d\n", B, out_batch.n);
+        return -1;
+    }
+    if (out_batch.dims != 1 || out_batch.w != 1000)
+    {
+        fprintf(stderr, "test_squeezenet_batch output shape mismatch dims=%d w=%d\n", out_batch.dims, out_batch.w);
+        return -1;
+    }
+
+    // compare each batch output against reference
+    for (int b = 0; b < B; b++)
+    {
+        const ncnn::Mat out_b = out_batch.batch(b);
+        const float* ref_ptr = (const float*)ref_out.data;
+        const float* out_ptr = (const float*)out_b.data;
+
+        for (int j = 0; j < 1000; j++)
+        {
+            if (!NearlyEqual(out_ptr[j], ref_ptr[j], epsilon))
+            {
+                fprintf(stderr, "test_squeezenet_batch mismatch at batch %d index %d: got %f expect %f\n",
+                        b, j, out_ptr[j], ref_ptr[j]);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -503,6 +592,44 @@ int main()
         if (ret != 0)
         {
             fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
+            return ret;
+        }
+#endif // NCNN_VULKAN
+    }
+
+    // batch inference tests
+    for (int i = 0; i < 4; i++)
+    {
+        const ncnn::Option& opt = opts[i];
+
+        float epsilon;
+        if (opt.use_bf16_storage || opt.use_fp16_packed || opt.use_fp16_storage)
+        {
+            epsilon = 0.1;
+        }
+        else
+        {
+            epsilon = 0.01;
+        }
+
+        int ret;
+
+        ncnn::Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        ret = test_squeezenet_batch(opt_cpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
+            return ret;
+        }
+
+#if NCNN_VULKAN
+        ncnn::Option opt_gpu = opt;
+        opt_gpu.use_vulkan_compute = true;
+        ret = test_squeezenet_batch(opt_gpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_batch gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_bf16_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_bf16_storage);
             return ret;
         }
 #endif // NCNN_VULKAN

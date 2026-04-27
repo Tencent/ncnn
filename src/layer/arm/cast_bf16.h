@@ -21,17 +21,21 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
+    const int batch = bottom_blob.n;
 
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
-        const float* ptr = bottom_blob.channel(q);
+        int b = bc / channels;
+        int q = bc % channels;
+        const float* ptr = bottom_blob.batch(b).channel(q);
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-        __bf16* outptr = top_blob.channel(q);
+        __bf16* outptr = top_blob.batch(b).channel(q);
 #else
-        unsigned short* outptr = top_blob.channel(q);
+        unsigned short* outptr = top_blob.batch(b).channel(q);
 #endif
 
         int i = 0;
@@ -185,18 +189,22 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const int d = bottom_blob.d;
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
+    const int batch = bottom_blob.n;
 
     const int size = w * h * d * elempack;
 
+    const int total_bc = batch * channels;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int bc = 0; bc < total_bc; bc++)
     {
+        int b = bc / channels;
+        int q = bc % channels;
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-        const __bf16* ptr = bottom_blob.channel(q);
+        const __bf16* ptr = bottom_blob.batch(b).channel(q);
 #else
-        const unsigned short* ptr = bottom_blob.channel(q);
+        const unsigned short* ptr = bottom_blob.batch(b).channel(q);
 #endif
-        float* outptr = top_blob.channel(q);
+        float* outptr = top_blob.batch(b).channel(q);
 
         int i = 0;
 #if __ARM_NEON
