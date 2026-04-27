@@ -101,10 +101,10 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t)*(const unsigned int*)p0 | ((uint64_t)(uint32_t)*(const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t)*(const unsigned int*)p2 | ((uint64_t)(uint32_t)*(const unsigned int*)p3 << 32);
-            uint64_t v2 = (uint32_t)*(const unsigned int*)p4 | ((uint64_t)(uint32_t)*(const unsigned int*)p5 << 32);
-            uint64_t v3 = (uint32_t)*(const unsigned int*)p6 | ((uint64_t)(uint32_t)*(const unsigned int*)p7 << 32);
+            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
+            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
+            uint64_t v2 = (uint32_t) * (const unsigned int*)p4 | ((uint64_t)(uint32_t) * (const unsigned int*)p5 << 32);
+            uint64_t v3 = (uint32_t) * (const unsigned int*)p6 | ((uint64_t)(uint32_t) * (const unsigned int*)p7 << 32);
             v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
             _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
             v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v2);
@@ -192,8 +192,8 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t)*(const unsigned int*)p0 | ((uint64_t)(uint32_t)*(const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t)*(const unsigned int*)p2 | ((uint64_t)(uint32_t)*(const unsigned int*)p3 << 32);
+            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
+            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
             v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
             _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
             __msa_st_b(_r0, pp, 0);
@@ -495,10 +495,10 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t)*(const unsigned int*)p0 | ((uint64_t)(uint32_t)*(const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t)*(const unsigned int*)p2 | ((uint64_t)(uint32_t)*(const unsigned int*)p3 << 32);
-            uint64_t v2 = (uint32_t)*(const unsigned int*)p4 | ((uint64_t)(uint32_t)*(const unsigned int*)p5 << 32);
-            uint64_t v3 = (uint32_t)*(const unsigned int*)p6 | ((uint64_t)(uint32_t)*(const unsigned int*)p7 << 32);
+            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
+            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
+            uint64_t v2 = (uint32_t) * (const unsigned int*)p4 | ((uint64_t)(uint32_t) * (const unsigned int*)p5 << 32);
+            uint64_t v3 = (uint32_t) * (const unsigned int*)p6 | ((uint64_t)(uint32_t) * (const unsigned int*)p7 << 32);
             v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
             _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
             v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v2);
@@ -586,8 +586,8 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t)*(const unsigned int*)p0 | ((uint64_t)(uint32_t)*(const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t)*(const unsigned int*)p2 | ((uint64_t)(uint32_t)*(const unsigned int*)p3 << 32);
+            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
+            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
             v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
             _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
             __msa_st_b(_r0, pp, 0);
@@ -1806,10 +1806,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 : "+r"(pA), "+r"(pB), "+r"(nn)
                 : "r"(outptr), "r"(k)
                 : "memory", "$8", "$9", "$10", "$11", "$12",
-                  "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
-                  "$f8", "$f9", "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
-                  "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
-                  "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31");
+                "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
+                "$f8", "$f9", "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
+                "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
+                "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31");
 
             outptr += 64;
 #else
