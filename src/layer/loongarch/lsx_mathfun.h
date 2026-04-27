@@ -626,6 +626,54 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     return final_result;
 }
 
+_LOONGARCH_FLOAT_CONST(c_erf_threshold, 0.927734375f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c0, -1.72853470e-5f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c1, 3.83197126e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c2, -3.88396438e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c3, 2.42546219e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c4, -1.06777877e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c5, -6.34846687e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_hi_c6, -1.28717512e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c0, -5.96761703e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c1, 4.99119423e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c2, -2.67681349e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c3, 1.12819925e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c4, -3.76125336e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_lo_c5, 1.28379166e-1f);
+
+static inline __m128 erf_ps(__m128 a)
+{
+    __m128 t = (__m128)__lsx_vbitclri_w((__m128i)a, 31);
+    __m128 s = __lsx_vfmul_s(a, a);
+
+    __m128i hi_mask = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_erf_threshold.i), t);
+
+    __m128 r_hi = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c0.i), (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c1.i));
+    __m128 u = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c2.i), (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c3.i));
+    r_hi = __lsx_vfmadd_s(r_hi, s, u);
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c4.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c5.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, (__m128)__lsx_vreplgr2vr_w(c_erf_hi_c6.i));
+    r_hi = __lsx_vfmadd_s(r_hi, t, __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_0.i), t));
+    r_hi = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_1.i), exp_ps(r_hi));
+
+    __m128 r_lo = (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c0.i);
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c1.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c2.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c3.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c4.i));
+    r_lo = __lsx_vfmadd_s(r_lo, s, (__m128)__lsx_vreplgr2vr_w(c_erf_lo_c5.i));
+    r_lo = __lsx_vfmadd_s(r_lo, a, a);
+
+    __m128 r = (__m128)__lsx_vbitsel_v((__m128i)r_lo, (__m128i)r_hi, hi_mask);
+
+    __m128i sign_mask = __lsx_vreplgr2vr_w(0x80000000);
+    __m128i sign_a = __lsx_vand_v((__m128i)a, sign_mask);
+    r = (__m128)__lsx_vor_v((__m128i)r, sign_a);
+
+    return r;
+}
+
 static inline __m128 fmod_ps(__m128 a, __m128 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
@@ -685,6 +733,187 @@ static inline __m128 remainder_ps(__m128 a, __m128 b)
     __m128 q = __lsx_vfdiv_s(a, b);
     __m128 rq = round_ps(q);
     return __lsx_vfsub_s(a, __lsx_vfmul_s(rq, b));
+}
+
+static inline __m128 elu_ps(__m128 _v, __m128 _alpha)
+{
+    __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+    __m128 _one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+    __m128 _pos = __lsx_vfmax_s(_v, _zero);
+    __m128 _neg = __lsx_vfmin_s(_v, _zero);
+    _neg = __lsx_vfsub_s(exp_ps(_neg), _one);
+    return __lsx_vfadd_s(_pos, __lsx_vfmul_s(_alpha, _neg));
+}
+
+_LOONGARCH_FLOAT_CONST(c_erfc_erx, 8.4506291151e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pp0, 1.2837916613e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pp1, -3.2504209876e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pp2, -2.8481749818e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pp3, -5.7702702470e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pp4, -2.3763017452e-05f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qq1, 3.9791721106e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qq2, 6.5022252500e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qq3, 5.0813062117e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qq4, 1.3249473704e-4f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qq5, -3.9602282413e-6f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa0, -2.3621185683e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa1, 4.1485610604e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa2, -3.7220788002e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa3, 3.1834661961e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa4, -1.1089469492e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa5, 3.5478305072e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_pa6, -2.1663755178e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa1, 1.0642088205e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa2, 5.4039794207e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa3, 7.1828655899e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa4, 1.2617121637e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa5, 1.3637083583e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_qa6, 1.1984500103e-2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra0, -9.8649440333e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra1, -6.9385856390e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra2, -1.0558626175e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra3, -6.2375331879e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra4, -1.6239666748e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra5, -1.8460508728e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra6, -8.1287437439e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_ra7, -9.8143291473e+00f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa1, 1.9651271820e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa2, 1.3765776062e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa3, 4.3456588745e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa4, 6.4538726807e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa5, 4.2900814819e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa6, 1.0863500214e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa7, 6.5702495575e+00f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sa8, -6.0424413532e-02f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb0, -9.8649431020e-3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb1, -7.9928326607e-1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb2, -1.7757955551e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb3, -1.6063638306e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb4, -6.3756646729e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb5, -1.0250950928e+3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_rb6, -4.8351919556e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb1, 3.0338060379e+1f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb2, 3.2579251099e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb3, 1.5367296143e+3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb4, 3.1998581543e+3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb5, 2.5530502930e+3f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb6, 4.7452853394e+2f);
+_LOONGARCH_FLOAT_CONST(c_erfc_sb7, -2.2440952301e+1f);
+
+static inline __m128 erfc_ps(__m128 x)
+{
+    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+    __m128 two = (__m128)__lsx_vreplgr2vr_w(c_2.i);
+    __m128 zero = (__m128)__lsx_vreplgr2vr_w(c_0.i);
+
+    __m128 absx = (__m128)__lsx_vbitclri_w((__m128i)x, 31);
+    __m128 x2 = __lsx_vfmul_s(x, x);
+    __m128 t = __lsx_vfdiv_s(x2, one);
+    __m128 tt = __lsx_vfsub_s(absx, one);
+
+    __m128i mask_ge_1_25 = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(0x3fa00000), absx);
+    t = (__m128)__lsx_vbitsel_v((__m128i)tt, (__m128i)t, mask_ge_1_25);
+
+    __m128i mask_ge_0_84375 = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(0x3f580000), absx);
+    t = (__m128)__lsx_vbitsel_v((__m128i)x2, (__m128i)t, mask_ge_0_84375);
+
+    __m128 u = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb6.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_rb5.i));
+    u = __lsx_vfmadd_s(t, u, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb4.i));
+    u = __lsx_vfmadd_s(t, u, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb3.i));
+    u = __lsx_vfmadd_s(t, u, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb2.i));
+    u = __lsx_vfmadd_s(t, u, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb1.i));
+    u = __lsx_vfmadd_s(t, u, (__m128)__lsx_vreplgr2vr_w(c_erfc_rb0.i));
+
+    __m128 v = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb7.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_sb6.i));
+    v = __lsx_vfmadd_s(t, v, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb5.i));
+    v = __lsx_vfmadd_s(t, v, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb4.i));
+    v = __lsx_vfmadd_s(t, v, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb3.i));
+    v = __lsx_vfmadd_s(t, v, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb2.i));
+    v = __lsx_vfmadd_s(t, v, (__m128)__lsx_vreplgr2vr_w(c_erfc_sb1.i));
+
+    __m128 tu = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra7.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_ra6.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra5.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra4.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra3.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra2.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra1.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_ra0.i));
+
+    __m128 tv = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa8.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_sa7.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa6.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa5.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa4.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa3.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa2.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_sa1.i));
+
+    __m128i mask_ge_2_857143 = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(0x4036db6d), absx);
+    u = (__m128)__lsx_vbitsel_v((__m128i)tu, (__m128i)u, mask_ge_2_857143);
+    v = (__m128)__lsx_vbitsel_v((__m128i)tv, (__m128i)v, mask_ge_2_857143);
+
+    tu = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa6.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_pa5.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa4.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa3.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa2.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa1.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pa0.i));
+
+    tv = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_qa6.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_qa5.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qa4.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qa3.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qa2.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qa1.i));
+
+    u = (__m128)__lsx_vbitsel_v((__m128i)tu, (__m128i)u, mask_ge_1_25);
+    v = (__m128)__lsx_vbitsel_v((__m128i)tv, (__m128i)v, mask_ge_1_25);
+
+    tu = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_pp4.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_pp3.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pp2.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pp1.i));
+    tu = __lsx_vfmadd_s(t, tu, (__m128)__lsx_vreplgr2vr_w(c_erfc_pp0.i));
+
+    tv = __lsx_vfmadd_s(t, (__m128)__lsx_vreplgr2vr_w(c_erfc_qq5.i), (__m128)__lsx_vreplgr2vr_w(c_erfc_qq4.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qq3.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qq2.i));
+    tv = __lsx_vfmadd_s(t, tv, (__m128)__lsx_vreplgr2vr_w(c_erfc_qq1.i));
+
+    u = (__m128)__lsx_vbitsel_v((__m128i)tu, (__m128i)u, mask_ge_0_84375);
+    v = (__m128)__lsx_vbitsel_v((__m128i)tv, (__m128i)v, mask_ge_0_84375);
+
+    v = __lsx_vfmadd_s(t, v, one);
+
+    __m128 q = __lsx_vfdiv_s(u, v);
+    __m128 ret = zero;
+
+    __m128i z_i = __lsx_vand_v((__m128i)absx, __lsx_vreplgr2vr_w(0xfffff000));
+    __m128 z = (__m128)z_i;
+
+    __m128 neg_z = (__m128)__lsx_vxor_v((__m128i)z, __lsx_vreplgr2vr_w(0x80000000));
+    __m128 r = exp_ps(__lsx_vfmadd_s(neg_z, z, (__m128)__lsx_vreplgr2vr_w(0xbf100000)));
+    __m128 tmp = __lsx_vfmadd_s(__lsx_vfsub_s(z, absx), __lsx_vfadd_s(z, absx), q);
+    r = __lsx_vfmul_s(r, exp_ps(tmp));
+    r = __lsx_vfdiv_s(r, absx);
+    t = __lsx_vfsub_s(two, r);
+    __m128i mask_x_ge_0 = __lsx_vfcmp_cle_s(zero, x);
+    r = (__m128)__lsx_vbitsel_v((__m128i)t, (__m128i)r, mask_x_ge_0);
+    __m128i mask_absx_ge_28 = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(0x41e00000), absx);
+    ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_absx_ge_28);
+
+    r = __lsx_vfsub_s(__lsx_vfsub_s(one, (__m128)__lsx_vreplgr2vr_w(c_erfc_erx.i)), q);
+    t = __lsx_vfadd_s(q, __lsx_vfadd_s(one, (__m128)__lsx_vreplgr2vr_w(c_erfc_erx.i)));
+    r = (__m128)__lsx_vbitsel_v((__m128i)t, (__m128i)r, mask_x_ge_0);
+    ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_ge_1_25);
+
+    r = __lsx_vfsub_s((__m128)__lsx_vreplgr2vr_w(c_0p5.i), __lsx_vfmadd_s(x, q, __lsx_vfsub_s(x, (__m128)__lsx_vreplgr2vr_w(c_0p5.i))));
+    ret = (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)ret, mask_ge_0_84375);
+
+    __m128i mask_x_lt_m6 = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0xc0c00000));
+    ret = (__m128)__lsx_vbitsel_v((__m128i)ret, (__m128i)two, mask_x_lt_m6);
+
+    __m128i mask_nan = __lsx_vfcmp_cne_s(x, x);
+    ret = (__m128)__lsx_vbitsel_v((__m128i)ret, (__m128i)x, mask_nan);
+
+    return ret;
 }
 
 #endif // LSX_MATHFUN_H
