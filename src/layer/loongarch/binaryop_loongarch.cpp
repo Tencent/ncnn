@@ -37,6 +37,20 @@ static void binary_op_vector_no_broadcast(const float* ptr, const float* ptr1, f
 
     int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; i + 7 < size; i += 8)
+    {
+        __builtin_prefetch(ptr + 32);
+        __builtin_prefetch(ptr1 + 32);
+        __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+        __m256 _b = (__m256)__lasx_xvld(ptr1, 0);
+        __m256 _outp = op(_p, _b);
+        __lasx_xvst(_outp, outptr, 0);
+        ptr += 8;
+        ptr1 += 8;
+        outptr += 8;
+    }
+#endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
@@ -65,12 +79,21 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
     const Op op;
 
     const float b = *ptr1;
-#if __loongarch_sx
-    __m128 _b_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr1, 0) : __lsx_vreplfr2vr_s(b);
-#endif // __loongarch_sx
-
     int i = 0;
 #if __loongarch_sx
+    __m128 _b_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr1, 0) : __lsx_vreplfr2vr_s(b);
+#if __loongarch_asx
+    __m256 _b_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr1, 0) : combine4x2_ps(_b_128, _b_128);
+    for (; i + 7 < size; i += 8)
+    {
+        __builtin_prefetch(ptr + 32);
+        __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+        __m256 _outp = op(_p, _b_256);
+        __lasx_xvst(_outp, outptr, 0);
+        ptr += 8;
+        outptr += 8;
+    }
+#endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr + 16);
@@ -95,12 +118,21 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
     const Op op;
 
     const float a = *ptr;
-#if __loongarch_sx
-    __m128 _a_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr, 0) : __lsx_vreplfr2vr_s(a);
-#endif // __loongarch_sx
-
     int i = 0;
 #if __loongarch_sx
+    __m128 _a_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr, 0) : __lsx_vreplfr2vr_s(a);
+#if __loongarch_asx
+    __m256 _a_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr, 0) : combine4x2_ps(_a_128, _a_128);
+    for (; i + 7 < size; i += 8)
+    {
+        __builtin_prefetch(ptr1 + 32);
+        __m256 _b = (__m256)__lasx_xvld(ptr1, 0);
+        __m256 _outp = op(_a_256, _b);
+        __lasx_xvst(_outp, outptr, 0);
+        ptr1 += 8;
+        outptr += 8;
+    }
+#endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
         __builtin_prefetch(ptr1 + 16);
@@ -125,6 +157,23 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
     const Op op;
 
 #if __loongarch_sx
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        int i = 0;
+        for (; i < w; i++)
+        {
+            __builtin_prefetch(ptr + 32);
+            __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+            __m256 _b = __lasx_xvreplfr2vr_s(*ptr1);
+            __m256 _outp = op(_p, _b);
+            __lasx_xvst(_outp, outptr, 0);
+            ptr += 8;
+            ptr1 += 1;
+            outptr += 8;
+        }
+    }
+#endif // __loongarch_asx
     if (elempack == 4)
     {
         int i = 0;
@@ -152,6 +201,18 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
 
     int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    __m256 _b_256 = __lasx_xvreplfr2vr_s(*ptr1);
+    for (; i + 7 < size; i += 8)
+    {
+        __builtin_prefetch(ptr + 32);
+        __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+        __m256 _outp = op(_p, _b_256);
+        __lasx_xvst(_outp, outptr, 0);
+        ptr += 8;
+        outptr += 8;
+    }
+#endif // __loongarch_asx
     __m128 _b = __lsx_vreplfr2vr_s(*ptr1);
     for (; i + 3 < size; i += 4)
     {
@@ -171,6 +232,21 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
     const Op op;
 
 #if __loongarch_sx
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        int i = 0;
+        __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+        for (; i < w; i++)
+        {
+            __m256 _b = __lasx_xvreplfr2vr_s(*ptr1);
+            __m256 _outp = op(_p, _b);
+            __lasx_xvst(_outp, outptr, 0);
+            ptr1 += 1;
+            outptr += 8;
+        }
+    }
+#endif // __loongarch_asx
     if (elempack == 4)
     {
         int i = 0;
@@ -254,6 +330,17 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
         int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        __m256 _b_256 = __lasx_xvreplfr2vr_s(b);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 32);
+            __m256 _p = (__m256)__lasx_xvld(ptr, 0);
+            _p = op(_p, _b_256);
+            __lasx_xvst(_p, ptr, 0);
+            ptr += 8;
+        }
+#endif // __loongarch_asx
         __m128 _b = __lsx_vreplfr2vr_s(b);
         for (; i + 3 < size; i += 4)
         {

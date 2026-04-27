@@ -31,25 +31,61 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
     float scale = scale_data[0];
 #if __loongarch_sx
     __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
+#if __loongarch_asx
+    __m256 _scale_avx = (__m256)__lasx_xvreplfr2vr_s(scale);
+#endif // __loongarch_asx
     if (scale_data_size > 1)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            _scale_avx = (__m256)__lasx_xvld((const float*)scale_data, 0);
+        }
+#endif // __loongarch_asx
         if (elempack == 4)
         {
             _scale = (__m128)__lsx_vld((const float*)scale_data, 0);
+#if __loongarch_asx
+            _scale_avx = combine4x2_ps(_scale, _scale);
+#endif // __loongarch_asx
         }
     }
 #endif // __loongarch_sx
 
     int i = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; i + 15 < size; i += 16)
+    {
+        __m256 _v0 = (__m256)__lasx_xvld(ptr, 0);
+        __m256 _v1 = (__m256)__lasx_xvld(ptr + 8, 0);
+        _v0 = __lasx_xvfmul_s(_v0, _scale_avx);
+        _v1 = __lasx_xvfmul_s(_v1, _scale_avx);
+        __m256i _v0i = float2int8(_v0);
+        __m256i _v1i = float2int8(_v1);
+        __m128i _lo = __lasx_extract_lo128(_v0i);
+        __m128i _hi = __lasx_extract_lo128(_v1i);
+        __m128i _result = __lsx_vilvl_d(_hi, _lo);
+        __lsx_vst(_result, s8ptr, 0);
+        ptr += 16;
+        s8ptr += 16;
+    }
+#endif // __loongarch_asx
     for (; i + 7 < size; i += 8)
     {
         __builtin_prefetch(ptr + 32);
+#if __loongarch_asx
+        __m256 _v = (__m256)__lasx_xvld(ptr, 0);
+        _v = __lasx_xvfmul_s(_v, _scale_avx);
+        __m256i _vi = float2int8(_v);
+        *(int64_t*)s8ptr = __lsx_vpickve2gr_d(__lasx_extract_lo128(_vi), 0);
+#else  // __loongarch_asx
         __m128 _v0 = (__m128)__lsx_vld(ptr, 0);
         __m128 _v1 = (__m128)__lsx_vld(ptr + 4, 0);
         _v0 = __lsx_vfmul_s(_v0, _scale);
         _v1 = __lsx_vfmul_s(_v1, _scale);
         *((int64_t*)s8ptr) = float2int8(_v0, _v1);
+#endif // __loongarch_asx
         ptr += 8;
         s8ptr += 8;
     }

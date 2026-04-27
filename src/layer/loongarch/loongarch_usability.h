@@ -419,6 +419,7 @@ static NCNN_FORCEINLINE __m256i float2int8(__m256 _v)
     _v16 = __lasx_xvmax_h(_v16, __lasx_xvreplgr2vr_h(-127));
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
+    _v8 = __lsx_to_lasx(__lsx_vilvl_w(__lasx_extract_hi128(_v8), __lasx_extract_lo128(_v8)));
 
     return _v8;
 }
@@ -457,6 +458,7 @@ static NCNN_FORCEINLINE __m256i float2int8relu(__m256 _v)
     _v16 = __lasx_xvmaxi_h(_v16, 0);
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
+    _v8 = __lsx_to_lasx(__lsx_vilvl_w(__lasx_extract_hi128(_v8), __lasx_extract_lo128(_v8)));
 
     return _v8;
 }
@@ -513,6 +515,7 @@ static NCNN_FORCEINLINE __m256i float2int8leakyrelu(__m256 _v, __m256 _slope)
     _v16 = __lasx_xvmax_h(_v16, _v16_leaky);
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
+    _v8 = __lsx_to_lasx(__lsx_vilvl_w(__lasx_extract_hi128(_v8), __lasx_extract_lo128(_v8)));
 
     return _v8;
 }

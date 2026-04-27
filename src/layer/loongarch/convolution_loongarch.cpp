@@ -289,8 +289,13 @@ int Convolution_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         elempack = num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 
@@ -526,7 +531,11 @@ int Convolution_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const 
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;

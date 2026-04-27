@@ -66,7 +66,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __loongarch_asx
         if (elempack == 8)
         {
-            const float* p0 = (const float*)A + (size_t)((i + ii) / 8) * A_hstep * 8 + (size_t)k * 8;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 8;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -156,20 +156,6 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-#if __loongarch_asx
-        if (elempack == 8)
-        {
-            const int lane = (i + ii) & 7;
-            const float* p0 = (const float*)A + (size_t)((i + ii) / 8) * A_hstep * 8 + (size_t)k * 8 + lane;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-                pp += 4;
-                p0 += 8;
-            }
-        }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -224,37 +210,43 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
+        // if (elempack == 1)
         {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
-            pp += 2;
-            p0++;
-            p1++;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp += 2;
+                p0++;
+                p1++;
+            }
         }
     }
 
     for (; ii < max_ii; ii += 1)
     {
-        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        // if (elempack == 1)
+        {
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
-        int kk = 0;
+            int kk = 0;
 #if __loongarch_sx
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-            pp += 4;
-            p0 += 4;
-        }
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                pp += 4;
+                p0 += 4;
+            }
 #endif // __loongarch_sx
-        for (; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp += 1;
-            p0++;
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0++;
+            }
         }
     }
 }
@@ -273,19 +265,30 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __loongarch_asx
         if (elempack == 8)
         {
-            for (int kk = 0; kk < max_kk; kk++)
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
             {
-                const int row = k + kk;
-                const float* p0 = (const float*)A + (size_t)(row / 8) * A_hstep * 8 + (size_t)(i + ii) * 8 + row % 8;
-                pp[0] = p0[0];
-                pp[1] = p0[8];
-                pp[2] = p0[16];
-                pp[3] = p0[24];
-                pp[4] = p0[32];
-                pp[5] = p0[40];
-                pp[6] = p0[48];
-                pp[7] = p0[56];
-                pp += 8;
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 24, 0);
+                __m256 _r4 = (__m256)__lasx_xvld(p0 + 32, 0);
+                __m256 _r5 = (__m256)__lasx_xvld(p0 + 40, 0);
+                __m256 _r6 = (__m256)__lasx_xvld(p0 + 48, 0);
+                __m256 _r7 = (__m256)__lasx_xvld(p0 + 56, 0);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                __lasx_xvst(_r2, pp + 16, 0);
+                __lasx_xvst(_r3, pp + 24, 0);
+                __lasx_xvst(_r4, pp + 32, 0);
+                __lasx_xvst(_r5, pp + 40, 0);
+                __lasx_xvst(_r6, pp + 48, 0);
+                __lasx_xvst(_r7, pp + 56, 0);
+                pp += 64;
+                p0 += A_hstep * 8;
             }
         }
 #endif // __loongarch_asx
@@ -317,19 +320,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 32;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp[4] = p0[16];
-                pp[5] = p0[20];
-                pp[6] = p0[24];
-                pp[7] = p0[28];
-                pp += 8;
-                p0++;
-            }
         }
         if (elempack == 1)
         {
@@ -349,29 +339,22 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __loongarch_asx
         if (elempack == 8)
         {
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
+
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                for (int q = 0; q < 8; q++)
-                {
-                    const int row = k + kk + q;
-                    const float* p0 = (const float*)A + (size_t)(row / 8) * A_hstep * 8 + (size_t)(i + ii) * 8 + row % 8;
-                    pp[q * 4] = p0[0];
-                    pp[q * 4 + 1] = p0[8];
-                    pp[q * 4 + 2] = p0[16];
-                    pp[q * 4 + 3] = p0[24];
-                }
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 24, 0);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                __lasx_xvst(_r2, pp + 16, 0);
+                __lasx_xvst(_r3, pp + 24, 0);
                 pp += 32;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                const int row = k + kk;
-                const float* p0 = (const float*)A + (size_t)(row / 8) * A_hstep * 8 + (size_t)(i + ii) * 8 + row % 8;
-                pp[0] = p0[0];
-                pp[1] = p0[8];
-                pp[2] = p0[16];
-                pp[3] = p0[24];
-                pp += 4;
+                p0 += A_hstep * 8;
             }
         }
 #endif // __loongarch_asx
@@ -394,15 +377,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 16;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
         }
         if (elempack == 1)
         {
@@ -423,6 +397,24 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                transpose8x2_ps(_r0, _r1);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                pp += 16;
+                p0 += A_hstep * 8;
+            }
+        }
+#endif // __loongarch_asx
 #if __loongarch_sx
         if (elempack == 4)
         {
@@ -433,31 +425,16 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             {
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                float tmp0[4];
-                float tmp1[4];
-                __lsx_vst((__m128i)_r0, tmp0, 0);
-                __lsx_vst((__m128i)_r1, tmp1, 0);
-                pp[0] = tmp0[0];
-                pp[1] = tmp1[0];
-                pp[2] = tmp0[1];
-                pp[3] = tmp1[1];
-                pp[4] = tmp0[2];
-                pp[5] = tmp1[2];
-                pp[6] = tmp0[3];
-                pp[7] = tmp1[3];
+                __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
+                __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
+                __lsx_vst((__m128i)_tmp0, pp, 0);
+                __lsx_vst((__m128i)_tmp1, pp + 4, 0);
                 pp += 8;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0++;
-            }
         }
-        else
 #endif // __loongarch_sx
+        if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -473,6 +450,20 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
     for (; ii < max_ii; ii += 1)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+                pp += 8;
+                p0 += A_hstep * 8;
+            }
+        }
+#endif // __loongarch_asx
 #if __loongarch_sx
         if (elempack == 4)
         {
@@ -485,15 +476,9 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 4;
                 p0 += A_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
-            }
         }
-        else
 #endif // __loongarch_sx
+        if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -518,37 +503,100 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __loongarch_sx
     for (; jj + 7 < max_jj; jj += 8)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+#if __loongarch_asx
+        if (elempack == 8)
         {
-            const float* pB0 = (const float*)B + (size_t)(k + kk) * elempack;
-            pp[0] = pB0[(size_t)((j + jj) / elempack) * B_hstep * elempack + (j + jj) % elempack];
-            pp[1] = pB0[(size_t)((j + jj + 1) / elempack) * B_hstep * elempack + (j + jj + 1) % elempack];
-            pp[2] = pB0[(size_t)((j + jj + 2) / elempack) * B_hstep * elempack + (j + jj + 2) % elempack];
-            pp[3] = pB0[(size_t)((j + jj + 3) / elempack) * B_hstep * elempack + (j + jj + 3) % elempack];
-            pp[4] = pB0[(size_t)((j + jj + 4) / elempack) * B_hstep * elempack + (j + jj + 4) % elempack];
-            pp[5] = pB0[(size_t)((j + jj + 5) / elempack) * B_hstep * elempack + (j + jj + 5) % elempack];
-            pp[6] = pB0[(size_t)((j + jj + 6) / elempack) * B_hstep * elempack + (j + jj + 6) % elempack];
-            pp[7] = pB0[(size_t)((j + jj + 7) / elempack) * B_hstep * elempack + (j + jj + 7) % elempack];
-            pp += 8;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+                pp += 8;
+                p0 += 8;
+            }
+        }
+#endif // __loongarch_asx
+        if (elempack == 4)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                __lsx_vst(__lsx_vld(p1, 0), pp + 4, 0);
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                __m128 _r1 = (__m128)__lsx_vld(p1, 0);
+                __m128 _r2 = (__m128)__lsx_vld(p2, 0);
+                __m128 _r3 = (__m128)__lsx_vld(p3, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                __m128 _r4 = (__m128)__lsx_vld(p4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(p5, 0);
+                __m128 _r6 = (__m128)__lsx_vld(p6, 0);
+                __m128 _r7 = (__m128)__lsx_vld(p7, 0);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                __lsx_vst((__m128i)_r0, pp, 0);
+                __lsx_vst((__m128i)_r4, pp + 4, 0);
+                __lsx_vst((__m128i)_r1, pp + 8, 0);
+                __lsx_vst((__m128i)_r5, pp + 12, 0);
+                __lsx_vst((__m128i)_r2, pp + 16, 0);
+                __lsx_vst((__m128i)_r6, pp + 20, 0);
+                __lsx_vst((__m128i)_r3, pp + 24, 0);
+                __lsx_vst((__m128i)_r7, pp + 28, 0);
+                pp += 32;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+                p4 += 4;
+                p5 += 4;
+                p6 += 4;
+                p7 += 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p4[0];
+                pp[5] = p5[0];
+                pp[6] = p6[0];
+                pp[7] = p7[0];
+                pp += 8;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+            }
         }
     }
 #endif // __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
     {
-#if __loongarch_asx
-        if (elempack == 8)
-        {
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                const float* pB0 = (const float*)B + (size_t)(k + kk) * elempack;
-                pp[0] = pB0[(size_t)((j + jj) / elempack) * B_hstep * elempack + (j + jj) % elempack];
-                pp[1] = pB0[(size_t)((j + jj + 1) / elempack) * B_hstep * elempack + (j + jj + 1) % elempack];
-                pp[2] = pB0[(size_t)((j + jj + 2) / elempack) * B_hstep * elempack + (j + jj + 2) % elempack];
-                pp[3] = pB0[(size_t)((j + jj + 3) / elempack) * B_hstep * elempack + (j + jj + 3) % elempack];
-                pp += 4;
-            }
-        }
-#endif // __loongarch_asx
 #if __loongarch_sx
         if (elempack == 4)
         {
@@ -606,37 +654,43 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
     for (; jj + 1 < max_jj; jj += 2)
     {
-        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
+        // if (elempack == 1)
         {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
-            pp += 2;
-            p0++;
-            p1++;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp += 2;
+                p0++;
+                p1++;
+            }
         }
     }
 
     for (; jj < max_jj; jj += 1)
     {
-        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        // if (elempack == 1)
+        {
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
-        int kk = 0;
+            int kk = 0;
 #if __loongarch_sx
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            __lsx_vst(__lsx_vld(p0, 0), pp, 0);
-            pp += 4;
-            p0 += 4;
-        }
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                pp += 4;
+                p0 += 4;
+            }
 #endif // __loongarch_sx
-        for (; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp += 1;
-            p0++;
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0++;
+            }
         }
     }
 }
@@ -652,19 +706,76 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __loongarch_sx
     for (; jj + 7 < max_jj; jj += 8)
     {
-        for (int kk = 0; kk < max_kk; kk++)
+#if __loongarch_asx
+        if (elempack == 8)
         {
-            const int row = k + kk;
-            const float* pB0 = (const float*)B + (size_t)(row / elempack) * B_hstep * elempack + row % elempack;
-            pp[0] = pB0[(size_t)(j + jj) * elempack];
-            pp[1] = pB0[(size_t)(j + jj + 1) * elempack];
-            pp[2] = pB0[(size_t)(j + jj + 2) * elempack];
-            pp[3] = pB0[(size_t)(j + jj + 3) * elempack];
-            pp[4] = pB0[(size_t)(j + jj + 4) * elempack];
-            pp[5] = pB0[(size_t)(j + jj + 5) * elempack];
-            pp[6] = pB0[(size_t)(j + jj + 6) * elempack];
-            pp[7] = pB0[(size_t)(j + jj + 7) * elempack];
-            pp += 8;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 24, 0);
+                __m256 _r4 = (__m256)__lasx_xvld(p0 + 32, 0);
+                __m256 _r5 = (__m256)__lasx_xvld(p0 + 40, 0);
+                __m256 _r6 = (__m256)__lasx_xvld(p0 + 48, 0);
+                __m256 _r7 = (__m256)__lasx_xvld(p0 + 56, 0);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                __lasx_xvst(_r2, pp + 16, 0);
+                __lasx_xvst(_r3, pp + 24, 0);
+                __lasx_xvst(_r4, pp + 32, 0);
+                __lasx_xvst(_r5, pp + 40, 0);
+                __lasx_xvst(_r6, pp + 48, 0);
+                __lasx_xvst(_r7, pp + 56, 0);
+                pp += 64;
+                p0 += B_hstep * 8;
+            }
+        }
+#endif // __loongarch_asx
+        if (elempack == 4)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
+                __m128 _r3 = (__m128)__lsx_vld(p0 + 12, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                __m128 _r4 = (__m128)__lsx_vld(p0 + 16, 0);
+                __m128 _r5 = (__m128)__lsx_vld(p0 + 20, 0);
+                __m128 _r6 = (__m128)__lsx_vld(p0 + 24, 0);
+                __m128 _r7 = (__m128)__lsx_vld(p0 + 28, 0);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                __lsx_vst((__m128i)_r0, pp, 0);
+                __lsx_vst((__m128i)_r4, pp + 4, 0);
+                __lsx_vst((__m128i)_r1, pp + 8, 0);
+                __lsx_vst((__m128i)_r5, pp + 12, 0);
+                __lsx_vst((__m128i)_r2, pp + 16, 0);
+                __lsx_vst((__m128i)_r6, pp + 20, 0);
+                __lsx_vst((__m128i)_r3, pp + 24, 0);
+                __lsx_vst((__m128i)_r7, pp + 28, 0);
+                pp += 32;
+                p0 += B_hstep * 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
+                pp += 8;
+                p0 += B_hstep;
+            }
         }
     }
 #endif // __loongarch_sx
@@ -673,15 +784,22 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __loongarch_asx
         if (elempack == 8)
         {
-            for (int kk = 0; kk < max_kk; kk++)
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
             {
-                const int row = k + kk;
-                const float* pB0 = (const float*)B + (size_t)(row / elempack) * B_hstep * elempack + row % elempack;
-                pp[0] = pB0[(size_t)(j + jj) * elempack];
-                pp[1] = pB0[(size_t)(j + jj + 1) * elempack];
-                pp[2] = pB0[(size_t)(j + jj + 2) * elempack];
-                pp[3] = pB0[(size_t)(j + jj + 3) * elempack];
-                pp += 4;
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 24, 0);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                __lasx_xvst(_r2, pp + 16, 0);
+                __lasx_xvst(_r3, pp + 24, 0);
+                pp += 32;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __loongarch_asx
@@ -705,15 +823,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 16;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[8];
-                pp[3] = p0[12];
-                pp += 4;
-                p0++;
-            }
         }
 #endif // __loongarch_sx
         if (elempack == 1)
@@ -734,6 +843,24 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                transpose8x2_ps(_r0, _r1);
+                __lasx_xvst(_r0, pp, 0);
+                __lasx_xvst(_r1, pp + 8, 0);
+                pp += 16;
+                p0 += B_hstep * 8;
+            }
+        }
+#endif // __loongarch_asx
 #if __loongarch_sx
         if (elempack == 4)
         {
@@ -744,31 +871,16 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             {
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
-                float tmp0[4];
-                float tmp1[4];
-                __lsx_vst((__m128i)_r0, tmp0, 0);
-                __lsx_vst((__m128i)_r1, tmp1, 0);
-                pp[0] = tmp0[0];
-                pp[1] = tmp1[0];
-                pp[2] = tmp0[1];
-                pp[3] = tmp1[1];
-                pp[4] = tmp0[2];
-                pp[5] = tmp1[2];
-                pp[6] = tmp0[3];
-                pp[7] = tmp1[3];
+                __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
+                __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
+                __lsx_vst((__m128i)_tmp0, pp, 0);
+                __lsx_vst((__m128i)_tmp1, pp + 4, 0);
                 pp += 8;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0++;
-            }
         }
-        else
 #endif // __loongarch_sx
+        if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
@@ -784,6 +896,20 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     for (; jj < max_jj; jj += 1)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+                pp += 8;
+                p0 += B_hstep * 8;
+            }
+        }
+#endif // __loongarch_asx
 #if __loongarch_sx
         if (elempack == 4)
         {
@@ -796,15 +922,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 4;
                 p0 += B_hstep * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
-            }
         }
-        else
 #endif // __loongarch_sx
+        if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 

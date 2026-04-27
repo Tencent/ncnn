@@ -61,7 +61,11 @@ int ConvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
+#if __loongarch_asx
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+#else
             elempack = channels % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
@@ -251,7 +255,11 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -556,8 +564,13 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+#else
         g_elempack = channels_g % 4 == 0 ? 4 : 1;
         out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
 

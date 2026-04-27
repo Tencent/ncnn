@@ -55,7 +55,13 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             int out_elempack = 1;
 #if __loongarch_sx
             if (opt.use_packing_layout)
+            {
+#if __loongarch_asx
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
+            }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -107,7 +113,13 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             int out_elempack = 1;
 #if __loongarch_sx
             if (opt.use_packing_layout)
+            {
+#if __loongarch_asx
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
+            }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -140,6 +152,68 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         {
             Mat& top_blob = top_blobs[i];
 
+#if __loongarch_asx
+            if (out_elempack == 4 && top_blob.elempack == 8)
+            {
+                for (int j = 0; j < top_blob.h; j++)
+                {
+                    const float* r0 = ptr;
+                    const float* r1 = ptr + w * 4;
+
+                    float* outptr0 = top_blob.row(j);
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr0[4] = r1[0];
+                        outptr0[5] = r1[1];
+                        outptr0[6] = r1[2];
+                        outptr0[7] = r1[3];
+
+                        r0 += 4;
+                        r1 += 4;
+                        outptr0 += 8;
+                    }
+
+                    ptr += w * 8;
+                }
+            }
+            if (out_elempack == 1 && top_blob.elempack == 8)
+            {
+                for (int j = 0; j < top_blob.h; j++)
+                {
+                    const float* r0 = ptr;
+                    const float* r1 = ptr + w;
+                    const float* r2 = ptr + w * 2;
+                    const float* r3 = ptr + w * 3;
+                    const float* r4 = ptr + w * 4;
+                    const float* r5 = ptr + w * 5;
+                    const float* r6 = ptr + w * 6;
+                    const float* r7 = ptr + w * 7;
+
+                    float* outptr0 = top_blob.row(j);
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr0[0] = *r0++;
+                        outptr0[1] = *r1++;
+                        outptr0[2] = *r2++;
+                        outptr0[3] = *r3++;
+                        outptr0[4] = *r4++;
+                        outptr0[5] = *r5++;
+                        outptr0[6] = *r6++;
+                        outptr0[7] = *r7++;
+
+                        outptr0 += 8;
+                    }
+
+                    ptr += w * 8;
+                }
+            }
+#endif // __loongarch_asx
             if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 for (int j = 0; j < top_blob.h; j++)
@@ -164,8 +238,9 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     ptr += w * 4;
                 }
             }
-            else // if (out_elempack == 1 && top_blob.elempack == 1) if (out_elempack == 4 && top_blob.elempack == 4)
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = w * top_blob.h;
 
                 float* outptr = top_blob;
@@ -269,7 +344,13 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             int out_elempack = 1;
 #if __loongarch_sx
             if (opt.use_packing_layout)
+            {
+#if __loongarch_asx
+                out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
                 out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
+            }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -304,6 +385,72 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         {
             Mat& top_blob = top_blobs[i];
 
+#if __loongarch_asx
+            if (out_elempack == 4 && top_blob.elempack == 8)
+            {
+                int size = top_blob.w * top_blob.h * top_blob.d;
+
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob_unpacked.channel(p);
+                    const float* r1 = bottom_blob_unpacked.channel(p + 1);
+
+                    float* outptr0 = top_blob.channel(q);
+
+                    for (int j = 0; j < size; j++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr0[4] = r1[0];
+                        outptr0[5] = r1[1];
+                        outptr0[6] = r1[2];
+                        outptr0[7] = r1[3];
+
+                        r0 += 4;
+                        r1 += 4;
+                        outptr0 += 8;
+                    }
+
+                    p += 2;
+                }
+            }
+            if (out_elempack == 1 && top_blob.elempack == 8)
+            {
+                int size = top_blob.w * top_blob.h * top_blob.d;
+
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob_unpacked.channel(p);
+                    const float* r1 = bottom_blob_unpacked.channel(p + 1);
+                    const float* r2 = bottom_blob_unpacked.channel(p + 2);
+                    const float* r3 = bottom_blob_unpacked.channel(p + 3);
+                    const float* r4 = bottom_blob_unpacked.channel(p + 4);
+                    const float* r5 = bottom_blob_unpacked.channel(p + 5);
+                    const float* r6 = bottom_blob_unpacked.channel(p + 6);
+                    const float* r7 = bottom_blob_unpacked.channel(p + 7);
+
+                    float* outptr0 = top_blob.channel(q);
+
+                    for (int j = 0; j < size; j++)
+                    {
+                        outptr0[0] = *r0++;
+                        outptr0[1] = *r1++;
+                        outptr0[2] = *r2++;
+                        outptr0[3] = *r3++;
+                        outptr0[4] = *r4++;
+                        outptr0[5] = *r5++;
+                        outptr0[6] = *r6++;
+                        outptr0[7] = *r7++;
+
+                        outptr0 += 8;
+                    }
+
+                    p += 8;
+                }
+            }
+#endif // __loongarch_asx
             if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 int size = top_blob.w * top_blob.h * top_blob.d;
@@ -330,8 +477,9 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     p += 4;
                 }
             }
-            else // if (out_elempack == 1 && top_blob.elempack == 1) if (out_elempack == 4 && top_blob.elempack == 4)
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = top_blob.total();
 
                 const float* ptr = bottom_blob_unpacked.channel(p);

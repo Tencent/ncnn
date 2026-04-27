@@ -191,8 +191,8 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             int j = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-            __m256 _a256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + i * 4, 0), (__m128)__lsx_vld((const float*)a_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
-            __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + i * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + i * 4, 0), (__m128)__lsx_vld((const float*)a_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + i * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; j + 7 < w; j += 8)
             {
                 __builtin_prefetch(ptr + 32);
@@ -241,8 +241,8 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             int i = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-            __m256 _a256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + q * 4, 0), (__m128)__lsx_vld((const float*)a_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
-            __m256 _b256 = elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + q * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + q * 4, 0), (__m128)__lsx_vld((const float*)a_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + q * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 32);

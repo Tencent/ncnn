@@ -2426,6 +2426,36 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
 #if __loongarch_sx
     for (; jj + 7 < max_jj; jj += 8)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 8 * 3, 0);
+                __m256 _r4 = (__m256)__lasx_xvld(p0 + 8 * 4, 0);
+                __m256 _r5 = (__m256)__lasx_xvld(p0 + 8 * 5, 0);
+                __m256 _r6 = (__m256)__lasx_xvld(p0 + 8 * 6, 0);
+                __m256 _r7 = (__m256)__lasx_xvld(p0 + 8 * 7, 0);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                __lasx_xvst((__m256i)_r0, pp, 0);
+                __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                __lasx_xvst((__m256i)_r4, pp + 8 * 4, 0);
+                __lasx_xvst((__m256i)_r5, pp + 8 * 5, 0);
+                __lasx_xvst((__m256i)_r6, pp + 8 * 6, 0);
+                __lasx_xvst((__m256i)_r7, pp + 8 * 7, 0);
+                pp += 64;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -2474,6 +2504,28 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 8 * 3, 0);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                __lasx_xvst((__m256i)_r0, pp, 0);
+                __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                pp += 32;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -2512,6 +2564,24 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
     for (; jj + 1 < max_jj; jj += 2)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                transpose8x2_ps(_r0, _r1);
+                __lasx_xvst((__m256i)_r0, pp, 0);
+                __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                pp += 16;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -2549,6 +2619,20 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
     for (; jj < max_jj; jj++)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+                pp += 8;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -2635,6 +2719,29 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
 
                 const float* sptr = img.row(y0) + x0 * elempack;
 
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr + stride_w * 8, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(sptr + stride_w * 16, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(sptr + stride_w * 24, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(sptr + stride_w * 32, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(sptr + stride_w * 40, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(sptr + stride_w * 48, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(sptr + stride_w * 56, 0);
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                    __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                    __lasx_xvst((__m256i)_r4, pp + 8 * 4, 0);
+                    __lasx_xvst((__m256i)_r5, pp + 8 * 5, 0);
+                    __lasx_xvst((__m256i)_r6, pp + 8 * 6, 0);
+                    __lasx_xvst((__m256i)_r7, pp + 8 * 7, 0);
+                    pp += 64;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr, 0);
@@ -2709,6 +2816,29 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
                 const float* sptr6 = img.row(y6) + x6 * elempack;
                 const float* sptr7 = img.row(y7) + x7 * elempack;
 
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr1, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(sptr2, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(sptr3, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(sptr4, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(sptr5, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(sptr6, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(sptr7, 0);
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                    __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                    __lasx_xvst((__m256i)_r4, pp + 8 * 4, 0);
+                    __lasx_xvst((__m256i)_r5, pp + 8 * 5, 0);
+                    __lasx_xvst((__m256i)_r6, pp + 8 * 6, 0);
+                    __lasx_xvst((__m256i)_r7, pp + 8 * 7, 0);
+                    pp += 64;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr0, 0);
@@ -2774,6 +2904,21 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
 
                 const float* sptr = img.row(y0) + x0 * elempack;
 
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr + stride_w * 8, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(sptr + stride_w * 16, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(sptr + stride_w * 24, 0);
+                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                    __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                    pp += 32;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr, 0);
@@ -2823,6 +2968,21 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
                 const float* sptr2 = img.row(y2) + x2 * elempack;
                 const float* sptr3 = img.row(y3) + x3 * elempack;
 
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr1, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(sptr2, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(sptr3, 0);
+                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    __lasx_xvst((__m256i)_r2, pp + 8 * 2, 0);
+                    __lasx_xvst((__m256i)_r3, pp + 8 * 3, 0);
+                    pp += 32;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr0, 0);
@@ -2873,6 +3033,17 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
                 const float* sptr = img.row(y0) + x0 * elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr + stride_w * 8, 0);
+                    transpose8x2_ps(_r0, _r1);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    pp += 16;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr, 0);
@@ -2913,6 +3084,17 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
                 const float* sptr1 = img.row(y1) + x1 * elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+                if (elempack == 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(sptr0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(sptr1, 0);
+                    transpose8x2_ps(_r0, _r1);
+                    __lasx_xvst((__m256i)_r0, pp, 0);
+                    __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                    pp += 16;
+                }
+#endif // __loongarch_asx
                 if (elempack == 4)
                 {
                     __m128 _r0 = (__m128)__lsx_vld(sptr0, 0);
@@ -2954,6 +3136,13 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
             const float* sptr = img.row(y) + x * elempack;
 
 #if __loongarch_sx
+#if __loongarch_asx
+            if (elempack == 8)
+            {
+                __lasx_xvst(__lasx_xvld(sptr, 0), pp, 0);
+                pp += 8;
+            }
+#endif // __loongarch_asx
             if (elempack == 4)
             {
                 __lsx_vst((__m128i)(__m128)__lsx_vld(sptr, 0), pp, 0);
@@ -3046,7 +3235,11 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4 : 1;
+#else
         elempack = inch % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif // __loongarch_sx
 

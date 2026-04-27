@@ -7,6 +7,9 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
@@ -36,7 +39,11 @@ int DeconvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
+#if __loongarch_asx
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+#else
             elempack = channels % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
@@ -58,6 +65,15 @@ int DeconvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
         }
 
 #if __loongarch_sx
+        // pack8
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_tm, 8, opt);
+        }
+#endif // __loongarch_asx
+
         // pack4
         if (elempack == 4)
         {
@@ -188,7 +204,11 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -212,6 +232,69 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
     if (channels * elempack == group && group == num_output)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8)
+        {
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < channels; g++)
+                {
+                    float* outptr = top_blob_bordered.channel(g);
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 8;
+                    const Mat m = bottom_blob.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            __m256 _sum = (__m256)__lasx_xvreplgr2vr_w(0);
+
+                            if (bias_term)
+                            {
+                                _sum = (__m256)__lasx_xvld((const float*)bias_data + g * 8, 0);
+                            }
+
+                            for (int y = 0; y < kernel_h; y++)
+                            {
+                                int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                                if (sys < 0 || sys % stride_h != 0)
+                                    continue;
+
+                                int sy = sys / stride_h;
+                                if (sy >= h)
+                                    continue;
+
+                                for (int x = 0; x < kernel_w; x++)
+                                {
+                                    int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                                    if (sxs < 0 || sxs % stride_w != 0)
+                                        continue;
+
+                                    int sx = sxs / stride_w;
+                                    if (sx >= w)
+                                        continue;
+
+                                    const float* sptr = m.row(sy) + sx * 8;
+
+                                    int k = y * kernel_w + x;
+
+                                    __m256 _val = (__m256)__lasx_xvld(sptr, 0);
+                                    __m256 _w = (__m256)__lasx_xvld(kptr + k * 8, 0);
+                                    _sum = __lasx_xvfmadd_s(_w, _val, _sum);
+                                }
+                            }
+
+                            _sum = activation_lasx(_sum, activation_type, activation_params);
+
+                            __lasx_xvst((__m256i)_sum, outptr, 0);
+                            outptr += 8;
+                        }
+                    }
+                }
+            }
+        }
+#endif // __loongarch_asx
+
         if (elempack == 4)
         {
             {
@@ -348,8 +431,13 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
+#if __loongarch_asx
+            g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+            out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
+#else
             g_elempack = channels_g % 4 == 0 ? 4 : 1;
             out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+#endif
         }
 #endif
 
@@ -359,13 +447,15 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
         {
             Option opt_p = opt;
             opt_p.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_p);
+            convert_packing(bottom_blob, bottom_blob_unpacked, g_elempack, opt_p);
+            if (bottom_blob_unpacked.empty())
+                return -100;
         }
 
         Mat top_blob_bordered_unpacked = top_blob_bordered;
         if (out_g_elempack < out_elempack)
         {
-            top_blob_bordered_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+            top_blob_bordered_unpacked.create(outw, outh, num_output / out_g_elempack, out_elemsize / out_elempack * out_g_elempack, out_g_elempack, opt.workspace_allocator);
             if (top_blob_bordered_unpacked.empty())
                 return -100;
         }
@@ -381,13 +471,17 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
             opt_g.blob_allocator = top_blob_bordered_unpacked.allocator;
 
             // forward
-            op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            int ret = op->forward(bottom_blob_g, top_blob_bordered_g, opt_g);
+            if (ret != 0)
+                return ret;
         }
 
         // packing
         if (out_g_elempack < out_elempack)
         {
-            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, 4, opt);
+            convert_packing(top_blob_bordered_unpacked, top_blob_bordered, out_elempack, opt);
+            if (top_blob_bordered.empty())
+                return -100;
         }
         else
         {

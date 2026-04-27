@@ -30,7 +30,17 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             top_w += bottom_blob.w * bottom_blob.elempack;
         }
 
-        int out_elempack = opt.use_packing_layout && top_w % 4 == 0 ? 4 : 1;
+        int out_elempack = 1;
+#if __loongarch_sx
+        if (opt.use_packing_layout)
+        {
+#if __loongarch_asx
+            out_elempack = top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_w % 4 == 0 ? 4 : 1;
+#endif
+        }
+#endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -67,7 +77,17 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             top_h += bottom_blob.h * bottom_blob.elempack;
         }
 
-        int out_elempack = opt.use_packing_layout && top_h % 4 == 0 ? 4 : 1;
+        int out_elempack = 1;
+#if __loongarch_sx
+        if (opt.use_packing_layout)
+        {
+#if __loongarch_asx
+            out_elempack = top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_h % 4 == 0 ? 4 : 1;
+#endif
+        }
+#endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -88,6 +108,68 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
+#if __loongarch_asx
+            if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                for (int i = 0; i < bottom_blob.h; i++)
+                {
+                    const float* r0 = bottom_blob.row(i);
+
+                    float* outptr0 = outptr;
+                    float* outptr1 = outptr + w * 4;
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr1[0] = r0[4];
+                        outptr1[1] = r0[5];
+                        outptr1[2] = r0[6];
+                        outptr1[3] = r0[7];
+
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        r0 += 8;
+                    }
+
+                    outptr += w * 8;
+                }
+            }
+            if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                for (int i = 0; i < bottom_blob.h; i++)
+                {
+                    const float* r0 = bottom_blob.row(i);
+
+                    float* outptr0 = outptr;
+                    float* outptr1 = outptr + w;
+                    float* outptr2 = outptr + w * 2;
+                    float* outptr3 = outptr + w * 3;
+                    float* outptr4 = outptr + w * 4;
+                    float* outptr5 = outptr + w * 5;
+                    float* outptr6 = outptr + w * 6;
+                    float* outptr7 = outptr + w * 7;
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        *outptr0++ = r0[0];
+                        *outptr1++ = r0[1];
+                        *outptr2++ = r0[2];
+                        *outptr3++ = r0[3];
+                        *outptr4++ = r0[4];
+                        *outptr5++ = r0[5];
+                        *outptr6++ = r0[6];
+                        *outptr7++ = r0[7];
+
+                        r0 += 8;
+                    }
+
+                    outptr += w * 8;
+                }
+            }
+#endif // __loongarch_asx
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -112,7 +194,7 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     outptr += w * 4;
                 }
             }
-            else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 4 && elempack == 4)
+            if (bottom_blob.elempack == elempack) // 1-1 4-4 8-8
             {
                 int size = w * bottom_blob.h;
 
@@ -185,7 +267,17 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             top_channels += bottom_blob.c * bottom_blob.elempack;
         }
 
-        int out_elempack = opt.use_packing_layout && top_channels % 4 == 0 ? 4 : 1;
+        int out_elempack = 1;
+#if __loongarch_sx
+        if (opt.use_packing_layout)
+        {
+#if __loongarch_asx
+            out_elempack = top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_channels % 4 == 0 ? 4 : 1;
+#endif
+        }
+#endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -210,6 +302,72 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
+#if __loongarch_asx
+            if (bottom_blob.elempack == 8 && elempack == 4)
+            {
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
+
+                for (int q = 0; q < bottom_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q);
+
+                    float* outptr0 = top_blob_unpacked.channel(p);
+                    float* outptr1 = top_blob_unpacked.channel(p + 1);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr1[0] = r0[4];
+                        outptr1[1] = r0[5];
+                        outptr1[2] = r0[6];
+                        outptr1[3] = r0[7];
+
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        r0 += 8;
+                    }
+
+                    p += 2;
+                }
+            }
+            if (bottom_blob.elempack == 8 && elempack == 1)
+            {
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
+
+                for (int q = 0; q < bottom_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q);
+
+                    float* outptr0 = top_blob_unpacked.channel(p);
+                    float* outptr1 = top_blob_unpacked.channel(p + 1);
+                    float* outptr2 = top_blob_unpacked.channel(p + 2);
+                    float* outptr3 = top_blob_unpacked.channel(p + 3);
+                    float* outptr4 = top_blob_unpacked.channel(p + 4);
+                    float* outptr5 = top_blob_unpacked.channel(p + 5);
+                    float* outptr6 = top_blob_unpacked.channel(p + 6);
+                    float* outptr7 = top_blob_unpacked.channel(p + 7);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        *outptr0++ = r0[0];
+                        *outptr1++ = r0[1];
+                        *outptr2++ = r0[2];
+                        *outptr3++ = r0[3];
+                        *outptr4++ = r0[4];
+                        *outptr5++ = r0[5];
+                        *outptr6++ = r0[6];
+                        *outptr7++ = r0[7];
+
+                        r0 += 8;
+                    }
+
+                    p += 8;
+                }
+            }
+#endif // __loongarch_asx
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
@@ -236,7 +394,7 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     p += 4;
                 }
             }
-            else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 4 && elempack == 4)
+            if (bottom_blob.elempack == elempack) // 1-1 4-4 8-8
             {
                 int size = bottom_blob.total();
 

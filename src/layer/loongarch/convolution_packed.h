@@ -27,6 +27,11 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __loongarch_asx
     if (outch >= 4)
     {
+#if __loongarch_asx
+        if (inch >= 8)
+            kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
+        else
+#endif // __loongarch_asx
         if (inch >= 4)
             kernel_tm.create(4 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else if (inch >= 2)
@@ -39,6 +44,11 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
     if (outch >= 2)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (inch >= 8)
+            kernel_tm.create(2 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
+        else
+#endif // __loongarch_asx
         if (inch >= 4)
             kernel_tm.create(2 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
         else
@@ -51,6 +61,11 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
     else
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (inch >= 8)
+            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch);
+        else
+#endif // __loongarch_asx
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch);
         else
@@ -252,6 +267,36 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif
 
         int p = 0;
+#if __loongarch_asx
+        for (; p + 7 < inch; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    k0 += maxk;
+                    k1 += maxk;
+                    k2 += maxk;
+                    k3 += maxk;
+                    g00 += 4;
+                }
+            }
+
+            kptr0 += maxk * 8;
+            kptr1 += maxk * 8;
+            kptr2 += maxk * 8;
+            kptr3 += maxk * 8;
+        }
+#endif // __loongarch_asx
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -343,6 +388,32 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 
         int p = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; p + 7 < inch; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+            }
+
+            kptr0 += maxk * 8;
+            kptr1 += maxk * 8;
+        }
+#endif // __loongarch_asx
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -414,6 +485,24 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 
         int p = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; p + 7 < inch; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + k;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+            }
+
+            kptr0 += maxk * 8;
+        }
+#endif // __loongarch_asx
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -781,6 +870,96 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 #endif
 
                 int q = 0;
+#if __loongarch_asx
+                for (; q + 7 < inch; q += 8)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 8)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const float* r0s = r0 + space_ofs[k];
+
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
+                            __m128 _w4 = (__m128)__lsx_vld(kptr + 16, 0);
+                            __m128 _w5 = (__m128)__lsx_vld(kptr + 20, 0);
+                            __m128 _w6 = (__m128)__lsx_vld(kptr + 24, 0);
+                            __m128 _w7 = (__m128)__lsx_vld(kptr + 28, 0);
+
+                            _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(r0s[0]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(r0s[1]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w2, __lsx_vreplfr2vr_s(r0s[2]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w3, __lsx_vreplfr2vr_s(r0s[3]), _sum3);
+                            _sum0 = __lsx_vfmadd_s(_w4, __lsx_vreplfr2vr_s(r0s[4]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w5, __lsx_vreplfr2vr_s(r0s[5]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w6, __lsx_vreplfr2vr_s(r0s[6]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w7, __lsx_vreplfr2vr_s(r0s[7]), _sum3);
+
+                            kptr += 32;
+                        }
+                    }
+                    if (elempack == 4)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            const float* r0s = r0 + sok;
+                            const float* r1s = r0 + N + sok;
+
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
+                            __m128 _w4 = (__m128)__lsx_vld(kptr + 16, 0);
+                            __m128 _w5 = (__m128)__lsx_vld(kptr + 20, 0);
+                            __m128 _w6 = (__m128)__lsx_vld(kptr + 24, 0);
+                            __m128 _w7 = (__m128)__lsx_vld(kptr + 28, 0);
+
+                            _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(r0s[0]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(r0s[1]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w2, __lsx_vreplfr2vr_s(r0s[2]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w3, __lsx_vreplfr2vr_s(r0s[3]), _sum3);
+                            _sum0 = __lsx_vfmadd_s(_w4, __lsx_vreplfr2vr_s(r1s[0]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w5, __lsx_vreplfr2vr_s(r1s[1]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w6, __lsx_vreplfr2vr_s(r1s[2]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w7, __lsx_vreplfr2vr_s(r1s[3]), _sum3);
+
+                            kptr += 32;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
+                            __m128 _w4 = (__m128)__lsx_vld(kptr + 16, 0);
+                            __m128 _w5 = (__m128)__lsx_vld(kptr + 20, 0);
+                            __m128 _w6 = (__m128)__lsx_vld(kptr + 24, 0);
+                            __m128 _w7 = (__m128)__lsx_vld(kptr + 28, 0);
+
+                            _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(r0[sok]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(r0[sok + N]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w2, __lsx_vreplfr2vr_s(r0[sok + N * 2]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w3, __lsx_vreplfr2vr_s(r0[sok + N * 3]), _sum3);
+                            _sum0 = __lsx_vfmadd_s(_w4, __lsx_vreplfr2vr_s(r0[sok + N * 4]), _sum0);
+                            _sum1 = __lsx_vfmadd_s(_w5, __lsx_vreplfr2vr_s(r0[sok + N * 5]), _sum1);
+                            _sum2 = __lsx_vfmadd_s(_w6, __lsx_vreplfr2vr_s(r0[sok + N * 6]), _sum2);
+                            _sum3 = __lsx_vfmadd_s(_w7, __lsx_vreplfr2vr_s(r0[sok + N * 7]), _sum3);
+
+                            kptr += 32;
+                        }
+                    }
+                }
+#endif // __loongarch_asx
                 for (; q + 3 < inch; q += 4)
                 {
                     const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
@@ -930,6 +1109,85 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                 int q = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+                __m256 _sum0_256 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sum1_256 = (__m256)__lasx_xvreplgr2vr_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 8)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m256 _r0 = (__m256)__lasx_xvld(r0 + sok, 0);
+                            __m256 _w0 = (__m256)__lasx_xvld(kptr, 0);
+                            __m256 _w1 = (__m256)__lasx_xvld(kptr + 8, 0);
+
+                            _sum0_256 = __lasx_xvfmadd_s(_r0, _w0, _sum0_256);
+                            _sum1_256 = __lasx_xvfmadd_s(_r0, _w1, _sum1_256);
+
+                            kptr += 16;
+                        }
+                    }
+                    if (elempack == 4)
+                    {
+                        __m128 _sum0_128 = (__m128)__lsx_vreplgr2vr_w(0);
+                        __m128 _sum1_128 = (__m128)__lsx_vreplgr2vr_w(0);
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            const float* r0s = r0 + sok;
+                            const float* r1s = r0 + N + sok;
+
+                            __m128 _r0 = (__m128)__lsx_vld(r0s, 0);
+                            __m128 _r1 = (__m128)__lsx_vld(r1s, 0);
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
+
+                            _sum0_128 = __lsx_vfmadd_s(_r0, _w0, _sum0_128);
+                            _sum0_128 = __lsx_vfmadd_s(_r1, _w1, _sum0_128);
+                            _sum1_128 = __lsx_vfmadd_s(_r0, _w2, _sum1_128);
+                            _sum1_128 = __lsx_vfmadd_s(_r1, _w3, _sum1_128);
+
+                            kptr += 16;
+                        }
+                        sum0 += __lsx_reduce_fadd_s(_sum0_128);
+                        sum1 += __lsx_reduce_fadd_s(_sum1_128);
+                    }
+                    if (elempack == 1)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            sum0 += r0[sok] * kptr[0];
+                            sum0 += r0[sok + N] * kptr[1];
+                            sum0 += r0[sok + N * 2] * kptr[2];
+                            sum0 += r0[sok + N * 3] * kptr[3];
+                            sum0 += r0[sok + N * 4] * kptr[4];
+                            sum0 += r0[sok + N * 5] * kptr[5];
+                            sum0 += r0[sok + N * 6] * kptr[6];
+                            sum0 += r0[sok + N * 7] * kptr[7];
+                            sum1 += r0[sok] * kptr[8];
+                            sum1 += r0[sok + N] * kptr[9];
+                            sum1 += r0[sok + N * 2] * kptr[10];
+                            sum1 += r0[sok + N * 3] * kptr[11];
+                            sum1 += r0[sok + N * 4] * kptr[12];
+                            sum1 += r0[sok + N * 5] * kptr[13];
+                            sum1 += r0[sok + N * 6] * kptr[14];
+                            sum1 += r0[sok + N * 7] * kptr[15];
+
+                            kptr += 16;
+                        }
+                    }
+                }
+                sum0 += __lasx_reduce_fadd_s(_sum0_256);
+                sum1 += __lasx_reduce_fadd_s(_sum1_256);
+#endif // __loongarch_asx
                 __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
                 for (; q + 3 < inch; q += 4)
@@ -1059,6 +1317,66 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                 int q = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+                __m256 _sum_256 = (__m256)__lasx_xvreplgr2vr_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 8)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m256 _r0 = (__m256)__lasx_xvld(r0 + sok, 0);
+                            __m256 _w = (__m256)__lasx_xvld(kptr, 0);
+                            _sum_256 = __lasx_xvfmadd_s(_r0, _w, _sum_256);
+
+                            kptr += 8;
+                        }
+                    }
+                    if (elempack == 4)
+                    {
+                        __m128 _sum_128 = (__m128)__lsx_vreplgr2vr_w(0);
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            const float* r0s = r0 + sok;
+                            const float* r1s = r0 + N + sok;
+
+                            __m128 _r0 = (__m128)__lsx_vld(r0s, 0);
+                            __m128 _r1 = (__m128)__lsx_vld(r1s, 0);
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+
+                            _sum_128 = __lsx_vfmadd_s(_r0, _w0, _sum_128);
+                            _sum_128 = __lsx_vfmadd_s(_r1, _w1, _sum_128);
+
+                            kptr += 8;
+                        }
+                        sum += __lsx_reduce_fadd_s(_sum_128);
+                    }
+                    if (elempack == 1)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            sum += r0[sok] * kptr[0];
+                            sum += r0[sok + N] * kptr[1];
+                            sum += r0[sok + N * 2] * kptr[2];
+                            sum += r0[sok + N * 3] * kptr[3];
+                            sum += r0[sok + N * 4] * kptr[4];
+                            sum += r0[sok + N * 5] * kptr[5];
+                            sum += r0[sok + N * 6] * kptr[6];
+                            sum += r0[sok + N * 7] * kptr[7];
+
+                            kptr += 8;
+                        }
+                    }
+                }
+                sum += __lasx_reduce_fadd_s(_sum_256);
+#endif // __loongarch_asx
                 __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
                 for (; q + 3 < inch; q += 4)
                 {
