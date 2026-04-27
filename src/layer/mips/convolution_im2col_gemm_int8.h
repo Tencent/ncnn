@@ -56,6 +56,21 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             v4i32 _f21 = __msa_ld_w(pp + 20, 0);
             v4i32 _f30 = __msa_ld_w(pp + 24, 0);
             v4i32 _f31 = __msa_ld_w(pp + 28, 0);
+
+            _f20 = __msa_shf_w(_f20, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f30 = __msa_shf_w(_f30, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f00, _f10, _f20, _f30);
+            _f10 = __msa_shf_w(_f10, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f20 = __msa_shf_w(_f20, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f30 = __msa_shf_w(_f30, _MSA_SHUFFLE(0, 3, 2, 1));
+
+            _f21 = __msa_shf_w(_f21, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f31 = __msa_shf_w(_f31, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f01, _f11, _f21, _f31);
+            _f11 = __msa_shf_w(_f11, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f21 = __msa_shf_w(_f21, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f31 = __msa_shf_w(_f31, _MSA_SHUFFLE(0, 3, 2, 1));
+
             v4i32 _f40 = __msa_ld_w(pp + 32, 0);
             v4i32 _f41 = __msa_ld_w(pp + 36, 0);
             v4i32 _f50 = __msa_ld_w(pp + 40, 0);
@@ -65,8 +80,27 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             v4i32 _f70 = __msa_ld_w(pp + 56, 0);
             v4i32 _f71 = __msa_ld_w(pp + 60, 0);
 
+            _f60 = __msa_shf_w(_f60, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f70 = __msa_shf_w(_f70, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f40, _f50, _f60, _f70);
+            _f50 = __msa_shf_w(_f50, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f60 = __msa_shf_w(_f60, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f70 = __msa_shf_w(_f70, _MSA_SHUFFLE(0, 3, 2, 1));
+
+            _f61 = __msa_shf_w(_f61, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f71 = __msa_shf_w(_f71, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f41, _f51, _f61, _f71);
+            _f51 = __msa_shf_w(_f51, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f61 = __msa_shf_w(_f61, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f71 = __msa_shf_w(_f71, _MSA_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f00, _f10, _f20, _f30);
+                transpose4x4_epi32(_f01, _f11, _f21, _f31);
+                transpose4x4_epi32(_f40, _f50, _f60, _f70);
+                transpose4x4_epi32(_f41, _f51, _f61, _f71);
+
                 __msa_st_w(_f00, p0, 0);
                 __msa_st_w(_f10, p0 + 4, 0);
                 __msa_st_w(_f20, p0 + 8, 0);
@@ -87,11 +121,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((v4f32&)_f00, (v4f32&)_f10, (v4f32&)_f20, (v4f32&)_f30);
-                transpose4x4_ps((v4f32&)_f01, (v4f32&)_f11, (v4f32&)_f21, (v4f32&)_f31);
-                transpose4x4_ps((v4f32&)_f40, (v4f32&)_f50, (v4f32&)_f60, (v4f32&)_f70);
-                transpose4x4_ps((v4f32&)_f41, (v4f32&)_f51, (v4f32&)_f61, (v4f32&)_f71);
-
                 __msa_st_w(_f00, p0, 0);
                 __msa_st_w(_f10, p0 + out_hstep, 0);
                 __msa_st_w(_f20, p0 + out_hstep * 2, 0);
@@ -124,8 +153,25 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             v4i32 _f30 = __msa_ld_w(pp + 24, 0);
             v4i32 _f31 = __msa_ld_w(pp + 28, 0);
 
+            _f20 = __msa_shf_w(_f20, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f30 = __msa_shf_w(_f30, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f00, _f10, _f20, _f30);
+            _f10 = __msa_shf_w(_f10, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f20 = __msa_shf_w(_f20, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f30 = __msa_shf_w(_f30, _MSA_SHUFFLE(0, 3, 2, 1));
+
+            _f21 = __msa_shf_w(_f21, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f31 = __msa_shf_w(_f31, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f01, _f11, _f21, _f31);
+            _f11 = __msa_shf_w(_f11, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f21 = __msa_shf_w(_f21, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f31 = __msa_shf_w(_f31, _MSA_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f00, _f10, _f20, _f30);
+                transpose4x4_epi32(_f01, _f11, _f21, _f31);
+
                 __msa_st_w(_f00, p0, 0);
                 __msa_st_w(_f10, p0 + 4, 0);
                 __msa_st_w(_f20, p0 + 8, 0);
@@ -138,9 +184,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((v4f32&)_f00, (v4f32&)_f10, (v4f32&)_f20, (v4f32&)_f30);
-                transpose4x4_ps((v4f32&)_f01, (v4f32&)_f11, (v4f32&)_f21, (v4f32&)_f31);
-
                 __msa_st_w(_f00, p0, 0);
                 __msa_st_w(_f10, p0 + out_hstep, 0);
                 __msa_st_w(_f20, p0 + out_hstep * 2, 0);
@@ -156,43 +199,44 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            v4i32 _f00 = __msa_ld_w(pp, 0);
-            v4i32 _f01 = __msa_ld_w(pp + 4, 0);
-            v4i32 _f10 = __msa_ld_w(pp + 8, 0);
-            v4i32 _f11 = __msa_ld_w(pp + 12, 0);
-
             if (out_elempack == 4)
             {
-                __msa_st_w(_f00, p0, 0);
-                __msa_st_w(_f10, p0 + 4, 0);
-                __msa_st_w(_f01, p0 + out_hstep * 4, 0);
-                __msa_st_w(_f11, p0 + out_hstep * 4 + 4, 0);
+                p0[0] = pp[0];
+                p0[1] = pp[9];
+                p0[2] = pp[2];
+                p0[3] = pp[11];
+                p0[4] = pp[8];
+                p0[5] = pp[1];
+                p0[6] = pp[10];
+                p0[7] = pp[3];
+                p0[out_hstep * 4] = pp[4];
+                p0[out_hstep * 4 + 1] = pp[13];
+                p0[out_hstep * 4 + 2] = pp[6];
+                p0[out_hstep * 4 + 3] = pp[15];
+                p0[out_hstep * 4 + 4] = pp[12];
+                p0[out_hstep * 4 + 5] = pp[5];
+                p0[out_hstep * 4 + 6] = pp[14];
+                p0[out_hstep * 4 + 7] = pp[7];
                 p0 += 8;
             }
             if (out_elempack == 1)
             {
-                int tmp[16];
-                __msa_st_w(_f00, tmp, 0);
-                __msa_st_w(_f01, tmp + 4, 0);
-                __msa_st_w(_f10, tmp + 8, 0);
-                __msa_st_w(_f11, tmp + 12, 0);
-
-                p0[0] = tmp[0];
-                p0[1] = tmp[8];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep + 1] = tmp[9];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 2 + 1] = tmp[10];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 3 + 1] = tmp[11];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 4 + 1] = tmp[12];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 5 + 1] = tmp[13];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 6 + 1] = tmp[14];
-                p0[out_hstep * 7] = tmp[7];
-                p0[out_hstep * 7 + 1] = tmp[15];
+                p0[0] = pp[0];
+                p0[1] = pp[8];
+                p0[out_hstep] = pp[9];
+                p0[out_hstep + 1] = pp[1];
+                p0[out_hstep * 2] = pp[2];
+                p0[out_hstep * 2 + 1] = pp[10];
+                p0[out_hstep * 3] = pp[11];
+                p0[out_hstep * 3 + 1] = pp[3];
+                p0[out_hstep * 4] = pp[4];
+                p0[out_hstep * 4 + 1] = pp[12];
+                p0[out_hstep * 5] = pp[13];
+                p0[out_hstep * 5 + 1] = pp[5];
+                p0[out_hstep * 6] = pp[6];
+                p0[out_hstep * 6 + 1] = pp[14];
+                p0[out_hstep * 7] = pp[15];
+                p0[out_hstep * 7 + 1] = pp[7];
                 p0 += 2;
             }
 
@@ -240,13 +284,31 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             v4i32 _f1 = __msa_ld_w(pp + 4, 0);
             v4i32 _f2 = __msa_ld_w(pp + 8, 0);
             v4i32 _f3 = __msa_ld_w(pp + 12, 0);
+
+            _f2 = __msa_shf_w(_f2, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f3 = __msa_shf_w(_f3, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f0, _f1, _f2, _f3);
+            _f1 = __msa_shf_w(_f1, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f2 = __msa_shf_w(_f2, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f3 = __msa_shf_w(_f3, _MSA_SHUFFLE(0, 3, 2, 1));
+
             v4i32 _f4 = __msa_ld_w(pp + 16, 0);
             v4i32 _f5 = __msa_ld_w(pp + 20, 0);
             v4i32 _f6 = __msa_ld_w(pp + 24, 0);
             v4i32 _f7 = __msa_ld_w(pp + 28, 0);
 
+            _f6 = __msa_shf_w(_f6, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f7 = __msa_shf_w(_f7, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f4, _f5, _f6, _f7);
+            _f5 = __msa_shf_w(_f5, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f6 = __msa_shf_w(_f6, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f7 = __msa_shf_w(_f7, _MSA_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f0, _f1, _f2, _f3);
+                transpose4x4_epi32(_f4, _f5, _f6, _f7);
+
                 __msa_st_w(_f0, p0, 0);
                 __msa_st_w(_f1, p0 + 4, 0);
                 __msa_st_w(_f2, p0 + 8, 0);
@@ -259,9 +321,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((v4f32&)_f0, (v4f32&)_f1, (v4f32&)_f2, (v4f32&)_f3);
-                transpose4x4_ps((v4f32&)_f4, (v4f32&)_f5, (v4f32&)_f6, (v4f32&)_f7);
-
                 __msa_st_w(_f0, p0, 0);
                 __msa_st_w(_f1, p0 + out_hstep, 0);
                 __msa_st_w(_f2, p0 + out_hstep * 2, 0);
@@ -282,8 +341,17 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             v4i32 _f2 = __msa_ld_w(pp + 8, 0);
             v4i32 _f3 = __msa_ld_w(pp + 12, 0);
 
+            _f2 = __msa_shf_w(_f2, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f3 = __msa_shf_w(_f3, _MSA_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f0, _f1, _f2, _f3);
+            _f1 = __msa_shf_w(_f1, _MSA_SHUFFLE(2, 1, 0, 3));
+            _f2 = __msa_shf_w(_f2, _MSA_SHUFFLE(1, 0, 3, 2));
+            _f3 = __msa_shf_w(_f3, _MSA_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f0, _f1, _f2, _f3);
+
                 __msa_st_w(_f0, p0, 0);
                 __msa_st_w(_f1, p0 + 4, 0);
                 __msa_st_w(_f2, p0 + 8, 0);
@@ -292,8 +360,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((v4f32&)_f0, (v4f32&)_f1, (v4f32&)_f2, (v4f32&)_f3);
-
                 __msa_st_w(_f0, p0, 0);
                 __msa_st_w(_f1, p0 + out_hstep, 0);
                 __msa_st_w(_f2, p0 + out_hstep * 2, 0);
@@ -305,29 +371,28 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            v4i32 _f0 = __msa_ld_w(pp, 0);
-            v4i32 _f1 = __msa_ld_w(pp + 4, 0);
-
             if (out_elempack == 4)
             {
-                __msa_st_w(_f0, p0, 0);
-                __msa_st_w(_f1, p0 + 4, 0);
+                p0[0] = pp[0];
+                p0[1] = pp[5];
+                p0[2] = pp[2];
+                p0[3] = pp[7];
+                p0[4] = pp[4];
+                p0[5] = pp[1];
+                p0[6] = pp[6];
+                p0[7] = pp[3];
                 p0 += 8;
             }
             if (out_elempack == 1)
             {
-                int tmp[8];
-                __msa_st_w(_f0, tmp, 0);
-                __msa_st_w(_f1, tmp + 4, 0);
-
-                p0[0] = tmp[0];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 3] = tmp[3];
-                p0[1] = tmp[4];
-                p0[out_hstep + 1] = tmp[5];
-                p0[out_hstep * 2 + 1] = tmp[6];
-                p0[out_hstep * 3 + 1] = tmp[7];
+                p0[0] = pp[0];
+                p0[1] = pp[4];
+                p0[out_hstep] = pp[5];
+                p0[out_hstep + 1] = pp[1];
+                p0[out_hstep * 2] = pp[2];
+                p0[out_hstep * 2 + 1] = pp[6];
+                p0[out_hstep * 3] = pp[7];
+                p0[out_hstep * 3 + 1] = pp[3];
                 p0 += 2;
             }
 
@@ -585,17 +650,41 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp[2] = p0[16 + n];
-                    pp[3] = p0[24 + n];
-                    pp[4] = p0[32 + n];
-                    pp[5] = p0[40 + n];
-                    pp[6] = p0[48 + n];
-                    pp[7] = p0[56 + n];
-                    pp += 8;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp[8] = p0[16 + n];
+                    pp[9] = p0[16 + n + 1];
+                    pp[10] = p0[16 + n + 2];
+                    pp[11] = p0[16 + n + 3];
+                    pp[12] = p0[24 + n];
+                    pp[13] = p0[24 + n + 1];
+                    pp[14] = p0[24 + n + 2];
+                    pp[15] = p0[24 + n + 3];
+                    pp[16] = p0[32 + n];
+                    pp[17] = p0[32 + n + 1];
+                    pp[18] = p0[32 + n + 2];
+                    pp[19] = p0[32 + n + 3];
+                    pp[20] = p0[40 + n];
+                    pp[21] = p0[40 + n + 1];
+                    pp[22] = p0[40 + n + 2];
+                    pp[23] = p0[40 + n + 3];
+                    pp[24] = p0[48 + n];
+                    pp[25] = p0[48 + n + 1];
+                    pp[26] = p0[48 + n + 2];
+                    pp[27] = p0[48 + n + 3];
+                    pp[28] = p0[56 + n];
+                    pp[29] = p0[56 + n + 1];
+                    pp[30] = p0[56 + n + 2];
+                    pp[31] = p0[56 + n + 3];
+                    pp += 32;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -605,6 +694,46 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p1 + bottom_blob.cstep;
+                const signed char* p3 = p2 + bottom_blob.cstep;
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p1[2];
+                pp[10] = p2[2];
+                pp[11] = p3[2];
+                pp[12] = p0[3];
+                pp[13] = p1[3];
+                pp[14] = p2[3];
+                pp[15] = p3[3];
+                pp[16] = p0[4];
+                pp[17] = p1[4];
+                pp[18] = p2[4];
+                pp[19] = p3[4];
+                pp[20] = p0[5];
+                pp[21] = p1[5];
+                pp[22] = p2[5];
+                pp[23] = p3[5];
+                pp[24] = p0[6];
+                pp[25] = p1[6];
+                pp[26] = p2[6];
+                pp[27] = p3[6];
+                pp[28] = p0[7];
+                pp[29] = p1[7];
+                pp[30] = p2[7];
+                pp[31] = p3[7];
+                pp += 32;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -629,13 +758,25 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp[2] = p0[16 + n];
-                    pp[3] = p0[24 + n];
-                    pp += 4;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp[8] = p0[16 + n];
+                    pp[9] = p0[16 + n + 1];
+                    pp[10] = p0[16 + n + 2];
+                    pp[11] = p0[16 + n + 3];
+                    pp[12] = p0[24 + n];
+                    pp[13] = p0[24 + n + 1];
+                    pp[14] = p0[24 + n + 2];
+                    pp[15] = p0[24 + n + 3];
+                    pp += 16;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -645,6 +786,30 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p1 + bottom_blob.cstep;
+                const signed char* p3 = p2 + bottom_blob.cstep;
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p1[2];
+                pp[10] = p2[2];
+                pp[11] = p3[2];
+                pp[12] = p0[3];
+                pp[13] = p1[3];
+                pp[14] = p2[3];
+                pp[15] = p3[3];
+                pp += 16;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -667,11 +832,17 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp += 2;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp += 8;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -682,6 +853,22 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p1 + bottom_blob.cstep;
+                const signed char* p3 = p2 + bottom_blob.cstep;
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp += 8;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -701,10 +888,13 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp += 1;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp += 4;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -715,6 +905,15 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep];
+                pp[2] = p0[bottom_blob.cstep * 2];
+                pp[3] = p0[bottom_blob.cstep * 3];
+                pp += 4;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -770,6 +969,35 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                        pp[8 + q] = sptr[stride_w * 16 + n];
+                        pp[12 + q] = sptr[stride_w * 24 + n];
+                        pp[16 + q] = sptr[stride_w * 32 + n];
+                        pp[20 + q] = sptr[stride_w * 40 + n];
+                        pp[24 + q] = sptr[stride_w * 48 + n];
+                        pp[28 + q] = sptr[stride_w * 56 + n];
+                    }
+                    pp += 32;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -796,6 +1024,36 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[7] = sptr[stride_w * 56 + n];
                     pp += 8;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                        pp[8 + q] = sptr[stride_w * 2];
+                        pp[12 + q] = sptr[stride_w * 3];
+                        pp[16 + q] = sptr[stride_w * 4];
+                        pp[20 + q] = sptr[stride_w * 5];
+                        pp[24 + q] = sptr[stride_w * 6];
+                        pp[28 + q] = sptr[stride_w * 7];
+                    }
+                }
+                pp += 32;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -830,6 +1088,57 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int x2 = stride_w * dx2 + dilation_w * v;
+                        int x3 = stride_w * dx3 + dilation_w * v;
+                        int x4 = stride_w * dx4 + dilation_w * v;
+                        int x5 = stride_w * dx5 + dilation_w * v;
+                        int x6 = stride_w * dx6 + dilation_w * v;
+                        int x7 = stride_w * dx7 + dilation_w * v;
+
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+                        int y2 = stride_h * dy2 + dilation_h * u;
+                        int y3 = stride_h * dy3 + dilation_h * u;
+                        int y4 = stride_h * dy4 + dilation_h * u;
+                        int y5 = stride_h * dy5 + dilation_h * u;
+                        int y6 = stride_h * dy6 + dilation_h * u;
+                        int y7 = stride_h * dy7 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                        const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                        const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+                        const signed char* sptr4 = img.row<const signed char>(y4) + x4 * 8;
+                        const signed char* sptr5 = img.row<const signed char>(y5) + x5 * 8;
+                        const signed char* sptr6 = img.row<const signed char>(y6) + x6 * 8;
+                        const signed char* sptr7 = img.row<const signed char>(y7) + x7 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                        pp[8 + q] = sptr2[n];
+                        pp[12 + q] = sptr3[n];
+                        pp[16 + q] = sptr4[n];
+                        pp[20 + q] = sptr5[n];
+                        pp[24 + q] = sptr6[n];
+                        pp[28 + q] = sptr7[n];
+                    }
+                    pp += 32;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -878,6 +1187,58 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[7] = sptr7[n];
                     pp += 8;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+                    int x4 = stride_w * dx4 + dilation_w * v;
+                    int x5 = stride_w * dx5 + dilation_w * v;
+                    int x6 = stride_w * dx6 + dilation_w * v;
+                    int x7 = stride_w * dx7 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+                    int y4 = stride_h * dy4 + dilation_h * u;
+                    int y5 = stride_h * dy5 + dilation_h * u;
+                    int y6 = stride_h * dy6 + dilation_h * u;
+                    int y7 = stride_h * dy7 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+                    const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
+                    const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
+                    const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
+                    const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                        pp[8 + q] = sptr2[0];
+                        pp[12 + q] = sptr3[0];
+                        pp[16 + q] = sptr4[0];
+                        pp[20 + q] = sptr5[0];
+                        pp[24 + q] = sptr6[0];
+                        pp[28 + q] = sptr7[0];
+                    }
+                }
+                pp += 32;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -946,6 +1307,31 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                        pp[8 + q] = sptr[stride_w * 16 + n];
+                        pp[12 + q] = sptr[stride_w * 24 + n];
+                    }
+                    pp += 16;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -968,6 +1354,32 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[3] = sptr[stride_w * 24 + n];
                     pp += 4;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                        pp[8 + q] = sptr[stride_w * 2];
+                        pp[12 + q] = sptr[stride_w * 3];
+                    }
+                }
+                pp += 16;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -998,6 +1410,41 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int x2 = stride_w * dx2 + dilation_w * v;
+                        int x3 = stride_w * dx3 + dilation_w * v;
+
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+                        int y2 = stride_h * dy2 + dilation_h * u;
+                        int y3 = stride_h * dy3 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                        const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                        const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                        pp[8 + q] = sptr2[n];
+                        pp[12 + q] = sptr3[n];
+                    }
+                    pp += 16;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1030,6 +1477,42 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[3] = sptr3[n];
                     pp += 4;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                        pp[8 + q] = sptr2[0];
+                        pp[12 + q] = sptr3[0];
+                    }
+                }
+                pp += 16;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -1080,6 +1563,29 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 #if __mips_msa
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                    }
+                    pp += 8;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1102,6 +1608,30 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
             }
 #endif // __mips_msa
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                    }
+                }
+                pp += 8;
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -1130,6 +1660,32 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 #if __mips_msa
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                    }
+                    pp += 8;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1155,6 +1711,33 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
             }
 #endif // __mips_msa
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                    }
+                }
+                pp += 8;
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -1190,6 +1773,28 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 #if __mips_msa
         if (elempack == 8)
         {
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int raw_ch = (kk + q) / maxk;
+                    int kpos = (kk + q) % maxk;
+                    int p = raw_ch / 8;
+                    int n = raw_ch % 8;
+                    int u = kpos / kernel_w;
+                    int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x = stride_w * dx + dilation_w * v;
+                    int y = stride_h * dy + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y) + x * 8;
+
+                    pp[q] = sptr[n];
+                }
+                pp += 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 int raw_ch = kk / maxk;
@@ -1211,6 +1816,29 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             }
         }
 #endif // __mips_msa
+        for (; kk + 3 < max_kk / elempack; kk += 4)
+        {
+            for (int q = 0; q < 4; q++)
+            {
+                int p = (k / elempack + kk + q) / maxk;
+                int uv = (k / elempack + kk + q) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x = stride_w * dx + dilation_w * v;
+                int y = stride_h * dy + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y) + x * elempack;
+
+                if (elempack == 1)
+                {
+                    pp[q] = sptr[0];
+                }
+            }
+            pp += 4;
+        }
         for (; kk < max_kk / elempack; kk++)
         {
             int p = (k / elempack + kk) / maxk;
