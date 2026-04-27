@@ -650,6 +650,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
@@ -699,6 +701,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 const signed char* p1 = p0 + bottom_blob.cstep;
                 const signed char* p2 = p1 + bottom_blob.cstep;
                 const signed char* p3 = p2 + bottom_blob.cstep;
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -736,6 +740,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -758,6 +764,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
@@ -791,6 +799,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 const signed char* p1 = p0 + bottom_blob.cstep;
                 const signed char* p2 = p1 + bottom_blob.cstep;
                 const signed char* p3 = p2 + bottom_blob.cstep;
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -812,6 +822,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -832,6 +844,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
@@ -858,6 +872,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 const signed char* p1 = p0 + bottom_blob.cstep;
                 const signed char* p2 = p1 + bottom_blob.cstep;
                 const signed char* p3 = p2 + bottom_blob.cstep;
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -871,6 +887,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
@@ -888,6 +906,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
@@ -907,6 +927,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 pp[0] = p0[0];
                 pp[1] = p0[bottom_blob.cstep];
                 pp[2] = p0[bottom_blob.cstep * 2];
@@ -916,6 +938,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += bottom_blob.cstep;

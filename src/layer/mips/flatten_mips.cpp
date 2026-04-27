@@ -97,6 +97,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 int j = 0;
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
@@ -154,6 +156,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
@@ -205,6 +209,8 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
+
                     __msa_st_w(__msa_ld_w(ptr, 0), outptr, 0);
                     ptr += 4;
                     outptr += 4;
@@ -286,6 +292,8 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 for (int j = 0; j < w; j++)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -311,6 +319,8 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 for (int i = 0; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 32);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -407,6 +417,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int j = 0;
                 for (; j < w; j++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -444,6 +456,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -470,6 +484,8 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 64);
+
                     *outptr++ = *ptr++;
                 }
             }

@@ -31,6 +31,14 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         int kk = 0;
         for (; kk + 15 < max_kk; kk += 16)
         {
+            __builtin_prefetch(p0 + 64);
+            __builtin_prefetch(p1 + 64);
+            __builtin_prefetch(p2 + 64);
+            __builtin_prefetch(p3 + 64);
+            __builtin_prefetch(p4 + 64);
+            __builtin_prefetch(p5 + 64);
+            __builtin_prefetch(p6 + 64);
+            __builtin_prefetch(p7 + 64);
             v4i32 _r0 = (v4i32)__msa_ld_b(p0, 0);
             v4i32 _r1 = (v4i32)__msa_ld_b(p1, 0);
             v4i32 _r2 = (v4i32)__msa_ld_b(p2, 0);
@@ -60,6 +68,14 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 7 < max_kk; kk += 8)
         {
+            __builtin_prefetch(p0 + 32);
+            __builtin_prefetch(p1 + 32);
+            __builtin_prefetch(p2 + 32);
+            __builtin_prefetch(p3 + 32);
+            __builtin_prefetch(p4 + 32);
+            __builtin_prefetch(p5 + 32);
+            __builtin_prefetch(p6 + 32);
+            __builtin_prefetch(p7 + 32);
             v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
             v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
             v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
@@ -136,6 +152,10 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         int kk = 0;
         for (; kk + 15 < max_kk; kk += 16)
         {
+            __builtin_prefetch(p0 + 64);
+            __builtin_prefetch(p1 + 64);
+            __builtin_prefetch(p2 + 64);
+            __builtin_prefetch(p3 + 64);
             v4i32 _r0 = (v4i32)__msa_ld_b(p0, 0);
             v4i32 _r1 = (v4i32)__msa_ld_b(p1, 0);
             v4i32 _r2 = (v4i32)__msa_ld_b(p2, 0);
@@ -153,6 +173,10 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 7 < max_kk; kk += 8)
         {
+            __builtin_prefetch(p0 + 32);
+            __builtin_prefetch(p1 + 32);
+            __builtin_prefetch(p2 + 32);
+            __builtin_prefetch(p3 + 32);
             v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
             v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
             v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
@@ -260,6 +284,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const signed char* p1 = p0 + A_hstep;
             const signed char* p2 = p1 + A_hstep;
             const signed char* p3 = p2 + A_hstep;
@@ -276,6 +301,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp[2] = p0[2];
@@ -295,6 +321,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const signed char* p1 = p0 + A_hstep;
             const signed char* p2 = p1 + A_hstep;
             const signed char* p3 = p2 + A_hstep;
@@ -310,6 +337,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp[2] = p0[2];
@@ -326,6 +354,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const signed char* p1 = p0 + A_hstep;
             const signed char* p2 = p1 + A_hstep;
             const signed char* p3 = p2 + A_hstep;
@@ -342,6 +371,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp += 2;
@@ -355,6 +385,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             pp[0] = p0[0];
             pp[1] = p0[A_hstep];
             pp[2] = p0[A_hstep * 2];
@@ -364,6 +395,7 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = p0[0];
             pp += 1;
             p0 += A_hstep;
@@ -393,6 +425,14 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         int kk = 0;
         for (; kk + 15 < max_kk; kk += 16)
         {
+            __builtin_prefetch(p0 + 64);
+            __builtin_prefetch(p1 + 64);
+            __builtin_prefetch(p2 + 64);
+            __builtin_prefetch(p3 + 64);
+            __builtin_prefetch(p4 + 64);
+            __builtin_prefetch(p5 + 64);
+            __builtin_prefetch(p6 + 64);
+            __builtin_prefetch(p7 + 64);
             v4i32 _r0 = (v4i32)__msa_ld_b(p0, 0);
             v4i32 _r1 = (v4i32)__msa_ld_b(p1, 0);
             v4i32 _r2 = (v4i32)__msa_ld_b(p2, 0);
@@ -422,6 +462,14 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 7 < max_kk; kk += 8)
         {
+            __builtin_prefetch(p0 + 32);
+            __builtin_prefetch(p1 + 32);
+            __builtin_prefetch(p2 + 32);
+            __builtin_prefetch(p3 + 32);
+            __builtin_prefetch(p4 + 32);
+            __builtin_prefetch(p5 + 32);
+            __builtin_prefetch(p6 + 32);
+            __builtin_prefetch(p7 + 32);
             v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
             v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
             v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
@@ -498,6 +546,10 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         int kk = 0;
         for (; kk + 15 < max_kk; kk += 16)
         {
+            __builtin_prefetch(p0 + 64);
+            __builtin_prefetch(p1 + 64);
+            __builtin_prefetch(p2 + 64);
+            __builtin_prefetch(p3 + 64);
             v4i32 _r0 = (v4i32)__msa_ld_b(p0, 0);
             v4i32 _r1 = (v4i32)__msa_ld_b(p1, 0);
             v4i32 _r2 = (v4i32)__msa_ld_b(p2, 0);
@@ -515,6 +567,10 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 7 < max_kk; kk += 8)
         {
+            __builtin_prefetch(p0 + 32);
+            __builtin_prefetch(p1 + 32);
+            __builtin_prefetch(p2 + 32);
+            __builtin_prefetch(p3 + 32);
             v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
             v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
             v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
@@ -622,6 +678,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const signed char* p1 = p0 + B_hstep;
             const signed char* p2 = p1 + B_hstep;
             const signed char* p3 = p2 + B_hstep;
@@ -638,6 +695,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp[2] = p0[2];
@@ -657,6 +715,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const signed char* p1 = p0 + B_hstep;
             const signed char* p2 = p1 + B_hstep;
             const signed char* p3 = p2 + B_hstep;
@@ -672,6 +731,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp[2] = p0[2];
@@ -688,6 +748,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const signed char* p1 = p0 + B_hstep;
             const signed char* p2 = p1 + B_hstep;
             const signed char* p3 = p2 + B_hstep;
@@ -704,6 +765,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = p0[0];
             pp[1] = p0[1];
             pp += 2;
@@ -717,6 +779,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             pp[0] = p0[0];
             pp[1] = p0[B_hstep];
             pp[2] = p0[B_hstep * 2];
@@ -726,6 +789,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = p0[0];
             pp += 1;
             p0 += B_hstep;
@@ -813,6 +877,14 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
             v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale0);
             v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale1);
             v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale2);
@@ -875,6 +947,10 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
             v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale0);
             v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale1);
             v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale2);
@@ -988,6 +1064,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const float* p1 = p0 + A_hstep;
             const float* p2 = p1 + A_hstep;
             const float* p3 = p2 + A_hstep;
@@ -1020,6 +1097,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale0);
             pp[1] = gemm_float2int8(p0[1] * scale1);
             pp[2] = gemm_float2int8(p0[2] * scale2);
@@ -1047,6 +1125,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const float* p1 = p0 + A_hstep;
             const float* p2 = p1 + A_hstep;
             const float* p3 = p2 + A_hstep;
@@ -1067,6 +1146,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale0);
             pp[1] = gemm_float2int8(p0[1] * scale1);
             pp[2] = gemm_float2int8(p0[2] * scale2);
@@ -1085,6 +1165,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             const float* p1 = p0 + A_hstep;
             const float* p2 = p1 + A_hstep;
             const float* p3 = p2 + A_hstep;
@@ -1101,6 +1182,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale0);
             pp[1] = gemm_float2int8(p0[1] * scale1);
             pp += 2;
@@ -1115,6 +1197,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + A_hstep * 4);
             pp[0] = gemm_float2int8(p0[0] * scale0);
             pp[1] = gemm_float2int8(p0[A_hstep] * scale0);
             pp[2] = gemm_float2int8(p0[A_hstep * 2] * scale0);
@@ -1124,6 +1207,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + A_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale0);
             pp += 1;
             p0 += A_hstep;
@@ -1174,6 +1258,14 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
             v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale);
             v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale);
             v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale);
@@ -1228,6 +1320,10 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
             v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ld_w(p0, 0), _scale);
             v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ld_w(p1, 0), _scale);
             v4f32 _p2 = __msa_fmul_w((v4f32)__msa_ld_w(p2, 0), _scale);
@@ -1324,6 +1420,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const float* p1 = p0 + B_hstep;
             const float* p2 = p1 + B_hstep;
             const float* p3 = p2 + B_hstep;
@@ -1356,6 +1453,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale);
             pp[1] = gemm_float2int8(p0[1] * scale);
             pp[2] = gemm_float2int8(p0[2] * scale);
@@ -1375,6 +1473,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const float* p1 = p0 + B_hstep;
             const float* p2 = p1 + B_hstep;
             const float* p3 = p2 + B_hstep;
@@ -1395,6 +1494,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale);
             pp[1] = gemm_float2int8(p0[1] * scale);
             pp[2] = gemm_float2int8(p0[2] * scale);
@@ -1411,6 +1511,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             const float* p1 = p0 + B_hstep;
             const float* p2 = p1 + B_hstep;
             const float* p3 = p2 + B_hstep;
@@ -1427,6 +1528,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale);
             pp[1] = gemm_float2int8(p0[1] * scale);
             pp += 2;
@@ -1440,6 +1542,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + B_hstep * 4);
             pp[0] = gemm_float2int8(p0[0] * scale);
             pp[1] = gemm_float2int8(p0[B_hstep] * scale);
             pp[2] = gemm_float2int8(p0[B_hstep * 2] * scale);
@@ -1449,6 +1552,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
+            __builtin_prefetch(p0 + B_hstep);
             pp[0] = gemm_float2int8(p0[0] * scale);
             pp += 1;
             p0 += B_hstep;
@@ -1536,6 +1640,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 64);
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
                 v16i8 _pA0r = (v16i8)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
@@ -1675,6 +1781,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 32);
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
                 v16i8 _pA0r = (v16i8)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
@@ -1765,6 +1873,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 16);
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
                 v16i8 _pB0 = (v16i8)__msa_fill_d(*(const int64_t*)pB);
@@ -1831,6 +1941,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 16);
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
 
@@ -1911,6 +2023,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 64);
                 v16i8 _pA = __msa_ld_b(pA, 0);
                 v16i8 _pAr = (v16i8)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -2002,6 +2116,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 64);
+                __builtin_prefetch(pB + 32);
                 v16i8 _pA = __msa_ld_b(pA, 0);
                 v16i8 _pAr = (v16i8)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
@@ -2066,6 +2182,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 16);
                 v16i8 _pA = __msa_ld_b(pA, 0);
                 v16i8 _pB0 = (v16i8)__msa_fill_d(*(const int64_t*)pB);
                 v16i8 _pB0r = (v16i8)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
@@ -2120,6 +2238,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 16);
                 v16i8 _pA = __msa_ld_b(pA, 0);
 
                 v16i8 _pB0 = (v16i8)__msa_fill_w(*(const int*)pB);
@@ -2186,6 +2306,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 64);
                 v16i8 _pA = (v16i8)__msa_fill_d(*(const int64_t*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB1 = __msa_ld_b(pB + 16, 0);
@@ -2284,6 +2406,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 32);
                 v16i8 _pA = (v16i8)__msa_fill_d(*(const int64_t*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB01 = (v16i8)__msa_ilvr_w((v4i32)_pB0, (v4i32)_pB0);
@@ -2455,6 +2579,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 64);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB1 = __msa_ld_b(pB + 16, 0);
@@ -2519,6 +2645,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
                 v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
 
@@ -2676,6 +2804,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
         for (; jj + 7 < max_jj; jj += 8)
         {
+            __builtin_prefetch(pp + 64);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum8 = __msa_ld_w(pp + 4, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 8, 0);
@@ -2921,6 +3050,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
+            __builtin_prefetch(pp + 32);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 8, 0);
             v4i32 _sum2 = __msa_ld_w(pp + 16, 0);
@@ -3060,6 +3190,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
+            __builtin_prefetch(pp + 16);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
             v4i32 _sum2 = __msa_ld_w(pp + 8, 0);
@@ -3179,6 +3310,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj < max_jj; jj++)
         {
+            __builtin_prefetch(pp + 8);
             v4f32 _f0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(pp, 0));
             v4f32 _f4 = (v4f32)__msa_ffint_s_w(__msa_ld_w(pp + 4, 0));
 
@@ -3285,6 +3417,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
 
         for (; jj + 7 < max_jj; jj += 8)
         {
+            __builtin_prefetch(pp + 32);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
             v4i32 _sum2 = __msa_ld_w(pp + 8, 0);
@@ -3430,6 +3563,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
+            __builtin_prefetch(pp + 16);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
             v4i32 _sum2 = __msa_ld_w(pp + 8, 0);
@@ -3520,6 +3654,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
+            __builtin_prefetch(pp + 8);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
 
@@ -3599,6 +3734,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj < max_jj; jj++)
         {
+            __builtin_prefetch(pp + 4);
             v4f32 _f0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(pp, 0));
 
             _f0 = __msa_fmul_w(_f0, _descale0);
@@ -3697,6 +3833,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         v4f32 _descale1 = __msa_fill_w_f32(descale1);
         for (; jj + 7 < max_jj; jj += 8)
         {
+            __builtin_prefetch(pp + 16);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
             v4i32 _sum2 = __msa_ld_w(pp + 8, 0);
@@ -3794,6 +3931,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
+            __builtin_prefetch(pp + 8);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
 
@@ -4018,6 +4156,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         v4f32 _descale = __msa_fill_w_f32(descale);
         for (; jj + 7 < max_jj; jj += 8)
         {
+            __builtin_prefetch(pp + 8);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4i32 _sum1 = __msa_ld_w(pp + 4, 0);
 
@@ -4078,6 +4217,7 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
+            __builtin_prefetch(pp + 4);
             v4i32 _sum0 = __msa_ld_w(pp, 0);
             v4f32 _f0 = (v4f32)__msa_ffint_s_w(_sum0);
 

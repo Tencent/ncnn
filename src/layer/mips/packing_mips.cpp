@@ -115,6 +115,11 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(r1, 0);
@@ -169,6 +174,8 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(r0 + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
@@ -240,6 +247,11 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(r1, 0);
@@ -294,6 +306,8 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(r0 + 32);
+
                     // transpose 4x4
                     v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                     v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
@@ -646,6 +660,11 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+
                     // transpose 4x4 unsigned short
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
@@ -695,6 +714,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(r0 + 32);
+
                     // transpose 4x4 unsigned short
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
@@ -766,6 +787,11 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
@@ -814,6 +840,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(r0 + 32);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
 

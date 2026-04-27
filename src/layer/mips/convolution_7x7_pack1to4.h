@@ -45,6 +45,14 @@ static void conv7x7s2_pack1to4_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 int j = 0;
                 for (; j + 3 < outw; j += 4)
                 {
+                    __builtin_prefetch(r0 + 32);
+                    __builtin_prefetch(r1 + 32);
+                    __builtin_prefetch(r2 + 32);
+                    __builtin_prefetch(r3 + 32);
+                    __builtin_prefetch(r4 + 32);
+                    __builtin_prefetch(r5 + 32);
+                    __builtin_prefetch(r6 + 32);
+
                     v4f32 _sum0 = (v4f32)__msa_ld_w(outptr0, 0);
                     v4f32 _sum1 = (v4f32)__msa_ld_w(outptr0 + 4, 0);
                     v4f32 _sum2 = (v4f32)__msa_ld_w(outptr0 + 4 * 2, 0);
@@ -466,6 +474,14 @@ static void conv7x7s2_pack1to4_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 }
                 for (; j < outw; j++)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+                    __builtin_prefetch(r4 + 16);
+                    __builtin_prefetch(r5 + 16);
+                    __builtin_prefetch(r6 + 16);
+
                     v4f32 _sum0 = (v4f32)__msa_ld_w(outptr0, 0);
 
                     v4f32 _k00 = (v4f32)__msa_ld_w(kptr, 0);

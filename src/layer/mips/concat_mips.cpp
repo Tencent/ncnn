@@ -101,6 +101,8 @@ int Concat_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         *outptr0++ = r0[0];
                         *outptr1++ = r0[1];
                         *outptr2++ = r0[2];
@@ -225,6 +227,8 @@ int Concat_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         *outptr0++ = r0[0];
                         *outptr1++ = r0[1];
                         *outptr2++ = r0[2];

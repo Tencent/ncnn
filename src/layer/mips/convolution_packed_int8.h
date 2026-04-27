@@ -270,6 +270,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     for (int k = 0; k < maxk; k++)
                     {
                         const signed char* sloc = sptr + space_ofs[k] * elempack;
+                        __builtin_prefetch(kptr + 64);
 
                         signed char val[8];
                         if (elempack == 8)
@@ -300,6 +301,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 32);
+
                         signed char val0, val1;
                         if (elempack == 1)
                         {
@@ -331,6 +334,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         signed char val;
                         if (elempack == 1)
                         {
@@ -405,6 +410,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     for (int k = 0; k < maxk; k++)
                     {
                         const signed char* sloc = sptr + space_ofs[k] * elempack;
+                        __builtin_prefetch(kptr + 64);
 
                         signed char val[8];
                         if (elempack == 8)
@@ -435,6 +441,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         signed char val0 = sptr0[space_ofs[k]];
                         signed char val1 = sptr1[space_ofs[k]];
 
@@ -452,6 +460,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         signed char val = sptr[space_ofs[k]];
 
                         sum0 += val * kptr[0];
@@ -499,6 +509,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     for (int k = 0; k < maxk; k++)
                     {
                         const signed char* sloc = sptr + space_ofs[k] * elempack;
+                        __builtin_prefetch(kptr + 64);
 
                         if (elempack == 8)
                         {
@@ -526,6 +537,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         signed char val0 = sptr0[space_ofs[k]];
                         signed char val1 = sptr1[space_ofs[k]];
 
@@ -541,6 +554,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int k = 0; k < maxk; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         signed char val = sptr[space_ofs[k]];
 
                         sum += val * kptr[0];

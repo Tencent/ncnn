@@ -33,6 +33,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         const unsigned short* ptr0 = ptr;
         for (int i = 0; i < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = bfloat2float_msa(ptr0);
             _rms = __msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
@@ -50,6 +52,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         {
             for (int i = 0; i < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
+
                 v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 _p = __msa_fmul_w(_p, _rms);
@@ -63,6 +67,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         {
             for (int i = 0; i < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
+
                 v4f32 _p = bfloat2float_msa(ptr);
                 _p = __msa_fmul_w(_p, _rms);
                 float2bfloat_msa_store(_p, ptr);
@@ -83,6 +89,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         v4f32 _rms = (v4f32)__msa_fill_w(0);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = bfloat2float_msa(ptr0);
             _rms = __msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
@@ -106,6 +114,9 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         v4f32 _rms = __msa_fill_w_f32(rms);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(gamma_ptr + 16);
+
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
             _p = __msa_fmul_w(_p, _rms);
@@ -130,6 +141,8 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         v4f32 _rms = __msa_fill_w_f32(rms);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
+
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fmul_w(_p, _rms);
             float2bfloat_msa_store(_p, ptr);
@@ -156,6 +169,8 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         const float* ptr0 = ptr;
         for (int i = 0; i < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _rms = __msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
@@ -173,6 +188,8 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         {
             for (int i = 0; i < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
+
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 _p = __msa_fmul_w(_p, _rms);
@@ -186,6 +203,8 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         {
             for (int i = 0; i < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
+
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 _p = __msa_fmul_w(_p, _rms);
                 __msa_st_w((v4i32)_p, ptr, 0);
@@ -205,6 +224,8 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         v4f32 _rms = (v4f32)__msa_fill_w(0);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _rms = __msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
@@ -227,6 +248,9 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         v4f32 _rms = __msa_fill_w_f32(rms);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(gamma_ptr + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
             _p = __msa_fmul_w(_p, _rms);
@@ -250,6 +274,8 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         v4f32 _rms = __msa_fill_w_f32(rms);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = __msa_fmul_w(_p, _rms);
             __msa_st_w((v4i32)_p, ptr, 0);

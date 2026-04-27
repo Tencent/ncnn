@@ -312,6 +312,9 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
@@ -330,6 +333,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
@@ -353,6 +358,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
 
@@ -372,6 +379,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _val = __msa_fill_w_f32(r0[0]);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
                         _sum0 = __msa_fmadd_w(_sum0, _val, _w);
@@ -453,6 +462,9 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
@@ -467,6 +479,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _r0 = {r0[0], r0[N], r0[N * 2], r0[N * 3]};
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
@@ -489,6 +503,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         sum0 += r0[0] * kptr[0];
                         sum1 += r0[0] * kptr[1];
                         sum0 += r0[N] * kptr[2];
@@ -507,6 +523,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         float val = r0[0];
                         sum0 += val * kptr[0];
                         sum1 += val * kptr[1];
@@ -564,6 +582,9 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
                         _sum = __msa_fmadd_w(_sum, _r0, _w);
@@ -576,6 +597,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         v4f32 _r0 = {r0[0], r0[N], r0[N * 2], r0[N * 3]};
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
                         _sum = __msa_fmadd_w(_sum, _r0, _w);
@@ -595,6 +618,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         sum += r0[0] * kptr[0];
                         sum += r0[N] * kptr[1];
 
@@ -611,6 +636,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 {
                     for (int k = 0; k < kernel_w; k++)
                     {
+                        __builtin_prefetch(kptr + 16);
+
                         float val = r0[0];
                         sum += val * kptr[0];
 

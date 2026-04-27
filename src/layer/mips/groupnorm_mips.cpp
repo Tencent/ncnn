@@ -37,6 +37,8 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = bfloat2float_msa(ptr0);
             _mean = __msa_fadd_w(_mean, _p);
             ptr0 += 4;
@@ -73,6 +75,8 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
             _var = __msa_fmadd_w(_var, _p, _p);
@@ -143,6 +147,8 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr0 + 16);
+
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fmadd_w(_b, _p, _a);
                 float2bfloat_msa_store(_p, ptr0);
@@ -166,6 +172,8 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr0 + 16);
+
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fmadd_w(_mean, _p, _var);
                 float2bfloat_msa_store(_p, ptr0);
@@ -196,6 +204,8 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _mean = __msa_fadd_w(_mean, _p);
             ptr0 += 4;
@@ -231,6 +241,8 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr0 + 16);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _p = __msa_fsub_w(_p, _mean);
             _var = __msa_fmadd_w(_var, _p, _p);
@@ -297,6 +309,8 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr0 + 16);
+
                 v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
                 _p = __msa_fmadd_w(_b, _p, _a);
                 __msa_st_w((v4i32)_p, ptr0, 0);
@@ -320,6 +334,8 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr0 + 16);
+
                 v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
                 _p = __msa_fmadd_w(_mean, _p, _var);
                 __msa_st_w((v4i32)_p, ptr0, 0);

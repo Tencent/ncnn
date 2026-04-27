@@ -347,6 +347,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const unsigned short* r0s = r0 + space_ofs[k];
+                            __builtin_prefetch(r0s + 16);
+                            __builtin_prefetch(kptr + 32);
 
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
@@ -366,6 +368,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 32);
 
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
@@ -390,6 +393,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 16);
 
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
@@ -409,6 +413,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         for (int k = 0; k < maxk; k++)
                         {
+                            __builtin_prefetch(kptr + 16);
+
                             v4f32 _val = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[space_ofs[k]]));
                             v4f32 _w = bfloat2float_msa(kptr);
                             _sum0 = __msa_fmadd_w(_sum0, _val, _w);
@@ -494,6 +500,9 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(r0 + sok + 16);
+                            __builtin_prefetch(kptr + 16);
+
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
@@ -508,6 +517,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 16);
+
                             unsigned short tmpbuf[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             v4f32 _r0 = bfloat2float_msa(tmpbuf);
                             v4f32 _w0 = bfloat2float_msa(kptr);
@@ -531,6 +542,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 16);
 
                             sum0 += bfloat16_to_float32(r0[sok]) * bfloat16_to_float32(kptr[0]);
                             sum1 += bfloat16_to_float32(r0[sok]) * bfloat16_to_float32(kptr[1]);
@@ -549,6 +561,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         for (int k = 0; k < maxk; k++)
                         {
+                            __builtin_prefetch(kptr + 16);
+
                             float val = bfloat16_to_float32(r0[space_ofs[k]]);
                             sum0 += val * bfloat16_to_float32(kptr[0]);
                             sum1 += val * bfloat16_to_float32(kptr[1]);
@@ -602,6 +616,9 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(r0 + sok + 16);
+                            __builtin_prefetch(kptr + 16);
+
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _w = bfloat2float_msa(kptr);
                             _sum = __msa_fmadd_w(_sum, _r0, _w);
@@ -614,6 +631,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 16);
+
                             unsigned short tmpbuf[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             v4f32 _r0 = bfloat2float_msa(tmpbuf);
                             v4f32 _w = bfloat2float_msa(kptr);
@@ -634,6 +653,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __builtin_prefetch(kptr + 16);
 
                             sum += bfloat16_to_float32(r0[sok]) * bfloat16_to_float32(kptr[0]);
                             sum += bfloat16_to_float32(r0[sok + N]) * bfloat16_to_float32(kptr[1]);
@@ -650,6 +670,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         for (int k = 0; k < maxk; k++)
                         {
+                            __builtin_prefetch(kptr + 16);
+
                             float val = bfloat16_to_float32(r0[space_ofs[k]]);
                             sum += val * bfloat16_to_float32(kptr[0]);
 

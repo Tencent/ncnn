@@ -35,6 +35,8 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
     {
         for (int x = 0; x < w; x++)
         {
+            __builtin_prefetch(ptr + 32);
+
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             __msa_st_w((v4i32)_p, outptr, 0);
 
@@ -60,6 +62,8 @@ static void crop_pack4_bf16s_msa(const Mat& src, Mat& dst, int top, int left)
     {
         for (int x = 0; x < w; x++)
         {
+            __builtin_prefetch(ptr + 32);
+
             *(int64_t*)outptr = *(const int64_t*)ptr;
             ptr += 4;
             outptr += 4;

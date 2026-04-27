@@ -153,6 +153,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(r1 + 16);
+                        __builtin_prefetch(r2 + 16);
+                        __builtin_prefetch(r3 + 16);
+
                         outptr0[0] = *r0++;
                         outptr0[1] = *r1++;
                         outptr0[2] = *r2++;
@@ -319,6 +324,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                     for (int j = 0; j < size; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(r1 + 16);
+                        __builtin_prefetch(r2 + 16);
+                        __builtin_prefetch(r3 + 16);
+
                         outptr0[0] = *r0++;
                         outptr0[1] = *r1++;
                         outptr0[2] = *r2++;

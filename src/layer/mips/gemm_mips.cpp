@@ -73,6 +73,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 __msa_st_w(__msa_ld_w(p1, 0), pp + 4, 0);
                 pp += 8;
@@ -94,6 +96,14 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
+                __builtin_prefetch(p4 + 16);
+                __builtin_prefetch(p5 + 16);
+                __builtin_prefetch(p6 + 16);
+                __builtin_prefetch(p7 + 16);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
@@ -155,6 +165,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -170,6 +181,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
@@ -256,6 +271,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
@@ -297,6 +313,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
                 pp += 8;
@@ -316,6 +333,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
@@ -344,6 +362,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -365,6 +384,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 float tmp0[4];
@@ -397,6 +417,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
@@ -415,6 +436,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += A_hstep * 4;
@@ -433,6 +455,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += A_hstep;
@@ -459,6 +482,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 __msa_st_w(__msa_ld_w(p1, 0), pp + 4, 0);
                 pp += 8;
@@ -480,6 +505,14 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
+                __builtin_prefetch(p4 + 16);
+                __builtin_prefetch(p5 + 16);
+                __builtin_prefetch(p6 + 16);
+                __builtin_prefetch(p7 + 16);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
@@ -540,6 +573,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -557,6 +591,10 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __mips_msa
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
@@ -611,6 +649,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __mips_msa
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
             __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
             pp += 4;
             p0 += 4;
@@ -643,6 +682,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
@@ -684,6 +724,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
                 pp += 8;
@@ -702,6 +743,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
@@ -731,6 +773,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -751,6 +794,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
                 v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
                 float tmp0[4];
@@ -783,6 +827,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
@@ -801,6 +846,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
                 pp += 4;
                 p0 += B_hstep * 4;
@@ -819,6 +865,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += B_hstep;
@@ -3093,6 +3140,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
                 v4f32 _pA0r = (v4f32)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
@@ -3178,6 +3227,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
                 v4f32 _pA0r = (v4f32)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
@@ -3234,6 +3285,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
                 v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
                 v4f32 _pB = (v4f32)__msa_fill_d(*(const int64_t*)pB);
@@ -3274,6 +3327,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
                 _sum00 = __msa_fmadd_w(_sum00, _pA0, __msa_fill_w_f32(pB[0]));
@@ -3335,6 +3390,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
                 v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
@@ -3390,6 +3447,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
                 v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
@@ -3430,6 +3489,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pB = (v4f32)__msa_fill_d(*(const int64_t*)pB);
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(2, 3, 0, 1));
@@ -3462,6 +3523,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(pB[0]));
                 pA += 4;
@@ -3509,6 +3572,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA0 = (v4f32)__msa_ilvr_d((v2i64)_pA, (v2i64)_pA);
                 v4f32 _pA1 = (v4f32)__msa_ilvl_d((v2i64)_pA, (v2i64)_pA);
@@ -3590,6 +3655,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
                 v4f32 _pA0 = (v4f32)__msa_ilvr_d((v2i64)_pA, (v2i64)_pA);
                 v4f32 _pA1 = (v4f32)__msa_ilvl_d((v2i64)_pA, (v2i64)_pA);
@@ -3792,6 +3859,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
                 v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
@@ -3825,6 +3894,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 v4f32 _pA = __msa_fill_w_f32(pA[0]);
                 v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _pA, _pB);
