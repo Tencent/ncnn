@@ -81,9 +81,8 @@ static void dynamic_quantize_blockwise(const float* src, signed char* dst, float
 }
 #endif // NCNN_INT8
 
-
 static inline void qk_gemm_scalar(float* S, const float* Q, const float* K,
-        int m, int n, int d, float scale)
+                                  int m, int n, int d, float scale)
 {
     for (int i = 0; i < m; i++)
     {
@@ -158,7 +157,7 @@ static inline void vec_zero(float* x, int n)
 }
 
 static inline void softmax_tile(float* P, const float* S,
-        float* m_vec, float* l_vec, float* scale_out, int m, int n)
+                                float* m_vec, float* l_vec, float* scale_out, int m, int n)
 {
     for (int i = 0; i < m; i++)
     {
@@ -285,7 +284,7 @@ static inline void softmax_tile(float* P, const float* S,
 }
 
 static inline void pv_gemm_scalar(float* O, const float* P, const float* V,
-        int m, int n, int d)
+                                  int m, int n, int d)
 {
     for (int i = 0; i < m; i++)
     {
@@ -468,8 +467,8 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
 }
 
 static void sdpa_decode(float* out, const float* q,
-    const float* K, const float* V, const float* mask,
-    int n, int d, int out_d, float scale)
+                        const float* K, const float* V, const float* mask,
+                        int n, int d, int out_d, float scale)
 {
     const int BLOCK_N = 128;
 #if __AVX512F__
@@ -503,7 +502,7 @@ static void sdpa_decode(float* out, const float* q,
             {
                 __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
                 _mm512_mask_storeu_ps(s + j, mask_n,
-                    _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + n_start + j)));
+                                      _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + n_start + j)));
             }
 #elif __AVX__
             int j = 0;
@@ -638,7 +637,7 @@ static void sdpa_decode(float* out, const float* q,
 #if __AVX512F__
 
 static void qk_gemm_avx512(float* S, const float* Q, const float* K,
-        int m, int n, int d, float scale)
+                           int m, int n, int d, float scale)
 {
     int i = 0;
     for (; i + 8 <= m; i += 8)
@@ -872,7 +871,6 @@ static void qk_gemm_avx512(float* S, const float* Q, const float* K,
     }
 }
 
-
 template<int D>
 static inline void qk_gemm_specialized_avx512(float* S, const float* Q, const float* K,
         int m, int n, float scale)
@@ -1036,8 +1034,6 @@ static inline void qk_gemm_specialized_avx512(float* S, const float* Q, const fl
     }
 }
 
-
-
 template<int D, int M_BLOCK1, int M_BLOCK2>
 static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, const float* K,
         int m, int n, float scale)
@@ -1046,104 +1042,104 @@ static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, co
     if (M_BLOCK2 > 0)
     {
         for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
         {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-            const float* k2 = K + (j + 2) * D;
-            const float* k3 = K + (j + 3) * D;
-
-            __m512 acc[M_BLOCK2][4];
-            for (int mi = 0; mi < M_BLOCK2; mi++)
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
             {
-                acc[mi][0] = _mm512_setzero_ps();
-                acc[mi][1] = _mm512_setzero_ps();
-                acc[mi][2] = _mm512_setzero_ps();
-                acc[mi][3] = _mm512_setzero_ps();
-            }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
 
-            for (int k = 0; k < D; k += 16)
-            {
-                __m512 kv0 = _mm512_loadu_ps(k0 + k);
-                __m512 kv1 = _mm512_loadu_ps(k1 + k);
-                __m512 kv2 = _mm512_loadu_ps(k2 + k);
-                __m512 kv3 = _mm512_loadu_ps(k3 + k);
+                __m512 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm512_setzero_ps();
+                    acc[mi][1] = _mm512_setzero_ps();
+                    acc[mi][2] = _mm512_setzero_ps();
+                    acc[mi][3] = _mm512_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                    __m512 kv1 = _mm512_loadu_ps(k1 + k);
+                    __m512 kv2 = _mm512_loadu_ps(k2 + k);
+                    __m512 kv3 = _mm512_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm512_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm512_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
 
                 for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm512_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm512_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc[mi][3]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < M_BLOCK2; mi++)
+            for (; j + 2 <= n; j += 2)
             {
-                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
 
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
+                __m512 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    acc[mi][0] = _mm512_setzero_ps();
+                    acc[mi][1] = _mm512_setzero_ps();
+                }
 
-            __m512 acc[M_BLOCK2][2];
-            for (int mi = 0; mi < M_BLOCK2; mi++)
-            {
-                acc[mi][0] = _mm512_setzero_ps();
-                acc[mi][1] = _mm512_setzero_ps();
-            }
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kv0 = _mm512_loadu_ps(k0 + k);
+                    __m512 kv1 = _mm512_loadu_ps(k1 + k);
 
-            for (int k = 0; k < D; k += 16)
-            {
-                __m512 kv0 = _mm512_loadu_ps(k0 + k);
-                __m512 kv1 = _mm512_loadu_ps(k1 + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
 
                 for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < M_BLOCK2; mi++)
+            for (; j < n; j++)
             {
-                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
+                const float* kptr = K + j * D;
 
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * D;
-
-            __m512 acc[M_BLOCK2];
-            for (int mi = 0; mi < M_BLOCK2; mi++)
-                acc[mi] = _mm512_setzero_ps();
-
-            for (int k = 0; k < D; k += 16)
-            {
-                __m512 kvec = _mm512_loadu_ps(kptr + k);
+                __m512 acc[M_BLOCK2];
                 for (int mi = 0; mi < M_BLOCK2; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
-                }
-            }
+                    acc[mi] = _mm512_setzero_ps();
 
-            for (int mi = 0; mi < M_BLOCK2; mi++)
-                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+                for (int k = 0; k < D; k += 16)
+                {
+                    __m512 kvec = _mm512_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
+            }
         }
-    }
     }
 
     for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
@@ -1309,42 +1305,37 @@ static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, co
     }
 }
 
-
 template<>
 void qk_gemm_specialized_avx512<128>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                     int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx512<128, 4, 6>(S, Q, K, m, n, scale);
 }
 template<>
 void qk_gemm_specialized_avx512<512>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                     int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx512<512, 4, 8>(S, Q, K, m, n, scale);
 }
 template<>
 void qk_gemm_specialized_avx512<2048>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                      int m, int n, float scale)
 {
-
     qk_gemm_specialized_tiled_avx512<2048, 2, 0>(S, Q, K, m, n, scale);
 }
 template<>
 void qk_gemm_specialized_avx512<1024>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                      int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx512<1024, 4, 4>(S, Q, K, m, n, scale);
 }
 
-
-
 template<>
 void qk_gemm_specialized_avx512<4096>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                      int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx512<4096, 2, 2>(S, Q, K, m, n, scale);
 }
-
 
 template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n, int d)
@@ -1475,7 +1466,6 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
         }
     }
 }
-
 
 template<int M_BLOCK, int D>
 static void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int n)
@@ -1633,13 +1623,12 @@ static void pv_gemm_avx512(float* O, const float* P, const float* V, int m, int 
     }
 }
 
-
 #endif // __AVX512F__
 
 #if __AVX__
 
 static void qk_gemm_avx(float* S, const float* Q, const float* K,
-        int m, int n, int d, float scale)
+                        int m, int n, int d, float scale)
 {
     int i = 0;
     for (; i + 6 <= m; i += 6)
@@ -1767,7 +1756,6 @@ static void qk_gemm_avx(float* S, const float* Q, const float* K,
         }
     }
 }
-
 
 template<int D>
 static inline void qk_gemm_specialized_avx(float* S, const float* Q, const float* K,
@@ -2138,38 +2126,32 @@ static inline void qk_gemm_specialized_tiled_avx(float* S, const float* Q, const
     }
 }
 
-
 template<>
 void qk_gemm_specialized_avx<512>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                  int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx<512, 2, 4>(S, Q, K, m, n, scale);
 }
 template<>
 void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                   int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx<1024, 4, 2>(S, Q, K, m, n, scale);
 }
 
-
 template<>
 void qk_gemm_specialized_avx<2048>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                   int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx<2048, 2, 0>(S, Q, K, m, n, scale);
 }
 
-
 template<>
 void qk_gemm_specialized_avx<4096>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                   int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_avx<4096, 2, 2>(S, Q, K, m, n, scale);
 }
-
-
-
 
 template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n, int d)
@@ -2283,7 +2265,6 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
     }
 }
 
-
 template<int M_BLOCK, int D>
 static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, int n)
 {
@@ -2338,13 +2319,12 @@ static inline void pv_gemm_avx(float* O, const float* P, const float* V, int m, 
     }
 }
 
-
 #endif // __AVX__
 
 #if __SSE2__
 
 static void qk_gemm_sse2(float* S, const float* Q, const float* K,
-        int m, int n, int d, float scale)
+                         int m, int n, int d, float scale)
 {
     int i = 0;
     for (; i + 4 <= m; i += 4)
@@ -2397,7 +2377,6 @@ static void qk_gemm_sse2(float* S, const float* Q, const float* K,
         }
     }
 }
-
 
 template<int D>
 static inline void qk_gemm_specialized_sse2(float* S, const float* Q, const float* K,
@@ -2729,38 +2708,32 @@ static inline void qk_gemm_specialized_tiled_sse2(float* S, const float* Q, cons
     }
 }
 
-
 template<>
 void qk_gemm_specialized_sse2<512>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                   int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_sse2<512, 2, 4>(S, Q, K, m, n, scale);
 }
 template<>
 void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                    int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_sse2<1024, 2, 4>(S, Q, K, m, n, scale);
 }
 
-
 template<>
 void qk_gemm_specialized_sse2<2048>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                    int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_sse2<2048, 2, 0>(S, Q, K, m, n, scale);
 }
 
-
 template<>
 void qk_gemm_specialized_sse2<4096>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
+                                    int m, int n, float scale)
 {
     qk_gemm_specialized_tiled_sse2<4096, 2, 2>(S, Q, K, m, n, scale);
 }
-
-
-
 
 template<int M_BLOCK, int D_UNROLL>
 static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n, int d)
@@ -2874,7 +2847,6 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
     }
 }
 
-
 template<int M_BLOCK, int D>
 static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m, int n)
 {
@@ -2929,12 +2901,10 @@ static inline void pv_gemm_sse2(float* O, const float* P, const float* V, int m,
     }
 }
 
-
 #endif // __SSE2__
 
-
 static inline void qk_gemm_dispatch(float* S, const float* Q, const float* K,
-        int m, int n, int d, float scale)
+                                    int m, int n, int d, float scale)
 {
     if (d == 128)
     {
@@ -3092,7 +3062,7 @@ static inline void qk_gemm_dispatch(float* S, const float* Q, const float* K,
 }
 
 static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
-        int m, int n, int d)
+                                    int m, int n, int d)
 {
     if (d == 128)
     {
@@ -3214,8 +3184,8 @@ static inline void softmax_tile_dispatch(float* P, const float* S,
 }
 
 static inline void sdpa_decode_dispatch(float* out, const float* q,
-    const float* K, const float* V, const float* mask,
-    int n, int d, int out_d, float scale)
+                                        const float* K, const float* V, const float* mask,
+                                        int n, int d, int out_d, float scale)
 {
     sdpa_decode(out, q, K, V, mask, n, d, out_d, scale);
 }
