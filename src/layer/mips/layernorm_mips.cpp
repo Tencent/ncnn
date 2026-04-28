@@ -59,7 +59,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 
             v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
-            _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
         }
 
@@ -85,10 +85,10 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
                 __builtin_prefetch(ptr + 16);
 
                 v4f32 _p = bfloat2float_msa(ptr);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 v4f32 _beta = __msa_fill_w_f32(beta_ptr[0]);
-                _p = __msa_fmadd_w(_beta, _p, _gamma);
+                _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
                 float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
                 gamma_ptr += 1;
@@ -102,7 +102,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
                 __builtin_prefetch(ptr + 16);
 
                 v4f32 _p = bfloat2float_msa(ptr);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
@@ -150,7 +150,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 
             v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
-            _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
         }
         var += __msa_reduce_fadd_w(_sqsum);
@@ -181,8 +181,8 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
             v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr, 0);
-            _p = __msa_fmadd_w(_b, _p, _a);
-            _p = __msa_fmadd_w(_beta, _p, _gamma);
+            _p = __ncnn_msa_fmadd_w(_b, _p, _a);
+            _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
             float2bfloat_msa_store(_p, ptr);
             ptr += 4;
             gamma_ptr += 4;
@@ -209,7 +209,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
             __builtin_prefetch(ptr + 16);
 
             v4f32 _p = bfloat2float_msa(ptr);
-            _p = __msa_fmadd_w(_b, _p, _a);
+            _p = __ncnn_msa_fmadd_w(_b, _p, _a);
             float2bfloat_msa_store(_p, ptr);
             ptr += 4;
         }
@@ -259,7 +259,7 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _p = __msa_fsub_w(_p, _mean);
-            _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
         }
 
@@ -285,10 +285,10 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
                 __builtin_prefetch(ptr + 16);
 
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 v4f32 _beta = __msa_fill_w_f32(beta_ptr[0]);
-                _p = __msa_fmadd_w(_beta, _p, _gamma);
+                _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
                 __msa_st_w((v4i32)_p, ptr, 0);
                 ptr += 4;
                 gamma_ptr += 1;
@@ -302,7 +302,7 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
                 __builtin_prefetch(ptr + 16);
 
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 __msa_st_w((v4i32)_p, ptr, 0);
                 ptr += 4;
             }
@@ -349,7 +349,7 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _p = __msa_fsub_w(_p, _mean);
-            _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
             ptr0 += 4;
         }
         var += __msa_reduce_fadd_w(_sqsum);
@@ -380,8 +380,8 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
             v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr, 0);
-            _p = __msa_fmadd_w(_b, _p, _a);
-            _p = __msa_fmadd_w(_beta, _p, _gamma);
+            _p = __ncnn_msa_fmadd_w(_b, _p, _a);
+            _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
             gamma_ptr += 4;
@@ -407,7 +407,7 @@ static void layernorm_mips(float* ptr, const float* gamma_ptr, const float* beta
             __builtin_prefetch(ptr + 16);
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            _p = __msa_fmadd_w(_b, _p, _a);
+            _p = __ncnn_msa_fmadd_w(_b, _p, _a);
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }

@@ -36,7 +36,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
             __builtin_prefetch(ptr0 + 16);
 
             v4f32 _p = bfloat2float_msa(ptr0);
-            _rms = __msa_fmadd_w(_rms, _p, _p);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
         }
 
@@ -92,7 +92,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
             __builtin_prefetch(ptr0 + 16);
 
             v4f32 _p = bfloat2float_msa(ptr0);
-            _rms = __msa_fmadd_w(_rms, _p, _p);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
         }
         rms += __msa_reduce_fadd_w(_rms);
@@ -172,7 +172,7 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
             __builtin_prefetch(ptr0 + 16);
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
-            _rms = __msa_fmadd_w(_rms, _p, _p);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
         }
 
@@ -227,7 +227,7 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
             __builtin_prefetch(ptr0 + 16);
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
-            _rms = __msa_fmadd_w(_rms, _p, _p);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
         }
         rms += __msa_reduce_fadd_w(_rms);

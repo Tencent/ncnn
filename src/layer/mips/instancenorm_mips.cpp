@@ -63,7 +63,7 @@ int InstanceNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
                 _p = __msa_fsub_w(_p, _mean);
-                _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
                 ptr0 += 4;
             }
 
@@ -100,7 +100,7 @@ int InstanceNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             for (int i = 0; i < size; i++)
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 __msa_st_w((v4i32)_p, ptr, 0);
                 ptr += 4;
             }
@@ -154,7 +154,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             {
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fsub_w(_p, _mean);
-                _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
                 ptr0 += 4;
             }
 
@@ -191,7 +191,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             for (int i = 0; i < size; i++)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 float2bfloat_msa_store(_p, ptr);
                 ptr += 4;
             }
@@ -244,7 +244,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
                 {
                     v4f32 _p = bfloat2float_msa(ptr0 + i);
                     _p = __msa_fsub_w(_p, _mean);
-                    _sqsum = __msa_fmadd_w(_sqsum, _p, _p);
+                    _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
                 }
                 var += __msa_reduce_fadd_w(_sqsum);
 #endif // __mips_msa
@@ -280,7 +280,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = bfloat2float_msa(ptr + i);
-                    _p = __msa_fmadd_w(_b, _p, _a);
+                    _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                     float2bfloat_msa_store(_p, ptr + i);
                 }
 #endif // __mips_msa

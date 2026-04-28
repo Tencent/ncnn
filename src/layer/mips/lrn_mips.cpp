@@ -115,7 +115,7 @@ int LRN_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _ssp = (v4f32)__msa_ld_w(ssptr, 0);
-                _ssp = __msa_fmadd_w(_bias, _ssp, _ads);
+                _ssp = __ncnn_msa_fmadd_w(_bias, _ssp, _ads);
                 _ssp = pow_ps(_ssp, _mb);
                 _p = __msa_fmul_w(_p, _ssp);
                 __msa_st_w((v4i32)_p, ptr, 0);

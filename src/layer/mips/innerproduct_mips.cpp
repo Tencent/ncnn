@@ -206,10 +206,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4i32 _w = __msa_ld_w(kptr, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
-                        _sum2 = __msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
-                        _sum3 = __msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
 
                         m += 4;
                         kptr += 4;
@@ -257,10 +257,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                         v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                        _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                        _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                         m += 4;
                         kptr += 16;
@@ -269,7 +269,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         v4f32 _val = __msa_fill_w_f32(m[0]);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                         m += 1;
                         kptr += 4;
@@ -308,7 +308,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(kptr[0]);
-                        _sum = __msa_fmadd_w(_sum, _val, _k);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _val, _k);
 
                         m += 4;
                         kptr += 1;
@@ -347,7 +347,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum = __msa_fmadd_w(_sum, _m, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _m, _w);
 
                         m += 4;
                         kptr += 4;
@@ -429,10 +429,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                 v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                 v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
-                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                 sptr += 4;
                 kptr += 16;
@@ -441,7 +441,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             {
                 v4f32 _val = __msa_fill_w_f32(sptr[0]);
                 v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
@@ -507,10 +507,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 v4f32 _w1 = (v4f32)__msa_ld_w(w1, 0);
                 v4f32 _w2 = (v4f32)__msa_ld_w(w2, 0);
                 v4f32 _w3 = (v4f32)__msa_ld_w(w3, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _m, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _m, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _m, _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _m, _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _m, _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _m, _w3);
 
                 m += 4;
                 w0 += 4;
@@ -573,7 +573,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                 v4f32 _w = (v4f32)__msa_ld_w(w, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w);
 
                 m += 4;
                 w += 4;
@@ -731,10 +731,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4i32 _w = (v4i32)__msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
-                        _sum2 = __msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
-                        _sum3 = __msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
 
                         m += 4;
                         kptr += 4;
@@ -784,10 +784,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         v4f32 _w1 = __msa_fexupl_w(_w01);
                         v4f32 _w2 = __msa_fexupr_w(_w23);
                         v4f32 _w3 = __msa_fexupl_w(_w23);
-                        _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                        _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                        _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                         m += 4;
                         kptr += 16;
@@ -796,7 +796,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         v4f32 _val = __msa_fill_w_f32(m[0]);
                         v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                         m += 1;
                         kptr += 4;
@@ -835,7 +835,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(float16_to_float32(kptr[0]));
-                        _sum = __msa_fmadd_w(_sum, _val, _k);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _val, _k);
 
                         m += 4;
                         kptr += 1;
@@ -872,7 +872,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum = __msa_fmadd_w(_sum, _m, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _m, _w);
 
                         m += 4;
                         kptr += 4;
@@ -952,10 +952,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 v4f32 _w1 = __msa_fexupl_w(_w01);
                 v4f32 _w2 = __msa_fexupr_w(_w23);
                 v4f32 _w3 = __msa_fexupl_w(_w23);
-                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                 sptr += 4;
                 kptr += 16;
@@ -964,7 +964,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             {
                 v4f32 _val = __msa_fill_w_f32(sptr[0]);
                 v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
@@ -1028,10 +1028,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 v4f32 _w1 = __msa_fexupr_w(__msa_ld_h(w1, 0));
                 v4f32 _w2 = __msa_fexupr_w(__msa_ld_h(w2, 0));
                 v4f32 _w3 = __msa_fexupr_w(__msa_ld_h(w3, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _m, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _m, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _m, _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _m, _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _m, _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _m, _w3);
 
                 m += 4;
                 w0 += 4;
@@ -1090,7 +1090,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                 v4f32 _w = __msa_fexupr_w(__msa_ld_h(w, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w);
 
                 m += 4;
                 w += 4;
@@ -1303,14 +1303,14 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                     {
                         v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_00 = __msa_fmadd_w(_bias0, _sumfp32_00, _scale_in0);
-                        _sumfp32_01 = __msa_fmadd_w(_bias1, _sumfp32_01, _scale_in1);
-                        _sumfp32_10 = __msa_fmadd_w(_bias0, _sumfp32_10, _scale_in0);
-                        _sumfp32_11 = __msa_fmadd_w(_bias1, _sumfp32_11, _scale_in1);
-                        _sumfp32_20 = __msa_fmadd_w(_bias0, _sumfp32_20, _scale_in0);
-                        _sumfp32_21 = __msa_fmadd_w(_bias1, _sumfp32_21, _scale_in1);
-                        _sumfp32_30 = __msa_fmadd_w(_bias0, _sumfp32_30, _scale_in0);
-                        _sumfp32_31 = __msa_fmadd_w(_bias1, _sumfp32_31, _scale_in1);
+                        _sumfp32_00 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_00, _scale_in0);
+                        _sumfp32_01 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_01, _scale_in1);
+                        _sumfp32_10 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_10, _scale_in0);
+                        _sumfp32_11 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_11, _scale_in1);
+                        _sumfp32_20 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_20, _scale_in0);
+                        _sumfp32_21 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_21, _scale_in1);
+                        _sumfp32_30 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_30, _scale_in0);
+                        _sumfp32_31 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_31, _scale_in1);
                     }
                     else
                     {
@@ -1466,8 +1466,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                     {
                         v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_0 = __msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
-                        _sumfp32_1 = __msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
+                        _sumfp32_0 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
+                        _sumfp32_1 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
                     }
                     else
                     {
@@ -1589,8 +1589,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
             {
                 v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                 v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                _sumfp32_0 = __msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
-                _sumfp32_1 = __msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
+                _sumfp32_0 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
+                _sumfp32_1 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
             }
             else
             {

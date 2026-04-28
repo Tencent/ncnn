@@ -355,10 +355,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _w2 = bfloat2float_msa(kptr + 8);
                             v4f32 _w3 = bfloat2float_msa(kptr + 12);
 
-                            _sum0 = __msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[0])));
-                            _sum1 = __msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[1])));
-                            _sum2 = __msa_fmadd_w(_sum2, _w2, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[2])));
-                            _sum3 = __msa_fmadd_w(_sum3, _w3, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[3])));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[0])));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[1])));
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w2, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[2])));
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w3, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[3])));
 
                             kptr += 16;
                         }
@@ -375,10 +375,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _w2 = bfloat2float_msa(kptr + 8);
                             v4f32 _w3 = bfloat2float_msa(kptr + 12);
 
-                            _sum0 = __msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
-                            _sum1 = __msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
-                            _sum2 = __msa_fmadd_w(_sum2, _w2, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 2])));
-                            _sum3 = __msa_fmadd_w(_sum3, _w3, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 3])));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w2, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 2])));
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w3, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 3])));
 
                             kptr += 16;
                         }
@@ -398,8 +398,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
 
-                            _sum0 = __msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
-                            _sum1 = __msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
 
                             kptr += 8;
                         }
@@ -417,7 +417,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                             v4f32 _val = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[space_ofs[k]]));
                             v4f32 _w = bfloat2float_msa(kptr);
-                            _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                             kptr += 4;
                         }
@@ -506,8 +506,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            _sum0 = __msa_fmadd_w(_sum0, _r0, _w0);
-                            _sum1 = __msa_fmadd_w(_sum1, _r0, _w1);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
                             kptr += 8;
                         }
@@ -523,8 +523,8 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _r0 = bfloat2float_msa(tmpbuf);
                             v4f32 _w0 = bfloat2float_msa(kptr);
                             v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            _sum0 = __msa_fmadd_w(_sum0, _r0, _w0);
-                            _sum1 = __msa_fmadd_w(_sum1, _r0, _w1);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
                             kptr += 8;
                         }
@@ -621,7 +621,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _w = bfloat2float_msa(kptr);
-                            _sum = __msa_fmadd_w(_sum, _r0, _w);
+                            _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w);
 
                             kptr += 4;
                         }
@@ -636,7 +636,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             unsigned short tmpbuf[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             v4f32 _r0 = bfloat2float_msa(tmpbuf);
                             v4f32 _w = bfloat2float_msa(kptr);
-                            _sum = __msa_fmadd_w(_sum, _r0, _w);
+                            _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w);
 
                             kptr += 4;
                         }

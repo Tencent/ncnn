@@ -132,10 +132,10 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(m[2]));
                     v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(m[3]));
                     v4f32 _w = bfloat2float_msa(kptr);
-                    _sum0 = __msa_fmadd_w(_sum0, _val0, _w);
-                    _sum1 = __msa_fmadd_w(_sum1, _val1, _w);
-                    _sum2 = __msa_fmadd_w(_sum2, _val2, _w);
-                    _sum3 = __msa_fmadd_w(_sum3, _val3, _w);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, _w);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, _w);
 
                     m += 4;
                     kptr += 4;
@@ -187,7 +187,7 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     __builtin_prefetch(kptr + 16);
                     v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(m[0]));
                     v4f32 _w = bfloat2float_msa(kptr);
-                    _sum = __msa_fmadd_w(_sum, _val, _w);
+                    _sum = __ncnn_msa_fmadd_w(_sum, _val, _w);
 
                     m += 1;
                     kptr += 4;
@@ -236,10 +236,10 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     v4f32 _w2 = (v4f32)__msa_splati_w((v4i32)_w, 2);
                     v4f32 _w3 = (v4f32)__msa_splati_w((v4i32)_w, 3);
 
-                    _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                    _sum1 = __msa_fmadd_w(_sum1, _val1, _w1);
-                    _sum2 = __msa_fmadd_w(_sum2, _val2, _w2);
-                    _sum3 = __msa_fmadd_w(_sum3, _val3, _w3);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, _w2);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, _w3);
 
                     m += 16;
                     kptr += 4;
@@ -248,7 +248,7 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                 {
                     v4f32 _val = bfloat2float_msa(m);
                     v4f32 _w = __msa_fill_w_f32(bfloat16_to_float32(kptr[0]));
-                    _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                     m += 4;
                     kptr += 1;
@@ -291,7 +291,7 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     __builtin_prefetch(kptr + 16);
                     v4f32 _val = bfloat2float_msa(m);
                     v4f32 _w = bfloat2float_msa(kptr);
-                    _sum = __msa_fmadd_w(_sum, _val, _w);
+                    _sum = __ncnn_msa_fmadd_w(_sum, _val, _w);
 
                     m += 4;
                     kptr += 4;
@@ -357,10 +357,10 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 v4f32 _w2 = bfloat2float_msa(kptr + 8);
                 v4f32 _w3 = bfloat2float_msa(kptr + 12);
 
-                _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _val1, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _val2, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _val3, _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, _w3);
 
                 sptr += 4;
                 kptr += 16;
@@ -369,7 +369,7 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
             {
                 v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(sptr[0]));
                 v4f32 _w = bfloat2float_msa(kptr);
-                _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
@@ -433,10 +433,10 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 v4f32 _w2 = bfloat2float_msa(w2);
                 v4f32 _w3 = bfloat2float_msa(w3);
 
-                _sum0l = __msa_fmadd_w(_sum0l, _m, _w0);
-                _sum1l = __msa_fmadd_w(_sum1l, _m, _w1);
-                _sum2l = __msa_fmadd_w(_sum2l, _m, _w2);
-                _sum3l = __msa_fmadd_w(_sum3l, _m, _w3);
+                _sum0l = __ncnn_msa_fmadd_w(_sum0l, _m, _w0);
+                _sum1l = __ncnn_msa_fmadd_w(_sum1l, _m, _w1);
+                _sum2l = __ncnn_msa_fmadd_w(_sum2l, _m, _w2);
+                _sum3l = __ncnn_msa_fmadd_w(_sum3l, _m, _w3);
 
                 m += 4;
                 w0 += 4;
@@ -503,7 +503,7 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 __builtin_prefetch(w + 16);
                 v4f32 _m = bfloat2float_msa(m);
                 v4f32 _w = bfloat2float_msa(w);
-                _sum = __msa_fmadd_w(_sum, _m, _w);
+                _sum = __ncnn_msa_fmadd_w(_sum, _m, _w);
 
                 m += 4;
                 w += 4;

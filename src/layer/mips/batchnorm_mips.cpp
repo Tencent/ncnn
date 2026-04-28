@@ -26,7 +26,7 @@ static void batchnorm_bf16s_msa(unsigned short* ptr, const float* a, const float
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
-        _p = __msa_fmadd_w(_a, _p, _b);
+        _p = __ncnn_msa_fmadd_w(_a, _p, _b);
         float2bfloat_msa_store(_p, ptr);
         ptr += 4;
     }
@@ -51,7 +51,7 @@ static void batchnorm_bf16s_per_element_msa(unsigned short* ptr, const float* a,
         v4f32 _p = bfloat2float_msa(ptr + i);
         v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
         v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
-        _p = __msa_fmadd_w(_a0, _p, _b0);
+        _p = __ncnn_msa_fmadd_w(_a0, _p, _b0);
         float2bfloat_msa_store(_p, ptr + i);
     }
     remain_size_start += nn_size * 4;
@@ -106,7 +106,7 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             v4f32 _a = (v4f32)__msa_ld_w((const float*)a_data + i * 4, 0);
             v4f32 _b = (v4f32)__msa_ld_w((const float*)b_data + i * 4, 0);
-            _p = __msa_fmadd_w(_a, _p, _b);
+            _p = __ncnn_msa_fmadd_w(_a, _p, _b);
             __msa_st_w((v4i32)_p, ptr0, 0);
         }
 #endif // __mips_msa
@@ -138,7 +138,7 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             {
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmadd_w(_a, _p, _b);
+                _p = __ncnn_msa_fmadd_w(_a, _p, _b);
                 __msa_st_w((v4i32)_p, ptr, 0);
 
                 ptr += 4;
@@ -175,7 +175,7 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             {
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmadd_w(_a, _p, _b);
+                _p = __ncnn_msa_fmadd_w(_a, _p, _b);
                 __msa_st_w((v4i32)_p, ptr, 0);
 
                 ptr += 4;

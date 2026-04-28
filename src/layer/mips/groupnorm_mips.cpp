@@ -79,7 +79,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
             v4f32 _p = bfloat2float_msa(ptr0);
             _p = __msa_fsub_w(_p, _mean);
-            _var = __msa_fmadd_w(_var, _p, _p);
+            _var = __ncnn_msa_fmadd_w(_var, _p, _p);
             ptr0 += 4;
         }
 #endif // __mips_msa
@@ -127,7 +127,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
                 v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr + q * elempack, 0);
 
                 _a = __msa_fmul_w(_var, _gamma);
-                _b = __msa_fmadd_w(_beta, _mean, _gamma);
+                _b = __ncnn_msa_fmadd_w(_beta, _mean, _gamma);
             }
 #endif // __mips_msa
             if (elempack == 1)
@@ -150,7 +150,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
                 __builtin_prefetch(ptr0 + 16);
 
                 v4f32 _p = bfloat2float_msa(ptr0);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 float2bfloat_msa_store(_p, ptr0);
                 ptr0 += 4;
             }
@@ -175,7 +175,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
                 __builtin_prefetch(ptr0 + 16);
 
                 v4f32 _p = bfloat2float_msa(ptr0);
-                _p = __msa_fmadd_w(_mean, _p, _var);
+                _p = __ncnn_msa_fmadd_w(_mean, _p, _var);
                 float2bfloat_msa_store(_p, ptr0);
                 ptr0 += 4;
             }
@@ -245,7 +245,7 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
 
             v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
             _p = __msa_fsub_w(_p, _mean);
-            _var = __msa_fmadd_w(_var, _p, _p);
+            _var = __ncnn_msa_fmadd_w(_var, _p, _p);
             ptr0 += 4;
         }
 #endif // __mips_msa
@@ -289,7 +289,7 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
                 v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr + q * elempack, 0);
 
                 _a = __msa_fmul_w(_var, _gamma);
-                _b = __msa_fmadd_w(_beta, _mean, _gamma);
+                _b = __ncnn_msa_fmadd_w(_beta, _mean, _gamma);
             }
 #endif // __mips_msa
             if (elempack == 1)
@@ -312,7 +312,7 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
                 __builtin_prefetch(ptr0 + 16);
 
                 v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
-                _p = __msa_fmadd_w(_b, _p, _a);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
                 __msa_st_w((v4i32)_p, ptr0, 0);
                 ptr0 += 4;
             }
@@ -337,7 +337,7 @@ static void groupnorm_mips(float* ptr, const float* gamma_ptr, const float* beta
                 __builtin_prefetch(ptr0 + 16);
 
                 v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
-                _p = __msa_fmadd_w(_mean, _p, _var);
+                _p = __ncnn_msa_fmadd_w(_mean, _p, _var);
                 __msa_st_w((v4i32)_p, ptr0, 0);
                 ptr0 += 4;
             }

@@ -320,10 +320,10 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                         v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
 
-                        _sum0 = __msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
-                        _sum1 = __msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[1]));
-                        _sum2 = __msa_fmadd_w(_sum2, _w2, __msa_fill_w_f32(r0[2]));
-                        _sum3 = __msa_fmadd_w(_sum3, _w3, __msa_fill_w_f32(r0[3]));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[1]));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _w2, __msa_fill_w_f32(r0[2]));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _w3, __msa_fill_w_f32(r0[3]));
 
                         r0 += dilation_w * 4;
                         kptr += 16;
@@ -340,10 +340,10 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                         v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
 
-                        _sum0 = __msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
-                        _sum1 = __msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[N]));
-                        _sum2 = __msa_fmadd_w(_sum2, _w2, __msa_fill_w_f32(r0[N * 2]));
-                        _sum3 = __msa_fmadd_w(_sum3, _w3, __msa_fill_w_f32(r0[N * 3]));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[N]));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _w2, __msa_fill_w_f32(r0[N * 2]));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _w3, __msa_fill_w_f32(r0[N * 3]));
 
                         r0 += dilation_w;
                         kptr += 16;
@@ -363,8 +363,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
 
-                        _sum0 = __msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
-                        _sum1 = __msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[N]));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, __msa_fill_w_f32(r0[0]));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, __msa_fill_w_f32(r0[N]));
 
                         r0 += dilation_w;
                         kptr += 8;
@@ -383,7 +383,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                         v4f32 _val = __msa_fill_w_f32(r0[0]);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                         r0 += dilation_w;
                         kptr += 4;
@@ -468,8 +468,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _r0, _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, _r0, _w1);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
                         r0 += dilation_w * 4;
                         kptr += 8;
@@ -484,8 +484,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         v4f32 _r0 = {r0[0], r0[N], r0[N * 2], r0[N * 3]};
                         v4f32 _w0 = (v4f32)__msa_ld_w(kptr, 0);
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _r0, _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, _r0, _w1);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
                         r0 += dilation_w;
                         kptr += 8;
@@ -587,7 +587,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                         v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum = __msa_fmadd_w(_sum, _r0, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w);
 
                         r0 += dilation_w * 4;
                         kptr += 4;
@@ -601,7 +601,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                         v4f32 _r0 = {r0[0], r0[N], r0[N * 2], r0[N * 3]};
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum = __msa_fmadd_w(_sum, _r0, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w);
 
                         r0 += dilation_w;
                         kptr += 4;

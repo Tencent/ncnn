@@ -245,18 +245,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
                 v4f32 _pB2r = (v4f32)__msa_shf_w((v4i32)_pB2, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB0);
-                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB0r);
-                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB0);
-                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB0r);
-                _sum4 = __msa_fmadd_w(_sum4, _pA, _pB1);
-                _sum5 = __msa_fmadd_w(_sum5, _pA, _pB1r);
-                _sum6 = __msa_fmadd_w(_sum6, _pA1, _pB1);
-                _sum7 = __msa_fmadd_w(_sum7, _pA1, _pB1r);
-                _sum8 = __msa_fmadd_w(_sum8, _pA, _pB2);
-                _sum9 = __msa_fmadd_w(_sum9, _pA, _pB2r);
-                _suma = __msa_fmadd_w(_suma, _pA1, _pB2);
-                _sumb = __msa_fmadd_w(_sumb, _pA1, _pB2r);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB0r);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA1, _pB0);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA1, _pB0r);
+                _sum4 = __ncnn_msa_fmadd_w(_sum4, _pA, _pB1);
+                _sum5 = __ncnn_msa_fmadd_w(_sum5, _pA, _pB1r);
+                _sum6 = __ncnn_msa_fmadd_w(_sum6, _pA1, _pB1);
+                _sum7 = __ncnn_msa_fmadd_w(_sum7, _pA1, _pB1r);
+                _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA, _pB2);
+                _sum9 = __ncnn_msa_fmadd_w(_sum9, _pA, _pB2r);
+                _suma = __ncnn_msa_fmadd_w(_suma, _pA1, _pB2);
+                _sumb = __ncnn_msa_fmadd_w(_sumb, _pA1, _pB2r);
 
                 pA += 4;
                 pB += 12;
@@ -457,14 +457,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB0r = (v4f32)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                 v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB0);
-                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB0r);
-                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB0);
-                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB0r);
-                _sum4 = __msa_fmadd_w(_sum4, _pA, _pB1);
-                _sum5 = __msa_fmadd_w(_sum5, _pA, _pB1r);
-                _sum6 = __msa_fmadd_w(_sum6, _pA1, _pB1);
-                _sum7 = __msa_fmadd_w(_sum7, _pA1, _pB1r);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB0r);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA1, _pB0);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA1, _pB0r);
+                _sum4 = __ncnn_msa_fmadd_w(_sum4, _pA, _pB1);
+                _sum5 = __ncnn_msa_fmadd_w(_sum5, _pA, _pB1r);
+                _sum6 = __ncnn_msa_fmadd_w(_sum6, _pA1, _pB1);
+                _sum7 = __ncnn_msa_fmadd_w(_sum7, _pA1, _pB1r);
 
                 pA += 4;
                 pB += 8;
@@ -607,10 +607,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB = bfloat2float_msa(pB);
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB);
-                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB1);
-                _sum2 = __msa_fmadd_w(_sum2, _pA1, _pB);
-                _sum3 = __msa_fmadd_w(_sum3, _pA1, _pB1);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA1, _pB);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA1, _pB1);
 
                 pA += 4;
                 pB += 4;
@@ -716,8 +716,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB = (v4f32)__msa_ilvr_h(_raw, _zero);
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(2, 3, 0, 1));
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, _pB);
-                _sum1 = __msa_fmadd_w(_sum1, _pA, _pB1);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB1);
 
                 pA += 4;
                 pB += 2;
@@ -796,7 +796,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __builtin_prefetch(pB + 4);
                 v4f32 _pA = bfloat2float_msa(pA);
 
-                _sum0 = __msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(bfloat16_to_float32(pB[0])));
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(bfloat16_to_float32(pB[0])));
 
                 pA += 4;
                 pB += 1;
@@ -905,13 +905,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB2 = bfloat2float_msa(pB + 8);
 
                 v4f32 _pA0 = __msa_fill_w_f32(bfloat16_to_float32(pA[0]));
-                _sum00 = __msa_fmadd_w(_sum00, _pA0, _pB0);
-                _sum01 = __msa_fmadd_w(_sum01, _pA0, _pB1);
-                _sum02 = __msa_fmadd_w(_sum02, _pA0, _pB2);
+                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB0);
+                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA0, _pB1);
+                _sum02 = __ncnn_msa_fmadd_w(_sum02, _pA0, _pB2);
                 v4f32 _pA1 = __msa_fill_w_f32(bfloat16_to_float32(pA[1]));
-                _sum10 = __msa_fmadd_w(_sum10, _pA1, _pB0);
-                _sum11 = __msa_fmadd_w(_sum11, _pA1, _pB1);
-                _sum12 = __msa_fmadd_w(_sum12, _pA1, _pB2);
+                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA1, _pB0);
+                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB1);
+                _sum12 = __ncnn_msa_fmadd_w(_sum12, _pA1, _pB2);
 
                 pA += 2;
                 pB += 12;
@@ -1002,11 +1002,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB1 = bfloat2float_msa(pB + 4);
 
                 v4f32 _pA0 = __msa_fill_w_f32(bfloat16_to_float32(pA[0]));
-                _sum00 = __msa_fmadd_w(_sum00, _pA0, _pB0);
-                _sum01 = __msa_fmadd_w(_sum01, _pA0, _pB1);
+                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB0);
+                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA0, _pB1);
                 v4f32 _pA1 = __msa_fill_w_f32(bfloat16_to_float32(pA[1]));
-                _sum10 = __msa_fmadd_w(_sum10, _pA1, _pB0);
-                _sum11 = __msa_fmadd_w(_sum11, _pA1, _pB1);
+                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA1, _pB0);
+                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB1);
 
                 pA += 2;
                 pB += 8;
@@ -1077,8 +1077,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 v4f32 _pB = bfloat2float_msa(pB);
 
-                _sum0 = __msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
-                _sum1 = __msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(pA[1])), _pB);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(pA[1])), _pB);
 
                 pA += 2;
                 pB += 4;
@@ -1288,9 +1288,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB2 = bfloat2float_msa(pB + 8);
 
                 v4f32 _pA0 = __msa_fill_w_f32(bfloat16_to_float32(pA[0]));
-                _sum0 = __msa_fmadd_w(_sum0, _pA0, _pB0);
-                _sum1 = __msa_fmadd_w(_sum1, _pA0, _pB1);
-                _sum2 = __msa_fmadd_w(_sum2, _pA0, _pB2);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, _pB0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA0, _pB1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA0, _pB2);
 
                 pA += 1;
                 pB += 12;
@@ -1354,8 +1354,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pB1 = bfloat2float_msa(pB + 4);
 
                 v4f32 _pA0 = __msa_fill_w_f32(bfloat16_to_float32(pA[0]));
-                _sum0 = __msa_fmadd_w(_sum0, _pA0, _pB0);
-                _sum1 = __msa_fmadd_w(_sum1, _pA0, _pB1);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, _pB0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA0, _pB1);
 
                 pA += 1;
                 pB += 8;
@@ -1410,7 +1410,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 v4f32 _pB = bfloat2float_msa(pB);
 
-                _sum = __msa_fmadd_w(_sum, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
+                _sum = __ncnn_msa_fmadd_w(_sum, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
 
                 pA += 1;
                 pB += 4;

@@ -322,10 +322,10 @@ int DeformableConv2D_mips::forward(const std::vector<Mat>& bottom_blobs, std::ve
                                     v4f32 _v3 = v3_cond ? (v4f32)__msa_ld_w(img.row(h_high) + w_low * 4, 0) : (v4f32)__msa_fill_w(0);
                                     v4f32 _v4 = v4_cond ? (v4f32)__msa_ld_w(img.row(h_high) + w_high * 4, 0) : (v4f32)__msa_fill_w(0);
 
-                                    _val = __msa_fmadd_w(_val, _v1, __msa_fill_w_f32(w1));
-                                    _val = __msa_fmadd_w(_val, _v2, __msa_fill_w_f32(w2));
-                                    _val = __msa_fmadd_w(_val, _v3, __msa_fill_w_f32(w3));
-                                    _val = __msa_fmadd_w(_val, _v4, __msa_fill_w_f32(w4));
+                                    _val = __ncnn_msa_fmadd_w(_val, _v1, __msa_fill_w_f32(w1));
+                                    _val = __ncnn_msa_fmadd_w(_val, _v2, __msa_fill_w_f32(w2));
+                                    _val = __ncnn_msa_fmadd_w(_val, _v3, __msa_fill_w_f32(w3));
+                                    _val = __ncnn_msa_fmadd_w(_val, _v4, __msa_fill_w_f32(w4));
 
                                     if (has_mask)
                                         _val = __msa_fmul_w(_val, __msa_fill_w_f32(mask_k.row(i)[j]));

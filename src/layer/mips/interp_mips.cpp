@@ -155,7 +155,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         v4f32 _S0 = (v4f32)__msa_ld_w(Sp, 0);
                         v4f32 _S1 = (v4f32)__msa_ld_w(Sp + 4, 0);
                         v4f32 _p = __msa_fmul_w(_S0, _a0);
-                        _p = __msa_fmadd_w(_p, _S1, _a1);
+                        _p = __ncnn_msa_fmadd_w(_p, _S1, _a1);
                         __msa_st_w((v4i32)_p, outptr, 0);
 
                         alphap += 2;
@@ -197,9 +197,9 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         v4f32 _S2 = (v4f32)__msa_ld_w(Sp + 4, 0);
                         v4f32 _S3 = (v4f32)__msa_ld_w(Sp + 8, 0);
                         v4f32 _p = __msa_fmul_w(_S0, _a0);
-                        _p = __msa_fmadd_w(_p, _S1, _a1);
-                        _p = __msa_fmadd_w(_p, _S2, _a2);
-                        _p = __msa_fmadd_w(_p, _S3, _a3);
+                        _p = __ncnn_msa_fmadd_w(_p, _S1, _a1);
+                        _p = __ncnn_msa_fmadd_w(_p, _S2, _a2);
+                        _p = __ncnn_msa_fmadd_w(_p, _S3, _a3);
                         __msa_st_w((v4i32)_p, outptr, 0);
 
                         alphap += 4;

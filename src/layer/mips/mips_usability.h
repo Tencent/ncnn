@@ -30,6 +30,114 @@ typedef union
 #define _MIPS_FLOAT_CONST(Name, Val) \
     static const ncnn::FloatInt Name = {.f = Val}
 
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_fmadd_w(v4f32 a, v4f32 b, v4f32 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_fmadd_w(c, b, a);
+#else
+    return __msa_fmadd_w(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v2f64 __ncnn_msa_fmadd_d(v2f64 a, v2f64 b, v2f64 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_fmadd_d(c, b, a);
+#else
+    return __msa_fmadd_d(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v4f32 __ncnn_msa_fmsub_w(v4f32 a, v4f32 b, v4f32 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_fmsub_w(c, b, a);
+#else
+    return __msa_fmsub_w(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v2f64 __ncnn_msa_fmsub_d(v2f64 a, v2f64 b, v2f64 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_fmsub_d(c, b, a);
+#else
+    return __msa_fmsub_d(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v16i8 __ncnn_msa_maddv_b(v16i8 a, v16i8 b, v16i8 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_maddv_b(c, b, a);
+#else
+    return __msa_maddv_b(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v8i16 __ncnn_msa_maddv_h(v8i16 a, v8i16 b, v8i16 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_maddv_h(c, b, a);
+#else
+    return __msa_maddv_h(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v4i32 __ncnn_msa_maddv_w(v4i32 a, v4i32 b, v4i32 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_maddv_w(c, b, a);
+#else
+    return __msa_maddv_w(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v2i64 __ncnn_msa_maddv_d(v2i64 a, v2i64 b, v2i64 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_maddv_d(c, b, a);
+#else
+    return __msa_maddv_d(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v16i8 __ncnn_msa_msubv_b(v16i8 a, v16i8 b, v16i8 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_msubv_b(c, b, a);
+#else
+    return __msa_msubv_b(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v8i16 __ncnn_msa_msubv_h(v8i16 a, v8i16 b, v8i16 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_msubv_h(c, b, a);
+#else
+    return __msa_msubv_h(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v4i32 __ncnn_msa_msubv_w(v4i32 a, v4i32 b, v4i32 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_msubv_w(c, b, a);
+#else
+    return __msa_msubv_w(a, b, c);
+#endif
+}
+
+static NCNN_FORCEINLINE v2i64 __ncnn_msa_msubv_d(v2i64 a, v2i64 b, v2i64 c)
+{
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 8 || (__GNUC__ == 8 && __GNUC_MINOR__ < 5))
+    return __builtin_msa_msubv_d(c, b, a);
+#else
+    return __msa_msubv_d(a, b, c);
+#endif
+}
+
 /* float type data load instructions */
 static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
 {

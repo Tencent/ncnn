@@ -179,10 +179,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 v4f32 _weight_xc_IFOG1 = (v4f32)__msa_ld_w(weight_xc_IFOG + 4, 0);
                 v4f32 _weight_xc_IFOG2 = (v4f32)__msa_ld_w(weight_xc_IFOG + 8, 0);
                 v4f32 _weight_xc_IFOG3 = (v4f32)__msa_ld_w(weight_xc_IFOG + 12, 0);
-                _IFOG = __msa_fmadd_w(_IFOG, _weight_xc_IFOG0, _xi0);
-                _sum1 = __msa_fmadd_w(_sum1, _weight_xc_IFOG1, _xi1);
-                _sum2 = __msa_fmadd_w(_sum2, _weight_xc_IFOG2, _xi2);
-                _sum3 = __msa_fmadd_w(_sum3, _weight_xc_IFOG3, _xi3);
+                _IFOG = __ncnn_msa_fmadd_w(_IFOG, _weight_xc_IFOG0, _xi0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _weight_xc_IFOG1, _xi1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _weight_xc_IFOG2, _xi2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _weight_xc_IFOG3, _xi3);
 
                 x += 4;
                 weight_xc_IFOG += 16;
@@ -193,7 +193,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 #if __mips_msa
                 v4f32 _xi = __msa_fill_w_f32(x[0]);
                 v4f32 _weight_xc_IFOG = (v4f32)__msa_ld_w(weight_xc_IFOG, 0);
-                _IFOG = __msa_fmadd_w(_IFOG, _weight_xc_IFOG, _xi);
+                _IFOG = __ncnn_msa_fmadd_w(_IFOG, _weight_xc_IFOG, _xi);
 #else
                 float xi = x[0];
                 I += xi * weight_xc_IFOG[0];
@@ -220,10 +220,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 v4f32 _weight_hc_IFOG1 = (v4f32)__msa_ld_w(weight_hc_IFOG + 4, 0);
                 v4f32 _weight_hc_IFOG2 = (v4f32)__msa_ld_w(weight_hc_IFOG + 8, 0);
                 v4f32 _weight_hc_IFOG3 = (v4f32)__msa_ld_w(weight_hc_IFOG + 12, 0);
-                _IFOG = __msa_fmadd_w(_IFOG, _weight_hc_IFOG0, _h_cont0);
-                _sum1 = __msa_fmadd_w(_sum1, _weight_hc_IFOG1, _h_cont1);
-                _sum2 = __msa_fmadd_w(_sum2, _weight_hc_IFOG2, _h_cont2);
-                _sum3 = __msa_fmadd_w(_sum3, _weight_hc_IFOG3, _h_cont3);
+                _IFOG = __ncnn_msa_fmadd_w(_IFOG, _weight_hc_IFOG0, _h_cont0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _weight_hc_IFOG1, _h_cont1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _weight_hc_IFOG2, _h_cont2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _weight_hc_IFOG3, _h_cont3);
 
                 hidden_ptr += 4;
                 weight_hc_IFOG += 16;
@@ -234,7 +234,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 #if __mips_msa
                 v4f32 _h_cont = __msa_fill_w_f32(hidden_ptr[0]);
                 v4f32 _weight_hc_IFOG = (v4f32)__msa_ld_w(weight_hc_IFOG, 0);
-                _IFOG = __msa_fmadd_w(_IFOG, _weight_hc_IFOG, _h_cont);
+                _IFOG = __ncnn_msa_fmadd_w(_IFOG, _weight_hc_IFOG, _h_cont);
 #else
                 float h_cont = hidden_ptr[0];
                 I += h_cont * weight_hc_IFOG[0];

@@ -305,10 +305,10 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 v4f32 _val1 = __msa_fill_w_f32(sptr[1]);
                                 v4f32 _val2 = __msa_fill_w_f32(sptr[2]);
                                 v4f32 _val3 = __msa_fill_w_f32(sptr[3]);
-                                _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
-                                _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
-                                _sum2 = __msa_fmadd_w(_sum2, _val2, (v4f32)__msa_ld_w(kptr0 + 4 * 2, 0));
-                                _sum3 = __msa_fmadd_w(_sum3, _val3, (v4f32)__msa_ld_w(kptr0 + 4 * 3, 0));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, (v4f32)__msa_ld_w(kptr0 + 4 * 2, 0));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, (v4f32)__msa_ld_w(kptr0 + 4 * 3, 0));
                             }
                             if (elempack == 1)
                             {
@@ -316,10 +316,10 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 v4f32 _val1 = __msa_fill_w_f32(bottom_blob.channel(q + 1).row(sy)[sx]);
                                 v4f32 _val2 = __msa_fill_w_f32(bottom_blob.channel(q + 2).row(sy)[sx]);
                                 v4f32 _val3 = __msa_fill_w_f32(bottom_blob.channel(q + 3).row(sy)[sx]);
-                                _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
-                                _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
-                                _sum2 = __msa_fmadd_w(_sum2, _val2, (v4f32)__msa_ld_w(kptr0 + 4 * 2, 0));
-                                _sum3 = __msa_fmadd_w(_sum3, _val3, (v4f32)__msa_ld_w(kptr0 + 4 * 3, 0));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, (v4f32)__msa_ld_w(kptr0 + 4 * 2, 0));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, (v4f32)__msa_ld_w(kptr0 + 4 * 3, 0));
                             }
                         }
                     }
@@ -353,8 +353,8 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                             const float* sptr1 = bottom_blob.channel(q + 1).row(sy) + sx;
                             v4f32 _val0 = __msa_fill_w_f32(sptr0[0]);
                             v4f32 _val1 = __msa_fill_w_f32(sptr1[0]);
-                            _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
-                            _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, (v4f32)__msa_ld_w(kptr0, 0));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, (v4f32)__msa_ld_w(kptr0 + 4, 0));
                         }
                     }
 
@@ -385,7 +385,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                             const float* sptr = bottom_blob.channel(q).row(sy) + sx;
                             v4f32 _val = __msa_fill_w_f32(sptr[0]);
-                            _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_ld_w(kptr0, 0));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, (v4f32)__msa_ld_w(kptr0, 0));
                         }
                     }
 

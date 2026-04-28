@@ -151,17 +151,17 @@ static void deformableconv2d_packed(const std::vector<Mat>& bottom_blobs, Mat& t
                                         v4f32 _v3 = v3_cond ? __msa_fill_w_f32(*(data_im_ptr + v3_pos * elempack + ez)) : (v4f32)__msa_fill_w(0);
                                         v4f32 _v4 = v4_cond ? __msa_fill_w_f32(*(data_im_ptr + v4_pos * elempack + ez)) : (v4f32)__msa_fill_w(0);
 
-                                        _val = __msa_fmadd_w(_val, _v1, _bw1);
-                                        _val = __msa_fmadd_w(_val, _v2, _bw2);
-                                        _val = __msa_fmadd_w(_val, _v3, _bw3);
-                                        _val = __msa_fmadd_w(_val, _v4, _bw4);
+                                        _val = __ncnn_msa_fmadd_w(_val, _v1, _bw1);
+                                        _val = __ncnn_msa_fmadd_w(_val, _v2, _bw2);
+                                        _val = __ncnn_msa_fmadd_w(_val, _v3, _bw3);
+                                        _val = __ncnn_msa_fmadd_w(_val, _v4, _bw4);
                                     }
                                     if (has_mask)
                                     {
                                         _val = __msa_fmul_w(_val, _mask);
                                     }
                                     v4f32 _conv_w = (v4f32)__msa_ld_w(kptr, 0);
-                                    _sum_msa = __msa_fmadd_w(_sum_msa, _val, _conv_w);
+                                    _sum_msa = __ncnn_msa_fmadd_w(_sum_msa, _val, _conv_w);
                                     kptr += 4;
                                 }
                             }

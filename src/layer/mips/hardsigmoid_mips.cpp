@@ -50,7 +50,7 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            _p = __msa_fmadd_w(_beta, _p, _alpha);
+            _p = __ncnn_msa_fmadd_w(_beta, _p, _alpha);
             _p = __msa_fmax_w(_p, _zero);
             _p = __msa_fmin_w(_p, _one);
             __msa_st_w((v4i32)_p, ptr, 0);
@@ -97,7 +97,7 @@ int HardSigmoid_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);
-            _p = __msa_fmadd_w(_beta, _p, _alpha);
+            _p = __ncnn_msa_fmadd_w(_beta, _p, _alpha);
             _p = __msa_fmax_w(_p, _zero);
             _p = __msa_fmin_w(_p, _one);
             float2bfloat_msa_store(_p, ptr);

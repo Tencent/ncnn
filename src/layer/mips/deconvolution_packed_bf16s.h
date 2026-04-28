@@ -305,10 +305,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 v4f32 _val1 = __msa_fill_w_f32(bfloat16_to_float32(sptr[1]));
                                 v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(sptr[2]));
                                 v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(sptr[3]));
-                                _sum0 = __msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
-                                _sum1 = __msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
-                                _sum2 = __msa_fmadd_w(_sum2, _val2, bfloat2float_msa(kptr0 + 4 * 2));
-                                _sum3 = __msa_fmadd_w(_sum3, _val3, bfloat2float_msa(kptr0 + 4 * 3));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, bfloat2float_msa(kptr0 + 4 * 2));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, bfloat2float_msa(kptr0 + 4 * 3));
                             }
                             if (elempack == 1)
                             {
@@ -316,10 +316,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 v4f32 _val1 = __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx]));
                                 v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx]));
                                 v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx]));
-                                _sum0 = __msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
-                                _sum1 = __msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
-                                _sum2 = __msa_fmadd_w(_sum2, _val2, bfloat2float_msa(kptr0 + 4 * 2));
-                                _sum3 = __msa_fmadd_w(_sum3, _val3, bfloat2float_msa(kptr0 + 4 * 3));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, bfloat2float_msa(kptr0 + 4 * 2));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, bfloat2float_msa(kptr0 + 4 * 3));
                             }
                         }
                     }
@@ -353,8 +353,8 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
                             v4f32 _val0 = __msa_fill_w_f32(bfloat16_to_float32(sptr0[0]));
                             v4f32 _val1 = __msa_fill_w_f32(bfloat16_to_float32(sptr1[0]));
-                            _sum0 = __msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
-                            _sum1 = __msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, bfloat2float_msa(kptr0));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, bfloat2float_msa(kptr0 + 4));
                         }
                     }
 
@@ -385,7 +385,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                             const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(sptr[0]));
-                            _sum0 = __msa_fmadd_w(_sum0, _val, bfloat2float_msa(kptr0));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, bfloat2float_msa(kptr0));
                         }
                     }
 

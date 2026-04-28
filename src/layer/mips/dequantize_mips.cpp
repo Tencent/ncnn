@@ -105,8 +105,8 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
             __builtin_prefetch(intptr + 32);
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
-            _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
-            _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
+            _v0 = __ncnn_msa_fmadd_w(_bias0, _v0, _scale0);
+            _v1 = __ncnn_msa_fmadd_w(_bias1, _v1, _scale1);
             __msa_st_w((v4i32)_v0, ptr, 0);
             __msa_st_w((v4i32)_v1, ptr + 4, 0);
             intptr += 8;
@@ -115,7 +115,7 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
         for (; i + 3 < size; i += 4)
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias0, _v, _scale0);
+            _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale0);
             __msa_st_w((v4i32)_v, ptr, 0);
             intptr += 4;
             ptr += 4;
@@ -283,8 +283,8 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
-            _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
-            _v1 = __msa_fmadd_w(_bias1, _v1, _scale1);
+            _v0 = __ncnn_msa_fmadd_w(_bias0, _v0, _scale0);
+            _v1 = __ncnn_msa_fmadd_w(_bias1, _v1, _scale1);
             v4i32 _bf16 = float2bfloat_msa(_v0, _v1);
             __msa_st_w(_bf16, ptr, 0);
             intptr += 8;
@@ -293,7 +293,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         for (; i + 3 < size; i += 4)
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
-            _v = __msa_fmadd_w(_bias0, _v, _scale0);
+            _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale0);
             float2bfloat_msa_store(_v, ptr);
             intptr += 4;
             ptr += 4;

@@ -56,7 +56,7 @@ int GELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 v4f32 _cube = __msa_fmul_w(_p, _p);
                 _cube = __msa_fmul_w(_p, _cube);
                 v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
-                _blob = __msa_fmadd_w(_blob, _fast1c, _p);
+                _blob = __ncnn_msa_fmadd_w(_blob, _fast1c, _p);
                 _blob = tanh_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
@@ -135,7 +135,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
                 v4f32 _cube = __msa_fmul_w(_p, _p);
                 _cube = __msa_fmul_w(_p, _cube);
                 v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
-                _blob = __msa_fmadd_w(_blob, _fast1c, _p);
+                _blob = __ncnn_msa_fmadd_w(_blob, _fast1c, _p);
                 _blob = tanh_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));

@@ -181,7 +181,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     v4f32 _p = bfloat2float_msa(ptr);
                     v4f32 _p1 = bfloat2float_msa(ptr1);
                     _p = __msa_fmul_w(_p, _coeff0);
-                    _p = __msa_fmadd_w(_p, _p1, _coeff1);
+                    _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff1);
                     float2bfloat_msa_store(_p, outptr);
 
                     ptr += 4;
@@ -217,7 +217,7 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
                     {
                         v4f32 _p = bfloat2float_msa(outptr);
                         v4f32 _p1 = bfloat2float_msa(ptr);
-                        _p = __msa_fmadd_w(_p, _p1, _coeff);
+                        _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff);
                         float2bfloat_msa_store(_p, outptr);
 
                         ptr += 4;
@@ -500,7 +500,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     _p = __msa_fmul_w(_p, _coeff0);
-                    _p = __msa_fmadd_w(_p, _p1, _coeff1);
+                    _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff1);
                     __msa_st_w((v4i32)_p, outptr, 0);
 
                     ptr += 4;
@@ -538,7 +538,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                         __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
                         v4f32 _p1 = (v4f32)__msa_ld_w(ptr, 0);
-                        _p = __msa_fmadd_w(_p, _p1, _coeff);
+                        _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff);
                         __msa_st_w((v4i32)_p, outptr, 0);
 
                         ptr += 4;

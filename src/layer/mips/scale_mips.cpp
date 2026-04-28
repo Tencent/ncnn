@@ -53,7 +53,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _s = (v4f32)__msa_ld_w(scale + i * 4, 0);
                     v4f32 _bias = (v4f32)__msa_ld_w(bias + i * 4, 0);
-                    _p = __msa_fmadd_w(_bias, _p, _s);
+                    _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                     __msa_st_w((v4i32)_p, ptr, 0);
                 }
             }
@@ -93,7 +93,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
                     {
                         __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                        _p = __msa_fmadd_w(_bias, _p, _s);
+                        _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);
                         ptr += 4;
                     }
@@ -139,7 +139,7 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
                     {
                         __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                        _p = __msa_fmadd_w(_bias, _p, _s);
+                        _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                         __msa_st_w((v4i32)_p, ptr, 0);
                         ptr += 4;
                     }
@@ -187,7 +187,7 @@ static void scale_bf16s_msa(unsigned short* ptr, const float* scale, const float
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
-        _p = __msa_fmadd_w(_b, _p, _s);
+        _p = __ncnn_msa_fmadd_w(_b, _p, _s);
         float2bfloat_msa_store(_p, ptr);
         ptr += 4;
     }
@@ -236,7 +236,7 @@ static void scale_bf16s_per_element_msa(unsigned short* ptr, const float* scale,
         v4f32 _p = bfloat2float_msa(ptr + i);
         v4f32 _s = (v4f32)__msa_ld_w(scale + i, 0);
         v4f32 _b = (v4f32)__msa_ld_w(bias + i, 0);
-        _p = __msa_fmadd_w(_b, _p, _s);
+        _p = __ncnn_msa_fmadd_w(_b, _p, _s);
         float2bfloat_msa_store(_p, ptr + i);
     }
     remain_size_start += nn_size * 4;
@@ -305,7 +305,7 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                     else
                         _s = (v4f32)__msa_ld_w(scale_fp32 + i * 4, 0);
                     v4f32 _bias = (v4f32)__msa_ld_w(bias + i * 4, 0);
-                    _p = __msa_fmadd_w(_bias, _p, _s);
+                    _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                     float2bfloat_msa_store(_p, ptr);
                     ptr += 4;
                 }
@@ -352,7 +352,7 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                     for (int j = 0; j < w; j++)
                     {
                         v4f32 _p = bfloat2float_msa(ptr);
-                        _p = __msa_fmadd_w(_bias, _p, _s);
+                        _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                         float2bfloat_msa_store(_p, ptr);
                         ptr += 4;
                     }
@@ -405,7 +405,7 @@ int Scale_mips::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const 
                     for (int i = 0; i < size; i++)
                     {
                         v4f32 _p = bfloat2float_msa(ptr);
-                        _p = __msa_fmadd_w(_bias, _p, _s);
+                        _p = __ncnn_msa_fmadd_w(_bias, _p, _s);
                         float2bfloat_msa_store(_p, ptr);
                         ptr += 4;
                     }

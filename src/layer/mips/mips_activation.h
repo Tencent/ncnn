@@ -36,7 +36,7 @@ static NCNN_FORCEINLINE v4f32 swish_msa(v4f32 inputs)
 static NCNN_FORCEINLINE v4f32 hardswish_msa(v4f32 inputs, v4f32 a, v4f32 b)
 {
     const v4f32 one = (v4f32)__msa_fill_w_f32(1.0f);
-    b = __msa_fmadd_w(b, inputs, a);
+    b = __ncnn_msa_fmadd_w(b, inputs, a);
     b = __msa_fmax_w(b, (v4f32)__msa_fill_w(0));
     b = __msa_fmin_w(b, one);
     return __msa_fmul_w(b, inputs);
