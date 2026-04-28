@@ -845,8 +845,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "ldc1       %4, 0(%0)       \n" // int16x4_t _pA = __mmi_pldh_s(pA);
                         "ldc1       %5, 0(%1)       \n" // int16x4_t _pB = __mmi_pldh_s(pB);
 
+#if __mips64
                         "daddiu     %0, %0, 8       \n" // pA += 4;
                         "daddiu     %1, %1, 8       \n" // pB += 4;
+#else
+                        "addiu      %0, %0, 8       \n" // pA += 4;
+                        "addiu      %1, %1, 8       \n" // pB += 4;
+#endif
 
                         "pshufh     %6, %5, %12     \n" // int16x4_t _pB0 = __mmi_pshufh_s(_pB, 0x44);
                         "pshufh     %7, %5, %13     \n" // int16x4_t _pB1 = __mmi_pshufh_s(_pB, 0xee);
@@ -966,8 +971,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "ldc1       %3, 0(%0)       \n" // int16x4_t _pA = __mmi_pldh_s(pA);
                         "lwc1       %4, 0(%1)       \n" // int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
 
+#if __mips64
                         "daddiu     %0, %0, 8       \n" // pA += 4;
                         "daddiu     %1, %1, 4       \n" // pB += 2;
+#else
+                        "addiu      %0, %0, 8       \n" // pA += 4;
+                        "addiu      %1, %1, 4       \n" // pB += 2;
+#endif
                         "punpcklwd  %4, %4, %4      \n"
 
                         "pmaddhw    %5, %3, %4      \n"
@@ -1162,8 +1172,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "lwc1       %3, 0(%0)       \n" // int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
                         "ldc1       %4, 0(%1)       \n" // int16x4_t _pB = __mmi_pldh_s(pB);
 
+#if __mips64
                         "daddiu     %0, %0, 4       \n" // pA += 2;
                         "daddiu     %1, %1, 8       \n" // pB += 4;
+#else
+                        "addiu      %0, %0, 4       \n" // pA += 2;
+                        "addiu      %1, %1, 8       \n" // pB += 4;
+#endif
                         "punpcklwd  %3, %3, %3      \n"
 
                         "pmaddhw    %5, %3, %4      \n"
@@ -1255,8 +1270,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "lwc1       %3, 0(%0)       \n" // int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
                         "lwc1       %4, 0(%1)       \n" // int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
 
+#if __mips64
                         "daddiu     %0, %0, 4       \n" // pA += 2;
                         "daddiu     %1, %1, 4       \n" // pB += 2;
+#else
+                        "addiu      %0, %0, 4       \n" // pA += 2;
+                        "addiu      %1, %1, 4       \n" // pB += 2;
+#endif
                         "punpcklwd  %3, %3, %3      \n"
                         "punpcklwd  %4, %4, %4      \n"
 

@@ -6,6 +6,7 @@
 #if __mips_loongson_mmi
 #include "loongson_mmi.h"
 #endif // __mips_loongson_mmi
+#include "mips_usability.h"
 
 namespace ncnn {
 
