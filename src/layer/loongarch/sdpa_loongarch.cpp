@@ -9,9 +9,6 @@ namespace ncnn {
 
 SDPA_loongarch::SDPA_loongarch()
 {
-#if __loongarch_sx
-    support_packing = true;
-#endif // __loongarch_sx
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -19,84 +16,6 @@ SDPA_loongarch::SDPA_loongarch()
     qk_gemm = 0;
     qkv_gemm = 0;
     qk_softmax = 0;
-}
-
-static int unpack_or_cast_to_float32(const Mat& src, Mat& dst, const Option& opt)
-{
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat unpacked = src;
-    if (src.elempack != 1)
-    {
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(src, unpacked, 1, opt_unpack);
-        if (unpacked.empty())
-            return -100;
-    }
-
-#if NCNN_BF16
-    if (unpacked.elembits() == 16)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = opt.workspace_allocator;
-
-        cast_bfloat16_to_float32(unpacked, dst, opt_cast);
-        if (dst.empty())
-            return -100;
-        return 0;
-    }
-#endif
-
-    dst = unpacked;
-    return 0;
-}
-
-static bool is_scalar_fp32(const Mat& m)
-{
-    return m.empty() || (m.elempack == 1 && m.elembits() == 32);
-}
-
-static int restore_layout_from_reference(const Mat& src, Mat& dst, const Mat& reference, const Option& opt)
-{
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat tmp = src;
-    if (opt.use_packing_layout && reference.elempack != 1)
-    {
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat packed;
-        convert_packing(tmp, packed, reference.elempack, opt_pack);
-        if (packed.empty())
-            return -100;
-
-        tmp = packed;
-    }
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && reference.elembits() == 16)
-    {
-        cast_float32_to_bfloat16(tmp, dst, opt);
-        if (dst.empty())
-            return -100;
-
-        return 0;
-    }
-#endif
-
-    dst = tmp;
-    return 0;
 }
 
 int SDPA_loongarch::create_pipeline(const Option& _opt)
@@ -107,17 +26,6 @@ int SDPA_loongarch::create_pipeline(const Option& _opt)
         opt.use_packing_layout = false; // TODO enable packing
         support_bf16_storage = false;
     }
-    else
-    {
-        return 0;
-    }
-
-    Option opt_fp32 = opt;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_fp16_arithmetic = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -126,9 +34,10 @@ int SDPA_loongarch::create_pipeline(const Option& _opt)
         pd.set(1, 1);
         qk_softmax->load_param(pd);
         qk_softmax->load_model(ModelBinFromMatArray(0));
-        qk_softmax->create_pipeline(opt_fp32);
+        qk_softmax->create_pipeline(opt);
     }
 
+    // Q * K^T
     if (scale != 0.f)
     {
         qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
@@ -136,15 +45,15 @@ int SDPA_loongarch::create_pipeline(const Option& _opt)
 
         pd.set(0, scale);               // alpha
         pd.set(1, 1.f / scale);         // beta
-        pd.set(2, 0);                   // transA
-        pd.set(3, 1);                   // transB
+        pd.set(2, 0);                   // transA (Q: Seq x Embed)
+        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC
+        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
         pd.set(7, 0);                   // M
         pd.set(8, 0);                   // N
         pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
+        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
         pd.set(13, 1);                  // output_elemtype = fp32
@@ -153,21 +62,22 @@ int SDPA_loongarch::create_pipeline(const Option& _opt)
 #endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
 
+    // Attn * V
     {
         qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(0, 1.f); // alpha
         pd.set(1, 1.f); // beta
-        pd.set(2, 0);   // transA
-        pd.set(3, 0);   // transB
+        pd.set(2, 0);   // transA (Attn: Seq x Seq)
+        pd.set(3, 0);   // transB (V: Seq x Embed) => Attn * V
         pd.set(4, 0);   // constantA
         pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
+        pd.set(6, 1);   // constantC (None)
         pd.set(7, 0);   // M
         pd.set(8, 0);   // N
         pd.set(9, 0);   // K
@@ -181,7 +91,7 @@ int SDPA_loongarch::create_pipeline(const Option& _opt)
 #endif
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
@@ -195,10 +105,6 @@ int SDPA_loongarch::destroy_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
-    }
-    else
-    {
-        return 0;
     }
 
     if (qk_softmax)
@@ -227,54 +133,11 @@ int SDPA_loongarch::destroy_pipeline(const Option& _opt)
 
 int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
-    if (!int8_scale_term)
-    {
-        std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            if (unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], _opt) != 0)
-                return -100;
-        }
-
-        Option opt_fp32 = _opt;
-        opt_fp32.use_packing_layout = false;
-        opt_fp32.use_fp16_packed = false;
-        opt_fp32.use_fp16_storage = false;
-        opt_fp32.use_fp16_arithmetic = false;
-        opt_fp32.use_bf16_packed = false;
-        opt_fp32.use_bf16_storage = false;
-
-        std::vector<Mat> top_blobs_fp32(top_blobs.size());
-        int ret = SDPA::forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
-        if (ret != 0)
-            return ret;
-
-        if (restore_layout_from_reference(top_blobs_fp32[0], top_blobs[0], bottom_blobs[0], _opt) != 0)
-            return -100;
-
-        if (kv_cache)
-        {
-            if (restore_layout_from_reference(top_blobs_fp32[1], top_blobs[1], bottom_blobs[1], _opt) != 0)
-                return -100;
-            if (restore_layout_from_reference(top_blobs_fp32[2], top_blobs[2], bottom_blobs[2], _opt) != 0)
-                return -100;
-        }
-
-        return 0;
-    }
-
     Option opt = _opt;
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
     }
-
-    Option opt_fp32 = opt;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_fp16_arithmetic = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
 
     const Mat& query = bottom_blobs[0];
     const Mat& cur_key = bottom_blobs[1];
@@ -283,43 +146,29 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     const Mat& past_key = kv_cache ? bottom_blobs[attn_mask ? 4 : 3] : Mat();
     const Mat& past_value = kv_cache ? bottom_blobs[attn_mask ? 5 : 4] : Mat();
 
-    Mat query_fp32;
-    Mat cur_key_fp32;
-    Mat cur_value_fp32;
-    Mat attn_mask_blob_fp32;
-    Mat past_key_fp32;
-    Mat past_value_fp32;
-    if (unpack_or_cast_to_float32(query, query_fp32, opt) != 0
-            || unpack_or_cast_to_float32(cur_key, cur_key_fp32, opt) != 0
-            || unpack_or_cast_to_float32(cur_value, cur_value_fp32, opt) != 0
-            || unpack_or_cast_to_float32(attn_mask_blob, attn_mask_blob_fp32, opt) != 0
-            || unpack_or_cast_to_float32(past_key, past_key_fp32, opt) != 0
-            || unpack_or_cast_to_float32(past_value, past_value_fp32, opt) != 0)
-        return -100;
-
-    const int embed_dim = query_fp32.w;
-    const int src_seqlen = query_fp32.h;
-    const int num_heads = query_fp32.c;
-    const int cur_seqlen = cur_key_fp32.h;
-    const int num_group = cur_key_fp32.c;
-    const int out_embed_dim = cur_value_fp32.w;
-    const int past_seqlen = kv_cache ? past_key_fp32.h : 0;
+    const int embed_dim = query.w;
+    const int src_seqlen = query.h;
+    const int num_heads = query.c;
+    const int cur_seqlen = cur_key.h;
+    const int num_group = cur_key.c;
+    const int out_embed_dim = cur_value.w;
+    const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
-    const size_t elemsize = query_fp32.elemsize;
+    const size_t elemsize = query.elemsize;
 
     Mat key;
     if (past_seqlen > 0)
     {
-        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt_fp32.blob_allocator);
+        key.create(embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (key.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt_fp32.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_key_head = past_key_fp32.channel(q);
-            const Mat cur_key_head = cur_key_fp32.channel(q);
+            const Mat past_key_head = past_key.channel(q);
+            const Mat cur_key_head = cur_key.channel(q);
             Mat key_head = key.channel(q);
 
             memcpy(key_head.row(0), past_key_head, embed_dim * past_seqlen * elemsize);
@@ -328,21 +177,21 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
     else
     {
-        key = cur_key_fp32;
+        key = cur_key;
     }
 
     Mat value;
     if (past_seqlen > 0)
     {
-        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt_fp32.blob_allocator);
+        value.create(out_embed_dim, dst_seqlen, num_group, elemsize, opt.blob_allocator);
         if (value.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt_fp32.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_group; q++)
         {
-            const Mat past_value_head = past_value_fp32.channel(q);
-            const Mat cur_value_head = cur_value_fp32.channel(q);
+            const Mat past_value_head = past_value.channel(q);
+            const Mat cur_value_head = cur_value.channel(q);
             Mat value_head = value.channel(q);
 
             memcpy(value_head.row(0), past_value_head, out_embed_dim * past_seqlen * elemsize);
@@ -351,17 +200,18 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
     else
     {
-        value = cur_value_fp32;
+        value = cur_value;
     }
 
     const int num_heads_per_group = num_heads / num_group;
 
-    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt_fp32.workspace_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
     if (qk_cross.empty())
         return -100;
 
     std::vector<int> retqks(num_heads);
 
+    // Dynamic Scale Calculation and Beta Correction
     Layer* _qk_gemm = qk_gemm;
     if (scale == 0.f)
     {
@@ -372,15 +222,15 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         pd.set(0, _scale);              // alpha
         pd.set(1, 1.f / _scale);        // beta
-        pd.set(2, 0);                   // transA
-        pd.set(3, 1);                   // transB
+        pd.set(2, 0);                   // transA (Q: Seq x Embed)
+        pd.set(3, 1);                   // transB (K: Seq x Embed -> K^T: Embed x Seq) => Q * K^T
         pd.set(4, 0);                   // constantA
         pd.set(5, 0);                   // constantB
-        pd.set(6, attn_mask ? 0 : 1);   // constantC
+        pd.set(6, attn_mask ? 0 : 1);   // constantC (if mask exists, use it)
         pd.set(7, 0);                   // M
         pd.set(8, 0);                   // N
         pd.set(9, 0);                   // K
-        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
+        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C (MxN)
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
         pd.set(13, 1);                  // output_elemtype = fp32
@@ -390,23 +240,26 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         _qk_gemm->load_param(pd);
         _qk_gemm->load_model(ModelBinFromMatArray(0));
 
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         _qk_gemm->create_pipeline(opt1);
     }
 
-    #pragma omp parallel for num_threads(opt_fp32.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
+        // 1. Q * K^T
         std::vector<Mat> qk_bottom_blobs;
-        qk_bottom_blobs.push_back(query_fp32.channel(i));
-        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group));
+        qk_bottom_blobs.push_back(query.channel(i));                     // Q: [Seq, Embed]
+        qk_bottom_blobs.push_back(key.channel(i / num_heads_per_group)); // K: [DstSeq, Embed]
 
         if (attn_mask)
         {
-            Mat maskm = attn_mask_blob_fp32;
+            // Ensure mask is 2D for Gemm auto-broadcast detection
+            Mat maskm = attn_mask_blob;
             if (maskm.dims == 3)
             {
+                // If c > 1, pick i-th head mask. If c == 1, pick 0-th (broadcast)
                 maskm = maskm.channel(maskm.c > 1 ? i : 0);
             }
             qk_bottom_blobs.push_back(maskm);
@@ -415,7 +268,7 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         std::vector<Mat> qk_top_blobs(1);
         qk_top_blobs[0] = qk_cross.channel(i);
 
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         opt1.blob_allocator = qk_cross.allocator;
         retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
@@ -423,7 +276,7 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     if (scale == 0.f)
     {
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         _qk_gemm->destroy_pipeline(opt1);
 
@@ -437,28 +290,41 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             return retqks[i];
     }
 
-    int retqk = qk_softmax->forward_inplace(qk_cross, opt_fp32);
+    // 2. Softmax
+    int retqk = qk_softmax->forward_inplace(qk_cross, opt);
     if (retqk != 0)
         return retqk;
 
+    Mat value_fp32 = value;
+#if NCNN_BF16
+    if (opt.use_bf16_storage && value.elembits() == 16)
+    {
+        // qkv_gemm need fp32 inputs
+        cast_bfloat16_to_float32(value, value_fp32, opt);
+        if (value_fp32.empty())
+            return -100;
+    }
+#endif
+
     Mat& top_blob = top_blobs[0];
-    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt_fp32.blob_allocator);
+    top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+    // 3. Attn * V
     std::vector<int> retqkvs(num_heads);
 
-    #pragma omp parallel for num_threads(opt_fp32.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);
-        qkv_bottom_blobs[1] = value.channel(i / num_heads_per_group);
+        qkv_bottom_blobs[0] = qk_cross.channel(i);                         // Attn: [DstSeq, Seq]
+        qkv_bottom_blobs[1] = value_fp32.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
 
         std::vector<Mat> qkv_top_blobs(1);
-        qkv_top_blobs[0] = top_blob.channel(i);
+        qkv_top_blobs[0] = top_blob.channel(i); // Output
 
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
     }
@@ -468,6 +334,8 @@ int SDPA_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (retqkvs[i] != 0)
             return retqkvs[i];
     }
+
+    value_fp32.release();
 
     if (kv_cache)
     {

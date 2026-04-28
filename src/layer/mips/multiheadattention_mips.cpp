@@ -28,84 +28,6 @@ MultiHeadAttention_mips::MultiHeadAttention_mips()
     o_gemm = 0;
 }
 
-static int unpack_or_cast_to_float32(const Mat& src, Mat& dst, const Option& opt)
-{
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat unpacked = src;
-    if (src.elempack != 1)
-    {
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(src, unpacked, 1, opt_unpack);
-        if (unpacked.empty())
-            return -100;
-    }
-
-#if NCNN_BF16
-    if (unpacked.elembits() == 16)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = opt.workspace_allocator;
-
-        cast_bfloat16_to_float32(unpacked, dst, opt_cast);
-        if (dst.empty())
-            return -100;
-        return 0;
-    }
-#endif
-
-    dst = unpacked;
-    return 0;
-}
-
-static bool is_scalar_fp32(const Mat& m)
-{
-    return m.empty() || (m.elempack == 1 && m.elembits() == 32);
-}
-
-static int restore_layout_from_reference(const Mat& src, Mat& dst, const Mat& reference, const Option& opt)
-{
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat tmp = src;
-    if (opt.use_packing_layout && reference.elempack != 1)
-    {
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-
-        Mat packed;
-        convert_packing(tmp, packed, reference.elempack, opt_pack);
-        if (packed.empty())
-            return -100;
-
-        tmp = packed;
-    }
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && reference.elembits() == 16)
-    {
-        cast_float32_to_bfloat16(tmp, dst, opt);
-        if (dst.empty())
-            return -100;
-
-        return 0;
-    }
-#endif
-
-    dst = tmp;
-    return 0;
-}
-
 int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
@@ -116,17 +38,6 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 
         opt.use_packing_layout = false; // TODO enable packing
     }
-    else
-    {
-        return 0;
-    }
-
-    Option opt_fp32 = opt;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_fp16_arithmetic = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
 
     {
         qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
@@ -135,7 +46,7 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
         pd.set(1, 1);
         qk_softmax->load_param(pd);
         qk_softmax->load_model(ModelBinFromMatArray(0));
-        qk_softmax->create_pipeline(opt_fp32);
+        qk_softmax->create_pipeline(opt);
     }
 
     const int qdim = weight_data_size / embed_dim;
@@ -168,7 +79,7 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
         weights[2] = q_weight_data_int8_scales;
 #endif
         q_gemm->load_model(ModelBinFromMatArray(weights));
-        q_gemm->create_pipeline(opt_fp32);
+        q_gemm->create_pipeline(opt);
 
         if (opt.lightmode)
         {
@@ -203,7 +114,7 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
         weights[2] = k_weight_data_int8_scales;
 #endif
         k_gemm->load_model(ModelBinFromMatArray(weights));
-        k_gemm->create_pipeline(opt_fp32);
+        k_gemm->create_pipeline(opt);
 
         if (opt.lightmode)
         {
@@ -238,7 +149,7 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
         weights[2] = v_weight_data_int8_scales;
 #endif
         v_gemm->load_model(ModelBinFromMatArray(weights));
-        v_gemm->create_pipeline(opt_fp32);
+        v_gemm->create_pipeline(opt);
 
         if (opt.lightmode)
         {
@@ -273,6 +184,9 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
         weights[2] = out_weight_data_int8_scales;
 #endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
+        Option opt_fp32 = opt;
+        opt_fp32.use_bf16_packed = false;
+        opt_fp32.use_bf16_storage = false;
         o_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
@@ -302,7 +216,9 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 #endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
@@ -328,7 +244,9 @@ int MultiHeadAttention_mips::create_pipeline(const Option& _opt)
 #endif
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
@@ -342,10 +260,6 @@ int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
-    }
-    else
-    {
-        return 0;
     }
 
     if (qk_softmax)
@@ -416,77 +330,56 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     const Mat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : Mat();
     const Mat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : Mat();
 
-    if (!int8_scale_term)
-    {
-        std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            if (unpack_or_cast_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], _opt) != 0)
-                return -100;
-        }
-
-        Option opt_fp32 = _opt;
-        opt_fp32.use_packing_layout = false;
-        opt_fp32.use_fp16_packed = false;
-        opt_fp32.use_fp16_storage = false;
-        opt_fp32.use_fp16_arithmetic = false;
-        opt_fp32.use_bf16_packed = false;
-        opt_fp32.use_bf16_storage = false;
-
-        std::vector<Mat> top_blobs_fp32(top_blobs.size());
-        int ret = MultiHeadAttention::forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
-        if (ret != 0)
-            return ret;
-
-        if (restore_layout_from_reference(top_blobs_fp32[0], top_blobs[0], q_blob, _opt) != 0)
-            return -100;
-
-        if (kv_cache)
-        {
-            if (restore_layout_from_reference(top_blobs_fp32[1], top_blobs[1], k_blob, _opt) != 0)
-                return -100;
-            if (restore_layout_from_reference(top_blobs_fp32[2], top_blobs[2], v_blob, _opt) != 0)
-                return -100;
-        }
-
-        return 0;
-    }
-
     Option opt = _opt;
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
     }
 
-    Option opt_fp32 = opt;
-    opt_fp32.use_fp16_packed = false;
-    opt_fp32.use_fp16_storage = false;
-    opt_fp32.use_fp16_arithmetic = false;
-    opt_fp32.use_bf16_packed = false;
-    opt_fp32.use_bf16_storage = false;
-
-    Mat q_blob_unpacked;
-    Mat k_blob_unpacked;
-    Mat v_blob_unpacked;
     Mat attn_mask_blob_unpacked;
+    if (attn_mask && attn_mask_blob.elempack != 1)
+    {
+        convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, opt);
+        if (attn_mask_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        attn_mask_blob_unpacked = attn_mask_blob;
+    }
+
     Mat cached_xk_blob_unpacked;
+    if (kv_cache && !cached_xk_blob.empty() && cached_xk_blob.elempack != 1)
+    {
+        convert_packing(cached_xk_blob, cached_xk_blob_unpacked, 1, opt);
+        if (cached_xk_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        cached_xk_blob_unpacked = cached_xk_blob;
+    }
+
     Mat cached_xv_blob_unpacked;
-    if (unpack_or_cast_to_float32(q_blob, q_blob_unpacked, opt) != 0
-            || unpack_or_cast_to_float32(k_blob, k_blob_unpacked, opt) != 0
-            || unpack_or_cast_to_float32(v_blob, v_blob_unpacked, opt) != 0
-            || unpack_or_cast_to_float32(attn_mask_blob, attn_mask_blob_unpacked, opt) != 0
-            || unpack_or_cast_to_float32(cached_xk_blob, cached_xk_blob_unpacked, opt) != 0
-            || unpack_or_cast_to_float32(cached_xv_blob, cached_xv_blob_unpacked, opt) != 0)
-        return -100;
+    if (kv_cache && !cached_xv_blob.empty() && cached_xv_blob.elempack != 1)
+    {
+        convert_packing(cached_xv_blob, cached_xv_blob_unpacked, 1, opt);
+        if (cached_xv_blob_unpacked.empty())
+            return -100;
+    }
+    else
+    {
+        cached_xv_blob_unpacked = cached_xv_blob;
+    }
 
     const int embed_dim_per_head = embed_dim / num_heads;
-    const int src_seqlen = q_blob_unpacked.h;
-    const int cur_seqlen = k_blob_unpacked.h;
+    const int src_seqlen = q_blob.h * q_blob.elempack;
+    const int cur_seqlen = k_blob.h * k_blob.elempack;
     const int past_seqlen = kv_cache && !cached_xk_blob_unpacked.empty() ? cached_xk_blob_unpacked.w : 0;
     const int dst_seqlen = past_seqlen > 0 ? (q_blob_i == k_blob_i ? (past_seqlen + cur_seqlen) : past_seqlen) : cur_seqlen;
 
     Mat q_affine;
-    int retq = q_gemm->forward(q_blob_unpacked, q_affine, opt_fp32);
+    int retq = q_gemm->forward(q_blob, q_affine, opt);
     if (retq != 0)
         return retq;
 
@@ -496,11 +389,14 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (q_blob_i == k_blob_i)
         {
             Mat k_affine_q;
-            int retk = k_gemm->forward(q_blob_unpacked, k_affine_q, opt_fp32);
+            int retk = k_gemm->forward(q_blob, k_affine_q, opt);
             if (retk != 0)
                 return retk;
 
-            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize, opt_fp32.workspace_allocator);
+            // assert dst_seqlen == cached_xk_blob_unpacked.w + k_affine_q.w
+
+            // merge cached_xk_blob_unpacked and k_affine_q
+            k_affine.create(dst_seqlen, embed_dim, k_affine_q.elemsize);
             if (k_affine.empty())
                 return -100;
 
@@ -521,18 +417,18 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        int retk = k_gemm->forward(k_blob_unpacked, k_affine, opt_fp32);
+        int retk = k_gemm->forward(k_blob, k_affine, opt);
         if (retk != 0)
             return retk;
     }
 
-    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt_fp32.blob_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
     if (qk_cross.empty())
         return -100;
 
     std::vector<int> retqks;
     retqks.resize(num_heads);
-    #pragma omp parallel for num_threads(opt_fp32.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qk_bottom_blobs(2);
@@ -545,7 +441,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         }
         std::vector<Mat> qk_top_blobs(1);
         qk_top_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         retqks[i] = qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
     }
@@ -562,7 +458,7 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         k_affine.release();
     }
 
-    int retqk = qk_softmax->forward_inplace(qk_cross, opt_fp32);
+    int retqk = qk_softmax->forward_inplace(qk_cross, opt);
     if (retqk != 0)
         return retqk;
 
@@ -572,11 +468,14 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
         if (q_blob_i == v_blob_i)
         {
             Mat v_affine_q;
-            int retv = v_gemm->forward(v_blob_unpacked, v_affine_q, opt_fp32);
-            if (retv != 0)
-                return retv;
+            int retk = v_gemm->forward(v_blob, v_affine_q, opt);
+            if (retk != 0)
+                return retk;
 
-            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize, opt_fp32.workspace_allocator);
+            // assert dst_seqlen == cached_xv_blob_unpacked.w + v_affine_q.w
+
+            // merge cached_xv_blob_unpacked and v_affine_q
+            v_affine.create(dst_seqlen, embed_dim, v_affine_q.elemsize);
             if (v_affine.empty())
                 return -100;
 
@@ -597,26 +496,37 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
     }
     else
     {
-        int retv = v_gemm->forward(v_blob_unpacked, v_affine, opt_fp32);
+        int retv = v_gemm->forward(v_blob, v_affine, opt);
         if (retv != 0)
             return retv;
     }
 
-    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt_fp32.blob_allocator);
+    Mat v_affine_fp32 = v_affine;
+#if NCNN_BF16
+    if (opt.use_bf16_storage && v_affine.elembits() == 16)
+    {
+        // qkv_gemm need fp32 inputs
+        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt);
+        if (v_affine_fp32.empty())
+            return -100;
+    }
+#endif
+
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
 
     std::vector<int> retqkvs;
     retqkvs.resize(num_heads);
-    #pragma omp parallel for num_threads(opt_fp32.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
-        qkv_bottom_blobs[1] = v_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        qkv_bottom_blobs[1] = v_affine_fp32.row_range(i * embed_dim_per_head, embed_dim_per_head);
         std::vector<Mat> qkv_top_blobs(1);
         qkv_top_blobs[0] = qkv_cross.row_range(i * embed_dim_per_head, embed_dim_per_head);
-        Option opt1 = opt_fp32;
+        Option opt1 = opt;
         opt1.num_threads = 1;
         retqkvs[i] = qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
     }
@@ -626,17 +536,20 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
             return retqkvs[i];
     }
 
+    v_affine_fp32.release();
+
     if (!kv_cache)
     {
         v_affine.release();
     }
 
-    int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt_fp32);
+    int reto = o_gemm->forward(qkv_cross, top_blobs[0], opt);
     if (reto != 0)
         return reto;
 
     if (kv_cache)
     {
+        // assert top_blobs.size() == 3
         top_blobs[1] = k_affine;
         top_blobs[2] = v_affine;
     }

@@ -22,9 +22,6 @@ DeformableConv2D_mips::DeformableConv2D_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
-#if NCNN_BF16
-    support_bf16_storage = true;
-#endif
 
     activation = 0;
     gemm = 0;
@@ -189,37 +186,6 @@ int DeformableConv2D_mips::forward(const std::vector<Mat>& bottom_blobs, std::ve
     const Mat& offset = bottom_blobs[1];
     const bool has_mask = (bottom_blobs.size() == 3);
     Mat& top_blob = top_blobs[0];
-
-    const int elembits = bottom_blob.elembits();
-
-#if NCNN_BF16
-    if (elembits == 16)
-    {
-        Option opt_fp32 = opt;
-        opt_fp32.use_bf16_storage = false;
-
-        std::vector<Mat> bottom_blobs_fp32(bottom_blobs.size());
-        for (size_t i = 0; i < bottom_blobs.size(); i++)
-        {
-            Option opt_cast = opt;
-            opt_cast.blob_allocator = opt.workspace_allocator;
-            cast_bfloat16_to_float32(bottom_blobs[i], bottom_blobs_fp32[i], opt_cast);
-            if (bottom_blobs_fp32[i].empty())
-                return -100;
-        }
-
-        std::vector<Mat> top_blobs_fp32(1);
-        int ret = forward(bottom_blobs_fp32, top_blobs_fp32, opt_fp32);
-        if (ret != 0)
-            return ret;
-
-        cast_float32_to_bfloat16(top_blobs_fp32[0], top_blob, opt);
-        if (top_blob.empty())
-            return -100;
-
-        return 0;
-    }
-#endif // NCNN_BF16
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

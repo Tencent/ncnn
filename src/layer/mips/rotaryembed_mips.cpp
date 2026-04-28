@@ -3,159 +3,165 @@
 
 #include "rotaryembed_mips.h"
 
+#if __mips_msa
+#include <msa.h>
+#endif // __mips_msa
+
+#include "mips_usability.h"
+
 namespace ncnn {
 
 RotaryEmbed_mips::RotaryEmbed_mips()
 {
-#if __mips_msa
-    support_packing = true;
-#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
 }
 
-static int unpack_or_cast_to_float32(const Mat& src, Mat& dst, const Option& opt)
+int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (src.empty())
-    {
-        dst = src;
-        return 0;
-    }
-
-    Mat unpacked = src;
-    if (src.elempack != 1)
-    {
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(src, unpacked, 1, opt_unpack);
-        if (unpacked.empty())
-            return -100;
-    }
-
 #if NCNN_BF16
-    if (unpacked.elembits() == 16)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = opt.workspace_allocator;
-
-        cast_bfloat16_to_float32(unpacked, dst, opt_cast);
-        if (dst.empty())
-            return -100;
-        return 0;
-    }
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    dst = unpacked;
-    return 0;
+    return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
 }
 
-int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+#if NCNN_BF16
+int RotaryEmbed_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& cos_cache = bottom_blobs[1];
     const Mat& sin_cache = bottom_blobs[2];
 
-    Mat bottom_blob_fp32;
-    Mat cos_cache_fp32;
-    Mat sin_cache_fp32;
+    const int embed_dim = bottom_blob.w;
+    const int seqlen = bottom_blob.h;
+    const int num_heads = bottom_blob.c;
 
-    if (unpack_or_cast_to_float32(bottom_blob, bottom_blob_fp32, opt) != 0)
-        return -100;
-    if (unpack_or_cast_to_float32(cos_cache, cos_cache_fp32, opt) != 0)
-        return -100;
-    if (unpack_or_cast_to_float32(sin_cache, sin_cache_fp32, opt) != 0)
-        return -100;
-
-    const int need_postprocess = bottom_blob.elempack != 1 || (opt.use_bf16_storage && bottom_blob.elembits() == 16);
-
-    Option opt_fp32 = opt;
-    if (need_postprocess)
-        opt_fp32.blob_allocator = opt.workspace_allocator;
-
-    const int embed_dim = bottom_blob_fp32.w;
-    const int seqlen = bottom_blob_fp32.h;
-    const int num_heads = bottom_blob_fp32.c;
-
-    Mat top_blob_fp32;
-    top_blob_fp32.create_like(bottom_blob_fp32, opt_fp32.blob_allocator);
-    if (top_blob_fp32.empty())
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
     {
-        const Mat head = bottom_blob_fp32.channel(q);
-        Mat out_head = top_blob_fp32.channel(q);
+        const Mat head = bottom_blob.channel(q);
+        Mat out_head = top_blob.channel(q);
 
         for (int i = 0; i < seqlen; i++)
         {
             if (interleaved)
             {
-                const float* ptr = head.row(i);
-                const float* cos_ptr = cos_cache_fp32.row(i);
-                const float* sin_ptr = sin_cache_fp32.row(i);
-                float* outptr = out_head.row(i);
+                const unsigned short* ptr = head.row<const unsigned short>(i);
+                const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
+                const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+                unsigned short* outptr = out_head.row<unsigned short>(i);
 
-                for (int j = 0; j < embed_dim / 2; j++)
+                int j = 0;
+#if __mips_msa
+                v4i32 _signmask = __msa_fill_w(0);
+                _signmask = __msa_insert_w(_signmask, 1, -1);
+                _signmask = __msa_insert_w(_signmask, 3, -1);
+
+                for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    const float x0 = ptr[0];
-                    const float x1 = ptr[1];
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
-                    outptr[0] = x0 * cos_val - x1 * sin_val;
-                    outptr[1] = x0 * sin_val + x1 * cos_val;
+                    v4f32 _a0 = bfloat2float_msa(ptr);
+                    v4f32 _a1 = bfloat2float_msa(ptr + 4);
+
+                    v4f32 _c4 = bfloat2float_msa(cos_ptr);
+                    v4f32 _s4 = bfloat2float_msa(sin_ptr);
+
+                    v4f32 _clo = (v4f32)__msa_ilvr_w((v4i32)_c4, (v4i32)_c4);
+                    v4f32 _chi = (v4f32)__msa_ilvl_w((v4i32)_c4, (v4i32)_c4);
+                    v4f32 _slo = (v4f32)__msa_ilvr_w((v4i32)_s4, (v4i32)_s4);
+                    v4f32 _shi = (v4f32)__msa_ilvl_w((v4i32)_s4, (v4i32)_s4);
+
+                    v4f32 _swap0 = (v4f32)__msa_shf_w((v4i32)_a0, _MSA_SHUFFLE(2, 3, 0, 1));
+                    v4f32 _swap1 = (v4f32)__msa_shf_w((v4i32)_a1, _MSA_SHUFFLE(2, 3, 0, 1));
+
+                    v4f32 _ac0 = __msa_fmul_w(_a0, _clo);
+                    v4f32 _ac1 = __msa_fmul_w(_a1, _chi);
+                    v4f32 _y0sub = __ncnn_msa_fmsub_w(_ac0, _swap0, _slo);
+                    v4f32 _y0add = __ncnn_msa_fmadd_w(_ac0, _swap0, _slo);
+                    v4f32 _y1sub = __ncnn_msa_fmsub_w(_ac1, _swap1, _shi);
+                    v4f32 _y1add = __ncnn_msa_fmadd_w(_ac1, _swap1, _shi);
+
+                    v4f32 _y0 = (v4f32)__msa_bsel_v((v16u8)_signmask, (v16u8)_y0sub, (v16u8)_y0add);
+                    v4f32 _y1 = (v4f32)__msa_bsel_v((v16u8)_signmask, (v16u8)_y1sub, (v16u8)_y1add);
+
+                    v4i32 _y01_bf16 = float2bfloat_msa(_y0, _y1);
+                    __msa_st_h((v8i16)_y01_bf16, outptr, 0);
+
+                    ptr += 8;
+                    outptr += 8;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                }
+#endif // __mips_msa
+                for (; j < embed_dim / 2; j++)
+                {
+                    const float x0 = bfloat16_to_float32(ptr[0]);
+                    const float x1 = bfloat16_to_float32(ptr[1]);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
+
+                    outptr[0] = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    outptr[1] = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
+
                     ptr += 2;
                     outptr += 2;
                 }
             }
             else
             {
-                const float* ptr0 = head.row(i);
-                const float* ptr1 = ptr0 + embed_dim / 2;
-                const float* cos_ptr = cos_cache_fp32.row(i);
-                const float* sin_ptr = sin_cache_fp32.row(i);
-                float* outptr0 = out_head.row(i);
-                float* outptr1 = outptr0 + embed_dim / 2;
+                const unsigned short* ptr0 = head.row<const unsigned short>(i);
+                const unsigned short* ptr1 = ptr0 + embed_dim / 2;
+                const unsigned short* cos_ptr = cos_cache.row<const unsigned short>(i);
+                const unsigned short* sin_ptr = sin_cache.row<const unsigned short>(i);
+                unsigned short* outptr0 = out_head.row<unsigned short>(i);
+                unsigned short* outptr1 = outptr0 + embed_dim / 2;
 
-                for (int j = 0; j < embed_dim / 2; j++)
+                int j = 0;
+#if __mips_msa
+                for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    const float x0 = *ptr0++;
-                    const float x1 = *ptr1++;
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
-                    *outptr0++ = x0 * cos_val - x1 * sin_val;
-                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                    v4f32 _x0 = bfloat2float_msa(ptr0);
+                    v4f32 _x1 = bfloat2float_msa(ptr1);
+                    v4f32 _c = bfloat2float_msa(cos_ptr);
+                    v4f32 _s = bfloat2float_msa(sin_ptr);
+
+                    v4f32 _y0 = __ncnn_msa_fmsub_w(__msa_fmul_w(_x0, _c), _x1, _s);
+                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c), _x0, _s);
+
+                    float2bfloat_msa_store(_y0, outptr0);
+                    float2bfloat_msa_store(_y1, outptr1);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+#endif // __mips_msa
+                for (; j < embed_dim / 2; j++)
+                {
+                    const float x0 = bfloat16_to_float32(*ptr0++);
+                    const float x1 = bfloat16_to_float32(*ptr1++);
+                    const float cos_val = bfloat16_to_float32(*cos_ptr++);
+                    const float sin_val = bfloat16_to_float32(*sin_ptr++);
+
+                    *outptr0++ = float32_to_bfloat16(x0 * cos_val - x1 * sin_val);
+                    *outptr1++ = float32_to_bfloat16(x0 * sin_val + x1 * cos_val);
                 }
             }
         }
     }
 
-    Mat top_blob_packed = top_blob_fp32;
-    if (bottom_blob.elempack != 1)
-    {
-        Option opt_pack = opt;
-        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-            opt_pack.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(top_blob_fp32, top_blob_packed, bottom_blob.elempack, opt_pack);
-        if (top_blob_packed.empty())
-            return -100;
-    }
-
-#if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-    {
-        cast_float32_to_bfloat16(top_blob_packed, top_blobs[0], opt);
-        if (top_blobs[0].empty())
-            return -100;
-        return 0;
-    }
-#endif
-
-    top_blobs[0] = top_blob_packed;
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

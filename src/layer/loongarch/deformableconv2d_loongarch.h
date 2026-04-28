@@ -22,6 +22,8 @@ public:
     Layer* activation;
 
     Mat weight_data_tm;
+
+    Layer* gemm;
 };
 
 } // namespace ncnn

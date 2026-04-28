@@ -14,6 +14,9 @@ public:
     ShuffleChannel_mips();
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+    int forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
