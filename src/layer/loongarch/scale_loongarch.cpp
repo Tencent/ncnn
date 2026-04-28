@@ -305,8 +305,8 @@ static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
     __m128 _b128 = (elempack == 4) ? (__m128)__lsx_vld(bias, 0) : (__m128)__lsx_vreplfr2vr_s(bias[0]);
 #if __loongarch_asx
-    __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : combine4x2_ps(_s128, _s128);
-    __m256 _b256 = (elempack == 8) ? (__m256)__lasx_xvld(bias, 0) : combine4x2_ps(_b128, _b128);
+    __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : __lasx_concat_128_s(_s128, _s128);
+    __m256 _b256 = (elempack == 8) ? (__m256)__lasx_xvld(bias, 0) : __lasx_concat_128_s(_b128, _b128);
 #endif
 #endif
     float s = scale[0];
@@ -343,7 +343,7 @@ static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int
 #if __loongarch_sx
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
 #if __loongarch_asx
-    __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : combine4x2_ps(_s128, _s128);
+    __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : __lasx_concat_128_s(_s128, _s128);
 #endif
 #endif
     float s = scale[0];

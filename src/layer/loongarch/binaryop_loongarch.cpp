@@ -83,7 +83,7 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
 #if __loongarch_sx
     __m128 _b_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr1, 0) : __lsx_vreplfr2vr_s(b);
 #if __loongarch_asx
-    __m256 _b_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr1, 0) : combine4x2_ps(_b_128, _b_128);
+    __m256 _b_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr1, 0) : __lasx_concat_128_s(_b_128, _b_128);
     for (; i + 7 < size; i += 8)
     {
         __builtin_prefetch(ptr + 32);
@@ -122,7 +122,7 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
 #if __loongarch_sx
     __m128 _a_128 = (elempack == 4) ? (__m128)__lsx_vld(ptr, 0) : __lsx_vreplfr2vr_s(a);
 #if __loongarch_asx
-    __m256 _a_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr, 0) : combine4x2_ps(_a_128, _a_128);
+    __m256 _a_256 = (elempack == 8) ? (__m256)__lasx_xvld(ptr, 0) : __lasx_concat_128_s(_a_128, _a_128);
     for (; i + 7 < size; i += 8)
     {
         __builtin_prefetch(ptr1 + 32);
@@ -482,7 +482,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 #if __loongarch_sx
     __m128 _b_128 = (elempack == 4) ? bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0)) : (__m128)__lsx_vreplfr2vr_s(b);
 #if __loongarch_asx
-    __m256 _b_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0)) : combine4x2_ps(_b_128, _b_128);
+    __m256 _b_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0)) : __lasx_concat_128_s(_b_128, _b_128);
     for (; i + 7 < size; i += 8)
     {
         __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
@@ -518,7 +518,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 #if __loongarch_sx
     __m128 _a_128 = (elempack == 4) ? bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0)) : (__m128)__lsx_vreplfr2vr_s(a);
 #if __loongarch_asx
-    __m256 _a_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0)) : combine4x2_ps(_a_128, _a_128);
+    __m256 _a_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0)) : __lasx_concat_128_s(_a_128, _a_128);
     for (; i + 7 < size; i += 8)
     {
         __m256 _b = bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0));

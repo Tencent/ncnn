@@ -57,10 +57,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
                     {
                         const unsigned short* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
-                        if (tj * 2 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
-                        if (tj * 2 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
-                        if (tj * 2 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
+                        if (tj * 2 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
+                        if (tj * 2 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
+                        if (tj * 2 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
                     }
                     if (elempack == 1)
                     {
@@ -102,10 +102,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 2 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 2 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 2 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 2 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 2 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 2 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                     }
                 }
 
@@ -979,12 +979,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
                     {
                         const unsigned short* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
-                        if (tj * 4 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
-                        if (tj * 4 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
-                        if (tj * 4 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
-                        if (tj * 4 + 4 < w) _r4 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 16), (__m128i)bfloat2float_lsx(r1 + 16));
-                        if (tj * 4 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 20), (__m128i)bfloat2float_lsx(r1 + 20));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
+                        if (tj * 4 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
+                        if (tj * 4 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
+                        if (tj * 4 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
+                        if (tj * 4 + 4 < w) _r4 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 16), (__m128i)bfloat2float_lsx(r1 + 16));
+                        if (tj * 4 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 20), (__m128i)bfloat2float_lsx(r1 + 20));
                     }
                     if (elempack == 1)
                     {
@@ -1026,10 +1026,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 4 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 4 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 4 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 4 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 4 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 4 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         if (tj * 4 + 4 < w) _r4 = ({ float __set_tmp[8] = {bfloat16_to_float32(r0[4]), bfloat16_to_float32(r1[4]), bfloat16_to_float32(r2[4]), bfloat16_to_float32(r3[4]), bfloat16_to_float32(r4[4]), bfloat16_to_float32(r5[4]), bfloat16_to_float32(r6[4]), bfloat16_to_float32(r7[4])}; (__m256)__lasx_xvld(__set_tmp, 0); });
                         if (tj * 4 + 5 < w) _r5 = ({ float __set_tmp[8] = {bfloat16_to_float32(r0[5]), bfloat16_to_float32(r1[5]), bfloat16_to_float32(r2[5]), bfloat16_to_float32(r3[5]), bfloat16_to_float32(r4[5]), bfloat16_to_float32(r5[5]), bfloat16_to_float32(r6[5]), bfloat16_to_float32(r7[5])}; (__m256)__lasx_xvld(__set_tmp, 0); });
                     }
@@ -2238,14 +2238,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                     {
                         const unsigned short* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
-                        if (tj * 6 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
-                        if (tj * 6 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
-                        if (tj * 6 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
-                        if (tj * 6 + 4 < w) _r4 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 16), (__m128i)bfloat2float_lsx(r1 + 16));
-                        if (tj * 6 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 20), (__m128i)bfloat2float_lsx(r1 + 20));
-                        if (tj * 6 + 6 < w) _r6 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 24), (__m128i)bfloat2float_lsx(r1 + 24));
-                        if (tj * 6 + 7 < w) _r7 = (__m256)combine4x2_epi32((__m128i)bfloat2float_lsx(r0 + 28), (__m128i)bfloat2float_lsx(r1 + 28));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0), (__m128i)bfloat2float_lsx(r1));
+                        if (tj * 6 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 4), (__m128i)bfloat2float_lsx(r1 + 4));
+                        if (tj * 6 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 8), (__m128i)bfloat2float_lsx(r1 + 8));
+                        if (tj * 6 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 12), (__m128i)bfloat2float_lsx(r1 + 12));
+                        if (tj * 6 + 4 < w) _r4 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 16), (__m128i)bfloat2float_lsx(r1 + 16));
+                        if (tj * 6 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 20), (__m128i)bfloat2float_lsx(r1 + 20));
+                        if (tj * 6 + 6 < w) _r6 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 24), (__m128i)bfloat2float_lsx(r1 + 24));
+                        if (tj * 6 + 7 < w) _r7 = (__m256)__lasx_concat_128((__m128i)bfloat2float_lsx(r0 + 28), (__m128i)bfloat2float_lsx(r1 + 28));
                     }
                     if (elempack == 1)
                     {
@@ -2287,10 +2287,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 6 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 6 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 6 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 6 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 6 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 6 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = bfloat2float_lsx(r0 + 4);
@@ -2323,10 +2323,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                                 _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                             }
 
-                            _r4 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                            if (tj * 6 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                            if (tj * 6 + 6 < w) _r6 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                            if (tj * 6 + 7 < w) _r7 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                            _r4 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                            if (tj * 6 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                            if (tj * 6 + 6 < w) _r6 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                            if (tj * 6 + 7 < w) _r7 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         }
                     }
                 }

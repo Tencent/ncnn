@@ -79,15 +79,15 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
                     __m256 _c8 = bfloat2float_lasx((const __m128i*)cos_ptr);
                     __m256 _s8 = bfloat2float_lasx((const __m128i*)sin_ptr);
 
-                    __m128 _c4lo = (__m128)__lasx_extract_lo128((__m256i)_c8);
-                    __m128 _c4hi = (__m128)__lasx_extract_hi128((__m256i)_c8);
-                    __m128 _s4lo = (__m128)__lasx_extract_lo128((__m256i)_s8);
-                    __m128 _s4hi = (__m128)__lasx_extract_hi128((__m256i)_s8);
+                    __m128 _c4lo = __lasx_extract_128_lo_s(_c8);
+                    __m128 _c4hi = __lasx_extract_128_hi_s(_c8);
+                    __m128 _s4lo = __lasx_extract_128_lo_s(_s8);
+                    __m128 _s4hi = __lasx_extract_128_hi_s(_s8);
 
-                    __m256 _c0 = combine4x2_ps((__m128)__lsx_vilvr_w((__m128i)_c4lo, (__m128i)_c4lo), (__m128)__lsx_vilvh_w((__m128i)_c4lo, (__m128i)_c4lo));
-                    __m256 _c1 = combine4x2_ps((__m128)__lsx_vilvr_w((__m128i)_c4hi, (__m128i)_c4hi), (__m128)__lsx_vilvh_w((__m128i)_c4hi, (__m128i)_c4hi));
-                    __m256 _s0 = combine4x2_ps((__m128)__lsx_vilvr_w((__m128i)_s4lo, (__m128i)_s4lo), (__m128)__lsx_vilvh_w((__m128i)_s4lo, (__m128i)_s4lo));
-                    __m256 _s1 = combine4x2_ps((__m128)__lsx_vilvr_w((__m128i)_s4hi, (__m128i)_s4hi), (__m128)__lsx_vilvh_w((__m128i)_s4hi, (__m128i)_s4hi));
+                    __m256 _c0 = __lasx_concat_128_s((__m128)__lsx_vilvl_w((__m128i)_c4lo, (__m128i)_c4lo), (__m128)__lsx_vilvh_w((__m128i)_c4lo, (__m128i)_c4lo));
+                    __m256 _c1 = __lasx_concat_128_s((__m128)__lsx_vilvl_w((__m128i)_c4hi, (__m128i)_c4hi), (__m128)__lsx_vilvh_w((__m128i)_c4hi, (__m128i)_c4hi));
+                    __m256 _s0 = __lasx_concat_128_s((__m128)__lsx_vilvl_w((__m128i)_s4lo, (__m128i)_s4lo), (__m128)__lsx_vilvh_w((__m128i)_s4lo, (__m128i)_s4lo));
+                    __m256 _s1 = __lasx_concat_128_s((__m128)__lsx_vilvl_w((__m128i)_s4hi, (__m128i)_s4hi), (__m128)__lsx_vilvh_w((__m128i)_s4hi, (__m128i)_s4hi));
 
                     __m256 _swap0 = (__m256)__lasx_xvshuf4i_w((__m256i)_a0, _LSX_SHUFFLE(2, 3, 0, 1));
                     __m256 _swap1 = (__m256)__lasx_xvshuf4i_w((__m256i)_a1, _LSX_SHUFFLE(2, 3, 0, 1));
@@ -125,9 +125,9 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
                     __m128 _c4 = bfloat2float_lsx(cos_ptr);
                     __m128 _s4 = bfloat2float_lsx(sin_ptr);
 
-                    __m128 _clo = (__m128)__lsx_vilvr_w((__m128i)_c4, (__m128i)_c4);
+                    __m128 _clo = (__m128)__lsx_vilvl_w((__m128i)_c4, (__m128i)_c4);
                     __m128 _chi = (__m128)__lsx_vilvh_w((__m128i)_c4, (__m128i)_c4);
-                    __m128 _slo = (__m128)__lsx_vilvr_w((__m128i)_s4, (__m128i)_s4);
+                    __m128 _slo = (__m128)__lsx_vilvl_w((__m128i)_s4, (__m128i)_s4);
                     __m128 _shi = (__m128)__lsx_vilvh_w((__m128i)_s4, (__m128i)_s4);
 
                     __m128 _swap0 = (__m128)__lsx_vshuf4i_w((__m128i)_a0, _LSX_SHUFFLE(2, 3, 0, 1));

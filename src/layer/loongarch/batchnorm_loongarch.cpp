@@ -21,8 +21,8 @@ static void batchnorm_bf16s_lsx(unsigned short* ptr, const float* a, const float
     __m128 _a128 = (elempack == 4) ? (__m128)__lsx_vld(a, 0) : (__m128)__lsx_vreplfr2vr_s(a[0]);
     __m128 _b128 = (elempack == 4) ? (__m128)__lsx_vld(b, 0) : (__m128)__lsx_vreplfr2vr_s(b[0]);
 #if __loongarch_asx
-    __m256 _a256 = (elempack == 8) ? (__m256)__lasx_xvld(a, 0) : combine4x2_ps(_a128, _a128);
-    __m256 _b256 = (elempack == 8) ? (__m256)__lasx_xvld(b, 0) : combine4x2_ps(_b128, _b128);
+    __m256 _a256 = (elempack == 8) ? (__m256)__lasx_xvld(a, 0) : __lasx_concat_128_s(_a128, _a128);
+    __m256 _b256 = (elempack == 8) ? (__m256)__lasx_xvld(b, 0) : __lasx_concat_128_s(_b128, _b128);
 #endif
 #endif
     float sa = a[0];
@@ -191,8 +191,8 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             int j = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + i * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + i * 4, 0), (__m128)__lsx_vld((const float*)a_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
-            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + i * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + i * 8, 0) : elempack == 4 ? __lasx_concat_128_s((__m128)__lsx_vld((const float*)a_data + i * 4, 0), (__m128)__lsx_vld((const float*)a_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + i * 8, 0) : elempack == 4 ? __lasx_concat_128_s((__m128)__lsx_vld((const float*)b_data + i * 4, 0), (__m128)__lsx_vld((const float*)b_data + i * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; j + 7 < w; j += 8)
             {
                 __builtin_prefetch(ptr + 32);
@@ -241,8 +241,8 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             int i = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + q * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)a_data + q * 4, 0), (__m128)__lsx_vld((const float*)a_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
-            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + q * 8, 0) : elempack == 4 ? combine4x2_ps((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
+            __m256 _a256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)a_data + q * 8, 0) : elempack == 4 ? __lasx_concat_128_s((__m128)__lsx_vld((const float*)a_data + q * 4, 0), (__m128)__lsx_vld((const float*)a_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(a);
+            __m256 _b256 = elempack == 8 ? (__m256)__lasx_xvld((const float*)b_data + q * 8, 0) : elempack == 4 ? __lasx_concat_128_s((__m128)__lsx_vld((const float*)b_data + q * 4, 0), (__m128)__lsx_vld((const float*)b_data + q * 4, 0)) : (__m256)__lasx_xvreplfr2vr_s(b);
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 32);

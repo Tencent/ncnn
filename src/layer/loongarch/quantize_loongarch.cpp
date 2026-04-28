@@ -49,7 +49,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
         {
             _scale = (__m128)__lsx_vld((const float*)scale_data, 0);
 #if __loongarch_asx
-            _scale_avx = combine4x2_ps(_scale, _scale);
+            _scale_avx = __lasx_concat_128_s(_scale, _scale);
 #endif // __loongarch_asx
         }
     }
@@ -66,8 +66,8 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
         _v1 = __lasx_xvfmul_s(_v1, _scale_avx);
         __m256i _v0i = float2int8(_v0);
         __m256i _v1i = float2int8(_v1);
-        __m128i _lo = __lasx_extract_lo128(_v0i);
-        __m128i _hi = __lasx_extract_lo128(_v1i);
+        __m128i _lo = __lasx_extract_128_lo(_v0i);
+        __m128i _hi = __lasx_extract_128_lo(_v1i);
         __m128i _result = __lsx_vilvl_d(_hi, _lo);
         __lsx_vst(_result, s8ptr, 0);
         ptr += 16;
@@ -81,7 +81,7 @@ static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data
         __m256 _v = (__m256)__lasx_xvld(ptr, 0);
         _v = __lasx_xvfmul_s(_v, _scale_avx);
         __m256i _vi = float2int8(_v);
-        *(int64_t*)s8ptr = __lsx_vpickve2gr_d(__lasx_extract_lo128(_vi), 0);
+        *(int64_t*)s8ptr = __lsx_vpickve2gr_d(__lasx_extract_128_lo(_vi), 0);
 #else  // __loongarch_asx
         __m128 _v0 = (__m128)__lsx_vld(ptr, 0);
         __m128 _v1 = (__m128)__lsx_vld(ptr + 4, 0);
@@ -377,7 +377,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
         {
             _scale = (__m128)__lsx_vld((const float*)scale_data, 0);
 #if __loongarch_asx
-            _scale_avx = combine4x2_ps(_scale, _scale);
+            _scale_avx = __lasx_concat_128_s(_scale, _scale);
 #endif // __loongarch_asx
         }
     }
@@ -395,8 +395,8 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
         __m256i _v0i = float2int8(_v0);
         __m256i _v1i = float2int8(_v1);
         // extract low 32 bits from each, combine into 128-bit (16 bytes)
-        __m128i _lo = __lasx_extract_lo128(_v0i);
-        __m128i _hi = __lasx_extract_lo128(_v1i);
+        __m128i _lo = __lasx_extract_128_lo(_v0i);
+        __m128i _hi = __lasx_extract_128_lo(_v1i);
         __m128i _result = __lsx_vilvl_d(_hi, _lo);
         __lsx_vst(_result, s8ptr, 0);
         ptr += 16;
@@ -409,7 +409,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
         __m256 _v = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
         _v = __lasx_xvfmul_s(_v, _scale_avx);
         __m256i _vi = float2int8(_v);
-        *(int64_t*)s8ptr = __lsx_vpickve2gr_d(__lasx_extract_lo128(_vi), 0);
+        *(int64_t*)s8ptr = __lsx_vpickve2gr_d(__lasx_extract_128_lo(_vi), 0);
 #else  // __loongarch_asx
         __m128 _v0 = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
         __m128 _v1 = bfloat2float_lsx((__m128i)__lsx_vld(ptr + 4, 0));

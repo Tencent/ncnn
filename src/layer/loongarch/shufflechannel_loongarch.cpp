@@ -240,7 +240,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                     __m128 _p12 = (__m128)__lsx_vshuf_w(_mask_2301, (__m128i)_p2, (__m128i)_p1);
 
-                    __m128 _lo = (__m128)__lsx_vilvr_w((__m128i)_p12, (__m128i)_p0);
+                    __m128 _lo = (__m128)__lsx_vilvl_w((__m128i)_p12, (__m128i)_p0);
                     __m128 _hi = (__m128)__lsx_vilvh_w((__m128i)_p12, (__m128i)_p0);
 
                     __lsx_vst(_lo, outptr0, 0);
@@ -267,7 +267,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
                     __m128 _p0 = (__m128)__lsx_vld(ptr0, 0);
                     __m128 _p1 = (__m128)__lsx_vldrepl_d((void*)ptr1, 0);
 
-                    __m128 _lo = (__m128)__lsx_vilvr_w((__m128i)_p1, (__m128i)_p0);
+                    __m128 _lo = (__m128)__lsx_vilvl_w((__m128i)_p1, (__m128i)_p0);
 
                     __lsx_vst(_lo, outptr, 0);
 
@@ -300,7 +300,7 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
                         __m128 _p0 = (__m128)__lsx_vld(ptr0, 0);
                         __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
 
-                        __m128 _lo = (__m128)__lsx_vilvr_w((__m128i)_p1, (__m128i)_p0);
+                        __m128 _lo = (__m128)__lsx_vilvl_w((__m128i)_p1, (__m128i)_p0);
                         __m128 _hi = (__m128)__lsx_vilvh_w((__m128i)_p1, (__m128i)_p0);
 
                         __lsx_vst(_lo, outptr0, 0);
@@ -348,9 +348,9 @@ int ShuffleChannel_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, con
                         __m128 _p1 = (__m128)__lsx_vld(ptr1, 0);
                         __m128 _p2 = (__m128)__lsx_vld(ptr2, 0);
 
-                        __m128 _0415 = (__m128)__lsx_vilvr_w((__m128i)_p1, (__m128i)_p0);
+                        __m128 _0415 = (__m128)__lsx_vilvl_w((__m128i)_p1, (__m128i)_p0);
                         __m128 _2637 = (__m128)__lsx_vilvh_w((__m128i)_p1, (__m128i)_p0);
-                        __m128 _4859 = (__m128)__lsx_vilvr_w((__m128i)_p2, (__m128i)_p1);
+                        __m128 _4859 = (__m128)__lsx_vilvl_w((__m128i)_p2, (__m128i)_p1);
                         __m128 _6a7b = (__m128)__lsx_vilvh_w((__m128i)_p2, (__m128i)_p1);
 
                         __m128 _0481 = (__m128)__lsx_vshuf_w(_mask_0481, (__m128i)_p2, (__m128i)_0415);
@@ -503,7 +503,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
                     __m128i _p0 = __lsx_vld(ptr0, 0);
                     __m128i _p1 = __lsx_vld(ptr1, 0);
 
-                    __m128i _lo = __lsx_vilvr_h(_p1, _p0);
+                    __m128i _lo = __lsx_vilvl_h(_p1, _p0);
                     __m128i _hi = __lsx_vilvh_h(_p1, _p0);
 
                     __lsx_vst(_lo, outptr0, 0);
@@ -666,7 +666,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
 
                     __m128i _p12 = __lsx_vshuf_h(_mask_2301, _p2, _p1);
 
-                    __m128i _p01 = __lsx_vilvr_h(_p12, _p0);
+                    __m128i _p01 = __lsx_vilvl_h(_p12, _p0);
 
                     __lsx_vstelm_d(_p01, outptr0, 0, 0);
                     __lsx_vstelm_d(_p01, outptr1, 0, 1);
@@ -692,7 +692,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
                     __m128i _p0 = __lsx_vldrepl_d((void*)ptr0, 0);
                     __m128i _p1 = __lsx_vldrepl_w((void*)ptr1, 0);
 
-                    __m128i _p01 = __lsx_vilvr_h(_p1, _p0);
+                    __m128i _p01 = __lsx_vilvl_h(_p1, _p0);
 
                     __lsx_vstelm_d(_p01, outptr, 0, 0);
 
@@ -725,7 +725,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
                         __m128i _p0 = __lsx_vldrepl_d((void*)ptr0, 0);
                         __m128i _p1 = __lsx_vldrepl_d((void*)ptr1, 0);
 
-                        __m128i _p01 = __lsx_vilvr_h(_p1, _p0);
+                        __m128i _p01 = __lsx_vilvl_h(_p1, _p0);
 
                         __lsx_vstelm_d(_p01, outptr0, 0, 0);
                         __lsx_vstelm_d(_p01, outptr1, 0, 1);
@@ -772,7 +772,7 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
                         __m128i _p1 = __lsx_vldrepl_d((void*)ptr1, 0);
                         __m128i _p2 = __lsx_vldrepl_d((void*)ptr2, 0);
 
-                        __m128i _p01 = __lsx_vilvr_h(_p1, _p0);
+                        __m128i _p01 = __lsx_vilvl_h(_p1, _p0);
 
                         __m128i _0481 = __lsx_vshuf_h(_mask_0481, _p2, _p01);
                         __m128i _5926 = __lsx_vshuf_h(_mask_5926, _p2, _p01);
@@ -814,10 +814,10 @@ int ShuffleChannel_loongarch::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& t
                         __m128i _p2 = __lsx_vldrepl_d((void*)ptr2, 0);
                         __m128i _p3 = __lsx_vldrepl_d((void*)ptr3, 0);
 
-                        __m128i _p01 = __lsx_vilvr_h(_p1, _p0);
-                        __m128i _p23 = __lsx_vilvr_h(_p3, _p2);
+                        __m128i _p01 = __lsx_vilvl_h(_p1, _p0);
+                        __m128i _p23 = __lsx_vilvl_h(_p3, _p2);
 
-                        __m128i _p02 = __lsx_vilvr_w(_p23, _p01);
+                        __m128i _p02 = __lsx_vilvl_w(_p23, _p01);
                         __m128i _p13 = __lsx_vilvh_w(_p23, _p01);
 
                         __lsx_vstelm_d(_p02, outptr0, 0, 0);

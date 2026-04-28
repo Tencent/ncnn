@@ -1174,8 +1174,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB0 = bfloat2float_lsx(pB);
                 __m128 _pB1 = bfloat2float_lsx(pB + 4);
-                __m256 _pB0x = combine4x2_ps(_pB0, _pB0);
-                __m256 _pB1x = combine4x2_ps(_pB1, _pB1);
+                __m256 _pB0x = __lasx_concat_128_s(_pB0, _pB0);
+                __m256 _pB1x = __lasx_concat_128_s(_pB1, _pB1);
                 __m256 _pB0r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0x, _LSX_SHUFFLE(0, 3, 2, 1));
                 __m256 _pB1r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB1x, _LSX_SHUFFLE(0, 3, 2, 1));
 
@@ -1226,7 +1226,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB4 = bfloat2float_lsx(pB);
-                __m256 _pB = combine4x2_ps(_pB4, _pB4);
+                __m256 _pB = __lasx_concat_128_s(_pB4, _pB4);
                 __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB, _LSX_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = __lasx_xvfmadd_s(_pA, _pB, _sum0);
@@ -1263,7 +1263,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m128 _pB01 = bfloat2float_lsx(__lsx_vldrepl_w(pB, 0));
-                __m256 _pB = combine4x2_ps(_pB01, _pB01);
+                __m256 _pB = __lasx_concat_128_s(_pB01, _pB01);
                 __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum0 = __lasx_xvfmadd_s(_pA, _pB, _sum0);

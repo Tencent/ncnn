@@ -1059,7 +1059,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 const float* sptr0 = bottom_blob.channel(q / 4).row(sy) + sx * 4;
                                 const float* sptr1 = bottom_blob.channel(q / 4 + 1).row(sy) + sx * 4;
 
-                                __m256 _r0 = combine4x2_ps((__m128)__lsx_vld(sptr0, 0), (__m128)__lsx_vld(sptr1, 0));
+                                __m256 _r0 = __lasx_concat_128_s((__m128)__lsx_vld(sptr0, 0), (__m128)__lsx_vld(sptr1, 0));
                                 __m256 _w0 = (__m256)__lasx_xvld(kptr0, 0);
                                 __m256 _w1 = (__m256)__lasx_xvld(kptr0 + 8, 0);
 
@@ -1307,7 +1307,7 @@ static void deconvolution_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                                 const float* sptr0 = bottom_blob.channel(q / 4).row(sy) + sx * 4;
                                 const float* sptr1 = bottom_blob.channel(q / 4 + 1).row(sy) + sx * 4;
 
-                                __m256 _r0 = combine4x2_ps((__m128)__lsx_vld(sptr0, 0), (__m128)__lsx_vld(sptr1, 0));
+                                __m256 _r0 = __lasx_concat_128_s((__m128)__lsx_vld(sptr0, 0), (__m128)__lsx_vld(sptr1, 0));
                                 __m256 _w = (__m256)__lasx_xvld(kptr0, 0);
                                 _sum_256 = __lasx_xvfmadd_s(_r0, _w, _sum_256);
                             }

@@ -83,21 +83,21 @@ static void softmax(float* _ptr, int elemcount, int elempack)
     {
 #if __loongarch_asx
         {
-            __m128 _max0 = (__m128)__lasx_extract_lo128((__m256i)_max_lasx);
-            __m128 _max1 = (__m128)__lasx_extract_hi128((__m256i)_max_lasx);
+            __m128 _max0 = __lasx_extract_128_lo_s(_max_lasx);
+            __m128 _max1 = __lasx_extract_128_hi_s(_max_lasx);
             _max = __lsx_vfmax_s(_max, _max0);
             _max = __lsx_vfmax_s(_max, _max1);
         }
 
-        _max_lasx = combine4x2_ps(_max, _max);
+        _max_lasx = __lasx_concat_128_s(_max, _max);
 #endif // __loongarch_asx
     }
     if (elempack == 1)
     {
 #if __loongarch_asx
         {
-            __m128 _max0 = (__m128)__lasx_extract_lo128((__m256i)_max_lasx);
-            __m128 _max1 = (__m128)__lasx_extract_hi128((__m256i)_max_lasx);
+            __m128 _max0 = __lasx_extract_128_lo_s(_max_lasx);
+            __m128 _max1 = __lasx_extract_128_hi_s(_max_lasx);
             _max = __lsx_vfmax_s(_max, _max0);
             _max = __lsx_vfmax_s(_max, _max1);
         }
@@ -106,7 +106,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 
         _max = (__m128)__lsx_vreplfr2vr_s(max);
 #if __loongarch_asx
-        _max_lasx = combine4x2_ps(_max, _max);
+        _max_lasx = __lasx_concat_128_s(_max, _max);
 #endif // __loongarch_asx
     }
 #endif // __loongarch_sx
@@ -166,8 +166,8 @@ static void softmax(float* _ptr, int elemcount, int elempack)
     {
 #if __loongarch_asx
         {
-            __m128 _sum0 = (__m128)__lasx_extract_lo128((__m256i)_sum_lasx);
-            __m128 _sum1 = (__m128)__lasx_extract_hi128((__m256i)_sum_lasx);
+            __m128 _sum0 = __lasx_extract_128_lo_s(_sum_lasx);
+            __m128 _sum1 = __lasx_extract_128_hi_s(_sum_lasx);
             _sum = __lsx_vfadd_s(_sum, _sum0);
             _sum = __lsx_vfadd_s(_sum, _sum1);
         }
@@ -177,7 +177,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         _sum = __lsx_vfdiv_s(_one, _sum);
 
 #if __loongarch_asx
-        _sum_lasx = combine4x2_ps(_sum, _sum);
+        _sum_lasx = __lasx_concat_128_s(_sum, _sum);
 #endif // __loongarch_asx
     }
 #endif // __loongarch_sx
@@ -186,8 +186,8 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __loongarch_sx
 #if __loongarch_asx
         {
-            __m128 _sum0 = (__m128)__lasx_extract_lo128((__m256i)_sum_lasx);
-            __m128 _sum1 = (__m128)__lasx_extract_hi128((__m256i)_sum_lasx);
+            __m128 _sum0 = __lasx_extract_128_lo_s(_sum_lasx);
+            __m128 _sum1 = __lasx_extract_128_hi_s(_sum_lasx);
             _sum = __lsx_vfadd_s(_sum, _sum0);
             _sum = __lsx_vfadd_s(_sum, _sum1);
         }
@@ -200,7 +200,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __loongarch_sx
         _sum = (__m128)__lsx_vreplfr2vr_s(sum);
 #if __loongarch_asx
-        _sum_lasx = combine4x2_ps(_sum, _sum);
+        _sum_lasx = __lasx_concat_128_s(_sum, _sum);
 #endif // __loongarch_asx
 #endif // __loongarch_sx
     }

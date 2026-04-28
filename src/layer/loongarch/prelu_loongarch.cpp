@@ -161,7 +161,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             __m128 _slope4 = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
-            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : combine4x2_ps(_slope4, _slope4);
+            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : __lasx_concat_128_s(_slope4, _slope4);
             for (; j + 7 < w; j += 8)
             {
                 __builtin_prefetch(ptr + j + 32);
@@ -212,7 +212,7 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             __m128 _slope4 = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
-            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : combine4x2_ps(_slope4, _slope4);
+            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : __lasx_concat_128_s(_slope4, _slope4);
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + i + 32);
@@ -352,7 +352,7 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
             __m128 _slope4 = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
-            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : combine4x2_ps(_slope4, _slope4);
+            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + i * 8, 0) : __lasx_concat_128_s(_slope4, _slope4);
             for (; j + 7 < w; j += 8)
             {
                 __m256 _p = bfloat2float_lasx((__m128i*)(ptr + j));
@@ -403,7 +403,7 @@ int PReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
             __m128 _slope4 = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 #if __loongarch_asx
             __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
-            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : combine4x2_ps(_slope4, _slope4);
+            __m256 _slope8 = (elempack == 8 && num_slope > 1) ? (__m256)__lasx_xvld((const float*)slope_data + q * 8, 0) : __lasx_concat_128_s(_slope4, _slope4);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = bfloat2float_lasx((__m128i*)(ptr + i));

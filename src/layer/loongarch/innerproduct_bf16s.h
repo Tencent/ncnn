@@ -681,8 +681,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
 #if __loongarch_sx
 #if __loongarch_asx
-                __m128 _lo = (__m128)__lasx_extract_lo128((__m256i)_sum256);
-                __m128 _hi = (__m128)__lasx_extract_hi128((__m256i)_sum256);
+                __m128 _lo = __lasx_extract_128_lo_s(_sum256);
+                __m128 _hi = __lasx_extract_128_hi_s(_sum256);
                 _suml = __lsx_vfadd_s(_suml, _lo);
                 _suml = __lsx_vfadd_s(_suml, _hi);
 #endif // __loongarch_asx
@@ -1114,8 +1114,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
 
 #if __loongarch_sx
 #if __loongarch_asx
-            __m128 _lo = (__m128)__lasx_extract_lo128((__m256i)_sum256);
-            __m128 _hi = (__m128)__lasx_extract_hi128((__m256i)_sum256);
+            __m128 _lo = __lasx_extract_128_lo_s(_sum256);
+            __m128 _hi = __lasx_extract_128_hi_s(_sum256);
             _suml = __lsx_vfadd_s(_suml, _lo);
             _suml = __lsx_vfadd_s(_suml, _hi);
 #endif // __loongarch_asx

@@ -783,8 +783,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
             }
             if (out_elempack == 4)
             {
-                __lsx_vst((__m128)__lasx_extract_lo128((__m256i)_sum0), outptr, 0);
-                __lsx_vst((__m128)__lasx_extract_hi128((__m256i)_sum0), outptr + M, 0);
+                __lsx_vst(__lasx_extract_128_lo_s(_sum0), outptr, 0);
+                __lsx_vst(__lasx_extract_128_hi_s(_sum0), outptr + M, 0);
                 outptr += 4;
             }
             if (out_elempack == 1)
@@ -1275,7 +1275,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         {
                             __m128 _r0 = (__m128)__lsx_vld(r0, 0);
                             __m128 _r1 = (__m128)__lsx_vld(r1, 0);
-                            __m256 _r01 = combine4x2_ps(_r0, _r1);
+                            __m256 _r01 = __lasx_concat_128_s(_r0, _r1);
                             __m256 _w = (__m256)__lasx_xvld(kptr, 0);
                             _sum = __lasx_xvfmadd_s(_r01, _w, _sum);
 
@@ -1298,8 +1298,8 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         }
                     }
                 }
-                __m128 _slo = (__m128)__lasx_extract_lo128((__m256i)_sum);
-                __m128 _shi = (__m128)__lasx_extract_hi128((__m256i)_sum);
+                __m128 _slo = __lasx_extract_128_lo_s(_sum);
+                __m128 _shi = __lasx_extract_128_hi_s(_sum);
                 __m128 _ss = __lsx_vfadd_s(_slo, _shi);
                 sum += __lsx_reduce_fadd_s(_ss);
             }

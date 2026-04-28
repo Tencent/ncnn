@@ -240,7 +240,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             _scale0 = (__m128)__lsx_vld((const float*)scale_data, 0);
 #if __loongarch_asx
-            _scale_avx = combine4x2_ps(_scale0, _scale0);
+            _scale_avx = __lasx_concat_128_s(_scale0, _scale0);
 #else  // __loongarch_asx
             _scale1 = _scale0;
 #endif // __loongarch_asx
@@ -314,7 +314,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
             {
                 _bias0 = (__m128)__lsx_vld((const float*)bias_data, 0);
 #if __loongarch_asx
-                _bias_avx = combine4x2_ps(_bias0, _bias0);
+                _bias_avx = __lasx_concat_128_s(_bias0, _bias0);
 #else  // __loongarch_asx
                 _bias1 = _bias0;
 #endif // __loongarch_asx

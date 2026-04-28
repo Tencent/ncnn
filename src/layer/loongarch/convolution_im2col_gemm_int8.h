@@ -227,8 +227,8 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
             if (out_elempack == 4)
             {
-                __lsx_vst(__lasx_extract_lo128(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_hi128(_f0), p0 + out_hstep * 4, 0);
+                __lsx_vst(__lasx_extract_128_lo(_f0), p0, 0);
+                __lsx_vst(__lasx_extract_128_hi(_f0), p0 + out_hstep * 4, 0);
                 p0 += 4;
             }
             if (out_elempack == 1)

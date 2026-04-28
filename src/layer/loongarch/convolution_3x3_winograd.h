@@ -1701,10 +1701,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
-                        if (tj * 2 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
-                        if (tj * 2 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
-                        if (tj * 2 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
+                        if (tj * 2 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
+                        if (tj * 2 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
+                        if (tj * 2 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
                     }
                     if (elempack == 1)
                     {
@@ -1746,10 +1746,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 2 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 2 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 2 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 2 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 2 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 2 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                     }
                 }
 
@@ -2151,12 +2151,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 {
                     float* outptr1 = outptr0 + N;
 
-                    __lsx_vst(__lasx_extract_lo128((__m256i)_tmp0), outptr0, 0);
-                    __lsx_vst(__lasx_extract_hi128((__m256i)_tmp0), outptr1, 0);
+                    __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp0), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp0), outptr1, 0);
                     if (tj * 2 + 1 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp1), outptr0 + 4, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp1), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp1), outptr0 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp1), outptr1 + 4, 0);
                     }
                 }
                 if (out_elempack == 1)
@@ -2717,12 +2717,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
-                        if (tj * 4 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
-                        if (tj * 4 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
-                        if (tj * 4 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
-                        if (tj * 4 + 4 < w) _r4 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 16, 0), (__m128i)(__m128)__lsx_vld(r1 + 16, 0));
-                        if (tj * 4 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 20, 0), (__m128i)(__m128)__lsx_vld(r1 + 20, 0));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
+                        if (tj * 4 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
+                        if (tj * 4 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
+                        if (tj * 4 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
+                        if (tj * 4 + 4 < w) _r4 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 16, 0), (__m128i)(__m128)__lsx_vld(r1 + 16, 0));
+                        if (tj * 4 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 20, 0), (__m128i)(__m128)__lsx_vld(r1 + 20, 0));
                     }
                     if (elempack == 1)
                     {
@@ -2764,10 +2764,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 4 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 4 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 4 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 4 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 4 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 4 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         if (tj * 4 + 4 < w) _r4 = ({ float __set_tmp[8] = {r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4]}; (__m256)__lasx_xvld(__set_tmp, 0); });
                         if (tj * 4 + 5 < w) _r5 = ({ float __set_tmp[8] = {r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5]}; (__m256)__lasx_xvld(__set_tmp, 0); });
                     }
@@ -3353,22 +3353,22 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 {
                     float* outptr1 = outptr0 + N;
 
-                    __lsx_vst(__lasx_extract_lo128((__m256i)_tmp0), outptr0, 0);
-                    __lsx_vst(__lasx_extract_hi128((__m256i)_tmp0), outptr1, 0);
+                    __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp0), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp0), outptr1, 0);
                     if (tj * 4 + 1 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp1), outptr0 + 4, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp1), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp1), outptr0 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp1), outptr1 + 4, 0);
                     }
                     if (tj * 4 + 2 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp2), outptr0 + 8, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp2), outptr1 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp2), outptr0 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp2), outptr1 + 8, 0);
                     }
                     if (tj * 4 + 3 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp3), outptr0 + 12, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp3), outptr1 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp3), outptr0 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp3), outptr1 + 12, 0);
                     }
                 }
                 if (out_elempack == 1)
@@ -4067,14 +4067,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
-                        if (tj * 6 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
-                        if (tj * 6 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
-                        if (tj * 6 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
-                        if (tj * 6 + 4 < w) _r4 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 16, 0), (__m128i)(__m128)__lsx_vld(r1 + 16, 0));
-                        if (tj * 6 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 20, 0), (__m128i)(__m128)__lsx_vld(r1 + 20, 0));
-                        if (tj * 6 + 6 < w) _r6 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 24, 0), (__m128i)(__m128)__lsx_vld(r1 + 24, 0));
-                        if (tj * 6 + 7 < w) _r7 = (__m256)combine4x2_epi32((__m128i)(__m128)__lsx_vld(r0 + 28, 0), (__m128i)(__m128)__lsx_vld(r1 + 28, 0));
+                        _r0 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0, 0), (__m128i)(__m128)__lsx_vld(r1, 0));
+                        if (tj * 6 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 4, 0), (__m128i)(__m128)__lsx_vld(r1 + 4, 0));
+                        if (tj * 6 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 8, 0), (__m128i)(__m128)__lsx_vld(r1 + 8, 0));
+                        if (tj * 6 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 12, 0), (__m128i)(__m128)__lsx_vld(r1 + 12, 0));
+                        if (tj * 6 + 4 < w) _r4 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 16, 0), (__m128i)(__m128)__lsx_vld(r1 + 16, 0));
+                        if (tj * 6 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 20, 0), (__m128i)(__m128)__lsx_vld(r1 + 20, 0));
+                        if (tj * 6 + 6 < w) _r6 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 24, 0), (__m128i)(__m128)__lsx_vld(r1 + 24, 0));
+                        if (tj * 6 + 7 < w) _r7 = (__m256)__lasx_concat_128((__m128i)(__m128)__lsx_vld(r0 + 28, 0), (__m128i)(__m128)__lsx_vld(r1 + 28, 0));
                     }
                     if (elempack == 1)
                     {
@@ -4116,10 +4116,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                             _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                         }
 
-                        _r0 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                        if (tj * 6 + 1 < w) _r1 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                        if (tj * 6 + 2 < w) _r2 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                        if (tj * 6 + 3 < w) _r3 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                        _r0 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                        if (tj * 6 + 1 < w) _r1 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                        if (tj * 6 + 2 < w) _r2 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                        if (tj * 6 + 3 < w) _r3 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = (__m128)__lsx_vld(r0 + 4, 0);
@@ -4152,10 +4152,10 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                                 _t7 = (__m128)__lsx_vilvh_d(_23h, _01h);
                             }
 
-                            _r4 = (__m256)combine4x2_epi32((__m128i)_t0, (__m128i)_t4);
-                            if (tj * 6 + 5 < w) _r5 = (__m256)combine4x2_epi32((__m128i)_t1, (__m128i)_t5);
-                            if (tj * 6 + 6 < w) _r6 = (__m256)combine4x2_epi32((__m128i)_t2, (__m128i)_t6);
-                            if (tj * 6 + 7 < w) _r7 = (__m256)combine4x2_epi32((__m128i)_t3, (__m128i)_t7);
+                            _r4 = (__m256)__lasx_concat_128((__m128i)_t0, (__m128i)_t4);
+                            if (tj * 6 + 5 < w) _r5 = (__m256)__lasx_concat_128((__m128i)_t1, (__m128i)_t5);
+                            if (tj * 6 + 6 < w) _r6 = (__m256)__lasx_concat_128((__m128i)_t2, (__m128i)_t6);
+                            if (tj * 6 + 7 < w) _r7 = (__m256)__lasx_concat_128((__m128i)_t3, (__m128i)_t7);
                         }
                     }
                 }
@@ -4888,32 +4888,32 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 {
                     float* outptr1 = outptr0 + N;
 
-                    __lsx_vst(__lasx_extract_lo128((__m256i)_tmp0), outptr0, 0);
-                    __lsx_vst(__lasx_extract_hi128((__m256i)_tmp0), outptr1, 0);
+                    __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp0), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp0), outptr1, 0);
                     if (tj * 6 + 1 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp1), outptr0 + 4, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp1), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp1), outptr0 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp1), outptr1 + 4, 0);
                     }
                     if (tj * 6 + 2 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp2), outptr0 + 8, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp2), outptr1 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp2), outptr0 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp2), outptr1 + 8, 0);
                     }
                     if (tj * 6 + 3 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp3), outptr0 + 12, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp3), outptr1 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp3), outptr0 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp3), outptr1 + 12, 0);
                     }
                     if (tj * 6 + 4 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp4), outptr0 + 16, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp4), outptr1 + 16, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp4), outptr0 + 16, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp4), outptr1 + 16, 0);
                     }
                     if (tj * 6 + 5 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128((__m256i)_tmp5), outptr0 + 20, 0);
-                        __lsx_vst(__lasx_extract_hi128((__m256i)_tmp5), outptr1 + 20, 0);
+                        __lsx_vst(__lasx_extract_128_lo((__m256i)_tmp5), outptr0 + 20, 0);
+                        __lsx_vst(__lasx_extract_128_hi((__m256i)_tmp5), outptr1 + 20, 0);
                     }
                 }
                 if (out_elempack == 1)

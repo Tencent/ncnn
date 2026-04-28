@@ -370,8 +370,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
-                    __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pB, 0)));
+                    __m256i _pA0 = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vld(pA, 0)));
+                    __m256i _pB0 = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vld(pB, 0)));
                     __m256i _pA1 = __lasx_xvpermi_d(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
                     __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
                     __m256i _pB2 = __lasx_xvpermi_d(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
@@ -497,7 +497,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _pA0 = __lasx_xvld(pA, 0);
                     __m128i _pB = __lsx_vld(pB, 0);
                     __m256i _pA1 = __lasx_xvshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
-                    __m256i _pB0 = __lasx_xvpermi_q(__lsx_to_lasx(_pB), __lsx_to_lasx(_pB), _LSX_SHUFFLE(0, 0, 0, 0));
+                    __m256i _pB0 = __lasx_xvpermi_q(__lasx_cast_128(_pB), __lasx_cast_128(_pB), _LSX_SHUFFLE(0, 0, 0, 0));
                     __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
 
                     _sum0 = __lasx_xvadd_w(_sum0, __lasx_xvadd_w(__lasx_xvmulwev_w_h(_pA0, _pB0), __lasx_xvmulwod_w_h(_pA0, _pB0)));
@@ -510,8 +510,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m256i _pA0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
-                    __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vldrepl_d(pB, 0)));
+                    __m256i _pA0 = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vld(pA, 0)));
+                    __m256i _pB0 = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vldrepl_d(pB, 0)));
                     __m256i _pA1 = __lasx_xvpermi_d(_pA0, _LSX_SHUFFLE(2, 3, 0, 1));
                     __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
 
@@ -595,8 +595,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m256i _pA = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
-                    __m256i _pB0 = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vldrepl_w(pB, 0)));
+                    __m256i _pA = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vld(pA, 0)));
+                    __m256i _pB0 = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vldrepl_w(pB, 0)));
                     __m256i _pB1 = __lasx_xvshuf4i_w(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
 
                     __m256i _s0 = __lasx_xvmul_w(_pA, _pB0);
@@ -656,7 +656,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m256i _pA = __lasx_xvsext_w_h(__lsx_to_lasx(__lsx_vld(pA, 0)));
+                    __m256i _pA = __lasx_vext2xv_w_h(__lasx_cast_128(__lsx_vld(pA, 0)));
                     __m256i _pB = __lasx_xvreplgr2vr_w(pB[0]);
                     __m256i _s0 = __lasx_xvmul_w(_pA, _pB);
                     _sum0 = __lasx_xvadd_w(_sum0, _s0);
@@ -2018,12 +2018,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 {
                     int* outptr1 = outptr0 + N;
 
-                    __lsx_vst(__lasx_extract_lo128(_tmp0), outptr0, 0);
-                    __lsx_vst(__lasx_extract_hi128(_tmp0), outptr1, 0);
+                    __lsx_vst(__lasx_extract_128_lo(_tmp0), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi(_tmp0), outptr1, 0);
                     if (tj * 2 + 1 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128(_tmp1), outptr0 + 4, 0);
-                        __lsx_vst(__lasx_extract_hi128(_tmp1), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_lo(_tmp1), outptr0 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_hi(_tmp1), outptr1 + 4, 0);
                     }
                 }
                 if (out_elempack == 1)
@@ -3071,22 +3071,22 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 {
                     int* outptr1 = outptr0 + N;
 
-                    __lsx_vst(__lasx_extract_lo128(_tmp0), outptr0, 0);
-                    __lsx_vst(__lasx_extract_hi128(_tmp0), outptr1, 0);
+                    __lsx_vst(__lasx_extract_128_lo(_tmp0), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi(_tmp0), outptr1, 0);
                     if (tj * 4 + 1 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128(_tmp1), outptr0 + 4, 0);
-                        __lsx_vst(__lasx_extract_hi128(_tmp1), outptr1 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_lo(_tmp1), outptr0 + 4, 0);
+                        __lsx_vst(__lasx_extract_128_hi(_tmp1), outptr1 + 4, 0);
                     }
                     if (tj * 4 + 2 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128(_tmp2), outptr0 + 8, 0);
-                        __lsx_vst(__lasx_extract_hi128(_tmp2), outptr1 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_lo(_tmp2), outptr0 + 8, 0);
+                        __lsx_vst(__lasx_extract_128_hi(_tmp2), outptr1 + 8, 0);
                     }
                     if (tj * 4 + 3 < outw)
                     {
-                        __lsx_vst(__lasx_extract_lo128(_tmp3), outptr0 + 12, 0);
-                        __lsx_vst(__lasx_extract_hi128(_tmp3), outptr1 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_lo(_tmp3), outptr0 + 12, 0);
+                        __lsx_vst(__lasx_extract_128_hi(_tmp3), outptr1 + 12, 0);
                     }
                 }
                 if (out_elempack == 1)

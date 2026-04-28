@@ -328,8 +328,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB0l = bfloat2float_lsx(pB);
                 __m128 _pB1l = bfloat2float_lsx(pB + 4);
-                __m256 _pB0 = combine4x2_ps(_pB0l, _pB0l);
-                __m256 _pB1 = combine4x2_ps(_pB1l, _pB1l);
+                __m256 _pB0 = __lasx_concat_128_s(_pB0l, _pB0l);
+                __m256 _pB1 = __lasx_concat_128_s(_pB1l, _pB1l);
                 __m256 _pB0r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
                 __m256 _pB1r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB1, _LSX_SHUFFLE(0, 3, 2, 1));
 
@@ -414,22 +414,22 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __m128 _sum0_lo = (__m128)__lasx_extract_lo128((__m256i)_sum0);
-                    __m128 _sum0_hi = (__m128)__lasx_extract_hi128((__m256i)_sum0);
-                    __m128 _sum1_lo = (__m128)__lasx_extract_lo128((__m256i)_sum1);
-                    __m128 _sum1_hi = (__m128)__lasx_extract_hi128((__m256i)_sum1);
-                    __m128 _sum2_lo = (__m128)__lasx_extract_lo128((__m256i)_sum2);
-                    __m128 _sum2_hi = (__m128)__lasx_extract_hi128((__m256i)_sum2);
-                    __m128 _sum3_lo = (__m128)__lasx_extract_lo128((__m256i)_sum3);
-                    __m128 _sum3_hi = (__m128)__lasx_extract_hi128((__m256i)_sum3);
-                    __m128 _sum4_lo = (__m128)__lasx_extract_lo128((__m256i)_sum4);
-                    __m128 _sum4_hi = (__m128)__lasx_extract_hi128((__m256i)_sum4);
-                    __m128 _sum5_lo = (__m128)__lasx_extract_lo128((__m256i)_sum5);
-                    __m128 _sum5_hi = (__m128)__lasx_extract_hi128((__m256i)_sum5);
-                    __m128 _sum6_lo = (__m128)__lasx_extract_lo128((__m256i)_sum6);
-                    __m128 _sum6_hi = (__m128)__lasx_extract_hi128((__m256i)_sum6);
-                    __m128 _sum7_lo = (__m128)__lasx_extract_lo128((__m256i)_sum7);
-                    __m128 _sum7_hi = (__m128)__lasx_extract_hi128((__m256i)_sum7);
+                    __m128 _sum0_lo = __lasx_extract_128_lo_s(_sum0);
+                    __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
+                    __m128 _sum1_lo = __lasx_extract_128_lo_s(_sum1);
+                    __m128 _sum1_hi = __lasx_extract_128_hi_s(_sum1);
+                    __m128 _sum2_lo = __lasx_extract_128_lo_s(_sum2);
+                    __m128 _sum2_hi = __lasx_extract_128_hi_s(_sum2);
+                    __m128 _sum3_lo = __lasx_extract_128_lo_s(_sum3);
+                    __m128 _sum3_hi = __lasx_extract_128_hi_s(_sum3);
+                    __m128 _sum4_lo = __lasx_extract_128_lo_s(_sum4);
+                    __m128 _sum4_hi = __lasx_extract_128_hi_s(_sum4);
+                    __m128 _sum5_lo = __lasx_extract_128_lo_s(_sum5);
+                    __m128 _sum5_hi = __lasx_extract_128_hi_s(_sum5);
+                    __m128 _sum6_lo = __lasx_extract_128_lo_s(_sum6);
+                    __m128 _sum6_hi = __lasx_extract_128_hi_s(_sum6);
+                    __m128 _sum7_lo = __lasx_extract_128_lo_s(_sum7);
+                    __m128 _sum7_hi = __lasx_extract_128_hi_s(_sum7);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum2_lo, _sum2_lo), outptr0 + 8, 0, 0);
@@ -577,7 +577,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB4 = bfloat2float_lsx(pB);
-                __m256 _pB = combine4x2_ps(_pB4, _pB4);
+                __m256 _pB = __lasx_concat_128_s(_pB4, _pB4);
                 __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB, _LSX_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = __lasx_xvfmadd_s(_pA, _pB, _sum0);
@@ -630,14 +630,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __m128 _sum0_lo = (__m128)__lasx_extract_lo128((__m256i)_sum0);
-                    __m128 _sum0_hi = (__m128)__lasx_extract_hi128((__m256i)_sum0);
-                    __m128 _sum1_lo = (__m128)__lasx_extract_lo128((__m256i)_sum1);
-                    __m128 _sum1_hi = (__m128)__lasx_extract_hi128((__m256i)_sum1);
-                    __m128 _sum2_lo = (__m128)__lasx_extract_lo128((__m256i)_sum2);
-                    __m128 _sum2_hi = (__m128)__lasx_extract_hi128((__m256i)_sum2);
-                    __m128 _sum3_lo = (__m128)__lasx_extract_lo128((__m256i)_sum3);
-                    __m128 _sum3_hi = (__m128)__lasx_extract_hi128((__m256i)_sum3);
+                    __m128 _sum0_lo = __lasx_extract_128_lo_s(_sum0);
+                    __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
+                    __m128 _sum1_lo = __lasx_extract_128_lo_s(_sum1);
+                    __m128 _sum1_hi = __lasx_extract_128_hi_s(_sum1);
+                    __m128 _sum2_lo = __lasx_extract_128_lo_s(_sum2);
+                    __m128 _sum2_hi = __lasx_extract_128_hi_s(_sum2);
+                    __m128 _sum3_lo = __lasx_extract_128_lo_s(_sum3);
+                    __m128 _sum3_hi = __lasx_extract_128_hi_s(_sum3);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum2_lo, _sum2_lo), outptr0 + 8, 0, 0);
@@ -726,7 +726,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m128 _pB01 = bfloat2float_lsx(__lsx_vldrepl_w(pB, 0));
-                __m256 _pB = combine4x2_ps(_pB01, _pB01);
+                __m256 _pB = __lasx_concat_128_s(_pB01, _pB01);
                 __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum0 = __lasx_xvfmadd_s(_pA, _pB, _sum0);
@@ -764,10 +764,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __m128 _sum0_lo = (__m128)__lasx_extract_lo128((__m256i)_sum0);
-                    __m128 _sum0_hi = (__m128)__lasx_extract_hi128((__m256i)_sum0);
-                    __m128 _sum1_lo = (__m128)__lasx_extract_lo128((__m256i)_sum1);
-                    __m128 _sum1_hi = (__m128)__lasx_extract_hi128((__m256i)_sum1);
+                    __m128 _sum0_lo = __lasx_extract_128_lo_s(_sum0);
+                    __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
+                    __m128 _sum1_lo = __lasx_extract_128_lo_s(_sum1);
+                    __m128 _sum1_hi = __lasx_extract_128_hi_s(_sum1);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
                     outptr0 += 8;
@@ -852,8 +852,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __m128 _sum0_lo = (__m128)__lasx_extract_lo128((__m256i)_sum0);
-                    __m128 _sum0_hi = (__m128)__lasx_extract_hi128((__m256i)_sum0);
+                    __m128 _sum0_lo = __lasx_extract_128_lo_s(_sum0);
+                    __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
                     __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
                     outptr0 += 4;
                     __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi, _sum0_hi), outptr0 + out_hstep * 4 - 4 + 0, 0, 0);
@@ -994,13 +994,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum10 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum30 = (__m128)__lsx_vshuf4i_w((__m128i)_sum30, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum30, (__m128i)_sum00);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum30, (__m128i)_sum00);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum30, (__m128i)_sum00);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum10, (__m128i)_sum20);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum10, (__m128i)_sum20);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum10, (__m128i)_sum20);
-                    _sum00 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum00 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum10 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum20 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum20 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum30 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum10 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1009,13 +1009,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum11 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum31 = (__m128)__lsx_vshuf4i_w((__m128i)_sum31, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum31, (__m128i)_sum01);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum31, (__m128i)_sum01);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum31, (__m128i)_sum01);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum11, (__m128i)_sum21);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum11, (__m128i)_sum21);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum11, (__m128i)_sum21);
-                    _sum01 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum01 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum11 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum21 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum21 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum31 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum11 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1024,13 +1024,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum50 = (__m128)__lsx_vshuf4i_w((__m128i)_sum50, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum70 = (__m128)__lsx_vshuf4i_w((__m128i)_sum70, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum70, (__m128i)_sum40);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum70, (__m128i)_sum40);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum70, (__m128i)_sum40);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum50, (__m128i)_sum60);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum50, (__m128i)_sum60);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum50, (__m128i)_sum60);
-                    _sum40 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum40 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum50 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum60 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum60 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum70 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum50 = (__m128)__lsx_vshuf4i_w((__m128i)_sum50, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1039,13 +1039,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum51 = (__m128)__lsx_vshuf4i_w((__m128i)_sum51, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum71 = (__m128)__lsx_vshuf4i_w((__m128i)_sum71, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum71, (__m128i)_sum41);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum71, (__m128i)_sum41);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum71, (__m128i)_sum41);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum51, (__m128i)_sum61);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum51, (__m128i)_sum61);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum51, (__m128i)_sum61);
-                    _sum41 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum41 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum51 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum61 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum61 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum71 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum51 = (__m128)__lsx_vshuf4i_w((__m128i)_sum51, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1222,13 +1222,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum10 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum30 = (__m128)__lsx_vshuf4i_w((__m128i)_sum30, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum30, (__m128i)_sum00);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum30, (__m128i)_sum00);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum30, (__m128i)_sum00);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum10, (__m128i)_sum20);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum10, (__m128i)_sum20);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum10, (__m128i)_sum20);
-                    _sum00 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum00 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum10 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum20 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum20 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum30 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum10 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1237,13 +1237,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum11 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum31 = (__m128)__lsx_vshuf4i_w((__m128i)_sum31, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum31, (__m128i)_sum01);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum31, (__m128i)_sum01);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum31, (__m128i)_sum01);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum11, (__m128i)_sum21);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum11, (__m128i)_sum21);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum11, (__m128i)_sum21);
-                    _sum01 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum01 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum11 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum21 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum21 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum31 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum11 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1346,7 +1346,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 int v = pB[0] | (pB[1] << 16);
                 __m128i _zero = (__m128i)__lsx_vreplgr2vr_w(0);
                 __m128i _raw = (__m128i)__lsx_vreplgr2vr_w(v);
-                __m128 _pB = (__m128)__lsx_vilvr_h(_raw, _zero);
+                __m128 _pB = (__m128)__lsx_vilvl_h(_raw, _zero);
                 __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum00 = __lsx_vfmadd_s(_pA0, _pB, _sum00);
@@ -1363,14 +1363,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 {
                     __m128 _tmp0 = (__m128)__lsx_vshuf4i_w((__m128i)_sum00, _LSX_SHUFFLE(3, 1, 2, 0));
                     __m128 _tmp1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(0, 2, 3, 1));
-                    _sum00 = (__m128)__lsx_vilvr_w((__m128i)_tmp1, (__m128i)_tmp0);
+                    _sum00 = (__m128)__lsx_vilvl_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum10 = (__m128)__lsx_vilvh_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum10 = (__m128)__lsx_vshuf4i_w((__m128i)_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
                 }
                 {
                     __m128 _tmp0 = (__m128)__lsx_vshuf4i_w((__m128i)_sum01, _LSX_SHUFFLE(3, 1, 2, 0));
                     __m128 _tmp1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(0, 2, 3, 1));
-                    _sum01 = (__m128)__lsx_vilvr_w((__m128i)_tmp1, (__m128i)_tmp0);
+                    _sum01 = (__m128)__lsx_vilvl_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum11 = (__m128)__lsx_vilvh_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum11 = (__m128)__lsx_vshuf4i_w((__m128i)_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
                 }
@@ -1626,13 +1626,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum3 = (__m128)__lsx_vshuf4i_w((__m128i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum3, (__m128i)_sum0);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum3, (__m128i)_sum0);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum3, (__m128i)_sum0);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum1, (__m128i)_sum2);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum1, (__m128i)_sum2);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum1, (__m128i)_sum2);
-                    _sum0 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum0 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum1 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum2 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum2 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum3 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1641,13 +1641,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum5 = (__m128)__lsx_vshuf4i_w((__m128i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum7 = (__m128)__lsx_vshuf4i_w((__m128i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum7, (__m128i)_sum4);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum7, (__m128i)_sum4);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum7, (__m128i)_sum4);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum5, (__m128i)_sum6);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum5, (__m128i)_sum6);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum5, (__m128i)_sum6);
-                    _sum4 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum4 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum5 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum6 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum6 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum7 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum5 = (__m128)__lsx_vshuf4i_w((__m128i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1770,13 +1770,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                 _sum3 = (__m128)__lsx_vshuf4i_w((__m128i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
                 {
-                    __m128 _tmp0 = (__m128)__lsx_vilvr_w((__m128i)_sum3, (__m128i)_sum0);
+                    __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_sum3, (__m128i)_sum0);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_sum3, (__m128i)_sum0);
-                    __m128 _tmp2 = (__m128)__lsx_vilvr_w((__m128i)_sum1, (__m128i)_sum2);
+                    __m128 _tmp2 = (__m128)__lsx_vilvl_w((__m128i)_sum1, (__m128i)_sum2);
                     __m128 _tmp3 = (__m128)__lsx_vilvh_w((__m128i)_sum1, (__m128i)_sum2);
-                    _sum0 = (__m128)__lsx_vilvr_d((__m128i)_tmp2, (__m128i)_tmp0);
+                    _sum0 = (__m128)__lsx_vilvl_d((__m128i)_tmp2, (__m128i)_tmp0);
                     _sum1 = (__m128)__lsx_vilvh_d((__m128i)_tmp2, (__m128i)_tmp0);
-                    _sum2 = (__m128)__lsx_vilvr_d((__m128i)_tmp1, (__m128i)_tmp3);
+                    _sum2 = (__m128)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp3);
                     _sum3 = (__m128)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp3);
                 }
                 _sum1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
@@ -1859,7 +1859,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 int v = pB[0] | (pB[1] << 16);
                 __m128i _zero = (__m128i)__lsx_vreplgr2vr_w(0);
                 __m128i _raw = (__m128i)__lsx_vreplgr2vr_w(v);
-                __m128 _pB = (__m128)__lsx_vilvr_h(_raw, _zero);
+                __m128 _pB = (__m128)__lsx_vilvl_h(_raw, _zero);
                 __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
@@ -1874,7 +1874,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 {
                     __m128 _tmp0 = (__m128)__lsx_vshuf4i_w((__m128i)_sum0, _LSX_SHUFFLE(3, 1, 2, 0));
                     __m128 _tmp1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(0, 2, 3, 1));
-                    _sum0 = (__m128)__lsx_vilvr_w((__m128i)_tmp1, (__m128i)_tmp0);
+                    _sum0 = (__m128)__lsx_vilvl_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum1 = (__m128)__lsx_vilvh_w((__m128i)_tmp1, (__m128i)_tmp0);
                     _sum1 = (__m128)__lsx_vshuf4i_w((__m128i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
                 }
@@ -2838,14 +2838,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 __m256 _r2 = bfloat2float_lasx((__m128i)__lsx_vld(p0 + 16, 0));
                 __m256 _r3 = bfloat2float_lasx((__m128i)__lsx_vld(p0 + 24, 0));
                 transpose8x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r0), (__m128)__lasx_extract_lo128((__m256i)_r0)), pp, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r0), (__m128)__lasx_extract_hi128((__m256i)_r0)), pp + 4, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r1), (__m128)__lasx_extract_lo128((__m256i)_r1)), pp + 8, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r1), (__m128)__lasx_extract_hi128((__m256i)_r1)), pp + 12, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r2), (__m128)__lasx_extract_lo128((__m256i)_r2)), pp + 16, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r2), (__m128)__lasx_extract_hi128((__m256i)_r2)), pp + 20, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r3), (__m128)__lasx_extract_lo128((__m256i)_r3)), pp + 24, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r3), (__m128)__lasx_extract_hi128((__m256i)_r3)), pp + 28, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r0), __lasx_extract_128_lo_s(_r0)), pp, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r0), __lasx_extract_128_hi_s(_r0)), pp + 4, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r1), __lasx_extract_128_lo_s(_r1)), pp + 8, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r1), __lasx_extract_128_hi_s(_r1)), pp + 12, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r2), __lasx_extract_128_lo_s(_r2)), pp + 16, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r2), __lasx_extract_128_hi_s(_r2)), pp + 20, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r3), __lasx_extract_128_lo_s(_r3)), pp + 24, 0, 0);
+                __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r3), __lasx_extract_128_hi_s(_r3)), pp + 28, 0, 0);
                 pp += 32;
                 p0 += bottom_blob.cstep * 8;
             }
@@ -3230,14 +3230,14 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m256 _r2 = bfloat2float_lasx((__m128i)__lsx_vld(sptr + stride_w * 16, 0));
                     __m256 _r3 = bfloat2float_lasx((__m128i)__lsx_vld(sptr + stride_w * 24, 0));
                     transpose8x4_ps(_r0, _r1, _r2, _r3);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r0), (__m128)__lasx_extract_lo128((__m256i)_r0)), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r0), (__m128)__lasx_extract_hi128((__m256i)_r0)), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r1), (__m128)__lasx_extract_lo128((__m256i)_r1)), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r1), (__m128)__lasx_extract_hi128((__m256i)_r1)), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r2), (__m128)__lasx_extract_lo128((__m256i)_r2)), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r2), (__m128)__lasx_extract_hi128((__m256i)_r2)), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r3), (__m128)__lasx_extract_lo128((__m256i)_r3)), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r3), (__m128)__lasx_extract_hi128((__m256i)_r3)), pp + 4 * 7, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r0), __lasx_extract_128_lo_s(_r0)), pp + 4 * 0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r0), __lasx_extract_128_hi_s(_r0)), pp + 4 * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r1), __lasx_extract_128_lo_s(_r1)), pp + 4 * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r1), __lasx_extract_128_hi_s(_r1)), pp + 4 * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r2), __lasx_extract_128_lo_s(_r2)), pp + 4 * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r2), __lasx_extract_128_hi_s(_r2)), pp + 4 * 5, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r3), __lasx_extract_128_lo_s(_r3)), pp + 4 * 6, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r3), __lasx_extract_128_hi_s(_r3)), pp + 4 * 7, 0, 0);
                     pp += 32;
                 }
 #endif // __loongarch_asx
@@ -3298,14 +3298,14 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m256 _r2 = bfloat2float_lasx((__m128i)__lsx_vld(sptr2, 0));
                     __m256 _r3 = bfloat2float_lasx((__m128i)__lsx_vld(sptr3, 0));
                     transpose8x4_ps(_r0, _r1, _r2, _r3);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r0), (__m128)__lasx_extract_lo128((__m256i)_r0)), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r0), (__m128)__lasx_extract_hi128((__m256i)_r0)), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r1), (__m128)__lasx_extract_lo128((__m256i)_r1)), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r1), (__m128)__lasx_extract_hi128((__m256i)_r1)), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r2), (__m128)__lasx_extract_lo128((__m256i)_r2)), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r2), (__m128)__lasx_extract_hi128((__m256i)_r2)), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_lo128((__m256i)_r3), (__m128)__lasx_extract_lo128((__m256i)_r3)), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx((__m128)__lasx_extract_hi128((__m256i)_r3), (__m128)__lasx_extract_hi128((__m256i)_r3)), pp + 4 * 7, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r0), __lasx_extract_128_lo_s(_r0)), pp + 4 * 0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r0), __lasx_extract_128_hi_s(_r0)), pp + 4 * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r1), __lasx_extract_128_lo_s(_r1)), pp + 4 * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r1), __lasx_extract_128_hi_s(_r1)), pp + 4 * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r2), __lasx_extract_128_lo_s(_r2)), pp + 4 * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r2), __lasx_extract_128_hi_s(_r2)), pp + 4 * 5, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_lo_s(_r3), __lasx_extract_128_lo_s(_r3)), pp + 4 * 6, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(__lasx_extract_128_hi_s(_r3), __lasx_extract_128_hi_s(_r3)), pp + 4 * 7, 0, 0);
                     pp += 32;
                 }
 #endif // __loongarch_asx

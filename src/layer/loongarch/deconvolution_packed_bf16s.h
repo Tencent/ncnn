@@ -1056,7 +1056,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
 
-                                __m256 _r0 = combine4x2_ps(bfloat2float_lsx(sptr0), bfloat2float_lsx(sptr1));
+                                __m256 _r0 = __lasx_concat_128_s(bfloat2float_lsx(sptr0), bfloat2float_lsx(sptr1));
                                 __m256 _w0 = bfloat2float_lasx((__m128i)__lsx_vld(kptr0, 0));
                                 __m256 _w1 = bfloat2float_lasx((__m128i)__lsx_vld(kptr0 + 8, 0));
 
@@ -1304,7 +1304,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
 
-                                __m256 _r0 = combine4x2_ps(bfloat2float_lsx(sptr0), bfloat2float_lsx(sptr1));
+                                __m256 _r0 = __lasx_concat_128_s(bfloat2float_lsx(sptr0), bfloat2float_lsx(sptr1));
                                 __m256 _w = bfloat2float_lasx((__m128i)__lsx_vld(kptr0, 0));
                                 _sum_256 = __lasx_xvfmadd_s(_r0, _w, _sum_256);
                             }

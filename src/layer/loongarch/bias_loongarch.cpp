@@ -47,7 +47,7 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #if __loongarch_sx
         __m128 _bias = (elempack == 4) ? (__m128)__lsx_vld(bias_ptr + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(bias_ptr[q]);
 #if __loongarch_asx
-        __m256 _bias256 = (elempack == 8) ? (__m256)__lasx_xvld(bias_ptr + q * 8, 0) : combine4x2_ps(_bias, _bias);
+        __m256 _bias256 = (elempack == 8) ? (__m256)__lasx_xvld(bias_ptr + q * 8, 0) : __lasx_concat_128_s(_bias, _bias);
 #endif
 #endif
         float bias = bias_ptr[q];
@@ -102,7 +102,7 @@ int Bias_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #if __loongarch_sx
         __m128 _bias = (elempack == 4) ? (__m128)__lsx_vld(bias_ptr + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(bias_ptr[q]);
 #if __loongarch_asx
-        __m256 _bias256 = (elempack == 8) ? (__m256)__lasx_xvld(bias_ptr + q * 8, 0) : combine4x2_ps(_bias, _bias);
+        __m256 _bias256 = (elempack == 8) ? (__m256)__lasx_xvld(bias_ptr + q * 8, 0) : __lasx_concat_128_s(_bias, _bias);
 #endif
 #endif
         float bias = bias_ptr[q];
