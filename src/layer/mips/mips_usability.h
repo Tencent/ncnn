@@ -145,6 +145,40 @@ static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
     return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 
+static NCNN_FORCEINLINE v4i32 __msa_set_w(int v0, int v1, int v2, int v3)
+{
+    v4i32 _v = __msa_fill_w(v0);
+    _v = __msa_insert_w(_v, 1, v1);
+    _v = __msa_insert_w(_v, 2, v2);
+    _v = __msa_insert_w(_v, 3, v3);
+    return _v;
+}
+
+static NCNN_FORCEINLINE v4i32 __msa_loadl_d(const void* ptr)
+{
+    // Load low 64 bits only; callers must not depend on the upper 64 bits.
+#if __mips64
+    return (v4i32)__msa_fill_d(*(const int64_t*)ptr);
+#else
+    const int* ptr32 = (const int*)ptr;
+    v4i32 _v = __msa_fill_w(ptr32[0]);
+    _v = __msa_insert_w(_v, 1, ptr32[1]);
+    return _v;
+#endif
+}
+
+static NCNN_FORCEINLINE v4i32 __msa_fill_d_ptr(const void* ptr)
+{
+#if __mips64
+    return (v4i32)__msa_fill_d(*(const int64_t*)ptr);
+#else
+    const int* ptr32 = (const int*)ptr;
+    v4i32 _v = __msa_fill_w(ptr32[0]);
+    _v = __msa_insert_w(_v, 1, ptr32[1]);
+    return (v4i32)__msa_ilvr_d((v2i64)_v, (v2i64)_v);
+#endif
+}
+
 static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)
 {
     // _v = {f0, f1, f2, f3}
@@ -591,15 +625,11 @@ static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const v4i32& v0)
     return (v4f32)__msa_ilvr_h((v8i16)v0, _zero);
 }
 
-// Load 4 bf16 values from potentially unaligned pointer and convert to fp32
-// Use __msa_ld_b instead of __msa_ld_w to avoid 16-byte alignment masking
+// Load 4 bf16 values from memory and convert to fp32
 static NCNN_FORCEINLINE v4f32 bfloat2float_msa(const unsigned short* ptr)
 {
-    // Use 64-bit load (not 128-bit __msa_ld_b) to avoid overread past allocation
-    int64_t v;
-    memcpy(&v, ptr, 8);
     v8i16 _zero = (v8i16)__msa_fill_w(0);
-    v8i16 _raw = (v8i16)__msa_fill_d(v);
+    v8i16 _raw = (v8i16)__msa_loadl_d(ptr);
     return (v4f32)__msa_ilvr_h(_raw, _zero);
 }
 

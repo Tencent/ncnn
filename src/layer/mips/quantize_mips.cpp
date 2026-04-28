@@ -386,9 +386,10 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
         _v3 = __msa_fmul_w(_v3, _scale1);
         int64_t v01 = float2int8(_v0, _v1);
         int64_t v23 = float2int8(_v2, _v3);
-        v2i64 result = __msa_insert_d(__msa_fill_d(0), 0, v01);
-        result = __msa_insert_d(result, 1, v23);
-        __msa_st_w((v4i32)result, s8ptr, 0);
+        const int* v01ptr = (const int*)&v01;
+        const int* v23ptr = (const int*)&v23;
+        v4i32 _result = __msa_set_w(v01ptr[0], v01ptr[1], v23ptr[0], v23ptr[1]);
+        __msa_st_w(_result, s8ptr, 0);
         ptr0 += 8;
         ptr1 += 8;
         s8ptr += 16;
@@ -439,13 +440,15 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
 
         int64_t lo0426 = float2int8(_v0, _v4);
         int64_t hi0426 = float2int8(_v2, _v6);
-        v16i8 v0426 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, lo0426);
-        v0426 = (v16i8)__msa_insert_d((v2i64)v0426, 1, hi0426);
+        const int* lo0426ptr = (const int*)&lo0426;
+        const int* hi0426ptr = (const int*)&hi0426;
+        v16i8 v0426 = (v16i8)__msa_set_w(lo0426ptr[0], lo0426ptr[1], hi0426ptr[0], hi0426ptr[1]);
 
         int64_t lo1537 = float2int8(_v1, _v5);
         int64_t hi1537 = float2int8(_v3, _v7);
-        v16i8 v1537 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, lo1537);
-        v1537 = (v16i8)__msa_insert_d((v2i64)v1537, 1, hi1537);
+        const int* lo1537ptr = (const int*)&lo1537;
+        const int* hi1537ptr = (const int*)&hi1537;
+        v16i8 v1537 = (v16i8)__msa_set_w(lo1537ptr[0], lo1537ptr[1], hi1537ptr[0], hi1537ptr[1]);
 
         v16i8 v0145 = __msa_ilvr_b(v1537, v0426);
         v16i8 v2367 = __msa_ilvl_b(v1537, v0426);

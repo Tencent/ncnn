@@ -96,14 +96,14 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             __builtin_prefetch(p5 + 32);
             __builtin_prefetch(p6 + 32);
             __builtin_prefetch(p7 + 32);
-            v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v4i32 _r3 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
-            v4i32 _r4 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p4);
-            v4i32 _r5 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p5);
-            v4i32 _r6 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p6);
-            v4i32 _r7 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p7);
+            v4i32 _r0 = __msa_loadl_d(p0);
+            v4i32 _r1 = __msa_loadl_d(p1);
+            v4i32 _r2 = __msa_loadl_d(p2);
+            v4i32 _r3 = __msa_loadl_d(p3);
+            v4i32 _r4 = __msa_loadl_d(p4);
+            v4i32 _r5 = __msa_loadl_d(p5);
+            v4i32 _r6 = __msa_loadl_d(p6);
+            v4i32 _r7 = __msa_loadl_d(p7);
             transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
             __msa_st_b((v16i8)_r0, pp, 0);
             __msa_st_b((v16i8)_r1, pp + 16, 0);
@@ -121,14 +121,8 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
-            uint64_t v2 = (uint32_t) * (const unsigned int*)p4 | ((uint64_t)(uint32_t) * (const unsigned int*)p5 << 32);
-            uint64_t v3 = (uint32_t) * (const unsigned int*)p6 | ((uint64_t)(uint32_t) * (const unsigned int*)p7 << 32);
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
-            _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
-            v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v2);
-            _r1 = (v16i8)__msa_insert_d((v2i64)_r1, 1, v3);
+            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
+            v16i8 _r1 = (v16i8)__msa_set_w(*(const int*)p4, *(const int*)p5, *(const int*)p6, *(const int*)p7);
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
             pp += 32;
@@ -197,10 +191,10 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             __builtin_prefetch(p1 + 32);
             __builtin_prefetch(p2 + 32);
             __builtin_prefetch(p3 + 32);
-            v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v4i32 _r3 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
+            v4i32 _r0 = __msa_loadl_d(p0);
+            v4i32 _r1 = __msa_loadl_d(p1);
+            v4i32 _r2 = __msa_loadl_d(p2);
+            v4i32 _r3 = __msa_loadl_d(p3);
             transpose4x4_epi32(_r0, _r1, _r2, _r3);
             __msa_st_b((v16i8)_r0, pp, 0);
             __msa_st_b((v16i8)_r1, pp + 16, 0);
@@ -212,10 +206,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
-            _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
+            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
             __msa_st_b(_r0, pp, 0);
             pp += 16;
             p0 += 4;
@@ -317,10 +308,10 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             const signed char* p2 = p1 + A_hstep;
             const signed char* p3 = p2 + A_hstep;
 
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v16i8 _r2 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v16i8 _r3 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
+            v16i8 _r0 = (v16i8)__msa_loadl_d(p0);
+            v16i8 _r1 = (v16i8)__msa_loadl_d(p1);
+            v16i8 _r2 = (v16i8)__msa_loadl_d(p2);
+            v16i8 _r3 = (v16i8)__msa_loadl_d(p3);
             transpose16x4_epi8(_r0, _r1, _r2, _r3);
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
@@ -506,14 +497,14 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             __builtin_prefetch(p5 + 32);
             __builtin_prefetch(p6 + 32);
             __builtin_prefetch(p7 + 32);
-            v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v4i32 _r3 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
-            v4i32 _r4 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p4);
-            v4i32 _r5 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p5);
-            v4i32 _r6 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p6);
-            v4i32 _r7 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p7);
+            v4i32 _r0 = __msa_loadl_d(p0);
+            v4i32 _r1 = __msa_loadl_d(p1);
+            v4i32 _r2 = __msa_loadl_d(p2);
+            v4i32 _r3 = __msa_loadl_d(p3);
+            v4i32 _r4 = __msa_loadl_d(p4);
+            v4i32 _r5 = __msa_loadl_d(p5);
+            v4i32 _r6 = __msa_loadl_d(p6);
+            v4i32 _r7 = __msa_loadl_d(p7);
             transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
             __msa_st_b((v16i8)_r0, pp, 0);
             __msa_st_b((v16i8)_r1, pp + 16, 0);
@@ -531,14 +522,8 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
-            uint64_t v2 = (uint32_t) * (const unsigned int*)p4 | ((uint64_t)(uint32_t) * (const unsigned int*)p5 << 32);
-            uint64_t v3 = (uint32_t) * (const unsigned int*)p6 | ((uint64_t)(uint32_t) * (const unsigned int*)p7 << 32);
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
-            _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
-            v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v2);
-            _r1 = (v16i8)__msa_insert_d((v2i64)_r1, 1, v3);
+            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
+            v16i8 _r1 = (v16i8)__msa_set_w(*(const int*)p4, *(const int*)p5, *(const int*)p6, *(const int*)p7);
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
             pp += 32;
@@ -607,10 +592,10 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             __builtin_prefetch(p1 + 32);
             __builtin_prefetch(p2 + 32);
             __builtin_prefetch(p3 + 32);
-            v4i32 _r0 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v4i32 _r1 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v4i32 _r2 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v4i32 _r3 = (v4i32)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
+            v4i32 _r0 = __msa_loadl_d(p0);
+            v4i32 _r1 = __msa_loadl_d(p1);
+            v4i32 _r2 = __msa_loadl_d(p2);
+            v4i32 _r3 = __msa_loadl_d(p3);
             transpose4x4_epi32(_r0, _r1, _r2, _r3);
             __msa_st_b((v16i8)_r0, pp, 0);
             __msa_st_b((v16i8)_r1, pp + 16, 0);
@@ -622,10 +607,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            uint64_t v0 = (uint32_t) * (const unsigned int*)p0 | ((uint64_t)(uint32_t) * (const unsigned int*)p1 << 32);
-            uint64_t v1 = (uint32_t) * (const unsigned int*)p2 | ((uint64_t)(uint32_t) * (const unsigned int*)p3 << 32);
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, v0);
-            _r0 = (v16i8)__msa_insert_d((v2i64)_r0, 1, v1);
+            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
             __msa_st_b(_r0, pp, 0);
             pp += 16;
             p0 += 4;
@@ -727,10 +709,10 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             const signed char* p2 = p1 + B_hstep;
             const signed char* p3 = p2 + B_hstep;
 
-            v16i8 _r0 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p0);
-            v16i8 _r1 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p1);
-            v16i8 _r2 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p2);
-            v16i8 _r3 = (v16i8)__msa_insert_d(__msa_fill_d(0), 0, *(const int64_t*)p3);
+            v16i8 _r0 = (v16i8)__msa_loadl_d(p0);
+            v16i8 _r1 = (v16i8)__msa_loadl_d(p1);
+            v16i8 _r2 = (v16i8)__msa_loadl_d(p2);
+            v16i8 _r3 = (v16i8)__msa_loadl_d(p3);
             transpose16x4_epi8(_r0, _r1, _r2, _r3);
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
@@ -1779,10 +1761,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 "lw             $10, 4(%0)                      \n"
                 "lw             $11, 0(%1)                      \n"
                 "lw             $12, 4(%1)                      \n"
-                "fill.d         $w16, $9                         \n"
-                "fill.d         $w17, $10                        \n"
-                "fill.d         $w20, $11                        \n"
-                "fill.d         $w21, $12                        \n"
+                "fill.w         $w16, $9                         \n"
+                "fill.w         $w17, $10                        \n"
+                "fill.w         $w20, $11                        \n"
+                "fill.w         $w21, $12                        \n"
                 "clti_s.b       $w24, $w16, 0                   \n"
                 "clti_s.b       $w25, $w17, 0                   \n"
                 "clti_s.b       $w26, $w20, 0                   \n"
@@ -1991,15 +1973,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_d(*(int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 v8i16 _pA0r = __msa_shf_h(_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
                 v8i16 _pA1r = __msa_shf_h(_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_d(*(int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
-                v8i16 _pB1 = (v8i16)__msa_fill_d(*(int*)(pB + 4));
+                v8i16 _pB1 = (v8i16)__msa_fill_w(*(const int*)(pB + 4));
                 _pB1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB1, 0), (v16i8)_pB1);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                 v8i16 _pB1r = __msa_shf_h(_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
@@ -2123,13 +2105,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_d(*(int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 v8i16 _pA0r = __msa_shf_h(_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
                 v8i16 _pA1r = __msa_shf_h(_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_d(*(int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
@@ -2196,7 +2178,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pB + 16);
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
-                v16i8 _pB0 = (v16i8)__msa_fill_d(*(const int64_t*)pB);
+                v16i8 _pB0 = (v16i8)__msa_fill_d_ptr(pB);
                 v16i8 _pB0r = (v16i8)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
                 _sum00 = __msa_dpadd_s_w(_sum00, __msa_dotp_s_h(_pA0, _pB0), _one);
@@ -2209,9 +2191,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_d(*(int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 int b01 = (unsigned char)pB[0] | ((unsigned char)pB[1] << 8);
                 v8i16 _pB0 = (v8i16)__msa_fill_w(b01);
@@ -2274,9 +2256,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_d(*(int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
 
                 v8i16 _pB0 = __msa_fill_h(pB[0]);
@@ -2365,12 +2347,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
                 v8i16 _pAr = __msa_shf_h(_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_d(*(int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
-                v8i16 _pB1 = (v8i16)__msa_fill_d(*(int*)(pB + 4));
+                v8i16 _pB1 = (v8i16)__msa_fill_w(*(const int*)(pB + 4));
                 _pB1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB1, 0), (v16i8)_pB1);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                 v8i16 _pB1r = __msa_shf_h(_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
@@ -2452,10 +2434,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
                 v8i16 _pAr = __msa_shf_h(_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_d(*(int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
@@ -2504,7 +2486,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 16);
                 v16i8 _pA = __msa_ld_b(pA, 0);
-                v16i8 _pB0 = (v16i8)__msa_fill_d(*(const int64_t*)pB);
+                v16i8 _pB0 = (v16i8)__msa_fill_d_ptr(pB);
                 v16i8 _pB0r = (v16i8)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
@@ -2515,7 +2497,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
 
                 int b01 = (unsigned char)pB[0] | ((unsigned char)pB[1] << 8);
@@ -2569,7 +2551,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_d(*(int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
 
                 v8i16 _pB0 = __msa_fill_h(pB[0]);
@@ -2627,7 +2609,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 64);
-                v16i8 _pA = (v16i8)__msa_fill_d(*(const int64_t*)pA);
+                v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB1 = __msa_ld_b(pB + 16, 0);
 
@@ -2727,7 +2709,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 32);
-                v16i8 _pA = (v16i8)__msa_fill_d(*(const int64_t*)pA);
+                v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB01 = (v16i8)__msa_ilvr_w((v4i32)_pB0, (v4i32)_pB0);
                 v16i8 _pB23 = (v16i8)__msa_ilvl_w((v4i32)_pB0, (v4i32)_pB0);
