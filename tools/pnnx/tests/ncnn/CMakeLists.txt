@@ -144,6 +144,7 @@ pnnx_ncnn_add_test(nn_UpsamplingNearest2d)
 pnnx_ncnn_add_test(nn_ZeroPad2d)
 
 pnnx_ncnn_add_test(Tensor_expand)
+pnnx_ncnn_add_test(Tensor_masked_fill)
 pnnx_ncnn_add_test(Tensor_permute)
 pnnx_ncnn_add_test(Tensor_repeat)
 pnnx_ncnn_add_test(Tensor_reshape)

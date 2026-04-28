@@ -34,10 +34,12 @@ static void where_broadcast_scalar_a_scalar_b(const Mat& cond, float a, float b,
         const signed char* cond_ptr = (const signed char*)cond;
         float* outptr = (float*)c.data;
 
+        const int cond_inc = cond.w > 1 ? 1 : 0;
+
         for (int x = 0; x < w; x++)
         {
             outptr[x] = *cond_ptr != 0 ? a : b;
-            cond_ptr++;
+            cond_ptr += cond_inc;
         }
     }
 
@@ -49,10 +51,12 @@ static void where_broadcast_scalar_a_scalar_b(const Mat& cond, float a, float b,
             const signed char* cond_ptr = (const signed char*)cond.row(std::min(y, cond.h - 1));
             float* outptr = (float*)c.row(y);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
+
             for (int x = 0; x < w; x++)
             {
                 outptr[x] = *cond_ptr != 0 ? a : b;
-                cond_ptr++;
+                cond_ptr += cond_inc;
             }
         }
     }
@@ -64,6 +68,8 @@ static void where_broadcast_scalar_a_scalar_b(const Mat& cond, float a, float b,
         {
             float* outptr = (float*)c.channel(q);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
+
             for (int z = 0; z < d; z++)
             {
                 for (int y = 0; y < h; y++)
@@ -73,7 +79,7 @@ static void where_broadcast_scalar_a_scalar_b(const Mat& cond, float a, float b,
                     for (int x = 0; x < w; x++)
                     {
                         outptr[x] = *cond_ptr != 0 ? a : b;
-                        cond_ptr++;
+                        cond_ptr += cond_inc;
                     }
 
                     outptr += w;
@@ -97,12 +103,13 @@ static void where_broadcast_scalar_a(const Mat& cond, float a, const Mat& b, Mat
         const float* b_ptr = (const float*)b;
         float* outptr = (float*)c.data;
 
+        const int cond_inc = cond.w > 1 ? 1 : 0;
         const int b_inc = b.w > 1 ? 1 : 0;
 
         for (int x = 0; x < w; x++)
         {
             outptr[x] = *cond_ptr != 0 ? a : *b_ptr;
-            cond_ptr++;
+            cond_ptr += cond_inc;
             b_ptr += b_inc;
         }
     }
@@ -116,12 +123,13 @@ static void where_broadcast_scalar_a(const Mat& cond, float a, const Mat& b, Mat
             const float* b_ptr = (const float*)b.row(std::min(y, b.h - 1));
             float* outptr = (float*)c.row(y);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int b_inc = b.w > 1 ? 1 : 0;
 
             for (int x = 0; x < w; x++)
             {
                 outptr[x] = *cond_ptr != 0 ? a : *b_ptr;
-                cond_ptr++;
+                cond_ptr += cond_inc;
                 b_ptr += b_inc;
             }
         }
@@ -134,6 +142,7 @@ static void where_broadcast_scalar_a(const Mat& cond, float a, const Mat& b, Mat
         {
             float* outptr = (float*)c.channel(q);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int b_inc = b.w > 1 ? 1 : 0;
 
             for (int z = 0; z < d; z++)
@@ -146,7 +155,7 @@ static void where_broadcast_scalar_a(const Mat& cond, float a, const Mat& b, Mat
                     for (int x = 0; x < w; x++)
                     {
                         outptr[x] = *cond_ptr != 0 ? a : *b_ptr;
-                        cond_ptr++;
+                        cond_ptr += cond_inc;
                         b_ptr += b_inc;
                     }
 
@@ -171,12 +180,13 @@ static void where_broadcast_scalar_b(const Mat& cond, const Mat& a, float b, Mat
         const float* a_ptr = (const float*)a;
         float* outptr = (float*)c.data;
 
+        const int cond_inc = cond.w > 1 ? 1 : 0;
         const int a_inc = a.w > 1 ? 1 : 0;
 
         for (int x = 0; x < w; x++)
         {
             outptr[x] = *cond_ptr != 0 ? *a_ptr : b;
-            cond_ptr++;
+            cond_ptr += cond_inc;
             a_ptr += a_inc;
         }
     }
@@ -190,12 +200,13 @@ static void where_broadcast_scalar_b(const Mat& cond, const Mat& a, float b, Mat
             const float* a_ptr = (const float*)a.row(std::min(y, a.h - 1));
             float* outptr = (float*)c.row(y);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int a_inc = a.w > 1 ? 1 : 0;
 
             for (int x = 0; x < w; x++)
             {
                 outptr[x] = *cond_ptr != 0 ? *a_ptr : b;
-                cond_ptr++;
+                cond_ptr += cond_inc;
                 a_ptr += a_inc;
             }
         }
@@ -208,6 +219,7 @@ static void where_broadcast_scalar_b(const Mat& cond, const Mat& a, float b, Mat
         {
             float* outptr = (float*)c.channel(q);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int a_inc = a.w > 1 ? 1 : 0;
 
             for (int z = 0; z < d; z++)
@@ -220,7 +232,7 @@ static void where_broadcast_scalar_b(const Mat& cond, const Mat& a, float b, Mat
                     for (int x = 0; x < w; x++)
                     {
                         outptr[x] = *cond_ptr != 0 ? *a_ptr : b;
-                        cond_ptr++;
+                        cond_ptr += cond_inc;
                         a_ptr += a_inc;
                     }
 
@@ -246,13 +258,14 @@ static void where_broadcast(const Mat& cond, const Mat& a, const Mat& b, Mat& c,
         const float* b_ptr = (const float*)b;
         float* outptr = (float*)c.data;
 
+        const int cond_inc = cond.w > 1 ? 1 : 0;
         const int a_inc = a.w > 1 ? 1 : 0;
         const int b_inc = b.w > 1 ? 1 : 0;
 
         for (int x = 0; x < w; x++)
         {
             outptr[x] = *cond_ptr != 0 ? *a_ptr : *b_ptr;
-            cond_ptr++;
+            cond_ptr += cond_inc;
             a_ptr += a_inc;
             b_ptr += b_inc;
         }
@@ -268,13 +281,14 @@ static void where_broadcast(const Mat& cond, const Mat& a, const Mat& b, Mat& c,
             const float* b_ptr = (const float*)b.row(std::min(y, b.h - 1));
             float* outptr = (float*)c.row(y);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int a_inc = a.w > 1 ? 1 : 0;
             const int b_inc = b.w > 1 ? 1 : 0;
 
             for (int x = 0; x < w; x++)
             {
                 outptr[x] = *cond_ptr != 0 ? *a_ptr : *b_ptr;
-                cond_ptr++;
+                cond_ptr += cond_inc;
                 a_ptr += a_inc;
                 b_ptr += b_inc;
             }
@@ -288,6 +302,7 @@ static void where_broadcast(const Mat& cond, const Mat& a, const Mat& b, Mat& c,
         {
             float* outptr = (float*)c.channel(q);
 
+            const int cond_inc = cond.w > 1 ? 1 : 0;
             const int a_inc = a.w > 1 ? 1 : 0;
             const int b_inc = b.w > 1 ? 1 : 0;
 
@@ -302,7 +317,7 @@ static void where_broadcast(const Mat& cond, const Mat& a, const Mat& b, Mat& c,
                     for (int x = 0; x < w; x++)
                     {
                         outptr[x] = *cond_ptr != 0 ? *a_ptr : *b_ptr;
-                        cond_ptr++;
+                        cond_ptr += cond_inc;
                         a_ptr += a_inc;
                         b_ptr += b_inc;
                     }
