@@ -102,65 +102,59 @@ static inline void qk_gemm_scalar(float* S, const float* Q, const float* K,
 static inline void vec_scale(float* x, float s, int n)
 {
 #if __AVX512F__
-    __m512 vscale = _mm512_set1_ps(s);
+    __m512 vscale512 = _mm512_set1_ps(s);
     int i = 0;
     for (; i + 15 < n; i += 16)
-        _mm512_storeu_ps(x + i, _mm512_mul_ps(_mm512_loadu_ps(x + i), vscale));
+        _mm512_storeu_ps(x + i, _mm512_mul_ps(_mm512_loadu_ps(x + i), vscale512));
     if (i < n)
     {
         __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
-        _mm512_mask_storeu_ps(x + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, x + i), vscale));
+        _mm512_mask_storeu_ps(x + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, x + i), vscale512));
     }
-#elif __AVX__
-    __m256 vscale = _mm256_set1_ps(s);
-    int i = 0;
-    for (; i + 7 < n; i += 8)
-        _mm256_storeu_ps(x + i, _mm256_mul_ps(_mm256_loadu_ps(x + i), vscale));
-    for (; i < n; i++)
-        x[i] *= s;
-#elif __SSE2__
-    __m128 vscale = _mm_set1_ps(s);
-    int i = 0;
-    for (; i + 3 < n; i += 4)
-        _mm_storeu_ps(x + i, _mm_mul_ps(_mm_loadu_ps(x + i), vscale));
-    for (; i < n; i++)
-        x[i] *= s;
 #else
-    for (int i = 0; i < n; i++)
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+    __m256 vscale256 = _mm256_set1_ps(s);
+    for (; i + 7 < n; i += 8)
+        _mm256_storeu_ps(x + i, _mm256_mul_ps(_mm256_loadu_ps(x + i), vscale256));
+#endif // __AVX__
+    __m128 vscale128 = _mm_set1_ps(s);
+    for (; i + 3 < n; i += 4)
+        _mm_storeu_ps(x + i, _mm_mul_ps(_mm_loadu_ps(x + i), vscale128));
+#endif // __SSE2__
+    for (; i < n; i++)
         x[i] *= s;
-#endif
+#endif // __AVX512F__
 }
 
 static inline void vec_zero(float* x, int n)
 {
 #if __AVX512F__
-    __m512 zero = _mm512_setzero_ps();
+    __m512 zero512 = _mm512_setzero_ps();
     int i = 0;
     for (; i + 15 < n; i += 16)
-        _mm512_storeu_ps(x + i, zero);
+        _mm512_storeu_ps(x + i, zero512);
     if (i < n)
     {
         __mmask16 mask = (__mmask16)((1u << (n - i)) - 1);
-        _mm512_mask_storeu_ps(x + i, mask, zero);
+        _mm512_mask_storeu_ps(x + i, mask, zero512);
     }
-#elif __AVX__
-    __m256 zero = _mm256_setzero_ps();
-    int i = 0;
-    for (; i + 7 < n; i += 8)
-        _mm256_storeu_ps(x + i, zero);
-    for (; i < n; i++)
-        x[i] = 0.f;
-#elif __SSE2__
-    __m128 zero = _mm_setzero_ps();
-    int i = 0;
-    for (; i + 3 < n; i += 4)
-        _mm_storeu_ps(x + i, zero);
-    for (; i < n; i++)
-        x[i] = 0.f;
 #else
-    for (int i = 0; i < n; i++)
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+    __m256 zero256 = _mm256_setzero_ps();
+    for (; i + 7 < n; i += 8)
+        _mm256_storeu_ps(x + i, zero256);
+#endif // __AVX__
+    __m128 zero128 = _mm_setzero_ps();
+    for (; i + 3 < n; i += 4)
+        _mm_storeu_ps(x + i, zero128);
+#endif // __SSE2__
+    for (; i < n; i++)
         x[i] = 0.f;
-#endif
+#endif // __AVX512F__
 }
 
 static inline void softmax_tile(float* P, const float* S,
@@ -312,47 +306,44 @@ static inline void decode_pv_gemv(float* out, const float* s, const float* V, in
     for (int j = 0; j < block_n; j++)
     {
 #if __AVX512F__
-        __m512 pvec = _mm512_set1_ps(s[j]);
         int k = 0;
+        __m512 pvec512 = _mm512_set1_ps(s[j]);
         for (; k + 15 < out_d; k += 16)
         {
             __m512 oval = _mm512_loadu_ps(out + k);
             __m512 vval = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
-            _mm512_storeu_ps(out + k, _mm512_fmadd_ps(pvec, vval, oval));
+            _mm512_storeu_ps(out + k, _mm512_fmadd_ps(pvec512, vval, oval));
         }
         if (k < out_d)
         {
             __mmask16 mask_d = (__mmask16)((1u << (out_d - k)) - 1);
             __m512 oval = _mm512_maskz_loadu_ps(mask_d, out + k);
             __m512 vval = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j) * out_d + k);
-            _mm512_mask_storeu_ps(out + k, mask_d, _mm512_fmadd_ps(pvec, vval, oval));
+            _mm512_mask_storeu_ps(out + k, mask_d, _mm512_fmadd_ps(pvec512, vval, oval));
         }
-#elif __AVX__
-        __m256 pvec = _mm256_set1_ps(s[j]);
+#else
         int k = 0;
+#if __SSE2__
+#if __AVX__
+        __m256 pvec256 = _mm256_set1_ps(s[j]);
         for (; k + 7 < out_d; k += 8)
         {
             __m256 oval = _mm256_loadu_ps(out + k);
             __m256 vval = _mm256_loadu_ps(V + (n_start + j) * out_d + k);
-            _mm256_storeu_ps(out + k, _mm256_comp_fmadd_ps(pvec, vval, oval));
+            _mm256_storeu_ps(out + k, _mm256_comp_fmadd_ps(pvec256, vval, oval));
         }
-        for (; k < out_d; k++)
-            out[k] += s[j] * V[(n_start + j) * out_d + k];
-#elif __SSE2__
-        __m128 pvec = _mm_set1_ps(s[j]);
-        int k = 0;
+#endif // __AVX__
+        __m128 pvec128 = _mm_set1_ps(s[j]);
         for (; k + 3 < out_d; k += 4)
         {
             __m128 oval = _mm_loadu_ps(out + k);
             __m128 vval = _mm_loadu_ps(V + (n_start + j) * out_d + k);
-            _mm_storeu_ps(out + k, _mm_comp_fmadd_ps(pvec, vval, oval));
+            _mm_storeu_ps(out + k, _mm_comp_fmadd_ps(pvec128, vval, oval));
         }
+#endif // __SSE2__
         for (; k < out_d; k++)
             out[k] += s[j] * V[(n_start + j) * out_d + k];
-#else
-        for (int k = 0; k < out_d; k++)
-            out[k] += s[j] * V[(n_start + j) * out_d + k];
-#endif
+#endif // __AVX512F__
     }
 }
 
