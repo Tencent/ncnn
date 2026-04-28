@@ -603,30 +603,63 @@ static NCNN_FORCEINLINE __m256 sigmoid256_ps(__m256 _v)
 
 static NCNN_FORCEINLINE __m256 fmod256_ps(__m256 a, __m256 b)
 {
-    __m128 lo = fmod_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
-    __m128 hi = fmod_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
-    return combine4x2_ps(lo, hi);
+    // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    __m256i qi = __lasx_xvftintrz_w_s(q);
+    __m256 qf = __lasx_xvffint_s_w(qi);
+    return __lasx_xvfsub_s(a, __lasx_xvfmul_s(qf, b));
+}
+
+static NCNN_FORCEINLINE __m256 round256_ps(__m256 x)
+{
+    __m256 half = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i);
+    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+    __m256i sign_mask = __lasx_xvfcmp_clt_s(x, (__m256)__lasx_xvreplgr2vr_w(0));
+    __m256 abs_x = (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
+    __m256i xi = __lasx_xvftintrz_w_s(abs_x);
+    __m256 xf = __lasx_xvffint_s_w(xi);
+    __m256 diff = __lasx_xvfsub_s(abs_x, xf);
+    __m256i diff_gt_half = __lasx_xvfcmp_clt_s(half, diff);
+    __m256i diff_eq_half = __lasx_xvfcmp_ceq_s(diff, half);
+    __m256i xi_and_1 = __lasx_xvand_v(xi, __lasx_xvreplgr2vr_w(1));
+    __m256i is_odd = __lasx_xvseq_w(xi_and_1, __lasx_xvreplgr2vr_w(1));
+    __m256i round_up = __lasx_xvor_v(diff_gt_half, __lasx_xvand_v(diff_eq_half, is_odd));
+    __m256 rounded = __lasx_xvfadd_s(xf, (__m256)__lasx_xvand_v(round_up, (__m256i)one));
+    return (__m256)__lasx_xvbitsel_v((__m256i)rounded, (__m256i)__lasx_xvbitrevi_w((__m256i)rounded, 31), sign_mask);
 }
 
 static NCNN_FORCEINLINE __m256 logaddexp256_ps(__m256 a, __m256 b)
 {
-    __m128 lo = logaddexp_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
-    __m128 hi = logaddexp_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
-    return combine4x2_ps(lo, hi);
+    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+    __m256 max_xy = __lasx_xvfmax_s(a, b);
+    __m256 min_xy = __lasx_xvfmin_s(a, b);
+    __m256 diff = __lasx_xvfsub_s(min_xy, max_xy);
+    __m256 exp_diff = exp256_ps(diff);
+    __m256 one_plus_exp = __lasx_xvfadd_s(one, exp_diff);
+    __m256 log_result = log256_ps(one_plus_exp);
+    return __lasx_xvfadd_s(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m256 floor256_ps(__m256 x)
+{
+    __m256i xi = __lasx_xvftintrz_w_s(x);
+    __m256 xf = __lasx_xvffint_s_w(xi);
+    __m256i need_adjust = __lasx_xvfcmp_clt_s(x, xf);
+    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
+    return __lasx_xvfsub_s(xf, (__m256)__lasx_xvand_v(need_adjust, (__m256i)one));
 }
 
 static NCNN_FORCEINLINE __m256 floor_divide256_ps(__m256 a, __m256 b)
 {
-    __m128 lo = floor_divide_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
-    __m128 hi = floor_divide_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
-    return combine4x2_ps(lo, hi);
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    return floor256_ps(q);
 }
 
 static NCNN_FORCEINLINE __m256 remainder256_ps(__m256 a, __m256 b)
 {
-    __m128 lo = remainder_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
-    __m128 hi = remainder_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
-    return combine4x2_ps(lo, hi);
+    __m256 q = __lasx_xvfdiv_s(a, b);
+    __m256 rq = round256_ps(q);
+    return __lasx_xvfsub_s(a, __lasx_xvfmul_s(rq, b));
 }
 
 #endif // LASX_MATHFUN_H
