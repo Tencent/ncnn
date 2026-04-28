@@ -2089,123 +2089,126 @@ static inline void qk_gemm_specialized_avx(float* S, const float* Q, const float
     }
 }
 
-template<>
-void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
+template<int D, int M_BLOCK1, int M_BLOCK2>
+static inline void qk_gemm_specialized_tiled_avx(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
     int i = 0;
-    for (; i + 4 <= m; i += 4)
+    if (M_BLOCK2 > 0)
     {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
+        for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
-
-            __m256 acc[4][4];
-            for (int mi = 0; mi < 4; mi++)
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
             {
-                acc[mi][0] = _mm256_setzero_ps();
-                acc[mi][1] = _mm256_setzero_ps();
-                acc[mi][2] = _mm256_setzero_ps();
-                acc[mi][3] = _mm256_setzero_ps();
-            }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
 
-            for (int k = 0; k < 1024; k += 8)
-            {
-                __m256 kv0 = _mm256_loadu_ps(k0 + k);
-                __m256 kv1 = _mm256_loadu_ps(k1 + k);
-                __m256 kv2 = _mm256_loadu_ps(k2 + k);
-                __m256 kv3 = _mm256_loadu_ps(k3 + k);
-
-                for (int mi = 0; mi < 4; mi++)
+                __m256 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm256_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    acc[mi][0] = _mm256_setzero_ps();
+                    acc[mi][1] = _mm256_setzero_ps();
+                    acc[mi][2] = _mm256_setzero_ps();
+                    acc[mi][3] = _mm256_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 8)
+                {
+                    __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                    __m256 kv1 = _mm256_loadu_ps(k1 + k);
+                    __m256 kv2 = _mm256_loadu_ps(k2 + k);
+                    __m256 kv3 = _mm256_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm256_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm256_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm256_reduce_add_ps(acc[mi][3]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < 4; mi++)
+            for (; j + 2 <= n; j += 2)
             {
-                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm256_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm256_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
 
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-
-            __m256 acc[4][2];
-            for (int mi = 0; mi < 4; mi++)
-            {
-                acc[mi][0] = _mm256_setzero_ps();
-                acc[mi][1] = _mm256_setzero_ps();
-            }
-
-            for (int k = 0; k < 1024; k += 8)
-            {
-                __m256 kv0 = _mm256_loadu_ps(k0 + k);
-                __m256 kv1 = _mm256_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 4; mi++)
+                __m256 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    acc[mi][0] = _mm256_setzero_ps();
+                    acc[mi][1] = _mm256_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 8)
+                {
+                    __m256 kv0 = _mm256_loadu_ps(k0 + k);
+                    __m256 kv1 = _mm256_loadu_ps(k1 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < 4; mi++)
+            for (; j < n; j++)
             {
-                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
+                const float* kptr = K + j * D;
 
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * 1024;
+                __m256 acc[M_BLOCK2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    acc[mi] = _mm256_setzero_ps();
 
-            __m256 acc[4];
-            for (int mi = 0; mi < 4; mi++)
-                acc[mi] = _mm256_setzero_ps();
-
-            for (int k = 0; k < 1024; k += 8)
-            {
-                __m256 kvec = _mm256_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 4; mi++)
+                for (int k = 0; k < D; k += 8)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    __m256 kvec = _mm256_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
                 }
-            }
 
-            for (int mi = 0; mi < 4; mi++)
-                S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
+            }
         }
     }
 
-    for (; i + 2 <= m; i += 2)
+    for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
     {
         int j = 0;
         for (; j + 4 <= n; j += 4)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
 
-            __m256 acc[2][4];
-            for (int mi = 0; mi < 2; mi++)
+            __m256 acc[M_BLOCK1][4];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 acc[mi][0] = _mm256_setzero_ps();
                 acc[mi][1] = _mm256_setzero_ps();
@@ -2213,16 +2216,16 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
                 acc[mi][3] = _mm256_setzero_ps();
             }
 
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
             {
                 __m256 kv0 = _mm256_loadu_ps(k0 + k);
                 __m256 kv1 = _mm256_loadu_ps(k1 + k);
                 __m256 kv2 = _mm256_loadu_ps(k2 + k);
                 __m256 kv3 = _mm256_loadu_ps(k3 + k);
 
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                     acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
@@ -2230,7 +2233,7 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
                 S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
@@ -2241,30 +2244,30 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
 
         for (; j + 2 <= n; j += 2)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
 
-            __m256 acc[2][2];
-            for (int mi = 0; mi < 2; mi++)
+            __m256 acc[M_BLOCK1][2];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 acc[mi][0] = _mm256_setzero_ps();
                 acc[mi][1] = _mm256_setzero_ps();
             }
 
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
             {
                 __m256 kv0 = _mm256_loadu_ps(k0 + k);
                 __m256 kv1 = _mm256_loadu_ps(k1 + k);
 
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
                 S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
@@ -2273,23 +2276,23 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
 
         for (; j < n; j++)
         {
-            const float* kptr = K + j * 1024;
+            const float* kptr = K + j * D;
 
-            __m256 acc[2];
-            for (int mi = 0; mi < 2; mi++)
+            __m256 acc[M_BLOCK1];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
                 acc[mi] = _mm256_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
             {
                 __m256 kvec = _mm256_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
                 S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
         }
     }
@@ -2299,18 +2302,18 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
         int j = 0;
         for (; j + 4 <= n; j += 4)
         {
-            const float* qptr = Q + i * 1024;
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
 
             __m256 acc0 = _mm256_setzero_ps();
             __m256 acc1 = _mm256_setzero_ps();
             __m256 acc2 = _mm256_setzero_ps();
             __m256 acc3 = _mm256_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
             {
                 __m256 qvec = _mm256_loadu_ps(qptr + k);
                 acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
@@ -2327,14 +2330,14 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
 
         for (; j + 2 <= n; j += 2)
         {
-            const float* qptr = Q + i * 1024;
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
 
             __m256 acc0 = _mm256_setzero_ps();
             __m256 acc1 = _mm256_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
             {
                 __m256 qvec = _mm256_loadu_ps(qptr + k);
                 acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
@@ -2347,182 +2350,22 @@ void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
 
         for (; j < n; j++)
         {
-            const float* qptr = Q + i * 1024;
-            const float* kptr = K + j * 1024;
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
             __m256 vacc = _mm256_setzero_ps();
-            for (int k = 0; k < 1024; k += 8)
+            for (int k = 0; k < D; k += 8)
                 vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
             S[i * n + j] = _mm256_reduce_add_ps(vacc) * scale;
         }
     }
 }
 
-template<int D>
-static inline void qk_gemm_specialized_tiled_avx(float* S, const float* Q, const float* K,
+
+template<>
+void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    int i = 0;
-    for (; i + 2 <= m; i += 2)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-            const float* k2 = K + (j + 2) * D;
-            const float* k3 = K + (j + 3) * D;
-
-            __m256 acc[2][4];
-            for (int mi = 0; mi < 2; mi++)
-            {
-                acc[mi][0] = _mm256_setzero_ps();
-                acc[mi][1] = _mm256_setzero_ps();
-                acc[mi][2] = _mm256_setzero_ps();
-                acc[mi][3] = _mm256_setzero_ps();
-            }
-
-            for (int k = 0; k < D; k += 8)
-            {
-                __m256 kv0 = _mm256_loadu_ps(k0 + k);
-                __m256 kv1 = _mm256_loadu_ps(k1 + k);
-                __m256 kv2 = _mm256_loadu_ps(k2 + k);
-                __m256 kv3 = _mm256_loadu_ps(k3 + k);
-
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm256_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm256_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm256_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm256_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-
-            __m256 acc[2][2];
-            for (int mi = 0; mi < 2; mi++)
-            {
-                acc[mi][0] = _mm256_setzero_ps();
-                acc[mi][1] = _mm256_setzero_ps();
-            }
-
-            for (int k = 0; k < D; k += 8)
-            {
-                __m256 kv0 = _mm256_loadu_ps(k0 + k);
-                __m256 kv1 = _mm256_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm256_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm256_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm256_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm256_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
-
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * D;
-
-            __m256 acc[2];
-            for (int mi = 0; mi < 2; mi++)
-                acc[mi] = _mm256_setzero_ps();
-
-            for (int k = 0; k < D; k += 8)
-            {
-                __m256 kvec = _mm256_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m256 qvec = _mm256_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi] = _mm256_comp_fmadd_ps(qvec, kvec, acc[mi]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-                S[(i + mi) * n + j] = _mm256_reduce_add_ps(acc[mi]) * scale;
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* qptr = Q + i * D;
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-            const float* k2 = K + (j + 2) * D;
-            const float* k3 = K + (j + 3) * D;
-
-            __m256 acc0 = _mm256_setzero_ps();
-            __m256 acc1 = _mm256_setzero_ps();
-            __m256 acc2 = _mm256_setzero_ps();
-            __m256 acc3 = _mm256_setzero_ps();
-
-            for (int k = 0; k < D; k += 8)
-            {
-                __m256 qvec = _mm256_loadu_ps(qptr + k);
-                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
-                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
-                acc2 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k2 + k), acc2);
-                acc3 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k3 + k), acc3);
-            }
-
-            S[i * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
-            S[i * n + j + 2] = _mm256_reduce_add_ps(acc2) * scale;
-            S[i * n + j + 3] = _mm256_reduce_add_ps(acc3) * scale;
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* qptr = Q + i * D;
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-
-            __m256 acc0 = _mm256_setzero_ps();
-            __m256 acc1 = _mm256_setzero_ps();
-
-            for (int k = 0; k < D; k += 8)
-            {
-                __m256 qvec = _mm256_loadu_ps(qptr + k);
-                acc0 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k0 + k), acc0);
-                acc1 = _mm256_comp_fmadd_ps(qvec, _mm256_loadu_ps(k1 + k), acc1);
-            }
-
-            S[i * n + j + 0] = _mm256_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm256_reduce_add_ps(acc1) * scale;
-        }
-
-        for (; j < n; j++)
-        {
-            const float* qptr = Q + i * D;
-            const float* kptr = K + j * D;
-            __m256 vacc = _mm256_setzero_ps();
-            for (int k = 0; k < D; k += 8)
-                vacc = _mm256_comp_fmadd_ps(_mm256_loadu_ps(qptr + k), _mm256_loadu_ps(kptr + k), vacc);
-            S[i * n + j] = _mm256_reduce_add_ps(vacc) * scale;
-        }
-    }
+    qk_gemm_specialized_tiled_avx<1024, 2, 4>(S, Q, K, m, n, scale);
 }
 
 
@@ -2530,7 +2373,7 @@ template<>
 void qk_gemm_specialized_avx<2048>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx<2048>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx<2048, 2, 0>(S, Q, K, m, n, scale);
 }
 
 
@@ -2538,8 +2381,10 @@ template<>
 void qk_gemm_specialized_avx<4096>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx<4096>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx<4096, 2, 0>(S, Q, K, m, n, scale);
 }
+
+
 
 
 template<int M_BLOCK, int D_UNROLL>
@@ -2829,123 +2674,126 @@ static inline void qk_gemm_specialized_sse2(float* S, const float* Q, const floa
     }
 }
 
-template<>
-void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
+template<int D, int M_BLOCK1, int M_BLOCK2>
+static inline void qk_gemm_specialized_tiled_sse2(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
     int i = 0;
-    for (; i + 4 <= m; i += 4)
+    if (M_BLOCK2 > 0)
     {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
+        for (; i + M_BLOCK2 <= m; i += M_BLOCK2)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
-
-            __m128 acc[4][4];
-            for (int mi = 0; mi < 4; mi++)
+            int j = 0;
+            for (; j + 4 <= n; j += 4)
             {
-                acc[mi][0] = _mm_setzero_ps();
-                acc[mi][1] = _mm_setzero_ps();
-                acc[mi][2] = _mm_setzero_ps();
-                acc[mi][3] = _mm_setzero_ps();
-            }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
+                const float* k2 = K + (j + 2) * D;
+                const float* k3 = K + (j + 3) * D;
 
-            for (int k = 0; k < 1024; k += 4)
-            {
-                __m128 kv0 = _mm_loadu_ps(k0 + k);
-                __m128 kv1 = _mm_loadu_ps(k1 + k);
-                __m128 kv2 = _mm_loadu_ps(k2 + k);
-                __m128 kv3 = _mm_loadu_ps(k3 + k);
-
-                for (int mi = 0; mi < 4; mi++)
+                __m128 acc[M_BLOCK2][4];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    acc[mi][0] = _mm_setzero_ps();
+                    acc[mi][1] = _mm_setzero_ps();
+                    acc[mi][2] = _mm_setzero_ps();
+                    acc[mi][3] = _mm_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 4)
+                {
+                    __m128 kv0 = _mm_loadu_ps(k0 + k);
+                    __m128 kv1 = _mm_loadu_ps(k1 + k);
+                    __m128 kv2 = _mm_loadu_ps(k2 + k);
+                    __m128 kv3 = _mm_loadu_ps(k3 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                        acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
+                        acc[mi][3] = _mm_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
+                    S[(i + mi) * n + j + 2] = _mm_reduce_add_ps(acc[mi][2]) * scale;
+                    S[(i + mi) * n + j + 3] = _mm_reduce_add_ps(acc[mi][3]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < 4; mi++)
+            for (; j + 2 <= n; j += 2)
             {
-                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
+                const float* k0 = K + (j + 0) * D;
+                const float* k1 = K + (j + 1) * D;
 
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-
-            __m128 acc[4][2];
-            for (int mi = 0; mi < 4; mi++)
-            {
-                acc[mi][0] = _mm_setzero_ps();
-                acc[mi][1] = _mm_setzero_ps();
-            }
-
-            for (int k = 0; k < 1024; k += 4)
-            {
-                __m128 kv0 = _mm_loadu_ps(k0 + k);
-                __m128 kv1 = _mm_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 4; mi++)
+                __m128 acc[M_BLOCK2][2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    acc[mi][0] = _mm_setzero_ps();
+                    acc[mi][1] = _mm_setzero_ps();
+                }
+
+                for (int k = 0; k < D; k += 4)
+                {
+                    __m128 kv0 = _mm_loadu_ps(k0 + k);
+                    __m128 kv1 = _mm_loadu_ps(k1 + k);
+
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
+                        acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
+                    }
+                }
+
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                {
+                    S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
+                    S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
                 }
             }
 
-            for (int mi = 0; mi < 4; mi++)
+            for (; j < n; j++)
             {
-                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
+                const float* kptr = K + j * D;
 
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * 1024;
+                __m128 acc[M_BLOCK2];
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    acc[mi] = _mm_setzero_ps();
 
-            __m128 acc[4];
-            for (int mi = 0; mi < 4; mi++)
-                acc[mi] = _mm_setzero_ps();
-
-            for (int k = 0; k < 1024; k += 4)
-            {
-                __m128 kvec = _mm_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 4; mi++)
+                for (int k = 0; k < D; k += 4)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
-                    acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    __m128 kvec = _mm_loadu_ps(kptr + k);
+                    for (int mi = 0; mi < M_BLOCK2; mi++)
+                    {
+                        __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
+                        acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
+                    }
                 }
-            }
 
-            for (int mi = 0; mi < 4; mi++)
-                S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
+                for (int mi = 0; mi < M_BLOCK2; mi++)
+                    S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
+            }
         }
     }
 
-    for (; i + 2 <= m; i += 2)
+    for (; i + M_BLOCK1 <= m; i += M_BLOCK1)
     {
         int j = 0;
         for (; j + 4 <= n; j += 4)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
 
-            __m128 acc[2][4];
-            for (int mi = 0; mi < 2; mi++)
+            __m128 acc[M_BLOCK1][4];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 acc[mi][0] = _mm_setzero_ps();
                 acc[mi][1] = _mm_setzero_ps();
@@ -2953,16 +2801,16 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
                 acc[mi][3] = _mm_setzero_ps();
             }
 
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
             {
                 __m128 kv0 = _mm_loadu_ps(k0 + k);
                 __m128 kv1 = _mm_loadu_ps(k1 + k);
                 __m128 kv2 = _mm_loadu_ps(k2 + k);
                 __m128 kv3 = _mm_loadu_ps(k3 + k);
 
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                     acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
@@ -2970,7 +2818,7 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
                 S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
@@ -2981,30 +2829,30 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
 
         for (; j + 2 <= n; j += 2)
         {
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
 
-            __m128 acc[2][2];
-            for (int mi = 0; mi < 2; mi++)
+            __m128 acc[M_BLOCK1][2];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 acc[mi][0] = _mm_setzero_ps();
                 acc[mi][1] = _mm_setzero_ps();
             }
 
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
             {
                 __m128 kv0 = _mm_loadu_ps(k0 + k);
                 __m128 kv1 = _mm_loadu_ps(k1 + k);
 
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
                     acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
             {
                 S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
                 S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
@@ -3013,23 +2861,23 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
 
         for (; j < n; j++)
         {
-            const float* kptr = K + j * 1024;
+            const float* kptr = K + j * D;
 
-            __m128 acc[2];
-            for (int mi = 0; mi < 2; mi++)
+            __m128 acc[M_BLOCK1];
+            for (int mi = 0; mi < M_BLOCK1; mi++)
                 acc[mi] = _mm_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
             {
                 __m128 kvec = _mm_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 2; mi++)
+                for (int mi = 0; mi < M_BLOCK1; mi++)
                 {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * 1024 + k);
+                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
                     acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
                 }
             }
 
-            for (int mi = 0; mi < 2; mi++)
+            for (int mi = 0; mi < M_BLOCK1; mi++)
                 S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
         }
     }
@@ -3039,18 +2887,18 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
         int j = 0;
         for (; j + 4 <= n; j += 4)
         {
-            const float* qptr = Q + i * 1024;
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
-            const float* k2 = K + (j + 2) * 1024;
-            const float* k3 = K + (j + 3) * 1024;
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
+            const float* k2 = K + (j + 2) * D;
+            const float* k3 = K + (j + 3) * D;
 
             __m128 acc0 = _mm_setzero_ps();
             __m128 acc1 = _mm_setzero_ps();
             __m128 acc2 = _mm_setzero_ps();
             __m128 acc3 = _mm_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
             {
                 __m128 qvec = _mm_loadu_ps(qptr + k);
                 acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
@@ -3067,14 +2915,14 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
 
         for (; j + 2 <= n; j += 2)
         {
-            const float* qptr = Q + i * 1024;
-            const float* k0 = K + (j + 0) * 1024;
-            const float* k1 = K + (j + 1) * 1024;
+            const float* qptr = Q + i * D;
+            const float* k0 = K + (j + 0) * D;
+            const float* k1 = K + (j + 1) * D;
 
             __m128 acc0 = _mm_setzero_ps();
             __m128 acc1 = _mm_setzero_ps();
 
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
             {
                 __m128 qvec = _mm_loadu_ps(qptr + k);
                 acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
@@ -3087,182 +2935,22 @@ void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
 
         for (; j < n; j++)
         {
-            const float* qptr = Q + i * 1024;
-            const float* kptr = K + j * 1024;
+            const float* qptr = Q + i * D;
+            const float* kptr = K + j * D;
             __m128 vacc = _mm_setzero_ps();
-            for (int k = 0; k < 1024; k += 4)
+            for (int k = 0; k < D; k += 4)
                 vacc = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), vacc);
             S[i * n + j] = _mm_reduce_add_ps(vacc) * scale;
         }
     }
 }
 
-template<int D>
-static inline void qk_gemm_specialized_tiled_sse2(float* S, const float* Q, const float* K,
+
+template<>
+void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    int i = 0;
-    for (; i + 2 <= m; i += 2)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-            const float* k2 = K + (j + 2) * D;
-            const float* k3 = K + (j + 3) * D;
-
-            __m128 acc[2][4];
-            for (int mi = 0; mi < 2; mi++)
-            {
-                acc[mi][0] = _mm_setzero_ps();
-                acc[mi][1] = _mm_setzero_ps();
-                acc[mi][2] = _mm_setzero_ps();
-                acc[mi][3] = _mm_setzero_ps();
-            }
-
-            for (int k = 0; k < D; k += 4)
-            {
-                __m128 kv0 = _mm_loadu_ps(k0 + k);
-                __m128 kv1 = _mm_loadu_ps(k1 + k);
-                __m128 kv2 = _mm_loadu_ps(k2 + k);
-                __m128 kv3 = _mm_loadu_ps(k3 + k);
-
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm_comp_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm_comp_fmadd_ps(qvec, kv3, acc[mi][3]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-
-            __m128 acc[2][2];
-            for (int mi = 0; mi < 2; mi++)
-            {
-                acc[mi][0] = _mm_setzero_ps();
-                acc[mi][1] = _mm_setzero_ps();
-            }
-
-            for (int k = 0; k < D; k += 4)
-            {
-                __m128 kv0 = _mm_loadu_ps(k0 + k);
-                __m128 kv1 = _mm_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi][0] = _mm_comp_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm_comp_fmadd_ps(qvec, kv1, acc[mi][1]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
-
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * D;
-
-            __m128 acc[2];
-            for (int mi = 0; mi < 2; mi++)
-                acc[mi] = _mm_setzero_ps();
-
-            for (int k = 0; k < D; k += 4)
-            {
-                __m128 kvec = _mm_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 2; mi++)
-                {
-                    __m128 qvec = _mm_loadu_ps(Q + (i + mi) * D + k);
-                    acc[mi] = _mm_comp_fmadd_ps(qvec, kvec, acc[mi]);
-                }
-            }
-
-            for (int mi = 0; mi < 2; mi++)
-                S[(i + mi) * n + j] = _mm_reduce_add_ps(acc[mi]) * scale;
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* qptr = Q + i * D;
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-            const float* k2 = K + (j + 2) * D;
-            const float* k3 = K + (j + 3) * D;
-
-            __m128 acc0 = _mm_setzero_ps();
-            __m128 acc1 = _mm_setzero_ps();
-            __m128 acc2 = _mm_setzero_ps();
-            __m128 acc3 = _mm_setzero_ps();
-
-            for (int k = 0; k < D; k += 4)
-            {
-                __m128 qvec = _mm_loadu_ps(qptr + k);
-                acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
-                acc1 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k1 + k), acc1);
-                acc2 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k2 + k), acc2);
-                acc3 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k3 + k), acc3);
-            }
-
-            S[i * n + j + 0] = _mm_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm_reduce_add_ps(acc1) * scale;
-            S[i * n + j + 2] = _mm_reduce_add_ps(acc2) * scale;
-            S[i * n + j + 3] = _mm_reduce_add_ps(acc3) * scale;
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* qptr = Q + i * D;
-            const float* k0 = K + (j + 0) * D;
-            const float* k1 = K + (j + 1) * D;
-
-            __m128 acc0 = _mm_setzero_ps();
-            __m128 acc1 = _mm_setzero_ps();
-
-            for (int k = 0; k < D; k += 4)
-            {
-                __m128 qvec = _mm_loadu_ps(qptr + k);
-                acc0 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k0 + k), acc0);
-                acc1 = _mm_comp_fmadd_ps(qvec, _mm_loadu_ps(k1 + k), acc1);
-            }
-
-            S[i * n + j + 0] = _mm_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm_reduce_add_ps(acc1) * scale;
-        }
-
-        for (; j < n; j++)
-        {
-            const float* qptr = Q + i * D;
-            const float* kptr = K + j * D;
-            __m128 vacc = _mm_setzero_ps();
-            for (int k = 0; k < D; k += 4)
-                vacc = _mm_comp_fmadd_ps(_mm_loadu_ps(qptr + k), _mm_loadu_ps(kptr + k), vacc);
-            S[i * n + j] = _mm_reduce_add_ps(vacc) * scale;
-        }
-    }
+    qk_gemm_specialized_tiled_sse2<1024, 2, 4>(S, Q, K, m, n, scale);
 }
 
 
@@ -3270,7 +2958,7 @@ template<>
 void qk_gemm_specialized_sse2<2048>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_sse2<2048>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_sse2<2048, 2, 0>(S, Q, K, m, n, scale);
 }
 
 
@@ -3278,8 +2966,10 @@ template<>
 void qk_gemm_specialized_sse2<4096>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_sse2<4096>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_sse2<4096, 2, 0>(S, Q, K, m, n, scale);
 }
+
+
 
 
 template<int M_BLOCK, int D_UNROLL>
