@@ -1036,231 +1036,6 @@ static inline void qk_gemm_specialized_avx512(float* S, const float* Q, const fl
     }
 }
 
-// Explicit specialization for D=128: 6x4 kernel to improve K-tile reuse
-template<>
-void qk_gemm_specialized_avx512<128>(float* S, const float* Q, const float* K,
-        int m, int n, float scale)
-{
-    int i = 0;
-    for (; i + 6 <= m; i += 6)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* k0 = K + (j + 0) * 128;
-            const float* k1 = K + (j + 1) * 128;
-            const float* k2 = K + (j + 2) * 128;
-            const float* k3 = K + (j + 3) * 128;
-
-            __m512 acc[6][4];
-            for (int mi = 0; mi < 6; mi++)
-            {
-                acc[mi][0] = _mm512_setzero_ps();
-                acc[mi][1] = _mm512_setzero_ps();
-                acc[mi][2] = _mm512_setzero_ps();
-                acc[mi][3] = _mm512_setzero_ps();
-            }
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 kv0 = _mm512_loadu_ps(k0 + k);
-                __m512 kv1 = _mm512_loadu_ps(k1 + k);
-                __m512 kv2 = _mm512_loadu_ps(k2 + k);
-                __m512 kv3 = _mm512_loadu_ps(k3 + k);
-
-                for (int mi = 0; mi < 6; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * 128 + k);
-                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
-                    acc[mi][2] = _mm512_fmadd_ps(qvec, kv2, acc[mi][2]);
-                    acc[mi][3] = _mm512_fmadd_ps(qvec, kv3, acc[mi][3]);
-                }
-            }
-
-            for (int mi = 0; mi < 6; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
-                S[(i + mi) * n + j + 2] = _mm512_comp_reduce_add_ps(acc[mi][2]) * scale;
-                S[(i + mi) * n + j + 3] = _mm512_comp_reduce_add_ps(acc[mi][3]) * scale;
-            }
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * 128;
-            const float* k1 = K + (j + 1) * 128;
-
-            __m512 acc[6][2];
-            for (int mi = 0; mi < 6; mi++)
-            {
-                acc[mi][0] = _mm512_setzero_ps();
-                acc[mi][1] = _mm512_setzero_ps();
-            }
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 kv0 = _mm512_loadu_ps(k0 + k);
-                __m512 kv1 = _mm512_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 6; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * 128 + k);
-                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
-                }
-            }
-
-            for (int mi = 0; mi < 6; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
-
-        for (; j < n; j++)
-        {
-            const float* kptr = K + j * 128;
-
-            __m512 acc[6];
-            for (int mi = 0; mi < 6; mi++)
-                acc[mi] = _mm512_setzero_ps();
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 kvec = _mm512_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 6; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * 128 + k);
-                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
-                }
-            }
-
-            for (int mi = 0; mi < 6; mi++)
-                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
-        }
-    }
-
-    for (; i + 4 <= m; i += 4)
-    {
-        int j = 0;
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* k0 = K + (j + 0) * 128;
-            const float* k1 = K + (j + 1) * 128;
-
-            __m512 acc[4][2];
-            for (int mi = 0; mi < 4; mi++)
-            {
-                acc[mi][0] = _mm512_setzero_ps();
-                acc[mi][1] = _mm512_setzero_ps();
-            }
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 kv0 = _mm512_loadu_ps(k0 + k);
-                __m512 kv1 = _mm512_loadu_ps(k1 + k);
-
-                for (int mi = 0; mi < 4; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * 128 + k);
-                    acc[mi][0] = _mm512_fmadd_ps(qvec, kv0, acc[mi][0]);
-                    acc[mi][1] = _mm512_fmadd_ps(qvec, kv1, acc[mi][1]);
-                }
-            }
-
-            for (int mi = 0; mi < 4; mi++)
-            {
-                S[(i + mi) * n + j + 0] = _mm512_comp_reduce_add_ps(acc[mi][0]) * scale;
-                S[(i + mi) * n + j + 1] = _mm512_comp_reduce_add_ps(acc[mi][1]) * scale;
-            }
-        }
-
-        for (; j < n; j++)
-        {
-            __m512 acc[4];
-            for (int mi = 0; mi < 4; mi++)
-                acc[mi] = _mm512_setzero_ps();
-
-            const float* kptr = K + j * 128;
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 kvec = _mm512_loadu_ps(kptr + k);
-                for (int mi = 0; mi < 4; mi++)
-                {
-                    __m512 qvec = _mm512_loadu_ps(Q + (i + mi) * 128 + k);
-                    acc[mi] = _mm512_fmadd_ps(qvec, kvec, acc[mi]);
-                }
-            }
-
-            for (int mi = 0; mi < 4; mi++)
-                S[(i + mi) * n + j] = _mm512_comp_reduce_add_ps(acc[mi]) * scale;
-        }
-    }
-
-    for (; i < m; i++)
-    {
-        int j = 0;
-        for (; j + 4 <= n; j += 4)
-        {
-            const float* qptr = Q + i * 128;
-            const float* k0 = K + (j + 0) * 128;
-            const float* k1 = K + (j + 1) * 128;
-            const float* k2 = K + (j + 2) * 128;
-            const float* k3 = K + (j + 3) * 128;
-
-            __m512 acc0 = _mm512_setzero_ps();
-            __m512 acc1 = _mm512_setzero_ps();
-            __m512 acc2 = _mm512_setzero_ps();
-            __m512 acc3 = _mm512_setzero_ps();
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 qvec = _mm512_loadu_ps(qptr + k);
-                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
-                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
-                acc2 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k2 + k), acc2);
-                acc3 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k3 + k), acc3);
-            }
-
-            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
-            S[i * n + j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
-            S[i * n + j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
-        }
-
-        for (; j + 2 <= n; j += 2)
-        {
-            const float* qptr = Q + i * 128;
-            const float* k0 = K + (j + 0) * 128;
-            const float* k1 = K + (j + 1) * 128;
-
-            __m512 acc0 = _mm512_setzero_ps();
-            __m512 acc1 = _mm512_setzero_ps();
-
-            for (int k = 0; k < 128; k += 16)
-            {
-                __m512 qvec = _mm512_loadu_ps(qptr + k);
-                acc0 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k0 + k), acc0);
-                acc1 = _mm512_fmadd_ps(qvec, _mm512_loadu_ps(k1 + k), acc1);
-            }
-
-            S[i * n + j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
-            S[i * n + j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
-        }
-
-        for (; j < n; j++)
-        {
-            const float* qptr = Q + i * 128;
-            const float* kptr = K + j * 128;
-            __m512 vacc = _mm512_setzero_ps();
-            for (int k = 0; k < 128; k += 16)
-                vacc = _mm512_fmadd_ps(_mm512_loadu_ps(qptr + k), _mm512_loadu_ps(kptr + k), vacc);
-            S[i * n + j] = _mm512_comp_reduce_add_ps(vacc) * scale;
-        }
-    }
-}
 
 
 template<int D, int M_BLOCK1, int M_BLOCK2>
@@ -1536,6 +1311,18 @@ static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, co
 
 
 template<>
+void qk_gemm_specialized_avx512<128>(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<128, 4, 6>(S, Q, K, m, n, scale);
+}
+template<>
+void qk_gemm_specialized_avx512<512>(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<512, 4, 8>(S, Q, K, m, n, scale);
+}
+template<>
 void qk_gemm_specialized_avx512<2048>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
@@ -1546,7 +1333,7 @@ template<>
 void qk_gemm_specialized_avx512<1024>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx512<1024, 2, 4>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx512<1024, 4, 4>(S, Q, K, m, n, scale);
 }
 
 
@@ -1555,7 +1342,7 @@ template<>
 void qk_gemm_specialized_avx512<4096>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx512<4096, 2, 0>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx512<4096, 2, 2>(S, Q, K, m, n, scale);
 }
 
 
@@ -2353,10 +2140,16 @@ static inline void qk_gemm_specialized_tiled_avx(float* S, const float* Q, const
 
 
 template<>
+void qk_gemm_specialized_avx<512>(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx<512, 2, 4>(S, Q, K, m, n, scale);
+}
+template<>
 void qk_gemm_specialized_avx<1024>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx<1024, 2, 4>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx<1024, 4, 2>(S, Q, K, m, n, scale);
 }
 
 
@@ -2372,7 +2165,7 @@ template<>
 void qk_gemm_specialized_avx<4096>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx<4096, 2, 0>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx<4096, 2, 2>(S, Q, K, m, n, scale);
 }
 
 
@@ -2938,6 +2731,12 @@ static inline void qk_gemm_specialized_tiled_sse2(float* S, const float* Q, cons
 
 
 template<>
+void qk_gemm_specialized_sse2<512>(float* S, const float* Q, const float* K,
+        int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_sse2<512, 2, 4>(S, Q, K, m, n, scale);
+}
+template<>
 void qk_gemm_specialized_sse2<1024>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
@@ -2957,7 +2756,7 @@ template<>
 void qk_gemm_specialized_sse2<4096>(float* S, const float* Q, const float* K,
         int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_sse2<4096, 2, 0>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_sse2<4096, 2, 2>(S, Q, K, m, n, scale);
 }
 
 
