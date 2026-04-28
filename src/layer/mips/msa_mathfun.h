@@ -37,7 +37,7 @@ _MIPS_FLOAT_CONST(c_2, 2.0f);
 _MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
-#define c_inv_mant_mask ~0x7f800000u
+#define c_inv_mant_mask_msa ~0x7f800000u
 _MIPS_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
 _MIPS_FLOAT_CONST(c_cephes_log_p0, 7.0376836292E-2);
 _MIPS_FLOAT_CONST(c_cephes_log_p1, -1.1514610310E-1);
@@ -54,7 +54,7 @@ _MIPS_FLOAT_CONST(c_cephes_log_q2, 0.693359375);
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
-static inline v4f32 log_ps(v4f32 x)
+static NCNN_FORCEINLINE v4f32 log_ps(v4f32 x)
 {
     v4f32 one = (v4f32)__msa_fill_w(c_1.i);
 
@@ -66,7 +66,7 @@ static inline v4f32 log_ps(v4f32 x)
     v4i32 emm0 = __msa_srl_w(ux, (v4i32)__msa_fill_w(23));
 
     /* keep only the fractional part */
-    ux = (v4i32)__msa_and_v((v16u8)ux, (v16u8)__msa_fill_w(c_inv_mant_mask));
+    ux = (v4i32)__msa_and_v((v16u8)ux, (v16u8)__msa_fill_w(c_inv_mant_mask_msa));
     ux = (v4i32)__msa_or_v((v16u8)ux, (v16u8)__msa_fill_w(c_0p5.i));
     x = (v4f32)(ux);
 
@@ -131,7 +131,7 @@ _MIPS_FLOAT_CONST(c_cephes_exp_p4, 1.6666665459E-1);
 _MIPS_FLOAT_CONST(c_cephes_exp_p5, 5.0000001201E-1);
 
 /* exp() computed for 4 float at once */
-static inline v4f32 exp_ps(v4f32 x)
+static NCNN_FORCEINLINE v4f32 exp_ps(v4f32 x)
 {
     v4f32 tmp, fx;
 
@@ -198,7 +198,7 @@ _MIPS_FLOAT_CONST(c_tanh_beta_4, 1.18534705686654e-4f);
 _MIPS_FLOAT_CONST(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
-static inline v4f32 tanh_ps(v4f32 x)
+static NCNN_FORCEINLINE v4f32 tanh_ps(v4f32 x)
 {
     v4f32 x2 = (v4f32)__msa_bclri_w((v4u32)x, 31);
     v4i32 tiny_mask = __msa_fclt_w(x2, (v4f32)__msa_fill_w(c_tanh_tiny.i));
@@ -253,7 +253,7 @@ _MIPS_FLOAT_CONST(c_erf_p3, 1.12819925e-1f);
 _MIPS_FLOAT_CONST(c_erf_p4, -3.76125336e-1f);
 _MIPS_FLOAT_CONST(c_erf_p5, 1.28379166e-1f);
 
-static inline v4f32 erf_ps(v4f32 a)
+static NCNN_FORCEINLINE v4f32 erf_ps(v4f32 a)
 {
     v4f32 one = (v4f32)__msa_fill_w(c_1.i);
 
@@ -286,13 +286,13 @@ static inline v4f32 erf_ps(v4f32 a)
     return r;
 }
 
-static inline v4f32 pow_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 pow_ps(v4f32 a, v4f32 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp_ps(__msa_fmul_w(b, log_ps(a)));
 }
 
-static inline v4f32 sigmoid_ps(v4f32 _v)
+static NCNN_FORCEINLINE v4f32 sigmoid_ps(v4f32 _v)
 {
     v4f32 _one = __msa_fill_w_f32(1.f);
     _v = (v4f32)__msa_bnegi_w((v4u32)_v, 31);
@@ -301,7 +301,7 @@ static inline v4f32 sigmoid_ps(v4f32 _v)
     return __msa_fdiv_w(_one, _v);
 }
 
-static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 atan2_ps(v4f32 a, v4f32 b)
 {
     //TODO msa optimize
     float tmpx[4];
@@ -315,7 +315,7 @@ static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
     return (v4f32)__msa_ld_w(tmpx, 0);
 }
 
-static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 fmod_ps(v4f32 a, v4f32 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b   (trunc toward 0)
     v4f32 q = __msa_fdiv_w(a, b);
@@ -324,7 +324,7 @@ static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
     return __msa_fsub_w(a, __msa_fmul_w(qf, b));
 }
 
-static inline v4f32 round_ps(v4f32 x)
+static NCNN_FORCEINLINE v4f32 round_ps(v4f32 x)
 {
     v4f32 half = (v4f32)__msa_fill_w(c_0p5.i);
     v4f32 one = (v4f32)__msa_fill_w(c_1.i);
@@ -342,7 +342,7 @@ static inline v4f32 round_ps(v4f32 x)
     return (v4f32)__msa_bsel_v((v16u8)sign_mask, (v16u8)rounded, (v16u8)__msa_bnegi_w((v4u32)rounded, 31));
 }
 
-static inline v4f32 logaddexp_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 logaddexp_ps(v4f32 a, v4f32 b)
 {
     v4f32 one = (v4f32)__msa_fill_w(c_1.i);
     v4f32 max_xy = __msa_fmax_w(a, b);
@@ -354,7 +354,7 @@ static inline v4f32 logaddexp_ps(v4f32 a, v4f32 b)
     return __msa_fadd_w(max_xy, log_result);
 }
 
-static inline v4f32 floor_ps(v4f32 x)
+static NCNN_FORCEINLINE v4f32 floor_ps(v4f32 x)
 {
     v4i32 xi = __msa_ftrunc_s_w(x);
     v4f32 xf = __msa_ffint_s_w(xi);
@@ -363,13 +363,13 @@ static inline v4f32 floor_ps(v4f32 x)
     return __msa_fsub_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)need_adjust));
 }
 
-static inline v4f32 floor_divide_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 floor_divide_ps(v4f32 a, v4f32 b)
 {
     v4f32 q = __msa_fdiv_w(a, b);
     return floor_ps(q);
 }
 
-static inline v4f32 remainder_ps(v4f32 a, v4f32 b)
+static NCNN_FORCEINLINE v4f32 remainder_ps(v4f32 a, v4f32 b)
 {
     v4f32 q = __msa_fdiv_w(a, b);
     v4f32 rq = round_ps(q);

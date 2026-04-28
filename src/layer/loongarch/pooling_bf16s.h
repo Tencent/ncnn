@@ -1,7 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void pooling_global_max_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void pooling_global_max_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -79,7 +79,7 @@ static void pooling_global_max_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
     }
 }
 
-static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void pooling_global_avg_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -160,7 +160,7 @@ static void pooling_global_avg_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, 
     }
 }
 
-static void pooling_max_bf16s_sse(const Mat& bottom_blob_bordered, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, const Option& opt)
+static void pooling_max_bf16s_lsx(const Mat& bottom_blob_bordered, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob_bordered.w;
     int channels = bottom_blob_bordered.c;
@@ -289,7 +289,7 @@ static void pooling_max_bf16s_sse(const Mat& bottom_blob_bordered, Mat& top_blob
     }
 }
 
-static void pooling_avg_bf16s_sse(const Mat& bottom_blob_bordered, const Mat& bottom_blob, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, int pad_left, int pad_right, int pad_top, int pad_bottom, int pad_mode, int avgpool_count_include_pad, const Option& opt)
+static void pooling_avg_bf16s_lsx(const Mat& bottom_blob_bordered, const Mat& bottom_blob, Mat& top_blob, int kernel_w, int kernel_h, int stride_w, int stride_h, int pad_left, int pad_right, int pad_top, int pad_bottom, int pad_mode, int avgpool_count_include_pad, const Option& opt)
 {
     int w = bottom_blob_bordered.w;
     int h = bottom_blob_bordered.h;

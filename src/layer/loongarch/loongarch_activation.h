@@ -5,9 +5,11 @@
 #define LOONGARCH_ACTIVATION_H
 
 #include "fused_activation.h"
+#include "mat.h"
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#include "loongarch_usability.h"
 #include "lsx_mathfun.h"
 
 static NCNN_FORCEINLINE __m128 sigmoid_lsx(__m128 inputs)

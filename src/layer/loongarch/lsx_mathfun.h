@@ -42,7 +42,7 @@ _LOONGARCH_FLOAT_CONST(c_n3, -3.0f);
 _LOONGARCH_FLOAT_CONST(c_0p5, 0.5f);
 _LOONGARCH_FLOAT_CONST(c_eps, 1E-8f);
 
-#define c_inv_mant_mask ~0x7f800000u
+#define c_inv_mant_mask_lsx ~0x7f800000u
 _LOONGARCH_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
 _LOONGARCH_FLOAT_CONST(c_cephes_log_p0, 7.0376836292E-2);
 _LOONGARCH_FLOAT_CONST(c_cephes_log_p1, -1.1514610310E-1);
@@ -59,7 +59,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_log_q2, 0.693359375);
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
-static inline __m128 log_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 log_ps(__m128 x)
 {
     __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
 
@@ -71,7 +71,7 @@ static inline __m128 log_ps(__m128 x)
     __m128i emm0 = __lsx_vsrl_w(ux, __lsx_vreplgr2vr_w(23));
 
     /* keep only the fractional part */
-    ux = __lsx_vand_v(ux, __lsx_vreplgr2vr_w(c_inv_mant_mask));
+    ux = __lsx_vand_v(ux, __lsx_vreplgr2vr_w(c_inv_mant_mask_lsx));
     ux = __lsx_vor_v(ux, __lsx_vreplgr2vr_w(c_0p5.i));
     x = (__m128)(ux);
 
@@ -136,7 +136,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_exp_p4, 1.6666665459E-1);
 _LOONGARCH_FLOAT_CONST(c_cephes_exp_p5, 5.0000001201E-1);
 
 /* exp() computed for 4 float at once */
-static inline __m128 exp_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 exp_ps(__m128 x)
 {
     __m128 tmp, fx;
 
@@ -203,7 +203,7 @@ _LOONGARCH_FLOAT_CONST(c_tanh_beta_4, 1.18534705686654e-4f);
 _LOONGARCH_FLOAT_CONST(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
-static inline __m128 tanh_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 tanh_ps(__m128 x)
 {
     __m128 x2 = (__m128)__lsx_vbitclri_w((__m128i)x, 31);
     __m128i tiny_mask = __lsx_vfcmp_clt_s((__m128)x2, (__m128)(__m128)__lsx_vreplgr2vr_w(c_tanh_tiny.i));
@@ -256,7 +256,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_cos_p1, -1.388731625493765E-003f);
 _LOONGARCH_FLOAT_CONST(c_cephes_cos_p2, 4.166664568298827E-002f);
 _LOONGARCH_FLOAT_CONST(c_cephes_FOPI, 1.27323954473516f); // 4/PI
 
-static inline __m128 sin_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 sin_ps(__m128 x)
 {
     __m128 y;
     __m128i swap_sign_bit, poly_mask, sign_bit;
@@ -307,7 +307,7 @@ static inline __m128 sin_ps(__m128 x)
     return y;
 }
 
-static inline __m128 cos_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 cos_ps(__m128 x)
 {
     __m128 y;
     __m128i swap_sign_bit, poly_mask, sign_bit;
@@ -358,7 +358,7 @@ static inline __m128 cos_ps(__m128 x)
     return y;
 }
 
-static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
+static NCNN_FORCEINLINE void sincos_ps(__m128 x, __m128& s, __m128& c)
 {
     __m128 y;
     __m128i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
@@ -414,16 +414,16 @@ static inline void sincos_ps(__m128 x, __m128* s, __m128* c)
     ysin1 = __lsx_vfadd_s(ysin1, ysin2);
     y = __lsx_vfadd_s(y, y2);
 
-    *s = (__m128)__lsx_vxor_v((__m128i)ysin1, sign_bit_sin);
-    *c = (__m128)__lsx_vxor_v((__m128i)y, sign_bit_cos);
+    s = (__m128)__lsx_vxor_v((__m128i)ysin1, sign_bit_sin);
+    c = (__m128)__lsx_vxor_v((__m128i)y, sign_bit_cos);
 }
 
-static inline __m128 tan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
 {
     __m128 ysin, ycos;
     __m128 eps = (__m128)__lsx_vreplgr2vr_w(c_eps.i);
     __m128 zero = (__m128)__lsx_vreplgr2vr_w(c_0.i);
-    sincos_ps(x, &ysin, &ycos);
+    sincos_ps(x, ysin, ycos);
     __m128i mask = __lsx_vfcmp_ceq_s(ycos, eps);
     mask = __lsx_vand_v(mask, (__m128i)eps);
     ycos = __lsx_vfadd_s(ycos, (__m128)mask);
@@ -431,13 +431,13 @@ static inline __m128 tan_ps(__m128 x)
     return ytan;
 }
 
-static inline __m128 pow_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp_ps(__lsx_vfmul_s(b, log_ps(a)));
 }
 
-static inline __m128 sigmoid_ps(__m128 _v)
+static NCNN_FORCEINLINE __m128 sigmoid_ps(__m128 _v)
 {
     __m128 _one = __lsx_vreplfr2vr_s(1.f);
     _v = (__m128)__lsx_vbitrevi_w((__m128i)_v, 31);
@@ -456,7 +456,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_asin_half_pi, 1.5707964f);
 _LOONGARCH_FLOAT_CONST(c_cephes_asin_pi, 3.1415927f);
 _LOONGARCH_FLOAT_CONST(c_cephes_asin_npi, -3.1415927f);
 
-static inline __m128 asin_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
 {
     __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m128 is_big_input_one, output_approx, final_approx;
@@ -496,7 +496,7 @@ static inline __m128 asin_ps(__m128 x)
     return final_approx;
 }
 
-static inline __m128 acos_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
 {
     __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m128 output_approx, final_approx, small_final_approx, big_final_approx;
@@ -552,7 +552,7 @@ _LOONGARCH_FLOAT_CONST(c_cephes_atan_x6, 0.04269152f);
 _LOONGARCH_FLOAT_CONST(c_cephes_atan_x7, -0.01606863f);
 _LOONGARCH_FLOAT_CONST(c_cephes_atan_x8, 0.0028498897f);
 
-static inline __m128 atan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
 {
     __m128i mask, is_small_input, is_big_input;
     __m128 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
@@ -590,7 +590,7 @@ static inline __m128 atan_ps(__m128 x)
     return tmp1;
 }
 
-static inline __m128 atan2_ps(__m128 y, __m128 x)
+static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
 {
     __m128i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
     __m128i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
@@ -626,7 +626,7 @@ static inline __m128 atan2_ps(__m128 y, __m128 x)
     return final_result;
 }
 
-static inline __m128 fmod_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 fmod_ps(__m128 a, __m128 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
     __m128 q = __lsx_vfdiv_s(a, b);
@@ -635,7 +635,7 @@ static inline __m128 fmod_ps(__m128 a, __m128 b)
     return __lsx_vfsub_s(a, __lsx_vfmul_s(qf, b));
 }
 
-static inline __m128 round_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 round_ps(__m128 x)
 {
     __m128 half = (__m128)__lsx_vreplgr2vr_w(c_0p5.i);
     __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
@@ -653,7 +653,7 @@ static inline __m128 round_ps(__m128 x)
     return (__m128)__lsx_vbitsel_v((__m128i)rounded, (__m128i)__lsx_vbitrevi_w((__m128i)rounded, 31), sign_mask);
 }
 
-static inline __m128 logaddexp_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 logaddexp_ps(__m128 a, __m128 b)
 {
     __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
     __m128 max_xy = __lsx_vfmax_s(a, b);
@@ -665,7 +665,7 @@ static inline __m128 logaddexp_ps(__m128 a, __m128 b)
     return __lsx_vfadd_s(max_xy, log_result);
 }
 
-static inline __m128 floor_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
 {
     __m128i xi = __lsx_vftintrz_w_s(x);
     __m128 xf = __lsx_vffint_s_w(xi);
@@ -674,13 +674,13 @@ static inline __m128 floor_ps(__m128 x)
     return __lsx_vfsub_s(xf, (__m128)__lsx_vand_v(need_adjust, (__m128i)one));
 }
 
-static inline __m128 floor_divide_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 floor_divide_ps(__m128 a, __m128 b)
 {
     __m128 q = __lsx_vfdiv_s(a, b);
     return floor_ps(q);
 }
 
-static inline __m128 remainder_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 remainder_ps(__m128 a, __m128 b)
 {
     __m128 q = __lsx_vfdiv_s(a, b);
     __m128 rq = round_ps(q);

@@ -15,7 +15,7 @@
 namespace ncnn {
 
 #if NCNN_BF16
-static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
+static void batchnorm_bf16s_lsx(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
 {
 #if __loongarch_sx
     __m128 _a128 = (elempack == 4) ? (__m128)__lsx_vld(a, 0) : (__m128)__lsx_vreplfr2vr_s(a[0]);
@@ -54,7 +54,7 @@ static void batchnorm_bf16s_sse(unsigned short* ptr, const float* a, const float
     }
 }
 
-static void batchnorm_bf16s_per_element_sse(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
+static void batchnorm_bf16s_per_element_lsx(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
 {
     int nn_size = 0;
     int remain_size_start = 0;
@@ -294,7 +294,7 @@ int BatchNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
 
         const int size = w * elempack;
 
-        batchnorm_bf16s_per_element_sse(ptr, aptr, bptr, size, opt.num_threads);
+        batchnorm_bf16s_per_element_lsx(ptr, aptr, bptr, size, opt.num_threads);
     }
 
     if (dims == 2)
@@ -308,7 +308,7 @@ int BatchNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
             const float* aptr = (const float*)a_data + i * elempack;
             const float* bptr = (const float*)b_data + i * elempack;
 
-            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+            batchnorm_bf16s_lsx(ptr, aptr, bptr, size, elempack);
         }
     }
 
@@ -323,7 +323,7 @@ int BatchNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
             const float* aptr = (const float*)a_data + q * elempack;
             const float* bptr = (const float*)b_data + q * elempack;
 
-            batchnorm_bf16s_sse(ptr, aptr, bptr, size, elempack);
+            batchnorm_bf16s_lsx(ptr, aptr, bptr, size, elempack);
         }
     }
 

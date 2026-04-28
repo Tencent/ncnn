@@ -299,7 +299,7 @@ int Scale_loongarch::forward_inplace(std::vector<Mat>& bottom_top_blobs, const O
 }
 
 #if NCNN_BF16
-static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
+static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
 {
 #if __loongarch_sx
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
@@ -338,7 +338,7 @@ static void scale_bf16s_sse(unsigned short* ptr, const float* scale, const float
     }
 }
 
-static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int size, int elempack)
+static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int size, int elempack)
 {
 #if __loongarch_sx
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
@@ -374,7 +374,7 @@ static void scale_bf16s_no_bias_sse(unsigned short* ptr, const float* scale, int
     }
 }
 
-static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
+static void scale_bf16s_per_element_lsx(unsigned short* ptr, const float* scale, const float* bias, int size, int num_threads)
 {
     int nn_size = 0;
     int remain_size_start = 0;
@@ -413,7 +413,7 @@ static void scale_bf16s_per_element_sse(unsigned short* ptr, const float* scale,
     }
 }
 
-static void scale_bf16s_no_bias_per_element_sse(unsigned short* ptr, const float* scale, int size, int num_threads)
+static void scale_bf16s_no_bias_per_element_lsx(unsigned short* ptr, const float* scale, int size, int num_threads)
 {
     int nn_size = 0;
     int remain_size_start = 0;

@@ -233,7 +233,7 @@ static NCNN_FORCEINLINE signed char float2int8(float v)
 }
 
 #if __loongarch_sx
-static NCNN_FORCEINLINE __m128i round(__m128 _v)
+static NCNN_FORCEINLINE __m128i round_lsx(__m128 _v)
 {
     __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
@@ -248,7 +248,7 @@ static NCNN_FORCEINLINE __m128i round(__m128 _v)
 
 static NCNN_FORCEINLINE __m128i float2int8(__m128 _v)
 {
-    __m128i _v32 = round(_v);
+    __m128i _v32 = round_lsx(_v);
 
     __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
     __m128i _v16 = __lsx_vpickev_h(_v32_16, _v32_16);
@@ -286,7 +286,7 @@ static NCNN_FORCEINLINE int64_t float2int8(__m128 _vlow, __m128 _vhigh)
 
 static NCNN_FORCEINLINE __m128i float2int8relu(__m128 _v)
 {
-    __m128i _v32 = round(_v);
+    __m128i _v32 = round_lsx(_v);
 
     __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
     __m128i _v16 = __lsx_vpickev_h(_v32_16, _v32_16);
@@ -397,7 +397,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m128 _vlow, __m128 _vhigh,
 #endif // __loongarch_sx
 
 #if __loongarch_asx
-static NCNN_FORCEINLINE __m256i round(__m256 _v)
+static NCNN_FORCEINLINE __m256i round_lasx(__m256 _v)
 {
     __m256 _p5 = (__m256)__lasx_xvreplfr2vr_s(0.5f);
     __m256i _signmask = __lasx_xvreplgr2vr_w(1 << 31);
@@ -412,7 +412,7 @@ static NCNN_FORCEINLINE __m256i round(__m256 _v)
 
 static NCNN_FORCEINLINE __m256i float2int8(__m256 _v)
 {
-    __m256i _v32 = round(_v);
+    __m256i _v32 = round_lasx(_v);
 
     __m256i _v32_16 = __lasx_xvsat_w(_v32, 15);
     __m256i _v16 = __lasx_xvpickev_h(_v32_16, _v32_16);
@@ -451,7 +451,7 @@ static NCNN_FORCEINLINE int64_t float2int8(__m256 _vlow, __m256 _vhigh)
 
 static NCNN_FORCEINLINE __m256i float2int8relu(__m256 _v)
 {
-    __m256i _v32 = round(_v);
+    __m256i _v32 = round_lasx(_v);
 
     __m256i _v32_16 = __lasx_xvsat_w(_v32, 15);
     __m256i _v16 = __lasx_xvpickev_h(_v32_16, _v32_16);

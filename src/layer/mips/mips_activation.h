@@ -5,9 +5,11 @@
 #define MIPS_ACTIVATION_H
 
 #include "fused_activation.h"
+#include "mat.h"
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #include "msa_mathfun.h"
 
 static NCNN_FORCEINLINE v4f32 sigmoid_msa(v4f32 inputs)

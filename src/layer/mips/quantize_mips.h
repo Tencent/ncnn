@@ -14,6 +14,11 @@ public:
     Quantize_mips();
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_BF16
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

@@ -15,7 +15,7 @@
 namespace ncnn {
 
 #if NCNN_BF16
-static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, int op_type, const Mat& coeffs, const Option& opt)
+int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int w = bottom_blob.w;
@@ -24,6 +24,11 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
     int size = w * h * d * elempack;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     if (op_type == 0) // Operation_PROD
     {
@@ -409,8 +414,9 @@ static void eltwise_bf16s(const std::vector<Mat>& bottom_blobs, Mat& top_blob, i
             }
         }
     }
+    return 0;
 }
-#endif
+#endif // NCNN_BF16
 
 Eltwise_loongarch::Eltwise_loongarch()
 {
@@ -851,21 +857,5 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
-
-#if NCNN_BF16
-int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    eltwise_bf16s(bottom_blobs, top_blob, op_type, coeffs, opt);
-
-    return 0;
-}
-#endif // NCNN_BF16
 
 } // namespace ncnn

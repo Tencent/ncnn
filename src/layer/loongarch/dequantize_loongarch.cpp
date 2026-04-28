@@ -19,6 +19,9 @@ Dequantize_loongarch::Dequantize_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, const Mat& bias_data, int elemcount, int elempack)
@@ -136,6 +139,11 @@ static void dequantize(const int* intptr, float* ptr, const Mat& scale_data, con
 int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // assert bottom_blob.elembits() == 32
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
@@ -355,7 +363,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
     }
 }
 
-static int dequantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Mat& bias_data, int bias_data_size, const Option& opt)
+int Dequantize_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;

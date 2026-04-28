@@ -18,7 +18,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_n3, -3.0f);
 _LOONGARCH_FLOAT_CONST_PS256(c_0p5, 0.5f);
 _LOONGARCH_FLOAT_CONST_PS256(c_eps, 1E-8f);
 
-#define c_inv_mant_mask ~0x7f800000u
+#define c_inv_mant_mask_lasx ~0x7f800000u
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_SQRTHF, 0.707106781186547524);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_p0, 7.0376836292E-2);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_p1, -1.1514610310E-1);
@@ -35,7 +35,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_log_q2, 0.693359375);
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
-static inline __m256 log256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 log256_ps(__m256 x)
 {
     __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
 
@@ -47,7 +47,7 @@ static inline __m256 log256_ps(__m256 x)
     __m256i emm0 = __lasx_xvsrl_w(ux, __lasx_xvreplgr2vr_w(23));
 
     /* keep only the fractional part */
-    ux = __lasx_xvand_v(ux, __lasx_xvreplgr2vr_w(c_inv_mant_mask));
+    ux = __lasx_xvand_v(ux, __lasx_xvreplgr2vr_w(c_inv_mant_mask_lasx));
     ux = __lasx_xvor_v(ux, __lasx_xvreplgr2vr_w(_ps256_c_0p5.i));
     x = (__m256)(ux);
 
@@ -112,7 +112,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_exp_p4, 1.6666665459E-1);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_exp_p5, 5.0000001201E-1);
 
 /* exp() computed for 4 float at once */
-static inline __m256 exp256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
 {
     __m256 tmp, fx;
 
@@ -173,7 +173,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_cos_p1, -1.388731625493765E-003f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_cos_p2, 4.166664568298827E-002f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_FOPI, 1.27323954473516f); // 4/PI
 
-static inline __m256 sin256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
 {
     __m256 y;
     __m256i swap_sign_bit, poly_mask, sign_bit;
@@ -224,7 +224,7 @@ static inline __m256 sin256_ps(__m256 x)
     return y;
 }
 
-static inline __m256 cos256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
 {
     __m256 y;
     __m256i swap_sign_bit, poly_mask, sign_bit;
@@ -275,7 +275,7 @@ static inline __m256 cos256_ps(__m256 x)
     return y;
 }
 
-static inline void sincos256_ps(__m256 x, __m256* s, __m256* c)
+static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256& s, __m256& c)
 {
     __m256 y;
     __m256i swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
@@ -331,16 +331,16 @@ static inline void sincos256_ps(__m256 x, __m256* s, __m256* c)
     ysin1 = __lasx_xvfadd_s(ysin1, ysin2);
     y = __lasx_xvfadd_s(y, y2);
 
-    *s = (__m256)__lasx_xvxor_v((__m256i)ysin1, sign_bit_sin);
-    *c = (__m256)__lasx_xvxor_v((__m256i)y, sign_bit_cos);
+    s = (__m256)__lasx_xvxor_v((__m256i)ysin1, sign_bit_sin);
+    c = (__m256)__lasx_xvxor_v((__m256i)y, sign_bit_cos);
 }
 
-static inline __m256 tan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
 {
     __m256 ysin, ycos;
     __m256 eps = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_eps.i);
     __m256 zero = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i);
-    sincos256_ps(x, &ysin, &ycos);
+    sincos256_ps(x, ysin, ycos);
     __m256i mask = __lasx_xvfcmp_ceq_s(ycos, eps);
     mask = __lasx_xvand_v(mask, (__m256i)eps);
     ycos = __lasx_xvfadd_s(ycos, (__m256)mask);
@@ -358,7 +358,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_half_pi, 1.5707964f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_pi, 3.1415927f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_asin_npi, -3.1415927f);
 
-static inline __m256 asin256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 asin256_ps(__m256 x)
 {
     __m256 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m256 is_big_input_one, output_approx, final_approx;
@@ -398,7 +398,7 @@ static inline __m256 asin256_ps(__m256 x)
     return final_approx;
 }
 
-static inline __m256 acos256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 acos256_ps(__m256 x)
 {
     __m256 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m256 output_approx, final_approx, small_final_approx, big_final_approx;
@@ -454,7 +454,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x6, 0.04269152f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x7, -0.01606863f);
 _LOONGARCH_FLOAT_CONST_PS256(c_cephes_atan_x8, 0.0028498897f);
 
-static inline __m256 atan256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
 {
     __m256i mask, is_small_input, is_big_input;
     __m256 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
@@ -492,7 +492,7 @@ static inline __m256 atan256_ps(__m256 x)
     return tmp1;
 }
 
-static inline __m256 atan2256_ps(__m256 y, __m256 x)
+static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 {
     __m256i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
     __m256i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
@@ -544,7 +544,7 @@ _LOONGARCH_FLOAT_CONST_PS256(c_tanh_beta_4, 1.18534705686654e-4f);
 _LOONGARCH_FLOAT_CONST_PS256(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
-static inline __m256 tanh256_ps(__m256 x)
+static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
 {
     __m256 x2 = (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
     __m256i tiny_mask = __lasx_xvfcmp_clt_s((__m256)x2, (__m256)(__m256)__lasx_xvreplgr2vr_w(_ps256_c_tanh_tiny.i));
@@ -586,13 +586,13 @@ static inline __m256 tanh256_ps(__m256 x)
     return y;
 }
 
-static inline __m256 pow256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(__lasx_xvfmul_s(b, log256_ps(a)));
 }
 
-static inline __m256 sigmoid256_ps(__m256 _v)
+static NCNN_FORCEINLINE __m256 sigmoid256_ps(__m256 _v)
 {
     __m256 _one = __lasx_xvreplfr2vr_s(1.f);
     _v = (__m256)__lasx_xvbitrevi_w((__m256i)_v, 31);
@@ -601,28 +601,28 @@ static inline __m256 sigmoid256_ps(__m256 _v)
     return __lasx_xvfdiv_s(_one, _v);
 }
 
-static inline __m256 fmod256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 fmod256_ps(__m256 a, __m256 b)
 {
     __m128 lo = fmod_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
     __m128 hi = fmod_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
     return combine4x2_ps(lo, hi);
 }
 
-static inline __m256 logaddexp256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 logaddexp256_ps(__m256 a, __m256 b)
 {
     __m128 lo = logaddexp_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
     __m128 hi = logaddexp_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
     return combine4x2_ps(lo, hi);
 }
 
-static inline __m256 floor_divide256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 floor_divide256_ps(__m256 a, __m256 b)
 {
     __m128 lo = floor_divide_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
     __m128 hi = floor_divide_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));
     return combine4x2_ps(lo, hi);
 }
 
-static inline __m256 remainder256_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 remainder256_ps(__m256 a, __m256 b)
 {
     __m128 lo = remainder_ps((__m128)__lasx_extract_lo128((__m256i)a), (__m128)__lasx_extract_lo128((__m256i)b));
     __m128 hi = remainder_ps((__m128)__lasx_extract_hi128((__m256i)a), (__m128)__lasx_extract_hi128((__m256i)b));

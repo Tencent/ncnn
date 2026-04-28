@@ -16,6 +16,9 @@ Quantize_mips::Quantize_mips()
 #if __mips_msa
     support_packing = true;
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void quantize(const float* ptr, signed char* s8ptr, const Mat& scale_data, int elemcount, int elempack)
@@ -136,6 +139,11 @@ static void quantize_pack4to1(const float* ptr, signed char* s8ptr0, signed char
 
 int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -485,7 +493,7 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
 }
 #endif // __mips_msa
 
-static int quantize_forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_data, int scale_data_size, const Option& opt)
+int Quantize_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int dims = bottom_blob.dims;
     const int w = bottom_blob.w;

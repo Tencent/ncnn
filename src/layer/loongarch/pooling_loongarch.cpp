@@ -21,6 +21,8 @@ namespace ncnn {
 #endif
 
 #if __loongarch_sx
+#include "pooling_2x2_pack4.h"
+#include "pooling_3x3_pack4.h"
 #if __loongarch_asx
 #include "pooling_2x2_pack8.h"
 #include "pooling_3x3_pack8.h"
@@ -404,6 +406,19 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_MAX)
         {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack4_lsx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack4_lsx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -544,19 +559,56 @@ int Pooling_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
-    // cast bf16 to fp32, pool with the optimized fp32 path, cast back to bf16
-    Mat bottom_blob_fp32;
-    cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
 
-    Option opt_fp32 = opt;
-    opt_fp32.use_bf16_storage = false;
+    //     NCNN_LOGE("Pooling bf16s input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
 
-    Mat top_blob_fp32;
-    int ret = Pooling_loongarch::forward(bottom_blob_fp32, top_blob_fp32, opt_fp32);
-    if (ret != 0)
-        return ret;
+    if (global_pooling)
+    {
+        top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-    cast_float32_to_bfloat16(top_blob_fp32, top_blob, opt);
+        if (pooling_type == PoolMethod_MAX)
+        {
+            pooling_global_max_bf16s_lsx(bottom_blob, top_blob, opt);
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            pooling_global_avg_bf16s_lsx(bottom_blob, top_blob, opt);
+        }
+
+        return 0;
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (pooling_type == PoolMethod_MAX)
+    {
+        pooling_max_bf16s_lsx(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pooling_avg_bf16s_lsx(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
+    }
+
     return 0;
 }
 #endif // NCNN_BF16
