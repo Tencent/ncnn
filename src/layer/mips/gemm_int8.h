@@ -1,6 +1,18 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+void pack_A_tile_int8_loongson_mmi(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void transpose_pack_A_tile_int8_loongson_mmi(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk);
+void pack_B_tile_int8_loongson_mmi(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+void transpose_pack_B_tile_int8_loongson_mmi(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk);
+void pack_A_tile_fp32_to_int8_loongson_mmi(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void transpose_pack_A_tile_fp32_to_int8_loongson_mmi(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales);
+void pack_B_tile_fp32_to_int8_loongson_mmi(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void transpose_pack_B_tile_fp32_to_int8_loongson_mmi(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale);
+void gemm_transB_packed_tile_int8_loongson_mmi(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk);
+#endif
+
 static NCNN_FORCEINLINE signed char gemm_float2int8(float v)
 {
     int int32 = static_cast<int>(round(v));
@@ -11,6 +23,14 @@ static NCNN_FORCEINLINE signed char gemm_float2int8(float v)
 
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        pack_A_tile_int8_loongson_mmi(A, AT, i, max_ii, k, max_kk);
+        return;
+    }
+#endif
+
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     signed char* pp = AT;
@@ -271,6 +291,14 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
 static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        transpose_pack_A_tile_int8_loongson_mmi(A, AT, i, max_ii, k, max_kk);
+        return;
+    }
+#endif
+
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     signed char* pp = AT;
@@ -405,6 +433,14 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
 
 static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        pack_B_tile_int8_loongson_mmi(B, BT, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     signed char* pp = BT;
@@ -665,6 +701,14 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
 static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        transpose_pack_B_tile_int8_loongson_mmi(B, BT, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
+
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     signed char* pp = BT;
@@ -841,6 +885,14 @@ static void transpose_compute_A_tile_int8_scales(const Mat& A, Mat& scales, floa
 
 static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        pack_A_tile_fp32_to_int8_loongson_mmi(A, AT, i, max_ii, k, max_kk, scales);
+        return;
+    }
+#endif
+
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     signed char* pp = AT;
@@ -1035,6 +1087,14 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
 
 static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, const Mat& scales)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        transpose_pack_A_tile_fp32_to_int8_loongson_mmi(A, AT, i, max_ii, k, max_kk, scales);
+        return;
+    }
+#endif
+
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     signed char* pp = AT;
@@ -1236,6 +1296,14 @@ static void compute_B_int8_scale(const Mat& B, float& scale)
 
 static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        pack_B_tile_fp32_to_int8_loongson_mmi(B, BT, j, max_jj, k, max_kk, scale);
+        return;
+    }
+#endif
+
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     signed char* pp = BT;
@@ -1405,6 +1473,14 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
 
 static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk, float scale)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        transpose_pack_B_tile_fp32_to_int8_loongson_mmi(B, BT, j, max_jj, k, max_kk, scale);
+        return;
+    }
+#endif
+
     const size_t B_hstep = B.dims == 3 ? B.cstep : (size_t)B.w;
 
     signed char* pp = BT;
@@ -1563,6 +1639,14 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
 static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int i, int max_ii, int j, int max_jj, int k, int max_kk)
 {
     // NCNN_LOGE("gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        gemm_transB_packed_tile_int8_loongson_mmi(AT_tile, BT_tile, topT_tile, i, max_ii, j, max_jj, k, max_kk);
+        return;
+    }
+#endif
 
     const signed char* pAT = AT_tile;
     const signed char* pBT = BT_tile;
@@ -2715,6 +2799,130 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __mips_loongson_mmi
+            int32x2_t _sum00 = __mmi_pzerow_s();
+            int32x2_t _sum01 = __mmi_pzerow_s();
+            int32x2_t _sum10 = __mmi_pzerow_s();
+            int32x2_t _sum11 = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+            double _tmp0;
+            double _tmp1;
+            double _tmp2;
+            double _tmp3;
+            double _tmp4;
+            double _tmp5;
+            double _tmp6;
+            double _tmp7;
+            double _shift;
+            const int shift_8 = 8;
+
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "ld         $0, 32(%0)      \n" // __builtin_prefetch(pA + 32);
+                    "ld         $0, 32(%1)      \n" // __builtin_prefetch(pB + 32);
+
+                    "ldc1       %6, 0(%0)       \n" // int8x8_t _pA = __mmi_pldb_s(pA);
+                    "ldc1       %8, 0(%1)       \n" // int8x8_t _pB = __mmi_pldb_s(pB);
+
+#if __mips64
+                    "dmtc1      $0, %7          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#else
+                    "mtc1       $0, %7          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#endif
+                    "mtc1       %21, %14        \n" // int16x4_t _shift = __mmi_pfillh_s(8);
+                    "daddiu     %0, %0, 8       \n" // pA += 8;
+                    "daddiu     %1, %1, 8       \n" // pB += 8;
+
+                    "punpcklbh  %10, %6, %7     \n" // int16x4_t _pA0 = __mmi_punpcklbh_s(_pA, _zero);
+                    "punpckhbh  %11, %6, %7     \n" // int16x4_t _pA1 = __mmi_punpckhbh_s(_pA, _zero);
+                    "punpcklbh  %12, %8, %7     \n" // int16x4_t _pB0 = __mmi_punpcklbh_s(_pB, _zero);
+                    "punpckhbh  %13, %8, %7     \n" // int16x4_t _pB1 = __mmi_punpckhbh_s(_pB, _zero);
+
+                    "psllh      %10, %10, %14   \n"
+                    "psllh      %11, %11, %14   \n"
+                    "psllh      %12, %12, %14   \n"
+                    "psllh      %13, %13, %14   \n"
+                    "psrah      %10, %10, %14   \n"
+                    "psrah      %11, %11, %14   \n"
+                    "psrah      %12, %12, %14   \n"
+                    "psrah      %13, %13, %14   \n"
+
+                    "pmaddhw    %6, %10, %12    \n"
+                    "pmaddhw    %7, %11, %12    \n"
+                    "pmaddhw    %8, %10, %13    \n"
+                    "pmaddhw    %9, %11, %13    \n"
+
+                    "paddw      %2, %2, %6      \n" // _sum00 += dot(_pA0, _pB0);
+                    "paddw      %3, %3, %7      \n" // _sum01 += dot(_pA1, _pB0);
+                    "paddw      %4, %4, %8      \n" // _sum10 += dot(_pA0, _pB1);
+                    "paddw      %5, %5, %9      \n" // _sum11 += dot(_pA1, _pB1);
+
+                    : "=r"(pA),      // %0
+                    "=r"(pB),      // %1
+                    "=f"(_sum00),  // %2
+                    "=f"(_sum01),  // %3
+                    "=f"(_sum10),  // %4
+                    "=f"(_sum11),  // %5
+                    "=&f"(_tmp0),  // %6
+                    "=&f"(_tmp1),  // %7
+                    "=&f"(_tmp2),  // %8
+                    "=&f"(_tmp3),  // %9
+                    "=&f"(_tmp4),  // %10
+                    "=&f"(_tmp5),  // %11
+                    "=&f"(_tmp6),  // %12
+                    "=&f"(_tmp7),  // %13
+                    "=&f"(_shift)  // %14
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum00),
+                    "3"(_sum01),
+                    "4"(_sum10),
+                    "5"(_sum11),
+                    "r"(shift_8) // %21
+                    : "memory");
+            }
+#else  // NCNN_GNU_INLINE_ASM
+            const int8x8_t _zero = __mmi_pzerob_s();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 32);
+
+                int8x8_t _pA = __mmi_pldb_s(pA);
+                int8x8_t _pB = __mmi_pldb_s(pB);
+
+                int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
+                int16x4_t _pA1 = (int16x4_t)__mmi_punpckhbh_s(_pA, _zero);
+                int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
+                int16x4_t _pB1 = (int16x4_t)__mmi_punpckhbh_s(_pB, _zero);
+
+                _pA0 = __mmi_psrah_s(__mmi_psllh_s(_pA0, 8), 8);
+                _pA1 = __mmi_psrah_s(__mmi_psllh_s(_pA1, 8), 8);
+                _pB0 = __mmi_psrah_s(__mmi_psllh_s(_pB0, 8), 8);
+                _pB1 = __mmi_psrah_s(__mmi_psllh_s(_pB1, 8), 8);
+
+                _sum00 = __mmi_paddw_s(_sum00, __mmi_pmaddhw(_pA0, _pB0));
+                _sum01 = __mmi_paddw_s(_sum01, __mmi_pmaddhw(_pA1, _pB0));
+                _sum10 = __mmi_paddw_s(_sum10, __mmi_pmaddhw(_pA0, _pB1));
+                _sum11 = __mmi_paddw_s(_sum11, __mmi_pmaddhw(_pA1, _pB1));
+
+                pA += 8;
+                pB += 8;
+            }
+#endif // NCNN_GNU_INLINE_ASM
+
+            int tmp[2];
+            __mmi_pstw_s(tmp, _sum00);
+            sum00 += tmp[0] + tmp[1];
+            __mmi_pstw_s(tmp, _sum01);
+            sum01 += tmp[0] + tmp[1];
+            __mmi_pstw_s(tmp, _sum10);
+            sum10 += tmp[0] + tmp[1];
+            __mmi_pstw_s(tmp, _sum11);
+            sum11 += tmp[0] + tmp[1];
+#endif // __mips_loongson_mmi
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum00 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
@@ -2761,6 +2969,108 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __mips_loongson_mmi
+            int32x2_t _sum0 = __mmi_pzerow_s();
+            int32x2_t _sum1 = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+            double _tmp0;
+            double _tmp1;
+            double _tmp2;
+            double _tmp3;
+            double _tmp4;
+            double _tmp5;
+            double _tmp6;
+            double _shift;
+            const int shift_8 = 8;
+
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "ld         $0, 32(%0)      \n" // __builtin_prefetch(pA + 32);
+                    "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
+
+                    "ldc1       %4, 0(%0)       \n" // int8x8_t _pA = __mmi_pldb_s(pA);
+                    "lwc1       %6, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+
+#if __mips64
+                    "dmtc1      $0, %5          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#else
+                    "mtc1       $0, %5          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#endif
+                    "mtc1       %16, %11        \n" // int16x4_t _shift = __mmi_pfillh_s(8);
+                    "punpcklwd  %6, %6, %6      \n"
+                    "daddiu     %0, %0, 8       \n" // pA += 8;
+                    "daddiu     %1, %1, 4       \n" // pB += 4;
+
+                    "punpcklbh  %8, %4, %5      \n" // int16x4_t _pA0 = __mmi_punpcklbh_s(_pA, _zero);
+                    "punpckhbh  %9, %4, %5      \n" // int16x4_t _pA1 = __mmi_punpckhbh_s(_pA, _zero);
+                    "punpcklbh  %10, %6, %5     \n" // int16x4_t _pB0 = __mmi_punpcklbh_s(_pB, _zero);
+
+                    "psllh      %8, %8, %11     \n"
+                    "psllh      %9, %9, %11     \n"
+                    "psllh      %10, %10, %11   \n"
+                    "psrah      %8, %8, %11     \n"
+                    "psrah      %9, %9, %11     \n"
+                    "psrah      %10, %10, %11   \n"
+
+                    "pmaddhw    %4, %8, %10     \n"
+                    "pmaddhw    %5, %9, %10     \n"
+
+                    "paddw      %2, %2, %4      \n" // _sum0 += dot(_pA0, _pB0);
+                    "paddw      %3, %3, %5      \n" // _sum1 += dot(_pA1, _pB0);
+
+                    : "=r"(pA),     // %0
+                    "=r"(pB),     // %1
+                    "=f"(_sum0),  // %2
+                    "=f"(_sum1),  // %3
+                    "=&f"(_tmp0), // %4
+                    "=&f"(_tmp1), // %5
+                    "=&f"(_tmp2), // %6
+                    "=&f"(_tmp3), // %7
+                    "=&f"(_tmp4), // %8
+                    "=&f"(_tmp5), // %9
+                    "=&f"(_tmp6), // %10
+                    "=&f"(_shift) // %11
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "r"(shift_8) // %16
+                    : "memory");
+            }
+#else  // NCNN_GNU_INLINE_ASM
+            const int8x8_t _zero = __mmi_pzerob_s();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 16);
+
+                int8x8_t _pA = __mmi_pldb_s(pA);
+                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+
+                int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
+                int16x4_t _pA1 = (int16x4_t)__mmi_punpckhbh_s(_pA, _zero);
+                int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
+
+                _pA0 = __mmi_psrah_s(__mmi_psllh_s(_pA0, 8), 8);
+                _pA1 = __mmi_psrah_s(__mmi_psllh_s(_pA1, 8), 8);
+                _pB0 = __mmi_psrah_s(__mmi_psllh_s(_pB0, 8), 8);
+
+                _sum0 = __mmi_paddw_s(_sum0, __mmi_pmaddhw(_pA0, _pB0));
+                _sum1 = __mmi_paddw_s(_sum1, __mmi_pmaddhw(_pA1, _pB0));
+
+                pA += 8;
+                pB += 4;
+            }
+#endif // NCNN_GNU_INLINE_ASM
+
+            int tmp[2];
+            __mmi_pstw_s(tmp, _sum0);
+            sum0 += tmp[0] + tmp[1];
+            __mmi_pstw_s(tmp, _sum1);
+            sum1 += tmp[0] + tmp[1];
+#endif // __mips_loongson_mmi
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
@@ -2933,6 +3243,108 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __mips_loongson_mmi
+            int32x2_t _sum0 = __mmi_pzerow_s();
+            int32x2_t _sum1 = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+            double _tmp0;
+            double _tmp1;
+            double _tmp2;
+            double _tmp3;
+            double _tmp4;
+            double _tmp5;
+            double _tmp6;
+            double _shift;
+            const int shift_8 = 8;
+
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
+                    "ld         $0, 32(%1)      \n" // __builtin_prefetch(pB + 32);
+
+                    "lwc1       %4, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                    "ldc1       %6, 0(%1)       \n" // int8x8_t _pB = __mmi_pldb_s(pB);
+
+#if __mips64
+                    "dmtc1      $0, %5          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#else
+                    "mtc1       $0, %5          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#endif
+                    "mtc1       %16, %11        \n" // int16x4_t _shift = __mmi_pfillh_s(8);
+                    "punpcklwd  %4, %4, %4      \n"
+                    "daddiu     %0, %0, 4       \n" // pA += 4;
+                    "daddiu     %1, %1, 8       \n" // pB += 8;
+
+                    "punpcklbh  %8, %4, %5      \n" // int16x4_t _pA0 = __mmi_punpcklbh_s(_pA, _zero);
+                    "punpcklbh  %9, %6, %5      \n" // int16x4_t _pB0 = __mmi_punpcklbh_s(_pB, _zero);
+                    "punpckhbh  %10, %6, %5     \n" // int16x4_t _pB1 = __mmi_punpckhbh_s(_pB, _zero);
+
+                    "psllh      %8, %8, %11     \n"
+                    "psllh      %9, %9, %11     \n"
+                    "psllh      %10, %10, %11   \n"
+                    "psrah      %8, %8, %11     \n"
+                    "psrah      %9, %9, %11     \n"
+                    "psrah      %10, %10, %11   \n"
+
+                    "pmaddhw    %4, %8, %9      \n"
+                    "pmaddhw    %5, %8, %10     \n"
+
+                    "paddw      %2, %2, %4      \n" // _sum0 += dot(_pA0, _pB0);
+                    "paddw      %3, %3, %5      \n" // _sum1 += dot(_pA0, _pB1);
+
+                    : "=r"(pA),     // %0
+                    "=r"(pB),     // %1
+                    "=f"(_sum0),  // %2
+                    "=f"(_sum1),  // %3
+                    "=&f"(_tmp0), // %4
+                    "=&f"(_tmp1), // %5
+                    "=&f"(_tmp2), // %6
+                    "=&f"(_tmp3), // %7
+                    "=&f"(_tmp4), // %8
+                    "=&f"(_tmp5), // %9
+                    "=&f"(_tmp6), // %10
+                    "=&f"(_shift) // %11
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "r"(shift_8) // %16
+                    : "memory");
+            }
+#else  // NCNN_GNU_INLINE_ASM
+            const int8x8_t _zero = __mmi_pzerob_s();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
+
+                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                int8x8_t _pB = __mmi_pldb_s(pB);
+
+                int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
+                int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
+                int16x4_t _pB1 = (int16x4_t)__mmi_punpckhbh_s(_pB, _zero);
+
+                _pA0 = __mmi_psrah_s(__mmi_psllh_s(_pA0, 8), 8);
+                _pB0 = __mmi_psrah_s(__mmi_psllh_s(_pB0, 8), 8);
+                _pB1 = __mmi_psrah_s(__mmi_psllh_s(_pB1, 8), 8);
+
+                _sum0 = __mmi_paddw_s(_sum0, __mmi_pmaddhw(_pA0, _pB0));
+                _sum1 = __mmi_paddw_s(_sum1, __mmi_pmaddhw(_pA0, _pB1));
+
+                pA += 4;
+                pB += 8;
+            }
+#endif // NCNN_GNU_INLINE_ASM
+
+            int tmp[2];
+            __mmi_pstw_s(tmp, _sum0);
+            sum0 += tmp[0] + tmp[1];
+            __mmi_pstw_s(tmp, _sum1);
+            sum1 += tmp[0] + tmp[1];
+#endif // __mips_loongson_mmi
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
@@ -2970,6 +3382,93 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __mips_loongson_mmi
+            int32x2_t _sum = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+            double _tmp0;
+            double _tmp1;
+            double _tmp2;
+            double _tmp3;
+            double _tmp4;
+            double _tmp5;
+            double _shift;
+            const int shift_8 = 8;
+
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
+                    "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
+
+                    "lwc1       %3, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                    "lwc1       %5, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+
+#if __mips64
+                    "dmtc1      $0, %4          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#else
+                    "mtc1       $0, %4          \n" // int8x8_t _zero = __mmi_pzerob_s();
+#endif
+                    "mtc1       %13, %9         \n" // int16x4_t _shift = __mmi_pfillh_s(8);
+                    "punpcklwd  %3, %3, %3      \n"
+                    "punpcklwd  %5, %5, %5      \n"
+                    "daddiu     %0, %0, 4       \n" // pA += 4;
+                    "daddiu     %1, %1, 4       \n" // pB += 4;
+
+                    "punpcklbh  %7, %3, %4      \n" // int16x4_t _pA0 = __mmi_punpcklbh_s(_pA, _zero);
+                    "punpcklbh  %8, %5, %4      \n" // int16x4_t _pB0 = __mmi_punpcklbh_s(_pB, _zero);
+
+                    "psllh      %7, %7, %9      \n"
+                    "psllh      %8, %8, %9      \n"
+                    "psrah      %7, %7, %9      \n"
+                    "psrah      %8, %8, %9      \n"
+
+                    "pmaddhw    %3, %7, %8      \n"
+                    "paddw      %2, %2, %3      \n" // _sum += dot(_pA0, _pB0);
+
+                    : "=r"(pA),    // %0
+                    "=r"(pB),    // %1
+                    "=f"(_sum),  // %2
+                    "=&f"(_tmp0), // %3
+                    "=&f"(_tmp1), // %4
+                    "=&f"(_tmp2), // %5
+                    "=&f"(_tmp3), // %6
+                    "=&f"(_tmp4), // %7
+                    "=&f"(_tmp5), // %8
+                    "=&f"(_shift) // %9
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum),
+                    "r"(shift_8) // %13
+                    : "memory");
+            }
+#else  // NCNN_GNU_INLINE_ASM
+            const int8x8_t _zero = __mmi_pzerob_s();
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
+
+                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+
+                int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
+                int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
+
+                _pA0 = __mmi_psrah_s(__mmi_psllh_s(_pA0, 8), 8);
+                _pB0 = __mmi_psrah_s(__mmi_psllh_s(_pB0, 8), 8);
+
+                _sum = __mmi_paddw_s(_sum, __mmi_pmaddhw(_pA0, _pB0));
+
+                pA += 4;
+                pB += 4;
+            }
+#endif // NCNN_GNU_INLINE_ASM
+
+            int tmp[2];
+            __mmi_pstw_s(tmp, _sum);
+            sum += tmp[0] + tmp[1];
+#endif // __mips_loongson_mmi
             for (; kk + 3 < max_kk; kk += 4)
             {
                 sum += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];

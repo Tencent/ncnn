@@ -1,6 +1,10 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+void convolution_im2col_gemm_transform_kernel_int8_loongson_mmi(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt);
+#endif
+
 // gemm_mips.h
 #if NCNN_RUNTIME_CPU && __mips_msa
 namespace Gemm_mips_msa_utility {
@@ -1949,6 +1953,15 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 static void convolution_im2col_gemm_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt)
 {
     // NCNN_LOGE("convolution_im2col_gemm_transform_kernel_int8");
+
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        convolution_im2col_gemm_transform_kernel_int8_loongson_mmi(kernel, AT, inch, outch, kernel_w, kernel_h, opt);
+        return;
+    }
+#endif
+
     const int maxk = kernel_w * kernel_h;
 
     const int M = outch;

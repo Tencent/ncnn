@@ -12,6 +12,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_loongson_mmi
+#include "loongson_mmi.h"
+#endif // __mips_loongson_mmi
 
 #include "mips_activation.h"
 #include "mips_usability.h"

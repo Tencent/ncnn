@@ -1,6 +1,12 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+void gemm_transB_packed_tile_int8_loongson_mmi(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk, bool k_end);
+void conv3x3s1_winograd23_transform_kernel_int8_loongson_mmi(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd43_transform_kernel_int8_loongson_mmi(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
+#endif
+
 #if __mips_msa
 static NCNN_FORCEINLINE v4i32 __msa_loadl_epi64(const void* ptr)
 {
@@ -273,6 +279,14 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 
 static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk, bool k_end)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        gemm_transB_packed_tile_int8_loongson_mmi(AT_tile, BT_tile, top_blob, batch, max_ii, max_jj, k, max_kk, k_end);
+        return;
+    }
+#endif
+
     int* outptr = top_blob;
 
     int ii = 0;
@@ -817,6 +831,82 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __mips_loongson_mmi
+                int32x2_t _sum0 = __mmi_pzerow_s();
+                int32x2_t _sum1 = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+                double _tmp0;
+                double _tmp1;
+                double _tmp2;
+                double _tmp3;
+                uint64_t flag_0x44 = 0x44;
+                uint64_t flag_0xee = 0xee;
+
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
+                        "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
+
+                        "ldc1       %4, 0(%0)       \n" // int16x4_t _pA = __mmi_pldh_s(pA);
+                        "ldc1       %5, 0(%1)       \n" // int16x4_t _pB = __mmi_pldh_s(pB);
+
+                        "daddiu     %0, %0, 8       \n" // pA += 4;
+                        "daddiu     %1, %1, 8       \n" // pB += 4;
+
+                        "pshufh     %6, %5, %12     \n" // int16x4_t _pB0 = __mmi_pshufh_s(_pB, 0x44);
+                        "pshufh     %7, %5, %13     \n" // int16x4_t _pB1 = __mmi_pshufh_s(_pB, 0xee);
+
+                        "pmaddhw    %6, %4, %6      \n"
+                        "pmaddhw    %7, %4, %7      \n"
+
+                        "paddw      %2, %2, %6      \n" // _sum0 += dot(_pA, _pB0);
+                        "paddw      %3, %3, %7      \n" // _sum1 += dot(_pA, _pB1);
+
+                        : "=r"(pA),     // %0
+                        "=r"(pB),     // %1
+                        "=f"(_sum0),  // %2
+                        "=f"(_sum1),  // %3
+                        "=&f"(_tmp0), // %4
+                        "=&f"(_tmp1), // %5
+                        "=&f"(_tmp2), // %6
+                        "=&f"(_tmp3)  // %7
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(_sum0),
+                        "3"(_sum1),
+                        "f"(flag_0x44), // %12
+                        "f"(flag_0xee)  // %13
+                        : "memory");
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 16);
+
+                    int16x4_t _pA = __mmi_pldh_s(pA);
+                    int16x4_t _pB = __mmi_pldh_s(pB);
+                    int16x4_t _pB0 = __mmi_pshufh_s(_pB, 0x44);
+                    int16x4_t _pB1 = __mmi_pshufh_s(_pB, 0xee);
+
+                    _sum0 = __mmi_paddw_s(_sum0, __mmi_pmaddhw(_pA, _pB0));
+                    _sum1 = __mmi_paddw_s(_sum1, __mmi_pmaddhw(_pA, _pB1));
+
+                    pA += 4;
+                    pB += 4;
+                }
+#endif // NCNN_GNU_INLINE_ASM
+
+                int tmp[2];
+                __mmi_pstw_s(tmp, _sum0);
+                sum00 += tmp[0];
+                sum01 += tmp[1];
+                __mmi_pstw_s(tmp, _sum1);
+                sum10 += tmp[0];
+                sum11 += tmp[1];
+#endif // __mips_loongson_mmi
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     sum00 += pA[0] * pB[0];
@@ -866,6 +956,62 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __mips_loongson_mmi
+                int32x2_t _sum = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+                double _tmp0;
+                double _tmp1;
+                double _tmp2;
+
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
+                        "ld         $0, 8(%1)       \n" // __builtin_prefetch(pB + 8);
+
+                        "ldc1       %3, 0(%0)       \n" // int16x4_t _pA = __mmi_pldh_s(pA);
+                        "lwc1       %4, 0(%1)       \n" // int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
+
+                        "daddiu     %0, %0, 8       \n" // pA += 4;
+                        "daddiu     %1, %1, 4       \n" // pB += 2;
+                        "punpcklwd  %4, %4, %4      \n"
+
+                        "pmaddhw    %5, %3, %4      \n"
+                        "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
+
+                        : "=r"(pA),    // %0
+                        "=r"(pB),    // %1
+                        "=f"(_sum),  // %2
+                        "=&f"(_tmp0), // %3
+                        "=&f"(_tmp1), // %4
+                        "=&f"(_tmp2)  // %5
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(_sum)
+                        : "memory");
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __builtin_prefetch(pA + 16);
+                    __builtin_prefetch(pB + 8);
+
+                    int16x4_t _pA = __mmi_pldh_s(pA);
+                    int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
+
+                    _sum = __mmi_paddw_s(_sum, __mmi_pmaddhw(_pA, _pB));
+
+                    pA += 4;
+                    pB += 2;
+                }
+#endif // NCNN_GNU_INLINE_ASM
+
+                int tmp[2];
+                __mmi_pstw_s(tmp, _sum);
+                sum0 += tmp[0];
+                sum1 += tmp[1];
+#endif // __mips_loongson_mmi
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     sum0 += pA[0] * pB[0];
@@ -1006,6 +1152,62 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __mips_loongson_mmi
+                int32x2_t _sum = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+                double _tmp0;
+                double _tmp1;
+                double _tmp2;
+
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ld         $0, 8(%0)       \n" // __builtin_prefetch(pA + 8);
+                        "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
+
+                        "lwc1       %3, 0(%0)       \n" // int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
+                        "ldc1       %4, 0(%1)       \n" // int16x4_t _pB = __mmi_pldh_s(pB);
+
+                        "daddiu     %0, %0, 4       \n" // pA += 2;
+                        "daddiu     %1, %1, 8       \n" // pB += 4;
+                        "punpcklwd  %3, %3, %3      \n"
+
+                        "pmaddhw    %5, %3, %4      \n"
+                        "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
+
+                        : "=r"(pA),    // %0
+                        "=r"(pB),    // %1
+                        "=f"(_sum),  // %2
+                        "=&f"(_tmp0), // %3
+                        "=&f"(_tmp1), // %4
+                        "=&f"(_tmp2)  // %5
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(_sum)
+                        : "memory");
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __builtin_prefetch(pA + 8);
+                    __builtin_prefetch(pB + 16);
+
+                    int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
+                    int16x4_t _pB = __mmi_pldh_s(pB);
+
+                    _sum = __mmi_paddw_s(_sum, __mmi_pmaddhw(_pA, _pB));
+
+                    pA += 2;
+                    pB += 4;
+                }
+#endif // NCNN_GNU_INLINE_ASM
+
+                int tmp[2];
+                __mmi_pstw_s(tmp, _sum);
+                sum0 += tmp[0];
+                sum1 += tmp[1];
+#endif // __mips_loongson_mmi
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     sum0 += pA[0] * pB[0];
@@ -1043,6 +1245,62 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __mips_loongson_mmi
+                int32x2_t _sum = __mmi_pzerow_s();
+
+#if NCNN_GNU_INLINE_ASM
+                double _tmp0;
+                double _tmp1;
+                double _tmp2;
+
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ld         $0, 8(%0)       \n" // __builtin_prefetch(pA + 8);
+                        "ld         $0, 8(%1)       \n" // __builtin_prefetch(pB + 8);
+
+                        "lwc1       %3, 0(%0)       \n" // int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
+                        "lwc1       %4, 0(%1)       \n" // int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
+
+                        "daddiu     %0, %0, 4       \n" // pA += 2;
+                        "daddiu     %1, %1, 4       \n" // pB += 2;
+                        "punpcklwd  %3, %3, %3      \n"
+                        "punpcklwd  %4, %4, %4      \n"
+
+                        "pmaddhw    %5, %3, %4      \n"
+                        "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
+
+                        : "=r"(pA),    // %0
+                        "=r"(pB),    // %1
+                        "=f"(_sum),  // %2
+                        "=&f"(_tmp0), // %3
+                        "=&f"(_tmp1), // %4
+                        "=&f"(_tmp2)  // %5
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(_sum)
+                        : "memory");
+                }
+#else  // NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __builtin_prefetch(pA + 8);
+                    __builtin_prefetch(pB + 8);
+
+                    int16x4_t _pA = (int16x4_t)__mmi_pfillw_s(*(const int*)pA);
+                    int16x4_t _pB = (int16x4_t)__mmi_pfillw_s(*(const int*)pB);
+
+                    _sum = __mmi_paddw_s(_sum, __mmi_pmaddhw(_pA, _pB));
+
+                    pA += 2;
+                    pB += 2;
+                }
+#endif // NCNN_GNU_INLINE_ASM
+
+                int tmp[2];
+                __mmi_pstw_s(tmp, _sum);
+                sum += tmp[0];
+#endif // __mips_loongson_mmi
                 for (; kk < max_kk; kk++)
                 {
                     sum += pA[0] * pB[0];
@@ -1189,6 +1447,14 @@ static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd23_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        conv3x3s1_winograd23_transform_kernel_int8_loongson_mmi(kernel, AT, inch, outch, opt);
+        return;
+    }
+#endif
+
     const int M = outch;
     const int K = inch;
     const int B = 16;
@@ -1939,6 +2205,14 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& ke
 
 static void conv3x3s1_winograd43_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        conv3x3s1_winograd43_transform_kernel_int8_loongson_mmi(kernel, AT, inch, outch, opt);
+        return;
+    }
+#endif
+
     const int M = outch;
     const int K = inch;
     const int B = 36;
