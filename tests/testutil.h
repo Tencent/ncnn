@@ -50,6 +50,14 @@ ncnn::Mat RandomIntMat(int w, int h, int c);
 
 ncnn::Mat RandomIntMat(int w, int h, int d, int c);
 
+ncnn::Mat RandomBoolMat(int w);
+
+ncnn::Mat RandomBoolMat(int w, int h);
+
+ncnn::Mat RandomBoolMat(int w, int h, int c);
+
+ncnn::Mat RandomBoolMat(int w, int h, int d, int c);
+
 ncnn::Mat RandomS8Mat(int w);
 
 ncnn::Mat RandomS8Mat(int w, int h);
