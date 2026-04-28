@@ -230,7 +230,8 @@ static void gemm_transB_int8(const Mat& A_int8, const Mat& BT_int8, const Mat& A
 #if __mips_loongson_mmi && !__mips_msa
                 // GCC may mis-vectorize this int8 dot loop with -mloongson-mmi.
                 // Keep this loop scalar without disabling tree-vectorize globally.
-                asm volatile("" ::: "memory");
+                asm volatile("" ::
+                             : "memory");
 #endif
             }
 

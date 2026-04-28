@@ -2841,21 +2841,21 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "paddw      %4, %4, %8      \n" // _sum10 += dot(_pA0, _pB1);
                     "paddw      %5, %5, %9      \n" // _sum11 += dot(_pA1, _pB1);
 
-                    : "=r"(pA),      // %0
-                    "=r"(pB),      // %1
-                    "=f"(_sum00),  // %2
-                    "=f"(_sum01),  // %3
-                    "=f"(_sum10),  // %4
-                    "=f"(_sum11),  // %5
-                    "=&f"(_tmp0),  // %6
-                    "=&f"(_tmp1),  // %7
-                    "=&f"(_tmp2),  // %8
-                    "=&f"(_tmp3),  // %9
-                    "=&f"(_tmp4),  // %10
-                    "=&f"(_tmp5),  // %11
-                    "=&f"(_tmp6),  // %12
-                    "=&f"(_tmp7),  // %13
-                    "=&f"(_shift)  // %14
+                    : "=r"(pA),     // %0
+                    "=r"(pB),     // %1
+                    "=f"(_sum00), // %2
+                    "=f"(_sum01), // %3
+                    "=f"(_sum10), // %4
+                    "=f"(_sum11), // %5
+                    "=&f"(_tmp0), // %6
+                    "=&f"(_tmp1), // %7
+                    "=&f"(_tmp2), // %8
+                    "=&f"(_tmp3), // %9
+                    "=&f"(_tmp4), // %10
+                    "=&f"(_tmp5), // %11
+                    "=&f"(_tmp6), // %12
+                    "=&f"(_tmp7), // %13
+                    "=&f"(_shift) // %14
                     : "0"(pA),
                     "1"(pB),
                     "2"(_sum00),
@@ -3408,9 +3408,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "pmaddhw    %3, %7, %8      \n"
                     "paddw      %2, %2, %3      \n" // _sum += dot(_pA0, _pB0);
 
-                    : "=r"(pA),    // %0
-                    "=r"(pB),    // %1
-                    "=f"(_sum),  // %2
+                    : "=r"(pA),     // %0
+                    "=r"(pB),     // %1
+                    "=f"(_sum),   // %2
                     "=&f"(_tmp0), // %3
                     "=&f"(_tmp1), // %4
                     "=&f"(_tmp2), // %5

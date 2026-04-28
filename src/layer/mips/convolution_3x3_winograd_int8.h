@@ -973,9 +973,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "pmaddhw    %5, %3, %4      \n"
                         "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
 
-                        : "=r"(pA),    // %0
-                        "=r"(pB),    // %1
-                        "=f"(_sum),  // %2
+                        : "=r"(pA),     // %0
+                        "=r"(pB),     // %1
+                        "=f"(_sum),   // %2
                         "=&f"(_tmp0), // %3
                         "=&f"(_tmp1), // %4
                         "=&f"(_tmp2)  // %5
@@ -1169,9 +1169,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "pmaddhw    %5, %3, %4      \n"
                         "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
 
-                        : "=r"(pA),    // %0
-                        "=r"(pB),    // %1
-                        "=f"(_sum),  // %2
+                        : "=r"(pA),     // %0
+                        "=r"(pB),     // %1
+                        "=f"(_sum),   // %2
                         "=&f"(_tmp0), // %3
                         "=&f"(_tmp1), // %4
                         "=&f"(_tmp2)  // %5
@@ -1263,9 +1263,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "pmaddhw    %5, %3, %4      \n"
                         "paddw      %2, %2, %5      \n" // _sum += dot(_pA, _pB);
 
-                        : "=r"(pA),    // %0
-                        "=r"(pB),    // %1
-                        "=f"(_sum),  // %2
+                        : "=r"(pA),     // %0
+                        "=r"(pB),     // %1
+                        "=f"(_sum),   // %2
                         "=&f"(_tmp0), // %3
                         "=&f"(_tmp1), // %4
                         "=&f"(_tmp2)  // %5
