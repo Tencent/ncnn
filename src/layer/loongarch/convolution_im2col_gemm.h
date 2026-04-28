@@ -1238,7 +1238,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             {
                 __m128 _pA0 = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA1 = (__m128)__lsx_vld(pA + 4, 0);
-                __m128 _pB = (__m128)__lsx_vreplgr2vr_d(*(const long long*)pB);
+                __m128 _pB = (__m128)__lsx_vldrepl_d(pB, 0);
                 __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum00 = __lsx_vfmadd_s(_pA0, _pB, _sum00);
@@ -1726,7 +1726,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             for (; kk < max_kk; kk += 1)
             {
                 __m128 _pA = (__m128)__lsx_vld(pA, 0);
-                __m128 _pB = (__m128)__lsx_vreplgr2vr_d(*(const long long*)pB);
+                __m128 _pB = (__m128)__lsx_vldrepl_d(pB, 0);
                 __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
 
                 _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
