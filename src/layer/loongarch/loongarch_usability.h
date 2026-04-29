@@ -1043,23 +1043,23 @@ static NCNN_FORCEINLINE void transpose8x8_epi32(__m256i& _r0, __m256i& _r1, __m2
     __m256i _tmp6 = __lasx_xvilvl_w(_r7, _r6);
     __m256i _tmp7 = __lasx_xvilvh_w(_r7, _r6);
 
-    __m256i _tmp8 = __lasx_xvilvl_w(_tmp2, _tmp0);
-    __m256i _tmp9 = __lasx_xvilvh_w(_tmp2, _tmp0);
-    __m256i _tmpa = __lasx_xvilvl_w(_tmp3, _tmp1);
-    __m256i _tmpb = __lasx_xvilvh_w(_tmp3, _tmp1);
-    __m256i _tmpc = __lasx_xvilvl_w(_tmp6, _tmp4);
-    __m256i _tmpd = __lasx_xvilvh_w(_tmp6, _tmp4);
-    __m256i _tmpe = __lasx_xvilvl_w(_tmp7, _tmp5);
-    __m256i _tmpf = __lasx_xvilvh_w(_tmp7, _tmp5);
+    __m256i _tmp8 = __lasx_xvilvl_d(_tmp2, _tmp0);
+    __m256i _tmp9 = __lasx_xvilvh_d(_tmp2, _tmp0);
+    __m256i _tmpa = __lasx_xvilvl_d(_tmp3, _tmp1);
+    __m256i _tmpb = __lasx_xvilvh_d(_tmp3, _tmp1);
+    __m256i _tmpc = __lasx_xvilvl_d(_tmp6, _tmp4);
+    __m256i _tmpd = __lasx_xvilvh_d(_tmp6, _tmp4);
+    __m256i _tmpe = __lasx_xvilvl_d(_tmp7, _tmp5);
+    __m256i _tmpf = __lasx_xvilvh_d(_tmp7, _tmp5);
 
-    _r0 = __lasx_xvilvl_d(_tmp8, _tmpc);
-    _r1 = __lasx_xvilvh_d(_tmp8, _tmpc);
-    _r2 = __lasx_xvilvl_d(_tmp9, _tmpd);
-    _r3 = __lasx_xvilvh_d(_tmp9, _tmpd);
-    _r4 = __lasx_xvilvl_d(_tmpa, _tmpe);
-    _r5 = __lasx_xvilvh_d(_tmpa, _tmpe);
-    _r6 = __lasx_xvilvl_d(_tmpb, _tmpf);
-    _r7 = __lasx_xvilvh_d(_tmpb, _tmpf);
+    _r0 = __lasx_xvpermi_q(_tmpc, _tmp8, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r1 = __lasx_xvpermi_q(_tmpd, _tmp9, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r2 = __lasx_xvpermi_q(_tmpe, _tmpa, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r3 = __lasx_xvpermi_q(_tmpf, _tmpb, _LSX_SHUFFLE(0, 2, 0, 0));
+    _r4 = __lasx_xvpermi_q(_tmpc, _tmp8, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r5 = __lasx_xvpermi_q(_tmpd, _tmp9, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r6 = __lasx_xvpermi_q(_tmpe, _tmpa, _LSX_SHUFFLE(0, 3, 0, 1));
+    _r7 = __lasx_xvpermi_q(_tmpf, _tmpb, _LSX_SHUFFLE(0, 3, 0, 1));
 }
 
 // transpose8x4_epi32 - transpose 8x4 block of int32 (LASX)

@@ -1172,21 +1172,19 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
-                __m128 _pB0 = bfloat2float_lsx(pB);
-                __m128 _pB1 = bfloat2float_lsx(pB + 4);
-                __m256 _pB0x = __lasx_concat_128_s(_pB0, _pB0);
-                __m256 _pB1x = __lasx_concat_128_s(_pB1, _pB1);
-                __m256 _pB0r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0x, _LSX_SHUFFLE(0, 3, 2, 1));
-                __m256 _pB1r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB1x, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB2 = (__m256)__lasx_xvpermi_q((__m256i)_pB0, (__m256i)_pB0, _LSX_SHUFFLE(0, 0, 0, 1));
+                __m256 _pB3 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB2, _LSX_SHUFFLE(0, 3, 2, 1));
 
-                _sum0 = __lasx_xvfmadd_s(_pA, _pB0x, _sum0);
-                _sum1 = __lasx_xvfmadd_s(_pA, _pB0r, _sum1);
-                _sum2 = __lasx_xvfmadd_s(_pA1, _pB0x, _sum2);
-                _sum3 = __lasx_xvfmadd_s(_pA1, _pB0r, _sum3);
-                _sum4 = __lasx_xvfmadd_s(_pA, _pB1x, _sum4);
-                _sum5 = __lasx_xvfmadd_s(_pA, _pB1r, _sum5);
-                _sum6 = __lasx_xvfmadd_s(_pA1, _pB1x, _sum6);
-                _sum7 = __lasx_xvfmadd_s(_pA1, _pB1r, _sum7);
+                _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+                _sum4 = __lasx_xvfmadd_s(_pA, _pB2, _sum4);
+                _sum5 = __lasx_xvfmadd_s(_pA, _pB3, _sum5);
+                _sum6 = __lasx_xvfmadd_s(_pA1, _pB2, _sum6);
+                _sum7 = __lasx_xvfmadd_s(_pA1, _pB3, _sum7);
 
                 pA += 8;
                 pB += 8;

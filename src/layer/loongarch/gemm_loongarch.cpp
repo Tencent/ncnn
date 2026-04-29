@@ -990,35 +990,48 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             pp += 64;
 
             // deshuffle from the shuffle-based 8x8 kernel
-            _sum1 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
-            _sum3 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
             {
-                __m256 _tmp0 = (__m256)__lasx_xvilvl_w((__m256i)_sum3, (__m256i)_sum0);
-                __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_sum3, (__m256i)_sum0);
-                __m256 _tmp2 = (__m256)__lasx_xvilvl_w((__m256i)_sum1, (__m256i)_sum2);
-                __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_sum1, (__m256i)_sum2);
-                _sum0 = (__m256)__lasx_xvilvl_d((__m256i)_tmp2, (__m256i)_tmp0);
-                _sum1 = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
-                _sum2 = (__m256)__lasx_xvilvl_d((__m256i)_tmp1, (__m256i)_tmp3);
-                _sum3 = (__m256)__lasx_xvilvh_d((__m256i)_tmp1, (__m256i)_tmp3);
-            }
-            _sum1 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
-            _sum3 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256 _tmp0 = _sum0;
+                __m256 _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256 _tmp2 = _sum2;
+                __m256 _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256 _tmp4 = _sum4;
+                __m256 _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256 _tmp6 = _sum6;
+                __m256 _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
 
-            _sum5 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
-            _sum7 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
-            {
-                __m256 _tmp0 = (__m256)__lasx_xvilvl_w((__m256i)_sum7, (__m256i)_sum4);
-                __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_sum7, (__m256i)_sum4);
-                __m256 _tmp2 = (__m256)__lasx_xvilvl_w((__m256i)_sum5, (__m256i)_sum6);
-                __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_sum5, (__m256i)_sum6);
-                _sum4 = (__m256)__lasx_xvilvl_d((__m256i)_tmp2, (__m256i)_tmp0);
-                _sum5 = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
-                _sum6 = (__m256)__lasx_xvilvl_d((__m256i)_tmp1, (__m256i)_tmp3);
-                _sum7 = (__m256)__lasx_xvilvh_d((__m256i)_tmp1, (__m256i)_tmp3);
+                _sum0 = (__m256)__lasx_xvilvl_w((__m256i)_tmp3, (__m256i)_tmp0);
+                _sum1 = (__m256)__lasx_xvilvh_w((__m256i)_tmp3, (__m256i)_tmp0);
+                _sum2 = (__m256)__lasx_xvilvl_w((__m256i)_tmp1, (__m256i)_tmp2);
+                _sum3 = (__m256)__lasx_xvilvh_w((__m256i)_tmp1, (__m256i)_tmp2);
+                _sum4 = (__m256)__lasx_xvilvl_w((__m256i)_tmp7, (__m256i)_tmp4);
+                _sum5 = (__m256)__lasx_xvilvh_w((__m256i)_tmp7, (__m256i)_tmp4);
+                _sum6 = (__m256)__lasx_xvilvl_w((__m256i)_tmp5, (__m256i)_tmp6);
+                _sum7 = (__m256)__lasx_xvilvh_w((__m256i)_tmp5, (__m256i)_tmp6);
+
+                _tmp0 = (__m256)__lasx_xvilvl_d((__m256i)_sum2, (__m256i)_sum0);
+                _tmp1 = (__m256)__lasx_xvilvh_d((__m256i)_sum2, (__m256i)_sum0);
+                _tmp2 = (__m256)__lasx_xvilvl_d((__m256i)_sum1, (__m256i)_sum3);
+                _tmp3 = (__m256)__lasx_xvilvh_d((__m256i)_sum1, (__m256i)_sum3);
+                _tmp4 = (__m256)__lasx_xvilvl_d((__m256i)_sum6, (__m256i)_sum4);
+                _tmp5 = (__m256)__lasx_xvilvh_d((__m256i)_sum6, (__m256i)_sum4);
+                _tmp6 = (__m256)__lasx_xvilvl_d((__m256i)_sum5, (__m256i)_sum7);
+                _tmp7 = (__m256)__lasx_xvilvh_d((__m256i)_sum5, (__m256i)_sum7);
+
+                _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp3, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp5, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                _sum0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp4, (__m256i)_tmp0, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp1, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum2 = (__m256)__lasx_xvpermi_q((__m256i)_tmp6, (__m256i)_tmp2, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum3 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp3, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum4 = (__m256)__lasx_xvpermi_q((__m256i)_tmp0, (__m256i)_tmp4, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum5 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp5, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum6 = (__m256)__lasx_xvpermi_q((__m256i)_tmp2, (__m256i)_tmp6, _LSX_SHUFFLE(0, 3, 0, 0));
+                _sum7 = (__m256)__lasx_xvpermi_q((__m256i)_tmp3, (__m256i)_tmp7, _LSX_SHUFFLE(0, 3, 0, 0));
             }
-            _sum5 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
-            _sum7 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
 
             if (pC0)
             {
@@ -3994,21 +4007,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
-                __m128 _pB0l = (__m128)__lsx_vld(pB, 0);
-                __m128 _pB1l = (__m128)__lsx_vld(pB + 4, 0);
-                __m256 _pB0 = __lasx_concat_128_s(_pB0l, _pB0l);
-                __m256 _pB1 = __lasx_concat_128_s(_pB1l, _pB1l);
-                __m256 _pB0r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
-                __m256 _pB1r = (__m256)__lasx_xvshuf4i_w((__m256i)_pB1, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB2 = (__m256)__lasx_xvpermi_q((__m256i)_pB0, (__m256i)_pB0, _LSX_SHUFFLE(0, 0, 0, 1));
+                __m256 _pB3 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB2, _LSX_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
-                _sum1 = __lasx_xvfmadd_s(_pA, _pB0r, _sum1);
+                _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
                 _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
-                _sum3 = __lasx_xvfmadd_s(_pA1, _pB0r, _sum3);
-                _sum4 = __lasx_xvfmadd_s(_pA, _pB1, _sum4);
-                _sum5 = __lasx_xvfmadd_s(_pA, _pB1r, _sum5);
-                _sum6 = __lasx_xvfmadd_s(_pA1, _pB1, _sum6);
-                _sum7 = __lasx_xvfmadd_s(_pA1, _pB1r, _sum7);
+                _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+                _sum4 = __lasx_xvfmadd_s(_pA, _pB2, _sum4);
+                _sum5 = __lasx_xvfmadd_s(_pA, _pB3, _sum5);
+                _sum6 = __lasx_xvfmadd_s(_pA1, _pB2, _sum6);
+                _sum7 = __lasx_xvfmadd_s(_pA1, _pB3, _sum7);
                 pA += 8;
                 pB += 8;
             }
