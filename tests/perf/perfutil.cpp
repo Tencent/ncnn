@@ -821,3 +821,38 @@ void perf_layer(const char* layer_type, const ncnn::ParamDict& pd,
 
     perf_layer_impl(layer_type, pd, weights, inputs, 1, tag);
 }
+
+void perf_layer_int8(const char* layer_type, const ncnn::ParamDict& pd,
+                     const std::vector<ncnn::Mat>& weights,
+                     const std::vector<ncnn::Mat>& inputs, int top_blob_count,
+                     const char* param_fmt, ...)
+{
+    char tag[256];
+    va_list args;
+    va_start(args, param_fmt);
+    build_tag(tag, sizeof(tag), layer_type, inputs, param_fmt, args);
+    va_end(args);
+
+    ncnn::Option opt;
+    opt.lightmode = true;
+    opt.num_threads = 1;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+    opt.use_vulkan_compute = false;
+    opt.use_winograd_convolution = true;
+    opt.use_sgemm_convolution = true;
+    opt.use_int8_inference = true;
+
+    PerfResult result;
+    int ret = perf_layer_cpu(layer_type, pd, weights, inputs, top_blob_count, opt, 0, result);
+    if (ret == 0)
+    {
+        char full_tag[512];
+        snprintf(full_tag, sizeof(full_tag), "%s        int8", tag);
+        print_perf_result(full_tag, result);
+    }
+}

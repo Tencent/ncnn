@@ -29,6 +29,16 @@ static void perf_sdpa_decode(int embed_dim, int num_heads, int num_groups, int p
     perf_layer("SDPA", pd, weights, inputs, 3,
                "embed=%d heads=%d groups=%d past=%d",
                embed_dim, num_heads, num_groups, past_seqlen);
+
+    // int8 variant
+    ncnn::ParamDict pd_int8;
+    pd_int8.set(5, 0);    // attn_mask = 0
+    pd_int8.set(6, 0.f);  // scale = 0
+    pd_int8.set(7, 1);    // kv_cache = 1
+    pd_int8.set(18, 2);   // int8_scale_term
+    perf_layer_int8("SDPA", pd_int8, weights, inputs, 3,
+                    "embed=%d heads=%d groups=%d past=%d",
+                    embed_dim, num_heads, num_groups, past_seqlen);
 }
 
 int main()
