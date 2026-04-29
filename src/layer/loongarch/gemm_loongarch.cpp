@@ -4742,7 +4742,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pA += 2;
                     pB += 4;
                 }
-
             }
 #else
             float sum00;
