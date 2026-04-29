@@ -305,6 +305,9 @@ static inline void decode_pv_gemv(float* out, const float* s, const float* V, in
     for (int j = 0; j < block_n; j++)
     {
 #if __AVX512F__
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(V + (n_start + j + 4) * out_d), _MM_HINT_T1);
+
         int k = 0;
         __m512 pvec512 = _mm512_set1_ps(s[j]);
         for (; k + 15 < out_d; k += 16)
@@ -321,6 +324,9 @@ static inline void decode_pv_gemv(float* out, const float* s, const float* V, in
             _mm512_mask_storeu_ps(out + k, mask_d, _mm512_fmadd_ps(pvec512, vval, oval));
         }
 #else
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(V + (n_start + j + 4) * out_d), _MM_HINT_T1);
+
         int k = 0;
 #if __SSE2__
 #if __AVX__
@@ -357,6 +363,14 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
         const float* k2 = K + (n_start + j + 2) * d;
         const float* k3 = K + (n_start + j + 3) * d;
 
+        if (j + 7 < block_n)
+        {
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 5) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 6) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 7) * d), _MM_HINT_T1);
+        }
+
         __m512 acc0 = _mm512_setzero_ps();
         __m512 acc1 = _mm512_setzero_ps();
         __m512 acc2 = _mm512_setzero_ps();
@@ -389,6 +403,9 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
 
     for (; j < block_n; j++)
     {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
         __m512 acc = _mm512_setzero_ps();
         int k = 0;
         for (; k + 15 < d; k += 16)
@@ -406,6 +423,12 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
     {
         const float* k0 = K + (n_start + j + 0) * d;
         const float* k1 = K + (n_start + j + 1) * d;
+
+        if (j + 5 < block_n)
+        {
+            _mm_prefetch((const char*)(K + (n_start + j + 2) * d), _MM_HINT_T1);
+            _mm_prefetch((const char*)(K + (n_start + j + 3) * d), _MM_HINT_T1);
+        }
 
         __m256 acc0 = _mm256_setzero_ps();
         __m256 acc1 = _mm256_setzero_ps();
@@ -433,6 +456,9 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
 
     for (; j < block_n; j++)
     {
+        if (j + 2 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 2) * d), _MM_HINT_T1);
+
         const float* kptr = K + (n_start + j) * d;
         __m256 acc = _mm256_setzero_ps();
         int k = 0;
@@ -446,6 +472,9 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
 #elif __SSE2__
     for (int j = 0; j < block_n; j++)
     {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
         __m128 acc = _mm_setzero_ps();
         int k = 0;
         for (; k + 3 < d; k += 4)
@@ -458,6 +487,9 @@ static inline void decode_qk_dot(float* s, const float* q, const float* K, int n
 #else
     for (int j = 0; j < block_n; j++)
     {
+        if (j + 4 < block_n)
+            _mm_prefetch((const char*)(K + (n_start + j + 4) * d), _MM_HINT_T1);
+
         float sum = 0.f;
         for (int k = 0; k < d; k++)
             sum += q[k] * K[(n_start + j) * d + k];
