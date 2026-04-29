@@ -1976,7 +1976,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             }
         }
         if (broadcast_type_C == 3)
+        {
             pC = pC0;
+        }
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -2677,7 +2679,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             }
         }
         if (broadcast_type_C == 3)
+        {
             pC = pC0;
+        }
     }
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
@@ -2699,194 +2703,146 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC0 = (const float*)C + (i + ii);
+            }
             if (broadcast_type_C == 4)
+            {
                 pC0 = (const float*)C + j;
+            }
         }
 
         int jj = 0;
-        if (output_elemtype == 1)
+        for (; jj < max_jj;)
         {
-            if (output_transpose)
+            const int nn = output_transpose ? out_elempack : 1;
+
+            for (int q = 0; q < nn; q++)
             {
-                for (; jj < max_jj; jj += out_elempack)
+                float sum0 = pp[0];
+                float sum1 = pp[1];
+                pp += 2;
+
+                if (pC0)
                 {
-                    for (int q = 0; q < out_elempack; q++)
+                    if (broadcast_type_C == 0)
                     {
-                        float sum0 = pp[0];
-                        float sum1 = pp[1];
-                        pp += 2;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                                pC0 += 2;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum0 *= alpha;
-                        sum1 *= alpha;
-
-                        p0f[q] = sum0;
-                        p0f[q + out_elempack] = sum1;
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[0] * beta;
                     }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[1] * beta;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[1] * beta;
+                        pC0 += 2;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                }
+
+                sum0 *= alpha;
+                sum1 *= alpha;
+
+                if (output_elemtype == 1)
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0f[q] = sum0;
+                            p0f[q + 4] = sum1;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum0;
+                            p0f[1] = sum1;
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
+                    }
+                }
+                else
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0[q] = float32_to_bfloat16(sum0);
+                            p0[q + 4] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[1] = float32_to_bfloat16(sum1);
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
+                    }
+                }
+            }
+
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
                     p0f += out_hstep * out_elempack;
+                    jj += out_elempack;
+                }
+                else
+                {
+                    p0f += 1;
+                    jj += 1;
                 }
             }
             else
             {
-                for (; jj < max_jj; jj++)
+                if (output_transpose)
                 {
-                    float sum0 = pp[0];
-                    float sum1 = pp[1];
-                    pp += 2;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                            pC0 += 2;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum0 *= alpha;
-                    sum1 *= alpha;
-
-                    p0f[0] = sum0;
-                    p0f[out_hstep] = sum1;
-                    p0f++;
-                }
-            }
-        }
-        else
-        {
-            if (output_transpose)
-            {
-                for (; jj < max_jj; jj += out_elempack)
-                {
-                    for (int q = 0; q < out_elempack; q++)
-                    {
-                        float sum0 = pp[0];
-                        float sum1 = pp[1];
-                        pp += 2;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                                pC0 += 2;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum0 *= alpha;
-                        sum1 *= alpha;
-
-                        p0[q] = float32_to_bfloat16(sum0);
-                        p0[q + out_elempack] = float32_to_bfloat16(sum1);
-                    }
                     p0 += out_hstep * out_elempack;
+                    jj += out_elempack;
                 }
-            }
-            else
-            {
-                for (; jj < max_jj; jj++)
+                else
                 {
-                    float sum0 = pp[0];
-                    float sum1 = pp[1];
-                    pp += 2;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                            pC0 += 2;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum0 *= alpha;
-                    sum1 *= alpha;
-
-                    p0[0] = float32_to_bfloat16(sum0);
-                    p0[out_hstep] = float32_to_bfloat16(sum1);
-                    p0++;
+                    p0 += 1;
+                    jj += 1;
                 }
             }
         }
         if (broadcast_type_C == 3)
+        {
             pC = pC0;
+        }
     }
     for (; ii < max_ii; ii++)
     {
@@ -2907,166 +2863,132 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC0 = (const float*)C + (i + ii);
+            }
             if (broadcast_type_C == 4)
+            {
                 pC0 = (const float*)C + j;
+            }
         }
 
         int jj = 0;
-        if (output_elemtype == 1)
+        for (; jj < max_jj;)
         {
-            if (output_transpose)
+            const int nn = output_transpose ? out_elempack : 1;
+
+            for (int q = 0; q < nn; q++)
             {
-                for (; jj < max_jj; jj += out_elempack)
+                float sum = pp[0];
+                pp += 1;
+
+                if (pC0)
                 {
-                    for (int q = 0; q < out_elempack; q++)
+                    if (broadcast_type_C == 0)
                     {
-                        float sum = pp[0];
-                        pp += 1;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum *= alpha;
-
-                        p0f[q] = sum;
+                        sum += pC0[0] * beta;
                     }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        sum += pC0[0] * beta;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        sum += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        sum += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                }
+
+                sum *= alpha;
+
+                if (output_elemtype == 1)
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0f[q] = sum;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum;
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0f[0] = sum;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum;
+                        }
+                    }
+                }
+                else
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0[q] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 4)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                    }
+                }
+            }
+
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
                     p0f += out_hstep * out_elempack;
+                    jj += out_elempack;
+                }
+                else
+                {
+                    p0f += 1;
+                    jj += 1;
                 }
             }
             else
             {
-                for (; jj < max_jj; jj++)
+                if (output_transpose)
                 {
-                    float sum = pp[0];
-                    pp += 1;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum *= alpha;
-
-                    p0f[0] = sum;
-                    p0f++;
-                }
-            }
-        }
-        else
-        {
-            if (output_transpose)
-            {
-                for (; jj < max_jj; jj += out_elempack)
-                {
-                    for (int q = 0; q < out_elempack; q++)
-                    {
-                        float sum = pp[0];
-                        pp += 1;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum *= alpha;
-
-                        p0[q] = float32_to_bfloat16(sum);
-                    }
                     p0 += out_hstep * out_elempack;
+                    jj += out_elempack;
                 }
-            }
-            else
-            {
-                for (; jj < max_jj; jj++)
+                else
                 {
-                    float sum = pp[0];
-                    pp += 1;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum *= alpha;
-
-                    p0[0] = float32_to_bfloat16(sum);
-                    p0++;
+                    p0 += 1;
+                    jj += 1;
                 }
             }
         }
         if (broadcast_type_C == 3)
+        {
             pC = pC0;
+        }
     }
 }
 static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, int max_ii, int max_jj, int k, int max_kk)

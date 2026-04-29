@@ -395,6 +395,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         if (elempack == 8)
         {
@@ -413,7 +414,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -448,6 +448,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
     for (; ii < max_ii; ii += 1)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         if (elempack == 8)
         {
@@ -462,7 +463,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -779,6 +779,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __loongarch_sx
     for (; jj + 3 < max_jj; jj += 4)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         if (elempack == 8)
         {
@@ -801,7 +802,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -841,6 +841,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         if (elempack == 8)
         {
@@ -859,7 +860,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -894,6 +894,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     for (; jj < max_jj; jj += 1)
     {
+#if __loongarch_sx
 #if __loongarch_asx
         if (elempack == 8)
         {
@@ -908,7 +909,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
 #endif // __loongarch_asx
-#if __loongarch_sx
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -947,7 +947,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         unsigned short* p0;
@@ -967,14 +966,23 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC0 = (const float*)C + (i + ii);
+            }
+            if (broadcast_type_C == 3)
+            {
+                pC += max_jj * 8;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC0 = (const float*)C + j;
+            }
         }
 
+        int jj = 0;
+#if __loongarch_asx
         __m256 _valpha = (__m256)__lasx_xvreplfr2vr_s(alpha);
 
-        int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _sum0 = (__m256)__lasx_xvld(pp, 0);
@@ -1709,27 +1717,27 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
             if (pC0)
             {
-                __m256 _beta_v = (__m256)__lasx_xvreplfr2vr_s(beta);
+                __m256 _beta = (__m256)__lasx_xvreplfr2vr_s(beta);
                 if (broadcast_type_C == 0)
                 {
                     __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pC0[0]);
-                    _sum = __lasx_xvfmadd_s(_c, _beta_v, _sum);
+                    _sum = __lasx_xvfmadd_s(_c, _beta, _sum);
                 }
                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                 {
                     __m256 _c = (__m256)__lasx_xvld(pC0, 0);
-                    _sum = __lasx_xvfmadd_s(_c, _beta_v, _sum);
+                    _sum = __lasx_xvfmadd_s(_c, _beta, _sum);
                 }
                 if (broadcast_type_C == 3)
                 {
                     __m256 _c = (__m256)__lasx_xvld(pC0, 0);
-                    _sum = __lasx_xvfmadd_s(_c, _beta_v, _sum);
+                    _sum = __lasx_xvfmadd_s(_c, _beta, _sum);
                     pC0 += 8;
                 }
                 if (broadcast_type_C == 4)
                 {
                     __m256 _c = (__m256)__lasx_xvreplfr2vr_s(pC0[0]);
-                    _sum = __lasx_xvfmadd_s(_c, _beta_v, _sum);
+                    _sum = __lasx_xvfmadd_s(_c, _beta, _sum);
                     pC0 += 1;
                 }
             }
@@ -1833,41 +1841,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
             }
         }
-        if (broadcast_type_C == 3)
-            pC = pC0;
-    }
-#endif // __loongarch_asx
-    for (; ii + 7 < max_ii; ii += 8)
-    {
-        unsigned short* p0;
-        float* p0f;
-        if (output_transpose)
-        {
-            p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * out_elempack;
-            p0f = (float*)top_blob + j * out_hstep + (i + ii) * out_elempack;
-        }
-        else
-        {
-            p0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
-            p0f = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
-        }
-
-        const float* pC0 = pC;
-        if (pC0)
-        {
-            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-            {
-                pC0 = (const float*)C + (i + ii);
-            }
-            if (broadcast_type_C == 4)
-            {
-                pC0 = (const float*)C + j;
-            }
-        }
-
+#else  // __loongarch_asx
         __m128 _valpha = __lsx_vreplfr2vr_s(alpha);
 
-        int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _sum00 = (__m128)__lsx_vld(pp, 0);
@@ -2063,9 +2039,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 _sum71 = __lsx_vfmul_s(_sum71, _valpha);
             }
 
-            if (output_transpose)
+            if (output_elemtype == 1)
             {
-                if (output_elemtype == 1)
+                if (output_transpose)
                 {
                     if (out_elempack == 4)
                     {
@@ -2119,6 +2095,74 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (out_elempack == 4)
                     {
+                        float* p1f = p0f + out_hstep * 4;
+                        __lsx_vst((__m128i)_sum00, p0f, 0);
+                        __lsx_vst((__m128i)_sum01, p1f, 0);
+                        __lsx_vst((__m128i)_sum10, p0f + 4, 0);
+                        __lsx_vst((__m128i)_sum11, p1f + 4, 0);
+                        __lsx_vst((__m128i)_sum20, p0f + 8, 0);
+                        __lsx_vst((__m128i)_sum21, p1f + 8, 0);
+                        __lsx_vst((__m128i)_sum30, p0f + 12, 0);
+                        __lsx_vst((__m128i)_sum31, p1f + 12, 0);
+                        __lsx_vst((__m128i)_sum40, p0f + 16, 0);
+                        __lsx_vst((__m128i)_sum41, p1f + 16, 0);
+                        __lsx_vst((__m128i)_sum50, p0f + 20, 0);
+                        __lsx_vst((__m128i)_sum51, p1f + 20, 0);
+                        __lsx_vst((__m128i)_sum60, p0f + 24, 0);
+                        __lsx_vst((__m128i)_sum61, p1f + 24, 0);
+                        __lsx_vst((__m128i)_sum70, p0f + 28, 0);
+                        __lsx_vst((__m128i)_sum71, p1f + 28, 0);
+                        p0f += 32;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        __m128 _r0 = _sum00;
+                        __m128 _r1 = _sum10;
+                        __m128 _r2 = _sum20;
+                        __m128 _r3 = _sum30;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        __m128 _r4 = _sum40;
+                        __m128 _r5 = _sum50;
+                        __m128 _r6 = _sum60;
+                        __m128 _r7 = _sum70;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+                        __m128 _r8 = _sum01;
+                        __m128 _r9 = _sum11;
+                        __m128 _ra = _sum21;
+                        __m128 _rb = _sum31;
+                        transpose4x4_ps(_r8, _r9, _ra, _rb);
+                        __m128 _rc = _sum41;
+                        __m128 _rd = _sum51;
+                        __m128 _re = _sum61;
+                        __m128 _rf = _sum71;
+                        transpose4x4_ps(_rc, _rd, _re, _rf);
+
+                        __lsx_vst((__m128i)_r0, p0f, 0);
+                        __lsx_vst((__m128i)_r4, p0f + 4, 0);
+                        __lsx_vst((__m128i)_r1, p0f + out_hstep, 0);
+                        __lsx_vst((__m128i)_r5, p0f + out_hstep + 4, 0);
+                        __lsx_vst((__m128i)_r2, p0f + out_hstep * 2, 0);
+                        __lsx_vst((__m128i)_r6, p0f + out_hstep * 2 + 4, 0);
+                        __lsx_vst((__m128i)_r3, p0f + out_hstep * 3, 0);
+                        __lsx_vst((__m128i)_r7, p0f + out_hstep * 3 + 4, 0);
+                        __lsx_vst((__m128i)_r8, p0f + out_hstep * 4, 0);
+                        __lsx_vst((__m128i)_rc, p0f + out_hstep * 4 + 4, 0);
+                        __lsx_vst((__m128i)_r9, p0f + out_hstep * 5, 0);
+                        __lsx_vst((__m128i)_rd, p0f + out_hstep * 5 + 4, 0);
+                        __lsx_vst((__m128i)_ra, p0f + out_hstep * 6, 0);
+                        __lsx_vst((__m128i)_re, p0f + out_hstep * 6 + 4, 0);
+                        __lsx_vst((__m128i)_rb, p0f + out_hstep * 7, 0);
+                        __lsx_vst((__m128i)_rf, p0f + out_hstep * 7 + 4, 0);
+                        p0f += 8;
+                    }
+                }
+            }
+            else
+            {
+                if (output_transpose)
+                {
+                    if (out_elempack == 4)
+                    {
                         unsigned short* p1 = p0 + out_hstep * 4;
 
                         transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
@@ -2165,33 +2209,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     p0 += out_hstep * 8;
                 }
-            }
-            else
-            {
-                if (out_elempack == 4)
+                else
                 {
-                    if (output_elemtype == 1)
-                    {
-                        float* p1f = p0f + out_hstep * 4;
-                        __lsx_vst((__m128i)_sum00, p0f, 0);
-                        __lsx_vst((__m128i)_sum01, p1f, 0);
-                        __lsx_vst((__m128i)_sum10, p0f + 4, 0);
-                        __lsx_vst((__m128i)_sum11, p1f + 4, 0);
-                        __lsx_vst((__m128i)_sum20, p0f + 8, 0);
-                        __lsx_vst((__m128i)_sum21, p1f + 8, 0);
-                        __lsx_vst((__m128i)_sum30, p0f + 12, 0);
-                        __lsx_vst((__m128i)_sum31, p1f + 12, 0);
-                        __lsx_vst((__m128i)_sum40, p0f + 16, 0);
-                        __lsx_vst((__m128i)_sum41, p1f + 16, 0);
-                        __lsx_vst((__m128i)_sum50, p0f + 20, 0);
-                        __lsx_vst((__m128i)_sum51, p1f + 20, 0);
-                        __lsx_vst((__m128i)_sum60, p0f + 24, 0);
-                        __lsx_vst((__m128i)_sum61, p1f + 24, 0);
-                        __lsx_vst((__m128i)_sum70, p0f + 28, 0);
-                        __lsx_vst((__m128i)_sum71, p1f + 28, 0);
-                        p0f += 32;
-                    }
-                    else
+                    if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
                         __lsx_vstelm_d(float2bfloat_lsx(_sum00), p0, 0, 0);
@@ -2212,52 +2232,29 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vstelm_d(float2bfloat_lsx(_sum71), p1 + 28, 0, 0);
                         p0 += 32;
                     }
-                }
-                if (out_elempack == 1)
-                {
-                    __m128 _r0 = _sum00;
-                    __m128 _r1 = _sum10;
-                    __m128 _r2 = _sum20;
-                    __m128 _r3 = _sum30;
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __m128 _r4 = _sum40;
-                    __m128 _r5 = _sum50;
-                    __m128 _r6 = _sum60;
-                    __m128 _r7 = _sum70;
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __m128 _r8 = _sum01;
-                    __m128 _r9 = _sum11;
-                    __m128 _ra = _sum21;
-                    __m128 _rb = _sum31;
-                    transpose4x4_ps(_r8, _r9, _ra, _rb);
-                    __m128 _rc = _sum41;
-                    __m128 _rd = _sum51;
-                    __m128 _re = _sum61;
-                    __m128 _rf = _sum71;
-                    transpose4x4_ps(_rc, _rd, _re, _rf);
+                    if (out_elempack == 1)
+                    {
+                        __m128 _r0 = _sum00;
+                        __m128 _r1 = _sum10;
+                        __m128 _r2 = _sum20;
+                        __m128 _r3 = _sum30;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        __m128 _r4 = _sum40;
+                        __m128 _r5 = _sum50;
+                        __m128 _r6 = _sum60;
+                        __m128 _r7 = _sum70;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+                        __m128 _r8 = _sum01;
+                        __m128 _r9 = _sum11;
+                        __m128 _ra = _sum21;
+                        __m128 _rb = _sum31;
+                        transpose4x4_ps(_r8, _r9, _ra, _rb);
+                        __m128 _rc = _sum41;
+                        __m128 _rd = _sum51;
+                        __m128 _re = _sum61;
+                        __m128 _rf = _sum71;
+                        transpose4x4_ps(_rc, _rd, _re, _rf);
 
-                    if (output_elemtype == 1)
-                    {
-                        __lsx_vst((__m128i)_r0, p0f, 0);
-                        __lsx_vst((__m128i)_r4, p0f + 4, 0);
-                        __lsx_vst((__m128i)_r1, p0f + out_hstep, 0);
-                        __lsx_vst((__m128i)_r5, p0f + out_hstep + 4, 0);
-                        __lsx_vst((__m128i)_r2, p0f + out_hstep * 2, 0);
-                        __lsx_vst((__m128i)_r6, p0f + out_hstep * 2 + 4, 0);
-                        __lsx_vst((__m128i)_r3, p0f + out_hstep * 3, 0);
-                        __lsx_vst((__m128i)_r7, p0f + out_hstep * 3 + 4, 0);
-                        __lsx_vst((__m128i)_r8, p0f + out_hstep * 4, 0);
-                        __lsx_vst((__m128i)_rc, p0f + out_hstep * 4 + 4, 0);
-                        __lsx_vst((__m128i)_r9, p0f + out_hstep * 5, 0);
-                        __lsx_vst((__m128i)_rd, p0f + out_hstep * 5 + 4, 0);
-                        __lsx_vst((__m128i)_ra, p0f + out_hstep * 6, 0);
-                        __lsx_vst((__m128i)_re, p0f + out_hstep * 6 + 4, 0);
-                        __lsx_vst((__m128i)_rb, p0f + out_hstep * 7, 0);
-                        __lsx_vst((__m128i)_rf, p0f + out_hstep * 7 + 4, 0);
-                        p0f += 8;
-                    }
-                    else
-                    {
                         __lsx_vstelm_d(float2bfloat_lsx(_r0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_r4), p0 + 4, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_r1), p0 + out_hstep, 0, 0);
@@ -2392,9 +2389,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 _sum31 = __lsx_vfmul_s(_sum31, _valpha);
             }
 
-            if (output_transpose)
+            if (output_elemtype == 1)
             {
-                if (output_elemtype == 1)
+                if (output_transpose)
                 {
                     if (out_elempack == 4)
                     {
@@ -2427,6 +2424,48 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (out_elempack == 4)
                     {
+                        float* p1f = p0f + out_hstep * 4;
+                        __lsx_vst((__m128i)_sum00, p0f, 0);
+                        __lsx_vst((__m128i)_sum01, p1f, 0);
+                        __lsx_vst((__m128i)_sum10, p0f + 4, 0);
+                        __lsx_vst((__m128i)_sum11, p1f + 4, 0);
+                        __lsx_vst((__m128i)_sum20, p0f + 8, 0);
+                        __lsx_vst((__m128i)_sum21, p1f + 8, 0);
+                        __lsx_vst((__m128i)_sum30, p0f + 12, 0);
+                        __lsx_vst((__m128i)_sum31, p1f + 12, 0);
+                        p0f += 16;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        __m128 _r0 = _sum00;
+                        __m128 _r1 = _sum10;
+                        __m128 _r2 = _sum20;
+                        __m128 _r3 = _sum30;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        __m128 _r4 = _sum01;
+                        __m128 _r5 = _sum11;
+                        __m128 _r6 = _sum21;
+                        __m128 _r7 = _sum31;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                        __lsx_vst((__m128i)_r0, p0f, 0);
+                        __lsx_vst((__m128i)_r1, p0f + out_hstep, 0);
+                        __lsx_vst((__m128i)_r2, p0f + out_hstep * 2, 0);
+                        __lsx_vst((__m128i)_r3, p0f + out_hstep * 3, 0);
+                        __lsx_vst((__m128i)_r4, p0f + out_hstep * 4, 0);
+                        __lsx_vst((__m128i)_r5, p0f + out_hstep * 5, 0);
+                        __lsx_vst((__m128i)_r6, p0f + out_hstep * 6, 0);
+                        __lsx_vst((__m128i)_r7, p0f + out_hstep * 7, 0);
+                        p0f += 4;
+                    }
+                }
+            }
+            else
+            {
+                if (output_transpose)
+                {
+                    if (out_elempack == 4)
+                    {
                         transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
                         transpose4x4_ps(_sum01, _sum11, _sum21, _sum31);
 
@@ -2452,25 +2491,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     p0 += out_hstep * 4;
                 }
-            }
-            else
-            {
-                if (out_elempack == 4)
+                else
                 {
-                    if (output_elemtype == 1)
-                    {
-                        float* p1f = p0f + out_hstep * 4;
-                        __lsx_vst((__m128i)_sum00, p0f, 0);
-                        __lsx_vst((__m128i)_sum01, p1f, 0);
-                        __lsx_vst((__m128i)_sum10, p0f + 4, 0);
-                        __lsx_vst((__m128i)_sum11, p1f + 4, 0);
-                        __lsx_vst((__m128i)_sum20, p0f + 8, 0);
-                        __lsx_vst((__m128i)_sum21, p1f + 8, 0);
-                        __lsx_vst((__m128i)_sum30, p0f + 12, 0);
-                        __lsx_vst((__m128i)_sum31, p1f + 12, 0);
-                        p0f += 16;
-                    }
-                    else
+                    if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
                         __lsx_vstelm_d(float2bfloat_lsx(_sum00), p0, 0, 0);
@@ -2483,34 +2506,19 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vstelm_d(float2bfloat_lsx(_sum31), p1 + 12, 0, 0);
                         p0 += 16;
                     }
-                }
-                if (out_elempack == 1)
-                {
-                    __m128 _r0 = _sum00;
-                    __m128 _r1 = _sum10;
-                    __m128 _r2 = _sum20;
-                    __m128 _r3 = _sum30;
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __m128 _r4 = _sum01;
-                    __m128 _r5 = _sum11;
-                    __m128 _r6 = _sum21;
-                    __m128 _r7 = _sum31;
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    if (out_elempack == 1)
+                    {
+                        __m128 _r0 = _sum00;
+                        __m128 _r1 = _sum10;
+                        __m128 _r2 = _sum20;
+                        __m128 _r3 = _sum30;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        __m128 _r4 = _sum01;
+                        __m128 _r5 = _sum11;
+                        __m128 _r6 = _sum21;
+                        __m128 _r7 = _sum31;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
 
-                    if (output_elemtype == 1)
-                    {
-                        __lsx_vst((__m128i)_r0, p0f, 0);
-                        __lsx_vst((__m128i)_r1, p0f + out_hstep, 0);
-                        __lsx_vst((__m128i)_r2, p0f + out_hstep * 2, 0);
-                        __lsx_vst((__m128i)_r3, p0f + out_hstep * 3, 0);
-                        __lsx_vst((__m128i)_r4, p0f + out_hstep * 4, 0);
-                        __lsx_vst((__m128i)_r5, p0f + out_hstep * 5, 0);
-                        __lsx_vst((__m128i)_r6, p0f + out_hstep * 6, 0);
-                        __lsx_vst((__m128i)_r7, p0f + out_hstep * 7, 0);
-                        p0f += 4;
-                    }
-                    else
-                    {
                         __lsx_vstelm_d(float2bfloat_lsx(_r0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_r1), p0 + out_hstep, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_r2), p0 + out_hstep * 2, 0, 0);
@@ -2857,8 +2865,7 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
             }
         }
-        if (broadcast_type_C == 3)
-            pC = pC0;
+#endif // __loongarch_asx
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -2881,6 +2888,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
                 pC0 = (const float*)C + (i + ii);
+            }
+            if (broadcast_type_C == 3)
+            {
+                pC += max_jj * 4;
             }
             if (broadcast_type_C == 4)
             {
@@ -2999,9 +3010,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 _sum7 = __lsx_vfmul_s(_sum7, _valpha);
             }
 
-            if (output_transpose)
+            if (output_elemtype == 1)
             {
-                if (output_elemtype == 1)
+                if (output_transpose)
                 {
                     if (out_elempack == 8)
                     {
@@ -3046,6 +3057,38 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 4)
+                    {
+                        __lsx_vst((__m128i)_sum0, p0f, 0);
+                        __lsx_vst((__m128i)_sum1, p0f + 4, 0);
+                        __lsx_vst((__m128i)_sum2, p0f + 8, 0);
+                        __lsx_vst((__m128i)_sum3, p0f + 12, 0);
+                        __lsx_vst((__m128i)_sum4, p0f + 16, 0);
+                        __lsx_vst((__m128i)_sum5, p0f + 20, 0);
+                        __lsx_vst((__m128i)_sum6, p0f + 24, 0);
+                        __lsx_vst((__m128i)_sum7, p0f + 28, 0);
+                        p0f += 32;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                        transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                        __lsx_vst((__m128i)_sum0, p0f, 0);
+                        __lsx_vst((__m128i)_sum4, p0f + 4, 0);
+                        __lsx_vst((__m128i)_sum1, p0f + out_hstep, 0);
+                        __lsx_vst((__m128i)_sum5, p0f + out_hstep + 4, 0);
+                        __lsx_vst((__m128i)_sum2, p0f + out_hstep * 2, 0);
+                        __lsx_vst((__m128i)_sum6, p0f + out_hstep * 2 + 4, 0);
+                        __lsx_vst((__m128i)_sum3, p0f + out_hstep * 3, 0);
+                        __lsx_vst((__m128i)_sum7, p0f + out_hstep * 3 + 4, 0);
+                        p0f += 8;
+                    }
+                }
+            }
+            else
+            {
+                if (output_transpose)
+                {
                     if (out_elempack == 8)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
@@ -3087,24 +3130,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     p0 += out_hstep * 8;
                 }
-            }
-            else
-            {
-                if (out_elempack == 4)
+                else
                 {
-                    if (output_elemtype == 1)
-                    {
-                        __lsx_vst((__m128i)_sum0, p0f, 0);
-                        __lsx_vst((__m128i)_sum1, p0f + 4, 0);
-                        __lsx_vst((__m128i)_sum2, p0f + 8, 0);
-                        __lsx_vst((__m128i)_sum3, p0f + 12, 0);
-                        __lsx_vst((__m128i)_sum4, p0f + 16, 0);
-                        __lsx_vst((__m128i)_sum5, p0f + 20, 0);
-                        __lsx_vst((__m128i)_sum6, p0f + 24, 0);
-                        __lsx_vst((__m128i)_sum7, p0f + 28, 0);
-                        p0f += 32;
-                    }
-                    else
+                    if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
@@ -3116,25 +3144,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 28, 0, 0);
                         p0 += 32;
                     }
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                    transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                    if (output_elemtype == 1)
+                    if (out_elempack == 1)
                     {
-                        __lsx_vst((__m128i)_sum0, p0f, 0);
-                        __lsx_vst((__m128i)_sum4, p0f + 4, 0);
-                        __lsx_vst((__m128i)_sum1, p0f + out_hstep, 0);
-                        __lsx_vst((__m128i)_sum5, p0f + out_hstep + 4, 0);
-                        __lsx_vst((__m128i)_sum2, p0f + out_hstep * 2, 0);
-                        __lsx_vst((__m128i)_sum6, p0f + out_hstep * 2 + 4, 0);
-                        __lsx_vst((__m128i)_sum3, p0f + out_hstep * 3, 0);
-                        __lsx_vst((__m128i)_sum7, p0f + out_hstep * 3 + 4, 0);
-                        p0f += 8;
-                    }
-                    else
-                    {
+                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                        transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 4, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + out_hstep, 0, 0);
@@ -3217,9 +3230,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 _sum3 = __lsx_vfmul_s(_sum3, _valpha);
             }
 
-            if (output_transpose)
+            if (output_elemtype == 1)
             {
-                if (output_elemtype == 1)
+                if (output_transpose)
                 {
                     if (out_elempack == 8)
                     {
@@ -3248,6 +3261,29 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 4)
+                    {
+                        __lsx_vst((__m128i)_sum0, p0f, 0);
+                        __lsx_vst((__m128i)_sum1, p0f + 4, 0);
+                        __lsx_vst((__m128i)_sum2, p0f + 8, 0);
+                        __lsx_vst((__m128i)_sum3, p0f + 12, 0);
+                        p0f += 16;
+                    }
+                    if (out_elempack == 1)
+                    {
+                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                        __lsx_vst((__m128i)_sum0, p0f, 0);
+                        __lsx_vst((__m128i)_sum1, p0f + out_hstep, 0);
+                        __lsx_vst((__m128i)_sum2, p0f + out_hstep * 2, 0);
+                        __lsx_vst((__m128i)_sum3, p0f + out_hstep * 3, 0);
+                        p0f += 4;
+                    }
+                }
+            }
+            else
+            {
+                if (output_transpose)
+                {
                     if (out_elempack == 8)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
@@ -3273,20 +3309,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     p0 += out_hstep * 4;
                 }
-            }
-            else
-            {
-                if (out_elempack == 4)
+                else
                 {
-                    if (output_elemtype == 1)
-                    {
-                        __lsx_vst((__m128i)_sum0, p0f, 0);
-                        __lsx_vst((__m128i)_sum1, p0f + 4, 0);
-                        __lsx_vst((__m128i)_sum2, p0f + 8, 0);
-                        __lsx_vst((__m128i)_sum3, p0f + 12, 0);
-                        p0f += 16;
-                    }
-                    else
+                    if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
@@ -3294,20 +3319,9 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 12, 0, 0);
                         p0 += 16;
                     }
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                    if (output_elemtype == 1)
+                    if (out_elempack == 1)
                     {
-                        __lsx_vst((__m128i)_sum0, p0f, 0);
-                        __lsx_vst((__m128i)_sum1, p0f + out_hstep, 0);
-                        __lsx_vst((__m128i)_sum2, p0f + out_hstep * 2, 0);
-                        __lsx_vst((__m128i)_sum3, p0f + out_hstep * 3, 0);
-                        p0f += 4;
-                    }
-                    else
-                    {
+                        transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + out_hstep, 0, 0);
                         __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + out_hstep * 2, 0, 0);
@@ -3558,8 +3572,6 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
             }
         }
-        if (broadcast_type_C == 3)
-            pC = pC0;
     }
 #endif // __loongarch_sx
     for (; ii + 1 < max_ii; ii += 2)
@@ -3581,194 +3593,166 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC0 = (const float*)C + (i + ii);
+            }
+            if (broadcast_type_C == 3)
+            {
+                pC += max_jj * 2;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC0 = (const float*)C + j;
+            }
         }
 
         int jj = 0;
-        if (output_elemtype == 1)
+        for (; jj < max_jj;)
         {
-            if (output_transpose)
+            const int nn = output_transpose ? out_elempack : 1;
+
+            for (int q = 0; q < nn; q++)
             {
-                for (; jj < max_jj; jj += out_elempack)
+                float sum0 = pp[0];
+                float sum1 = pp[1];
+                pp += 2;
+
+                if (pC0)
                 {
-                    for (int q = 0; q < out_elempack; q++)
+                    if (broadcast_type_C == 0)
                     {
-                        float sum0 = pp[0];
-                        float sum1 = pp[1];
-                        pp += 2;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                                pC0 += 2;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum0 *= alpha;
-                        sum1 *= alpha;
-
-                        p0f[q] = sum0;
-                        p0f[q + out_elempack] = sum1;
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[0] * beta;
                     }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[1] * beta;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[1] * beta;
+                        pC0 += 2;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        sum0 += pC0[0] * beta;
+                        sum1 += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                }
+
+                sum0 *= alpha;
+                sum1 *= alpha;
+
+                if (output_elemtype == 1)
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0f[q] = sum0;
+                            p0f[q + 8] = sum1;
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0f[q] = sum0;
+                            p0f[q + 4] = sum1;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum0;
+                            p0f[1] = sum1;
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
+                    }
+                }
+                else
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0[q] = float32_to_bfloat16(sum0);
+                            p0[q + 8] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0[q] = float32_to_bfloat16(sum0);
+                            p0[q + 4] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[1] = float32_to_bfloat16(sum1);
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
+                    }
+                }
+            }
+
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
                     p0f += out_hstep * out_elempack;
+                    jj += out_elempack;
+                }
+                else
+                {
+                    p0f += 1;
+                    jj += 1;
                 }
             }
             else
             {
-                for (; jj < max_jj; jj++)
+                if (output_transpose)
                 {
-                    float sum0 = pp[0];
-                    float sum1 = pp[1];
-                    pp += 2;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                            pC0 += 2;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum0 *= alpha;
-                    sum1 *= alpha;
-
-                    p0f[0] = sum0;
-                    p0f[out_hstep] = sum1;
-                    p0f++;
-                }
-            }
-        }
-        else
-        {
-            if (output_transpose)
-            {
-                for (; jj < max_jj; jj += out_elempack)
-                {
-                    for (int q = 0; q < out_elempack; q++)
-                    {
-                        float sum0 = pp[0];
-                        float sum1 = pp[1];
-                        pp += 2;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[1] * beta;
-                                pC0 += 2;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum0 += pC0[0] * beta;
-                                sum1 += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum0 *= alpha;
-                        sum1 *= alpha;
-
-                        p0[q] = float32_to_bfloat16(sum0);
-                        p0[q + out_elempack] = float32_to_bfloat16(sum1);
-                    }
                     p0 += out_hstep * out_elempack;
+                    jj += out_elempack;
                 }
-            }
-            else
-            {
-                for (; jj < max_jj; jj++)
+                else
                 {
-                    float sum0 = pp[0];
-                    float sum1 = pp[1];
-                    pp += 2;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[1] * beta;
-                            pC0 += 2;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum0 += pC0[0] * beta;
-                            sum1 += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum0 *= alpha;
-                    sum1 *= alpha;
-
-                    p0[0] = float32_to_bfloat16(sum0);
-                    p0[out_hstep] = float32_to_bfloat16(sum1);
-                    p0++;
+                    p0 += 1;
+                    jj += 1;
                 }
             }
         }
-        if (broadcast_type_C == 3)
-            pC = pC0;
     }
     for (; ii < max_ii; ii++)
     {
@@ -3789,166 +3773,148 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
         if (pC0)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
+            {
                 pC0 = (const float*)C + (i + ii);
+            }
+            if (broadcast_type_C == 3)
+            {
+                pC += max_jj;
+            }
             if (broadcast_type_C == 4)
+            {
                 pC0 = (const float*)C + j;
+            }
         }
 
         int jj = 0;
-        if (output_elemtype == 1)
+        for (; jj < max_jj;)
         {
-            if (output_transpose)
+            const int nn = output_transpose ? out_elempack : 1;
+
+            for (int q = 0; q < nn; q++)
             {
-                for (; jj < max_jj; jj += out_elempack)
+                float sum = pp[0];
+                pp += 1;
+
+                if (pC0)
                 {
-                    for (int q = 0; q < out_elempack; q++)
+                    if (broadcast_type_C == 0)
                     {
-                        float sum = pp[0];
-                        pp += 1;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum *= alpha;
-
-                        p0f[q] = sum;
+                        sum += pC0[0] * beta;
                     }
+                    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                    {
+                        sum += pC0[0] * beta;
+                    }
+                    if (broadcast_type_C == 3)
+                    {
+                        sum += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                    if (broadcast_type_C == 4)
+                    {
+                        sum += pC0[0] * beta;
+                        pC0 += 1;
+                    }
+                }
+
+                sum *= alpha;
+
+                if (output_elemtype == 1)
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0f[q] = sum;
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0f[q] = sum;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum;
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0f[0] = sum;
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0f[0] = sum;
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0f[0] = sum;
+                        }
+                    }
+                }
+                else
+                {
+                    if (output_transpose)
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0[q] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0[q] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                    }
+                    else
+                    {
+                        if (out_elempack == 8)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 4)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                        if (out_elempack == 1)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
+                    }
+                }
+            }
+
+            if (output_elemtype == 1)
+            {
+                if (output_transpose)
+                {
                     p0f += out_hstep * out_elempack;
+                    jj += out_elempack;
+                }
+                else
+                {
+                    p0f += 1;
+                    jj += 1;
                 }
             }
             else
             {
-                for (; jj < max_jj; jj++)
+                if (output_transpose)
                 {
-                    float sum = pp[0];
-                    pp += 1;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum *= alpha;
-
-                    p0f[0] = sum;
-                    p0f++;
-                }
-            }
-        }
-        else
-        {
-            if (output_transpose)
-            {
-                for (; jj < max_jj; jj += out_elempack)
-                {
-                    for (int q = 0; q < out_elempack; q++)
-                    {
-                        float sum = pp[0];
-                        pp += 1;
-
-                        if (pC0)
-                        {
-                            if (broadcast_type_C == 0)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                            {
-                                sum += pC0[0] * beta;
-                            }
-                            if (broadcast_type_C == 3)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                            if (broadcast_type_C == 4)
-                            {
-                                sum += pC0[0] * beta;
-                                pC0 += 1;
-                            }
-                        }
-
-                        sum *= alpha;
-
-                        p0[q] = float32_to_bfloat16(sum);
-                    }
                     p0 += out_hstep * out_elempack;
+                    jj += out_elempack;
                 }
-            }
-            else
-            {
-                for (; jj < max_jj; jj++)
+                else
                 {
-                    float sum = pp[0];
-                    pp += 1;
-
-                    if (pC0)
-                    {
-                        if (broadcast_type_C == 0)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
-                        {
-                            sum += pC0[0] * beta;
-                        }
-                        if (broadcast_type_C == 3)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                        if (broadcast_type_C == 4)
-                        {
-                            sum += pC0[0] * beta;
-                            pC0 += 1;
-                        }
-                    }
-
-                    sum *= alpha;
-
-                    p0[0] = float32_to_bfloat16(sum);
-                    p0++;
+                    p0 += 1;
+                    jj += 1;
                 }
             }
         }
-        if (broadcast_type_C == 3)
-            pC = pC0;
     }
 }
 
@@ -3960,12 +3926,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const float* pB = pBT;
 
         int jj = 0;
+#if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m256 _sum0;
@@ -4139,15 +4105,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             outptr += 8;
         }
-
-        pAT += max_kk * 8;
-    }
 #else  // __loongarch_asx
-    for (; ii + 7 < max_ii; ii += 8)
-    {
-        const float* pB = pBT;
-
-        int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _sum00;
@@ -4410,9 +4368,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             outptr += 8;
         }
 
+#endif // __loongarch_asx
         pAT += max_kk * 8;
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const float* pB = pBT;
@@ -4927,7 +4885,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             outptr += 8;
         }
-#else  // __loongarch_asx
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _sum0;
@@ -4961,7 +4919,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             outptr += 8;
         }
-#endif // __loongarch_asx
 #endif // __loongarch_sx
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5104,13 +5061,11 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
 #if __loongarch_sx
-#if __loongarch_asx
     TILE_M = std::max(8, tile_size / 8 * 8);
     TILE_N = std::max(8, tile_size / 8 * 8);
+#if __loongarch_asx
     TILE_K = std::max(8, tile_size / 8 * 8);
 #else
-    TILE_M = std::max(8, tile_size / 8 * 8);
-    TILE_N = std::max(8, tile_size / 8 * 8);
     TILE_K = std::max(4, tile_size / 4 * 4);
 #endif
 #else
@@ -5136,13 +5091,8 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
 #if __loongarch_sx
-#if __loongarch_asx
             TILE_M = std::max(8, tile_size / 8 * 8);
             TILE_N = std::max(8, tile_size / 8 * 8);
-#else
-            TILE_M = std::max(8, tile_size / 8 * 8);
-            TILE_N = std::max(8, tile_size / 8 * 8);
-#endif
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
             TILE_N = std::max(4, tile_size / 4 * 4);
@@ -5156,11 +5106,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
-#else
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
-#endif
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -5170,11 +5116,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
-#else
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
-#endif
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #endif
@@ -5183,11 +5125,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (nT > 1)
     {
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
-#else
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
-#endif
 #else
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
@@ -5196,11 +5134,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (constant_TILE_M > 0)
     {
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_M = (constant_TILE_M + 7) / 8 * 8;
-#else
-        TILE_M = (constant_TILE_M + 7) / 8 * 8;
-#endif
 #else
         TILE_M = (constant_TILE_M + 1) / 2 * 2;
 #endif
@@ -5208,11 +5142,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     if (constant_TILE_N > 0)
     {
 #if __loongarch_sx
-#if __loongarch_asx
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
-#else
-        TILE_N = (constant_TILE_N + 7) / 8 * 8;
-#endif
 #else
         TILE_N = (constant_TILE_N + 3) / 4 * 4;
 #endif

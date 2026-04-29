@@ -5045,9 +5045,13 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             p0[0] = f0;
 
             if (output_transpose)
+            {
                 p0 += out_hstep;
+            }
             else
+            {
                 p0 += 1;
+            }
             pp += 1;
         }
     }

@@ -1383,12 +1383,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         const signed char* pB = pBT;
 
         int jj = 0;
+#if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -1719,15 +1719,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             outptr += 8;
         }
-
-        pAT += max_kk * 8;
-    }
 #else  // __loongarch_asx
-    for (; ii + 7 < max_ii; ii += 8)
-    {
-        const signed char* pB = pBT;
-
-        int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -2203,9 +2195,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             outptr += 8;
         }
 
+#endif // __loongarch_asx
         pAT += max_kk * 8;
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         const signed char* pB = pBT;
@@ -3063,10 +3055,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
         }
 
         int jj = 0;
+#if __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __builtin_prefetch(pp + 64);
-#if __loongarch_asx
             __m256i _sum0 = __lasx_xvld(pp, 0);
             __m256i _sum1 = __lasx_xvld(pp + 8, 0);
             __m256i _sum2 = __lasx_xvld(pp + 16, 0);
@@ -3232,7 +3224,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             }
 
             pp += 64;
+        }
 #else  // __loongarch_asx
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            __builtin_prefetch(pp + 64);
             __m128i _sum0 = __lsx_vld(pp, 0);
             __m128i _sum8 = __lsx_vld(pp + 4, 0);
             __m128i _sum1 = __lsx_vld(pp + 8, 0);
@@ -3475,8 +3471,8 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 p0 += 8;
             }
             pp += 64;
-#endif // __loongarch_asx
         }
+#endif // __loongarch_asx
         for (; jj + 3 < max_jj; jj += 4)
         {
             __builtin_prefetch(pp + 32);
@@ -4739,9 +4735,13 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
             p0[0] = f0;
 
             if (output_transpose)
+            {
                 p0 += out_hstep;
+            }
             else
+            {
                 p0 += 1;
+            }
             pp += 1;
         }
     }
