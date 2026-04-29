@@ -634,6 +634,212 @@ static void sdpa_decode(float* out, const float* q,
     vec_scale(out, inv_l, out_d);
 }
 
+static void sdpa_decode_chunk(
+    float* out, float* m_out, float* l_out,
+    const float* q, const float* K, const float* V, const float* mask,
+    int n_start, int n_end, int d, int out_d, float scale)
+{
+    const int BLOCK_N = 128;
+#if __AVX512F__
+    __attribute__((aligned(64))) float s[BLOCK_N];
+#elif __AVX__
+    __attribute__((aligned(32))) float s[BLOCK_N];
+#elif __SSE2__
+    __attribute__((aligned(16))) float s[BLOCK_N];
+#else
+    float s[BLOCK_N];
+#endif
+
+    vec_zero(out, out_d);
+
+    float m = -FLT_MAX;
+    float l = 0.f;
+
+    for (int n = n_start; n < n_end; n += BLOCK_N)
+    {
+        int block_n = std::min(BLOCK_N, n_end - n);
+
+        decode_qk_dot(s, q, K, n, block_n, d, scale);
+
+        if (mask)
+        {
+#if __AVX512F__
+            int j = 0;
+            for (; j + 15 < block_n; j += 16)
+                _mm512_storeu_ps(s + j, _mm512_add_ps(_mm512_loadu_ps(s + j), _mm512_loadu_ps(mask + n + j)));
+            if (j < block_n)
+            {
+                __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
+                _mm512_mask_storeu_ps(s + j, mask_n,
+                                      _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + n + j)));
+            }
+#elif __AVX__
+            int j = 0;
+            for (; j + 7 < block_n; j += 8)
+                _mm256_storeu_ps(s + j, _mm256_add_ps(_mm256_loadu_ps(s + j), _mm256_loadu_ps(mask + n + j)));
+            for (; j < block_n; j++)
+                s[j] += mask[n + j];
+#elif __SSE2__
+            int j = 0;
+            for (; j + 3 < block_n; j += 4)
+                _mm_storeu_ps(s + j, _mm_add_ps(_mm_loadu_ps(s + j), _mm_loadu_ps(mask + n + j)));
+            for (; j < block_n; j++)
+                s[j] += mask[n + j];
+#else
+            for (int j = 0; j < block_n; j++)
+                s[j] += mask[n + j];
+#endif
+        }
+
+#if __AVX512F__
+        __m512 vmax = _mm512_set1_ps(-FLT_MAX);
+        int j = 0;
+        for (; j + 15 < block_n; j += 16)
+            vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(s + j));
+        if (j < block_n)
+        {
+            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
+            vmax = _mm512_max_ps(vmax, _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask_n, s + j));
+        }
+        float tile_m = _mm512_comp_reduce_max_ps(vmax);
+#elif __AVX__
+        __m256 vmax = _mm256_set1_ps(-FLT_MAX);
+        int j = 0;
+        for (; j + 7 < block_n; j += 8)
+            vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(s + j));
+        float tile_m = _mm256_reduce_max_ps(vmax);
+        for (; j < block_n; j++)
+            tile_m = std::max(tile_m, s[j]);
+#elif __SSE2__
+        __m128 vmax = _mm_set1_ps(-FLT_MAX);
+        int j = 0;
+        for (; j + 3 < block_n; j += 4)
+            vmax = _mm_max_ps(vmax, _mm_loadu_ps(s + j));
+        float tile_m = _mm_reduce_max_ps(vmax);
+        for (; j < block_n; j++)
+            tile_m = std::max(tile_m, s[j]);
+#else
+        float tile_m = -FLT_MAX;
+        for (int j = 0; j < block_n; j++)
+            tile_m = std::max(tile_m, s[j]);
+#endif
+
+        float new_m = std::max(m, tile_m);
+        if (m != new_m)
+        {
+            float scale_factor = expf(m - new_m);
+            l *= scale_factor;
+            vec_scale(out, scale_factor, out_d);
+        }
+
+#if __AVX512F__
+        __m512 vm_new = _mm512_set1_ps(new_m);
+        __m512 vsum = _mm512_setzero_ps();
+        j = 0;
+        for (; j + 15 < block_n; j += 16)
+        {
+            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(s + j), vm_new));
+            _mm512_storeu_ps(s + j, pvec);
+            vsum = _mm512_add_ps(vsum, pvec);
+        }
+        if (j < block_n)
+        {
+            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
+            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_maskz_loadu_ps(mask_n, s + j), vm_new));
+            _mm512_mask_storeu_ps(s + j, mask_n, pvec);
+            vsum = _mm512_mask_add_ps(vsum, mask_n, vsum, pvec);
+        }
+        l += _mm512_comp_reduce_add_ps(vsum);
+#elif __AVX__
+        __m256 vm_new = _mm256_set1_ps(new_m);
+        __m256 vsum = _mm256_setzero_ps();
+        j = 0;
+        for (; j + 7 < block_n; j += 8)
+        {
+            __m256 pvec = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(s + j), vm_new));
+            _mm256_storeu_ps(s + j, pvec);
+            vsum = _mm256_add_ps(vsum, pvec);
+        }
+        float l_add = _mm256_reduce_add_ps(vsum);
+        for (; j < block_n; j++)
+        {
+            s[j] = expf(s[j] - new_m);
+            l_add += s[j];
+        }
+        l += l_add;
+#elif __SSE2__
+        __m128 vm_new = _mm_set1_ps(new_m);
+        __m128 vsum = _mm_setzero_ps();
+        j = 0;
+        for (; j + 3 < block_n; j += 4)
+        {
+            __m128 pvec = exp_ps(_mm_sub_ps(_mm_loadu_ps(s + j), vm_new));
+            _mm_storeu_ps(s + j, pvec);
+            vsum = _mm_add_ps(vsum, pvec);
+        }
+        float l_add = _mm_reduce_add_ps(vsum);
+        for (; j < block_n; j++)
+        {
+            s[j] = expf(s[j] - new_m);
+            l_add += s[j];
+        }
+        l += l_add;
+#else
+        float l_add = 0.f;
+        for (int j = 0; j < block_n; j++)
+        {
+            s[j] = expf(s[j] - new_m);
+            l_add += s[j];
+        }
+        l += l_add;
+#endif
+
+        decode_pv_gemv(out, s, V, n, block_n, out_d);
+
+        m = new_m;
+    }
+
+    *m_out = m;
+    *l_out = l;
+}
+
+static void sdpa_decode_reduce(
+    float* out, int out_d,
+    const float* partials, int num_chunks, int partial_stride)
+{
+    float M_final = -FLT_MAX;
+    float S_final = 0.f;
+    vec_zero(out, out_d);
+
+    for (int c = 0; c < num_chunks; c++)
+    {
+        const float* p = partials + c * partial_stride;
+        float M_chunk = p[0];
+        float S_chunk = p[1];
+        if (S_chunk == 0.f) continue;
+
+        const float* VKQ_chunk = p + 2;
+
+        float M_new = std::max(M_final, M_chunk);
+        float scale_final = expf(M_final - M_new);
+        float scale_chunk = expf(M_chunk - M_new);
+
+        for (int k = 0; k < out_d; k++)
+        {
+            out[k] = out[k] * scale_final + VKQ_chunk[k] * scale_chunk;
+        }
+
+        S_final = S_final * scale_final + S_chunk * scale_chunk;
+        M_final = M_new;
+    }
+
+    if (S_final != 0.f)
+    {
+        float inv_s = 1.f / S_final;
+        vec_scale(out, inv_s, out_d);
+    }
+}
+
 #if __AVX512F__
 
 static void qk_gemm_avx512(float* S, const float* Q, const float* K,
@@ -3477,21 +3683,31 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     // FP32 optimized path using tiled GEMM + online softmax
     if (src_seqlen == 1)
     {
-        // Decode path: fused GEMV kernel for single-query attention
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < num_group; g++)
-        {
-            const Mat key_head = key.channel(g);
-            const Mat value_head = value.channel(g);
+        const int BLOCK_N = 128;
+        const bool use_split_kv = opt.num_threads > 1 && dst_seqlen >= BLOCK_N * 2;
 
-            for (int hq = 0; hq < num_heads_per_group; hq++)
+        if (use_split_kv)
+        {
+            const int num_kv_chunks = opt.num_threads;
+            Mat partials(2 + out_embed_dim, num_kv_chunks, num_heads, 4u, opt.workspace_allocator);
+            if (partials.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int task = 0; task < num_heads * num_kv_chunks; task++)
             {
-                int q = g * num_heads_per_group + hq;
+                int q = task / num_kv_chunks;
+                int chunk = task % num_kv_chunks;
+
+                int n_start = chunk * dst_seqlen / num_kv_chunks;
+                int n_end = (chunk + 1 == num_kv_chunks) ? dst_seqlen : (chunk + 1) * dst_seqlen / num_kv_chunks;
+
+                int g = q / num_heads_per_group;
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
                 const Mat query_head = query.channel(q);
-                Mat top_blob_head = top_blob.channel(q);
 
                 const float* qptr = query_head.row(0);
-                float* outptr = top_blob_head.row(0);
                 const float* Kptr = key_head;
                 const float* Vptr = value_head;
 
@@ -3511,7 +3727,58 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     mask_ptr = mask_head.row(0);
                 }
 
-                sdpa_decode_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                float* p = partials.channel(q).row(chunk);
+                sdpa_decode_chunk(p + 2, p, p + 1, qptr, Kptr, Vptr, mask_ptr,
+                                  n_start, n_end, embed_dim, out_embed_dim, _scale);
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < num_heads; q++)
+            {
+                Mat top_blob_head = top_blob.channel(q);
+                float* outptr = top_blob_head.row(0);
+                sdpa_decode_reduce(outptr, out_embed_dim,
+                                   partials.channel(q), num_kv_chunks, 2 + out_embed_dim);
+            }
+        }
+        else
+        {
+            // Decode path: fused GEMV kernel for single-query attention
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < num_group; g++)
+            {
+                const Mat key_head = key.channel(g);
+                const Mat value_head = value.channel(g);
+
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    int q = g * num_heads_per_group + hq;
+                    const Mat query_head = query.channel(q);
+                    Mat top_blob_head = top_blob.channel(q);
+
+                    const float* qptr = query_head.row(0);
+                    float* outptr = top_blob_head.row(0);
+                    const float* Kptr = key_head;
+                    const float* Vptr = value_head;
+
+                    const float* mask_ptr = nullptr;
+                    if (attn_mask)
+                    {
+                        const Mat& maskm = attn_mask_blob;
+                        Mat mask_head;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                        mask_ptr = mask_head.row(0);
+                    }
+
+                    sdpa_decode_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                }
             }
         }
 
