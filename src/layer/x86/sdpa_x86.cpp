@@ -302,19 +302,73 @@ static inline void pv_gemm_scalar(float* O, const float* P, const float* V,
 
 static inline void decode_pv_gemv(float* out, const float* s, const float* V, int n_start, int block_n, int out_d)
 {
-    for (int j = 0; j < block_n; j++)
-    {
 #if __AVX512F__
-        if (j + 4 < block_n)
-            _mm_prefetch((const char*)(V + (n_start + j + 4) * out_d), _MM_HINT_T1);
+    int j = 0;
+    for (; j + 1 < block_n; j += 2)
+    {
+        if (j + 6 < block_n)
+            _mm_prefetch((const char*)(V + (n_start + j + 6) * out_d), _MM_HINT_T1);
 
+        __m512 pvec0 = _mm512_set1_ps(s[j]);
+        __m512 pvec1 = _mm512_set1_ps(s[j + 1]);
         int k = 0;
+        for (; k + 31 < out_d; k += 32)
+        {
+            __m512 oval0 = _mm512_loadu_ps(out + k);
+            __m512 oval1 = _mm512_loadu_ps(out + k + 16);
+            __m512 v00 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v01 = _mm512_loadu_ps(V + (n_start + j) * out_d + k + 16);
+            __m512 v10 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k);
+            __m512 v11 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k + 16);
+            oval0 = _mm512_fmadd_ps(pvec0, v00, oval0);
+            oval1 = _mm512_fmadd_ps(pvec0, v01, oval1);
+            oval0 = _mm512_fmadd_ps(pvec1, v10, oval0);
+            oval1 = _mm512_fmadd_ps(pvec1, v11, oval1);
+            _mm512_storeu_ps(out + k, oval0);
+            _mm512_storeu_ps(out + k + 16, oval1);
+        }
+        if (k + 15 < out_d)
+        {
+            __m512 oval = _mm512_loadu_ps(out + k);
+            __m512 v0 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_loadu_ps(V + (n_start + j + 1) * out_d + k);
+            oval = _mm512_fmadd_ps(pvec0, v0, oval);
+            oval = _mm512_fmadd_ps(pvec1, v1, oval);
+            _mm512_storeu_ps(out + k, oval);
+            k += 16;
+        }
+        if (k < out_d)
+        {
+            __mmask16 mask_d = (__mmask16)((1u << (out_d - k)) - 1);
+            __m512 oval = _mm512_maskz_loadu_ps(mask_d, out + k);
+            __m512 v0 = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j + 1) * out_d + k);
+            oval = _mm512_fmadd_ps(pvec0, v0, oval);
+            oval = _mm512_fmadd_ps(pvec1, v1, oval);
+            _mm512_mask_storeu_ps(out + k, mask_d, oval);
+        }
+    }
+    for (; j < block_n; j++)
+    {
         __m512 pvec512 = _mm512_set1_ps(s[j]);
-        for (; k + 15 < out_d; k += 16)
+        int k = 0;
+        for (; k + 31 < out_d; k += 32)
+        {
+            __m512 oval0 = _mm512_loadu_ps(out + k);
+            __m512 oval1 = _mm512_loadu_ps(out + k + 16);
+            __m512 v0 = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
+            __m512 v1 = _mm512_loadu_ps(V + (n_start + j) * out_d + k + 16);
+            oval0 = _mm512_fmadd_ps(pvec512, v0, oval0);
+            oval1 = _mm512_fmadd_ps(pvec512, v1, oval1);
+            _mm512_storeu_ps(out + k, oval0);
+            _mm512_storeu_ps(out + k + 16, oval1);
+        }
+        if (k + 15 < out_d)
         {
             __m512 oval = _mm512_loadu_ps(out + k);
             __m512 vval = _mm512_loadu_ps(V + (n_start + j) * out_d + k);
             _mm512_storeu_ps(out + k, _mm512_fmadd_ps(pvec512, vval, oval));
+            k += 16;
         }
         if (k < out_d)
         {
@@ -323,7 +377,11 @@ static inline void decode_pv_gemv(float* out, const float* s, const float* V, in
             __m512 vval = _mm512_maskz_loadu_ps(mask_d, V + (n_start + j) * out_d + k);
             _mm512_mask_storeu_ps(out + k, mask_d, _mm512_fmadd_ps(pvec512, vval, oval));
         }
+    }
 #else
+    int j = 0;
+    for (; j < block_n; j++)
+    {
         if (j + 4 < block_n)
             _mm_prefetch((const char*)(V + (n_start + j + 4) * out_d), _MM_HINT_T1);
 
@@ -348,14 +406,86 @@ static inline void decode_pv_gemv(float* out, const float* s, const float* V, in
 #endif // __SSE2__
         for (; k < out_d; k++)
             out[k] += s[j] * V[(n_start + j) * out_d + k];
-#endif // __AVX512F__
     }
+#endif // __AVX512F__
 }
 
 static inline void decode_qk_dot(float* s, const float* q, const float* K, int n_start, int block_n, int d, float scale)
 {
 #if __AVX512F__
     int j = 0;
+    if (d >= 256)
+    {
+        for (; j + 7 < block_n; j += 8)
+        {
+            const float* k0 = K + (n_start + j + 0) * d;
+            const float* k1 = K + (n_start + j + 1) * d;
+            const float* k2 = K + (n_start + j + 2) * d;
+            const float* k3 = K + (n_start + j + 3) * d;
+            const float* k4 = K + (n_start + j + 4) * d;
+            const float* k5 = K + (n_start + j + 5) * d;
+            const float* k6 = K + (n_start + j + 6) * d;
+            const float* k7 = K + (n_start + j + 7) * d;
+
+            if (j + 15 < block_n)
+            {
+                _mm_prefetch((const char*)(K + (n_start + j + 8) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 9) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 10) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 11) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 12) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 13) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 14) * d), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (n_start + j + 15) * d), _MM_HINT_T1);
+            }
+
+            __m512 acc0 = _mm512_setzero_ps();
+            __m512 acc1 = _mm512_setzero_ps();
+            __m512 acc2 = _mm512_setzero_ps();
+            __m512 acc3 = _mm512_setzero_ps();
+            __m512 acc4 = _mm512_setzero_ps();
+            __m512 acc5 = _mm512_setzero_ps();
+            __m512 acc6 = _mm512_setzero_ps();
+            __m512 acc7 = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 15 < d; k += 16)
+            {
+                __m512 qv = _mm512_loadu_ps(q + k);
+                acc0 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k3 + k), acc3);
+                acc4 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k4 + k), acc4);
+                acc5 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k5 + k), acc5);
+                acc6 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k6 + k), acc6);
+                acc7 = _mm512_fmadd_ps(qv, _mm512_loadu_ps(k7 + k), acc7);
+            }
+            if (k < d)
+            {
+                __mmask16 mask_d = (__mmask16)((1u << (d - k)) - 1);
+                __m512 qv = _mm512_maskz_loadu_ps(mask_d, q + k);
+                acc0 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k0 + k), acc0);
+                acc1 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k1 + k), acc1);
+                acc2 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k2 + k), acc2);
+                acc3 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k3 + k), acc3);
+                acc4 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k4 + k), acc4);
+                acc5 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k5 + k), acc5);
+                acc6 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k6 + k), acc6);
+                acc7 = _mm512_fmadd_ps(qv, _mm512_maskz_loadu_ps(mask_d, k7 + k), acc7);
+            }
+
+            s[j + 0] = _mm512_comp_reduce_add_ps(acc0) * scale;
+            s[j + 1] = _mm512_comp_reduce_add_ps(acc1) * scale;
+            s[j + 2] = _mm512_comp_reduce_add_ps(acc2) * scale;
+            s[j + 3] = _mm512_comp_reduce_add_ps(acc3) * scale;
+            s[j + 4] = _mm512_comp_reduce_add_ps(acc4) * scale;
+            s[j + 5] = _mm512_comp_reduce_add_ps(acc5) * scale;
+            s[j + 6] = _mm512_comp_reduce_add_ps(acc6) * scale;
+            s[j + 7] = _mm512_comp_reduce_add_ps(acc7) * scale;
+        }
+    }
+
     for (; j + 3 < block_n; j += 4)
     {
         const float* k0 = K + (n_start + j + 0) * d;
