@@ -49,208 +49,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
-    for (; ii + 7 < max_ii; ii += 8)
-    {
-        int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
-
-        int jj = 0;
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            __m256i _f0 = __lasx_xvld(pp, 0);
-            __m256i _f1 = __lasx_xvld(pp + 8, 0);
-            __m256i _f2 = __lasx_xvld(pp + 16, 0);
-            __m256i _f3 = __lasx_xvld(pp + 24, 0);
-            __m256i _f4 = __lasx_xvld(pp + 32, 0);
-            __m256i _f5 = __lasx_xvld(pp + 40, 0);
-            __m256i _f6 = __lasx_xvld(pp + 48, 0);
-            __m256i _f7 = __lasx_xvld(pp + 56, 0);
-
-            if (out_elempack == 4)
-            {
-                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
-                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 3, 0, 1));
-                __m256i _tmp4 = __lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp5 = __lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp6 = __lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 3, 0, 1));
-                __m256i _tmp7 = __lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 3, 0, 1));
-
-                __lasx_xvst(_tmp0, p0, 0);
-                __lasx_xvst(_tmp1, p0 + 8, 0);
-                __lasx_xvst(_tmp2, p0 + out_hstep * 4, 0);
-                __lasx_xvst(_tmp3, p0 + out_hstep * 4 + 8, 0);
-                __lasx_xvst(_tmp4, p0 + 16, 0);
-                __lasx_xvst(_tmp5, p0 + 24, 0);
-                __lasx_xvst(_tmp6, p0 + out_hstep * 4 + 16, 0);
-                __lasx_xvst(_tmp7, p0 + out_hstep * 4 + 24, 0);
-                p0 += 32;
-            }
-            if (out_elempack == 1)
-            {
-                int tmp[64];
-                __lasx_xvst(_f0, tmp, 0);
-                __lasx_xvst(_f1, tmp + 8, 0);
-                __lasx_xvst(_f2, tmp + 16, 0);
-                __lasx_xvst(_f3, tmp + 24, 0);
-                __lasx_xvst(_f4, tmp + 32, 0);
-                __lasx_xvst(_f5, tmp + 40, 0);
-                __lasx_xvst(_f6, tmp + 48, 0);
-                __lasx_xvst(_f7, tmp + 56, 0);
-
-                for (int r = 0; r < 8; r++)
-                {
-                    p0[out_hstep * r] = tmp[r];
-                    p0[out_hstep * r + 1] = tmp[8 + r];
-                    p0[out_hstep * r + 2] = tmp[16 + r];
-                    p0[out_hstep * r + 3] = tmp[24 + r];
-                    p0[out_hstep * r + 4] = tmp[32 + r];
-                    p0[out_hstep * r + 5] = tmp[40 + r];
-                    p0[out_hstep * r + 6] = tmp[48 + r];
-                    p0[out_hstep * r + 7] = tmp[56 + r];
-                }
-                p0 += 8;
-            }
-
-            pp += 64;
-        }
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            __m256i _f0 = __lasx_xvld(pp, 0);
-            __m256i _f1 = __lasx_xvld(pp + 8, 0);
-            __m256i _f2 = __lasx_xvld(pp + 16, 0);
-            __m256i _f3 = __lasx_xvld(pp + 24, 0);
-
-            if (out_elempack == 4)
-            {
-                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp1 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp2 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
-                __m256i _tmp3 = __lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 3, 0, 1));
-
-                __lasx_xvst(_tmp0, p0, 0);
-                __lasx_xvst(_tmp1, p0 + 8, 0);
-                __lasx_xvst(_tmp2, p0 + out_hstep * 4, 0);
-                __lasx_xvst(_tmp3, p0 + out_hstep * 4 + 8, 0);
-                p0 += 16;
-            }
-            if (out_elempack == 1)
-            {
-                int tmp[32];
-                __lasx_xvst(_f0, tmp, 0);
-                __lasx_xvst(_f1, tmp + 8, 0);
-                __lasx_xvst(_f2, tmp + 16, 0);
-                __lasx_xvst(_f3, tmp + 24, 0);
-
-                p0[0] = tmp[0];
-                p0[1] = tmp[8];
-                p0[2] = tmp[16];
-                p0[3] = tmp[24];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep + 1] = tmp[9];
-                p0[out_hstep + 2] = tmp[17];
-                p0[out_hstep + 3] = tmp[25];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 2 + 1] = tmp[10];
-                p0[out_hstep * 2 + 2] = tmp[18];
-                p0[out_hstep * 2 + 3] = tmp[26];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 3 + 1] = tmp[11];
-                p0[out_hstep * 3 + 2] = tmp[19];
-                p0[out_hstep * 3 + 3] = tmp[27];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 4 + 1] = tmp[12];
-                p0[out_hstep * 4 + 2] = tmp[20];
-                p0[out_hstep * 4 + 3] = tmp[28];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 5 + 1] = tmp[13];
-                p0[out_hstep * 5 + 2] = tmp[21];
-                p0[out_hstep * 5 + 3] = tmp[29];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 6 + 1] = tmp[14];
-                p0[out_hstep * 6 + 2] = tmp[22];
-                p0[out_hstep * 6 + 3] = tmp[30];
-                p0[out_hstep * 7] = tmp[7];
-                p0[out_hstep * 7 + 1] = tmp[15];
-                p0[out_hstep * 7 + 2] = tmp[23];
-                p0[out_hstep * 7 + 3] = tmp[31];
-                p0 += 4;
-            }
-
-            pp += 32;
-        }
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            __m256i _f0 = __lasx_xvld(pp, 0);
-            __m256i _f1 = __lasx_xvld(pp + 8, 0);
-
-            if (out_elempack == 4)
-            {
-                __m256i _tmp0 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0));
-                __m256i _tmp1 = __lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1));
-
-                __lasx_xvst(_tmp0, p0, 0);
-                __lasx_xvst(_tmp1, p0 + out_hstep * 4, 0);
-                p0 += 8;
-            }
-            if (out_elempack == 1)
-            {
-                int tmp[16];
-                __lasx_xvst(_f0, tmp, 0);
-                __lasx_xvst(_f1, tmp + 8, 0);
-
-                p0[0] = tmp[0];
-                p0[1] = tmp[8];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep + 1] = tmp[9];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 2 + 1] = tmp[10];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 3 + 1] = tmp[11];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 4 + 1] = tmp[12];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 5 + 1] = tmp[13];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 6 + 1] = tmp[14];
-                p0[out_hstep * 7] = tmp[7];
-                p0[out_hstep * 7 + 1] = tmp[15];
-                p0 += 2;
-            }
-
-            pp += 16;
-        }
-        for (; jj < max_jj; jj++)
-        {
-            __m256i _f0 = __lasx_xvld(pp, 0);
-
-            if (out_elempack == 4)
-            {
-                __lsx_vst(__lasx_extract_128_lo(_f0), p0, 0);
-                __lsx_vst(__lasx_extract_128_hi(_f0), p0 + out_hstep * 4, 0);
-                p0 += 4;
-            }
-            if (out_elempack == 1)
-            {
-                int tmp[8];
-                __lasx_xvst(_f0, tmp, 0);
-
-                p0[0] = tmp[0];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 7] = tmp[7];
-                p0++;
-            }
-
-            pp += 8;
-        }
-    }
-#endif // __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
@@ -275,8 +73,41 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             __m128i _f70 = __lsx_vld(pp + 56, 0);
             __m128i _f71 = __lsx_vld(pp + 60, 0);
 
+            _f20 = __lsx_vshuf4i_w(_f20, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f30 = __lsx_vshuf4i_w(_f30, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f00, _f10, _f20, _f30);
+            _f10 = __lsx_vshuf4i_w(_f10, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f20 = __lsx_vshuf4i_w(_f20, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f30 = __lsx_vshuf4i_w(_f30, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _f21 = __lsx_vshuf4i_w(_f21, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f31 = __lsx_vshuf4i_w(_f31, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f01, _f11, _f21, _f31);
+            _f11 = __lsx_vshuf4i_w(_f11, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f21 = __lsx_vshuf4i_w(_f21, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f31 = __lsx_vshuf4i_w(_f31, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _f60 = __lsx_vshuf4i_w(_f60, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f70 = __lsx_vshuf4i_w(_f70, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f40, _f50, _f60, _f70);
+            _f50 = __lsx_vshuf4i_w(_f50, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f60 = __lsx_vshuf4i_w(_f60, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f70 = __lsx_vshuf4i_w(_f70, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _f61 = __lsx_vshuf4i_w(_f61, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f71 = __lsx_vshuf4i_w(_f71, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f41, _f51, _f61, _f71);
+            _f51 = __lsx_vshuf4i_w(_f51, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f61 = __lsx_vshuf4i_w(_f61, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f71 = __lsx_vshuf4i_w(_f71, _LSX_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f00, _f10, _f20, _f30);
+                transpose4x4_epi32(_f01, _f11, _f21, _f31);
+                transpose4x4_epi32(_f40, _f50, _f60, _f70);
+                transpose4x4_epi32(_f41, _f51, _f61, _f71);
+
                 __lsx_vst(_f00, p0, 0);
                 __lsx_vst(_f10, p0 + 4, 0);
                 __lsx_vst(_f20, p0 + 8, 0);
@@ -297,11 +128,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((__m128&)_f00, (__m128&)_f10, (__m128&)_f20, (__m128&)_f30);
-                transpose4x4_ps((__m128&)_f01, (__m128&)_f11, (__m128&)_f21, (__m128&)_f31);
-                transpose4x4_ps((__m128&)_f40, (__m128&)_f50, (__m128&)_f60, (__m128&)_f70);
-                transpose4x4_ps((__m128&)_f41, (__m128&)_f51, (__m128&)_f61, (__m128&)_f71);
-
                 __lsx_vst(_f00, p0, 0);
                 __lsx_vst(_f10, p0 + out_hstep, 0);
                 __lsx_vst(_f20, p0 + out_hstep * 2, 0);
@@ -334,8 +160,25 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             __m128i _f30 = __lsx_vld(pp + 24, 0);
             __m128i _f31 = __lsx_vld(pp + 28, 0);
 
+            _f20 = __lsx_vshuf4i_w(_f20, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f30 = __lsx_vshuf4i_w(_f30, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f00, _f10, _f20, _f30);
+            _f10 = __lsx_vshuf4i_w(_f10, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f20 = __lsx_vshuf4i_w(_f20, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f30 = __lsx_vshuf4i_w(_f30, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _f21 = __lsx_vshuf4i_w(_f21, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f31 = __lsx_vshuf4i_w(_f31, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f01, _f11, _f21, _f31);
+            _f11 = __lsx_vshuf4i_w(_f11, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f21 = __lsx_vshuf4i_w(_f21, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f31 = __lsx_vshuf4i_w(_f31, _LSX_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f00, _f10, _f20, _f30);
+                transpose4x4_epi32(_f01, _f11, _f21, _f31);
+
                 __lsx_vst(_f00, p0, 0);
                 __lsx_vst(_f10, p0 + 4, 0);
                 __lsx_vst(_f20, p0 + 8, 0);
@@ -348,9 +191,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((__m128&)_f00, (__m128&)_f10, (__m128&)_f20, (__m128&)_f30);
-                transpose4x4_ps((__m128&)_f01, (__m128&)_f11, (__m128&)_f21, (__m128&)_f31);
-
                 __lsx_vst(_f00, p0, 0);
                 __lsx_vst(_f10, p0 + out_hstep, 0);
                 __lsx_vst(_f20, p0 + out_hstep * 2, 0);
@@ -366,43 +206,44 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            __m128i _f00 = __lsx_vld(pp, 0);
-            __m128i _f01 = __lsx_vld(pp + 4, 0);
-            __m128i _f10 = __lsx_vld(pp + 8, 0);
-            __m128i _f11 = __lsx_vld(pp + 12, 0);
-
             if (out_elempack == 4)
             {
-                __lsx_vst(_f00, p0, 0);
-                __lsx_vst(_f10, p0 + 4, 0);
-                __lsx_vst(_f01, p0 + out_hstep * 4, 0);
-                __lsx_vst(_f11, p0 + out_hstep * 4 + 4, 0);
+                p0[0] = pp[0];
+                p0[1] = pp[9];
+                p0[2] = pp[2];
+                p0[3] = pp[11];
+                p0[4] = pp[8];
+                p0[5] = pp[1];
+                p0[6] = pp[10];
+                p0[7] = pp[3];
+                p0[out_hstep * 4] = pp[4];
+                p0[out_hstep * 4 + 1] = pp[13];
+                p0[out_hstep * 4 + 2] = pp[6];
+                p0[out_hstep * 4 + 3] = pp[15];
+                p0[out_hstep * 4 + 4] = pp[12];
+                p0[out_hstep * 4 + 5] = pp[5];
+                p0[out_hstep * 4 + 6] = pp[14];
+                p0[out_hstep * 4 + 7] = pp[7];
                 p0 += 8;
             }
             if (out_elempack == 1)
             {
-                int tmp[16];
-                __lsx_vst(_f00, tmp, 0);
-                __lsx_vst(_f01, tmp + 4, 0);
-                __lsx_vst(_f10, tmp + 8, 0);
-                __lsx_vst(_f11, tmp + 12, 0);
-
-                p0[0] = tmp[0];
-                p0[1] = tmp[8];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep + 1] = tmp[9];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 2 + 1] = tmp[10];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 3 + 1] = tmp[11];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 4 + 1] = tmp[12];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 5 + 1] = tmp[13];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 6 + 1] = tmp[14];
-                p0[out_hstep * 7] = tmp[7];
-                p0[out_hstep * 7 + 1] = tmp[15];
+                p0[0] = pp[0];
+                p0[1] = pp[8];
+                p0[out_hstep] = pp[9];
+                p0[out_hstep + 1] = pp[1];
+                p0[out_hstep * 2] = pp[2];
+                p0[out_hstep * 2 + 1] = pp[10];
+                p0[out_hstep * 3] = pp[11];
+                p0[out_hstep * 3 + 1] = pp[3];
+                p0[out_hstep * 4] = pp[4];
+                p0[out_hstep * 4 + 1] = pp[12];
+                p0[out_hstep * 5] = pp[13];
+                p0[out_hstep * 5 + 1] = pp[5];
+                p0[out_hstep * 6] = pp[6];
+                p0[out_hstep * 6 + 1] = pp[14];
+                p0[out_hstep * 7] = pp[15];
+                p0[out_hstep * 7 + 1] = pp[7];
                 p0 += 2;
             }
 
@@ -421,18 +262,14 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                int tmp[8];
-                __lsx_vst(_f00, tmp, 0);
-                __lsx_vst(_f01, tmp + 4, 0);
-
-                p0[0] = tmp[0];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 3] = tmp[3];
-                p0[out_hstep * 4] = tmp[4];
-                p0[out_hstep * 5] = tmp[5];
-                p0[out_hstep * 6] = tmp[6];
-                p0[out_hstep * 7] = tmp[7];
+                p0[0] = __lsx_vpickve2gr_w(_f00, 0);
+                p0[out_hstep] = __lsx_vpickve2gr_w(_f00, 1);
+                p0[out_hstep * 2] = __lsx_vpickve2gr_w(_f00, 2);
+                p0[out_hstep * 3] = __lsx_vpickve2gr_w(_f00, 3);
+                p0[out_hstep * 4] = __lsx_vpickve2gr_w(_f01, 0);
+                p0[out_hstep * 5] = __lsx_vpickve2gr_w(_f01, 1);
+                p0[out_hstep * 6] = __lsx_vpickve2gr_w(_f01, 2);
+                p0[out_hstep * 7] = __lsx_vpickve2gr_w(_f01, 3);
                 p0++;
             }
 
@@ -455,8 +292,25 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             __m128i _f6 = __lsx_vld(pp + 24, 0);
             __m128i _f7 = __lsx_vld(pp + 28, 0);
 
+            _f2 = __lsx_vshuf4i_w(_f2, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f3 = __lsx_vshuf4i_w(_f3, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f0, _f1, _f2, _f3);
+            _f1 = __lsx_vshuf4i_w(_f1, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f2 = __lsx_vshuf4i_w(_f2, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f3 = __lsx_vshuf4i_w(_f3, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _f6 = __lsx_vshuf4i_w(_f6, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f7 = __lsx_vshuf4i_w(_f7, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f4, _f5, _f6, _f7);
+            _f5 = __lsx_vshuf4i_w(_f5, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f6 = __lsx_vshuf4i_w(_f6, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f7 = __lsx_vshuf4i_w(_f7, _LSX_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f0, _f1, _f2, _f3);
+                transpose4x4_epi32(_f4, _f5, _f6, _f7);
+
                 __lsx_vst(_f0, p0, 0);
                 __lsx_vst(_f1, p0 + 4, 0);
                 __lsx_vst(_f2, p0 + 8, 0);
@@ -469,9 +323,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((__m128&)_f0, (__m128&)_f1, (__m128&)_f2, (__m128&)_f3);
-                transpose4x4_ps((__m128&)_f4, (__m128&)_f5, (__m128&)_f6, (__m128&)_f7);
-
                 __lsx_vst(_f0, p0, 0);
                 __lsx_vst(_f1, p0 + out_hstep, 0);
                 __lsx_vst(_f2, p0 + out_hstep * 2, 0);
@@ -492,8 +343,17 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             __m128i _f2 = __lsx_vld(pp + 8, 0);
             __m128i _f3 = __lsx_vld(pp + 12, 0);
 
+            _f2 = __lsx_vshuf4i_w(_f2, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f3 = __lsx_vshuf4i_w(_f3, _LSX_SHUFFLE(1, 0, 3, 2));
+            transpose4x4_epi32(_f0, _f1, _f2, _f3);
+            _f1 = __lsx_vshuf4i_w(_f1, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f2 = __lsx_vshuf4i_w(_f2, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f3 = __lsx_vshuf4i_w(_f3, _LSX_SHUFFLE(0, 3, 2, 1));
+
             if (out_elempack == 4)
             {
+                transpose4x4_epi32(_f0, _f1, _f2, _f3);
+
                 __lsx_vst(_f0, p0, 0);
                 __lsx_vst(_f1, p0 + 4, 0);
                 __lsx_vst(_f2, p0 + 8, 0);
@@ -502,8 +362,6 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                transpose4x4_ps((__m128&)_f0, (__m128&)_f1, (__m128&)_f2, (__m128&)_f3);
-
                 __lsx_vst(_f0, p0, 0);
                 __lsx_vst(_f1, p0 + out_hstep, 0);
                 __lsx_vst(_f2, p0 + out_hstep * 2, 0);
@@ -515,29 +373,28 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            __m128i _f0 = __lsx_vld(pp, 0);
-            __m128i _f1 = __lsx_vld(pp + 4, 0);
-
             if (out_elempack == 4)
             {
-                __lsx_vst(_f0, p0, 0);
-                __lsx_vst(_f1, p0 + 4, 0);
+                p0[0] = pp[0];
+                p0[1] = pp[5];
+                p0[2] = pp[2];
+                p0[3] = pp[7];
+                p0[4] = pp[4];
+                p0[5] = pp[1];
+                p0[6] = pp[6];
+                p0[7] = pp[3];
                 p0 += 8;
             }
             if (out_elempack == 1)
             {
-                int tmp[8];
-                __lsx_vst(_f0, tmp, 0);
-                __lsx_vst(_f1, tmp + 4, 0);
-
-                p0[0] = tmp[0];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 3] = tmp[3];
-                p0[1] = tmp[4];
-                p0[out_hstep + 1] = tmp[5];
-                p0[out_hstep * 2 + 1] = tmp[6];
-                p0[out_hstep * 3 + 1] = tmp[7];
+                p0[0] = pp[0];
+                p0[1] = pp[4];
+                p0[out_hstep] = pp[5];
+                p0[out_hstep + 1] = pp[1];
+                p0[out_hstep * 2] = pp[2];
+                p0[out_hstep * 2 + 1] = pp[6];
+                p0[out_hstep * 3] = pp[7];
+                p0[out_hstep * 3 + 1] = pp[3];
                 p0 += 2;
             }
 
@@ -554,13 +411,10 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
             }
             if (out_elempack == 1)
             {
-                int tmp[4];
-                __lsx_vst(_f0, tmp, 0);
-
-                p0[0] = tmp[0];
-                p0[out_hstep] = tmp[1];
-                p0[out_hstep * 2] = tmp[2];
-                p0[out_hstep * 3] = tmp[3];
+                p0[0] = __lsx_vpickve2gr_w(_f0, 0);
+                p0[out_hstep] = __lsx_vpickve2gr_w(_f0, 1);
+                p0[out_hstep * 2] = __lsx_vpickve2gr_w(_f0, 2);
+                p0[out_hstep * 3] = __lsx_vpickve2gr_w(_f0, 3);
                 p0++;
             }
 
@@ -811,17 +665,41 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp[2] = p0[16 + n];
-                    pp[3] = p0[24 + n];
-                    pp[4] = p0[32 + n];
-                    pp[5] = p0[40 + n];
-                    pp[6] = p0[48 + n];
-                    pp[7] = p0[56 + n];
-                    pp += 8;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp[8] = p0[16 + n];
+                    pp[9] = p0[16 + n + 1];
+                    pp[10] = p0[16 + n + 2];
+                    pp[11] = p0[16 + n + 3];
+                    pp[12] = p0[24 + n];
+                    pp[13] = p0[24 + n + 1];
+                    pp[14] = p0[24 + n + 2];
+                    pp[15] = p0[24 + n + 3];
+                    pp[16] = p0[32 + n];
+                    pp[17] = p0[32 + n + 1];
+                    pp[18] = p0[32 + n + 2];
+                    pp[19] = p0[32 + n + 3];
+                    pp[20] = p0[40 + n];
+                    pp[21] = p0[40 + n + 1];
+                    pp[22] = p0[40 + n + 2];
+                    pp[23] = p0[40 + n + 3];
+                    pp[24] = p0[48 + n];
+                    pp[25] = p0[48 + n + 1];
+                    pp[26] = p0[48 + n + 2];
+                    pp[27] = p0[48 + n + 3];
+                    pp[28] = p0[56 + n];
+                    pp[29] = p0[56 + n + 1];
+                    pp[30] = p0[56 + n + 2];
+                    pp[31] = p0[56 + n + 3];
+                    pp += 32;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -831,6 +709,47 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p0 + bottom_blob.cstep * 2;
+                const signed char* p3 = p0 + bottom_blob.cstep * 3;
+
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p1[2];
+                pp[10] = p2[2];
+                pp[11] = p3[2];
+                pp[12] = p0[3];
+                pp[13] = p1[3];
+                pp[14] = p2[3];
+                pp[15] = p3[3];
+                pp[16] = p0[4];
+                pp[17] = p1[4];
+                pp[18] = p2[4];
+                pp[19] = p3[4];
+                pp[20] = p0[5];
+                pp[21] = p1[5];
+                pp[22] = p2[5];
+                pp[23] = p3[5];
+                pp[24] = p0[6];
+                pp[25] = p1[6];
+                pp[26] = p2[6];
+                pp[27] = p3[6];
+                pp[28] = p0[7];
+                pp[29] = p1[7];
+                pp[30] = p2[7];
+                pp[31] = p3[7];
+                pp += 32;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -855,13 +774,25 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp[2] = p0[16 + n];
-                    pp[3] = p0[24 + n];
-                    pp += 4;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp[8] = p0[16 + n];
+                    pp[9] = p0[16 + n + 1];
+                    pp[10] = p0[16 + n + 2];
+                    pp[11] = p0[16 + n + 3];
+                    pp[12] = p0[24 + n];
+                    pp[13] = p0[24 + n + 1];
+                    pp[14] = p0[24 + n + 2];
+                    pp[15] = p0[24 + n + 3];
+                    pp += 16;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -871,6 +802,31 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p0 + bottom_blob.cstep * 2;
+                const signed char* p3 = p0 + bottom_blob.cstep * 3;
+
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p1[2];
+                pp[10] = p2[2];
+                pp[11] = p3[2];
+                pp[12] = p0[3];
+                pp[13] = p1[3];
+                pp[14] = p2[3];
+                pp[15] = p3[3];
+                pp += 16;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -893,11 +849,17 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                for (int n = 0; n < 8; n++)
+                for (int n = 0; n < 8; n += 4)
                 {
                     pp[0] = p0[n];
-                    pp[1] = p0[8 + n];
-                    pp += 2;
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp += 8;
                 }
                 p0 += bottom_blob.cstep * 8;
             }
@@ -908,6 +870,23 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p0 + bottom_blob.cstep * 2;
+                const signed char* p3 = p0 + bottom_blob.cstep * 3;
+
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp += 8;
+                p0 += bottom_blob.cstep * 4;
+            }
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -996,6 +975,35 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                        pp[8 + q] = sptr[stride_w * 16 + n];
+                        pp[12 + q] = sptr[stride_w * 24 + n];
+                        pp[16 + q] = sptr[stride_w * 32 + n];
+                        pp[20 + q] = sptr[stride_w * 40 + n];
+                        pp[24 + q] = sptr[stride_w * 48 + n];
+                        pp[28 + q] = sptr[stride_w * 56 + n];
+                    }
+                    pp += 32;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1022,6 +1030,36 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[7] = sptr[stride_w * 56 + n];
                     pp += 8;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                        pp[8 + q] = sptr[stride_w * 2];
+                        pp[12 + q] = sptr[stride_w * 3];
+                        pp[16 + q] = sptr[stride_w * 4];
+                        pp[20 + q] = sptr[stride_w * 5];
+                        pp[24 + q] = sptr[stride_w * 6];
+                        pp[28 + q] = sptr[stride_w * 7];
+                    }
+                }
+                pp += 32;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -1056,6 +1094,57 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int x2 = stride_w * dx2 + dilation_w * v;
+                        int x3 = stride_w * dx3 + dilation_w * v;
+                        int x4 = stride_w * dx4 + dilation_w * v;
+                        int x5 = stride_w * dx5 + dilation_w * v;
+                        int x6 = stride_w * dx6 + dilation_w * v;
+                        int x7 = stride_w * dx7 + dilation_w * v;
+
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+                        int y2 = stride_h * dy2 + dilation_h * u;
+                        int y3 = stride_h * dy3 + dilation_h * u;
+                        int y4 = stride_h * dy4 + dilation_h * u;
+                        int y5 = stride_h * dy5 + dilation_h * u;
+                        int y6 = stride_h * dy6 + dilation_h * u;
+                        int y7 = stride_h * dy7 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                        const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                        const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+                        const signed char* sptr4 = img.row<const signed char>(y4) + x4 * 8;
+                        const signed char* sptr5 = img.row<const signed char>(y5) + x5 * 8;
+                        const signed char* sptr6 = img.row<const signed char>(y6) + x6 * 8;
+                        const signed char* sptr7 = img.row<const signed char>(y7) + x7 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                        pp[8 + q] = sptr2[n];
+                        pp[12 + q] = sptr3[n];
+                        pp[16 + q] = sptr4[n];
+                        pp[20 + q] = sptr5[n];
+                        pp[24 + q] = sptr6[n];
+                        pp[28 + q] = sptr7[n];
+                    }
+                    pp += 32;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1104,6 +1193,58 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[7] = sptr7[n];
                     pp += 8;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+                    int x4 = stride_w * dx4 + dilation_w * v;
+                    int x5 = stride_w * dx5 + dilation_w * v;
+                    int x6 = stride_w * dx6 + dilation_w * v;
+                    int x7 = stride_w * dx7 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+                    int y4 = stride_h * dy4 + dilation_h * u;
+                    int y5 = stride_h * dy5 + dilation_h * u;
+                    int y6 = stride_h * dy6 + dilation_h * u;
+                    int y7 = stride_h * dy7 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+                    const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
+                    const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
+                    const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
+                    const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                        pp[8 + q] = sptr2[0];
+                        pp[12 + q] = sptr3[0];
+                        pp[16 + q] = sptr4[0];
+                        pp[20 + q] = sptr5[0];
+                        pp[24 + q] = sptr6[0];
+                        pp[28 + q] = sptr7[0];
+                    }
+                }
+                pp += 32;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -1172,6 +1313,31 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                        pp[8 + q] = sptr[stride_w * 16 + n];
+                        pp[12 + q] = sptr[stride_w * 24 + n];
+                    }
+                    pp += 16;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1194,6 +1360,32 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[3] = sptr[stride_w * 24 + n];
                     pp += 4;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                        pp[8 + q] = sptr[stride_w * 2];
+                        pp[12 + q] = sptr[stride_w * 3];
+                    }
+                }
+                pp += 16;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -1224,6 +1416,41 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
             int kk = 0;
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int x2 = stride_w * dx2 + dilation_w * v;
+                        int x3 = stride_w * dx3 + dilation_w * v;
+
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+                        int y2 = stride_h * dy2 + dilation_h * u;
+                        int y3 = stride_h * dy3 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+                        const signed char* sptr2 = img.row<const signed char>(y2) + x2 * 8;
+                        const signed char* sptr3 = img.row<const signed char>(y3) + x3 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                        pp[8 + q] = sptr2[n];
+                        pp[12 + q] = sptr3[n];
+                    }
+                    pp += 16;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1256,6 +1483,42 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                     pp[3] = sptr3[n];
                     pp += 4;
                 }
+            }
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int x2 = stride_w * dx2 + dilation_w * v;
+                    int x3 = stride_w * dx3 + dilation_w * v;
+
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+                    int y2 = stride_h * dy2 + dilation_h * u;
+                    int y3 = stride_h * dy3 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                    const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                    const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                        pp[8 + q] = sptr2[0];
+                        pp[12 + q] = sptr3[0];
+                    }
+                }
+                pp += 16;
             }
             for (; kk < max_kk / elempack; kk++)
             {
@@ -1306,6 +1569,29 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 #if __loongarch_sx
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+
+                        const signed char* sptr = img.row<const signed char>(y0) + x0 * 8;
+
+                        pp[q] = sptr[n];
+                        pp[4 + q] = sptr[stride_w * 8 + n];
+                    }
+                    pp += 8;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1328,6 +1614,30 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
             }
 #endif // __loongarch_sx
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+
+                    const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr[0];
+                        pp[4 + q] = sptr[stride_w];
+                    }
+                }
+                pp += 8;
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
@@ -1356,6 +1666,32 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 #if __loongarch_sx
             if (elempack == 8)
             {
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    for (int q = 0; q < 4; q++)
+                    {
+                        int raw_ch = (kk + q) / maxk;
+                        int kpos = (kk + q) % maxk;
+                        int p = raw_ch / 8;
+                        int n = raw_ch % 8;
+                        int u = kpos / kernel_w;
+                        int v = kpos % kernel_w;
+
+                        const Mat img = bottom_blob.channel(p);
+
+                        int x0 = stride_w * dx0 + dilation_w * v;
+                        int x1 = stride_w * dx1 + dilation_w * v;
+                        int y0 = stride_h * dy0 + dilation_h * u;
+                        int y1 = stride_h * dy1 + dilation_h * u;
+
+                        const signed char* sptr0 = img.row<const signed char>(y0) + x0 * 8;
+                        const signed char* sptr1 = img.row<const signed char>(y1) + x1 * 8;
+
+                        pp[q] = sptr0[n];
+                        pp[4 + q] = sptr1[n];
+                    }
+                    pp += 8;
+                }
                 for (; kk < max_kk; kk++)
                 {
                     int raw_ch = kk / maxk;
@@ -1381,6 +1717,33 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
                 }
             }
 #endif // __loongarch_sx
+            for (; kk + 3 < max_kk / elempack; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    int p = (k / elempack + kk + q) / maxk;
+                    int uv = (k / elempack + kk + q) % maxk;
+                    int u = uv / kernel_w;
+                    int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    int x0 = stride_w * dx0 + dilation_w * v;
+                    int x1 = stride_w * dx1 + dilation_w * v;
+                    int y0 = stride_h * dy0 + dilation_h * u;
+                    int y1 = stride_h * dy1 + dilation_h * u;
+
+                    const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                    const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+
+                    if (elempack == 1)
+                    {
+                        pp[q] = sptr0[0];
+                        pp[4 + q] = sptr1[0];
+                    }
+                }
+                pp += 8;
+            }
             for (; kk < max_kk / elempack; kk++)
             {
                 int p = (k / elempack + kk) / maxk;
