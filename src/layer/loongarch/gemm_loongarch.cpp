@@ -3,9 +3,7 @@
 
 #include "gemm_loongarch.h"
 
-#if __loongarch_sx
 #include "loongarch_usability.h"
-#endif // __loongarch_sx
 
 #include "cpu.h"
 

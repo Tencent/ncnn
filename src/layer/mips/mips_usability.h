@@ -540,22 +540,8 @@ static NCNN_FORCEINLINE void transpose8x4_epi8(v16i8& _r0, v16i8& _r1, v16i8& _r
     _r1 = (v16i8)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
 }
 
-// transpose8x4_ps - transpose 8x4 block of float
-static NCNN_FORCEINLINE void transpose8x4_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2, v4f32& _r3)
-{
-    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
-    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
-    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
-
-    _r0 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
-    _r1 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
-    _r2 = (v4f32)__msa_ilvr_d((v2i64)_tmp3, (v2i64)_tmp1);
-    _r3 = (v4f32)__msa_ilvl_d((v2i64)_tmp3, (v2i64)_tmp1);
-}
-
-// transpose8x8_ps - transpose 8x8 block of float
-static NCNN_FORCEINLINE void transpose8x8_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2, v4f32& _r3, v4f32& _r4, v4f32& _r5, v4f32& _r6, v4f32& _r7)
+// transpose4x8_ps - transpose 4x8 block of float
+static NCNN_FORCEINLINE void transpose4x8_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2, v4f32& _r3, v4f32& _r4, v4f32& _r5, v4f32& _r6, v4f32& _r7)
 {
     v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
     v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
@@ -583,37 +569,6 @@ static NCNN_FORCEINLINE void transpose8x8_ps(v4f32& _r0, v4f32& _r1, v4f32& _r2,
     _r5 = (v4f32)__msa_ilvl_d((v2i64)_tmpa, (v2i64)_tmpe);
     _r6 = (v4f32)__msa_ilvr_d((v2i64)_tmpb, (v2i64)_tmpf);
     _r7 = (v4f32)__msa_ilvl_d((v2i64)_tmpb, (v2i64)_tmpf);
-}
-
-// transpose8x8_epi32 - transpose 8x8 block of int32
-static NCNN_FORCEINLINE void transpose8x8_epi32(v4i32& _r0, v4i32& _r1, v4i32& _r2, v4i32& _r3, v4i32& _r4, v4i32& _r5, v4i32& _r6, v4i32& _r7)
-{
-    v4i32 _tmp0 = (v4i32)__msa_ilvr_w(_r1, _r0);
-    v4i32 _tmp1 = (v4i32)__msa_ilvl_w(_r1, _r0);
-    v4i32 _tmp2 = (v4i32)__msa_ilvr_w(_r3, _r2);
-    v4i32 _tmp3 = (v4i32)__msa_ilvl_w(_r3, _r2);
-    v4i32 _tmp4 = (v4i32)__msa_ilvr_w(_r5, _r4);
-    v4i32 _tmp5 = (v4i32)__msa_ilvl_w(_r5, _r4);
-    v4i32 _tmp6 = (v4i32)__msa_ilvr_w(_r7, _r6);
-    v4i32 _tmp7 = (v4i32)__msa_ilvl_w(_r7, _r6);
-
-    v4i32 _tmp8 = (v4i32)__msa_ilvr_w(_tmp2, _tmp0);
-    v4i32 _tmp9 = (v4i32)__msa_ilvl_w(_tmp2, _tmp0);
-    v4i32 _tmpa = (v4i32)__msa_ilvr_w(_tmp3, _tmp1);
-    v4i32 _tmpb = (v4i32)__msa_ilvl_w(_tmp3, _tmp1);
-    v4i32 _tmpc = (v4i32)__msa_ilvr_w(_tmp6, _tmp4);
-    v4i32 _tmpd = (v4i32)__msa_ilvl_w(_tmp6, _tmp4);
-    v4i32 _tmpe = (v4i32)__msa_ilvr_w(_tmp7, _tmp5);
-    v4i32 _tmpf = (v4i32)__msa_ilvl_w(_tmp7, _tmp5);
-
-    _r0 = (v4i32)__msa_ilvr_d((v2i64)_tmp8, (v2i64)_tmpc);
-    _r1 = (v4i32)__msa_ilvl_d((v2i64)_tmp8, (v2i64)_tmpc);
-    _r2 = (v4i32)__msa_ilvr_d((v2i64)_tmp9, (v2i64)_tmpd);
-    _r3 = (v4i32)__msa_ilvl_d((v2i64)_tmp9, (v2i64)_tmpd);
-    _r4 = (v4i32)__msa_ilvr_d((v2i64)_tmpa, (v2i64)_tmpe);
-    _r5 = (v4i32)__msa_ilvl_d((v2i64)_tmpa, (v2i64)_tmpe);
-    _r6 = (v4i32)__msa_ilvr_d((v2i64)_tmpb, (v2i64)_tmpf);
-    _r7 = (v4i32)__msa_ilvl_d((v2i64)_tmpb, (v2i64)_tmpf);
 }
 
 // BF16 conversion utilities

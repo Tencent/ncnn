@@ -5,8 +5,8 @@
 
 #if __mips_msa
 #include <msa.h>
-#include "mips_usability.h"
 #endif // __mips_msa
+#include "mips_usability.h"
 #if __mips_loongson_mmi
 #include "loongson_mmi.h"
 #endif // __mips_loongson_mmi

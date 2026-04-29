@@ -1,14 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static NCNN_FORCEINLINE signed char gemm_float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
@@ -774,14 +766,14 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p1[0] * scale1);
-            pp[2] = gemm_float2int8(p2[0] * scale2);
-            pp[3] = gemm_float2int8(p3[0] * scale3);
-            pp[4] = gemm_float2int8(p4[0] * scale4);
-            pp[5] = gemm_float2int8(p5[0] * scale5);
-            pp[6] = gemm_float2int8(p6[0] * scale6);
-            pp[7] = gemm_float2int8(p7[0] * scale7);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p1[0] * scale1);
+            pp[2] = float2int8(p2[0] * scale2);
+            pp[3] = float2int8(p3[0] * scale3);
+            pp[4] = float2int8(p4[0] * scale4);
+            pp[5] = float2int8(p5[0] * scale5);
+            pp[6] = float2int8(p6[0] * scale6);
+            pp[7] = float2int8(p7[0] * scale7);
             pp += 8;
             p0++;
             p1++;
@@ -830,10 +822,10 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p1[0] * scale1);
-            pp[2] = gemm_float2int8(p2[0] * scale2);
-            pp[3] = gemm_float2int8(p3[0] * scale3);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p1[0] * scale1);
+            pp[2] = float2int8(p2[0] * scale2);
+            pp[3] = float2int8(p3[0] * scale3);
             pp += 4;
             p0++;
             p1++;
@@ -852,22 +844,22 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p0[1] * scale0);
-            pp[2] = gemm_float2int8(p0[2] * scale0);
-            pp[3] = gemm_float2int8(p0[3] * scale0);
-            pp[4] = gemm_float2int8(p1[0] * scale1);
-            pp[5] = gemm_float2int8(p1[1] * scale1);
-            pp[6] = gemm_float2int8(p1[2] * scale1);
-            pp[7] = gemm_float2int8(p1[3] * scale1);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p0[1] * scale0);
+            pp[2] = float2int8(p0[2] * scale0);
+            pp[3] = float2int8(p0[3] * scale0);
+            pp[4] = float2int8(p1[0] * scale1);
+            pp[5] = float2int8(p1[1] * scale1);
+            pp[6] = float2int8(p1[2] * scale1);
+            pp[7] = float2int8(p1[3] * scale1);
             pp += 8;
             p0 += 4;
             p1 += 4;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p1[0] * scale1);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p1[0] * scale1);
             pp += 2;
             p0++;
             p1++;
@@ -881,7 +873,7 @@ static void pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[0] = float2int8(p0[0] * scale0);
             pp += 1;
             p0++;
         }
@@ -952,14 +944,14 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p0[1] * scale1);
-            pp[2] = gemm_float2int8(p0[2] * scale2);
-            pp[3] = gemm_float2int8(p0[3] * scale3);
-            pp[4] = gemm_float2int8(p0[4] * scale4);
-            pp[5] = gemm_float2int8(p0[5] * scale5);
-            pp[6] = gemm_float2int8(p0[6] * scale6);
-            pp[7] = gemm_float2int8(p0[7] * scale7);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p0[1] * scale1);
+            pp[2] = float2int8(p0[2] * scale2);
+            pp[3] = float2int8(p0[3] * scale3);
+            pp[4] = float2int8(p0[4] * scale4);
+            pp[5] = float2int8(p0[5] * scale5);
+            pp[6] = float2int8(p0[6] * scale6);
+            pp[7] = float2int8(p0[7] * scale7);
             pp += 8;
             p0 += A_hstep;
         }
@@ -1000,10 +992,10 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p0[1] * scale1);
-            pp[2] = gemm_float2int8(p0[2] * scale2);
-            pp[3] = gemm_float2int8(p0[3] * scale3);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p0[1] * scale1);
+            pp[2] = float2int8(p0[2] * scale2);
+            pp[3] = float2int8(p0[3] * scale3);
             pp += 4;
             p0 += A_hstep;
         }
@@ -1022,21 +1014,21 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
             const float* p2 = p0 + A_hstep * 2;
             const float* p3 = p0 + A_hstep * 3;
 
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p1[0] * scale0);
-            pp[2] = gemm_float2int8(p2[0] * scale0);
-            pp[3] = gemm_float2int8(p3[0] * scale0);
-            pp[4] = gemm_float2int8(p0[1] * scale1);
-            pp[5] = gemm_float2int8(p1[1] * scale1);
-            pp[6] = gemm_float2int8(p2[1] * scale1);
-            pp[7] = gemm_float2int8(p3[1] * scale1);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p1[0] * scale0);
+            pp[2] = float2int8(p2[0] * scale0);
+            pp[3] = float2int8(p3[0] * scale0);
+            pp[4] = float2int8(p0[1] * scale1);
+            pp[5] = float2int8(p1[1] * scale1);
+            pp[6] = float2int8(p2[1] * scale1);
+            pp[7] = float2int8(p3[1] * scale1);
             pp += 8;
             p0 += A_hstep * 4;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
-            pp[1] = gemm_float2int8(p0[1] * scale1);
+            pp[0] = float2int8(p0[0] * scale0);
+            pp[1] = float2int8(p0[1] * scale1);
             pp += 2;
             p0 += A_hstep;
         }
@@ -1049,7 +1041,7 @@ static void transpose_pack_A_tile_fp32_to_int8(const Mat& A, Mat& AT, int i, int
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale0);
+            pp[0] = float2int8(p0[0] * scale0);
             pp += 1;
             p0 += A_hstep;
         }
@@ -1130,14 +1122,14 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p1[0] * scale);
-            pp[2] = gemm_float2int8(p2[0] * scale);
-            pp[3] = gemm_float2int8(p3[0] * scale);
-            pp[4] = gemm_float2int8(p4[0] * scale);
-            pp[5] = gemm_float2int8(p5[0] * scale);
-            pp[6] = gemm_float2int8(p6[0] * scale);
-            pp[7] = gemm_float2int8(p7[0] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p1[0] * scale);
+            pp[2] = float2int8(p2[0] * scale);
+            pp[3] = float2int8(p3[0] * scale);
+            pp[4] = float2int8(p4[0] * scale);
+            pp[5] = float2int8(p5[0] * scale);
+            pp[6] = float2int8(p6[0] * scale);
+            pp[7] = float2int8(p7[0] * scale);
             pp += 8;
             p0++;
             p1++;
@@ -1178,10 +1170,10 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p1[0] * scale);
-            pp[2] = gemm_float2int8(p2[0] * scale);
-            pp[3] = gemm_float2int8(p3[0] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p1[0] * scale);
+            pp[2] = float2int8(p2[0] * scale);
+            pp[3] = float2int8(p3[0] * scale);
             pp += 4;
             p0++;
             p1++;
@@ -1198,22 +1190,22 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p0[1] * scale);
-            pp[2] = gemm_float2int8(p0[2] * scale);
-            pp[3] = gemm_float2int8(p0[3] * scale);
-            pp[4] = gemm_float2int8(p1[0] * scale);
-            pp[5] = gemm_float2int8(p1[1] * scale);
-            pp[6] = gemm_float2int8(p1[2] * scale);
-            pp[7] = gemm_float2int8(p1[3] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p0[1] * scale);
+            pp[2] = float2int8(p0[2] * scale);
+            pp[3] = float2int8(p0[3] * scale);
+            pp[4] = float2int8(p1[0] * scale);
+            pp[5] = float2int8(p1[1] * scale);
+            pp[6] = float2int8(p1[2] * scale);
+            pp[7] = float2int8(p1[3] * scale);
             pp += 8;
             p0 += 4;
             p1 += 4;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p1[0] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p1[0] * scale);
             pp += 2;
             p0++;
             p1++;
@@ -1226,7 +1218,7 @@ static void pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int max_jj, i
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[0] = float2int8(p0[0] * scale);
             pp += 1;
             p0++;
         }
@@ -1283,14 +1275,14 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p0[1] * scale);
-            pp[2] = gemm_float2int8(p0[2] * scale);
-            pp[3] = gemm_float2int8(p0[3] * scale);
-            pp[4] = gemm_float2int8(p0[4] * scale);
-            pp[5] = gemm_float2int8(p0[5] * scale);
-            pp[6] = gemm_float2int8(p0[6] * scale);
-            pp[7] = gemm_float2int8(p0[7] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p0[1] * scale);
+            pp[2] = float2int8(p0[2] * scale);
+            pp[3] = float2int8(p0[3] * scale);
+            pp[4] = float2int8(p0[4] * scale);
+            pp[5] = float2int8(p0[5] * scale);
+            pp[6] = float2int8(p0[6] * scale);
+            pp[7] = float2int8(p0[7] * scale);
             pp += 8;
             p0 += B_hstep;
         }
@@ -1323,10 +1315,10 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p0[1] * scale);
-            pp[2] = gemm_float2int8(p0[2] * scale);
-            pp[3] = gemm_float2int8(p0[3] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p0[1] * scale);
+            pp[2] = float2int8(p0[2] * scale);
+            pp[3] = float2int8(p0[3] * scale);
             pp += 4;
             p0 += B_hstep;
         }
@@ -1343,21 +1335,21 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
             const float* p2 = p0 + B_hstep * 2;
             const float* p3 = p0 + B_hstep * 3;
 
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p1[0] * scale);
-            pp[2] = gemm_float2int8(p2[0] * scale);
-            pp[3] = gemm_float2int8(p3[0] * scale);
-            pp[4] = gemm_float2int8(p0[1] * scale);
-            pp[5] = gemm_float2int8(p1[1] * scale);
-            pp[6] = gemm_float2int8(p2[1] * scale);
-            pp[7] = gemm_float2int8(p3[1] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p1[0] * scale);
+            pp[2] = float2int8(p2[0] * scale);
+            pp[3] = float2int8(p3[0] * scale);
+            pp[4] = float2int8(p0[1] * scale);
+            pp[5] = float2int8(p1[1] * scale);
+            pp[6] = float2int8(p2[1] * scale);
+            pp[7] = float2int8(p3[1] * scale);
             pp += 8;
             p0 += B_hstep * 4;
         }
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
-            pp[1] = gemm_float2int8(p0[1] * scale);
+            pp[0] = float2int8(p0[0] * scale);
+            pp[1] = float2int8(p0[1] * scale);
             pp += 2;
             p0 += B_hstep;
         }
@@ -1369,7 +1361,7 @@ static void transpose_pack_B_tile_fp32_to_int8(const Mat& B, Mat& BT, int j, int
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
-            pp[0] = gemm_float2int8(p0[0] * scale);
+            pp[0] = float2int8(p0[0] * scale);
             pp += 1;
             p0 += B_hstep;
         }
