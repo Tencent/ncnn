@@ -25,6 +25,16 @@ static void perf_sdpa_prefill(int embed_dim, int num_heads, int num_groups, int 
     perf_layer("SDPA", pd, weights, inputs, 1,
                "embed=%d heads=%d groups=%d seqlen=%d",
                embed_dim, num_heads, num_groups, src_seqlen);
+
+    // int8 variant
+    ncnn::ParamDict pd_int8;
+    pd_int8.set(5, 0);   // attn_mask = 0
+    pd_int8.set(6, 0.f); // scale = 0
+    pd_int8.set(7, 0);   // kv_cache = 0
+    pd_int8.set(18, 2);  // int8_scale_term
+    perf_layer_int8("SDPA", pd_int8, weights, inputs, 1,
+                    "embed=%d heads=%d groups=%d seqlen=%d",
+                    embed_dim, num_heads, num_groups, src_seqlen);
 }
 
 int main()
@@ -53,37 +63,17 @@ int main()
     perf_sdpa_prefill(4096, 32, 32, 16);
     perf_sdpa_prefill(4096, 32, 32, 32);
     perf_sdpa_prefill(4096, 32, 32, 64);
-    perf_sdpa_prefill(4096, 32, 32, 128);
-    perf_sdpa_prefill(4096, 32, 32, 256);
-    perf_sdpa_prefill(4096, 32, 32, 512);
-    perf_sdpa_prefill(4096, 32, 32, 1024);
-    perf_sdpa_prefill(4096, 32, 32, 2048);
-    perf_sdpa_prefill(4096, 32, 32, 4096);
 
     // GQA/MQA configurations
     // GQA: num_groups < num_heads
-    perf_sdpa_prefill(4096, 32, 4, 128);
-    perf_sdpa_prefill(4096, 32, 4, 256);
-    perf_sdpa_prefill(4096, 32, 4, 512);
-    perf_sdpa_prefill(4096, 32, 4, 1024);
-    perf_sdpa_prefill(4096, 32, 4, 2048);
-    perf_sdpa_prefill(4096, 32, 4, 4096);
+    perf_sdpa_prefill(4096, 32, 4, 16);
+    perf_sdpa_prefill(4096, 32, 4, 32);
+    perf_sdpa_prefill(4096, 32, 4, 64);
 
     // MQA: num_groups = 1
-    perf_sdpa_prefill(4096, 32, 1, 128);
-    perf_sdpa_prefill(4096, 32, 1, 256);
-    perf_sdpa_prefill(4096, 32, 1, 512);
-    perf_sdpa_prefill(4096, 32, 1, 1024);
-    perf_sdpa_prefill(4096, 32, 1, 2048);
-    perf_sdpa_prefill(4096, 32, 1, 4096);
-
-    // very long sequences
-    perf_sdpa_prefill(4096, 32, 32, 8192);
-    perf_sdpa_prefill(4096, 32, 32, 16384);
-    perf_sdpa_prefill(4096, 32, 32, 32768);
-    perf_sdpa_prefill(4096, 32, 4, 8192);
-    perf_sdpa_prefill(4096, 32, 4, 16384);
-    perf_sdpa_prefill(4096, 32, 4, 32768);
+    perf_sdpa_prefill(4096, 32, 1, 16);
+    perf_sdpa_prefill(4096, 32, 1, 32);
+    perf_sdpa_prefill(4096, 32, 1, 64);
 
     return 0;
 }
