@@ -87,10 +87,10 @@ YoloPreprocess::YoloPreprocess()
 // input:  interleaved BGR uint8 raw bytes (binding 0)  -- read via uint[] + bit-shift
 // output: planar RGB sfp (binding 1)  -- sfp auto-adapts to fp32/fp16/bf16 storage
 // uses afp for arithmetic precision, buffer_st1 for storage write
-static const char yolo_preprocess_comp[] = R"(
+static const char yolo_preprocess_comp[] = R "(
 #version 450
 
-layout (push_constant) uniform parameter
+        layout(push_constant) uniform parameter
 {
     int src_w;
     int src_h;
@@ -99,12 +99,19 @@ layout (push_constant) uniform parameter
     int pad_left;
     int pad_top;
     float scale;
-    int stride;     // bytes per row of source image
+    int stride; // bytes per row of source image
     int dst_cstep;
-} p;
+}
+p;
 
-layout (binding = 0) readonly buffer src_blob { uint src_data[]; };
-layout (binding = 1) writeonly buffer dst_blob { sfp dst_data[]; };
+layout(binding = 0) readonly buffer src_blob
+{
+    uint src_data[];
+};
+layout(binding = 1) writeonly buffer dst_blob
+{
+    sfp dst_data[];
+};
 
 // read one byte from the uint-packed buffer (little-endian host layout)
 uint read_u8(int byte_idx)
@@ -128,8 +135,7 @@ void main()
     int resize_w = int(float(p.src_w) * p.scale);
     int resize_h = int(float(p.src_h) * p.scale);
 
-    if (gx < p.pad_left || gx >= p.pad_left + resize_w ||
-        gy < p.pad_top  || gy >= p.pad_top  + resize_h)
+    if (gx < p.pad_left || gx >= p.pad_left + resize_w || gy < p.pad_top || gy >= p.pad_top + resize_h)
     {
         r = afp(114.0 / 255.0);
         g = afp(114.0 / 255.0);
@@ -138,7 +144,7 @@ void main()
     else
     {
         float src_x = (float(gx - p.pad_left) + 0.5f) / p.scale - 0.5f;
-        float src_y = (float(gy - p.pad_top)  + 0.5f) / p.scale - 0.5f;
+        float src_y = (float(gy - p.pad_top) + 0.5f) / p.scale - 0.5f;
 
         int x0 = int(floor(src_x));
         int y0 = int(floor(src_y));
@@ -217,7 +223,8 @@ int YoloPreprocess::forward(const ncnn::VkMat& bottom_blob, ncnn::VkMat& top_blo
 {
     int elempack = 1;
     size_t elemsize = (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-                       ? elempack * 2u : elempack * 4u;
+                      ? elempack * 2u
+                      : elempack * 4u;
 
     top_blob.create(dst_w, dst_h, 3, elemsize, elempack, opt.blob_vkallocator);
     if (top_blob.empty())
@@ -276,6 +283,7 @@ public:
 
 private:
     ncnn::VulkanDevice* vkdev;
+
 public:
     ncnn::Pipeline* pipeline_generate_pack1;
     ncnn::Pipeline* pipeline_generate_pack4;
@@ -285,10 +293,10 @@ public:
 // GLSL compute shader for generating YOLO proposals (pack1)
 // input:  model pred output 144-dim per anchor (binding 0)  -- sfp for ncnn storage compat
 // output: proposals float6 per anchor (x0,y0,x1,y1,score,label) (binding 1)
-static const char yolo_generate_comp_pack1[] = R"(
+static const char yolo_generate_comp_pack1[] = R "(
 #version 450
 
-layout (push_constant) uniform parameter
+        layout(push_constant) uniform parameter
 {
     int num_anchor;
     int num_class;
@@ -307,10 +315,17 @@ layout (push_constant) uniform parameter
     int grid0_h;
     int grid1_h;
     int grid2_h;
-} p;
+}
+p;
 
-layout (binding = 0) readonly buffer pred_blob { sfp pred_data[]; };
-layout (binding = 1) writeonly buffer proposals_blob { float proposals_data[]; };
+layout(binding = 0) readonly buffer pred_blob
+{
+    sfp pred_data[];
+};
+layout(binding = 1) writeonly buffer proposals_blob
+{
+    float proposals_data[];
+};
 
 void main()
 {
@@ -393,10 +408,14 @@ void main()
                 expect += afp(float(i)) * vals[i] / sum;
             }
 
-            if (k == 0) l = expect * afp(float(stride));
-            else if (k == 1) t = expect * afp(float(stride));
-            else if (k == 2) r = expect * afp(float(stride));
-            else b = expect * afp(float(stride));
+            if (k == 0)
+                l = expect * afp(float(stride));
+            else if (k == 1)
+                t = expect * afp(float(stride));
+            else if (k == 2)
+                r = expect * afp(float(stride));
+            else
+                b = expect * afp(float(stride));
         }
 
         float pb_cx = (float(grid_x) + 0.5) * float(stride);
@@ -448,10 +467,17 @@ layout (push_constant) uniform parameter
     int grid0_h;
     int grid1_h;
     int grid2_h;
-} p;
+}
+p;
 
-layout (binding = 0) readonly buffer pred_blob { sfp pred_data[]; };
-layout (binding = 1) writeonly buffer proposals_blob { float proposals_data[]; };
+layout(binding = 0) readonly buffer pred_blob
+{
+    sfp pred_data[];
+};
+layout(binding = 1) writeonly buffer proposals_blob
+{
+    float proposals_data[];
+};
 
 void main()
 {
@@ -536,10 +562,14 @@ void main()
                 expect += afp(float(i)) * vals[i] / sum;
             }
 
-            if (k == 0) l = expect * afp(float(stride));
-            else if (k == 1) t = expect * afp(float(stride));
-            else if (k == 2) r = expect * afp(float(stride));
-            else b = expect * afp(float(stride));
+            if (k == 0)
+                l = expect * afp(float(stride));
+            else if (k == 1)
+                t = expect * afp(float(stride));
+            else if (k == 2)
+                r = expect * afp(float(stride));
+            else
+                b = expect * afp(float(stride));
         }
 
         float pb_cx = (float(grid_x) + 0.5) * float(stride);
@@ -576,10 +606,17 @@ layout (push_constant) uniform parameter
 {
     int num_anchor;
     float nms_threshold;
-} p;
+}
+p;
 
-layout (binding = 0) readonly buffer proposals_blob { float proposals_data[]; };
-layout (binding = 1) writeonly buffer picked_blob { int picked_data[]; };
+layout(binding = 0) readonly buffer proposals_blob
+{
+    float proposals_data[];
+};
+layout(binding = 1) writeonly buffer picked_blob
+{
+    int picked_data[];
+};
 
 float intersection_area(int i, int j)
 {
@@ -606,7 +643,7 @@ void main()
     }
 
     float area_i = (proposals_data[i * 6 + 2] - proposals_data[i * 6 + 0])
-                 * (proposals_data[i * 6 + 3] - proposals_data[i * 6 + 1]);
+                   * (proposals_data[i * 6 + 3] - proposals_data[i * 6 + 1]);
 
     int keep = 1;
     for (int j = 0; j < p.num_anchor; j++)
@@ -627,7 +664,7 @@ void main()
 
         float inter = intersection_area(i, j);
         float area_j = (proposals_data[j * 6 + 2] - proposals_data[j * 6 + 0])
-                     * (proposals_data[j * 6 + 3] - proposals_data[j * 6 + 1]);
+                       * (proposals_data[j * 6 + 3] - proposals_data[j * 6 + 1]);
         float union_area = area_i + area_j - inter;
 
         if (union_area > 0.0 && inter / union_area > p.nms_threshold)
@@ -759,9 +796,9 @@ int YoloPostprocess::generate(const ncnn::VkMat& pred, ncnn::VkMat& proposals, n
     constants[8].i = grid0;
     constants[9].i = grid1;
     constants[10].i = grid2;
-    constants[11].i = 8;   // stride0
-    constants[12].i = 16;  // stride1
-    constants[13].i = 32;  // stride2
+    constants[11].i = 8;  // stride0
+    constants[12].i = 16; // stride1
+    constants[13].i = 32; // stride2
     constants[14].i = grid0_h;
     constants[15].i = grid1_h;
     constants[16].i = grid2_h;
@@ -867,7 +904,7 @@ static int detect_yolo11_vk(const cv::Mat& bgr, std::vector<Object>& objects)
         const uchar* bgr_data = bgr.data;
 #else
         cv::Mat bgr_cont = bgr.isContinuous() ? bgr : bgr.clone();
-        int stride = (int)bgr_cont.step[0];  // bytes per row
+        int stride = (int)bgr_cont.step[0]; // bytes per row
         const uchar* bgr_data = bgr_cont.data;
 #endif
 
@@ -1026,8 +1063,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
         "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
         "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
-        "hair drier", "toothbrush"
-    };
+        "hair drier", "toothbrush"};
 
     static cv::Scalar colors[] = {
         cv::Scalar(244, 67, 54),
@@ -1048,8 +1084,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::Scalar(255, 87, 34),
         cv::Scalar(121, 85, 72),
         cv::Scalar(158, 158, 158),
-        cv::Scalar(96, 125, 139)
-    };
+        cv::Scalar(96, 125, 139)};
 
     cv::Mat image = bgr.clone();
 
