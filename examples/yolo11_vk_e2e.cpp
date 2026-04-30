@@ -271,6 +271,8 @@ public:
     int img_w, img_h;
     int pad_left, pad_top;
     float scale;
+    int grid0, grid1, grid2;
+    int grid0_h, grid1_h, grid2_h;
 
 private:
     ncnn::VulkanDevice* vkdev;
@@ -302,6 +304,9 @@ layout (push_constant) uniform parameter
     int stride0;
     int stride1;
     int stride2;
+    int grid0_h;
+    int grid1_h;
+    int grid2_h;
 } p;
 
 layout (binding = 0) readonly buffer pred_blob { sfp pred_data[]; };
@@ -313,8 +318,8 @@ void main()
     if (idx >= p.num_anchor)
         return;
 
-    int grid0_sq = p.grid0 * p.grid0;
-    int grid01_sq = grid0_sq + p.grid1 * p.grid1;
+    int grid0_sq = p.grid0 * p.grid0_h;
+    int grid01_sq = grid0_sq + p.grid1 * p.grid1_h;
 
     int stride;
     int grid_x, grid_y;
@@ -440,6 +445,9 @@ layout (push_constant) uniform parameter
     int stride0;
     int stride1;
     int stride2;
+    int grid0_h;
+    int grid1_h;
+    int grid2_h;
 } p;
 
 layout (binding = 0) readonly buffer pred_blob { sfp pred_data[]; };
@@ -451,8 +459,8 @@ void main()
     if (idx >= p.num_anchor)
         return;
 
-    int grid0_sq = p.grid0 * p.grid0;
-    int grid01_sq = grid0_sq + p.grid1 * p.grid1;
+    int grid0_sq = p.grid0 * p.grid0_h;
+    int grid01_sq = grid0_sq + p.grid1 * p.grid1_h;
 
     int stride;
     int grid_x, grid_y;
@@ -739,7 +747,7 @@ int YoloPostprocess::generate(const ncnn::VkMat& pred, ncnn::VkMat& proposals, n
     bindings[0] = pred;
     bindings[1] = proposals;
 
-    std::vector<ncnn::vk_constant_type> constants(14);
+    std::vector<ncnn::vk_constant_type> constants(17);
     constants[0].i = num_anchor;
     constants[1].i = num_class;
     constants[2].f = prob_threshold;
@@ -748,12 +756,15 @@ int YoloPostprocess::generate(const ncnn::VkMat& pred, ncnn::VkMat& proposals, n
     constants[5].i = pad_left;
     constants[6].i = pad_top;
     constants[7].f = scale;
-    constants[8].i = 80;   // grid0
-    constants[9].i = 40;   // grid1
-    constants[10].i = 20;  // grid2
+    constants[8].i = grid0;
+    constants[9].i = grid1;
+    constants[10].i = grid2;
     constants[11].i = 8;   // stride0
     constants[12].i = 16;  // stride1
     constants[13].i = 32;  // stride2
+    constants[14].i = grid0_h;
+    constants[15].i = grid1_h;
+    constants[16].i = grid2_h;
 
     ncnn::VkMat dispatcher;
     dispatcher.w = num_anchor;
@@ -934,12 +945,18 @@ static int detect_yolo11_vk(const cv::Mat& bgr, std::vector<Object>& objects)
         postprocess.prob_threshold = prob_threshold;
         postprocess.nms_threshold = nms_threshold;
         postprocess.num_class = 80;
-        postprocess.num_anchor = 8400;
+        postprocess.num_anchor = out_vkmat.h * out_vkmat.elempack;
         postprocess.img_w = img_w;
         postprocess.img_h = img_h;
         postprocess.pad_left = wpad / 2;
         postprocess.pad_top = hpad / 2;
         postprocess.scale = scale;
+        postprocess.grid0 = dst_w / strides[0];
+        postprocess.grid1 = dst_w / strides[1];
+        postprocess.grid2 = dst_w / strides[2];
+        postprocess.grid0_h = dst_h / strides[0];
+        postprocess.grid1_h = dst_h / strides[1];
+        postprocess.grid2_h = dst_h / strides[2];
 
         ncnn::VkMat proposals_vkmat;
         ncnn::VkMat picked_vkmat;
