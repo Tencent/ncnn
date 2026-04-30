@@ -605,27 +605,13 @@ static NCNN_FORCEINLINE __m256 fmod256_ps(__m256 a, __m256 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
     __m256 q = __lasx_xvfdiv_s(a, b);
-    __m256i qi = __lasx_xvftintrz_w_s(q);
-    __m256 qf = __lasx_xvffint_s_w(qi);
+    __m256 qf = (__m256)__lasx_xvfrintrz_s(q);
     return __lasx_xvfsub_s(a, __lasx_xvfmul_s(qf, b));
 }
 
 static NCNN_FORCEINLINE __m256 round256_ps(__m256 x)
 {
-    __m256 half = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0p5.i);
-    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
-    __m256i sign_mask = __lasx_xvfcmp_clt_s(x, (__m256)__lasx_xvreplgr2vr_w(0));
-    __m256 abs_x = (__m256)__lasx_xvbitclri_w((__m256i)x, 31);
-    __m256i xi = __lasx_xvftintrz_w_s(abs_x);
-    __m256 xf = __lasx_xvffint_s_w(xi);
-    __m256 diff = __lasx_xvfsub_s(abs_x, xf);
-    __m256i diff_gt_half = __lasx_xvfcmp_clt_s(half, diff);
-    __m256i diff_eq_half = __lasx_xvfcmp_ceq_s(diff, half);
-    __m256i xi_and_1 = __lasx_xvand_v(xi, __lasx_xvreplgr2vr_w(1));
-    __m256i is_odd = __lasx_xvseq_w(xi_and_1, __lasx_xvreplgr2vr_w(1));
-    __m256i round_up = __lasx_xvor_v(diff_gt_half, __lasx_xvand_v(diff_eq_half, is_odd));
-    __m256 rounded = __lasx_xvfadd_s(xf, (__m256)__lasx_xvand_v(round_up, (__m256i)one));
-    return (__m256)__lasx_xvbitsel_v((__m256i)rounded, (__m256i)__lasx_xvbitrevi_w((__m256i)rounded, 31), sign_mask);
+    return (__m256)__lasx_xvfrintrne_s(x);
 }
 
 static NCNN_FORCEINLINE __m256 logaddexp256_ps(__m256 a, __m256 b)
@@ -642,11 +628,7 @@ static NCNN_FORCEINLINE __m256 logaddexp256_ps(__m256 a, __m256 b)
 
 static NCNN_FORCEINLINE __m256 floor256_ps(__m256 x)
 {
-    __m256i xi = __lasx_xvftintrz_w_s(x);
-    __m256 xf = __lasx_xvffint_s_w(xi);
-    __m256i need_adjust = __lasx_xvfcmp_clt_s(x, xf);
-    __m256 one = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_1.i);
-    return __lasx_xvfsub_s(xf, (__m256)__lasx_xvand_v(need_adjust, (__m256i)one));
+    return (__m256)__lasx_xvfrintrm_s(x);
 }
 
 static NCNN_FORCEINLINE __m256 floor_divide256_ps(__m256 a, __m256 b)

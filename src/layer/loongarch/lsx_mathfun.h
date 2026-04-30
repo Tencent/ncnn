@@ -630,27 +630,13 @@ static NCNN_FORCEINLINE __m128 fmod_ps(__m128 a, __m128 b)
 {
     // fmod(a,b) = a - trunc(a/b)*b  (trunc toward 0)
     __m128 q = __lsx_vfdiv_s(a, b);
-    __m128i qi = __lsx_vftintrz_w_s(q); // float -> int32 trunc toward zero
-    __m128 qf = __lsx_vffint_s_w(qi);   // int32 -> float
+    __m128 qf = (__m128)__lsx_vfrintrz_s(q);
     return __lsx_vfsub_s(a, __lsx_vfmul_s(qf, b));
 }
 
 static NCNN_FORCEINLINE __m128 round_ps(__m128 x)
 {
-    __m128 half = (__m128)__lsx_vreplgr2vr_w(c_0p5.i);
-    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
-    __m128i sign_mask = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(0));
-    __m128 abs_x = (__m128)__lsx_vbitclri_w((__m128i)x, 31);
-    __m128i xi = __lsx_vftintrz_w_s(abs_x);
-    __m128 xf = __lsx_vffint_s_w(xi);
-    __m128 diff = __lsx_vfsub_s(abs_x, xf);
-    __m128i diff_gt_half = __lsx_vfcmp_clt_s(half, diff);
-    __m128i diff_eq_half = __lsx_vfcmp_ceq_s(diff, half);
-    __m128i xi_and_1 = __lsx_vand_v(xi, __lsx_vreplgr2vr_w(1));
-    __m128i is_odd = __lsx_vseq_w(xi_and_1, __lsx_vreplgr2vr_w(1));
-    __m128i round_up = __lsx_vor_v(diff_gt_half, __lsx_vand_v(diff_eq_half, is_odd));
-    __m128 rounded = __lsx_vfadd_s(xf, (__m128)__lsx_vand_v(round_up, (__m128i)one));
-    return (__m128)__lsx_vbitsel_v((__m128i)rounded, (__m128i)__lsx_vbitrevi_w((__m128i)rounded, 31), sign_mask);
+    return (__m128)__lsx_vfrintrne_s(x);
 }
 
 static NCNN_FORCEINLINE __m128 logaddexp_ps(__m128 a, __m128 b)
@@ -667,11 +653,7 @@ static NCNN_FORCEINLINE __m128 logaddexp_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
 {
-    __m128i xi = __lsx_vftintrz_w_s(x);
-    __m128 xf = __lsx_vffint_s_w(xi);
-    __m128i need_adjust = __lsx_vfcmp_clt_s(x, xf);
-    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
-    return __lsx_vfsub_s(xf, (__m128)__lsx_vand_v(need_adjust, (__m128i)one));
+    return (__m128)__lsx_vfrintrm_s(x);
 }
 
 static NCNN_FORCEINLINE __m128 floor_divide_ps(__m128 a, __m128 b)
