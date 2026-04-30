@@ -585,43 +585,119 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
     int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 8;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __m256i _r0 = __lasx_concat_128(__lsx_vld(p0, 0), __lsx_vld(p1, 0));
+                __lasx_xvst(_r0, pp, 0);
+                pp += 16;
+                p0 += 8;
+                p1 += 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 4) * B_hstep + k * 4;
+            const unsigned short* p2 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k * 4;
+            const unsigned short* p3 = (const unsigned short*)B + (j + jj + 12) * B_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __m128i _r0 = __lsx_vilvl_d(__lsx_vldrepl_d((const void*)p1, 0), __lsx_vldrepl_d((const void*)p0, 0));
+                __m128i _r1 = __lsx_vilvl_d(__lsx_vldrepl_d((const void*)p3, 0), __lsx_vldrepl_d((const void*)p2, 0));
+                __lasx_xvst(__lasx_concat_128(_r0, _r1), pp, 0);
+                pp += 16;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
+            const unsigned short* p2 = (const unsigned short*)B + (j + jj + 2) * B_hstep + k;
+            const unsigned short* p3 = (const unsigned short*)B + (j + jj + 3) * B_hstep + k;
+            const unsigned short* p4 = (const unsigned short*)B + (j + jj + 4) * B_hstep + k;
+            const unsigned short* p5 = (const unsigned short*)B + (j + jj + 5) * B_hstep + k;
+            const unsigned short* p6 = (const unsigned short*)B + (j + jj + 6) * B_hstep + k;
+            const unsigned short* p7 = (const unsigned short*)B + (j + jj + 7) * B_hstep + k;
+            const unsigned short* p8 = (const unsigned short*)B + (j + jj + 8) * B_hstep + k;
+            const unsigned short* p9 = (const unsigned short*)B + (j + jj + 9) * B_hstep + k;
+            const unsigned short* pa = (const unsigned short*)B + (j + jj + 10) * B_hstep + k;
+            const unsigned short* pb = (const unsigned short*)B + (j + jj + 11) * B_hstep + k;
+            const unsigned short* pc = (const unsigned short*)B + (j + jj + 12) * B_hstep + k;
+            const unsigned short* pd = (const unsigned short*)B + (j + jj + 13) * B_hstep + k;
+            const unsigned short* pe = (const unsigned short*)B + (j + jj + 14) * B_hstep + k;
+            const unsigned short* pf = (const unsigned short*)B + (j + jj + 15) * B_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p4[0];
+                pp[5] = p5[0];
+                pp[6] = p6[0];
+                pp[7] = p7[0];
+                pp[8] = p8[0];
+                pp[9] = p9[0];
+                pp[10] = pa[0];
+                pp[11] = pb[0];
+                pp[12] = pc[0];
+                pp[13] = pd[0];
+                pp[14] = pe[0];
+                pp[15] = pf[0];
+                pp += 16;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+                p8++;
+                p9++;
+                pa++;
+                pb++;
+                pc++;
+                pd++;
+                pe++;
+                pf++;
+            }
+        }
+    }
+#endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
 #if __loongarch_asx
         if (elempack == 8)
         {
-            if (((j + jj) & 7) == 0)
-            {
-                const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 8;
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 8;
 
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[0];
-                    pp[1] = p0[1];
-                    pp[2] = p0[2];
-                    pp[3] = p0[3];
-                    pp[4] = p0[4];
-                    pp[5] = p0[5];
-                    pp[6] = p0[6];
-                    pp[7] = p0[7];
-                    pp += 8;
-                    p0 += 8;
-                }
-            }
-            else
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    for (int c = 0; c < 8; c++)
-                    {
-                        const int col = j + jj + c;
-                        const int j_pack = col / 8;
-                        const int j_lane = col % 8;
-                        const unsigned short* p = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + (k + kk) * 8 + j_lane;
-                        pp[c] = p[0];
-                    }
-                    pp += 8;
-                }
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp[4] = p0[4];
+                pp[5] = p0[5];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
+                pp += 8;
+                p0 += 8;
             }
         }
 #endif // __loongarch_asx
@@ -808,6 +884,91 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
     int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[16];
+                pp[3] = p0[24];
+                pp[4] = p0[32];
+                pp[5] = p0[40];
+                pp[6] = p0[48];
+                pp[7] = p0[56];
+                pp[8] = p0[64];
+                pp[9] = p0[72];
+                pp[10] = p0[80];
+                pp[11] = p0[88];
+                pp[12] = p0[96];
+                pp[13] = p0[104];
+                pp[14] = p0[112];
+                pp[15] = p0[120];
+                pp += 16;
+                p0++;
+                if ((kk + 1) % 8 == 0)
+                {
+                    p0 += B_hstep * 8 - 8;
+                }
+            }
+        }
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
+            const unsigned short* p1 = (const unsigned short*)B + k * B_hstep + (j + jj + 4) * 4;
+            const unsigned short* p2 = (const unsigned short*)B + k * B_hstep + (j + jj + 8) * 4;
+            const unsigned short* p3 = (const unsigned short*)B + k * B_hstep + (j + jj + 12) * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[4];
+                pp[2] = p0[8];
+                pp[3] = p0[12];
+                pp[4] = p1[0];
+                pp[5] = p1[4];
+                pp[6] = p1[8];
+                pp[7] = p1[12];
+                pp[8] = p2[0];
+                pp[9] = p2[4];
+                pp[10] = p2[8];
+                pp[11] = p2[12];
+                pp[12] = p3[0];
+                pp[13] = p3[4];
+                pp[14] = p3[8];
+                pp[15] = p3[12];
+                pp += 16;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                if ((kk + 1) % 4 == 0)
+                {
+                    p0 += B_hstep * 4 - 4;
+                    p1 += B_hstep * 4 - 4;
+                    p2 += B_hstep * 4 - 4;
+                    p3 += B_hstep * 4 - 4;
+                }
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+                pp += 16;
+                p0 += B_hstep;
+            }
+        }
+    }
+#endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
 #if __loongarch_asx
@@ -1150,6 +1311,99 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
         int jj = 0;
 #if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const unsigned short* pA = pAT;
+
+            __m256 _sum0 = (__m256)__lasx_xvldi(0);
+            __m256 _sum1 = (__m256)__lasx_xvldi(0);
+            __m256 _sum2 = (__m256)__lasx_xvldi(0);
+            __m256 _sum3 = (__m256)__lasx_xvldi(0);
+            __m256 _sum4 = (__m256)__lasx_xvldi(0);
+            __m256 _sum5 = (__m256)__lasx_xvldi(0);
+            __m256 _sum6 = (__m256)__lasx_xvldi(0);
+            __m256 _sum7 = (__m256)__lasx_xvldi(0);
+            __m256 _sum8 = (__m256)__lasx_xvldi(0);
+            __m256 _sum9 = (__m256)__lasx_xvldi(0);
+            __m256 _suma = (__m256)__lasx_xvldi(0);
+            __m256 _sumb = (__m256)__lasx_xvldi(0);
+            __m256 _sumc = (__m256)__lasx_xvldi(0);
+            __m256 _sumd = (__m256)__lasx_xvldi(0);
+            __m256 _sume = (__m256)__lasx_xvldi(0);
+            __m256 _sumf = (__m256)__lasx_xvldi(0);
+
+            if (k != 0)
+            {
+                _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                _sum2 = (__m256)__lasx_xvld(outptr + 16, 0);
+                _sum3 = (__m256)__lasx_xvld(outptr + 24, 0);
+                _sum4 = (__m256)__lasx_xvld(outptr + 32, 0);
+                _sum5 = (__m256)__lasx_xvld(outptr + 40, 0);
+                _sum6 = (__m256)__lasx_xvld(outptr + 48, 0);
+                _sum7 = (__m256)__lasx_xvld(outptr + 56, 0);
+                _sum8 = (__m256)__lasx_xvld(outptr + 64, 0);
+                _sum9 = (__m256)__lasx_xvld(outptr + 72, 0);
+                _suma = (__m256)__lasx_xvld(outptr + 80, 0);
+                _sumb = (__m256)__lasx_xvld(outptr + 88, 0);
+                _sumc = (__m256)__lasx_xvld(outptr + 96, 0);
+                _sumd = (__m256)__lasx_xvld(outptr + 104, 0);
+                _sume = (__m256)__lasx_xvld(outptr + 112, 0);
+                _sumf = (__m256)__lasx_xvld(outptr + 120, 0);
+            }
+
+            int kk = 0;
+            for (; kk < max_kk; kk++)
+            {
+                __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
+                __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
+                __m256 _pA2 = (__m256)__lasx_xvpermi_q((__m256i)_pA, (__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 1));
+                __m256 _pA3 = (__m256)__lasx_xvpermi_q((__m256i)_pA1, (__m256i)_pA1, _LSX_SHUFFLE(0, 0, 0, 1));
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB4 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
+                __m256 _pB5 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB4, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+                _sum4 = __lasx_xvfmadd_s(_pA2, _pB0, _sum4);
+                _sum5 = __lasx_xvfmadd_s(_pA2, _pB1, _sum5);
+                _sum6 = __lasx_xvfmadd_s(_pA3, _pB0, _sum6);
+                _sum7 = __lasx_xvfmadd_s(_pA3, _pB1, _sum7);
+                _sum8 = __lasx_xvfmadd_s(_pA, _pB4, _sum8);
+                _sum9 = __lasx_xvfmadd_s(_pA, _pB5, _sum9);
+                _suma = __lasx_xvfmadd_s(_pA1, _pB4, _suma);
+                _sumb = __lasx_xvfmadd_s(_pA1, _pB5, _sumb);
+                _sumc = __lasx_xvfmadd_s(_pA2, _pB4, _sumc);
+                _sumd = __lasx_xvfmadd_s(_pA2, _pB5, _sumd);
+                _sume = __lasx_xvfmadd_s(_pA3, _pB4, _sume);
+                _sumf = __lasx_xvfmadd_s(_pA3, _pB5, _sumf);
+
+                pA += 8;
+                pB += 16;
+            }
+
+            __lasx_xvst((__m256i)_sum0, outptr, 0);
+            __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+            __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
+            __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
+            __lasx_xvst((__m256i)_sum4, outptr + 32, 0);
+            __lasx_xvst((__m256i)_sum5, outptr + 40, 0);
+            __lasx_xvst((__m256i)_sum6, outptr + 48, 0);
+            __lasx_xvst((__m256i)_sum7, outptr + 56, 0);
+            __lasx_xvst((__m256i)_sum8, outptr + 64, 0);
+            __lasx_xvst((__m256i)_sum9, outptr + 72, 0);
+            __lasx_xvst((__m256i)_suma, outptr + 80, 0);
+            __lasx_xvst((__m256i)_sumb, outptr + 88, 0);
+            __lasx_xvst((__m256i)_sumc, outptr + 96, 0);
+            __lasx_xvst((__m256i)_sumd, outptr + 104, 0);
+            __lasx_xvst((__m256i)_sume, outptr + 112, 0);
+            __lasx_xvst((__m256i)_sumf, outptr + 120, 0);
+
+            outptr += 128;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
@@ -1576,6 +1830,79 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         const unsigned short* pB = pBT;
 
         int jj = 0;
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const unsigned short* pA = pAT;
+
+            __m256 _sum0;
+            __m256 _sum1;
+            __m256 _sum2;
+            __m256 _sum3;
+            __m256 _sum4;
+            __m256 _sum5;
+            __m256 _sum6;
+            __m256 _sum7;
+
+            if (k == 0)
+            {
+                _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum2 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum3 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum4 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum5 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum6 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum7 = (__m256)__lasx_xvreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                _sum2 = (__m256)__lasx_xvld(outptr + 16, 0);
+                _sum3 = (__m256)__lasx_xvld(outptr + 24, 0);
+                _sum4 = (__m256)__lasx_xvld(outptr + 32, 0);
+                _sum5 = (__m256)__lasx_xvld(outptr + 40, 0);
+                _sum6 = (__m256)__lasx_xvld(outptr + 48, 0);
+                _sum7 = (__m256)__lasx_xvld(outptr + 56, 0);
+            }
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __m128 _pA4 = bfloat2float_lsx(pA);
+                __m128 _pA4r = (__m128)__lsx_vshuf4i_w((__m128i)_pA4, _LSX_SHUFFLE(1, 0, 3, 2));
+                __m256 _pA = __lasx_concat_128_s(_pA4, _pA4);
+                __m256 _pA1 = __lasx_concat_128_s(_pA4r, _pA4r);
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                __m256 _pB2 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
+                __m256 _pB3 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB2, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+                _sum4 = __lasx_xvfmadd_s(_pA, _pB2, _sum4);
+                _sum5 = __lasx_xvfmadd_s(_pA, _pB3, _sum5);
+                _sum6 = __lasx_xvfmadd_s(_pA1, _pB2, _sum6);
+                _sum7 = __lasx_xvfmadd_s(_pA1, _pB3, _sum7);
+
+                pA += 4;
+                pB += 16;
+            }
+
+            __lasx_xvst((__m256i)_sum0, outptr, 0);
+            __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+            __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
+            __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
+            __lasx_xvst((__m256i)_sum4, outptr + 32, 0);
+            __lasx_xvst((__m256i)_sum5, outptr + 40, 0);
+            __lasx_xvst((__m256i)_sum6, outptr + 48, 0);
+            __lasx_xvst((__m256i)_sum7, outptr + 56, 0);
+
+            outptr += 64;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
@@ -1772,6 +2099,83 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
         int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256 _sum0;
+            __m256 _sum1;
+            __m256 _sum2;
+            __m256 _sum3;
+
+            if (k == 0)
+            {
+                _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum2 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum3 = (__m256)__lasx_xvreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                _sum2 = (__m256)__lasx_xvld(outptr + 16, 0);
+                _sum3 = (__m256)__lasx_xvld(outptr + 24, 0);
+            }
+
+            const unsigned short* pA = pAT;
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m256 _pA0 = bfloat2float_lasx(__lsx_vldrepl_w(pA, 0));
+                __m256 _pA1 = bfloat2float_lasx(__lsx_vldrepl_w(pA + 2, 0));
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
+                __m256 _pB2 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 16, 0));
+                __m256 _pB3 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 24, 0));
+
+                __m256 _pA00 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA0, _LSX_SHUFFLE(0, 0, 0, 0));
+                __m256 _pA01 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA0, _LSX_SHUFFLE(1, 1, 1, 1));
+                __m256 _pA10 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA1, _LSX_SHUFFLE(0, 0, 0, 0));
+                __m256 _pA11 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA1, _LSX_SHUFFLE(1, 1, 1, 1));
+
+                _sum0 = __lasx_xvfmadd_s(_pA00, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA00, _pB1, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA01, _pB0, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA01, _pB1, _sum3);
+                _sum0 = __lasx_xvfmadd_s(_pA10, _pB2, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA10, _pB3, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA11, _pB2, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA11, _pB3, _sum3);
+
+                pA += 4;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                __m256 _pA = bfloat2float_lasx(__lsx_vldrepl_w(pA, 0));
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
+
+                __m256 _pA0 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 0));
+                __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 1, 1, 1));
+
+                _sum0 = __lasx_xvfmadd_s(_pA0, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA0, _pB1, _sum1);
+                _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+
+                pA += 2;
+                pB += 16;
+            }
+
+            __lasx_xvst((__m256i)_sum0, outptr, 0);
+            __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+            __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
+            __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
+
+            outptr += 32;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _sum0;
@@ -2043,6 +2447,41 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
         int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256 _sum0;
+            __m256 _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+                _sum1 = (__m256)__lasx_xvreplgr2vr_w(0);
+            }
+            else
+            {
+                _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+            }
+
+            const unsigned short* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
+                __m256 _pB1 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
+                __m256 _pA0 = (__m256)__lasx_xvreplgr2vr_w((int)((unsigned int)pA[0] << 16));
+                _sum0 = __lasx_xvfmadd_s(_pA0, _pB0, _sum0);
+                _sum1 = __lasx_xvfmadd_s(_pA0, _pB1, _sum1);
+                pA += 1;
+                pB += 16;
+            }
+
+            __lasx_xvst((__m256i)_sum0, outptr, 0);
+            __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+
+            outptr += 16;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128 _sum0;
@@ -2209,7 +2648,11 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
 
 #if __loongarch_sx
     TILE_M = std::max(8, tile_size / 8 * 8);
+#if __loongarch_asx
+    TILE_N = std::max(16, tile_size / 16 * 16);
+#else
     TILE_N = std::max(8, tile_size / 8 * 8);
+#endif
 #if __loongarch_asx
     TILE_K = std::max(8, tile_size / 8 * 8);
 #else
@@ -2239,7 +2682,11 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(unsigned short) / TILE_K);
 #if __loongarch_sx
             TILE_M = std::max(8, tile_size / 8 * 8);
+#if __loongarch_asx
+            TILE_N = std::max(16, tile_size / 16 * 16);
+#else
             TILE_N = std::max(8, tile_size / 8 * 8);
+#endif
 #else
             TILE_M = std::max(2, tile_size / 2 * 2);
             TILE_N = std::max(1, tile_size);
@@ -2263,7 +2710,11 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __loongarch_sx
+#if __loongarch_asx
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 15) / 16 * 16);
+#else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 7) / 8 * 8);
+#endif
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
 #endif
@@ -2289,7 +2740,11 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
     if (constant_TILE_N > 0)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        TILE_N = (constant_TILE_N + 15) / 16 * 16;
+#else
         TILE_N = (constant_TILE_N + 7) / 8 * 8;
+#endif
 #else
         TILE_N = constant_TILE_N;
 #endif

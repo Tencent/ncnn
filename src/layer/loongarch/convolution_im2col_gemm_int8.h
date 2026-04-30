@@ -54,6 +54,167 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         int jj = 0;
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256i _f0 = __lasx_xvld(pp, 0);
+            __m256i _f1 = __lasx_xvld(pp + 8, 0);
+            __m256i _f2 = __lasx_xvld(pp + 16, 0);
+            __m256i _f3 = __lasx_xvld(pp + 24, 0);
+            __m256i _f4 = __lasx_xvld(pp + 32, 0);
+            __m256i _f5 = __lasx_xvld(pp + 40, 0);
+            __m256i _f6 = __lasx_xvld(pp + 48, 0);
+            __m256i _f7 = __lasx_xvld(pp + 56, 0);
+            __m256i _f8 = __lasx_xvld(pp + 64, 0);
+            __m256i _f9 = __lasx_xvld(pp + 72, 0);
+            __m256i _fa = __lasx_xvld(pp + 80, 0);
+            __m256i _fb = __lasx_xvld(pp + 88, 0);
+            __m256i _fc = __lasx_xvld(pp + 96, 0);
+            __m256i _fd = __lasx_xvld(pp + 104, 0);
+            __m256i _fe = __lasx_xvld(pp + 112, 0);
+            __m256i _ff = __lasx_xvld(pp + 120, 0);
+
+            _f4 = __lasx_xvpermi_q(_f4, _f4, _LSX_SHUFFLE(0, 0, 0, 1));
+            _f5 = __lasx_xvpermi_q(_f5, _f5, _LSX_SHUFFLE(0, 0, 0, 1));
+            _f6 = __lasx_xvpermi_q(_f6, _f6, _LSX_SHUFFLE(0, 0, 0, 1));
+            _f7 = __lasx_xvpermi_q(_f7, _f7, _LSX_SHUFFLE(0, 0, 0, 1));
+            _fc = __lasx_xvpermi_q(_fc, _fc, _LSX_SHUFFLE(0, 0, 0, 1));
+            _fd = __lasx_xvpermi_q(_fd, _fd, _LSX_SHUFFLE(0, 0, 0, 1));
+            _fe = __lasx_xvpermi_q(_fe, _fe, _LSX_SHUFFLE(0, 0, 0, 1));
+            _ff = __lasx_xvpermi_q(_ff, _ff, _LSX_SHUFFLE(0, 0, 0, 1));
+
+            {
+                __m256i _tmp0 = _f0;
+                __m256i _tmp1 = __lasx_xvshuf4i_w(_f1, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp2 = _f2;
+                __m256i _tmp3 = __lasx_xvshuf4i_w(_f3, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp4 = _f4;
+                __m256i _tmp5 = __lasx_xvshuf4i_w(_f5, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp6 = _f6;
+                __m256i _tmp7 = __lasx_xvshuf4i_w(_f7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                _f0 = __lasx_xvilvl_w(_tmp3, _tmp0);
+                _f1 = __lasx_xvilvh_w(_tmp3, _tmp0);
+                _f2 = __lasx_xvilvl_w(_tmp1, _tmp2);
+                _f3 = __lasx_xvilvh_w(_tmp1, _tmp2);
+                _f4 = __lasx_xvilvl_w(_tmp7, _tmp4);
+                _f5 = __lasx_xvilvh_w(_tmp7, _tmp4);
+                _f6 = __lasx_xvilvl_w(_tmp5, _tmp6);
+                _f7 = __lasx_xvilvh_w(_tmp5, _tmp6);
+
+                _tmp0 = __lasx_xvilvl_d(_f2, _f0);
+                _tmp1 = __lasx_xvilvh_d(_f2, _f0);
+                _tmp2 = __lasx_xvilvl_d(_f1, _f3);
+                _tmp3 = __lasx_xvilvh_d(_f1, _f3);
+                _tmp4 = __lasx_xvilvl_d(_f6, _f4);
+                _tmp5 = __lasx_xvilvh_d(_f6, _f4);
+                _tmp6 = __lasx_xvilvl_d(_f5, _f7);
+                _tmp7 = __lasx_xvilvh_d(_f5, _f7);
+
+                _tmp1 = __lasx_xvshuf4i_w(_tmp1, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp3 = __lasx_xvshuf4i_w(_tmp3, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp5 = __lasx_xvshuf4i_w(_tmp5, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp7 = __lasx_xvshuf4i_w(_tmp7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                _f0 = __lasx_xvpermi_q(_tmp4, _tmp0, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f1 = __lasx_xvpermi_q(_tmp5, _tmp1, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f2 = __lasx_xvpermi_q(_tmp6, _tmp2, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f3 = __lasx_xvpermi_q(_tmp7, _tmp3, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f4 = __lasx_xvpermi_q(_tmp0, _tmp4, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f5 = __lasx_xvpermi_q(_tmp1, _tmp5, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f6 = __lasx_xvpermi_q(_tmp2, _tmp6, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f7 = __lasx_xvpermi_q(_tmp3, _tmp7, _LSX_SHUFFLE(0, 3, 0, 0));
+            }
+            {
+                __m256i _tmp0 = _f8;
+                __m256i _tmp1 = __lasx_xvshuf4i_w(_f9, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp2 = _fa;
+                __m256i _tmp3 = __lasx_xvshuf4i_w(_fb, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp4 = _fc;
+                __m256i _tmp5 = __lasx_xvshuf4i_w(_fd, _LSX_SHUFFLE(2, 1, 0, 3));
+                __m256i _tmp6 = _fe;
+                __m256i _tmp7 = __lasx_xvshuf4i_w(_ff, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                _f8 = __lasx_xvilvl_w(_tmp3, _tmp0);
+                _f9 = __lasx_xvilvh_w(_tmp3, _tmp0);
+                _fa = __lasx_xvilvl_w(_tmp1, _tmp2);
+                _fb = __lasx_xvilvh_w(_tmp1, _tmp2);
+                _fc = __lasx_xvilvl_w(_tmp7, _tmp4);
+                _fd = __lasx_xvilvh_w(_tmp7, _tmp4);
+                _fe = __lasx_xvilvl_w(_tmp5, _tmp6);
+                _ff = __lasx_xvilvh_w(_tmp5, _tmp6);
+
+                _tmp0 = __lasx_xvilvl_d(_fa, _f8);
+                _tmp1 = __lasx_xvilvh_d(_fa, _f8);
+                _tmp2 = __lasx_xvilvl_d(_f9, _fb);
+                _tmp3 = __lasx_xvilvh_d(_f9, _fb);
+                _tmp4 = __lasx_xvilvl_d(_fe, _fc);
+                _tmp5 = __lasx_xvilvh_d(_fe, _fc);
+                _tmp6 = __lasx_xvilvl_d(_fd, _ff);
+                _tmp7 = __lasx_xvilvh_d(_fd, _ff);
+
+                _tmp1 = __lasx_xvshuf4i_w(_tmp1, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp3 = __lasx_xvshuf4i_w(_tmp3, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp5 = __lasx_xvshuf4i_w(_tmp5, _LSX_SHUFFLE(2, 1, 0, 3));
+                _tmp7 = __lasx_xvshuf4i_w(_tmp7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                _f8 = __lasx_xvpermi_q(_tmp4, _tmp0, _LSX_SHUFFLE(0, 3, 0, 0));
+                _f9 = __lasx_xvpermi_q(_tmp5, _tmp1, _LSX_SHUFFLE(0, 3, 0, 0));
+                _fa = __lasx_xvpermi_q(_tmp6, _tmp2, _LSX_SHUFFLE(0, 3, 0, 0));
+                _fb = __lasx_xvpermi_q(_tmp7, _tmp3, _LSX_SHUFFLE(0, 3, 0, 0));
+                _fc = __lasx_xvpermi_q(_tmp0, _tmp4, _LSX_SHUFFLE(0, 3, 0, 0));
+                _fd = __lasx_xvpermi_q(_tmp1, _tmp5, _LSX_SHUFFLE(0, 3, 0, 0));
+                _fe = __lasx_xvpermi_q(_tmp2, _tmp6, _LSX_SHUFFLE(0, 3, 0, 0));
+                _ff = __lasx_xvpermi_q(_tmp3, _tmp7, _LSX_SHUFFLE(0, 3, 0, 0));
+            }
+
+            if (out_elempack == 4)
+            {
+                int* p1 = p0 + out_hstep * 4;
+                __lasx_xvst(__lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 2, 0, 0)), p0, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 8, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 16, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 24, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f9, _f8, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 32, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_fb, _fa, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 40, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_fd, _fc, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 48, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_ff, _fe, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 56, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f1, _f0, _LSX_SHUFFLE(0, 3, 0, 1)), p1, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f3, _f2, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 8, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f5, _f4, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 16, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f7, _f6, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 24, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_f9, _f8, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 32, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_fb, _fa, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 40, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_fd, _fc, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 48, 0);
+                __lasx_xvst(__lasx_xvpermi_q(_ff, _fe, _LSX_SHUFFLE(0, 3, 0, 1)), p1 + 56, 0);
+                p0 += 64;
+            }
+            if (out_elempack == 1)
+            {
+                transpose8x8_epi32(_f0, _f1, _f2, _f3, _f4, _f5, _f6, _f7);
+                transpose8x8_epi32(_f8, _f9, _fa, _fb, _fc, _fd, _fe, _ff);
+                __lasx_xvst(_f0, p0, 0);
+                __lasx_xvst(_f1, p0 + out_hstep, 0);
+                __lasx_xvst(_f2, p0 + out_hstep * 2, 0);
+                __lasx_xvst(_f3, p0 + out_hstep * 3, 0);
+                __lasx_xvst(_f4, p0 + out_hstep * 4, 0);
+                __lasx_xvst(_f5, p0 + out_hstep * 5, 0);
+                __lasx_xvst(_f6, p0 + out_hstep * 6, 0);
+                __lasx_xvst(_f7, p0 + out_hstep * 7, 0);
+                __lasx_xvst(_f8, p0 + 8, 0);
+                __lasx_xvst(_f9, p0 + out_hstep + 8, 0);
+                __lasx_xvst(_fa, p0 + out_hstep * 2 + 8, 0);
+                __lasx_xvst(_fb, p0 + out_hstep * 3 + 8, 0);
+                __lasx_xvst(_fc, p0 + out_hstep * 4 + 8, 0);
+                __lasx_xvst(_fd, p0 + out_hstep * 5 + 8, 0);
+                __lasx_xvst(_fe, p0 + out_hstep * 6 + 8, 0);
+                __lasx_xvst(_ff, p0 + out_hstep * 7 + 8, 0);
+                p0 += 16;
+            }
+
+            pp += 128;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
 #if __loongarch_asx
@@ -372,6 +533,98 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
         int* p0 = (int*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         int jj = 0;
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256i _f04 = __lasx_xvld(pp, 0);
+            __m256i _f15 = __lasx_xvld(pp + 8, 0);
+            __m256i _f26 = __lasx_xvld(pp + 16, 0);
+            __m256i _f37 = __lasx_xvld(pp + 24, 0);
+            __m256i _f8c = __lasx_xvld(pp + 32, 0);
+            __m256i _f9d = __lasx_xvld(pp + 40, 0);
+            __m256i _fae = __lasx_xvld(pp + 48, 0);
+            __m256i _fbf = __lasx_xvld(pp + 56, 0);
+
+            _f26 = __lasx_xvshuf4i_w(_f26, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f37 = __lasx_xvshuf4i_w(_f37, _LSX_SHUFFLE(1, 0, 3, 2));
+            {
+                __m256i _tmp0 = __lasx_xvilvl_w(_f15, _f04);
+                __m256i _tmp1 = __lasx_xvilvh_w(_f15, _f04);
+                __m256i _tmp2 = __lasx_xvilvl_w(_f37, _f26);
+                __m256i _tmp3 = __lasx_xvilvh_w(_f37, _f26);
+                _f04 = __lasx_xvilvl_d(_tmp2, _tmp0);
+                _f15 = __lasx_xvilvh_d(_tmp2, _tmp0);
+                _f26 = __lasx_xvilvl_d(_tmp3, _tmp1);
+                _f37 = __lasx_xvilvh_d(_tmp3, _tmp1);
+            }
+            _f15 = __lasx_xvshuf4i_w(_f15, _LSX_SHUFFLE(2, 1, 0, 3));
+            _f26 = __lasx_xvshuf4i_w(_f26, _LSX_SHUFFLE(1, 0, 3, 2));
+            _f37 = __lasx_xvshuf4i_w(_f37, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            _fae = __lasx_xvshuf4i_w(_fae, _LSX_SHUFFLE(1, 0, 3, 2));
+            _fbf = __lasx_xvshuf4i_w(_fbf, _LSX_SHUFFLE(1, 0, 3, 2));
+            {
+                __m256i _tmp0 = __lasx_xvilvl_w(_f9d, _f8c);
+                __m256i _tmp1 = __lasx_xvilvh_w(_f9d, _f8c);
+                __m256i _tmp2 = __lasx_xvilvl_w(_fbf, _fae);
+                __m256i _tmp3 = __lasx_xvilvh_w(_fbf, _fae);
+                _f8c = __lasx_xvilvl_d(_tmp2, _tmp0);
+                _f9d = __lasx_xvilvh_d(_tmp2, _tmp0);
+                _fae = __lasx_xvilvl_d(_tmp3, _tmp1);
+                _fbf = __lasx_xvilvh_d(_tmp3, _tmp1);
+            }
+            _f9d = __lasx_xvshuf4i_w(_f9d, _LSX_SHUFFLE(2, 1, 0, 3));
+            _fae = __lasx_xvshuf4i_w(_fae, _LSX_SHUFFLE(1, 0, 3, 2));
+            _fbf = __lasx_xvshuf4i_w(_fbf, _LSX_SHUFFLE(0, 3, 2, 1));
+
+            if (out_elempack == 4)
+            {
+                {
+                    __m256i _tmp0 = __lasx_xvilvl_w(_f15, _f04);
+                    __m256i _tmp1 = __lasx_xvilvh_w(_f15, _f04);
+                    __m256i _tmp2 = __lasx_xvilvl_w(_f37, _f26);
+                    __m256i _tmp3 = __lasx_xvilvh_w(_f37, _f26);
+                    __m256i _r0 = __lasx_xvilvl_d(_tmp2, _tmp0);
+                    __m256i _r1 = __lasx_xvilvh_d(_tmp2, _tmp0);
+                    __m256i _r2 = __lasx_xvilvl_d(_tmp3, _tmp1);
+                    __m256i _r3 = __lasx_xvilvh_d(_tmp3, _tmp1);
+                    __lasx_xvst(__lasx_xvpermi_q(_r1, _r0, _LSX_SHUFFLE(0, 2, 0, 0)), p0, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r3, _r2, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 8, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r1, _r0, _LSX_SHUFFLE(0, 3, 0, 1)), p0 + 16, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r3, _r2, _LSX_SHUFFLE(0, 3, 0, 1)), p0 + 24, 0);
+                }
+                {
+                    __m256i _tmp0 = __lasx_xvilvl_w(_f9d, _f8c);
+                    __m256i _tmp1 = __lasx_xvilvh_w(_f9d, _f8c);
+                    __m256i _tmp2 = __lasx_xvilvl_w(_fbf, _fae);
+                    __m256i _tmp3 = __lasx_xvilvh_w(_fbf, _fae);
+                    __m256i _r0 = __lasx_xvilvl_d(_tmp2, _tmp0);
+                    __m256i _r1 = __lasx_xvilvh_d(_tmp2, _tmp0);
+                    __m256i _r2 = __lasx_xvilvl_d(_tmp3, _tmp1);
+                    __m256i _r3 = __lasx_xvilvh_d(_tmp3, _tmp1);
+                    __lasx_xvst(__lasx_xvpermi_q(_r1, _r0, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 32, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r3, _r2, _LSX_SHUFFLE(0, 2, 0, 0)), p0 + 40, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r1, _r0, _LSX_SHUFFLE(0, 3, 0, 1)), p0 + 48, 0);
+                    __lasx_xvst(__lasx_xvpermi_q(_r3, _r2, _LSX_SHUFFLE(0, 3, 0, 1)), p0 + 56, 0);
+                }
+                p0 += 64;
+            }
+            if (out_elempack == 1)
+            {
+                __lasx_xvst(_f04, p0, 0);
+                __lasx_xvst(_f8c, p0 + 8, 0);
+                __lasx_xvst(_f15, p0 + out_hstep, 0);
+                __lasx_xvst(_f9d, p0 + out_hstep + 8, 0);
+                __lasx_xvst(_f26, p0 + out_hstep * 2, 0);
+                __lasx_xvst(_fae, p0 + out_hstep * 2 + 8, 0);
+                __lasx_xvst(_f37, p0 + out_hstep * 3, 0);
+                __lasx_xvst(_fbf, p0 + out_hstep * 3 + 8, 0);
+                p0 += 16;
+            }
+
+            pp += 64;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128i _f0 = __lsx_vld(pp, 0);
@@ -519,6 +772,38 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
         int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m256i _sum0 = __lasx_xvld(pp, 0);
+            __m256i _sum1 = __lasx_xvld(pp + 8, 0);
+            __m256i _sum2 = __lasx_xvld(pp + 16, 0);
+            __m256i _sum3 = __lasx_xvld(pp + 24, 0);
+
+            __m256i _s0 = __lasx_xvilvl_w(_sum1, _sum0);
+            __m256i _s1 = __lasx_xvilvh_w(_sum1, _sum0);
+            __m256i _s2 = __lasx_xvilvl_w(_sum3, _sum2);
+            __m256i _s3 = __lasx_xvilvh_w(_sum3, _sum2);
+
+            __m256i _t0 = __lasx_xvpermi_q(_s1, _s0, _LSX_SHUFFLE(0, 2, 0, 0));
+            __m256i _t1 = __lasx_xvpermi_q(_s1, _s0, _LSX_SHUFFLE(0, 3, 0, 1));
+            __m256i _t2 = __lasx_xvpermi_q(_s3, _s2, _LSX_SHUFFLE(0, 2, 0, 0));
+            __m256i _t3 = __lasx_xvpermi_q(_s3, _s2, _LSX_SHUFFLE(0, 3, 0, 1));
+
+            __m256i _f01 = __lasx_xvpermi_d(__lasx_xvpickev_w(_t1, _t0), _LSX_SHUFFLE(3, 1, 2, 0));
+            __m256i _f23 = __lasx_xvpermi_d(__lasx_xvpickod_w(_t1, _t0), _LSX_SHUFFLE(3, 1, 2, 0));
+            __m256i _f45 = __lasx_xvpermi_d(__lasx_xvpickev_w(_t3, _t2), _LSX_SHUFFLE(3, 1, 2, 0));
+            __m256i _f67 = __lasx_xvpermi_d(__lasx_xvpickod_w(_t3, _t2), _LSX_SHUFFLE(3, 1, 2, 0));
+
+            __lasx_xvst(_f01, p0, 0);
+            __lasx_xvst(_f45, p0 + 8, 0);
+            __lasx_xvst(_f23, p0 + out_hstep, 0);
+            __lasx_xvst(_f67, p0 + out_hstep + 8, 0);
+            p0 += 16;
+
+            pp += 32;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             p0[0] = pp[0];
@@ -581,6 +866,16 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
 
         int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __lasx_xvst(__lasx_xvld(pp, 0), p0, 0);
+            __lasx_xvst(__lasx_xvld(pp + 8, 0), p0 + 8, 0);
+            p0 += 16;
+
+            pp += 16;
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             p0[0] = pp[0];
@@ -747,6 +1042,189 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
     int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                for (int n = 0; n < 8; n += 4)
+                {
+                    pp[0] = p0[n];
+                    pp[1] = p0[n + 1];
+                    pp[2] = p0[n + 2];
+                    pp[3] = p0[n + 3];
+                    pp[4] = p0[8 + n];
+                    pp[5] = p0[8 + n + 1];
+                    pp[6] = p0[8 + n + 2];
+                    pp[7] = p0[8 + n + 3];
+                    pp[8] = p0[16 + n];
+                    pp[9] = p0[16 + n + 1];
+                    pp[10] = p0[16 + n + 2];
+                    pp[11] = p0[16 + n + 3];
+                    pp[12] = p0[24 + n];
+                    pp[13] = p0[24 + n + 1];
+                    pp[14] = p0[24 + n + 2];
+                    pp[15] = p0[24 + n + 3];
+                    pp[16] = p0[32 + n];
+                    pp[17] = p0[32 + n + 1];
+                    pp[18] = p0[32 + n + 2];
+                    pp[19] = p0[32 + n + 3];
+                    pp[20] = p0[40 + n];
+                    pp[21] = p0[40 + n + 1];
+                    pp[22] = p0[40 + n + 2];
+                    pp[23] = p0[40 + n + 3];
+                    pp[24] = p0[48 + n];
+                    pp[25] = p0[48 + n + 1];
+                    pp[26] = p0[48 + n + 2];
+                    pp[27] = p0[48 + n + 3];
+                    pp[28] = p0[56 + n];
+                    pp[29] = p0[56 + n + 1];
+                    pp[30] = p0[56 + n + 2];
+                    pp[31] = p0[56 + n + 3];
+                    pp[32] = p0[64 + n];
+                    pp[33] = p0[64 + n + 1];
+                    pp[34] = p0[64 + n + 2];
+                    pp[35] = p0[64 + n + 3];
+                    pp[36] = p0[72 + n];
+                    pp[37] = p0[72 + n + 1];
+                    pp[38] = p0[72 + n + 2];
+                    pp[39] = p0[72 + n + 3];
+                    pp[40] = p0[80 + n];
+                    pp[41] = p0[80 + n + 1];
+                    pp[42] = p0[80 + n + 2];
+                    pp[43] = p0[80 + n + 3];
+                    pp[44] = p0[88 + n];
+                    pp[45] = p0[88 + n + 1];
+                    pp[46] = p0[88 + n + 2];
+                    pp[47] = p0[88 + n + 3];
+                    pp[48] = p0[96 + n];
+                    pp[49] = p0[96 + n + 1];
+                    pp[50] = p0[96 + n + 2];
+                    pp[51] = p0[96 + n + 3];
+                    pp[52] = p0[104 + n];
+                    pp[53] = p0[104 + n + 1];
+                    pp[54] = p0[104 + n + 2];
+                    pp[55] = p0[104 + n + 3];
+                    pp[56] = p0[112 + n];
+                    pp[57] = p0[112 + n + 1];
+                    pp[58] = p0[112 + n + 2];
+                    pp[59] = p0[112 + n + 3];
+                    pp[60] = p0[120 + n];
+                    pp[61] = p0[120 + n + 1];
+                    pp[62] = p0[120 + n + 2];
+                    pp[63] = p0[120 + n + 3];
+                    pp += 64;
+                }
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+        if (elempack == 1)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                const signed char* p1 = p0 + bottom_blob.cstep;
+                const signed char* p2 = p0 + bottom_blob.cstep * 2;
+                const signed char* p3 = p0 + bottom_blob.cstep * 3;
+
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp[2] = p2[0];
+                pp[3] = p3[0];
+                pp[4] = p0[1];
+                pp[5] = p1[1];
+                pp[6] = p2[1];
+                pp[7] = p3[1];
+                pp[8] = p0[2];
+                pp[9] = p1[2];
+                pp[10] = p2[2];
+                pp[11] = p3[2];
+                pp[12] = p0[3];
+                pp[13] = p1[3];
+                pp[14] = p2[3];
+                pp[15] = p3[3];
+                pp[16] = p0[4];
+                pp[17] = p1[4];
+                pp[18] = p2[4];
+                pp[19] = p3[4];
+                pp[20] = p0[5];
+                pp[21] = p1[5];
+                pp[22] = p2[5];
+                pp[23] = p3[5];
+                pp[24] = p0[6];
+                pp[25] = p1[6];
+                pp[26] = p2[6];
+                pp[27] = p3[6];
+                pp[28] = p0[7];
+                pp[29] = p1[7];
+                pp[30] = p2[7];
+                pp[31] = p3[7];
+                pp[32] = p0[8];
+                pp[33] = p1[8];
+                pp[34] = p2[8];
+                pp[35] = p3[8];
+                pp[36] = p0[9];
+                pp[37] = p1[9];
+                pp[38] = p2[9];
+                pp[39] = p3[9];
+                pp[40] = p0[10];
+                pp[41] = p1[10];
+                pp[42] = p2[10];
+                pp[43] = p3[10];
+                pp[44] = p0[11];
+                pp[45] = p1[11];
+                pp[46] = p2[11];
+                pp[47] = p3[11];
+                pp[48] = p0[12];
+                pp[49] = p1[12];
+                pp[50] = p2[12];
+                pp[51] = p3[12];
+                pp[52] = p0[13];
+                pp[53] = p1[13];
+                pp[54] = p2[13];
+                pp[55] = p3[13];
+                pp[56] = p0[14];
+                pp[57] = p1[14];
+                pp[58] = p2[14];
+                pp[59] = p3[14];
+                pp[60] = p0[15];
+                pp[61] = p1[15];
+                pp[62] = p2[15];
+                pp[63] = p3[15];
+                pp += 64;
+                p0 += bottom_blob.cstep * 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp[4] = p0[4];
+                pp[5] = p0[5];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
+                pp[8] = p0[8];
+                pp[9] = p0[9];
+                pp[10] = p0[10];
+                pp[11] = p0[11];
+                pp[12] = p0[12];
+                pp[13] = p0[13];
+                pp[14] = p0[14];
+                pp[15] = p0[15];
+                pp += 16;
+                p0 += bottom_blob.cstep;
+            }
+        }
+    }
+#endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -1042,6 +1520,108 @@ static inline void convolution_im2col_input_tile_impl_int8(const Mat& bottom_blo
 
     int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        int dy[16];
+        int dx[16];
+        for (int c = 0; c < 16; c++)
+        {
+            dy[c] = (j + jj + c) / outw;
+            dx[c] = (j + jj + c) % outw;
+        }
+
+        int kk = 0;
+        if (elempack == 8)
+        {
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    const int raw_ch = (kk + q) / maxk;
+                    const int kpos = (kk + q) % maxk;
+                    const int p = raw_ch / 8;
+                    const int n = raw_ch % 8;
+                    const int u = kpos / kernel_w;
+                    const int v = kpos % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    for (int c = 0; c < 16; c++)
+                    {
+                        const int x = stride_w * dx[c] + dilation_w * v;
+                        const int y = stride_h * dy[c] + dilation_h * u;
+                        const signed char* sptr = img.row<const signed char>(y) + x * 8;
+                        pp[c * 4 + q] = sptr[n];
+                    }
+                }
+                pp += 64;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                const int raw_ch = kk / maxk;
+                const int kpos = kk % maxk;
+                const int p = raw_ch / 8;
+                const int n = raw_ch % 8;
+                const int u = kpos / kernel_w;
+                const int v = kpos % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                for (int c = 0; c < 16; c++)
+                {
+                    const int x = stride_w * dx[c] + dilation_w * v;
+                    const int y = stride_h * dy[c] + dilation_h * u;
+                    const signed char* sptr = img.row<const signed char>(y) + x * 8;
+                    pp[c] = sptr[n];
+                }
+                pp += 16;
+            }
+        }
+        if (elempack == 1)
+        {
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                for (int q = 0; q < 4; q++)
+                {
+                    const int p = (k + kk + q) / maxk;
+                    const int uv = (k + kk + q) % maxk;
+                    const int u = uv / kernel_w;
+                    const int v = uv % kernel_w;
+
+                    const Mat img = bottom_blob.channel(p);
+
+                    for (int c = 0; c < 16; c++)
+                    {
+                        const int x = stride_w * dx[c] + dilation_w * v;
+                        const int y = stride_h * dy[c] + dilation_h * u;
+                        const signed char* sptr = img.row<const signed char>(y) + x;
+                        pp[c * 4 + q] = sptr[0];
+                    }
+                }
+                pp += 64;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                const int p = (k + kk) / maxk;
+                const int uv = (k + kk) % maxk;
+                const int u = uv / kernel_w;
+                const int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                for (int c = 0; c < 16; c++)
+                {
+                    const int x = stride_w * dx[c] + dilation_w * v;
+                    const int y = stride_h * dy[c] + dilation_h * u;
+                    const signed char* sptr = img.row<const signed char>(y) + x;
+                    pp[c] = sptr[0];
+                }
+                pp += 16;
+            }
+        }
+    }
+#endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
         int dy0 = (j + jj) / outw;
