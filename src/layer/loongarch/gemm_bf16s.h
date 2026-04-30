@@ -2264,65 +2264,62 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         for (; jj + 3 < max_jj; jj += 4)
         {
 #if __loongarch_sx
+            __m128 _sum0;
+            __m128 _sum1;
+
+            if (k == 0)
             {
-                __m128 _sum0;
-                __m128 _sum1;
-
-                if (k == 0)
-                {
-                    _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-                    _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
-                }
-                else
-                {
-                    _sum0 = (__m128)__lsx_vld(outptr, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
-                }
-
-                const unsigned short* pA = pAT;
-                int kk = 0;
-                for (; kk + 1 < max_kk; kk += 2)
-                {
-                    __m128 _pA = bfloat2float_lsx(pA);
-                    __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
-                    __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
-                    __m128 _pB0 = bfloat2float_lsx(pB);
-                    __m128 _pB1 = bfloat2float_lsx(pB + 4);
-                    __m128 _pB01 = (__m128)__lsx_vilvl_w((__m128i)_pB0, (__m128i)_pB0);
-                    __m128 _pB23 = (__m128)__lsx_vilvh_w((__m128i)_pB0, (__m128i)_pB0);
-                    _sum0 = __lsx_vfmadd_s(_pA0, _pB01, _sum0);
-                    _sum1 = __lsx_vfmadd_s(_pA0, _pB23, _sum1);
-                    _pB01 = (__m128)__lsx_vilvl_w((__m128i)_pB1, (__m128i)_pB1);
-                    _pB23 = (__m128)__lsx_vilvh_w((__m128i)_pB1, (__m128i)_pB1);
-                    _sum0 = __lsx_vfmadd_s(_pA1, _pB01, _sum0);
-                    _sum1 = __lsx_vfmadd_s(_pA1, _pB23, _sum1);
-                    pA += 4;
-                    pB += 8;
-                }
-
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-
-                for (; kk < max_kk; kk++)
-                {
-                    float a0 = bfloat16_to_float32(pA[0]);
-                    float a1 = bfloat16_to_float32(pA[1]);
-                    outptr[0] += a0 * bfloat16_to_float32(pB[0]);
-                    outptr[1] += a1 * bfloat16_to_float32(pB[0]);
-                    outptr[2] += a0 * bfloat16_to_float32(pB[1]);
-                    outptr[3] += a1 * bfloat16_to_float32(pB[1]);
-                    outptr[4] += a0 * bfloat16_to_float32(pB[2]);
-                    outptr[5] += a1 * bfloat16_to_float32(pB[2]);
-                    outptr[6] += a0 * bfloat16_to_float32(pB[3]);
-                    outptr[7] += a1 * bfloat16_to_float32(pB[3]);
-                    pA += 2;
-                    pB += 4;
-                }
-
-                outptr += 8;
-                continue;
+                _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
             }
-#endif // __loongarch_sx
+            else
+            {
+                _sum0 = (__m128)__lsx_vld(outptr, 0);
+                _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
+            }
+
+            const unsigned short* pA = pAT;
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128 _pA = bfloat2float_lsx(pA);
+                __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
+                __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
+                __m128 _pB0 = bfloat2float_lsx(pB);
+                __m128 _pB1 = bfloat2float_lsx(pB + 4);
+                __m128 _pB01 = (__m128)__lsx_vilvl_w((__m128i)_pB0, (__m128i)_pB0);
+                __m128 _pB23 = (__m128)__lsx_vilvh_w((__m128i)_pB0, (__m128i)_pB0);
+                _sum0 = __lsx_vfmadd_s(_pA0, _pB01, _sum0);
+                _sum1 = __lsx_vfmadd_s(_pA0, _pB23, _sum1);
+                _pB01 = (__m128)__lsx_vilvl_w((__m128i)_pB1, (__m128i)_pB1);
+                _pB23 = (__m128)__lsx_vilvh_w((__m128i)_pB1, (__m128i)_pB1);
+                _sum0 = __lsx_vfmadd_s(_pA1, _pB01, _sum0);
+                _sum1 = __lsx_vfmadd_s(_pA1, _pB23, _sum1);
+                pA += 4;
+                pB += 8;
+            }
+
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+            __lsx_vst((__m128i)_sum1, outptr + 4, 0);
+
+            for (; kk < max_kk; kk++)
+            {
+                float a0 = bfloat16_to_float32(pA[0]);
+                float a1 = bfloat16_to_float32(pA[1]);
+                outptr[0] += a0 * bfloat16_to_float32(pB[0]);
+                outptr[1] += a1 * bfloat16_to_float32(pB[0]);
+                outptr[2] += a0 * bfloat16_to_float32(pB[1]);
+                outptr[3] += a1 * bfloat16_to_float32(pB[1]);
+                outptr[4] += a0 * bfloat16_to_float32(pB[2]);
+                outptr[5] += a1 * bfloat16_to_float32(pB[2]);
+                outptr[6] += a0 * bfloat16_to_float32(pB[3]);
+                outptr[7] += a1 * bfloat16_to_float32(pB[3]);
+                pA += 2;
+                pB += 4;
+            }
+
+            outptr += 8;
+#else
             float sum00 = 0.f;
             float sum01 = 0.f;
             float sum10 = 0.f;
@@ -2372,6 +2369,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             outptr[7] = sum31;
 
             outptr += 8;
+#endif // __loongarch_sx
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -2520,35 +2518,32 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         for (; jj + 3 < max_jj; jj += 4)
         {
 #if __loongarch_sx
+            __m128 _sum0;
+
+            if (k == 0)
             {
-                __m128 _sum0;
-
-                if (k == 0)
-                {
-                    _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
-                }
-                else
-                {
-                    _sum0 = (__m128)__lsx_vld(outptr, 0);
-                }
-
-                const unsigned short* pA = pAT;
-                int kk = 0;
-                for (; kk < max_kk; kk++)
-                {
-                    __m128 _pA = (__m128)__lsx_vreplgr2vr_w((int)((unsigned int)pA[0] << 16));
-                    __m128 _pB = bfloat2float_lsx(pB);
-                    _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
-                    pA += 1;
-                    pB += 4;
-                }
-
-                __lsx_vst((__m128i)_sum0, outptr, 0);
-
-                outptr += 4;
-                continue;
+                _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
             }
-#endif // __loongarch_sx
+            else
+            {
+                _sum0 = (__m128)__lsx_vld(outptr, 0);
+            }
+
+            const unsigned short* pA = pAT;
+            int kk = 0;
+            for (; kk < max_kk; kk++)
+            {
+                __m128 _pA = (__m128)__lsx_vreplgr2vr_w((int)((unsigned int)pA[0] << 16));
+                __m128 _pB = bfloat2float_lsx(pB);
+                _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);
+                pA += 1;
+                pB += 4;
+            }
+
+            __lsx_vst((__m128i)_sum0, outptr, 0);
+
+            outptr += 4;
+#else
             float sum0 = 0.f;
             float sum1 = 0.f;
             float sum2 = 0.f;
@@ -2581,6 +2576,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             outptr[3] = sum3;
 
             outptr += 4;
+#endif // __loongarch_sx
         }
         for (; jj + 1 < max_jj; jj += 2)
         {

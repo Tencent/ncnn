@@ -694,14 +694,14 @@ static NCNN_FORCEINLINE void transpose8x8_epi16(__m128i& _r0, __m128i& _r1, __m1
     __m128i _tmpe = __lsx_vilvl_w(_tmp7, _tmp5);
     __m128i _tmpf = __lsx_vilvh_w(_tmp7, _tmp5);
 
-    _r0 = __lsx_vilvl_d(_tmp8, _tmpc);
-    _r1 = __lsx_vilvh_d(_tmp8, _tmpc);
-    _r2 = __lsx_vilvl_d(_tmp9, _tmpd);
-    _r3 = __lsx_vilvh_d(_tmp9, _tmpd);
-    _r4 = __lsx_vilvl_d(_tmpa, _tmpe);
-    _r5 = __lsx_vilvh_d(_tmpa, _tmpe);
-    _r6 = __lsx_vilvl_d(_tmpb, _tmpf);
-    _r7 = __lsx_vilvh_d(_tmpb, _tmpf);
+    _r0 = __lsx_vilvl_d(_tmpc, _tmp8);
+    _r1 = __lsx_vilvh_d(_tmpc, _tmp8);
+    _r2 = __lsx_vilvl_d(_tmpd, _tmp9);
+    _r3 = __lsx_vilvh_d(_tmpd, _tmp9);
+    _r4 = __lsx_vilvl_d(_tmpe, _tmpa);
+    _r5 = __lsx_vilvh_d(_tmpe, _tmpa);
+    _r6 = __lsx_vilvl_d(_tmpf, _tmpb);
+    _r7 = __lsx_vilvh_d(_tmpf, _tmpb);
 }
 
 // transpose8x4_epi16 - transpose 8x4 block of int16 (LSX)
