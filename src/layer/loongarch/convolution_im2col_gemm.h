@@ -530,8 +530,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sumd, outptr + 104, 0);
                 __lasx_xvst((__m256i)_sume, outptr + 112, 0);
                 __lasx_xvst((__m256i)_sumf, outptr + 120, 0);
-                outptr += 128;
             }
+
+            outptr += 128;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -767,8 +768,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum5, outptr + 40, 0);
                 __lasx_xvst((__m256i)_sum6, outptr + 48, 0);
                 __lasx_xvst((__m256i)_sum7, outptr + 56, 0);
-                outptr += 64;
             }
+
+            outptr += 64;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -910,8 +912,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
                 __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
                 __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
-                outptr += 32;
             }
+
+            outptr += 32;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -1006,8 +1009,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             {
                 __lasx_xvst((__m256i)_sum0, outptr + 0, 0);
                 __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
-                outptr += 16;
             }
+
+            outptr += 16;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -1075,8 +1079,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             else
             {
                 __lasx_xvst((__m256i)_sum0, outptr + 0, 0);
-                outptr += 8;
             }
+
+            outptr += 8;
         }
 #else  // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)

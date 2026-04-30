@@ -546,8 +546,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __lasx_xvst((__m256i)_sumd, outptr + 104, 0);
                 __lasx_xvst((__m256i)_sume, outptr + 112, 0);
                 __lasx_xvst((__m256i)_sumf, outptr + 120, 0);
-                outptr += 128;
             }
+
+            outptr += 128;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
