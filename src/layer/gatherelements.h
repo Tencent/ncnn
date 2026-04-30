@@ -1,29 +1,27 @@
-// Copyright 2017 Tencent
+// Copyright 2025 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef LAYER_TILE_H
-#define LAYER_TILE_H
+#ifndef LAYER_GATHERELEMENTS_H
+#define LAYER_GATHERELEMENTS_H
 
 #include "layer.h"
 
 namespace ncnn {
 
-class Tile : public Layer
+class GatherElements : public Layer
 {
 public:
-    Tile();
+    GatherElements();
 
     virtual int load_param(const ParamDict& pd);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
+    // param_0 = axis (default 0)
     int axis;
-    int tiles;
-    Mat repeats;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_TILE_H
+#endif // LAYER_GATHERELEMENTS_H

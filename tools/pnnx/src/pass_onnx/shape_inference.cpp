@@ -8,7 +8,15 @@
 #include <string>
 #include <vector>
 
+#if __has_include(<onnxruntime_c_api.h>)
 #include <onnxruntime_c_api.h>
+#elif __has_include(<onnxruntime/onnxruntime_c_api.h>)
+#include <onnxruntime/onnxruntime_c_api.h>
+#elif __has_include(<onnxruntime/core/session/onnxruntime_c_api.h>)
+#include <onnxruntime/core/session/onnxruntime_c_api.h>
+#else
+#error "onnxruntime_c_api.h not found"
+#endif
 
 namespace pnnx {
 

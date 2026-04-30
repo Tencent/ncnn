@@ -48,6 +48,23 @@ if(NCNN_PIXEL_DRAWING)
     ncnn_add_test(mat_pixel_drawing)
 endif()
 
+# YOLO26 support tests
+if(WITH_LAYER_gather)
+    ncnn_add_test(gather)
+endif()
+
+if(WITH_LAYER_gatherelements)
+    ncnn_add_test(gatherelements)
+endif()
+
+if(WITH_LAYER_expand)
+    ncnn_add_test(expand)
+endif()
+
+if(WITH_LAYER_mod)
+    ncnn_add_test(mod)
+endif()
+
 if(NCNN_PIXEL_ROTATE)
     ncnn_add_test(mat_pixel_rotate)
 endif()
@@ -168,6 +185,7 @@ ncnn_add_layer_test(Swish)
 ncnn_add_layer_test(TanH)
 ncnn_add_layer_test(Threshold)
 ncnn_add_layer_test(Tile)
+ncnn_add_layer_test(TopK)
 ncnn_add_layer_test(UnaryOp)
 ncnn_add_layer_test(Unfold)
 ncnn_add_layer_test(Yolov3DetectionOutput)
