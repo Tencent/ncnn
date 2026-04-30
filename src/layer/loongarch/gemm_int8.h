@@ -2352,7 +2352,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             outptr += 8;
         }
-#else  // __loongarch_asx
+#else // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
