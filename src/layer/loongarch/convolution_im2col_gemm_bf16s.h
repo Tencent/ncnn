@@ -1145,7 +1145,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             outptr += 8;
         }
-#else  // __loongarch_asx
+#else // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
