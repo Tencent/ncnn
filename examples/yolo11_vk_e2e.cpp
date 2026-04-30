@@ -1,4 +1,4 @@
-// Copyright 2025 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 // yolo11 vulkan preprocess + postprocess example
