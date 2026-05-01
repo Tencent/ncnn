@@ -212,14 +212,7 @@ struct unary_op_sin
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = sinf(tmp[0]);
-        tmp[1] = sinf(tmp[1]);
-        tmp[2] = sinf(tmp[2]);
-        tmp[3] = sinf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return sin_ps(x);
     }
 #endif // __mips_msa
 };
@@ -233,14 +226,7 @@ struct unary_op_cos
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = cosf(tmp[0]);
-        tmp[1] = cosf(tmp[1]);
-        tmp[2] = cosf(tmp[2]);
-        tmp[3] = cosf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return cos_ps(x);
     }
 #endif // __mips_msa
 };
@@ -254,14 +240,7 @@ struct unary_op_tan
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = tanf(tmp[0]);
-        tmp[1] = tanf(tmp[1]);
-        tmp[2] = tanf(tmp[2]);
-        tmp[3] = tanf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return tan_ps(x);
     }
 #endif // __mips_msa
 };
@@ -275,14 +254,7 @@ struct unary_op_asin
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = asinf(tmp[0]);
-        tmp[1] = asinf(tmp[1]);
-        tmp[2] = asinf(tmp[2]);
-        tmp[3] = asinf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return asin_ps(x);
     }
 #endif // __mips_msa
 };
@@ -296,14 +268,7 @@ struct unary_op_acos
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = acosf(tmp[0]);
-        tmp[1] = acosf(tmp[1]);
-        tmp[2] = acosf(tmp[2]);
-        tmp[3] = acosf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return acos_ps(x);
     }
 #endif // __mips_msa
 };
@@ -317,14 +282,7 @@ struct unary_op_atan
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = atanf(tmp[0]);
-        tmp[1] = atanf(tmp[1]);
-        tmp[2] = atanf(tmp[2]);
-        tmp[3] = atanf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return atan_ps(x);
     }
 #endif // __mips_msa
 };

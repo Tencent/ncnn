@@ -32,10 +32,13 @@
 
 #include <msa.h>
 
+_MIPS_FLOAT_CONST(c_0, 0.0f);
 _MIPS_FLOAT_CONST(c_1, 1.0f);
 _MIPS_FLOAT_CONST(c_2, 2.0f);
 _MIPS_FLOAT_CONST(c_n1, -1.0f);
+_MIPS_FLOAT_CONST(c_n3, -3.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
+_MIPS_FLOAT_CONST(c_eps, 1E-8f);
 
 #define c_inv_mant_mask_msa ~0x7f800000u
 _MIPS_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
@@ -238,6 +241,193 @@ static NCNN_FORCEINLINE v4f32 tanh_ps(v4f32 x)
     return y;
 }
 
+_MIPS_FLOAT_CONST(c_minus_cephes_DP1, -0.78515625f);
+_MIPS_FLOAT_CONST(c_minus_cephes_DP2, -2.4187564849853515625e-4f);
+_MIPS_FLOAT_CONST(c_minus_cephes_DP3, -3.77489497744594108e-8f);
+_MIPS_FLOAT_CONST(c_cephes_sin_p0, -1.9515295891E-4f);
+_MIPS_FLOAT_CONST(c_cephes_sin_p1, 8.3321608736E-3f);
+_MIPS_FLOAT_CONST(c_cephes_sin_p2, -1.6666654611E-1f);
+_MIPS_FLOAT_CONST(c_cephes_cos_p0, 2.443315711809948E-005f);
+_MIPS_FLOAT_CONST(c_cephes_cos_p1, -1.388731625493765E-003f);
+_MIPS_FLOAT_CONST(c_cephes_cos_p2, 4.166664568298827E-002f);
+_MIPS_FLOAT_CONST(c_cephes_FOPI, 1.27323954473516f); // 4/PI
+
+static NCNN_FORCEINLINE v4f32 sin_ps(v4f32 x)
+{
+    v4f32 y;
+    v4i32 swap_sign_bit, poly_mask, sign_bit;
+    v4f32 n0p5 = (v4f32)__msa_fill_w_f32(-0.5f);
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    sign_bit = (v4i32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x80000000));
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    y = __msa_fmul_w(x, (v4f32)__msa_fill_w(c_cephes_FOPI.i));
+
+    poly_mask = __msa_ftrunc_s_w(y);
+    poly_mask = __msa_addv_w(poly_mask, __msa_fill_w(1));
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(~1));
+    y = __msa_ffint_s_w(poly_mask);
+
+    swap_sign_bit = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(4));
+    swap_sign_bit = (v4i32)__msa_slli_w(swap_sign_bit, 29);
+
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(2));
+    poly_mask = __msa_ceqi_w(poly_mask, 0);
+
+    sign_bit = (v4i32)__msa_xor_v((v16u8)sign_bit, (v16u8)swap_sign_bit);
+
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP1.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP2.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP3.i));
+
+    y = (v4f32)__msa_fill_w(c_cephes_cos_p0.i);
+    v4f32 z = __msa_fmul_w(x, x);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p1.i), y, z);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p2.i), y, z);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fmul_w(y, z);
+    y = __ncnn_msa_fmadd_w(y, z, n0p5);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_1.i));
+
+    v4f32 y2 = (v4f32)__msa_fill_w(c_cephes_sin_p0.i);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p1.i), y2, z);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p2.i), y2, z);
+    y2 = __msa_fmul_w(y2, z);
+    y2 = __ncnn_msa_fmadd_w(x, y2, x);
+
+    y2 = (v4f32)__msa_and_v((v16u8)y2, (v16u8)poly_mask);
+    y = (v4f32)__msa_and_v((v16u8)__msa_xor_v((v16u8)poly_mask, (v16u8)all_ones), (v16u8)y);
+    y = __msa_fadd_w(y, y2);
+    y = (v4f32)__msa_xor_v((v16u8)y, (v16u8)sign_bit);
+
+    return y;
+}
+
+static NCNN_FORCEINLINE v4f32 cos_ps(v4f32 x)
+{
+    v4f32 y;
+    v4i32 swap_sign_bit, poly_mask, sign_bit;
+    v4f32 n0p5 = (v4f32)__msa_fill_w_f32(-0.5f);
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    y = __msa_fmul_w(x, (v4f32)__msa_fill_w(c_cephes_FOPI.i));
+
+    poly_mask = __msa_ftrunc_s_w(y);
+    poly_mask = __msa_addv_w(poly_mask, __msa_fill_w(1));
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(~1));
+    y = __msa_ffint_s_w(poly_mask);
+    poly_mask = __msa_subv_w(poly_mask, __msa_fill_w(2));
+
+    swap_sign_bit = (v4i32)__msa_and_v((v16u8)__msa_xor_v((v16u8)poly_mask, (v16u8)all_ones), (v16u8)__msa_fill_w(4));
+    swap_sign_bit = (v4i32)__msa_slli_w(swap_sign_bit, 29);
+
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(2));
+    poly_mask = __msa_ceqi_w(poly_mask, 0);
+
+    sign_bit = swap_sign_bit;
+
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP1.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP2.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP3.i));
+
+    y = (v4f32)__msa_fill_w(c_cephes_cos_p0.i);
+    v4f32 z = __msa_fmul_w(x, x);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p1.i), y, z);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p2.i), y, z);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fmul_w(y, z);
+    y = __ncnn_msa_fmadd_w(y, z, n0p5);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_1.i));
+
+    v4f32 y2 = (v4f32)__msa_fill_w(c_cephes_sin_p0.i);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p1.i), y2, z);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p2.i), y2, z);
+    y2 = __msa_fmul_w(y2, z);
+    y2 = __ncnn_msa_fmadd_w(x, y2, x);
+
+    y2 = (v4f32)__msa_and_v((v16u8)y2, (v16u8)poly_mask);
+    y = (v4f32)__msa_and_v((v16u8)__msa_xor_v((v16u8)poly_mask, (v16u8)all_ones), (v16u8)y);
+    y = __msa_fadd_w(y, y2);
+    y = (v4f32)__msa_xor_v((v16u8)y, (v16u8)sign_bit);
+
+    return y;
+}
+
+static NCNN_FORCEINLINE void sincos_ps(v4f32 x, v4f32& s, v4f32& c)
+{
+    v4f32 y;
+    v4i32 swap_sign_bit_cos, swap_sign_bit_sin, poly_mask, sign_bit_sin, sign_bit_cos;
+    v4f32 n0p5 = (v4f32)__msa_fill_w_f32(-0.5f);
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    sign_bit_sin = (v4i32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x80000000));
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    y = __msa_fmul_w(x, (v4f32)__msa_fill_w(c_cephes_FOPI.i));
+
+    poly_mask = __msa_ftrunc_s_w(y);
+    poly_mask = __msa_addv_w(poly_mask, __msa_fill_w(1));
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(~1));
+    y = __msa_ffint_s_w(poly_mask);
+
+    swap_sign_bit_cos = __msa_subv_w(poly_mask, __msa_fill_w(2));
+    swap_sign_bit_cos = (v4i32)__msa_and_v((v16u8)__msa_xor_v((v16u8)swap_sign_bit_cos, (v16u8)all_ones), (v16u8)__msa_fill_w(4));
+    swap_sign_bit_cos = (v4i32)__msa_slli_w(swap_sign_bit_cos, 29);
+
+    swap_sign_bit_sin = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(4));
+    swap_sign_bit_sin = (v4i32)__msa_slli_w(swap_sign_bit_sin, 29);
+
+    poly_mask = (v4i32)__msa_and_v((v16u8)poly_mask, (v16u8)__msa_fill_w(2));
+    poly_mask = __msa_ceqi_w(poly_mask, 0);
+
+    sign_bit_sin = (v4i32)__msa_xor_v((v16u8)sign_bit_sin, (v16u8)swap_sign_bit_sin);
+    sign_bit_cos = swap_sign_bit_cos;
+
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP1.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP2.i));
+    x = __ncnn_msa_fmadd_w(x, y, (v4f32)__msa_fill_w(c_minus_cephes_DP3.i));
+
+    v4f32 z = __msa_fmul_w(x, x);
+    y = (v4f32)__msa_fill_w(c_cephes_cos_p0.i);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p1.i), y, z);
+    y = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_cos_p2.i), y, z);
+    y = __msa_fmul_w(y, z);
+    y = __msa_fmul_w(y, z);
+    y = __ncnn_msa_fmadd_w(y, z, n0p5);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_1.i));
+
+    v4f32 y2 = (v4f32)__msa_fill_w(c_cephes_sin_p0.i);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p1.i), y2, z);
+    y2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_sin_p2.i), y2, z);
+    y2 = __msa_fmul_w(y2, z);
+    y2 = __ncnn_msa_fmadd_w(x, y2, x);
+
+    v4f32 ysin1 = (v4f32)__msa_and_v((v16u8)__msa_xor_v((v16u8)poly_mask, (v16u8)all_ones), (v16u8)y);
+    v4f32 ysin2 = (v4f32)__msa_and_v((v16u8)poly_mask, (v16u8)y2);
+    y2 = __msa_fsub_w(y2, ysin2);
+    y = __msa_fsub_w(y, ysin1);
+
+    ysin1 = __msa_fadd_w(ysin1, ysin2);
+    y = __msa_fadd_w(y, y2);
+
+    s = (v4f32)__msa_xor_v((v16u8)ysin1, (v16u8)sign_bit_sin);
+    c = (v4f32)__msa_xor_v((v16u8)y, (v16u8)sign_bit_cos);
+}
+
+static NCNN_FORCEINLINE v4f32 tan_ps(v4f32 x)
+{
+    v4f32 ysin, ycos;
+    v4f32 eps = (v4f32)__msa_fill_w(c_eps.i);
+    sincos_ps(x, ysin, ycos);
+    v4i32 mask = __msa_fceq_w(ycos, (v4f32)__msa_fill_w(c_0.i));
+    mask = (v4i32)__msa_and_v((v16u8)mask, (v16u8)eps);
+    ycos = __msa_fadd_w(ycos, (v4f32)mask);
+    return __msa_fdiv_w(ysin, ycos);
+}
+
 _MIPS_FLOAT_CONST(c_erf_threshold, 0.927734375f);
 _MIPS_FLOAT_CONST(c_erf_c0, -1.72853470e-5f);
 _MIPS_FLOAT_CONST(c_erf_c1, 3.83197126e-4f);
@@ -299,6 +489,152 @@ static NCNN_FORCEINLINE v4f32 sigmoid_ps(v4f32 _v)
     _v = exp_ps(_v);
     _v = __msa_fadd_w(_v, _one);
     return __msa_fdiv_w(_one, _v);
+}
+
+_MIPS_FLOAT_CONST(c_cephes_asin_a4, 0.023994016f);
+_MIPS_FLOAT_CONST(c_cephes_asin_a5, 0.042417344f);
+_MIPS_FLOAT_CONST(c_cephes_asin_a2, 0.07494697f);
+_MIPS_FLOAT_CONST(c_cephes_asin_a3, 0.045520633f);
+_MIPS_FLOAT_CONST(c_cephes_asin_a0, 1.0f);
+_MIPS_FLOAT_CONST(c_cephes_asin_a1, 0.166667819f);
+_MIPS_FLOAT_CONST(c_cephes_asin_half_pi, 1.5707964f);
+_MIPS_FLOAT_CONST(c_cephes_asin_pi, 3.1415927f);
+
+static NCNN_FORCEINLINE v4f32 asin_ps(v4f32 x)
+{
+    v4f32 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
+    v4f32 is_big_input_one, output_approx, final_approx;
+    v4f32 tmp1, tmp2, tmp3, tmp4;
+    v4i32 mask, is_small_input, is_big_input;
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    mask = (v4i32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x80000000));
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    is_small_input = __msa_fcle_w(x, (v4f32)__msa_fill_w(c_0p5.i));
+    is_big_input = (v4i32)__msa_xor_v((v16u8)is_small_input, (v16u8)all_ones);
+    is_big_input_one = (v4f32)__msa_and_v((v16u8)__msa_fill_w(c_1.i), (v16u8)is_big_input);
+
+    big_input_approx = __msa_fsub_w((v4f32)__msa_fill_w(c_1.i), x);
+    big_input_approx = __msa_fmul_w((v4f32)__msa_fill_w(c_0p5.i), big_input_approx);
+    big_input_approx = __msa_fsqrt_w(big_input_approx);
+
+    input_approx = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)x);
+    input_approx = (v4f32)__msa_or_v((v16u8)input_approx, __msa_and_v((v16u8)is_big_input, (v16u8)big_input_approx));
+
+    square_of_input_approx = __msa_fmul_w(input_approx, input_approx);
+    fourth_power_of_input_approx = __msa_fmul_w(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a2.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_asin_a4.i));
+    tmp2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a3.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_asin_a5.i));
+    tmp3 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a0.i), fourth_power_of_input_approx, tmp1);
+    tmp4 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a1.i), fourth_power_of_input_approx, tmp2);
+    output_approx = __ncnn_msa_fmadd_w(tmp3, square_of_input_approx, tmp4);
+
+    tmp1 = __msa_fmul_w((v4f32)__msa_fill_w(c_cephes_asin_half_pi.i), is_big_input_one);
+    tmp2 = __msa_fmul_w(output_approx, input_approx);
+    tmp3 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_1.i), (v4f32)__msa_fill_w(c_n3.i), is_big_input_one);
+
+    final_approx = __ncnn_msa_fmadd_w(tmp1, tmp2, tmp3);
+    final_approx = (v4f32)__msa_or_v((v16u8)final_approx, (v16u8)mask);
+
+    return final_approx;
+}
+
+static NCNN_FORCEINLINE v4f32 acos_ps(v4f32 x)
+{
+    v4f32 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
+    v4f32 output_approx, final_approx, small_final_approx, big_final_approx;
+    v4f32 tmp1, tmp2, tmp3, tmp4;
+    v4i32 mask, is_small_input, is_big_input, lt_zero;
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    lt_zero = __msa_fclt_w(x, (v4f32)__msa_fill_w(c_0.i));
+    mask = (v4i32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x80000000));
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    is_small_input = __msa_fcle_w(x, (v4f32)__msa_fill_w(c_0p5.i));
+    is_big_input = (v4i32)__msa_xor_v((v16u8)is_small_input, (v16u8)all_ones);
+
+    big_input_approx = __msa_fsub_w((v4f32)__msa_fill_w(c_1.i), x);
+    big_input_approx = __msa_fmul_w((v4f32)__msa_fill_w(c_0p5.i), big_input_approx);
+    big_input_approx = __msa_fsqrt_w(big_input_approx);
+
+    input_approx = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)x);
+    input_approx = (v4f32)__msa_or_v((v16u8)input_approx, __msa_and_v((v16u8)is_big_input, (v16u8)big_input_approx));
+
+    square_of_input_approx = __msa_fmul_w(input_approx, input_approx);
+    fourth_power_of_input_approx = __msa_fmul_w(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a2.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_asin_a4.i));
+    tmp2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a3.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_asin_a5.i));
+    tmp3 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a0.i), fourth_power_of_input_approx, tmp1);
+    tmp4 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_asin_a1.i), fourth_power_of_input_approx, tmp2);
+    output_approx = __ncnn_msa_fmadd_w(tmp3, square_of_input_approx, tmp4);
+
+    tmp1 = __msa_fmul_w(input_approx, output_approx);
+
+    small_final_approx = (v4f32)__msa_or_v((v16u8)tmp1, (v16u8)mask);
+    small_final_approx = __msa_fsub_w((v4f32)__msa_fill_w(c_cephes_asin_half_pi.i), small_final_approx);
+
+    big_final_approx = (v4f32)__msa_and_v((v16u8)lt_zero, (v16u8)__msa_fill_w(c_cephes_asin_pi.i));
+    tmp1 = __msa_fadd_w(tmp1, tmp1);
+    tmp1 = (v4f32)__msa_or_v((v16u8)tmp1, (v16u8)mask);
+    big_final_approx = __msa_fadd_w(big_final_approx, tmp1);
+
+    final_approx = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)small_final_approx);
+    final_approx = (v4f32)__msa_or_v((v16u8)final_approx, __msa_and_v((v16u8)is_big_input, (v16u8)big_final_approx));
+
+    return final_approx;
+}
+
+_MIPS_FLOAT_CONST(c_cephes_atan_x0, 1.0f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x1, -0.33333072f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x2, 0.1999262f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x3, -0.14203644f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x4, 0.10640934f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x5, -0.07504295f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x6, 0.04269152f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x7, -0.01606863f);
+_MIPS_FLOAT_CONST(c_cephes_atan_x8, 0.0028498897f);
+
+static NCNN_FORCEINLINE v4f32 atan_ps(v4f32 x)
+{
+    v4i32 mask, is_small_input, is_big_input;
+    v4f32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, input_approx, output_approx;
+    v4f32 square_of_input_approx, fourth_power_of_input_approx;
+    v4i32 all_ones = __msa_fill_w(-1);
+
+    mask = (v4i32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x80000000));
+    x = (v4f32)__msa_and_v((v16u8)x, (v16u8)__msa_fill_w(0x7fffffff));
+
+    is_small_input = __msa_fclt_w((v4f32)__msa_fill_w(c_1.i), x);
+    is_big_input = (v4i32)__msa_xor_v((v16u8)is_small_input, (v16u8)all_ones);
+
+    tmp1 = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)__msa_fill_w(c_n1.i));
+    tmp1 = (v4f32)__msa_or_v(__msa_and_v((v16u8)is_big_input, (v16u8)x), (v16u8)tmp1);
+
+    tmp2 = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)x);
+    tmp2 = (v4f32)__msa_or_v(__msa_and_v((v16u8)is_big_input, (v16u8)__msa_fill_w(c_1.i)), (v16u8)tmp2);
+
+    input_approx = __msa_fdiv_w(tmp1, tmp2);
+    square_of_input_approx = __msa_fmul_w(input_approx, input_approx);
+    fourth_power_of_input_approx = __msa_fmul_w(square_of_input_approx, square_of_input_approx);
+
+    tmp1 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x5.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_atan_x7.i));
+    tmp2 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x6.i), fourth_power_of_input_approx, (v4f32)__msa_fill_w(c_cephes_atan_x8.i));
+    tmp3 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x3.i), fourth_power_of_input_approx, tmp1);
+    tmp4 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x4.i), fourth_power_of_input_approx, tmp2);
+    tmp5 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x1.i), fourth_power_of_input_approx, tmp3);
+    tmp6 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x2.i), fourth_power_of_input_approx, tmp4);
+    tmp7 = __ncnn_msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_atan_x0.i), fourth_power_of_input_approx, tmp6);
+    output_approx = __ncnn_msa_fmadd_w(tmp7, square_of_input_approx, tmp5);
+
+    tmp1 = __msa_fmul_w(input_approx, output_approx);
+    tmp2 = (v4f32)__msa_and_v((v16u8)is_small_input, (v16u8)__msa_fill_w(c_cephes_asin_half_pi.i));
+    tmp1 = __msa_fadd_w(tmp1, tmp2);
+    tmp1 = (v4f32)__msa_xor_v((v16u8)mask, (v16u8)tmp1);
+    return tmp1;
 }
 
 static NCNN_FORCEINLINE v4f32 atan2_ps(v4f32 a, v4f32 b)
