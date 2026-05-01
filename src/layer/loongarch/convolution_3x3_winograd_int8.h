@@ -11,7 +11,6 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int m
 
         int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
         for (; ii + 7 < max_ii; ii += 8)
         {
             const short* p0 = (const short*)A + ii * N + b;
@@ -52,7 +51,6 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int m
                 pp += 8;
             }
         }
-#endif // __loongarch_asx
         for (; ii + 3 < max_ii; ii += 4)
         {
             const short* p0 = (const short*)A + ii * N + b;
@@ -301,7 +299,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
         for (int b = 0; b < batch; b++)
@@ -310,6 +307,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const short* pB = BT_tile.row<const short>(b);
 
             int jj = 0;
+#if __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const short* pA = pAT;
@@ -668,9 +666,491 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __lasx_xvst(_sum0, outptr, 0);
                 outptr += 8;
             }
+#else // __loongarch_asx
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                const short* pA = pAT;
+
+                __m128i _sum0;
+                __m128i _sum1;
+                __m128i _sum2;
+                __m128i _sum3;
+                __m128i _sum4;
+                __m128i _sum5;
+                __m128i _sum6;
+                __m128i _sum7;
+                __m128i _sum8;
+                __m128i _sum9;
+                __m128i _sum10;
+                __m128i _sum11;
+                __m128i _sum12;
+                __m128i _sum13;
+                __m128i _sum14;
+                __m128i _sum15;
+
+                if (k == 0)
+                {
+                    _sum0 = __lsx_vldi(0);
+                    _sum1 = __lsx_vldi(0);
+                    _sum2 = __lsx_vldi(0);
+                    _sum3 = __lsx_vldi(0);
+                    _sum4 = __lsx_vldi(0);
+                    _sum5 = __lsx_vldi(0);
+                    _sum6 = __lsx_vldi(0);
+                    _sum7 = __lsx_vldi(0);
+                    _sum8 = __lsx_vldi(0);
+                    _sum9 = __lsx_vldi(0);
+                    _sum10 = __lsx_vldi(0);
+                    _sum11 = __lsx_vldi(0);
+                    _sum12 = __lsx_vldi(0);
+                    _sum13 = __lsx_vldi(0);
+                    _sum14 = __lsx_vldi(0);
+                    _sum15 = __lsx_vldi(0);
+                }
+                else
+                {
+                    _sum0 = __lsx_vld(outptr, 0);
+                    _sum8 = __lsx_vld(outptr + 4, 0);
+                    _sum1 = __lsx_vld(outptr + 8, 0);
+                    _sum9 = __lsx_vld(outptr + 12, 0);
+                    _sum2 = __lsx_vld(outptr + 16, 0);
+                    _sum10 = __lsx_vld(outptr + 20, 0);
+                    _sum3 = __lsx_vld(outptr + 24, 0);
+                    _sum11 = __lsx_vld(outptr + 28, 0);
+                    _sum4 = __lsx_vld(outptr + 32, 0);
+                    _sum12 = __lsx_vld(outptr + 36, 0);
+                    _sum5 = __lsx_vld(outptr + 40, 0);
+                    _sum13 = __lsx_vld(outptr + 44, 0);
+                    _sum6 = __lsx_vld(outptr + 48, 0);
+                    _sum14 = __lsx_vld(outptr + 52, 0);
+                    _sum7 = __lsx_vld(outptr + 56, 0);
+                    _sum15 = __lsx_vld(outptr + 60, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m128i _pA0 = __lsx_vld(pA, 0);
+                    __m128i _pA2 = __lsx_vld(pA + 8, 0);
+                    __m128i _pB0 = __lsx_vld(pB, 0);
+                    __m128i _pB1 = __lsx_vld(pB + 8, 0);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pA3 = __lsx_vshuf4i_w(_pA2, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pB2 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m128i _pB3 = __lsx_vshuf4i_w(_pB1, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB2), __lsx_vmulwod_w_h(_pA0, _pB2)));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB3), __lsx_vmulwod_w_h(_pA0, _pB3)));
+                    _sum4 = __lsx_vadd_w(_sum4, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB0), __lsx_vmulwod_w_h(_pA1, _pB0)));
+                    _sum5 = __lsx_vadd_w(_sum5, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB1), __lsx_vmulwod_w_h(_pA1, _pB1)));
+                    _sum6 = __lsx_vadd_w(_sum6, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB2), __lsx_vmulwod_w_h(_pA1, _pB2)));
+                    _sum7 = __lsx_vadd_w(_sum7, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB3), __lsx_vmulwod_w_h(_pA1, _pB3)));
+                    _sum8 = __lsx_vadd_w(_sum8, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB0), __lsx_vmulwod_w_h(_pA2, _pB0)));
+                    _sum9 = __lsx_vadd_w(_sum9, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB1), __lsx_vmulwod_w_h(_pA2, _pB1)));
+                    _sum10 = __lsx_vadd_w(_sum10, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB2), __lsx_vmulwod_w_h(_pA2, _pB2)));
+                    _sum11 = __lsx_vadd_w(_sum11, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB3), __lsx_vmulwod_w_h(_pA2, _pB3)));
+                    _sum12 = __lsx_vadd_w(_sum12, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB0), __lsx_vmulwod_w_h(_pA3, _pB0)));
+                    _sum13 = __lsx_vadd_w(_sum13, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB1), __lsx_vmulwod_w_h(_pA3, _pB1)));
+                    _sum14 = __lsx_vadd_w(_sum14, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB2), __lsx_vmulwod_w_h(_pA3, _pB2)));
+                    _sum15 = __lsx_vadd_w(_sum15, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB3), __lsx_vmulwod_w_h(_pA3, _pB3)));
+
+                    pA += 16;
+                    pB += 16;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m128i _pA02 = __lsx_vldrepl_d(pA, 0);
+                    __m128i _pA46 = __lsx_vldrepl_d(pA + 4, 0);
+                    __m128i _pB = __lsx_vld(pB, 0);
+
+                    __m128i _pA0 = _pA02;
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA02, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m128i _pA2 = _pA46;
+                    __m128i _pA3 = __lsx_vshuf4i_w(_pA46, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m128i _pB01 = _pB;
+                    __m128i _pB23 = __lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
+                    __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
+                    __m128i _sl1 = __lsx_vmul_h(_pA0, _pB23);
+                    __m128i _sh1 = __lsx_vmuh_h(_pA0, _pB23);
+                    __m128i _sl2 = __lsx_vmul_h(_pA1, _pB01);
+                    __m128i _sh2 = __lsx_vmuh_h(_pA1, _pB01);
+                    __m128i _sl3 = __lsx_vmul_h(_pA1, _pB23);
+                    __m128i _sh3 = __lsx_vmuh_h(_pA1, _pB23);
+                    __m128i _sl4 = __lsx_vmul_h(_pA2, _pB01);
+                    __m128i _sh4 = __lsx_vmuh_h(_pA2, _pB01);
+                    __m128i _sl5 = __lsx_vmul_h(_pA2, _pB23);
+                    __m128i _sh5 = __lsx_vmuh_h(_pA2, _pB23);
+                    __m128i _sl6 = __lsx_vmul_h(_pA3, _pB01);
+                    __m128i _sh6 = __lsx_vmuh_h(_pA3, _pB01);
+                    __m128i _sl7 = __lsx_vmul_h(_pA3, _pB23);
+                    __m128i _sh7 = __lsx_vmuh_h(_pA3, _pB23);
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(_sh0, _sl0));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvh_h(_sh0, _sl0));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vilvl_h(_sh1, _sl1));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vilvh_h(_sh1, _sl1));
+                    _sum4 = __lsx_vadd_w(_sum4, __lsx_vilvl_h(_sh2, _sl2));
+                    _sum5 = __lsx_vadd_w(_sum5, __lsx_vilvh_h(_sh2, _sl2));
+                    _sum6 = __lsx_vadd_w(_sum6, __lsx_vilvl_h(_sh3, _sl3));
+                    _sum7 = __lsx_vadd_w(_sum7, __lsx_vilvh_h(_sh3, _sl3));
+                    _sum8 = __lsx_vadd_w(_sum8, __lsx_vilvl_h(_sh4, _sl4));
+                    _sum9 = __lsx_vadd_w(_sum9, __lsx_vilvh_h(_sh4, _sl4));
+                    _sum10 = __lsx_vadd_w(_sum10, __lsx_vilvl_h(_sh5, _sl5));
+                    _sum11 = __lsx_vadd_w(_sum11, __lsx_vilvh_h(_sh5, _sl5));
+                    _sum12 = __lsx_vadd_w(_sum12, __lsx_vilvl_h(_sh6, _sl6));
+                    _sum13 = __lsx_vadd_w(_sum13, __lsx_vilvh_h(_sh6, _sl6));
+                    _sum14 = __lsx_vadd_w(_sum14, __lsx_vilvl_h(_sh7, _sl7));
+                    _sum15 = __lsx_vadd_w(_sum15, __lsx_vilvh_h(_sh7, _sl7));
+
+                    pA += 8;
+                    pB += 8;
+                }
+
+                if (k_end)
+                {
+                    {
+                        _sum2 = __lsx_vshuf4i_w(_sum2, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum6 = __lsx_vshuf4i_w(_sum6, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m128i _tmp0 = __lsx_vilvl_w(_sum6, _sum0);
+                        __m128i _tmp1 = __lsx_vilvh_w(_sum6, _sum0);
+                        __m128i _tmp2 = __lsx_vilvl_w(_sum7, _sum1);
+                        __m128i _tmp3 = __lsx_vilvh_w(_sum7, _sum1);
+                        __m128i _tmp4 = __lsx_vilvl_w(_sum2, _sum4);
+                        __m128i _tmp5 = __lsx_vilvh_w(_sum2, _sum4);
+                        __m128i _tmp6 = __lsx_vilvl_w(_sum3, _sum5);
+                        __m128i _tmp7 = __lsx_vilvh_w(_sum3, _sum5);
+                        _sum0 = __lsx_vilvl_d(_tmp4, _tmp0);
+                        _sum1 = __lsx_vilvh_d(_tmp4, _tmp0);
+                        _sum2 = __lsx_vilvl_d(_tmp1, _tmp5);
+                        _sum3 = __lsx_vilvh_d(_tmp1, _tmp5);
+                        _sum4 = __lsx_vilvl_d(_tmp6, _tmp2);
+                        _sum5 = __lsx_vilvh_d(_tmp6, _tmp2);
+                        _sum6 = __lsx_vilvl_d(_tmp3, _tmp7);
+                        _sum7 = __lsx_vilvh_d(_tmp3, _tmp7);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum5 = __lsx_vshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                    {
+                        _sum10 = __lsx_vshuf4i_w(_sum10, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum11 = __lsx_vshuf4i_w(_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum14 = __lsx_vshuf4i_w(_sum14, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum15 = __lsx_vshuf4i_w(_sum15, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m128i _tmp0 = __lsx_vilvl_w(_sum14, _sum8);
+                        __m128i _tmp1 = __lsx_vilvh_w(_sum14, _sum8);
+                        __m128i _tmp2 = __lsx_vilvl_w(_sum15, _sum9);
+                        __m128i _tmp3 = __lsx_vilvh_w(_sum15, _sum9);
+                        __m128i _tmp4 = __lsx_vilvl_w(_sum10, _sum12);
+                        __m128i _tmp5 = __lsx_vilvh_w(_sum10, _sum12);
+                        __m128i _tmp6 = __lsx_vilvl_w(_sum11, _sum13);
+                        __m128i _tmp7 = __lsx_vilvh_w(_sum11, _sum13);
+                        _sum8 = __lsx_vilvl_d(_tmp4, _tmp0);
+                        _sum9 = __lsx_vilvh_d(_tmp4, _tmp0);
+                        _sum10 = __lsx_vilvl_d(_tmp1, _tmp5);
+                        _sum11 = __lsx_vilvh_d(_tmp1, _tmp5);
+                        _sum12 = __lsx_vilvl_d(_tmp6, _tmp2);
+                        _sum13 = __lsx_vilvh_d(_tmp6, _tmp2);
+                        _sum14 = __lsx_vilvl_d(_tmp3, _tmp7);
+                        _sum15 = __lsx_vilvh_d(_tmp3, _tmp7);
+                        _sum9 = __lsx_vshuf4i_w(_sum9, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum11 = __lsx_vshuf4i_w(_sum11, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum13 = __lsx_vshuf4i_w(_sum13, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum15 = __lsx_vshuf4i_w(_sum15, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                }
+
+                __lsx_vst(_sum0, outptr, 0);
+                __lsx_vst(_sum8, outptr + 4, 0);
+                __lsx_vst(_sum1, outptr + 8, 0);
+                __lsx_vst(_sum9, outptr + 12, 0);
+                __lsx_vst(_sum2, outptr + 16, 0);
+                __lsx_vst(_sum10, outptr + 20, 0);
+                __lsx_vst(_sum3, outptr + 24, 0);
+                __lsx_vst(_sum11, outptr + 28, 0);
+                __lsx_vst(_sum4, outptr + 32, 0);
+                __lsx_vst(_sum12, outptr + 36, 0);
+                __lsx_vst(_sum5, outptr + 40, 0);
+                __lsx_vst(_sum13, outptr + 44, 0);
+                __lsx_vst(_sum6, outptr + 48, 0);
+                __lsx_vst(_sum14, outptr + 52, 0);
+                __lsx_vst(_sum7, outptr + 56, 0);
+                __lsx_vst(_sum15, outptr + 60, 0);
+                outptr += 64;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                const short* pA = pAT;
+
+                __m128i _sum0;
+                __m128i _sum1;
+                __m128i _sum2;
+                __m128i _sum3;
+                __m128i _sum4;
+                __m128i _sum5;
+                __m128i _sum6;
+                __m128i _sum7;
+
+                if (k == 0)
+                {
+                    _sum0 = __lsx_vldi(0);
+                    _sum1 = __lsx_vldi(0);
+                    _sum2 = __lsx_vldi(0);
+                    _sum3 = __lsx_vldi(0);
+                    _sum4 = __lsx_vldi(0);
+                    _sum5 = __lsx_vldi(0);
+                    _sum6 = __lsx_vldi(0);
+                    _sum7 = __lsx_vldi(0);
+                }
+                else
+                {
+                    _sum0 = __lsx_vld(outptr, 0);
+                    _sum4 = __lsx_vld(outptr + 4, 0);
+                    _sum1 = __lsx_vld(outptr + 8, 0);
+                    _sum5 = __lsx_vld(outptr + 12, 0);
+                    _sum2 = __lsx_vld(outptr + 16, 0);
+                    _sum6 = __lsx_vld(outptr + 20, 0);
+                    _sum3 = __lsx_vld(outptr + 24, 0);
+                    _sum7 = __lsx_vld(outptr + 28, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m128i _pA0 = __lsx_vld(pA, 0);
+                    __m128i _pA2 = __lsx_vld(pA + 8, 0);
+                    __m128i _pB0 = __lsx_vld(pB, 0);
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pA3 = __lsx_vshuf4i_w(_pA2, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB0), __lsx_vmulwod_w_h(_pA1, _pB0)));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB1), __lsx_vmulwod_w_h(_pA1, _pB1)));
+                    _sum4 = __lsx_vadd_w(_sum4, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB0), __lsx_vmulwod_w_h(_pA2, _pB0)));
+                    _sum5 = __lsx_vadd_w(_sum5, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA2, _pB1), __lsx_vmulwod_w_h(_pA2, _pB1)));
+                    _sum6 = __lsx_vadd_w(_sum6, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB0), __lsx_vmulwod_w_h(_pA3, _pB0)));
+                    _sum7 = __lsx_vadd_w(_sum7, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA3, _pB1), __lsx_vmulwod_w_h(_pA3, _pB1)));
+
+                    pA += 16;
+                    pB += 8;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m128i _pA02 = __lsx_vldrepl_d(pA, 0);
+                    __m128i _pA46 = __lsx_vldrepl_d(pA + 4, 0);
+                    __m128i _pB = __lsx_vldrepl_d(pB, 0);
+                    __m128i _pA0 = _pA02;
+                    __m128i _pA1 = __lsx_vshuf4i_w(_pA02, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m128i _pA2 = _pA46;
+                    __m128i _pA3 = __lsx_vshuf4i_w(_pA46, _LSX_SHUFFLE(2, 3, 0, 1));
+                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 3, 2, 1)), _pB);
+                    __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
+                    __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
+                    __m128i _sl1 = __lsx_vmul_h(_pA1, _pB01);
+                    __m128i _sh1 = __lsx_vmuh_h(_pA1, _pB01);
+                    __m128i _sl2 = __lsx_vmul_h(_pA2, _pB01);
+                    __m128i _sh2 = __lsx_vmuh_h(_pA2, _pB01);
+                    __m128i _sl3 = __lsx_vmul_h(_pA3, _pB01);
+                    __m128i _sh3 = __lsx_vmuh_h(_pA3, _pB01);
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(_sh0, _sl0));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvh_h(_sh0, _sl0));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vilvl_h(_sh1, _sl1));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vilvh_h(_sh1, _sl1));
+                    _sum4 = __lsx_vadd_w(_sum4, __lsx_vilvl_h(_sh2, _sl2));
+                    _sum5 = __lsx_vadd_w(_sum5, __lsx_vilvh_h(_sh2, _sl2));
+                    _sum6 = __lsx_vadd_w(_sum6, __lsx_vilvl_h(_sh3, _sl3));
+                    _sum7 = __lsx_vadd_w(_sum7, __lsx_vilvh_h(_sh3, _sl3));
+
+                    pA += 8;
+                    pB += 4;
+                }
+
+                if (k_end)
+                {
+                    {
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m128i _tmp0 = __lsx_vilvl_w(_sum3, _sum0);
+                        __m128i _tmp1 = __lsx_vilvh_w(_sum3, _sum0);
+                        __m128i _tmp2 = __lsx_vilvl_w(_sum1, _sum2);
+                        __m128i _tmp3 = __lsx_vilvh_w(_sum1, _sum2);
+                        _sum0 = __lsx_vilvl_d(_tmp2, _tmp0);
+                        _sum1 = __lsx_vilvh_d(_tmp2, _tmp0);
+                        _sum2 = __lsx_vilvl_d(_tmp1, _tmp3);
+                        _sum3 = __lsx_vilvh_d(_tmp1, _tmp3);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                    {
+                        _sum5 = __lsx_vshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m128i _tmp0 = __lsx_vilvl_w(_sum7, _sum4);
+                        __m128i _tmp1 = __lsx_vilvh_w(_sum7, _sum4);
+                        __m128i _tmp2 = __lsx_vilvl_w(_sum5, _sum6);
+                        __m128i _tmp3 = __lsx_vilvh_w(_sum5, _sum6);
+                        _sum4 = __lsx_vilvl_d(_tmp2, _tmp0);
+                        _sum5 = __lsx_vilvh_d(_tmp2, _tmp0);
+                        _sum6 = __lsx_vilvl_d(_tmp1, _tmp3);
+                        _sum7 = __lsx_vilvh_d(_tmp1, _tmp3);
+                        _sum5 = __lsx_vshuf4i_w(_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _sum7 = __lsx_vshuf4i_w(_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                }
+
+                __lsx_vst(_sum0, outptr, 0);
+                __lsx_vst(_sum4, outptr + 4, 0);
+                __lsx_vst(_sum1, outptr + 8, 0);
+                __lsx_vst(_sum5, outptr + 12, 0);
+                __lsx_vst(_sum2, outptr + 16, 0);
+                __lsx_vst(_sum6, outptr + 20, 0);
+                __lsx_vst(_sum3, outptr + 24, 0);
+                __lsx_vst(_sum7, outptr + 28, 0);
+                outptr += 32;
+            }
+            for (; jj + 1 < max_jj; jj += 2)
+            {
+                const short* pA = pAT;
+
+                __m128i _sum0;
+                __m128i _sum1;
+                __m128i _sum2;
+                __m128i _sum3;
+
+                if (k == 0)
+                {
+                    _sum0 = __lsx_vldi(0);
+                    _sum1 = __lsx_vldi(0);
+                    _sum2 = __lsx_vldi(0);
+                    _sum3 = __lsx_vldi(0);
+                }
+                else
+                {
+                    _sum0 = __lsx_vld(outptr, 0);
+                    _sum2 = __lsx_vld(outptr + 4, 0);
+                    _sum1 = __lsx_vld(outptr + 8, 0);
+                    _sum3 = __lsx_vld(outptr + 12, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m128i _pA0 = __lsx_vld(pA, 0);
+                    __m128i _pA1 = __lsx_vld(pA + 8, 0);
+                    __m128i _pB0 = __lsx_vldrepl_d(pB, 0);
+                    __m128i _pB1 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(2, 3, 0, 1));
+
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB0), __lsx_vmulwod_w_h(_pA1, _pB0)));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB1), __lsx_vmulwod_w_h(_pA1, _pB1)));
+
+                    pA += 16;
+                    pB += 4;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m128i _pA0 = __lsx_vldrepl_d(pA, 0);
+                    __m128i _pA1 = __lsx_vldrepl_d(pA + 4, 0);
+                    __m128i _pB = __lsx_vreplgr2vr_w(*(int*)pB);
+                    __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 1, 0, 1)), _pB);
+                    __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
+                    __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
+                    __m128i _sl1 = __lsx_vmul_h(_pA1, _pB01);
+                    __m128i _sh1 = __lsx_vmuh_h(_pA1, _pB01);
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(_sh0, _sl0));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvh_h(_sh0, _sl0));
+                    _sum2 = __lsx_vadd_w(_sum2, __lsx_vilvl_h(_sh1, _sl1));
+                    _sum3 = __lsx_vadd_w(_sum3, __lsx_vilvh_h(_sh1, _sl1));
+
+                    pA += 8;
+                    pB += 2;
+                }
+
+                if (k_end)
+                {
+                    {
+                        __m128i _tmp0 = __lsx_vshuf4i_w(_sum0, _LSX_SHUFFLE(3, 1, 2, 0));
+                        __m128i _tmp1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(0, 2, 3, 1));
+                        _sum0 = __lsx_vilvl_w(_tmp1, _tmp0);
+                        _sum1 = __lsx_vilvh_w(_tmp1, _tmp0);
+                        _sum1 = __lsx_vshuf4i_w(_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                    {
+                        __m128i _tmp0 = __lsx_vshuf4i_w(_sum2, _LSX_SHUFFLE(3, 1, 2, 0));
+                        __m128i _tmp1 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(0, 2, 3, 1));
+                        _sum2 = __lsx_vilvl_w(_tmp1, _tmp0);
+                        _sum3 = __lsx_vilvh_w(_tmp1, _tmp0);
+                        _sum3 = __lsx_vshuf4i_w(_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                    }
+                }
+
+                __lsx_vst(_sum0, outptr, 0);
+                __lsx_vst(_sum2, outptr + 4, 0);
+                __lsx_vst(_sum1, outptr + 8, 0);
+                __lsx_vst(_sum3, outptr + 12, 0);
+                outptr += 16;
+            }
+            for (; jj < max_jj; jj++)
+            {
+                const short* pA = pAT;
+
+                __m128i _sum0;
+                __m128i _sum1;
+
+                if (k == 0)
+                {
+                    _sum0 = __lsx_vldi(0);
+                    _sum1 = __lsx_vldi(0);
+                }
+                else
+                {
+                    _sum0 = __lsx_vld(outptr, 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m128i _pA0 = __lsx_vld(pA, 0);
+                    __m128i _pA1 = __lsx_vld(pA + 8, 0);
+                    __m128i _pB = __lsx_vreplgr2vr_w(*(int*)pB);
+
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB), __lsx_vmulwod_w_h(_pA0, _pB)));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB), __lsx_vmulwod_w_h(_pA1, _pB)));
+
+                    pA += 16;
+                    pB += 2;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m128i _pA0 = __lsx_vinsgr2vr_d(__lsx_vldi(0), *(int64_t*)pA, 0);
+                    __m128i _pA1 = __lsx_vinsgr2vr_d(__lsx_vldi(0), *(int64_t*)(pA + 4), 0);
+                    __m128i _pB = __lsx_vreplgr2vr_h(pB[0]);
+
+                    __m128i _sl0 = __lsx_vmul_h(_pA0, _pB);
+                    __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB);
+                    __m128i _sl1 = __lsx_vmul_h(_pA1, _pB);
+                    __m128i _sh1 = __lsx_vmuh_h(_pA1, _pB);
+                    _sum0 = __lsx_vadd_w(_sum0, __lsx_vilvl_h(_sh0, _sl0));
+                    _sum1 = __lsx_vadd_w(_sum1, __lsx_vilvl_h(_sh1, _sl1));
+
+                    pA += 8;
+                    pB += 1;
+                }
+
+                __lsx_vst(_sum0, outptr, 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
+                outptr += 8;
+            }
+#endif // __loongarch_asx
         }
     }
-#endif // __loongarch_asx
     for (; ii + 3 < max_ii; ii += 4)
     {
         for (int b = 0; b < batch; b++)
@@ -1463,10 +1943,8 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
     {
         int tile_size = (int)sqrt((float)l2_cache_size_int8 / 3);
 
-#if __loongarch_asx
+#if __loongarch_sx
         TILE_M = std::max(8, tile_size / 8 * 8);
-#elif __loongarch_sx
-        TILE_M = std::max(4, tile_size / 4 * 4);
 #else
         TILE_M = std::max(2, tile_size / 2 * 2);
 #endif
@@ -1474,20 +1952,16 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
-#if __loongarch_asx
+#if __loongarch_sx
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
-#elif __loongarch_sx
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
 
         if (nT > 1)
         {
-#if __loongarch_asx
+#if __loongarch_sx
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
-#elif __loongarch_sx
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
 #else
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
@@ -1952,7 +2426,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
     const int w_tiles = (outw + 1) / 2;
 
     int ii = 0;
-#if __loongarch_asx
+#if __loongarch_sx
     for (; ii + 7 < max_ii; ii += 8)
     {
         __attribute__((aligned(32))) int tmp[2][4][8];
@@ -1970,6 +2444,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 
             for (int m = 0; m < 4; m++)
             {
+#if __loongarch_asx
                 __m256i _r0 = __lasx_xvld(r0, 0);
                 __m256i _r1 = __lasx_xvld(r1, 0);
                 __m256i _r2 = __lasx_xvld(r2, 0);
@@ -1980,6 +2455,26 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 
                 __lasx_xvst(_tmp0, (int*)tmp[0][m], 0);
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
+#else // __loongarch_asx
+                __m128i _r0 = __lsx_vld(r0, 0);
+                __m128i _r1 = __lsx_vld(r1, 0);
+                __m128i _r2 = __lsx_vld(r2, 0);
+                __m128i _r3 = __lsx_vld(r3, 0);
+                __m128i _r0h = __lsx_vld(r0 + 4, 0);
+                __m128i _r1h = __lsx_vld(r1 + 4, 0);
+                __m128i _r2h = __lsx_vld(r2 + 4, 0);
+                __m128i _r3h = __lsx_vld(r3 + 4, 0);
+
+                __m128i _tmp0 = __lsx_vadd_w(__lsx_vadd_w(_r0, _r1), _r2);
+                __m128i _tmp1 = __lsx_vadd_w(__lsx_vsub_w(_r1, _r2), _r3);
+                __m128i _tmp0h = __lsx_vadd_w(__lsx_vadd_w(_r0h, _r1h), _r2h);
+                __m128i _tmp1h = __lsx_vadd_w(__lsx_vsub_w(_r1h, _r2h), _r3h);
+
+                __lsx_vst(_tmp0, tmp[0][m], 0);
+                __lsx_vst(_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst(_tmp1, tmp[1][m], 0);
+                __lsx_vst(_tmp1h, tmp[1][m] + 4, 0);
+#endif // __loongarch_asx
 
                 r0 += max_jj * 4 * 8;
                 r1 += max_jj * 4 * 8;
@@ -1994,6 +2489,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 if (ti * 2 + m >= outh)
                     continue;
 
+#if __loongarch_asx
                 __m256i _r0 = __lasx_xvld((const __m256i*)tmp[m][0], 0);
                 __m256i _r1 = __lasx_xvld((const __m256i*)tmp[m][1], 0);
                 __m256i _r2 = __lasx_xvld((const __m256i*)tmp[m][2], 0);
@@ -2008,7 +2504,6 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 if (out_elempack == 8)
                 {
                     __lasx_xvst(_tmp0, outptr0, 0);
-                    if (tj * 2 + 1 < outw) __lasx_xvst(_tmp1, outptr0 + 8, 0);
                     if (tj * 2 + 1 < outw)
                     {
                         __lasx_xvst(_tmp1, outptr0 + 8, 0);
@@ -2061,13 +2556,91 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                         outptr7[1] = tmp1[7];
                     }
                 }
+#else // __loongarch_asx
+                __m128i _r0 = __lsx_vld(tmp[m][0], 0);
+                __m128i _r1 = __lsx_vld(tmp[m][1], 0);
+                __m128i _r2 = __lsx_vld(tmp[m][2], 0);
+                __m128i _r3 = __lsx_vld(tmp[m][3], 0);
+                __m128i _r0h = __lsx_vld(tmp[m][0] + 4, 0);
+                __m128i _r1h = __lsx_vld(tmp[m][1] + 4, 0);
+                __m128i _r2h = __lsx_vld(tmp[m][2] + 4, 0);
+                __m128i _r3h = __lsx_vld(tmp[m][3] + 4, 0);
+
+                __m128i _tmp0 = __lsx_vadd_w(__lsx_vadd_w(_r0, _r1), _r2);
+                __m128i _tmp1 = __lsx_vadd_w(__lsx_vsub_w(_r1, _r2), _r3);
+                __m128i _tmp0h = __lsx_vadd_w(__lsx_vadd_w(_r0h, _r1h), _r2h);
+                __m128i _tmp1h = __lsx_vadd_w(__lsx_vsub_w(_r1h, _r2h), _r3h);
+
+                _tmp0 = __lsx_vsrai_w(_tmp0, 2);
+                _tmp1 = __lsx_vsrai_w(_tmp1, 2);
+                _tmp0h = __lsx_vsrai_w(_tmp0h, 2);
+                _tmp1h = __lsx_vsrai_w(_tmp1h, 2);
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst(_tmp0, outptr0, 0);
+                    __lsx_vst(_tmp0h, outptr0 + 4, 0);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        __lsx_vst(_tmp1, outptr0 + 8, 0);
+                        __lsx_vst(_tmp1h, outptr0 + 12, 0);
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    int* outptr1 = outptr0 + N;
+
+                    __lsx_vst(_tmp0, outptr0, 0);
+                    __lsx_vst(_tmp0h, outptr1, 0);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        __lsx_vst(_tmp1, outptr0 + 4, 0);
+                        __lsx_vst(_tmp1h, outptr1 + 4, 0);
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    int tmp0[8];
+                    int tmp1[8];
+                    __lsx_vst(_tmp0, tmp0, 0);
+                    __lsx_vst(_tmp0h, tmp0 + 4, 0);
+                    __lsx_vst(_tmp1, tmp1, 0);
+                    __lsx_vst(_tmp1h, tmp1 + 4, 0);
+
+                    int* outptr1 = outptr0 + N * 1;
+                    int* outptr2 = outptr0 + N * 2;
+                    int* outptr3 = outptr0 + N * 3;
+                    int* outptr4 = outptr0 + N * 4;
+                    int* outptr5 = outptr0 + N * 5;
+                    int* outptr6 = outptr0 + N * 6;
+                    int* outptr7 = outptr0 + N * 7;
+
+                    outptr0[0] = tmp0[0];
+                    outptr1[0] = tmp0[1];
+                    outptr2[0] = tmp0[2];
+                    outptr3[0] = tmp0[3];
+                    outptr4[0] = tmp0[4];
+                    outptr5[0] = tmp0[5];
+                    outptr6[0] = tmp0[6];
+                    outptr7[0] = tmp0[7];
+                    if (tj * 2 + 1 < outw)
+                    {
+                        outptr0[1] = tmp1[0];
+                        outptr1[1] = tmp1[1];
+                        outptr2[1] = tmp1[2];
+                        outptr3[1] = tmp1[3];
+                        outptr4[1] = tmp1[4];
+                        outptr5[1] = tmp1[5];
+                        outptr6[1] = tmp1[6];
+                        outptr7[1] = tmp1[7];
+                    }
+                }
+#endif // __loongarch_asx
 
                 outptr0 += outw * out_elempack;
             }
         }
     }
-#endif // __loongarch_asx
-#if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
         __attribute__((aligned(16))) int tmp[2][4][4];
@@ -2943,7 +3516,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
     const int w_tiles = (outw + 3) / 4;
 
     int ii = 0;
-#if __loongarch_asx
+#if __loongarch_sx
     for (; ii + 7 < max_ii; ii += 8)
     {
         __attribute__((aligned(32))) int tmp[4][6][8];
@@ -2963,6 +3536,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
 
             for (int m = 0; m < 5; m++)
             {
+#if __loongarch_asx
                 __m256i _r0 = __lasx_xvld(r0, 0);
                 __m256i _r1 = __lasx_xvld(r1, 0);
                 __m256i _r2 = __lasx_xvld(r2, 0);
@@ -2984,6 +3558,47 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
                 __lasx_xvst(_tmp2, (int*)tmp[2][m], 0);
                 __lasx_xvst(_tmp3, (int*)tmp[3][m], 0);
+#else // __loongarch_asx
+                __m128i _r0 = __lsx_vld(r0, 0);
+                __m128i _r1 = __lsx_vld(r1, 0);
+                __m128i _r2 = __lsx_vld(r2, 0);
+                __m128i _r3 = __lsx_vld(r3, 0);
+                __m128i _r4 = __lsx_vld(r4, 0);
+                __m128i _r5 = __lsx_vld(r5, 0);
+                __m128i _r0h = __lsx_vld(r0 + 4, 0);
+                __m128i _r1h = __lsx_vld(r1 + 4, 0);
+                __m128i _r2h = __lsx_vld(r2 + 4, 0);
+                __m128i _r3h = __lsx_vld(r3 + 4, 0);
+                __m128i _r4h = __lsx_vld(r4 + 4, 0);
+                __m128i _r5h = __lsx_vld(r5 + 4, 0);
+
+                __m128i _tmp02a = __lsx_vadd_w(_r1, _r2);
+                __m128i _tmp02b = __lsx_vadd_w(_r3, _r4);
+                __m128i _tmp13a = __lsx_vsub_w(_r1, _r2);
+                __m128i _tmp13b = __lsx_vsub_w(_r3, _r4);
+                __m128i _tmp02ah = __lsx_vadd_w(_r1h, _r2h);
+                __m128i _tmp02bh = __lsx_vadd_w(_r3h, _r4h);
+                __m128i _tmp13ah = __lsx_vsub_w(_r1h, _r2h);
+                __m128i _tmp13bh = __lsx_vsub_w(_r3h, _r4h);
+
+                __m128i _tmp0 = __lsx_vadd_w(__lsx_vadd_w(_tmp02a, _tmp02b), _r0);
+                __m128i _tmp1 = __lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 1));
+                __m128i _tmp2 = __lsx_vadd_w(_tmp02a, __lsx_vslli_w(_tmp02b, 2));
+                __m128i _tmp3 = __lsx_vadd_w(__lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 3)), __lsx_vslli_w(_r5, 2));
+                __m128i _tmp0h = __lsx_vadd_w(__lsx_vadd_w(_tmp02ah, _tmp02bh), _r0h);
+                __m128i _tmp1h = __lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 1));
+                __m128i _tmp2h = __lsx_vadd_w(_tmp02ah, __lsx_vslli_w(_tmp02bh, 2));
+                __m128i _tmp3h = __lsx_vadd_w(__lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 3)), __lsx_vslli_w(_r5h, 2));
+
+                __lsx_vst(_tmp0, tmp[0][m], 0);
+                __lsx_vst(_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst(_tmp1, tmp[1][m], 0);
+                __lsx_vst(_tmp1h, tmp[1][m] + 4, 0);
+                __lsx_vst(_tmp2, tmp[2][m], 0);
+                __lsx_vst(_tmp2h, tmp[2][m] + 4, 0);
+                __lsx_vst(_tmp3, tmp[3][m], 0);
+                __lsx_vst(_tmp3h, tmp[3][m] + 4, 0);
+#endif // __loongarch_asx
 
                 r0 += max_jj * 6 * 8;
                 r1 += max_jj * 6 * 8;
@@ -2994,6 +3609,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
             }
             for (int m = 5; m < 6; m++)
             {
+#if __loongarch_asx
                 __m256i _r0 = __lasx_xvld(r0, 0);
                 __m256i _r1 = __lasx_xvld(r1, 0);
                 __m256i _r2 = __lasx_xvld(r2, 0);
@@ -3020,6 +3636,56 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
                 __lasx_xvst(_tmp2, (int*)tmp[2][m], 0);
                 __lasx_xvst(_tmp3, (int*)tmp[3][m], 0);
+#else // __loongarch_asx
+                __m128i _r0 = __lsx_vld(r0, 0);
+                __m128i _r1 = __lsx_vld(r1, 0);
+                __m128i _r2 = __lsx_vld(r2, 0);
+                __m128i _r3 = __lsx_vld(r3, 0);
+                __m128i _r4 = __lsx_vld(r4, 0);
+                __m128i _r5 = __lsx_vld(r5, 0);
+                __m128i _r0h = __lsx_vld(r0 + 4, 0);
+                __m128i _r1h = __lsx_vld(r1 + 4, 0);
+                __m128i _r2h = __lsx_vld(r2 + 4, 0);
+                __m128i _r3h = __lsx_vld(r3 + 4, 0);
+                __m128i _r4h = __lsx_vld(r4 + 4, 0);
+                __m128i _r5h = __lsx_vld(r5 + 4, 0);
+
+                __m128i _tmp02a = __lsx_vadd_w(_r1, _r2);
+                __m128i _tmp02b = __lsx_vadd_w(_r3, _r4);
+                __m128i _tmp13a = __lsx_vsub_w(_r1, _r2);
+                __m128i _tmp13b = __lsx_vsub_w(_r3, _r4);
+                __m128i _tmp02ah = __lsx_vadd_w(_r1h, _r2h);
+                __m128i _tmp02bh = __lsx_vadd_w(_r3h, _r4h);
+                __m128i _tmp13ah = __lsx_vsub_w(_r1h, _r2h);
+                __m128i _tmp13bh = __lsx_vsub_w(_r3h, _r4h);
+
+                __m128i _tmp0 = __lsx_vadd_w(__lsx_vadd_w(_tmp02a, _tmp02b), _r0);
+                __m128i _tmp1 = __lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 1));
+                __m128i _tmp2 = __lsx_vadd_w(_tmp02a, __lsx_vslli_w(_tmp02b, 2));
+                __m128i _tmp3 = __lsx_vadd_w(__lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 3)), __lsx_vslli_w(_r5, 2));
+                __m128i _tmp0h = __lsx_vadd_w(__lsx_vadd_w(_tmp02ah, _tmp02bh), _r0h);
+                __m128i _tmp1h = __lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 1));
+                __m128i _tmp2h = __lsx_vadd_w(_tmp02ah, __lsx_vslli_w(_tmp02bh, 2));
+                __m128i _tmp3h = __lsx_vadd_w(__lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 3)), __lsx_vslli_w(_r5h, 2));
+
+                _tmp0 = __lsx_vslli_w(_tmp0, 2);
+                _tmp1 = __lsx_vslli_w(_tmp1, 2);
+                _tmp2 = __lsx_vslli_w(_tmp2, 2);
+                _tmp3 = __lsx_vslli_w(_tmp3, 2);
+                _tmp0h = __lsx_vslli_w(_tmp0h, 2);
+                _tmp1h = __lsx_vslli_w(_tmp1h, 2);
+                _tmp2h = __lsx_vslli_w(_tmp2h, 2);
+                _tmp3h = __lsx_vslli_w(_tmp3h, 2);
+
+                __lsx_vst(_tmp0, tmp[0][m], 0);
+                __lsx_vst(_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst(_tmp1, tmp[1][m], 0);
+                __lsx_vst(_tmp1h, tmp[1][m] + 4, 0);
+                __lsx_vst(_tmp2, tmp[2][m], 0);
+                __lsx_vst(_tmp2h, tmp[2][m] + 4, 0);
+                __lsx_vst(_tmp3, tmp[3][m], 0);
+                __lsx_vst(_tmp3h, tmp[3][m] + 4, 0);
+#endif // __loongarch_asx
 
                 r0 += max_jj * 6 * 8;
                 r1 += max_jj * 6 * 8;
@@ -3036,6 +3702,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 if (ti * 4 + m >= outh)
                     continue;
 
+#if __loongarch_asx
                 __m256i _r0 = __lasx_xvld((const __m256i*)tmp[m][0], 0);
                 __m256i _r1 = __lasx_xvld((const __m256i*)tmp[m][1], 0);
                 __m256i _r2 = __lasx_xvld((const __m256i*)tmp[m][2], 0);
@@ -3150,13 +3817,163 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                         outptr7[3] = tmp3[7];
                     }
                 }
+#else // __loongarch_asx
+                __m128i _r0 = __lsx_vld(tmp[m][0], 0);
+                __m128i _r1 = __lsx_vld(tmp[m][1], 0);
+                __m128i _r2 = __lsx_vld(tmp[m][2], 0);
+                __m128i _r3 = __lsx_vld(tmp[m][3], 0);
+                __m128i _r4 = __lsx_vld(tmp[m][4], 0);
+                __m128i _r5 = __lsx_vld(tmp[m][5], 0);
+                __m128i _r0h = __lsx_vld(tmp[m][0] + 4, 0);
+                __m128i _r1h = __lsx_vld(tmp[m][1] + 4, 0);
+                __m128i _r2h = __lsx_vld(tmp[m][2] + 4, 0);
+                __m128i _r3h = __lsx_vld(tmp[m][3] + 4, 0);
+                __m128i _r4h = __lsx_vld(tmp[m][4] + 4, 0);
+                __m128i _r5h = __lsx_vld(tmp[m][5] + 4, 0);
+
+                __m128i _tmp02a = __lsx_vadd_w(_r1, _r2);
+                __m128i _tmp02b = __lsx_vadd_w(_r3, _r4);
+                __m128i _tmp13a = __lsx_vsub_w(_r1, _r2);
+                __m128i _tmp13b = __lsx_vsub_w(_r3, _r4);
+                __m128i _tmp02ah = __lsx_vadd_w(_r1h, _r2h);
+                __m128i _tmp02bh = __lsx_vadd_w(_r3h, _r4h);
+                __m128i _tmp13ah = __lsx_vsub_w(_r1h, _r2h);
+                __m128i _tmp13bh = __lsx_vsub_w(_r3h, _r4h);
+
+                __m128i _tmp0 = __lsx_vadd_w(__lsx_vadd_w(_tmp02a, _tmp02b), _r0);
+                __m128i _tmp1 = __lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 1));
+                __m128i _tmp2 = __lsx_vadd_w(_tmp02a, __lsx_vslli_w(_tmp02b, 2));
+                __m128i _tmp3 = __lsx_vadd_w(__lsx_vadd_w(_tmp13a, __lsx_vslli_w(_tmp13b, 3)), _r5);
+                __m128i _tmp0h = __lsx_vadd_w(__lsx_vadd_w(_tmp02ah, _tmp02bh), _r0h);
+                __m128i _tmp1h = __lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 1));
+                __m128i _tmp2h = __lsx_vadd_w(_tmp02ah, __lsx_vslli_w(_tmp02bh, 2));
+                __m128i _tmp3h = __lsx_vadd_w(__lsx_vadd_w(_tmp13ah, __lsx_vslli_w(_tmp13bh, 3)), _r5h);
+
+                // TODO use integer trick for division by 576
+                float _1_576 = 1.0f / 576;
+                __m128i _v576 = (__m128i)__lsx_vreplfr2vr_s(_1_576);
+                _tmp0 = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp0), (__m128)_v576));
+                _tmp1 = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp1), (__m128)_v576));
+                _tmp2 = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp2), (__m128)_v576));
+                _tmp3 = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp3), (__m128)_v576));
+                _tmp0h = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp0h), (__m128)_v576));
+                _tmp1h = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp1h), (__m128)_v576));
+                _tmp2h = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp2h), (__m128)_v576));
+                _tmp3h = (__m128i)__lsx_vftintrz_w_s(__lsx_vfmul_s((__m128)__lsx_vffint_s_w(_tmp3h), (__m128)_v576));
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst(_tmp0, outptr0, 0);
+                    __lsx_vst(_tmp0h, outptr0 + 4, 0);
+                    if (tj * 4 + 1 < outw)
+                    {
+                        __lsx_vst(_tmp1, outptr0 + 8, 0);
+                        __lsx_vst(_tmp1h, outptr0 + 12, 0);
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        __lsx_vst(_tmp2, outptr0 + 16, 0);
+                        __lsx_vst(_tmp2h, outptr0 + 20, 0);
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        __lsx_vst(_tmp3, outptr0 + 24, 0);
+                        __lsx_vst(_tmp3h, outptr0 + 28, 0);
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    int* outptr1 = outptr0 + N;
+
+                    __lsx_vst(_tmp0, outptr0, 0);
+                    __lsx_vst(_tmp0h, outptr1, 0);
+                    if (tj * 4 + 1 < outw)
+                    {
+                        __lsx_vst(_tmp1, outptr0 + 4, 0);
+                        __lsx_vst(_tmp1h, outptr1 + 4, 0);
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        __lsx_vst(_tmp2, outptr0 + 8, 0);
+                        __lsx_vst(_tmp2h, outptr1 + 8, 0);
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        __lsx_vst(_tmp3, outptr0 + 12, 0);
+                        __lsx_vst(_tmp3h, outptr1 + 12, 0);
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    int tmp0[8];
+                    int tmp1[8];
+                    int tmp2[8];
+                    int tmp3[8];
+                    __lsx_vst(_tmp0, tmp0, 0);
+                    __lsx_vst(_tmp0h, tmp0 + 4, 0);
+                    __lsx_vst(_tmp1, tmp1, 0);
+                    __lsx_vst(_tmp1h, tmp1 + 4, 0);
+                    __lsx_vst(_tmp2, tmp2, 0);
+                    __lsx_vst(_tmp2h, tmp2 + 4, 0);
+                    __lsx_vst(_tmp3, tmp3, 0);
+                    __lsx_vst(_tmp3h, tmp3 + 4, 0);
+
+                    int* outptr1 = outptr0 + N * 1;
+                    int* outptr2 = outptr0 + N * 2;
+                    int* outptr3 = outptr0 + N * 3;
+                    int* outptr4 = outptr0 + N * 4;
+                    int* outptr5 = outptr0 + N * 5;
+                    int* outptr6 = outptr0 + N * 6;
+                    int* outptr7 = outptr0 + N * 7;
+
+                    outptr0[0] = tmp0[0];
+                    outptr1[0] = tmp0[1];
+                    outptr2[0] = tmp0[2];
+                    outptr3[0] = tmp0[3];
+                    outptr4[0] = tmp0[4];
+                    outptr5[0] = tmp0[5];
+                    outptr6[0] = tmp0[6];
+                    outptr7[0] = tmp0[7];
+                    if (tj * 4 + 1 < outw)
+                    {
+                        outptr0[1] = tmp1[0];
+                        outptr1[1] = tmp1[1];
+                        outptr2[1] = tmp1[2];
+                        outptr3[1] = tmp1[3];
+                        outptr4[1] = tmp1[4];
+                        outptr5[1] = tmp1[5];
+                        outptr6[1] = tmp1[6];
+                        outptr7[1] = tmp1[7];
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        outptr0[2] = tmp2[0];
+                        outptr1[2] = tmp2[1];
+                        outptr2[2] = tmp2[2];
+                        outptr3[2] = tmp2[3];
+                        outptr4[2] = tmp2[4];
+                        outptr5[2] = tmp2[5];
+                        outptr6[2] = tmp2[6];
+                        outptr7[2] = tmp2[7];
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        outptr0[3] = tmp3[0];
+                        outptr1[3] = tmp3[1];
+                        outptr2[3] = tmp3[2];
+                        outptr3[3] = tmp3[3];
+                        outptr4[3] = tmp3[4];
+                        outptr5[3] = tmp3[5];
+                        outptr6[3] = tmp3[6];
+                        outptr7[3] = tmp3[7];
+                    }
+                }
+#endif // __loongarch_asx
 
                 outptr0 += outw * out_elempack;
             }
         }
     }
-#endif // __loongarch_asx
-#if __loongarch_sx
     for (; ii + 3 < max_ii; ii += 4)
     {
         __attribute__((aligned(16))) int tmp[4][6][4];
