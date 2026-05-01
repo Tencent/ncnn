@@ -96,7 +96,7 @@ int BNLL_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _abs_p = (v4f32)__msa_bclri_w((v4u32)_p, 31);
             v4f32 _tmp = log_ps(__msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_abs_p, 31))));
             v4f32 _outp = __msa_fadd_w(__msa_fmax_w(_p, _zero), _tmp);
-            float2bfloat_msa_store(_outp, ptr);
+            __msa_storel_d(float2bfloat_msa(_outp), ptr);
 
             ptr += 4;
         }

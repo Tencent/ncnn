@@ -96,7 +96,7 @@ int Dropout_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fmul_w(_p, _scale);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa

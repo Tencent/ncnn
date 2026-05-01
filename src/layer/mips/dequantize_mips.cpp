@@ -252,7 +252,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __msa_fmul_w(_v, _scale0);
-            float2bfloat_msa_store(_v, ptr);
+            __msa_storel_d(float2bfloat_msa(_v), ptr);
             intptr += 4;
             ptr += 4;
         }
@@ -302,7 +302,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
             _v = __ncnn_msa_fmadd_w(_bias0, _v, _scale0);
-            float2bfloat_msa_store(_v, ptr);
+            __msa_storel_d(float2bfloat_msa(_v), ptr);
             intptr += 4;
             ptr += 4;
         }

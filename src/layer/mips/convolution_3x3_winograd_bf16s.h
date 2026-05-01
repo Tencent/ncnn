@@ -363,8 +363,8 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_tmp0, outptr0);
-                    if (tj * 2 + 1 < outw) float2bfloat_msa_store(_tmp1, outptr0 + 4);
+                    __msa_storel_d(float2bfloat_msa(_tmp0), outptr0);
+                    if (tj * 2 + 1 < outw) __msa_storel_d(float2bfloat_msa(_tmp1), outptr0 + 4);
                 }
                 if (out_elempack == 1)
                 {
@@ -1178,10 +1178,10 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_tmp0, outptr0);
-                    if (tj * 4 + 1 < outw) float2bfloat_msa_store(_tmp1, outptr0 + 4);
-                    if (tj * 4 + 2 < outw) float2bfloat_msa_store(_tmp2, outptr0 + 8);
-                    if (tj * 4 + 3 < outw) float2bfloat_msa_store(_tmp3, outptr0 + 12);
+                    __msa_storel_d(float2bfloat_msa(_tmp0), outptr0);
+                    if (tj * 4 + 1 < outw) __msa_storel_d(float2bfloat_msa(_tmp1), outptr0 + 4);
+                    if (tj * 4 + 2 < outw) __msa_storel_d(float2bfloat_msa(_tmp2), outptr0 + 8);
+                    if (tj * 4 + 3 < outw) __msa_storel_d(float2bfloat_msa(_tmp3), outptr0 + 12);
                 }
                 if (out_elempack == 1)
                 {
@@ -2200,12 +2200,12 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_tmp0, outptr0);
-                    if (tj * 6 + 1 < outw) float2bfloat_msa_store(_tmp1, outptr0 + 4);
-                    if (tj * 6 + 2 < outw) float2bfloat_msa_store(_tmp2, outptr0 + 8);
-                    if (tj * 6 + 3 < outw) float2bfloat_msa_store(_tmp3, outptr0 + 12);
-                    if (tj * 6 + 4 < outw) float2bfloat_msa_store(_tmp4, outptr0 + 16);
-                    if (tj * 6 + 5 < outw) float2bfloat_msa_store(_tmp5, outptr0 + 20);
+                    __msa_storel_d(float2bfloat_msa(_tmp0), outptr0);
+                    if (tj * 6 + 1 < outw) __msa_storel_d(float2bfloat_msa(_tmp1), outptr0 + 4);
+                    if (tj * 6 + 2 < outw) __msa_storel_d(float2bfloat_msa(_tmp2), outptr0 + 8);
+                    if (tj * 6 + 3 < outw) __msa_storel_d(float2bfloat_msa(_tmp3), outptr0 + 12);
+                    if (tj * 6 + 4 < outw) __msa_storel_d(float2bfloat_msa(_tmp4), outptr0 + 16);
+                    if (tj * 6 + 5 < outw) __msa_storel_d(float2bfloat_msa(_tmp5), outptr0 + 20);
                 }
                 if (out_elempack == 1)
                 {

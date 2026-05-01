@@ -89,7 +89,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 v4f32 _beta = __msa_fill_w_f32(beta_ptr[0]);
                 _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
-                float2bfloat_msa_store(_p, ptr);
+                __msa_storel_d(float2bfloat_msa(_p), ptr);
                 ptr += 4;
                 gamma_ptr += 1;
                 beta_ptr += 1;
@@ -103,7 +103,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 
                 v4f32 _p = bfloat2float_msa(ptr);
                 _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-                float2bfloat_msa_store(_p, ptr);
+                __msa_storel_d(float2bfloat_msa(_p), ptr);
                 ptr += 4;
             }
         }
@@ -183,7 +183,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
             v4f32 _beta = (v4f32)__msa_ld_w(beta_ptr, 0);
             _p = __ncnn_msa_fmadd_w(_b, _p, _a);
             _p = __ncnn_msa_fmadd_w(_beta, _p, _gamma);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
             gamma_ptr += 4;
             beta_ptr += 4;
@@ -210,7 +210,7 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa

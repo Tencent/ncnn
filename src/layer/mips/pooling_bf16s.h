@@ -27,7 +27,7 @@ static void pooling_global_max_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, 
             }
 
             unsigned short* outptr = top_blob;
-            float2bfloat_msa_store(_max, outptr + q * 4);
+            __msa_storel_d(float2bfloat_msa(_max), outptr + q * 4);
         }
 
         return;
@@ -82,7 +82,7 @@ static void pooling_global_avg_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, 
             v4f32 _avg = __msa_fmul_w(_sum, _inv_size);
 
             unsigned short* outptr = top_blob;
-            float2bfloat_msa_store(_avg, outptr + q * 4);
+            __msa_storel_d(float2bfloat_msa(_avg), outptr + q * 4);
         }
 
         return;
@@ -161,7 +161,7 @@ static void pooling_max_bf16s_msa(const Mat& bottom_blob_bordered, Mat& top_blob
                         _max = __msa_fmax_w(_max, _val);
                     }
 
-                    float2bfloat_msa_store(_max, outptr + j * 4);
+                    __msa_storel_d(float2bfloat_msa(_max), outptr + j * 4);
                 }
 
                 outptr += outw * 4;
@@ -293,7 +293,7 @@ static void pooling_avg_bf16s_msa(const Mat& bottom_blob_bordered, const Mat& bo
 
                         v4f32 _inv_area = __msa_fill_w_f32(1.f / area);
                         v4f32 _avg = __msa_fmul_w(_sum, _inv_area);
-                        float2bfloat_msa_store(_avg, outptr + j * 4);
+                        __msa_storel_d(float2bfloat_msa(_avg), outptr + j * 4);
                     }
 
                     outptr += outw * 4;
@@ -384,7 +384,7 @@ static void pooling_avg_bf16s_msa(const Mat& bottom_blob_bordered, const Mat& bo
                         }
 
                         v4f32 _avg = __msa_fmul_w(_sum, _inv_maxk);
-                        float2bfloat_msa_store(_avg, outptr + j * 4);
+                        __msa_storel_d(float2bfloat_msa(_avg), outptr + j * 4);
                     }
 
                     outptr += outw * 4;

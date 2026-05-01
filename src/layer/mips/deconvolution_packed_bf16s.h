@@ -400,7 +400,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr);
                     outptr += 4;
                 }
                 if (out_elempack == 1)

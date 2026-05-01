@@ -27,7 +27,7 @@ static void batchnorm_bf16s_msa(unsigned short* ptr, const float* a, const float
     {
         v4f32 _p = bfloat2float_msa(ptr);
         _p = __ncnn_msa_fmadd_w(_a, _p, _b);
-        float2bfloat_msa_store(_p, ptr);
+        __msa_storel_d(float2bfloat_msa(_p), ptr);
         ptr += 4;
     }
 #endif // __mips_msa
@@ -52,7 +52,7 @@ static void batchnorm_bf16s_per_element_msa(unsigned short* ptr, const float* a,
         v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
         v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
         _p = __ncnn_msa_fmadd_w(_a0, _p, _b0);
-        float2bfloat_msa_store(_p, ptr + i);
+        __msa_storel_d(float2bfloat_msa(_p), ptr + i);
     }
     remain_size_start += nn_size * 4;
 #endif // __mips_msa

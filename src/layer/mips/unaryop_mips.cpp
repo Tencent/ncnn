@@ -455,7 +455,7 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = op.func_pack4(_p);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa

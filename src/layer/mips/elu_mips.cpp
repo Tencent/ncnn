@@ -88,7 +88,7 @@ int ELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = elu_msa(_p, _alpha);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa

@@ -135,8 +135,8 @@ int RotaryEmbed_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                     v4f32 _y0 = __ncnn_msa_fmsub_w(__msa_fmul_w(_x0, _c), _x1, _s);
                     v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c), _x0, _s);
 
-                    float2bfloat_msa_store(_y0, outptr0);
-                    float2bfloat_msa_store(_y1, outptr1);
+                    __msa_storel_d(float2bfloat_msa(_y0), outptr0);
+                    __msa_storel_d(float2bfloat_msa(_y1), outptr1);
 
                     ptr0 += 4;
                     ptr1 += 4;

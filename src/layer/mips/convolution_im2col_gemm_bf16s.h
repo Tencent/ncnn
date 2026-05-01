@@ -29,10 +29,8 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
             v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
             transpose4x4_ps(_r0, _r1, _r2, _r3);
-            float2bfloat_msa_store(_r0, pp);
-            float2bfloat_msa_store(_r1, pp + 4);
-            float2bfloat_msa_store(_r2, pp + 8);
-            float2bfloat_msa_store(_r3, pp + 12);
+            __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
+            __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 8, 0);
             pp += 16;
             p0 += 4;
             p1 += 4;
@@ -72,8 +70,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
             v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
             v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-            float2bfloat_msa_store(_tmp0, pp);
-            float2bfloat_msa_store(_tmp1, pp + 4);
+            __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
             pp += 8;
             p0 += 4;
             p1 += 4;
@@ -97,7 +94,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         for (; kk + 3 < max_kk; kk += 4)
         {
             __builtin_prefetch(p0 + 16);
-            float2bfloat_msa_store((v4f32)__msa_ld_w(p0, 0), pp);
+            __msa_storel_d(float2bfloat_msa((v4f32)__msa_ld_w(p0, 0)), pp);
             pp += 4;
             p0 += 4;
         }
@@ -323,18 +320,12 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
-                    float2bfloat_msa_store(_sum2, outptr0 + 4 * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + 4 * 3);
-                    float2bfloat_msa_store(_sum4, outptr0 + 4 * 4);
-                    float2bfloat_msa_store(_sum5, outptr0 + 4 * 5);
-                    float2bfloat_msa_store(_sum6, outptr0 + 4 * 6);
-                    float2bfloat_msa_store(_sum7, outptr0 + 4 * 7);
-                    float2bfloat_msa_store(_sum8, outptr0 + 4 * 8);
-                    float2bfloat_msa_store(_sum9, outptr0 + 4 * 9);
-                    float2bfloat_msa_store(_suma, outptr0 + 4 * 10);
-                    float2bfloat_msa_store(_sumb, outptr0 + 4 * 11);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum2, _sum3), outptr0 + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_sum4, _sum5), outptr0 + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_sum6, _sum7), outptr0 + 4 * 6, 0);
+                    __msa_st_w(float2bfloat_msa(_sum8, _sum9), outptr0 + 4 * 8, 0);
+                    __msa_st_w(float2bfloat_msa(_suma, _sumb), outptr0 + 4 * 10, 0);
                     outptr0 += 48;
                 }
                 if (out_elempack == 1)
@@ -343,18 +334,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
                     transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
 
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
-                    float2bfloat_msa_store(_sum2, outptr0 + out_hstep * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + out_hstep * 3);
-                    float2bfloat_msa_store(_sum4, outptr0 + 4);
-                    float2bfloat_msa_store(_sum5, outptr0 + out_hstep * 1 + 4);
-                    float2bfloat_msa_store(_sum6, outptr0 + out_hstep * 2 + 4);
-                    float2bfloat_msa_store(_sum7, outptr0 + out_hstep * 3 + 4);
-                    float2bfloat_msa_store(_sum8, outptr0 + 8);
-                    float2bfloat_msa_store(_sum9, outptr0 + out_hstep * 1 + 8);
-                    float2bfloat_msa_store(_suma, outptr0 + out_hstep * 2 + 8);
-                    float2bfloat_msa_store(_sumb, outptr0 + out_hstep * 3 + 8);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep * 1);
+                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + out_hstep * 2);
+                    __msa_storel_d(float2bfloat_msa(_sum3), outptr0 + out_hstep * 3);
+                    __msa_storel_d(float2bfloat_msa(_sum4), outptr0 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum5), outptr0 + out_hstep * 1 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum6), outptr0 + out_hstep * 2 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum7), outptr0 + out_hstep * 3 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum8), outptr0 + 8);
+                    __msa_storel_d(float2bfloat_msa(_sum9), outptr0 + out_hstep * 1 + 8);
+                    __msa_storel_d(float2bfloat_msa(_suma), outptr0 + out_hstep * 2 + 8);
+                    __msa_storel_d(float2bfloat_msa(_sumb), outptr0 + out_hstep * 3 + 8);
                     outptr0 += 12;
                 }
             }
@@ -512,14 +503,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
-                    float2bfloat_msa_store(_sum2, outptr0 + 4 * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + 4 * 3);
-                    float2bfloat_msa_store(_sum4, outptr0 + 4 * 4);
-                    float2bfloat_msa_store(_sum5, outptr0 + 4 * 5);
-                    float2bfloat_msa_store(_sum6, outptr0 + 4 * 6);
-                    float2bfloat_msa_store(_sum7, outptr0 + 4 * 7);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum2, _sum3), outptr0 + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_sum4, _sum5), outptr0 + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_sum6, _sum7), outptr0 + 4 * 6, 0);
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -527,14 +514,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                     transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
-                    float2bfloat_msa_store(_sum2, outptr0 + out_hstep * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + out_hstep * 3);
-                    float2bfloat_msa_store(_sum4, outptr0 + 4);
-                    float2bfloat_msa_store(_sum5, outptr0 + out_hstep * 1 + 4);
-                    float2bfloat_msa_store(_sum6, outptr0 + out_hstep * 2 + 4);
-                    float2bfloat_msa_store(_sum7, outptr0 + out_hstep * 3 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep * 1);
+                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + out_hstep * 2);
+                    __msa_storel_d(float2bfloat_msa(_sum3), outptr0 + out_hstep * 3);
+                    __msa_storel_d(float2bfloat_msa(_sum4), outptr0 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum5), outptr0 + out_hstep * 1 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum6), outptr0 + out_hstep * 2 + 4);
+                    __msa_storel_d(float2bfloat_msa(_sum7), outptr0 + out_hstep * 3 + 4);
                     outptr0 += 8;
                 }
             }
@@ -639,20 +626,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
-                    float2bfloat_msa_store(_sum2, outptr0 + 4 * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + 4 * 3);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum2, _sum3), outptr0 + 4 * 2, 0);
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
                 {
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
 
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + out_hstep * 1);
-                    float2bfloat_msa_store(_sum2, outptr0 + out_hstep * 2);
-                    float2bfloat_msa_store(_sum3, outptr0 + out_hstep * 3);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep * 1);
+                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + out_hstep * 2);
+                    __msa_storel_d(float2bfloat_msa(_sum3), outptr0 + out_hstep * 3);
                     outptr0 += 4;
                 }
             }
@@ -737,8 +722,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -808,7 +792,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -928,12 +912,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum00, outptr0);
-                    float2bfloat_msa_store(_sum01, outptr0 + 4);
-                    float2bfloat_msa_store(_sum02, outptr0 + 8);
-                    float2bfloat_msa_store(_sum10, outptr0 + out_hstep);
-                    float2bfloat_msa_store(_sum11, outptr0 + out_hstep + 4);
-                    float2bfloat_msa_store(_sum12, outptr0 + out_hstep + 8);
+                    __msa_st_w(float2bfloat_msa(_sum00, _sum01), outptr0, 0);
+                    __msa_storel_d(float2bfloat_msa(_sum02), outptr0 + 8);
+                    __msa_st_w(float2bfloat_msa(_sum10, _sum11), outptr0 + out_hstep, 0);
+                    __msa_storel_d(float2bfloat_msa(_sum12), outptr0 + out_hstep + 8);
                     outptr0 += 12;
                 }
             }
@@ -1021,10 +1003,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum00, outptr0);
-                    float2bfloat_msa_store(_sum01, outptr0 + 4);
-                    float2bfloat_msa_store(_sum10, outptr0 + out_hstep);
-                    float2bfloat_msa_store(_sum11, outptr0 + out_hstep + 4);
+                    __msa_st_w(float2bfloat_msa(_sum00, _sum01), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum10, _sum11), outptr0 + out_hstep, 0);
                     outptr0 += 8;
                 }
             }
@@ -1091,8 +1071,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + out_hstep);
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep);
                     outptr0 += 4;
                 }
             }
@@ -1304,9 +1284,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
-                    float2bfloat_msa_store(_sum2, outptr0 + 8);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + 8);
                     outptr0 += 12;
                 }
             }
@@ -1368,8 +1347,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum0, outptr0);
-                    float2bfloat_msa_store(_sum1, outptr0 + 4);
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
                     outptr0 += 8;
                 }
             }
@@ -1422,7 +1400,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    float2bfloat_msa_store(_sum, outptr0);
+                    __msa_storel_d(float2bfloat_msa(_sum), outptr0);
                     outptr0 += 4;
                 }
             }
@@ -1673,18 +1651,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
                 transpose4x4_ps(_r8, _r9, _ra, _rb);
-                float2bfloat_msa_store(_r0, pp);
-                float2bfloat_msa_store(_r4, pp + 4 * 1);
-                float2bfloat_msa_store(_r8, pp + 4 * 2);
-                float2bfloat_msa_store(_r1, pp + 4 * 3);
-                float2bfloat_msa_store(_r5, pp + 4 * 4);
-                float2bfloat_msa_store(_r9, pp + 4 * 5);
-                float2bfloat_msa_store(_r2, pp + 4 * 6);
-                float2bfloat_msa_store(_r6, pp + 4 * 7);
-                float2bfloat_msa_store(_ra, pp + 4 * 8);
-                float2bfloat_msa_store(_r3, pp + 4 * 9);
-                float2bfloat_msa_store(_r7, pp + 4 * 10);
-                float2bfloat_msa_store(_rb, pp + 4 * 11);
+                __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                __msa_st_w(float2bfloat_msa(_r8, _r1), pp + 4 * 2, 0);
+                __msa_st_w(float2bfloat_msa(_r5, _r9), pp + 4 * 4, 0);
+                __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 6, 0);
+                __msa_st_w(float2bfloat_msa(_ra, _r3), pp + 4 * 8, 0);
+                __msa_st_w(float2bfloat_msa(_r7, _rb), pp + 4 * 10, 0);
                 pp += 48;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -1737,14 +1709,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r7 = bfloat2float_msa(p0 + 4 * 7);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
-                float2bfloat_msa_store(_r0, pp);
-                float2bfloat_msa_store(_r4, pp + 4 * 1);
-                float2bfloat_msa_store(_r1, pp + 4 * 2);
-                float2bfloat_msa_store(_r5, pp + 4 * 3);
-                float2bfloat_msa_store(_r2, pp + 4 * 4);
-                float2bfloat_msa_store(_r6, pp + 4 * 5);
-                float2bfloat_msa_store(_r3, pp + 4 * 6);
-                float2bfloat_msa_store(_r7, pp + 4 * 7);
+                __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
+                __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
+                __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -1788,10 +1756,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r2 = bfloat2float_msa(p0 + 4 * 2);
                 v4f32 _r3 = bfloat2float_msa(p0 + 4 * 3);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
-                float2bfloat_msa_store(_r0, pp);
-                float2bfloat_msa_store(_r1, pp + 4 * 1);
-                float2bfloat_msa_store(_r2, pp + 4 * 2);
-                float2bfloat_msa_store(_r3, pp + 4 * 3);
+                __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
+                __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
                 pp += 16;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -1833,8 +1799,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 v4f32 _r1 = bfloat2float_msa(p0 + 4);
                 v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
                 v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                float2bfloat_msa_store(_tmp0, pp);
-                float2bfloat_msa_store(_tmp1, pp + 4);
+                __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
                 pp += 8;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -1869,7 +1834,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             {
                 __builtin_prefetch(p0 + bottom_blob.cstep * 4);
 
-                float2bfloat_msa_store(bfloat2float_msa(p0), pp);
+                __msa_storel_d(float2bfloat_msa(bfloat2float_msa(p0)), pp);
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -1975,18 +1940,12 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r4, pp + 4 * 1);
-                    float2bfloat_msa_store(_r8, pp + 4 * 2);
-                    float2bfloat_msa_store(_r1, pp + 4 * 3);
-                    float2bfloat_msa_store(_r5, pp + 4 * 4);
-                    float2bfloat_msa_store(_r9, pp + 4 * 5);
-                    float2bfloat_msa_store(_r2, pp + 4 * 6);
-                    float2bfloat_msa_store(_r6, pp + 4 * 7);
-                    float2bfloat_msa_store(_ra, pp + 4 * 8);
-                    float2bfloat_msa_store(_r3, pp + 4 * 9);
-                    float2bfloat_msa_store(_r7, pp + 4 * 10);
-                    float2bfloat_msa_store(_rb, pp + 4 * 11);
+                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r8, _r1), pp + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_r5, _r9), pp + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 6, 0);
+                    __msa_st_w(float2bfloat_msa(_ra, _r3), pp + 4 * 8, 0);
+                    __msa_st_w(float2bfloat_msa(_r7, _rb), pp + 4 * 10, 0);
                     pp += 48;
                 }
                 if (elempack == 1)
@@ -2075,18 +2034,12 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r4, pp + 4 * 1);
-                    float2bfloat_msa_store(_r8, pp + 4 * 2);
-                    float2bfloat_msa_store(_r1, pp + 4 * 3);
-                    float2bfloat_msa_store(_r5, pp + 4 * 4);
-                    float2bfloat_msa_store(_r9, pp + 4 * 5);
-                    float2bfloat_msa_store(_r2, pp + 4 * 6);
-                    float2bfloat_msa_store(_r6, pp + 4 * 7);
-                    float2bfloat_msa_store(_ra, pp + 4 * 8);
-                    float2bfloat_msa_store(_r3, pp + 4 * 9);
-                    float2bfloat_msa_store(_r7, pp + 4 * 10);
-                    float2bfloat_msa_store(_rb, pp + 4 * 11);
+                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r8, _r1), pp + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_r5, _r9), pp + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 6, 0);
+                    __msa_st_w(float2bfloat_msa(_ra, _r3), pp + 4 * 8, 0);
+                    __msa_st_w(float2bfloat_msa(_r7, _rb), pp + 4 * 10, 0);
                     pp += 48;
                 }
                 if (elempack == 1)
@@ -2156,14 +2109,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r7 = bfloat2float_msa(sptr + stride_w * 28);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r4, pp + 4 * 1);
-                    float2bfloat_msa_store(_r1, pp + 4 * 2);
-                    float2bfloat_msa_store(_r5, pp + 4 * 3);
-                    float2bfloat_msa_store(_r2, pp + 4 * 4);
-                    float2bfloat_msa_store(_r6, pp + 4 * 5);
-                    float2bfloat_msa_store(_r3, pp + 4 * 6);
-                    float2bfloat_msa_store(_r7, pp + 4 * 7);
+                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2230,14 +2179,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r7 = bfloat2float_msa(sptr7);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r4, pp + 4 * 1);
-                    float2bfloat_msa_store(_r1, pp + 4 * 2);
-                    float2bfloat_msa_store(_r5, pp + 4 * 3);
-                    float2bfloat_msa_store(_r2, pp + 4 * 4);
-                    float2bfloat_msa_store(_r6, pp + 4 * 5);
-                    float2bfloat_msa_store(_r3, pp + 4 * 6);
-                    float2bfloat_msa_store(_r7, pp + 4 * 7);
+                    __msa_st_w(float2bfloat_msa(_r0, _r4), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r1, _r5), pp + 4 * 2, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r6), pp + 4 * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_r3, _r7), pp + 4 * 6, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -2290,10 +2235,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r2 = bfloat2float_msa(sptr + stride_w * 8);
                     v4f32 _r3 = bfloat2float_msa(sptr + stride_w * 12);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r1, pp + 4 * 1);
-                    float2bfloat_msa_store(_r2, pp + 4 * 2);
-                    float2bfloat_msa_store(_r3, pp + 4 * 3);
+                    __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2339,10 +2282,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r2 = bfloat2float_msa(sptr2);
                     v4f32 _r3 = bfloat2float_msa(sptr3);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    float2bfloat_msa_store(_r0, pp);
-                    float2bfloat_msa_store(_r1, pp + 4 * 1);
-                    float2bfloat_msa_store(_r2, pp + 4 * 2);
-                    float2bfloat_msa_store(_r3, pp + 4 * 3);
+                    __msa_st_w(float2bfloat_msa(_r0, _r1), pp, 0);
+                    __msa_st_w(float2bfloat_msa(_r2, _r3), pp + 4 * 2, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -2388,8 +2329,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r1 = bfloat2float_msa(sptr + stride_w * 4);
                     v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
                     v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                    float2bfloat_msa_store(_tmp0, pp);
-                    float2bfloat_msa_store(_tmp1, pp + 4);
+                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
                     pp += 8;
                 }
 #endif // __mips_msa
@@ -2428,8 +2368,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     v4f32 _r1 = bfloat2float_msa(sptr1);
                     v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
                     v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
-                    float2bfloat_msa_store(_tmp0, pp);
-                    float2bfloat_msa_store(_tmp1, pp + 4);
+                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp1), pp, 0);
                     pp += 8;
                 }
 #endif // __mips_msa
@@ -2465,7 +2404,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
 #if __mips_msa
             if (elempack == 4)
             {
-                float2bfloat_msa_store(bfloat2float_msa(sptr), pp);
+                __msa_storel_d(float2bfloat_msa(bfloat2float_msa(sptr)), pp);
                 pp += 4;
             }
 #endif // __mips_msa

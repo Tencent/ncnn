@@ -108,7 +108,7 @@ int SELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _neg = __msa_fmul_w(__msa_fsub_w(__msa_fmul_w(exp_ps(_p), _alpha), _alpha), _lambda);
             v4i32 _mask = __msa_fclt_w(_p, _zero);
             _p = (v4f32)__msa_bsel_v((v16u8)_mask, (v16u8)_pos, (v16u8)_neg);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa

@@ -192,7 +192,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             {
                 v4f32 _p = bfloat2float_msa(ptr);
                 _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-                float2bfloat_msa_store(_p, ptr);
+                __msa_storel_d(float2bfloat_msa(_p), ptr);
                 ptr += 4;
             }
         }
@@ -281,7 +281,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
                 {
                     v4f32 _p = bfloat2float_msa(ptr + i);
                     _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-                    float2bfloat_msa_store(_p, ptr + i);
+                    __msa_storel_d(float2bfloat_msa(_p), ptr + i);
                 }
 #endif // __mips_msa
                 for (; i < size; i++)

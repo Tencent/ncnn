@@ -10,6 +10,7 @@
 #endif // __mips_msa
 
 #include <stdint.h>
+#include <string.h>
 
 #if __mips_msa
 #define _MSA_SHUFFLE(z, y, x, w) (((z) << 6) | ((y) << 4) | ((x) << 2) | (w))
@@ -167,6 +168,13 @@ static NCNN_FORCEINLINE v4i32 __msa_loadl_d(const void* ptr)
 #endif
 }
 
+static NCNN_FORCEINLINE void __msa_storel_d(const v4i32& v, void* ptr)
+{
+    // Store low 64 bits only; callers must not require the upper 64 bits.
+    int64_t val = __msa_copy_s_d((v2i64)v, 0);
+    memcpy(ptr, &val, sizeof(int64_t));
+}
+
 static NCNN_FORCEINLINE v4i32 __msa_fill_d_ptr(const void* ptr)
 {
 #if __mips64
@@ -189,7 +197,7 @@ static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)
     _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(2, 3, 0, 1));
     _v = __msa_fmax_w(_v, _s); // {max(f0,f1,f2,f3), ...}
     float result;
-    __builtin_memcpy(&result, &_v, sizeof(float));
+    memcpy(&result, &_v, sizeof(float));
     return result;
 }
 
@@ -203,7 +211,7 @@ static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
     _s = (v4f32)__msa_shf_w((v4i32)_v, _MSA_SHUFFLE(2, 3, 0, 1));
     _v = __msa_fadd_w(_v, _s); // {f0+f1+f2+f3, ...}
     float result;
-    __builtin_memcpy(&result, &_v, sizeof(float));
+    memcpy(&result, &_v, sizeof(float));
     return result;
 }
 
@@ -594,14 +602,6 @@ static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0)
     _a = __msa_srli_w(_a, 16);
     v8i16 _v = __msa_pckev_h((v8i16)__msa_fill_w(0), (v8i16)_a);
     return (v4i32)_v;
-}
-
-// Store 4 bf16 values to potentially unaligned pointer
-static NCNN_FORCEINLINE void float2bfloat_msa_store(const v4f32& v0, unsigned short* ptr)
-{
-    v4i32 _bf16 = float2bfloat_msa(v0);
-    int64_t val = __msa_copy_s_d((v2i64)_bf16, 0);
-    __builtin_memcpy(ptr, &val, sizeof(int64_t));
 }
 
 static NCNN_FORCEINLINE v4i32 float2bfloat_msa(const v4f32& v0, const v4f32& v1)

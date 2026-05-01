@@ -52,7 +52,7 @@ static void softmax_bf16s_msa(unsigned short* _ptr, int elemcount, int elempack)
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fsub_w(_p, _max);
             _p = exp_ps(_p);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             _sum = __msa_fadd_w(_sum, _p);
             ptr += 4;
         }
@@ -97,7 +97,7 @@ static void softmax_bf16s_msa(unsigned short* _ptr, int elemcount, int elempack)
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fmul_w(_p, _sum);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }
 #endif // __mips_msa
@@ -141,7 +141,7 @@ static void softmax_bf16s_pack4_msa(unsigned short* _ptr, int elemcount, size_t 
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _max = (v4f32)__msa_fill_w_f32(*maxptr);
             _p = exp_ps(__msa_fsub_w(_p, _max));
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             *sumptr += __msa_reduce_fadd_w(_p);
             ptr += 4;
             maxptr++;
@@ -179,7 +179,7 @@ static void softmax_bf16s_pack4_msa(unsigned short* _ptr, int elemcount, size_t 
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _sum = (v4f32)__msa_fill_w_f32(*sumptr);
             _p = __msa_fmul_w(_p, _sum);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
             sumptr++;
         }
@@ -231,7 +231,7 @@ static void softmax_bf16s_pack1_msa(unsigned short* _ptr, int elemcount, size_t 
             v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
             _p = __msa_fsub_w(_p, _max);
             _p = exp_ps(_p);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             _sum = __msa_fadd_w(_sum, _p);
             __msa_st_w((v4i32)_sum, sumptr, 0);
             ptr += 4;
@@ -283,7 +283,7 @@ static void softmax_bf16s_pack1_msa(unsigned short* _ptr, int elemcount, size_t 
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
             _p = __msa_fmul_w(_p, _sum);
-            float2bfloat_msa_store(_p, ptr);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
             sumptr += 4;
         }
