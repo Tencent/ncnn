@@ -135,22 +135,22 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m128i _r0 = __lsx_vld(p0, 0);
-                __m128i _r1 = __lsx_vld((p0 + 8), 0);
-                __m128i _r2 = __lsx_vld((p0 + 8 * 2), 0);
-                __m128i _r3 = __lsx_vld((p0 + 8 * 3), 0);
-                __m128i _r4 = __lsx_vld((p0 + 8 * 4), 0);
-                __m128i _r5 = __lsx_vld((p0 + 8 * 5), 0);
-                __m128i _r6 = __lsx_vld((p0 + 8 * 6), 0);
-                __m128i _r7 = __lsx_vld((p0 + 8 * 7), 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
+                __m128i _r2 = __lsx_vld(p0 + 8 * 2, 0);
+                __m128i _r3 = __lsx_vld(p0 + 8 * 3, 0);
+                __m128i _r4 = __lsx_vld(p0 + 8 * 4, 0);
+                __m128i _r5 = __lsx_vld(p0 + 8 * 5, 0);
+                __m128i _r6 = __lsx_vld(p0 + 8 * 6, 0);
+                __m128i _r7 = __lsx_vld(p0 + 8 * 7, 0);
                 transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
                 __lsx_vst(_r0, pp, 0);
-                __lsx_vst(_r1, (pp + 8), 0);
-                __lsx_vst(_r2, (pp + 8 * 2), 0);
-                __lsx_vst(_r3, (pp + 8 * 3), 0);
-                __lsx_vst(_r4, (pp + 8 * 4), 0);
-                __lsx_vst(_r5, (pp + 8 * 5), 0);
-                __lsx_vst(_r6, (pp + 8 * 6), 0);
-                __lsx_vst(_r7, (pp + 8 * 7), 0);
+                __lsx_vst(_r1, pp + 8, 0);
+                __lsx_vst(_r2, pp + 8 * 2, 0);
+                __lsx_vst(_r3, pp + 8 * 3, 0);
+                __lsx_vst(_r4, pp + 8 * 4, 0);
+                __lsx_vst(_r5, pp + 8 * 5, 0);
+                __lsx_vst(_r6, pp + 8 * 6, 0);
+                __lsx_vst(_r7, pp + 8 * 7, 0);
                 p0 += max_jj * batch * 8;
                 pp += 64;
             }
@@ -159,9 +159,9 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _r0 = __lsx_vld(p0, 0);
-                __m128i _r1 = __lsx_vld((p0 + 8), 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
                 __lsx_vst(_r0, pp, 0);
-                __lsx_vst(_r1, (pp + 8), 0);
+                __lsx_vst(_r1, pp + 8, 0);
                 p0 += max_jj * batch * 2;
                 pp += 16;
             }
@@ -184,14 +184,14 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m128i _r0 = __lsx_vld(p0, 0);
-                __m128i _r1 = __lsx_vld((p0 + 8), 0);
-                __m128i _r2 = __lsx_vld((p0 + 8 * 2), 0);
-                __m128i _r3 = __lsx_vld((p0 + 8 * 3), 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
+                __m128i _r2 = __lsx_vld(p0 + 8 * 2, 0);
+                __m128i _r3 = __lsx_vld(p0 + 8 * 3, 0);
                 transpose4x4_epi32(_r0, _r1, _r2, _r3);
                 __lsx_vst(_r0, pp, 0);
-                __lsx_vst(_r1, (pp + 8), 0);
-                __lsx_vst(_r2, (pp + 8 * 2), 0);
-                __lsx_vst(_r3, (pp + 8 * 3), 0);
+                __lsx_vst(_r1, pp + 8, 0);
+                __lsx_vst(_r2, pp + 8 * 2, 0);
+                __lsx_vst(_r3, pp + 8 * 3, 0);
                 p0 += max_jj * batch * 8;
                 pp += 32;
             }
@@ -227,11 +227,11 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m128i _r0 = __lsx_vld(p0, 0);
-                __m128i _r1 = __lsx_vld((p0 + 8), 0);
+                __m128i _r1 = __lsx_vld(p0 + 8, 0);
                 __m128i _tmp0 = __lsx_vilvl_w(_r1, _r0);
                 __m128i _tmp1 = __lsx_vilvh_w(_r1, _r0);
                 __lsx_vst(_tmp0, pp, 0);
-                __lsx_vst(_tmp1, (pp + 8), 0);
+                __lsx_vst(_tmp1, pp + 8, 0);
                 p0 += max_jj * batch * 8;
                 pp += 16;
             }
@@ -1186,13 +1186,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
-                    _sum2 = __lsx_vld((outptr + 8), 0);
-                    _sum3 = __lsx_vld((outptr + 12), 0);
-                    _sum4 = __lsx_vld((outptr + 16), 0);
-                    _sum5 = __lsx_vld((outptr + 20), 0);
-                    _sum6 = __lsx_vld((outptr + 24), 0);
-                    _sum7 = __lsx_vld((outptr + 28), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
+                    _sum2 = __lsx_vld(outptr + 8, 0);
+                    _sum3 = __lsx_vld(outptr + 12, 0);
+                    _sum4 = __lsx_vld(outptr + 16, 0);
+                    _sum5 = __lsx_vld(outptr + 20, 0);
+                    _sum6 = __lsx_vld(outptr + 24, 0);
+                    _sum7 = __lsx_vld(outptr + 28, 0);
                 }
 
                 int kk = 0;
@@ -1200,7 +1200,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pB0 = __lsx_vld(pB, 0);
-                    __m128i _pB1 = __lsx_vld((pB + 8), 0);
+                    __m128i _pB1 = __lsx_vld(pB + 8, 0);
                     __m128i _pA1 = __lsx_vshuf4i_w(_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
                     __m128i _pB2 = __lsx_vshuf4i_w(_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
                     __m128i _pB3 = __lsx_vshuf4i_w(_pB1, _LSX_SHUFFLE(0, 3, 2, 1));
@@ -1296,13 +1296,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
-                __lsx_vst(_sum2, (outptr + 8), 0);
-                __lsx_vst(_sum3, (outptr + 12), 0);
-                __lsx_vst(_sum4, (outptr + 16), 0);
-                __lsx_vst(_sum5, (outptr + 20), 0);
-                __lsx_vst(_sum6, (outptr + 24), 0);
-                __lsx_vst(_sum7, (outptr + 28), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
+                __lsx_vst(_sum2, outptr + 8, 0);
+                __lsx_vst(_sum3, outptr + 12, 0);
+                __lsx_vst(_sum4, outptr + 16, 0);
+                __lsx_vst(_sum5, outptr + 20, 0);
+                __lsx_vst(_sum6, outptr + 24, 0);
+                __lsx_vst(_sum7, outptr + 28, 0);
                 outptr += 32;
             }
             for (; jj + 3 < max_jj; jj += 4)
@@ -1324,9 +1324,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
-                    _sum2 = __lsx_vld((outptr + 8), 0);
-                    _sum3 = __lsx_vld((outptr + 12), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
+                    _sum2 = __lsx_vld(outptr + 8, 0);
+                    _sum3 = __lsx_vld(outptr + 12, 0);
                 }
 
                 int kk = 0;
@@ -1398,9 +1398,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
-                __lsx_vst(_sum2, (outptr + 8), 0);
-                __lsx_vst(_sum3, (outptr + 12), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
+                __lsx_vst(_sum2, outptr + 8, 0);
+                __lsx_vst(_sum3, outptr + 12, 0);
                 outptr += 16;
             }
             for (; jj + 1 < max_jj; jj += 2)
@@ -1418,7 +1418,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
                 }
 
                 int kk = 0;
@@ -1469,7 +1469,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
                 outptr += 8;
             }
             for (; jj < max_jj; jj++)
@@ -1546,18 +1546,18 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
-                    _sum2 = __lsx_vld((outptr + 8), 0);
-                    _sum3 = __lsx_vld((outptr + 12), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
+                    _sum2 = __lsx_vld(outptr + 8, 0);
+                    _sum3 = __lsx_vld(outptr + 12, 0);
                 }
 
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     __m128i _pA0 = __lsx_vreplgr2vr_w(*(int*)(pA));
-                    __m128i _pA1 = __lsx_vreplgr2vr_w(*(int*)((pA + 2)));
+                    __m128i _pA1 = __lsx_vreplgr2vr_w(*(int*)(pA + 2));
                     __m128i _pB0 = __lsx_vld(pB, 0);
-                    __m128i _pB1 = __lsx_vld((pB + 8), 0);
+                    __m128i _pB1 = __lsx_vld(pB + 8, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB1), __lsx_vmulwod_w_h(_pA0, _pB1)));
                     _sum2 = __lsx_vadd_w(_sum2, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB0), __lsx_vmulwod_w_h(_pA1, _pB0)));
@@ -1601,9 +1601,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
-                __lsx_vst(_sum2, (outptr + 8), 0);
-                __lsx_vst(_sum3, (outptr + 12), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
+                __lsx_vst(_sum2, outptr + 8, 0);
+                __lsx_vst(_sum3, outptr + 12, 0);
                 outptr += 16;
             }
             for (; jj + 3 < max_jj; jj += 4)
@@ -1621,14 +1621,14 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
                 }
 
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     __m128i _pA0 = __lsx_vreplgr2vr_w(*(int*)(pA));
-                    __m128i _pA1 = __lsx_vreplgr2vr_w(*(int*)((pA + 2)));
+                    __m128i _pA1 = __lsx_vreplgr2vr_w(*(int*)(pA + 2));
                     __m128i _pB = __lsx_vld(pB, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB), __lsx_vmulwod_w_h(_pA0, _pB)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB), __lsx_vmulwod_w_h(_pA1, _pB)));
@@ -1662,7 +1662,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
                 outptr += 2 * 4;
             }
 #endif // __loongarch_sx
@@ -1787,7 +1787,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 else
                 {
                     _sum0 = __lsx_vld(outptr, 0);
-                    _sum1 = __lsx_vld((outptr + 4), 0);
+                    _sum1 = __lsx_vld(outptr + 4, 0);
                 }
 
                 int kk = 0;
@@ -1795,7 +1795,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA = __lsx_vreplgr2vr_w(*(int*)(pA));
                     __m128i _pB0 = __lsx_vld(pB, 0);
-                    __m128i _pB1 = __lsx_vld((pB + 8), 0);
+                    __m128i _pB1 = __lsx_vld(pB + 8, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB0), __lsx_vmulwod_w_h(_pA, _pB0)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB1), __lsx_vmulwod_w_h(_pA, _pB1)));
 
@@ -1817,7 +1817,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 __lsx_vst(_sum0, outptr, 0);
-                __lsx_vst(_sum1, (outptr + 4), 0);
+                __lsx_vst(_sum1, outptr + 4, 0);
                 outptr += 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
@@ -2696,7 +2696,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 if (out_elempack == 4)
                 {
                     __lsx_vst(_tmp0, outptr0, 0);
-                    if (tj * 2 + 1 < outw) __lsx_vst(_tmp1, (outptr0 + 4), 0);
+                    if (tj * 2 + 1 < outw) __lsx_vst(_tmp1, outptr0 + 4, 0);
                 }
                 if (out_elempack == 1)
                 {
@@ -4094,9 +4094,9 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 if (out_elempack == 4)
                 {
                     __lsx_vst(_tmp0, outptr0, 0);
-                    if (tj * 4 + 1 < outw) __lsx_vst(_tmp1, (outptr0 + 4), 0);
-                    if (tj * 4 + 2 < outw) __lsx_vst(_tmp2, (outptr0 + 8), 0);
-                    if (tj * 4 + 3 < outw) __lsx_vst(_tmp3, (outptr0 + 12), 0);
+                    if (tj * 4 + 1 < outw) __lsx_vst(_tmp1, outptr0 + 4, 0);
+                    if (tj * 4 + 2 < outw) __lsx_vst(_tmp2, outptr0 + 8, 0);
+                    if (tj * 4 + 3 < outw) __lsx_vst(_tmp3, outptr0 + 12, 0);
                 }
                 if (out_elempack == 1)
                 {
