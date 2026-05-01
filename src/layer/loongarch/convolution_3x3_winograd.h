@@ -632,9 +632,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 outptr += 8;
             }
 #else // __loongarch_asx
-            float* outptr0 = outptr + b * max_jj * 4;
-            float* outptr1 = outptr + (batch + b) * max_jj * 4;
-
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
@@ -677,22 +674,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = (__m128)__lsx_vld(outptr0, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr0 + 4, 0);
-                    _sum2 = (__m128)__lsx_vld(outptr0 + 8, 0);
-                    _sum3 = (__m128)__lsx_vld(outptr0 + 12, 0);
-                    _sum4 = (__m128)__lsx_vld(outptr0 + 16, 0);
-                    _sum5 = (__m128)__lsx_vld(outptr0 + 20, 0);
-                    _sum6 = (__m128)__lsx_vld(outptr0 + 24, 0);
-                    _sum7 = (__m128)__lsx_vld(outptr0 + 28, 0);
-                    _sum8 = (__m128)__lsx_vld(outptr1, 0);
-                    _sum9 = (__m128)__lsx_vld(outptr1 + 4, 0);
-                    _sum10 = (__m128)__lsx_vld(outptr1 + 8, 0);
-                    _sum11 = (__m128)__lsx_vld(outptr1 + 12, 0);
-                    _sum12 = (__m128)__lsx_vld(outptr1 + 16, 0);
-                    _sum13 = (__m128)__lsx_vld(outptr1 + 20, 0);
-                    _sum14 = (__m128)__lsx_vld(outptr1 + 24, 0);
-                    _sum15 = (__m128)__lsx_vld(outptr1 + 28, 0);
+                    _sum0 = (__m128)__lsx_vld(outptr, 0);
+                    _sum8 = (__m128)__lsx_vld(outptr + 4, 0);
+                    _sum1 = (__m128)__lsx_vld(outptr + 8, 0);
+                    _sum9 = (__m128)__lsx_vld(outptr + 12, 0);
+                    _sum2 = (__m128)__lsx_vld(outptr + 16, 0);
+                    _sum10 = (__m128)__lsx_vld(outptr + 20, 0);
+                    _sum3 = (__m128)__lsx_vld(outptr + 24, 0);
+                    _sum11 = (__m128)__lsx_vld(outptr + 28, 0);
+                    _sum4 = (__m128)__lsx_vld(outptr + 32, 0);
+                    _sum12 = (__m128)__lsx_vld(outptr + 36, 0);
+                    _sum5 = (__m128)__lsx_vld(outptr + 40, 0);
+                    _sum13 = (__m128)__lsx_vld(outptr + 44, 0);
+                    _sum6 = (__m128)__lsx_vld(outptr + 48, 0);
+                    _sum14 = (__m128)__lsx_vld(outptr + 52, 0);
+                    _sum7 = (__m128)__lsx_vld(outptr + 56, 0);
+                    _sum15 = (__m128)__lsx_vld(outptr + 60, 0);
                 }
 
                 int kk = 0;
@@ -790,24 +787,23 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _sum15 = (__m128)__lsx_vshuf4i_w((__m128i)_sum15, _LSX_SHUFFLE(2, 1, 0, 3));
                 }
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
-                __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
-                __lsx_vst((__m128i)_sum4, outptr0 + 4 * 4, 0);
-                __lsx_vst((__m128i)_sum5, outptr0 + 4 * 5, 0);
-                __lsx_vst((__m128i)_sum6, outptr0 + 4 * 6, 0);
-                __lsx_vst((__m128i)_sum7, outptr0 + 4 * 7, 0);
-                __lsx_vst((__m128i)_sum8, outptr1, 0);
-                __lsx_vst((__m128i)_sum9, outptr1 + 4, 0);
-                __lsx_vst((__m128i)_sum10, outptr1 + 4 * 2, 0);
-                __lsx_vst((__m128i)_sum11, outptr1 + 4 * 3, 0);
-                __lsx_vst((__m128i)_sum12, outptr1 + 4 * 4, 0);
-                __lsx_vst((__m128i)_sum13, outptr1 + 4 * 5, 0);
-                __lsx_vst((__m128i)_sum14, outptr1 + 4 * 6, 0);
-                __lsx_vst((__m128i)_sum15, outptr1 + 4 * 7, 0);
-                outptr0 += 4 * 8;
-                outptr1 += 4 * 8;
+                __lsx_vst((__m128i)_sum0, outptr, 0);
+                __lsx_vst((__m128i)_sum8, outptr + 4, 0);
+                __lsx_vst((__m128i)_sum1, outptr + 8, 0);
+                __lsx_vst((__m128i)_sum9, outptr + 12, 0);
+                __lsx_vst((__m128i)_sum2, outptr + 8 * 2, 0);
+                __lsx_vst((__m128i)_sum10, outptr + 8 * 2 + 4, 0);
+                __lsx_vst((__m128i)_sum3, outptr + 8 * 3, 0);
+                __lsx_vst((__m128i)_sum11, outptr + 8 * 3 + 4, 0);
+                __lsx_vst((__m128i)_sum4, outptr + 8 * 4, 0);
+                __lsx_vst((__m128i)_sum12, outptr + 8 * 4 + 4, 0);
+                __lsx_vst((__m128i)_sum5, outptr + 8 * 5, 0);
+                __lsx_vst((__m128i)_sum13, outptr + 8 * 5 + 4, 0);
+                __lsx_vst((__m128i)_sum6, outptr + 8 * 6, 0);
+                __lsx_vst((__m128i)_sum14, outptr + 8 * 6 + 4, 0);
+                __lsx_vst((__m128i)_sum7, outptr + 8 * 7, 0);
+                __lsx_vst((__m128i)_sum15, outptr + 8 * 7 + 4, 0);
+                outptr += 8 * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -835,14 +831,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = (__m128)__lsx_vld(outptr0, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr0 + 4, 0);
-                    _sum2 = (__m128)__lsx_vld(outptr0 + 8, 0);
-                    _sum3 = (__m128)__lsx_vld(outptr0 + 12, 0);
-                    _sum4 = (__m128)__lsx_vld(outptr1, 0);
-                    _sum5 = (__m128)__lsx_vld(outptr1 + 4, 0);
-                    _sum6 = (__m128)__lsx_vld(outptr1 + 8, 0);
-                    _sum7 = (__m128)__lsx_vld(outptr1 + 12, 0);
+                    _sum0 = (__m128)__lsx_vld(outptr, 0);
+                    _sum4 = (__m128)__lsx_vld(outptr + 4, 0);
+                    _sum1 = (__m128)__lsx_vld(outptr + 8, 0);
+                    _sum5 = (__m128)__lsx_vld(outptr + 12, 0);
+                    _sum2 = (__m128)__lsx_vld(outptr + 16, 0);
+                    _sum6 = (__m128)__lsx_vld(outptr + 20, 0);
+                    _sum3 = (__m128)__lsx_vld(outptr + 24, 0);
+                    _sum7 = (__m128)__lsx_vld(outptr + 28, 0);
                 }
 
                 int kk = 0;
@@ -900,16 +896,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _sum7 = (__m128)__lsx_vshuf4i_w((__m128i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
                 }
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
-                __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
-                __lsx_vst((__m128i)_sum4, outptr1, 0);
-                __lsx_vst((__m128i)_sum5, outptr1 + 4, 0);
-                __lsx_vst((__m128i)_sum6, outptr1 + 4 * 2, 0);
-                __lsx_vst((__m128i)_sum7, outptr1 + 4 * 3, 0);
-                outptr0 += 4 * 4;
-                outptr1 += 4 * 4;
+                __lsx_vst((__m128i)_sum0, outptr, 0);
+                __lsx_vst((__m128i)_sum4, outptr + 4, 0);
+                __lsx_vst((__m128i)_sum1, outptr + 8, 0);
+                __lsx_vst((__m128i)_sum5, outptr + 12, 0);
+                __lsx_vst((__m128i)_sum2, outptr + 8 * 2, 0);
+                __lsx_vst((__m128i)_sum6, outptr + 8 * 2 + 4, 0);
+                __lsx_vst((__m128i)_sum3, outptr + 8 * 3, 0);
+                __lsx_vst((__m128i)_sum7, outptr + 8 * 3 + 4, 0);
+                outptr += 8 * 4;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
@@ -929,10 +924,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = (__m128)__lsx_vld(outptr0, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr0 + 4, 0);
-                    _sum2 = (__m128)__lsx_vld(outptr1, 0);
-                    _sum3 = (__m128)__lsx_vld(outptr1 + 4, 0);
+                    _sum0 = (__m128)__lsx_vld(outptr, 0);
+                    _sum2 = (__m128)__lsx_vld(outptr + 4, 0);
+                    _sum1 = (__m128)__lsx_vld(outptr + 8, 0);
+                    _sum3 = (__m128)__lsx_vld(outptr + 12, 0);
                 }
 
                 int kk = 0;
@@ -969,12 +964,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     }
                 }
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
-                __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                __lsx_vst((__m128i)_sum2, outptr1, 0);
-                __lsx_vst((__m128i)_sum3, outptr1 + 4, 0);
-                outptr0 += 4 * 2;
-                outptr1 += 4 * 2;
+                __lsx_vst((__m128i)_sum0, outptr, 0);
+                __lsx_vst((__m128i)_sum2, outptr + 4, 0);
+                __lsx_vst((__m128i)_sum1, outptr + 8, 0);
+                __lsx_vst((__m128i)_sum3, outptr + 12, 0);
+                outptr += 8 * 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -990,8 +984,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = (__m128)__lsx_vld(outptr0, 0);
-                    _sum1 = (__m128)__lsx_vld(outptr1, 0);
+                    _sum0 = (__m128)__lsx_vld(outptr, 0);
+                    _sum1 = (__m128)__lsx_vld(outptr + 4, 0);
                 }
 
                 int kk = 0;
@@ -1007,16 +1001,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
-                __lsx_vst((__m128i)_sum1, outptr1, 0);
-                outptr0 += 4;
-                outptr1 += 4;
+                __lsx_vst((__m128i)_sum0, outptr, 0);
+                __lsx_vst((__m128i)_sum1, outptr + 4, 0);
+                outptr += 8;
             }
 #endif // __loongarch_asx
         }
-#if !__loongarch_asx
-        outptr += max_jj * batch * 8;
-#endif
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
@@ -2180,9 +2170,9 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
+#if __loongarch_asx
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
         __attribute__((aligned(32))) float tmp[2][4][8];
@@ -2292,8 +2282,137 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 outptr0 += outw * out_elempack;
             }
         }
-    }
+#else  // __loongarch_asx
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
+        __m128 _bias1 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii + 4, 0) : (__m128)__lsx_vldi(0);
+
+        __attribute__((aligned(16))) float tmp[2][4][8];
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj * 8;
+            const float* r1 = r0 + max_jj * 8;
+            const float* r2 = r0 + max_jj * 8 * 2;
+            const float* r3 = r0 + max_jj * 8 * 3;
+
+            for (int m = 0; m < 4; m++)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r0h = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r1h = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r2h = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r3h = (__m128)__lsx_vld(r3 + 4, 0);
+
+                __m128 _tmp0 = __lsx_vfadd_s(__lsx_vfadd_s(_r0, _r1), _r2);
+                __m128 _tmp0h = __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _r1h), _r2h);
+                __m128 _tmp1 = __lsx_vfadd_s(__lsx_vfsub_s(_r1, _r2), _r3);
+                __m128 _tmp1h = __lsx_vfadd_s(__lsx_vfsub_s(_r1h, _r2h), _r3h);
+
+                __lsx_vst((__m128i)_tmp0, tmp[0][m], 0);
+                __lsx_vst((__m128i)_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp1, tmp[1][m], 0);
+                __lsx_vst((__m128i)_tmp1h, tmp[1][m] + 4, 0);
+
+                r0 += max_jj * 4 * 8;
+                r1 += max_jj * 4 * 8;
+                r2 += max_jj * 4 * 8;
+                r3 += max_jj * 4 * 8;
+            }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+
+            for (int m = 0; m < 2; m++)
+            {
+                if (ti * 2 + m >= outh)
+                    continue;
+
+                __m128 _r0 = (__m128)__lsx_vld(tmp[m][0], 0);
+                __m128 _r0h = (__m128)__lsx_vld(tmp[m][0] + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(tmp[m][1], 0);
+                __m128 _r1h = (__m128)__lsx_vld(tmp[m][1] + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(tmp[m][2], 0);
+                __m128 _r2h = (__m128)__lsx_vld(tmp[m][2] + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(tmp[m][3], 0);
+                __m128 _r3h = (__m128)__lsx_vld(tmp[m][3] + 4, 0);
+
+                __m128 _tmp0 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_r0, _r1), _r2));
+                __m128 _tmp0h = __lsx_vfadd_s(_bias1, __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _r1h), _r2h));
+                __m128 _tmp1 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfsub_s(_r1, _r2), _r3));
+                __m128 _tmp1h = __lsx_vfadd_s(_bias1, __lsx_vfadd_s(__lsx_vfsub_s(_r1h, _r2h), _r3h));
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr0 + 4, 0);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 8, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr0 + 12, 0);
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + N;
+
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr1, 0);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 4, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr1 + 4, 0);
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[8];
+                    float tmp1[8];
+                    __lsx_vst((__m128i)_tmp0, tmp0, 0);
+                    __lsx_vst((__m128i)_tmp0h, tmp0 + 4, 0);
+                    __lsx_vst((__m128i)_tmp1, tmp1, 0);
+                    __lsx_vst((__m128i)_tmp1h, tmp1 + 4, 0);
+
+                    float* outptr1 = outptr0 + N;
+                    float* outptr2 = outptr0 + N * 2;
+                    float* outptr3 = outptr0 + N * 3;
+                    float* outptr4 = outptr0 + N * 4;
+                    float* outptr5 = outptr0 + N * 5;
+                    float* outptr6 = outptr0 + N * 6;
+                    float* outptr7 = outptr0 + N * 7;
+
+                    outptr0[0] = tmp0[0];
+                    outptr1[0] = tmp0[1];
+                    outptr2[0] = tmp0[2];
+                    outptr3[0] = tmp0[3];
+                    outptr4[0] = tmp0[4];
+                    outptr5[0] = tmp0[5];
+                    outptr6[0] = tmp0[6];
+                    outptr7[0] = tmp0[7];
+
+                    if (tj * 2 + 1 < outw)
+                    {
+                        outptr0[1] = tmp1[0];
+                        outptr1[1] = tmp1[1];
+                        outptr2[1] = tmp1[2];
+                        outptr3[1] = tmp1[3];
+                        outptr4[1] = tmp1[4];
+                        outptr5[1] = tmp1[5];
+                        outptr6[1] = tmp1[6];
+                        outptr7[1] = tmp1[7];
+                    }
+                }
+
+                outptr0 += outw * out_elempack;
+            }
+        }
 #endif // __loongarch_asx
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
@@ -3353,9 +3472,9 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
+#if __loongarch_asx
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
         __attribute__((aligned(32))) float tmp[4][6][8];
@@ -3530,8 +3649,233 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 outptr0 += outw * out_elempack;
             }
         }
-    }
+#else  // __loongarch_asx
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
+        __m128 _bias1 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii + 4, 0) : (__m128)__lsx_vldi(0);
+
+        __attribute__((aligned(16))) float tmp[4][6][8];
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj * 8;
+            const float* r1 = r0 + max_jj * 8;
+            const float* r2 = r0 + max_jj * 8 * 2;
+            const float* r3 = r0 + max_jj * 8 * 3;
+            const float* r4 = r0 + max_jj * 8 * 4;
+            const float* r5 = r0 + max_jj * 8 * 5;
+
+            __m128 _vsq2 = (__m128)__lsx_vreplfr2vr_s(sq2);
+            __m128 _vsq2_d2 = (__m128)__lsx_vreplfr2vr_s(sq2_d2);
+            __m128 _vsq2_d4 = (__m128)__lsx_vreplfr2vr_s(sq2_d4);
+            __m128 _vsq2_m2 = (__m128)__lsx_vreplfr2vr_s(sq2_m2);
+            __m128 _v0_5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
+            __m128 _v2 = (__m128)__lsx_vreplfr2vr_s(2.f);
+
+            for (int m = 0; m < 6; m++)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r0h = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r1h = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r2h = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r3h = (__m128)__lsx_vld(r3 + 4, 0);
+                __m128 _r4 = (__m128)__lsx_vld(r4, 0);
+                __m128 _r4h = (__m128)__lsx_vld(r4 + 4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(r5, 0);
+                __m128 _r5h = (__m128)__lsx_vld(r5 + 4, 0);
+
+                __m128 _tmp02a = __lsx_vfadd_s(_r1, _r2);
+                __m128 _tmp02ah = __lsx_vfadd_s(_r1h, _r2h);
+                __m128 _tmp02b = __lsx_vfadd_s(_r3, _r4);
+                __m128 _tmp02bh = __lsx_vfadd_s(_r3h, _r4h);
+                __m128 _tmp13a = __lsx_vfsub_s(_r1, _r2);
+                __m128 _tmp13ah = __lsx_vfsub_s(_r1h, _r2h);
+                __m128 _tmp13b = __lsx_vfsub_s(_r3, _r4);
+                __m128 _tmp13bh = __lsx_vfsub_s(_r3h, _r4h);
+
+                __m128 _tmp0 = __lsx_vfadd_s(__lsx_vfadd_s(_r0, _tmp02a), _tmp02b);
+                __m128 _tmp0h = __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _tmp02ah), _tmp02bh);
+                __m128 _tmp1 = __lsx_vfmadd_s(_tmp13b, _vsq2, __lsx_vfmul_s(_tmp13a, _vsq2_d2));
+                __m128 _tmp1h = __lsx_vfmadd_s(_tmp13bh, _vsq2, __lsx_vfmul_s(_tmp13ah, _vsq2_d2));
+                __m128 _tmp2 = __lsx_vfmadd_s(_tmp02b, _v2, __lsx_vfmul_s(_tmp02a, _v0_5));
+                __m128 _tmp2h = __lsx_vfmadd_s(_tmp02bh, _v2, __lsx_vfmul_s(_tmp02ah, _v0_5));
+                __m128 _tmp3 = __lsx_vfmadd_s(_tmp13b, _vsq2_m2, __lsx_vfmadd_s(_tmp13a, _vsq2_d4, _r5));
+                __m128 _tmp3h = __lsx_vfmadd_s(_tmp13bh, _vsq2_m2, __lsx_vfmadd_s(_tmp13ah, _vsq2_d4, _r5h));
+
+                __lsx_vst((__m128i)_tmp0, tmp[0][m], 0);
+                __lsx_vst((__m128i)_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp1, tmp[1][m], 0);
+                __lsx_vst((__m128i)_tmp1h, tmp[1][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp2, tmp[2][m], 0);
+                __lsx_vst((__m128i)_tmp2h, tmp[2][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp3, tmp[3][m], 0);
+                __lsx_vst((__m128i)_tmp3h, tmp[3][m] + 4, 0);
+
+                r0 += max_jj * 6 * 8;
+                r1 += max_jj * 6 * 8;
+                r2 += max_jj * 6 * 8;
+                r3 += max_jj * 6 * 8;
+                r4 += max_jj * 6 * 8;
+                r5 += max_jj * 6 * 8;
+            }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+
+            for (int m = 0; m < 4; m++)
+            {
+                if (ti * 4 + m >= outh)
+                    continue;
+
+                __m128 _r0 = (__m128)__lsx_vld(tmp[m][0], 0);
+                __m128 _r0h = (__m128)__lsx_vld(tmp[m][0] + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(tmp[m][1], 0);
+                __m128 _r1h = (__m128)__lsx_vld(tmp[m][1] + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(tmp[m][2], 0);
+                __m128 _r2h = (__m128)__lsx_vld(tmp[m][2] + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(tmp[m][3], 0);
+                __m128 _r3h = (__m128)__lsx_vld(tmp[m][3] + 4, 0);
+                __m128 _r4 = (__m128)__lsx_vld(tmp[m][4], 0);
+                __m128 _r4h = (__m128)__lsx_vld(tmp[m][4] + 4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(tmp[m][5], 0);
+                __m128 _r5h = (__m128)__lsx_vld(tmp[m][5] + 4, 0);
+
+                __m128 _tmp02a = __lsx_vfadd_s(_r1, _r2);
+                __m128 _tmp02ah = __lsx_vfadd_s(_r1h, _r2h);
+                __m128 _tmp02b = __lsx_vfadd_s(_r3, _r4);
+                __m128 _tmp02bh = __lsx_vfadd_s(_r3h, _r4h);
+                __m128 _tmp13a = __lsx_vfsub_s(_r1, _r2);
+                __m128 _tmp13ah = __lsx_vfsub_s(_r1h, _r2h);
+                __m128 _tmp13b = __lsx_vfsub_s(_r3, _r4);
+                __m128 _tmp13bh = __lsx_vfsub_s(_r3h, _r4h);
+
+                __m128 _tmp0 = __lsx_vfadd_s(__lsx_vfadd_s(_r0, _tmp02a), __lsx_vfadd_s(_tmp02b, _bias0));
+                __m128 _tmp0h = __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _tmp02ah), __lsx_vfadd_s(_tmp02bh, _bias1));
+                __m128 _tmp1 = __lsx_vfmadd_s(_tmp13b, _vsq2, __lsx_vfmadd_s(_tmp13a, _vsq2_d2, _bias0));
+                __m128 _tmp1h = __lsx_vfmadd_s(_tmp13bh, _vsq2, __lsx_vfmadd_s(_tmp13ah, _vsq2_d2, _bias1));
+                __m128 _tmp2 = __lsx_vfmadd_s(_tmp02b, _v2, __lsx_vfmadd_s(_tmp02a, _v0_5, _bias0));
+                __m128 _tmp2h = __lsx_vfmadd_s(_tmp02bh, _v2, __lsx_vfmadd_s(_tmp02ah, _v0_5, _bias1));
+                __m128 _tmp3 = __lsx_vfmadd_s(_tmp13b, _vsq2_m2, __lsx_vfmadd_s(_tmp13a, _vsq2_d4, __lsx_vfadd_s(_r5, _bias0)));
+                __m128 _tmp3h = __lsx_vfmadd_s(_tmp13bh, _vsq2_m2, __lsx_vfmadd_s(_tmp13ah, _vsq2_d4, __lsx_vfadd_s(_r5h, _bias1)));
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr0 + 4, 0);
+                    if (tj * 4 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 8, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr0 + 12, 0);
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp2, outptr0 + 16, 0);
+                        __lsx_vst((__m128i)_tmp2h, outptr0 + 20, 0);
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp3, outptr0 + 24, 0);
+                        __lsx_vst((__m128i)_tmp3h, outptr0 + 28, 0);
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + N;
+
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr1, 0);
+                    if (tj * 4 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 4, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr1 + 4, 0);
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp2, outptr0 + 8, 0);
+                        __lsx_vst((__m128i)_tmp2h, outptr1 + 8, 0);
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp3, outptr0 + 12, 0);
+                        __lsx_vst((__m128i)_tmp3h, outptr1 + 12, 0);
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[8];
+                    float tmp1[8];
+                    float tmp2[8];
+                    float tmp3[8];
+                    __lsx_vst((__m128i)_tmp0, tmp0, 0);
+                    __lsx_vst((__m128i)_tmp0h, tmp0 + 4, 0);
+                    __lsx_vst((__m128i)_tmp1, tmp1, 0);
+                    __lsx_vst((__m128i)_tmp1h, tmp1 + 4, 0);
+                    __lsx_vst((__m128i)_tmp2, tmp2, 0);
+                    __lsx_vst((__m128i)_tmp2h, tmp2 + 4, 0);
+                    __lsx_vst((__m128i)_tmp3, tmp3, 0);
+                    __lsx_vst((__m128i)_tmp3h, tmp3 + 4, 0);
+
+                    float* outptr1 = outptr0 + N;
+                    float* outptr2 = outptr0 + N * 2;
+                    float* outptr3 = outptr0 + N * 3;
+                    float* outptr4 = outptr0 + N * 4;
+                    float* outptr5 = outptr0 + N * 5;
+                    float* outptr6 = outptr0 + N * 6;
+                    float* outptr7 = outptr0 + N * 7;
+
+                    outptr0[0] = tmp0[0];
+                    outptr1[0] = tmp0[1];
+                    outptr2[0] = tmp0[2];
+                    outptr3[0] = tmp0[3];
+                    outptr4[0] = tmp0[4];
+                    outptr5[0] = tmp0[5];
+                    outptr6[0] = tmp0[6];
+                    outptr7[0] = tmp0[7];
+                    if (tj * 4 + 1 < outw)
+                    {
+                        outptr0[1] = tmp1[0];
+                        outptr1[1] = tmp1[1];
+                        outptr2[1] = tmp1[2];
+                        outptr3[1] = tmp1[3];
+                        outptr4[1] = tmp1[4];
+                        outptr5[1] = tmp1[5];
+                        outptr6[1] = tmp1[6];
+                        outptr7[1] = tmp1[7];
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        outptr0[2] = tmp2[0];
+                        outptr1[2] = tmp2[1];
+                        outptr2[2] = tmp2[2];
+                        outptr3[2] = tmp2[3];
+                        outptr4[2] = tmp2[4];
+                        outptr5[2] = tmp2[5];
+                        outptr6[2] = tmp2[6];
+                        outptr7[2] = tmp2[7];
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        outptr0[3] = tmp3[0];
+                        outptr1[3] = tmp3[1];
+                        outptr2[3] = tmp3[2];
+                        outptr3[3] = tmp3[3];
+                        outptr4[3] = tmp3[4];
+                        outptr5[3] = tmp3[5];
+                        outptr6[3] = tmp3[6];
+                        outptr7[3] = tmp3[7];
+                    }
+                }
+
+                outptr0 += outw * out_elempack;
+            }
+        }
 #endif // __loongarch_asx
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
@@ -4872,9 +5216,9 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
     int ii = 0;
 #if __loongarch_sx
-#if __loongarch_asx
     for (; ii + 7 < max_ii; ii += 8)
     {
+#if __loongarch_asx
         __m256 _bias0 = biasptr ? (__m256)__lasx_xvld(biasptr + i + ii, 0) : (__m256)__lasx_xvldi(0);
 
         __attribute__((aligned(32))) float tmp[6][8][8];
@@ -5102,8 +5446,310 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 outptr0 += outw * out_elempack;
             }
         }
-    }
+#else  // __loongarch_asx
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
+        __m128 _bias1 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii + 4, 0) : (__m128)__lsx_vldi(0);
+
+        __attribute__((aligned(16))) float tmp[6][8][8];
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            const float* r0 = (const float*)top_tile + ii * max_jj * 64 + jj * 8;
+            const float* r1 = r0 + max_jj * 8;
+            const float* r2 = r0 + max_jj * 8 * 2;
+            const float* r3 = r0 + max_jj * 8 * 3;
+            const float* r4 = r0 + max_jj * 8 * 4;
+            const float* r5 = r0 + max_jj * 8 * 5;
+            const float* r6 = r0 + max_jj * 8 * 6;
+            const float* r7 = r0 + max_jj * 8 * 7;
+
+            __m128 _v32 = (__m128)__lsx_vreplfr2vr_s(32.f);
+            __m128 _v16 = (__m128)__lsx_vreplfr2vr_s(16.f);
+            __m128 _v8 = (__m128)__lsx_vreplfr2vr_s(8.f);
+            __m128 _v4 = (__m128)__lsx_vreplfr2vr_s(4.f);
+            __m128 _v2 = (__m128)__lsx_vreplfr2vr_s(2.f);
+
+            for (int m = 0; m < 8; m++)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r0h = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r1h = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r2h = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r3h = (__m128)__lsx_vld(r3 + 4, 0);
+                __m128 _r4 = (__m128)__lsx_vld(r4, 0);
+                __m128 _r4h = (__m128)__lsx_vld(r4 + 4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(r5, 0);
+                __m128 _r5h = (__m128)__lsx_vld(r5 + 4, 0);
+                __m128 _r6 = (__m128)__lsx_vld(r6, 0);
+                __m128 _r6h = (__m128)__lsx_vld(r6 + 4, 0);
+                __m128 _r7 = (__m128)__lsx_vld(r7, 0);
+                __m128 _r7h = (__m128)__lsx_vld(r7 + 4, 0);
+
+                __m128 _tmp024a = __lsx_vfadd_s(_r1, _r2);
+                __m128 _tmp024ah = __lsx_vfadd_s(_r1h, _r2h);
+                __m128 _tmp135a = __lsx_vfsub_s(_r1, _r2);
+                __m128 _tmp135ah = __lsx_vfsub_s(_r1h, _r2h);
+                __m128 _tmp024b = __lsx_vfadd_s(_r3, _r4);
+                __m128 _tmp024bh = __lsx_vfadd_s(_r3h, _r4h);
+                __m128 _tmp135b = __lsx_vfsub_s(_r3, _r4);
+                __m128 _tmp135bh = __lsx_vfsub_s(_r3h, _r4h);
+                __m128 _tmp024c = __lsx_vfadd_s(_r5, _r6);
+                __m128 _tmp024ch = __lsx_vfadd_s(_r5h, _r6h);
+                __m128 _tmp135c = __lsx_vfsub_s(_r5, _r6);
+                __m128 _tmp135ch = __lsx_vfsub_s(_r5h, _r6h);
+                __m128 _tmp0 = __lsx_vfadd_s(__lsx_vfadd_s(_r0, _tmp024a), __lsx_vfmadd_s(_v32, _tmp024c, _tmp024b));
+                __m128 _tmp0h = __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _tmp024ah), __lsx_vfmadd_s(_v32, _tmp024ch, _tmp024bh));
+                __m128 _tmp1 = __lsx_vfmadd_s(_v16, _tmp135c, __lsx_vfmadd_s(_v2, _tmp135b, _tmp135a));
+                __m128 _tmp1h = __lsx_vfmadd_s(_v16, _tmp135ch, __lsx_vfmadd_s(_v2, _tmp135bh, _tmp135ah));
+                __m128 _tmp2 = __lsx_vfmadd_s(_v8, _tmp024c, __lsx_vfmadd_s(_v4, _tmp024b, _tmp024a));
+                __m128 _tmp2h = __lsx_vfmadd_s(_v8, _tmp024ch, __lsx_vfmadd_s(_v4, _tmp024bh, _tmp024ah));
+                __m128 _tmp3 = __lsx_vfmadd_s(_v4, _tmp135c, __lsx_vfmadd_s(_v8, _tmp135b, _tmp135a));
+                __m128 _tmp3h = __lsx_vfmadd_s(_v4, _tmp135ch, __lsx_vfmadd_s(_v8, _tmp135bh, _tmp135ah));
+                __m128 _tmp4 = __lsx_vfmadd_s(_v2, _tmp024c, __lsx_vfmadd_s(_v16, _tmp024b, _tmp024a));
+                __m128 _tmp4h = __lsx_vfmadd_s(_v2, _tmp024ch, __lsx_vfmadd_s(_v16, _tmp024bh, _tmp024ah));
+                __m128 _tmp5 = __lsx_vfadd_s(__lsx_vfadd_s(_r7, _tmp135a), __lsx_vfmadd_s(_v32, _tmp135b, _tmp135c));
+                __m128 _tmp5h = __lsx_vfadd_s(__lsx_vfadd_s(_r7h, _tmp135ah), __lsx_vfmadd_s(_v32, _tmp135bh, _tmp135ch));
+
+                __lsx_vst((__m128i)_tmp0, tmp[0][m], 0);
+                __lsx_vst((__m128i)_tmp0h, tmp[0][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp1, tmp[1][m], 0);
+                __lsx_vst((__m128i)_tmp1h, tmp[1][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp2, tmp[2][m], 0);
+                __lsx_vst((__m128i)_tmp2h, tmp[2][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp3, tmp[3][m], 0);
+                __lsx_vst((__m128i)_tmp3h, tmp[3][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp4, tmp[4][m], 0);
+                __lsx_vst((__m128i)_tmp4h, tmp[4][m] + 4, 0);
+                __lsx_vst((__m128i)_tmp5, tmp[5][m], 0);
+                __lsx_vst((__m128i)_tmp5h, tmp[5][m] + 4, 0);
+
+                r0 += max_jj * 8 * 8;
+                r1 += max_jj * 8 * 8;
+                r2 += max_jj * 8 * 8;
+                r3 += max_jj * 8 * 8;
+                r4 += max_jj * 8 * 8;
+                r5 += max_jj * 8 * 8;
+                r6 += max_jj * 8 * 8;
+                r7 += max_jj * 8 * 8;
+            }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 6) + (tj * 6) * out_elempack;
+
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+                __m128 _r0 = (__m128)__lsx_vld(tmp[m][0], 0);
+                __m128 _r0h = (__m128)__lsx_vld(tmp[m][0] + 4, 0);
+                __m128 _r1 = (__m128)__lsx_vld(tmp[m][1], 0);
+                __m128 _r1h = (__m128)__lsx_vld(tmp[m][1] + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(tmp[m][2], 0);
+                __m128 _r2h = (__m128)__lsx_vld(tmp[m][2] + 4, 0);
+                __m128 _r3 = (__m128)__lsx_vld(tmp[m][3], 0);
+                __m128 _r3h = (__m128)__lsx_vld(tmp[m][3] + 4, 0);
+                __m128 _r4 = (__m128)__lsx_vld(tmp[m][4], 0);
+                __m128 _r4h = (__m128)__lsx_vld(tmp[m][4] + 4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(tmp[m][5], 0);
+                __m128 _r5h = (__m128)__lsx_vld(tmp[m][5] + 4, 0);
+                __m128 _r6 = (__m128)__lsx_vld(tmp[m][6], 0);
+                __m128 _r6h = (__m128)__lsx_vld(tmp[m][6] + 4, 0);
+                __m128 _r7 = (__m128)__lsx_vld(tmp[m][7], 0);
+                __m128 _r7h = (__m128)__lsx_vld(tmp[m][7] + 4, 0);
+
+                __m128 _tmp024a = __lsx_vfadd_s(_r1, _r2);
+                __m128 _tmp024ah = __lsx_vfadd_s(_r1h, _r2h);
+                __m128 _tmp135a = __lsx_vfsub_s(_r1, _r2);
+                __m128 _tmp135ah = __lsx_vfsub_s(_r1h, _r2h);
+                __m128 _tmp024b = __lsx_vfadd_s(_r3, _r4);
+                __m128 _tmp024bh = __lsx_vfadd_s(_r3h, _r4h);
+                __m128 _tmp135b = __lsx_vfsub_s(_r3, _r4);
+                __m128 _tmp135bh = __lsx_vfsub_s(_r3h, _r4h);
+                __m128 _tmp024c = __lsx_vfadd_s(_r5, _r6);
+                __m128 _tmp024ch = __lsx_vfadd_s(_r5h, _r6h);
+                __m128 _tmp135c = __lsx_vfsub_s(_r5, _r6);
+                __m128 _tmp135ch = __lsx_vfsub_s(_r5h, _r6h);
+                __m128 _tmp0 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_r0, _tmp024a), __lsx_vfmadd_s(_v32, _tmp024c, _tmp024b)));
+                __m128 _tmp0h = __lsx_vfadd_s(_bias1, __lsx_vfadd_s(__lsx_vfadd_s(_r0h, _tmp024ah), __lsx_vfmadd_s(_v32, _tmp024ch, _tmp024bh)));
+                __m128 _tmp1 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_v16, _tmp135c, __lsx_vfmadd_s(_v2, _tmp135b, _tmp135a)));
+                __m128 _tmp1h = __lsx_vfadd_s(_bias1, __lsx_vfmadd_s(_v16, _tmp135ch, __lsx_vfmadd_s(_v2, _tmp135bh, _tmp135ah)));
+                __m128 _tmp2 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_v8, _tmp024c, __lsx_vfmadd_s(_v4, _tmp024b, _tmp024a)));
+                __m128 _tmp2h = __lsx_vfadd_s(_bias1, __lsx_vfmadd_s(_v8, _tmp024ch, __lsx_vfmadd_s(_v4, _tmp024bh, _tmp024ah)));
+                __m128 _tmp3 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_v4, _tmp135c, __lsx_vfmadd_s(_v8, _tmp135b, _tmp135a)));
+                __m128 _tmp3h = __lsx_vfadd_s(_bias1, __lsx_vfmadd_s(_v4, _tmp135ch, __lsx_vfmadd_s(_v8, _tmp135bh, _tmp135ah)));
+                __m128 _tmp4 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_v2, _tmp024c, __lsx_vfmadd_s(_v16, _tmp024b, _tmp024a)));
+                __m128 _tmp4h = __lsx_vfadd_s(_bias1, __lsx_vfmadd_s(_v2, _tmp024ch, __lsx_vfmadd_s(_v16, _tmp024bh, _tmp024ah)));
+                __m128 _tmp5 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_r7, _tmp135a), __lsx_vfmadd_s(_v32, _tmp135b, _tmp135c)));
+                __m128 _tmp5h = __lsx_vfadd_s(_bias1, __lsx_vfadd_s(__lsx_vfadd_s(_r7h, _tmp135ah), __lsx_vfmadd_s(_v32, _tmp135bh, _tmp135ch)));
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr0 + 4, 0);
+                    if (tj * 6 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 8, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr0 + 12, 0);
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp2, outptr0 + 16, 0);
+                        __lsx_vst((__m128i)_tmp2h, outptr0 + 20, 0);
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp3, outptr0 + 24, 0);
+                        __lsx_vst((__m128i)_tmp3h, outptr0 + 28, 0);
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp4, outptr0 + 32, 0);
+                        __lsx_vst((__m128i)_tmp4h, outptr0 + 36, 0);
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp5, outptr0 + 40, 0);
+                        __lsx_vst((__m128i)_tmp5h, outptr0 + 44, 0);
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + N;
+
+                    __lsx_vst((__m128i)_tmp0, outptr0, 0);
+                    __lsx_vst((__m128i)_tmp0h, outptr1, 0);
+                    if (tj * 6 + 1 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp1, outptr0 + 4, 0);
+                        __lsx_vst((__m128i)_tmp1h, outptr1 + 4, 0);
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp2, outptr0 + 8, 0);
+                        __lsx_vst((__m128i)_tmp2h, outptr1 + 8, 0);
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp3, outptr0 + 12, 0);
+                        __lsx_vst((__m128i)_tmp3h, outptr1 + 12, 0);
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp4, outptr0 + 16, 0);
+                        __lsx_vst((__m128i)_tmp4h, outptr1 + 16, 0);
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        __lsx_vst((__m128i)_tmp5, outptr0 + 20, 0);
+                        __lsx_vst((__m128i)_tmp5h, outptr1 + 20, 0);
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[8];
+                    float tmp1[8];
+                    float tmp2[8];
+                    float tmp3[8];
+                    float tmp4[8];
+                    float tmp5[8];
+                    __lsx_vst((__m128i)_tmp0, tmp0, 0);
+                    __lsx_vst((__m128i)_tmp0h, tmp0 + 4, 0);
+                    __lsx_vst((__m128i)_tmp1, tmp1, 0);
+                    __lsx_vst((__m128i)_tmp1h, tmp1 + 4, 0);
+                    __lsx_vst((__m128i)_tmp2, tmp2, 0);
+                    __lsx_vst((__m128i)_tmp2h, tmp2 + 4, 0);
+                    __lsx_vst((__m128i)_tmp3, tmp3, 0);
+                    __lsx_vst((__m128i)_tmp3h, tmp3 + 4, 0);
+                    __lsx_vst((__m128i)_tmp4, tmp4, 0);
+                    __lsx_vst((__m128i)_tmp4h, tmp4 + 4, 0);
+                    __lsx_vst((__m128i)_tmp5, tmp5, 0);
+                    __lsx_vst((__m128i)_tmp5h, tmp5 + 4, 0);
+
+                    float* outptr1 = outptr0 + N;
+                    float* outptr2 = outptr0 + N * 2;
+                    float* outptr3 = outptr0 + N * 3;
+                    float* outptr4 = outptr0 + N * 4;
+                    float* outptr5 = outptr0 + N * 5;
+                    float* outptr6 = outptr0 + N * 6;
+                    float* outptr7 = outptr0 + N * 7;
+
+                    outptr0[0] = tmp0[0];
+                    outptr1[0] = tmp0[1];
+                    outptr2[0] = tmp0[2];
+                    outptr3[0] = tmp0[3];
+                    outptr4[0] = tmp0[4];
+                    outptr5[0] = tmp0[5];
+                    outptr6[0] = tmp0[6];
+                    outptr7[0] = tmp0[7];
+                    if (tj * 6 + 1 < outw)
+                    {
+                        outptr0[1] = tmp1[0];
+                        outptr1[1] = tmp1[1];
+                        outptr2[1] = tmp1[2];
+                        outptr3[1] = tmp1[3];
+                        outptr4[1] = tmp1[4];
+                        outptr5[1] = tmp1[5];
+                        outptr6[1] = tmp1[6];
+                        outptr7[1] = tmp1[7];
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        outptr0[2] = tmp2[0];
+                        outptr1[2] = tmp2[1];
+                        outptr2[2] = tmp2[2];
+                        outptr3[2] = tmp2[3];
+                        outptr4[2] = tmp2[4];
+                        outptr5[2] = tmp2[5];
+                        outptr6[2] = tmp2[6];
+                        outptr7[2] = tmp2[7];
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        outptr0[3] = tmp3[0];
+                        outptr1[3] = tmp3[1];
+                        outptr2[3] = tmp3[2];
+                        outptr3[3] = tmp3[3];
+                        outptr4[3] = tmp3[4];
+                        outptr5[3] = tmp3[5];
+                        outptr6[3] = tmp3[6];
+                        outptr7[3] = tmp3[7];
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        outptr0[4] = tmp4[0];
+                        outptr1[4] = tmp4[1];
+                        outptr2[4] = tmp4[2];
+                        outptr3[4] = tmp4[3];
+                        outptr4[4] = tmp4[4];
+                        outptr5[4] = tmp4[5];
+                        outptr6[4] = tmp4[6];
+                        outptr7[4] = tmp4[7];
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        outptr0[5] = tmp5[0];
+                        outptr1[5] = tmp5[1];
+                        outptr2[5] = tmp5[2];
+                        outptr3[5] = tmp5[3];
+                        outptr4[5] = tmp5[4];
+                        outptr5[5] = tmp5[5];
+                        outptr6[5] = tmp5[6];
+                        outptr7[5] = tmp5[7];
+                    }
+                }
+
+                outptr0 += outw * out_elempack;
+            }
+        }
 #endif // __loongarch_asx
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + i + ii, 0) : (__m128)__lsx_vldi(0);
