@@ -159,11 +159,14 @@ static NCNN_FORCEINLINE v4i32 __msa_loadl_d(const void* ptr)
 {
     // Load low 64 bits only; callers must not depend on the upper 64 bits.
 #if __mips64
-    return (v4i32)__msa_fill_d(*(const int64_t*)ptr);
+    int64_t val;
+    memcpy(&val, ptr, sizeof(int64_t));
+    return (v4i32)__msa_fill_d(val);
 #else
-    const int* ptr32 = (const int*)ptr;
-    v4i32 _v = __msa_fill_w(ptr32[0]);
-    _v = __msa_insert_w(_v, 1, ptr32[1]);
+    int32_t val[2];
+    memcpy(val, ptr, sizeof(int64_t));
+    v4i32 _v = __msa_fill_w(val[0]);
+    _v = __msa_insert_w(_v, 1, val[1]);
     return _v;
 #endif
 }

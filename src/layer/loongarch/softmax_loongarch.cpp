@@ -73,12 +73,6 @@ static void softmax(float* _ptr, int elemcount, int elempack)
     }
 
 #if __loongarch_sx
-#if __loongarch_asx
-    if (elempack == 8)
-    {
-        _max_lasx = __lasx_xvfmax_s(_max_lasx, _max_lasx);
-    }
-#endif // __loongarch_asx
     if (elempack == 4)
     {
 #if __loongarch_asx

@@ -3,6 +3,13 @@
 
 #include "concat_mips.h"
 
+#include <stdint.h>
+#include <string.h>
+
+#if __mips_msa
+#include <msa.h>
+#endif // __mips_msa
+
 namespace ncnn {
 
 Concat_mips::Concat_mips()
@@ -108,7 +115,40 @@ int Concat_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     float* outptr2 = outptr + w * 2;
                     float* outptr3 = outptr + w * 3;
 
-                    for (int j = 0; j < w; j++)
+                    int j = 0;
+#if __mips_msa
+                    for (; j + 3 < w; j += 4)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        // transpose 4x4
+                        v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                        v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                        v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                        v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                        v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                        v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                        v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                        v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                        v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                        v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                        v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                        v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                        __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                        __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                        __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                        __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                        r0 += 16;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                    }
+#endif // __mips_msa
+                    for (; j < w; j++)
                     {
                         __builtin_prefetch(r0 + 32);
 
@@ -234,7 +274,40 @@ int Concat_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     float* outptr2 = top_blob_unpacked.channel(p + 2);
                     float* outptr3 = top_blob_unpacked.channel(p + 3);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+#if __mips_msa
+                    for (; i + 3 < size; i += 4)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        // transpose 4x4
+                        v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                        v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                        v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                        v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                        v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                        v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                        v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                        v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                        v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                        v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                        v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                        v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                        __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                        __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                        __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                        __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                        r0 += 16;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                    }
+#endif // __mips_msa
+                    for (; i < size; i++)
                     {
                         __builtin_prefetch(r0 + 32);
 
@@ -500,7 +573,40 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
                     unsigned short* outptr2 = outptr + w * 2;
                     unsigned short* outptr3 = outptr + w * 3;
 
-                    for (int j = 0; j < w; j++)
+                    int j = 0;
+#if __mips_msa
+                    for (; j + 3 < w; j += 4)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        // transpose 4x4 unsigned short
+                        v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                        v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+
+                        v8i16 _r01l = __msa_ilvr_h(_r1, _r0);
+                        v8i16 _r01h = __msa_ilvl_h(_r1, _r0);
+
+                        v8i16 _r0123ll = (v8i16)__msa_ilvr_h(_r01h, _r01l);
+                        v8i16 _r0123lh = (v8i16)__msa_ilvl_h(_r01h, _r01l);
+
+                        uint64_t v0 = __msa_copy_s_d((v2i64)_r0123ll, 0);
+                        uint64_t v1 = __msa_copy_s_d((v2i64)_r0123ll, 1);
+                        uint64_t v2 = __msa_copy_s_d((v2i64)_r0123lh, 0);
+                        uint64_t v3 = __msa_copy_s_d((v2i64)_r0123lh, 1);
+
+                        memcpy(outptr0, &v0, 8);
+                        memcpy(outptr1, &v1, 8);
+                        memcpy(outptr2, &v2, 8);
+                        memcpy(outptr3, &v3, 8);
+
+                        r0 += 16;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                    }
+#endif // __mips_msa
+                    for (; j < w; j++)
                     {
                         *outptr0++ = r0[0];
                         *outptr1++ = r0[1];
@@ -628,7 +734,39 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
                     unsigned short* outptr2 = top_blob_unpacked.channel(p + 2);
                     unsigned short* outptr3 = top_blob_unpacked.channel(p + 3);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+#if __mips_msa
+                    for (; i + 3 < size; i += 4)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                        v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+
+                        v8i16 _r01l = __msa_ilvr_h(_r1, _r0);
+                        v8i16 _r01h = __msa_ilvl_h(_r1, _r0);
+
+                        v8i16 _r0123ll = (v8i16)__msa_ilvr_h(_r01h, _r01l);
+                        v8i16 _r0123lh = (v8i16)__msa_ilvl_h(_r01h, _r01l);
+
+                        uint64_t v0 = __msa_copy_s_d((v2i64)_r0123ll, 0);
+                        uint64_t v1 = __msa_copy_s_d((v2i64)_r0123ll, 1);
+                        uint64_t v2 = __msa_copy_s_d((v2i64)_r0123lh, 0);
+                        uint64_t v3 = __msa_copy_s_d((v2i64)_r0123lh, 1);
+
+                        memcpy(outptr0, &v0, 8);
+                        memcpy(outptr1, &v1, 8);
+                        memcpy(outptr2, &v2, 8);
+                        memcpy(outptr3, &v3, 8);
+
+                        r0 += 16;
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                    }
+#endif // __mips_msa
+                    for (; i < size; i++)
                     {
                         *outptr0++ = r0[0];
                         *outptr1++ = r0[1];

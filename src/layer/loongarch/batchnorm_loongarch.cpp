@@ -43,7 +43,7 @@ static void batchnorm_bf16s_lsx(unsigned short* ptr, const float* a, const float
     {
         __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
         _p = __lsx_vfmadd_s(_p, _b128, _a128);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;
     }
 #endif // __loongarch_sx
@@ -82,7 +82,7 @@ static void batchnorm_bf16s_per_element_lsx(unsigned short* ptr, const float* a,
         __m128 _a0 = (__m128)__lsx_vld(a + i, 0);
         __m128 _b0 = (__m128)__lsx_vld(b + i, 0);
         _p = __lsx_vfmadd_s(_p, _b0, _a0);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr + i, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
     }
     remain_size_start += nn_size * 4;
 #endif // __loongarch_sx

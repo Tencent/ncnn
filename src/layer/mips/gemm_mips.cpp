@@ -4667,7 +4667,11 @@ int Gemm_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 #if NCNN_INT8
 int Gemm_mips::create_pipeline_int8(const Option& opt)
 {
+#if __mips_msa
+    support_packing = true;
+#else
     support_packing = false;
+#endif
     support_bf16_storage = false;
 
     if (constantA)
@@ -4779,20 +4783,20 @@ int Gemm_mips::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         const Mat& B = bottom_blobs[0];
         M = constantM;
-        N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
         N = constantN;
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
-        N = transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
     }
 
     Mat C;
@@ -4815,20 +4819,33 @@ int Gemm_mips::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             broadcast_type_C = resolve_broadcast_type_C(C, M, N);
     }
 
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+
+    if (output_elempack)
+        out_elempack = output_elempack;
+    size_t out_elemsize = 4u * out_elempack;
+
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, 4u, opt.blob_allocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(M, N, 4u, opt.blob_allocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, 4u, opt.blob_allocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(N, M, 4u, opt.blob_allocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;

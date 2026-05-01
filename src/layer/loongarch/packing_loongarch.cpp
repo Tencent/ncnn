@@ -5,6 +5,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#include "loongarch_usability.h"
 #if __loongarch_asx
 #include <lasxintrin.h>
 #endif // __loongarch_asx
@@ -240,6 +241,38 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr = top_blob.row(i);
 
                 int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(r1, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(r2, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(r3, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(r4, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(r5, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(r6, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(r7, 0);
+
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lasx_xvst((__m256i)_r0, outptr, 0);
+                    __lasx_xvst((__m256i)_r1, outptr + 8, 0);
+                    __lasx_xvst((__m256i)_r2, outptr + 16, 0);
+                    __lasx_xvst((__m256i)_r3, outptr + 24, 0);
+                    __lasx_xvst((__m256i)_r4, outptr + 32, 0);
+                    __lasx_xvst((__m256i)_r5, outptr + 40, 0);
+                    __lasx_xvst((__m256i)_r6, outptr + 48, 0);
+                    __lasx_xvst((__m256i)_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -272,6 +305,38 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr7 = top_blob.row(i * 8 + 7);
 
                 int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(r0 + 8, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(r0 + 16, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(r0 + 24, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(r0 + 32, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(r0 + 40, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(r0 + 48, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(r0 + 56, 0);
+
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lasx_xvst((__m256i)_r0, outptr0, 0);
+                    __lasx_xvst((__m256i)_r1, outptr1, 0);
+                    __lasx_xvst((__m256i)_r2, outptr2, 0);
+                    __lasx_xvst((__m256i)_r3, outptr3, 0);
+                    __lasx_xvst((__m256i)_r4, outptr4, 0);
+                    __lasx_xvst((__m256i)_r5, outptr5, 0);
+                    __lasx_xvst((__m256i)_r6, outptr6, 0);
+                    __lasx_xvst((__m256i)_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -299,14 +364,10 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int j = 0; j < w; j++)
                 {
-                    outptr[0] = r0[0];
-                    outptr[1] = r0[1];
-                    outptr[2] = r0[2];
-                    outptr[3] = r0[3];
-                    outptr[4] = r1[0];
-                    outptr[5] = r1[1];
-                    outptr[6] = r1[2];
-                    outptr[7] = r1[3];
+                    __m128 _r0 = (__m128)__lsx_vld(r0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(r1, 0);
+                    __m256 _p = __lasx_concat_128_s(_r0, _r1);
+                    __lasx_xvst((__m256i)_p, outptr, 0);
 
                     r0 += 4;
                     r1 += 4;
@@ -326,14 +387,9 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int j = 0; j < w; j++)
                 {
-                    outptr0[0] = r0[0];
-                    outptr0[1] = r0[1];
-                    outptr0[2] = r0[2];
-                    outptr0[3] = r0[3];
-                    outptr1[0] = r0[4];
-                    outptr1[1] = r0[5];
-                    outptr1[2] = r0[6];
-                    outptr1[3] = r0[7];
+                    __m256 _p = (__m256)__lasx_xvld(r0, 0);
+                    __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
 
                     r0 += 8;
                     outptr0 += 4;
@@ -487,6 +543,38 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(r1, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(r2, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(r3, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(r4, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(r5, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(r6, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(r7, 0);
+
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lasx_xvst((__m256i)_r0, outptr, 0);
+                    __lasx_xvst((__m256i)_r1, outptr + 8, 0);
+                    __lasx_xvst((__m256i)_r2, outptr + 16, 0);
+                    __lasx_xvst((__m256i)_r3, outptr + 24, 0);
+                    __lasx_xvst((__m256i)_r4, outptr + 32, 0);
+                    __lasx_xvst((__m256i)_r5, outptr + 40, 0);
+                    __lasx_xvst((__m256i)_r6, outptr + 48, 0);
+                    __lasx_xvst((__m256i)_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -519,6 +607,38 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 float* outptr7 = top_blob.channel(q * 8 + 7);
 
                 int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
+                    __m256 _r1 = (__m256)__lasx_xvld(r0 + 8, 0);
+                    __m256 _r2 = (__m256)__lasx_xvld(r0 + 16, 0);
+                    __m256 _r3 = (__m256)__lasx_xvld(r0 + 24, 0);
+                    __m256 _r4 = (__m256)__lasx_xvld(r0 + 32, 0);
+                    __m256 _r5 = (__m256)__lasx_xvld(r0 + 40, 0);
+                    __m256 _r6 = (__m256)__lasx_xvld(r0 + 48, 0);
+                    __m256 _r7 = (__m256)__lasx_xvld(r0 + 56, 0);
+
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lasx_xvst((__m256i)_r0, outptr0, 0);
+                    __lasx_xvst((__m256i)_r1, outptr1, 0);
+                    __lasx_xvst((__m256i)_r2, outptr2, 0);
+                    __lasx_xvst((__m256i)_r3, outptr3, 0);
+                    __lasx_xvst((__m256i)_r4, outptr4, 0);
+                    __lasx_xvst((__m256i)_r5, outptr5, 0);
+                    __lasx_xvst((__m256i)_r6, outptr6, 0);
+                    __lasx_xvst((__m256i)_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];
@@ -546,14 +666,10 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    outptr[0] = r0[0];
-                    outptr[1] = r0[1];
-                    outptr[2] = r0[2];
-                    outptr[3] = r0[3];
-                    outptr[4] = r1[0];
-                    outptr[5] = r1[1];
-                    outptr[6] = r1[2];
-                    outptr[7] = r1[3];
+                    __m128 _r0 = (__m128)__lsx_vld(r0, 0);
+                    __m128 _r1 = (__m128)__lsx_vld(r1, 0);
+                    __m256 _p = __lasx_concat_128_s(_r0, _r1);
+                    __lasx_xvst((__m256i)_p, outptr, 0);
 
                     r0 += 4;
                     r1 += 4;
@@ -573,14 +689,9 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 for (int i = 0; i < size; i++)
                 {
-                    outptr0[0] = r0[0];
-                    outptr0[1] = r0[1];
-                    outptr0[2] = r0[2];
-                    outptr0[3] = r0[3];
-                    outptr1[0] = r0[4];
-                    outptr1[1] = r0[5];
-                    outptr1[2] = r0[6];
-                    outptr1[3] = r0[7];
+                    __m256 _p = (__m256)__lasx_xvld(r0, 0);
+                    __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
+                    __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
 
                     r0 += 8;
                     outptr0 += 4;
@@ -916,27 +1027,25 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int j = 0;
 #if __loongarch_sx
-                for (; j + 3 < w; j += 4)
+                for (; j + 7 < w; j += 8)
                 {
                     __m128i _r0 = __lsx_vld(r0, 0);
                     __m128i _r1 = __lsx_vld(r1, 0);
                     __m128i _r2 = __lsx_vld(r2, 0);
                     __m128i _r3 = __lsx_vld(r3, 0);
 
-                    __m128i _r01 = __lsx_vilvl_h(_r1, _r0);
-                    __m128i _r23 = __lsx_vilvl_h(_r3, _r2);
+                    transpose8x4_epi16(_r0, _r1, _r2, _r3);
 
-                    __m128i _r0123l = __lsx_vilvl_w(_r23, _r01);
-                    __m128i _r0123h = __lsx_vilvh_w(_r23, _r01);
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
 
-                    __lsx_vst(_r0123l, outptr, 0);
-                    __lsx_vst(_r0123h, outptr + 8, 0);
-
-                    r0 += 4;
-                    r1 += 4;
-                    r2 += 4;
-                    r3 += 4;
-                    outptr += 16;
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    outptr += 32;
                 }
 #endif // __loongarch_sx
                 for (; j < w; j++)
@@ -964,27 +1073,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int j = 0;
 #if __loongarch_sx
-                for (; j + 3 < w; j += 4)
+                for (; j + 7 < w; j += 8)
                 {
                     __m128i _r0 = __lsx_vld(r0, 0);
                     __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                    __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                    __m128i _r3 = __lsx_vld(r0 + 24, 0);
 
                     __m128i _r01l = __lsx_vilvl_h(_r1, _r0);
                     __m128i _r01h = __lsx_vilvh_h(_r1, _r0);
-
                     __m128i _r0123ll = __lsx_vilvl_h(_r01h, _r01l);
                     __m128i _r0123lh = __lsx_vilvh_h(_r01h, _r01l);
 
-                    __lsx_vstelm_d(_r0123ll, outptr0, 0, 0);
-                    __lsx_vstelm_d(_r0123ll, outptr1, 0, 1);
-                    __lsx_vstelm_d(_r0123lh, outptr2, 0, 0);
-                    __lsx_vstelm_d(_r0123lh, outptr3, 0, 1);
+                    __m128i _r23l = __lsx_vilvl_h(_r3, _r2);
+                    __m128i _r23h = __lsx_vilvh_h(_r3, _r2);
+                    __m128i _r4567ll = __lsx_vilvl_h(_r23h, _r23l);
+                    __m128i _r4567lh = __lsx_vilvh_h(_r23h, _r23l);
 
-                    r0 += 16;
-                    outptr0 += 4;
-                    outptr1 += 4;
-                    outptr2 += 4;
-                    outptr3 += 4;
+                    __m128i _out0 = __lsx_vilvl_d(_r4567ll, _r0123ll);
+                    __m128i _out1 = __lsx_vilvh_d(_r4567ll, _r0123ll);
+                    __m128i _out2 = __lsx_vilvl_d(_r4567lh, _r0123lh);
+                    __m128i _out3 = __lsx_vilvh_d(_r4567lh, _r0123lh);
+
+                    __lsx_vst(_out0, outptr0, 0);
+                    __lsx_vst(_out1, outptr1, 0);
+                    __lsx_vst(_out2, outptr2, 0);
+                    __lsx_vst(_out3, outptr3, 0);
+
+                    r0 += 32;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
                 }
 #endif // __loongarch_sx
                 for (; j < w; j++)
@@ -1017,6 +1137,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
                 int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r1, 0);
+                    __m128i _r2 = __lsx_vld(r2, 0);
+                    __m128i _r3 = __lsx_vld(r3, 0);
+                    __m128i _r4 = __lsx_vld(r4, 0);
+                    __m128i _r5 = __lsx_vld(r5, 0);
+                    __m128i _r6 = __lsx_vld(r6, 0);
+                    __m128i _r7 = __lsx_vld(r7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
+                    __lsx_vst(_r4, outptr + 32, 0);
+                    __lsx_vst(_r5, outptr + 40, 0);
+                    __lsx_vst(_r6, outptr + 48, 0);
+                    __lsx_vst(_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -1049,6 +1201,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr7 = top_blob.row<unsigned short>(i * 8 + 7);
 
                 int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                    __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                    __m128i _r3 = __lsx_vld(r0 + 24, 0);
+                    __m128i _r4 = __lsx_vld(r0 + 32, 0);
+                    __m128i _r5 = __lsx_vld(r0 + 40, 0);
+                    __m128i _r6 = __lsx_vld(r0 + 48, 0);
+                    __m128i _r7 = __lsx_vld(r0 + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr0, 0);
+                    __lsx_vst(_r1, outptr1, 0);
+                    __lsx_vst(_r2, outptr2, 0);
+                    __lsx_vst(_r3, outptr3, 0);
+                    __lsx_vst(_r4, outptr4, 0);
+                    __lsx_vst(_r5, outptr5, 0);
+                    __lsx_vst(_r6, outptr6, 0);
+                    __lsx_vst(_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -1074,7 +1258,19 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
-                for (int j = 0; j < w; j++)
+                int j = 0;
+                for (; j + 1 < w; j += 2)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r1, 0);
+                    __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr, 0);
+                    __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr + 8, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    outptr += 16;
+                }
+                for (; j < w; j++)
                 {
                     outptr[0] = r0[0];
                     outptr[1] = r0[1];
@@ -1103,14 +1299,9 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int j = 0; j < w; j++)
                 {
-                    outptr0[0] = r0[0];
-                    outptr0[1] = r0[1];
-                    outptr0[2] = r0[2];
-                    outptr0[3] = r0[3];
-                    outptr1[0] = r0[4];
-                    outptr1[1] = r0[5];
-                    outptr1[2] = r0[6];
-                    outptr1[3] = r0[7];
+                    __m128i _p = __lsx_vld(r0, 0);
+                    __lsx_vstelm_d(_p, outptr0, 0, 0);
+                    __lsx_vstelm_d(_p, outptr1, 0, 1);
 
                     r0 += 8;
                     outptr0 += 4;
@@ -1151,27 +1342,25 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int i = 0;
 #if __loongarch_sx
-                for (; i + 3 < size; i += 4)
+                for (; i + 7 < size; i += 8)
                 {
                     __m128i _r0 = __lsx_vld(r0, 0);
                     __m128i _r1 = __lsx_vld(r1, 0);
                     __m128i _r2 = __lsx_vld(r2, 0);
                     __m128i _r3 = __lsx_vld(r3, 0);
 
-                    __m128i _r01 = __lsx_vilvl_h(_r1, _r0);
-                    __m128i _r23 = __lsx_vilvl_h(_r3, _r2);
+                    transpose8x4_epi16(_r0, _r1, _r2, _r3);
 
-                    __m128i _r0123l = __lsx_vilvl_w(_r23, _r01);
-                    __m128i _r0123h = __lsx_vilvh_w(_r23, _r01);
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
 
-                    __lsx_vst(_r0123l, outptr, 0);
-                    __lsx_vst(_r0123h, outptr + 8, 0);
-
-                    r0 += 4;
-                    r1 += 4;
-                    r2 += 4;
-                    r3 += 4;
-                    outptr += 16;
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    outptr += 32;
                 }
 #endif // __loongarch_sx
                 for (; i < size; i++)
@@ -1199,27 +1388,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int i = 0;
 #if __loongarch_sx
-                for (; i + 3 < size; i += 4)
+                for (; i + 7 < size; i += 8)
                 {
                     __m128i _r0 = __lsx_vld(r0, 0);
                     __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                    __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                    __m128i _r3 = __lsx_vld(r0 + 24, 0);
 
                     __m128i _r01l = __lsx_vilvl_h(_r1, _r0);
                     __m128i _r01h = __lsx_vilvh_h(_r1, _r0);
-
                     __m128i _r0123ll = __lsx_vilvl_h(_r01h, _r01l);
                     __m128i _r0123lh = __lsx_vilvh_h(_r01h, _r01l);
 
-                    __lsx_vstelm_d(_r0123ll, outptr0, 0, 0);
-                    __lsx_vstelm_d(_r0123ll, outptr1, 0, 1);
-                    __lsx_vstelm_d(_r0123lh, outptr2, 0, 0);
-                    __lsx_vstelm_d(_r0123lh, outptr3, 0, 1);
+                    __m128i _r23l = __lsx_vilvl_h(_r3, _r2);
+                    __m128i _r23h = __lsx_vilvh_h(_r3, _r2);
+                    __m128i _r4567ll = __lsx_vilvl_h(_r23h, _r23l);
+                    __m128i _r4567lh = __lsx_vilvh_h(_r23h, _r23l);
 
-                    r0 += 16;
-                    outptr0 += 4;
-                    outptr1 += 4;
-                    outptr2 += 4;
-                    outptr3 += 4;
+                    __m128i _out0 = __lsx_vilvl_d(_r4567ll, _r0123ll);
+                    __m128i _out1 = __lsx_vilvh_d(_r4567ll, _r0123ll);
+                    __m128i _out2 = __lsx_vilvl_d(_r4567lh, _r0123lh);
+                    __m128i _out3 = __lsx_vilvh_d(_r4567lh, _r0123lh);
+
+                    __lsx_vst(_out0, outptr0, 0);
+                    __lsx_vst(_out1, outptr1, 0);
+                    __lsx_vst(_out2, outptr2, 0);
+                    __lsx_vst(_out3, outptr3, 0);
+
+                    r0 += 32;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
                 }
 #endif // __loongarch_sx
                 for (; i < size; i++)
@@ -1252,6 +1452,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr = top_blob.channel(q);
 
                 int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r1, 0);
+                    __m128i _r2 = __lsx_vld(r2, 0);
+                    __m128i _r3 = __lsx_vld(r3, 0);
+                    __m128i _r4 = __lsx_vld(r4, 0);
+                    __m128i _r5 = __lsx_vld(r5, 0);
+                    __m128i _r6 = __lsx_vld(r6, 0);
+                    __m128i _r7 = __lsx_vld(r7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
+                    __lsx_vst(_r4, outptr + 32, 0);
+                    __lsx_vst(_r5, outptr + 40, 0);
+                    __lsx_vst(_r6, outptr + 48, 0);
+                    __lsx_vst(_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -1284,6 +1516,38 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
 
                 int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                    __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                    __m128i _r3 = __lsx_vld(r0 + 24, 0);
+                    __m128i _r4 = __lsx_vld(r0 + 32, 0);
+                    __m128i _r5 = __lsx_vld(r0 + 40, 0);
+                    __m128i _r6 = __lsx_vld(r0 + 48, 0);
+                    __m128i _r7 = __lsx_vld(r0 + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr0, 0);
+                    __lsx_vst(_r1, outptr1, 0);
+                    __lsx_vst(_r2, outptr2, 0);
+                    __lsx_vst(_r3, outptr3, 0);
+                    __lsx_vst(_r4, outptr4, 0);
+                    __lsx_vst(_r5, outptr5, 0);
+                    __lsx_vst(_r6, outptr6, 0);
+                    __lsx_vst(_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];
@@ -1309,7 +1573,19 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 unsigned short* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < size; i++)
+                int i = 0;
+                for (; i + 1 < size; i += 2)
+                {
+                    __m128i _r0 = __lsx_vld(r0, 0);
+                    __m128i _r1 = __lsx_vld(r1, 0);
+                    __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr, 0);
+                    __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr + 8, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    outptr += 16;
+                }
+                for (; i < size; i++)
                 {
                     outptr[0] = r0[0];
                     outptr[1] = r0[1];
@@ -1338,14 +1614,9 @@ int Packing_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int i = 0; i < size; i++)
                 {
-                    outptr0[0] = r0[0];
-                    outptr0[1] = r0[1];
-                    outptr0[2] = r0[2];
-                    outptr0[3] = r0[3];
-                    outptr1[0] = r0[4];
-                    outptr1[1] = r0[5];
-                    outptr1[2] = r0[6];
-                    outptr1[3] = r0[7];
+                    __m128i _p = __lsx_vld(r0, 0);
+                    __lsx_vstelm_d(_p, outptr0, 0, 0);
+                    __lsx_vstelm_d(_p, outptr1, 0, 1);
 
                     r0 += 8;
                     outptr0 += 4;

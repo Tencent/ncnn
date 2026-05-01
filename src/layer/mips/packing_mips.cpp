@@ -8,6 +8,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -658,33 +659,30 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 int j = 0;
 #if __mips_msa
-                for (; j + 3 < w; j += 4)
+                for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 16);
                     __builtin_prefetch(r1 + 16);
                     __builtin_prefetch(r2 + 16);
                     __builtin_prefetch(r3 + 16);
 
-                    // transpose 4x4 unsigned short
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
                     v8i16 _r3 = (v8i16)__msa_ld_h(r3, 0);
 
-                    v8i16 _r01 = __msa_ilvr_h(_r1, _r0);
-                    v8i16 _r23 = __msa_ilvr_h(_r3, _r2);
+                    transpose8x4_epi16(_r0, _r1, _r2, _r3);
 
-                    v4i32 _r0123l = (v4i32)__msa_ilvr_w((v4i32)_r23, (v4i32)_r01);
-                    v4i32 _r0123h = (v4i32)__msa_ilvl_w((v4i32)_r23, (v4i32)_r01);
+                    __msa_st_h(_r0, outptr, 0);
+                    __msa_st_h(_r1, outptr + 8, 0);
+                    __msa_st_h(_r2, outptr + 16, 0);
+                    __msa_st_h(_r3, outptr + 24, 0);
 
-                    __msa_st_w(_r0123l, outptr, 0);
-                    __msa_st_w(_r0123h, outptr + 8, 0);
-
-                    r0 += 4;
-                    r1 += 4;
-                    r2 += 4;
-                    r3 += 4;
-                    outptr += 16;
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    outptr += 32;
                 }
 #endif // __mips_msa
                 for (; j < w; j++)
@@ -712,35 +710,40 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 int j = 0;
 #if __mips_msa
-                for (; j + 3 < w; j += 4)
+                for (; j + 7 < w; j += 8)
                 {
                     __builtin_prefetch(r0 + 32);
 
-                    // transpose 4x4 unsigned short
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r0 + 24, 0);
 
                     v8i16 _r01l = __msa_ilvr_h(_r1, _r0);
                     v8i16 _r01h = __msa_ilvl_h(_r1, _r0);
-
                     v8i16 _r0123ll = (v8i16)__msa_ilvr_h(_r01h, _r01l);
                     v8i16 _r0123lh = (v8i16)__msa_ilvl_h(_r01h, _r01l);
 
-                    uint64_t v0 = __msa_copy_s_d((v2i64)_r0123ll, 0);
-                    uint64_t v1 = __msa_copy_s_d((v2i64)_r0123ll, 1);
-                    uint64_t v2 = __msa_copy_s_d((v2i64)_r0123lh, 0);
-                    uint64_t v3 = __msa_copy_s_d((v2i64)_r0123lh, 1);
+                    v8i16 _r23l = __msa_ilvr_h(_r3, _r2);
+                    v8i16 _r23h = __msa_ilvl_h(_r3, _r2);
+                    v8i16 _r4567ll = (v8i16)__msa_ilvr_h(_r23h, _r23l);
+                    v8i16 _r4567lh = (v8i16)__msa_ilvl_h(_r23h, _r23l);
 
-                    memcpy(outptr0, &v0, 8);
-                    memcpy(outptr1, &v1, 8);
-                    memcpy(outptr2, &v2, 8);
-                    memcpy(outptr3, &v3, 8);
+                    v8i16 _out0 = (v8i16)__msa_ilvr_d((v2i64)_r4567ll, (v2i64)_r0123ll);
+                    v8i16 _out1 = (v8i16)__msa_ilvl_d((v2i64)_r4567ll, (v2i64)_r0123ll);
+                    v8i16 _out2 = (v8i16)__msa_ilvr_d((v2i64)_r4567lh, (v2i64)_r0123lh);
+                    v8i16 _out3 = (v8i16)__msa_ilvl_d((v2i64)_r4567lh, (v2i64)_r0123lh);
 
-                    r0 += 16;
-                    outptr0 += 4;
-                    outptr1 += 4;
-                    outptr2 += 4;
-                    outptr3 += 4;
+                    __msa_st_h(_out0, outptr0, 0);
+                    __msa_st_h(_out1, outptr1, 0);
+                    __msa_st_h(_out2, outptr2, 0);
+                    __msa_st_h(_out3, outptr3, 0);
+
+                    r0 += 32;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
                 }
 #endif // __mips_msa
                 for (; j < w; j++)
@@ -785,7 +788,7 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 int i = 0;
 #if __mips_msa
-                for (; i + 3 < size; i += 4)
+                for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 16);
                     __builtin_prefetch(r1 + 16);
@@ -797,20 +800,18 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                     v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
                     v8i16 _r3 = (v8i16)__msa_ld_h(r3, 0);
 
-                    v8i16 _r01 = __msa_ilvr_h(_r1, _r0);
-                    v8i16 _r23 = __msa_ilvr_h(_r3, _r2);
+                    transpose8x4_epi16(_r0, _r1, _r2, _r3);
 
-                    v4i32 _r0123l = (v4i32)__msa_ilvr_w((v4i32)_r23, (v4i32)_r01);
-                    v4i32 _r0123h = (v4i32)__msa_ilvl_w((v4i32)_r23, (v4i32)_r01);
+                    __msa_st_h(_r0, outptr, 0);
+                    __msa_st_h(_r1, outptr + 8, 0);
+                    __msa_st_h(_r2, outptr + 16, 0);
+                    __msa_st_h(_r3, outptr + 24, 0);
 
-                    __msa_st_w(_r0123l, outptr, 0);
-                    __msa_st_w(_r0123h, outptr + 8, 0);
-
-                    r0 += 4;
-                    r1 += 4;
-                    r2 += 4;
-                    r3 += 4;
-                    outptr += 16;
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    outptr += 32;
                 }
 #endif // __mips_msa
                 for (; i < size; i++)
@@ -838,34 +839,40 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 int i = 0;
 #if __mips_msa
-                for (; i + 3 < size; i += 4)
+                for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(r0 + 32);
 
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r0 + 24, 0);
 
                     v8i16 _r01l = __msa_ilvr_h(_r1, _r0);
                     v8i16 _r01h = __msa_ilvl_h(_r1, _r0);
-
                     v8i16 _r0123ll = (v8i16)__msa_ilvr_h(_r01h, _r01l);
                     v8i16 _r0123lh = (v8i16)__msa_ilvl_h(_r01h, _r01l);
 
-                    uint64_t v0 = __msa_copy_s_d((v2i64)_r0123ll, 0);
-                    uint64_t v1 = __msa_copy_s_d((v2i64)_r0123ll, 1);
-                    uint64_t v2 = __msa_copy_s_d((v2i64)_r0123lh, 0);
-                    uint64_t v3 = __msa_copy_s_d((v2i64)_r0123lh, 1);
+                    v8i16 _r23l = __msa_ilvr_h(_r3, _r2);
+                    v8i16 _r23h = __msa_ilvl_h(_r3, _r2);
+                    v8i16 _r4567ll = (v8i16)__msa_ilvr_h(_r23h, _r23l);
+                    v8i16 _r4567lh = (v8i16)__msa_ilvl_h(_r23h, _r23l);
 
-                    memcpy(outptr0, &v0, 8);
-                    memcpy(outptr1, &v1, 8);
-                    memcpy(outptr2, &v2, 8);
-                    memcpy(outptr3, &v3, 8);
+                    v8i16 _out0 = (v8i16)__msa_ilvr_d((v2i64)_r4567ll, (v2i64)_r0123ll);
+                    v8i16 _out1 = (v8i16)__msa_ilvl_d((v2i64)_r4567ll, (v2i64)_r0123ll);
+                    v8i16 _out2 = (v8i16)__msa_ilvr_d((v2i64)_r4567lh, (v2i64)_r0123lh);
+                    v8i16 _out3 = (v8i16)__msa_ilvl_d((v2i64)_r4567lh, (v2i64)_r0123lh);
 
-                    r0 += 16;
-                    outptr0 += 4;
-                    outptr1 += 4;
-                    outptr2 += 4;
-                    outptr3 += 4;
+                    __msa_st_h(_out0, outptr0, 0);
+                    __msa_st_h(_out1, outptr1, 0);
+                    __msa_st_h(_out2, outptr2, 0);
+                    __msa_st_h(_out3, outptr3, 0);
+
+                    r0 += 32;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
                 }
 #endif // __mips_msa
                 for (; i < size; i++)
