@@ -991,10 +991,6 @@ int Convolution_mips::create_pipeline_bf16s(const Option& opt)
 
     int l2_cache_size = get_cpu_level2_cache_size();
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
-#if __mips_msa
-    prefer_sgemm = prefer_sgemm && opt.use_packing_layout && num_input % 4 == 0 && num_output % 4 == 0;
-#endif
-
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
@@ -1147,10 +1143,6 @@ int Convolution_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
     int l2_cache_size = get_cpu_level2_cache_size();
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
-#if __mips_msa
-    prefer_sgemm = prefer_sgemm && bottom_blob.elempack == 4 && out_elempack == 4;
-#endif
-
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         int _nT = nT ? nT : opt.num_threads;
