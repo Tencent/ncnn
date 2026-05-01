@@ -83,6 +83,147 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 
         int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const float* p0 = B;
+
+            int kk = 0;
+            p0 += (b * max_jj + jj) * 8;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
+                __m256 _r3 = (__m256)__lasx_xvld(p0 + 8 * 3, 0);
+                __m256 _r4 = (__m256)__lasx_xvld(p0 + 8 * 4, 0);
+                __m256 _r5 = (__m256)__lasx_xvld(p0 + 8 * 5, 0);
+                __m256 _r6 = (__m256)__lasx_xvld(p0 + 8 * 6, 0);
+                __m256 _r7 = (__m256)__lasx_xvld(p0 + 8 * 7, 0);
+                __m256 _r8 = (__m256)__lasx_xvld(p0 + 8 * 8, 0);
+                __m256 _r9 = (__m256)__lasx_xvld(p0 + 8 * 9, 0);
+                __m256 _ra = (__m256)__lasx_xvld(p0 + 8 * 10, 0);
+                __m256 _rb = (__m256)__lasx_xvld(p0 + 8 * 11, 0);
+                __m256 _rc = (__m256)__lasx_xvld(p0 + 8 * 12, 0);
+                __m256 _rd = (__m256)__lasx_xvld(p0 + 8 * 13, 0);
+                __m256 _re = (__m256)__lasx_xvld(p0 + 8 * 14, 0);
+                __m256 _rf = (__m256)__lasx_xvld(p0 + 8 * 15, 0);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                transpose8x8_ps(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                __lasx_xvst((__m256i)_r0, pp, 0);
+                __lasx_xvst((__m256i)_r8, pp + 8, 0);
+                __lasx_xvst((__m256i)_r1, pp + 8 * 2, 0);
+                __lasx_xvst((__m256i)_r9, pp + 8 * 3, 0);
+                __lasx_xvst((__m256i)_r2, pp + 8 * 4, 0);
+                __lasx_xvst((__m256i)_ra, pp + 8 * 5, 0);
+                __lasx_xvst((__m256i)_r3, pp + 8 * 6, 0);
+                __lasx_xvst((__m256i)_rb, pp + 8 * 7, 0);
+                __lasx_xvst((__m256i)_r4, pp + 8 * 8, 0);
+                __lasx_xvst((__m256i)_rc, pp + 8 * 9, 0);
+                __lasx_xvst((__m256i)_r5, pp + 8 * 10, 0);
+                __lasx_xvst((__m256i)_rd, pp + 8 * 11, 0);
+                __lasx_xvst((__m256i)_r6, pp + 8 * 12, 0);
+                __lasx_xvst((__m256i)_re, pp + 8 * 13, 0);
+                __lasx_xvst((__m256i)_r7, pp + 8 * 14, 0);
+                __lasx_xvst((__m256i)_rf, pp + 8 * 15, 0);
+                p0 += max_jj * batch * 8;
+                pp += 128;
+            }
+            p0 -= (b * max_jj + jj) * 8;
+            p0 += (b * max_jj + jj) * 4;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(p0, 0);
+                __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
+                __m128 _r2 = (__m128)__lsx_vld(p0 + 4 * 2, 0);
+                __m128 _r3 = (__m128)__lsx_vld(p0 + 4 * 3, 0);
+                __m128 _r4 = (__m128)__lsx_vld(p0 + 4 * 4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(p0 + 4 * 5, 0);
+                __m128 _r6 = (__m128)__lsx_vld(p0 + 4 * 6, 0);
+                __m128 _r7 = (__m128)__lsx_vld(p0 + 4 * 7, 0);
+                __m128 _r8 = (__m128)__lsx_vld(p0 + 4 * 8, 0);
+                __m128 _r9 = (__m128)__lsx_vld(p0 + 4 * 9, 0);
+                __m128 _ra = (__m128)__lsx_vld(p0 + 4 * 10, 0);
+                __m128 _rb = (__m128)__lsx_vld(p0 + 4 * 11, 0);
+                __m128 _rc = (__m128)__lsx_vld(p0 + 4 * 12, 0);
+                __m128 _rd = (__m128)__lsx_vld(p0 + 4 * 13, 0);
+                __m128 _re = (__m128)__lsx_vld(p0 + 4 * 14, 0);
+                __m128 _rf = (__m128)__lsx_vld(p0 + 4 * 15, 0);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+                transpose4x4_ps(_r8, _r9, _ra, _rb);
+                transpose4x4_ps(_rc, _rd, _re, _rf);
+                __lsx_vst((__m128i)_r0, pp, 0);
+                __lsx_vst((__m128i)_r4, pp + 4, 0);
+                __lsx_vst((__m128i)_r8, pp + 4 * 2, 0);
+                __lsx_vst((__m128i)_rc, pp + 4 * 3, 0);
+                __lsx_vst((__m128i)_r1, pp + 4 * 4, 0);
+                __lsx_vst((__m128i)_r5, pp + 4 * 5, 0);
+                __lsx_vst((__m128i)_r9, pp + 4 * 6, 0);
+                __lsx_vst((__m128i)_rd, pp + 4 * 7, 0);
+                __lsx_vst((__m128i)_r2, pp + 4 * 8, 0);
+                __lsx_vst((__m128i)_r6, pp + 4 * 9, 0);
+                __lsx_vst((__m128i)_ra, pp + 4 * 10, 0);
+                __lsx_vst((__m128i)_re, pp + 4 * 11, 0);
+                __lsx_vst((__m128i)_r3, pp + 4 * 12, 0);
+                __lsx_vst((__m128i)_r7, pp + 4 * 13, 0);
+                __lsx_vst((__m128i)_rb, pp + 4 * 14, 0);
+                __lsx_vst((__m128i)_rf, pp + 4 * 15, 0);
+                p0 += max_jj * batch * 4;
+                pp += 64;
+            }
+            p0 -= (b * max_jj + jj) * 4;
+            p0 += (b * max_jj + jj) * 2;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[2];
+                pp[2] = p0[4];
+                pp[3] = p0[6];
+                pp[4] = p0[8];
+                pp[5] = p0[10];
+                pp[6] = p0[12];
+                pp[7] = p0[14];
+                pp[8] = p0[16];
+                pp[9] = p0[18];
+                pp[10] = p0[20];
+                pp[11] = p0[22];
+                pp[12] = p0[24];
+                pp[13] = p0[26];
+                pp[14] = p0[28];
+                pp[15] = p0[30];
+                pp[16] = p0[1];
+                pp[17] = p0[3];
+                pp[18] = p0[5];
+                pp[19] = p0[7];
+                pp[20] = p0[9];
+                pp[21] = p0[11];
+                pp[22] = p0[13];
+                pp[23] = p0[15];
+                pp[24] = p0[17];
+                pp[25] = p0[19];
+                pp[26] = p0[21];
+                pp[27] = p0[23];
+                pp[28] = p0[25];
+                pp[29] = p0[27];
+                pp[30] = p0[29];
+                pp[31] = p0[31];
+                p0 += max_jj * batch * 2;
+                pp += 32;
+            }
+            p0 -= (b * max_jj + jj) * 2;
+            p0 += (b * max_jj + jj);
+            for (; kk < max_kk; kk++)
+            {
+                __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
+                __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
+                __lasx_xvst((__m256i)_r0, pp, 0);
+                __lasx_xvst((__m256i)_r1, pp + 8, 0);
+                p0 += max_jj * batch;
+                pp += 16;
+            }
+        }
+#endif // __loongarch_asx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const float* p0 = B;
@@ -390,6 +531,205 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             int jj = 0;
 #if __loongarch_asx
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const float* pA = pAT;
+
+                __m256 _sum0;
+                __m256 _sum1;
+                __m256 _sum2;
+                __m256 _sum3;
+                __m256 _sum4;
+                __m256 _sum5;
+                __m256 _sum6;
+                __m256 _sum7;
+                __m256 _sum8;
+                __m256 _sum9;
+                __m256 _suma;
+                __m256 _sumb;
+                __m256 _sumc;
+                __m256 _sumd;
+                __m256 _sume;
+                __m256 _sumf;
+
+                if (k == 0)
+                {
+                    _sum0 = (__m256)__lasx_xvldi(0);
+                    _sum1 = (__m256)__lasx_xvldi(0);
+                    _sum2 = (__m256)__lasx_xvldi(0);
+                    _sum3 = (__m256)__lasx_xvldi(0);
+                    _sum4 = (__m256)__lasx_xvldi(0);
+                    _sum5 = (__m256)__lasx_xvldi(0);
+                    _sum6 = (__m256)__lasx_xvldi(0);
+                    _sum7 = (__m256)__lasx_xvldi(0);
+                    _sum8 = (__m256)__lasx_xvldi(0);
+                    _sum9 = (__m256)__lasx_xvldi(0);
+                    _suma = (__m256)__lasx_xvldi(0);
+                    _sumb = (__m256)__lasx_xvldi(0);
+                    _sumc = (__m256)__lasx_xvldi(0);
+                    _sumd = (__m256)__lasx_xvldi(0);
+                    _sume = (__m256)__lasx_xvldi(0);
+                    _sumf = (__m256)__lasx_xvldi(0);
+                }
+                else
+                {
+                    _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                    _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                    _sum2 = (__m256)__lasx_xvld(outptr + 16, 0);
+                    _sum3 = (__m256)__lasx_xvld(outptr + 24, 0);
+                    _sum4 = (__m256)__lasx_xvld(outptr + 32, 0);
+                    _sum5 = (__m256)__lasx_xvld(outptr + 40, 0);
+                    _sum6 = (__m256)__lasx_xvld(outptr + 48, 0);
+                    _sum7 = (__m256)__lasx_xvld(outptr + 56, 0);
+                    _sum8 = (__m256)__lasx_xvld(outptr + 64, 0);
+                    _sum9 = (__m256)__lasx_xvld(outptr + 72, 0);
+                    _suma = (__m256)__lasx_xvld(outptr + 80, 0);
+                    _sumb = (__m256)__lasx_xvld(outptr + 88, 0);
+                    _sumc = (__m256)__lasx_xvld(outptr + 96, 0);
+                    _sumd = (__m256)__lasx_xvld(outptr + 104, 0);
+                    _sume = (__m256)__lasx_xvld(outptr + 112, 0);
+                    _sumf = (__m256)__lasx_xvld(outptr + 120, 0);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    __m256 _pA = (__m256)__lasx_xvld(pA, 0);
+                    __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256 _pA2 = (__m256)__lasx_xvpermi_q((__m256i)_pA, (__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 1));
+                    __m256 _pA3 = (__m256)__lasx_xvpermi_q((__m256i)_pA1, (__m256i)_pA1, _LSX_SHUFFLE(0, 0, 0, 1));
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m256 _pB4 = (__m256)__lasx_xvld(pB + 8, 0);
+                    __m256 _pB5 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB4, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                    _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
+                    _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                    _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+                    _sum4 = __lasx_xvfmadd_s(_pA2, _pB0, _sum4);
+                    _sum5 = __lasx_xvfmadd_s(_pA2, _pB1, _sum5);
+                    _sum6 = __lasx_xvfmadd_s(_pA3, _pB0, _sum6);
+                    _sum7 = __lasx_xvfmadd_s(_pA3, _pB1, _sum7);
+                    _sum8 = __lasx_xvfmadd_s(_pA, _pB4, _sum8);
+                    _sum9 = __lasx_xvfmadd_s(_pA, _pB5, _sum9);
+                    _suma = __lasx_xvfmadd_s(_pA1, _pB4, _suma);
+                    _sumb = __lasx_xvfmadd_s(_pA1, _pB5, _sumb);
+                    _sumc = __lasx_xvfmadd_s(_pA2, _pB4, _sumc);
+                    _sumd = __lasx_xvfmadd_s(_pA2, _pB5, _sumd);
+                    _sume = __lasx_xvfmadd_s(_pA3, _pB4, _sume);
+                    _sumf = __lasx_xvfmadd_s(_pA3, _pB5, _sumf);
+
+                    pA += 8;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    {
+                        __m256 _tmp0 = _sum0;
+                        __m256 _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp2 = _sum2;
+                        __m256 _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp4 = _sum4;
+                        __m256 _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp6 = _sum6;
+                        __m256 _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                        _sum0 = (__m256)__lasx_xvilvl_w((__m256i)_tmp3, (__m256i)_tmp0);
+                        _sum1 = (__m256)__lasx_xvilvh_w((__m256i)_tmp3, (__m256i)_tmp0);
+                        _sum2 = (__m256)__lasx_xvilvl_w((__m256i)_tmp1, (__m256i)_tmp2);
+                        _sum3 = (__m256)__lasx_xvilvh_w((__m256i)_tmp1, (__m256i)_tmp2);
+                        _sum4 = (__m256)__lasx_xvilvl_w((__m256i)_tmp7, (__m256i)_tmp4);
+                        _sum5 = (__m256)__lasx_xvilvh_w((__m256i)_tmp7, (__m256i)_tmp4);
+                        _sum6 = (__m256)__lasx_xvilvl_w((__m256i)_tmp5, (__m256i)_tmp6);
+                        _sum7 = (__m256)__lasx_xvilvh_w((__m256i)_tmp5, (__m256i)_tmp6);
+
+                        _tmp0 = (__m256)__lasx_xvilvl_d((__m256i)_sum2, (__m256i)_sum0);
+                        _tmp1 = (__m256)__lasx_xvilvh_d((__m256i)_sum2, (__m256i)_sum0);
+                        _tmp2 = (__m256)__lasx_xvilvl_d((__m256i)_sum1, (__m256i)_sum3);
+                        _tmp3 = (__m256)__lasx_xvilvh_d((__m256i)_sum1, (__m256i)_sum3);
+                        _tmp4 = (__m256)__lasx_xvilvl_d((__m256i)_sum6, (__m256i)_sum4);
+                        _tmp5 = (__m256)__lasx_xvilvh_d((__m256i)_sum6, (__m256i)_sum4);
+                        _tmp6 = (__m256)__lasx_xvilvl_d((__m256i)_sum5, (__m256i)_sum7);
+                        _tmp7 = (__m256)__lasx_xvilvh_d((__m256i)_sum5, (__m256i)_sum7);
+
+                        _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                        _sum0 = (__m256)__lasx_xvpermi_q((__m256i)_tmp4, (__m256i)_tmp0, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sum1 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp1, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sum2 = (__m256)__lasx_xvpermi_q((__m256i)_tmp6, (__m256i)_tmp2, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sum3 = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp3, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sum4 = (__m256)__lasx_xvpermi_q((__m256i)_tmp0, (__m256i)_tmp4, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sum5 = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp5, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sum6 = (__m256)__lasx_xvpermi_q((__m256i)_tmp2, (__m256i)_tmp6, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sum7 = (__m256)__lasx_xvpermi_q((__m256i)_tmp3, (__m256i)_tmp7, _LSX_SHUFFLE(0, 3, 0, 1));
+                    }
+                    {
+                        __m256 _tmp0 = _sum8;
+                        __m256 _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum9, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp2 = _suma;
+                        __m256 _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_sumb, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp4 = _sumc;
+                        __m256 _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_sumd, _LSX_SHUFFLE(2, 1, 0, 3));
+                        __m256 _tmp6 = _sume;
+                        __m256 _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_sumf, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                        _sum8 = (__m256)__lasx_xvilvl_w((__m256i)_tmp3, (__m256i)_tmp0);
+                        _sum9 = (__m256)__lasx_xvilvh_w((__m256i)_tmp3, (__m256i)_tmp0);
+                        _suma = (__m256)__lasx_xvilvl_w((__m256i)_tmp1, (__m256i)_tmp2);
+                        _sumb = (__m256)__lasx_xvilvh_w((__m256i)_tmp1, (__m256i)_tmp2);
+                        _sumc = (__m256)__lasx_xvilvl_w((__m256i)_tmp7, (__m256i)_tmp4);
+                        _sumd = (__m256)__lasx_xvilvh_w((__m256i)_tmp7, (__m256i)_tmp4);
+                        _sume = (__m256)__lasx_xvilvl_w((__m256i)_tmp5, (__m256i)_tmp6);
+                        _sumf = (__m256)__lasx_xvilvh_w((__m256i)_tmp5, (__m256i)_tmp6);
+
+                        _tmp0 = (__m256)__lasx_xvilvl_d((__m256i)_suma, (__m256i)_sum8);
+                        _tmp1 = (__m256)__lasx_xvilvh_d((__m256i)_suma, (__m256i)_sum8);
+                        _tmp2 = (__m256)__lasx_xvilvl_d((__m256i)_sum9, (__m256i)_sumb);
+                        _tmp3 = (__m256)__lasx_xvilvh_d((__m256i)_sum9, (__m256i)_sumb);
+                        _tmp4 = (__m256)__lasx_xvilvl_d((__m256i)_sume, (__m256i)_sumc);
+                        _tmp5 = (__m256)__lasx_xvilvh_d((__m256i)_sume, (__m256i)_sumc);
+                        _tmp6 = (__m256)__lasx_xvilvl_d((__m256i)_sumd, (__m256i)_sumf);
+                        _tmp7 = (__m256)__lasx_xvilvh_d((__m256i)_sumd, (__m256i)_sumf);
+
+                        _tmp1 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp1, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp3 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp3, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp5 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp5, _LSX_SHUFFLE(2, 1, 0, 3));
+                        _tmp7 = (__m256)__lasx_xvshuf4i_w((__m256i)_tmp7, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                        _sum8 = (__m256)__lasx_xvpermi_q((__m256i)_tmp4, (__m256i)_tmp0, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sum9 = (__m256)__lasx_xvpermi_q((__m256i)_tmp5, (__m256i)_tmp1, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _suma = (__m256)__lasx_xvpermi_q((__m256i)_tmp6, (__m256i)_tmp2, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sumb = (__m256)__lasx_xvpermi_q((__m256i)_tmp7, (__m256i)_tmp3, _LSX_SHUFFLE(0, 2, 0, 0));
+                        _sumc = (__m256)__lasx_xvpermi_q((__m256i)_tmp0, (__m256i)_tmp4, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sumd = (__m256)__lasx_xvpermi_q((__m256i)_tmp1, (__m256i)_tmp5, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sume = (__m256)__lasx_xvpermi_q((__m256i)_tmp2, (__m256i)_tmp6, _LSX_SHUFFLE(0, 3, 0, 1));
+                        _sumf = (__m256)__lasx_xvpermi_q((__m256i)_tmp3, (__m256i)_tmp7, _LSX_SHUFFLE(0, 3, 0, 1));
+                    }
+                }
+
+                __lasx_xvst((__m256i)_sum0, outptr, 0);
+                __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+                __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
+                __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
+                __lasx_xvst((__m256i)_sum4, outptr + 32, 0);
+                __lasx_xvst((__m256i)_sum5, outptr + 40, 0);
+                __lasx_xvst((__m256i)_sum6, outptr + 48, 0);
+                __lasx_xvst((__m256i)_sum7, outptr + 56, 0);
+                __lasx_xvst((__m256i)_sum8, outptr + 64, 0);
+                __lasx_xvst((__m256i)_sum9, outptr + 72, 0);
+                __lasx_xvst((__m256i)_suma, outptr + 80, 0);
+                __lasx_xvst((__m256i)_sumb, outptr + 88, 0);
+                __lasx_xvst((__m256i)_sumc, outptr + 96, 0);
+                __lasx_xvst((__m256i)_sumd, outptr + 104, 0);
+                __lasx_xvst((__m256i)_sume, outptr + 112, 0);
+                __lasx_xvst((__m256i)_sumf, outptr + 120, 0);
+                outptr += 8 * 16;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
@@ -1027,6 +1367,130 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             const float* pB = BT_tile.row(b);
 
             int jj = 0;
+#if __loongarch_asx
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const float* pA = pAT;
+
+                __m256 _sum04;
+                __m256 _sum15;
+                __m256 _sum26;
+                __m256 _sum37;
+                __m256 _sum8c;
+                __m256 _sum9d;
+                __m256 _sumae;
+                __m256 _sumbf;
+
+                if (k == 0)
+                {
+                    _sum04 = (__m256)__lasx_xvldi(0);
+                    _sum15 = (__m256)__lasx_xvldi(0);
+                    _sum26 = (__m256)__lasx_xvldi(0);
+                    _sum37 = (__m256)__lasx_xvldi(0);
+                    _sum8c = (__m256)__lasx_xvldi(0);
+                    _sum9d = (__m256)__lasx_xvldi(0);
+                    _sumae = (__m256)__lasx_xvldi(0);
+                    _sumbf = (__m256)__lasx_xvldi(0);
+                }
+                else
+                {
+                    _sum04 = (__m256)__lasx_xvld(outptr, 0);
+                    _sum15 = (__m256)__lasx_xvld(outptr + 8, 0);
+                    _sum26 = (__m256)__lasx_xvld(outptr + 16, 0);
+                    _sum37 = (__m256)__lasx_xvld(outptr + 24, 0);
+                    _sum8c = (__m256)__lasx_xvld(outptr + 32, 0);
+                    _sum9d = (__m256)__lasx_xvld(outptr + 40, 0);
+                    _sumae = (__m256)__lasx_xvld(outptr + 48, 0);
+                    _sumbf = (__m256)__lasx_xvld(outptr + 56, 0);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    __m128 _pA4 = (__m128)__lsx_vld(pA, 0);
+                    __m128 _pA4r = (__m128)__lsx_vshuf4i_w((__m128i)_pA4, _LSX_SHUFFLE(1, 0, 3, 2));
+                    __m256 _pA = __lasx_concat_128_s(_pA4, _pA4);
+                    __m256 _pA1 = __lasx_concat_128_s(_pA4r, _pA4r);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB0, _LSX_SHUFFLE(0, 3, 2, 1));
+                    __m256 _pB2 = (__m256)__lasx_xvld(pB + 8, 0);
+                    __m256 _pB3 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB2, _LSX_SHUFFLE(0, 3, 2, 1));
+
+                    _sum04 = __lasx_xvfmadd_s(_pA, _pB0, _sum04);
+                    _sum15 = __lasx_xvfmadd_s(_pA, _pB1, _sum15);
+                    _sum26 = __lasx_xvfmadd_s(_pA1, _pB0, _sum26);
+                    _sum37 = __lasx_xvfmadd_s(_pA1, _pB1, _sum37);
+                    _sum8c = __lasx_xvfmadd_s(_pA, _pB2, _sum8c);
+                    _sum9d = __lasx_xvfmadd_s(_pA, _pB3, _sum9d);
+                    _sumae = __lasx_xvfmadd_s(_pA1, _pB2, _sumae);
+                    _sumbf = __lasx_xvfmadd_s(_pA1, _pB3, _sumbf);
+
+                    pA += 4;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    _sum15 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum15, _LSX_SHUFFLE(2, 1, 0, 3));
+                    _sum37 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum37, _LSX_SHUFFLE(2, 1, 0, 3));
+                    {
+                        __m256 _tmp0 = (__m256)__lasx_xvilvl_w((__m256i)_sum37, (__m256i)_sum04);
+                        __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_sum37, (__m256i)_sum04);
+                        __m256 _tmp2 = (__m256)__lasx_xvilvl_w((__m256i)_sum15, (__m256i)_sum26);
+                        __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_sum15, (__m256i)_sum26);
+                        _sum04 = (__m256)__lasx_xvilvl_d((__m256i)_tmp2, (__m256i)_tmp0);
+                        _sum15 = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
+                        _sum26 = (__m256)__lasx_xvilvl_d((__m256i)_tmp1, (__m256i)_tmp3);
+                        _sum37 = (__m256)__lasx_xvilvh_d((__m256i)_tmp1, (__m256i)_tmp3);
+                    }
+                    _sum15 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum15, _LSX_SHUFFLE(2, 1, 0, 3));
+                    _sum37 = (__m256)__lasx_xvshuf4i_w((__m256i)_sum37, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                    _sum9d = (__m256)__lasx_xvshuf4i_w((__m256i)_sum9d, _LSX_SHUFFLE(2, 1, 0, 3));
+                    _sumbf = (__m256)__lasx_xvshuf4i_w((__m256i)_sumbf, _LSX_SHUFFLE(2, 1, 0, 3));
+                    {
+                        __m256 _tmp0 = (__m256)__lasx_xvilvl_w((__m256i)_sumbf, (__m256i)_sum8c);
+                        __m256 _tmp1 = (__m256)__lasx_xvilvh_w((__m256i)_sumbf, (__m256i)_sum8c);
+                        __m256 _tmp2 = (__m256)__lasx_xvilvl_w((__m256i)_sum9d, (__m256i)_sumae);
+                        __m256 _tmp3 = (__m256)__lasx_xvilvh_w((__m256i)_sum9d, (__m256i)_sumae);
+                        _sum8c = (__m256)__lasx_xvilvl_d((__m256i)_tmp2, (__m256i)_tmp0);
+                        _sum9d = (__m256)__lasx_xvilvh_d((__m256i)_tmp2, (__m256i)_tmp0);
+                        _sumae = (__m256)__lasx_xvilvl_d((__m256i)_tmp1, (__m256i)_tmp3);
+                        _sumbf = (__m256)__lasx_xvilvh_d((__m256i)_tmp1, (__m256i)_tmp3);
+                    }
+                    _sum9d = (__m256)__lasx_xvshuf4i_w((__m256i)_sum9d, _LSX_SHUFFLE(2, 1, 0, 3));
+                    _sumbf = (__m256)__lasx_xvshuf4i_w((__m256i)_sumbf, _LSX_SHUFFLE(2, 1, 0, 3));
+
+                    __m256 _tmp04l = (__m256)__lasx_xvpermi_q((__m256i)_sum15, (__m256i)_sum04, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256 _tmp04h = (__m256)__lasx_xvpermi_q((__m256i)_sum15, (__m256i)_sum04, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256 _tmp26l = (__m256)__lasx_xvpermi_q((__m256i)_sum37, (__m256i)_sum26, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256 _tmp26h = (__m256)__lasx_xvpermi_q((__m256i)_sum37, (__m256i)_sum26, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256 _tmp8cl = (__m256)__lasx_xvpermi_q((__m256i)_sum9d, (__m256i)_sum8c, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256 _tmp8ch = (__m256)__lasx_xvpermi_q((__m256i)_sum9d, (__m256i)_sum8c, _LSX_SHUFFLE(0, 3, 0, 1));
+                    __m256 _tmpael = (__m256)__lasx_xvpermi_q((__m256i)_sumbf, (__m256i)_sumae, _LSX_SHUFFLE(0, 2, 0, 0));
+                    __m256 _tmpaeh = (__m256)__lasx_xvpermi_q((__m256i)_sumbf, (__m256i)_sumae, _LSX_SHUFFLE(0, 3, 0, 1));
+
+                    _sum04 = _tmp04l;
+                    _sum15 = _tmp26l;
+                    _sum26 = _tmp04h;
+                    _sum37 = _tmp26h;
+                    _sum8c = _tmp8cl;
+                    _sum9d = _tmpael;
+                    _sumae = _tmp8ch;
+                    _sumbf = _tmpaeh;
+                }
+
+                __lasx_xvst((__m256i)_sum04, outptr, 0);
+                __lasx_xvst((__m256i)_sum15, outptr + 8, 0);
+                __lasx_xvst((__m256i)_sum26, outptr + 16, 0);
+                __lasx_xvst((__m256i)_sum37, outptr + 24, 0);
+                __lasx_xvst((__m256i)_sum8c, outptr + 32, 0);
+                __lasx_xvst((__m256i)_sum9d, outptr + 40, 0);
+                __lasx_xvst((__m256i)_sumae, outptr + 48, 0);
+                __lasx_xvst((__m256i)_sumbf, outptr + 56, 0);
+                outptr += 4 * 16;
+            }
+#endif // __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
@@ -1276,6 +1740,92 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const float* pA = pAT;
+
+                __m256 _sum0;
+                __m256 _sum1;
+                __m256 _sum2;
+                __m256 _sum3;
+
+                if (k == 0)
+                {
+                    _sum0 = (__m256)__lasx_xvldi(0);
+                    _sum1 = (__m256)__lasx_xvldi(0);
+                    _sum2 = (__m256)__lasx_xvldi(0);
+                    _sum3 = (__m256)__lasx_xvldi(0);
+                }
+                else
+                {
+                    _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                    _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                    _sum2 = (__m256)__lasx_xvld(outptr + 16, 0);
+                    _sum3 = (__m256)__lasx_xvld(outptr + 24, 0);
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m256 _pA0 = (__m256)__lasx_xvldrepl_d(pA, 0);
+                    __m256 _pA1 = (__m256)__lasx_xvldrepl_d(pA + 2, 0);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
+                    __m256 _pB2 = (__m256)__lasx_xvld(pB + 16, 0);
+                    __m256 _pB3 = (__m256)__lasx_xvld(pB + 24, 0);
+
+                    __m256 _pA00 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA0, _LSX_SHUFFLE(0, 0, 0, 0));
+                    __m256 _pA01 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA0, _LSX_SHUFFLE(1, 1, 1, 1));
+                    __m256 _pA10 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA1, _LSX_SHUFFLE(0, 0, 0, 0));
+                    __m256 _pA11 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA1, _LSX_SHUFFLE(1, 1, 1, 1));
+
+                    _sum0 = __lasx_xvfmadd_s(_pA00, _pB0, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(_pA00, _pB1, _sum1);
+                    _sum2 = __lasx_xvfmadd_s(_pA01, _pB0, _sum2);
+                    _sum3 = __lasx_xvfmadd_s(_pA01, _pB1, _sum3);
+                    _sum0 = __lasx_xvfmadd_s(_pA10, _pB2, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(_pA10, _pB3, _sum1);
+                    _sum2 = __lasx_xvfmadd_s(_pA11, _pB2, _sum2);
+                    _sum3 = __lasx_xvfmadd_s(_pA11, _pB3, _sum3);
+
+                    pA += 4;
+                    pB += 32;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m256 _pA = (__m256)__lasx_xvldrepl_d(pA, 0);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
+
+                    __m256 _pA0 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 0));
+                    __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 1, 1, 1));
+
+                    _sum0 = __lasx_xvfmadd_s(_pA0, _pB0, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(_pA0, _pB1, _sum1);
+                    _sum2 = __lasx_xvfmadd_s(_pA1, _pB0, _sum2);
+                    _sum3 = __lasx_xvfmadd_s(_pA1, _pB1, _sum3);
+
+                    pA += 2;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    transpose8x2_ps(_sum0, _sum2);
+                    transpose8x2_ps(_sum1, _sum3);
+                    __m256 _tmp = _sum1;
+                    _sum1 = _sum2;
+                    _sum2 = _tmp;
+                }
+
+                __lasx_xvst((__m256i)_sum0, outptr, 0);
+                __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+                __lasx_xvst((__m256i)_sum2, outptr + 16, 0);
+                __lasx_xvst((__m256i)_sum3, outptr + 24, 0);
+                outptr += 2 * 16;
+            }
+#endif // __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
@@ -1449,6 +1999,42 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             int jj = 0;
 #if __loongarch_sx
+#if __loongarch_asx
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const float* pA = pAT;
+
+                __m256 _sum0;
+                __m256 _sum1;
+
+                if (k == 0)
+                {
+                    _sum0 = (__m256)__lasx_xvldi(0);
+                    _sum1 = (__m256)__lasx_xvldi(0);
+                }
+                else
+                {
+                    _sum0 = (__m256)__lasx_xvld(outptr, 0);
+                    _sum1 = (__m256)__lasx_xvld(outptr + 8, 0);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    __m256 _pA = __lasx_xvreplfr2vr_s(pA[0]);
+                    __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
+                    __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
+                    _sum0 = __lasx_xvfmadd_s(_pA, _pB0, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(_pA, _pB1, _sum1);
+                    pA += 1;
+                    pB += 16;
+                }
+
+                __lasx_xvst((__m256i)_sum0, outptr, 0);
+                __lasx_xvst((__m256i)_sum1, outptr + 8, 0);
+                outptr += 16;
+            }
+#endif // __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
