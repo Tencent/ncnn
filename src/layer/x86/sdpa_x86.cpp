@@ -49,37 +49,7 @@ int SDPA_x86::destroy_pipeline(const Option& /*_opt*/)
     return 0;
 }
 
-#if NCNN_INT8
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
-static void dynamic_quantize_blockwise(const float* src, signed char* dst, float* scales, int width)
-{
-    const int block_size = 32;
-    int num_blocks = (width + block_size - 1) / block_size;
-    for (int b = 0; b < num_blocks; b++)
-    {
-        int start = b * block_size;
-        int end = start + block_size < width ? start + block_size : width;
-        float absmax = 0.f;
-        for (int i = start; i < end; i++)
-        {
-            absmax = std::max(absmax, (float)fabs(src[i]));
-        }
-        float scale = absmax == 0.f ? 1.f : 127.f / absmax;
-        scales[b] = scale;
-        for (int i = start; i < end; i++)
-        {
-            dst[i] = float2int8(src[i] * scale);
-        }
-    }
-}
-#endif // NCNN_INT8
+#include "sdpa_x86_int8.h"
 
 static inline void qk_gemm_scalar(float* S, const float* Q, const float* K,
                                   int m, int n, int d, float scale)
@@ -3665,7 +3635,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             Mat key_scales_head = key_scales.channel(g);
             for (int j = 0; j < dst_seqlen; j++)
             {
-                dynamic_quantize_blockwise(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
+                dynamic_quantize_blockwise_dispatch(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
             }
 
             const Mat value_head = value.channel(g);
@@ -3673,7 +3643,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             Mat value_scales_head = value_scales.channel(g);
             for (int j = 0; j < dst_seqlen; j++)
             {
-                dynamic_quantize_blockwise(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
+                dynamic_quantize_blockwise_dispatch(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
             }
         }
 
@@ -3721,7 +3691,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 for (int i = 0; i < block_m; i++)
                 {
-                    dynamic_quantize_blockwise(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                    dynamic_quantize_blockwise_dispatch(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
                 }
 
                 for (int i = 0; i < block_m; i++)
