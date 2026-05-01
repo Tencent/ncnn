@@ -970,7 +970,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __lasx_xvst(_sum0, outptr, 0);
                 outptr += 8;
             }
-#else // __loongarch_asx
+#else  // __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const short* pA = pAT;
@@ -3031,7 +3031,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
 
                 __lasx_xvst(_tmp0, (int*)tmp[0][m], 0);
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
-#else // __loongarch_asx
+#else  // __loongarch_asx
                 __m128i _r0 = __lsx_vld(r0, 0);
                 __m128i _r1 = __lsx_vld(r1, 0);
                 __m128i _r2 = __lsx_vld(r2, 0);
@@ -3132,7 +3132,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                         outptr7[1] = tmp1[7];
                     }
                 }
-#else // __loongarch_asx
+#else  // __loongarch_asx
                 __m128i _r0 = __lsx_vld(tmp[m][0], 0);
                 __m128i _r1 = __lsx_vld(tmp[m][1], 0);
                 __m128i _r2 = __lsx_vld(tmp[m][2], 0);
@@ -4134,7 +4134,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
                 __lasx_xvst(_tmp2, (int*)tmp[2][m], 0);
                 __lasx_xvst(_tmp3, (int*)tmp[3][m], 0);
-#else // __loongarch_asx
+#else  // __loongarch_asx
                 __m128i _r0 = __lsx_vld(r0, 0);
                 __m128i _r1 = __lsx_vld(r1, 0);
                 __m128i _r2 = __lsx_vld(r2, 0);
@@ -4212,7 +4212,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __lasx_xvst(_tmp1, (int*)tmp[1][m], 0);
                 __lasx_xvst(_tmp2, (int*)tmp[2][m], 0);
                 __lasx_xvst(_tmp3, (int*)tmp[3][m], 0);
-#else // __loongarch_asx
+#else  // __loongarch_asx
                 __m128i _r0 = __lsx_vld(r0, 0);
                 __m128i _r1 = __lsx_vld(r1, 0);
                 __m128i _r2 = __lsx_vld(r2, 0);
@@ -4393,7 +4393,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                         outptr7[3] = tmp3[7];
                     }
                 }
-#else // __loongarch_asx
+#else  // __loongarch_asx
                 __m128i _r0 = __lsx_vld(tmp[m][0], 0);
                 __m128i _r1 = __lsx_vld(tmp[m][1], 0);
                 __m128i _r2 = __lsx_vld(tmp[m][2], 0);

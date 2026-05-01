@@ -982,7 +982,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 __lasx_xvst((__m256i)_sum, outptr, 0);
                 outptr += 8;
             }
-#else // __loongarch_asx
+#else  // __loongarch_asx
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
