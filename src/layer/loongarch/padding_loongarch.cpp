@@ -218,11 +218,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             int outw = w * elempack + left + right;
 
-#if __loongarch_asx
             int out_elempack = outw % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outw % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (left % 4 == 0 && out_elempack == 4 && type == 0)
@@ -243,11 +239,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
-#if __loongarch_asx
             int out_elempack = outh % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outh % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (top % 4 == 0 && out_elempack == 4 && type == 0)
@@ -269,11 +261,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
-#if __loongarch_asx
             int out_elempack = outc % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
@@ -537,11 +525,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             int outw = w * elempack + left + right;
 
-#if __loongarch_asx
             int out_elempack = outw % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outw % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (left % 4 == 0 && out_elempack == 4 && type == 0)
@@ -563,11 +547,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
-#if __loongarch_asx
             int out_elempack = outh % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outh % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (top % 4 == 0 && out_elempack == 4 && type == 0)
@@ -590,11 +570,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
-#if __loongarch_asx
             int out_elempack = outc % 4 == 0 ? 4 : 1;
-#else
-            int out_elempack = outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))

@@ -266,28 +266,12 @@ struct unary_op_sin
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = sinf(tmp[0]);
-        tmp[1] = sinf(tmp[1]);
-        tmp[2] = sinf(tmp[2]);
-        tmp[3] = sinf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return sin_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = sinf(tmp[0]);
-        tmp[1] = sinf(tmp[1]);
-        tmp[2] = sinf(tmp[2]);
-        tmp[3] = sinf(tmp[3]);
-        tmp[4] = sinf(tmp[4]);
-        tmp[5] = sinf(tmp[5]);
-        tmp[6] = sinf(tmp[6]);
-        tmp[7] = sinf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return sin256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -302,28 +286,12 @@ struct unary_op_cos
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = cosf(tmp[0]);
-        tmp[1] = cosf(tmp[1]);
-        tmp[2] = cosf(tmp[2]);
-        tmp[3] = cosf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return cos_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = cosf(tmp[0]);
-        tmp[1] = cosf(tmp[1]);
-        tmp[2] = cosf(tmp[2]);
-        tmp[3] = cosf(tmp[3]);
-        tmp[4] = cosf(tmp[4]);
-        tmp[5] = cosf(tmp[5]);
-        tmp[6] = cosf(tmp[6]);
-        tmp[7] = cosf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return cos256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -338,28 +306,12 @@ struct unary_op_tan
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = tanf(tmp[0]);
-        tmp[1] = tanf(tmp[1]);
-        tmp[2] = tanf(tmp[2]);
-        tmp[3] = tanf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return tan_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = tanf(tmp[0]);
-        tmp[1] = tanf(tmp[1]);
-        tmp[2] = tanf(tmp[2]);
-        tmp[3] = tanf(tmp[3]);
-        tmp[4] = tanf(tmp[4]);
-        tmp[5] = tanf(tmp[5]);
-        tmp[6] = tanf(tmp[6]);
-        tmp[7] = tanf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return tan256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -374,28 +326,12 @@ struct unary_op_asin
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = asinf(tmp[0]);
-        tmp[1] = asinf(tmp[1]);
-        tmp[2] = asinf(tmp[2]);
-        tmp[3] = asinf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return asin_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = asinf(tmp[0]);
-        tmp[1] = asinf(tmp[1]);
-        tmp[2] = asinf(tmp[2]);
-        tmp[3] = asinf(tmp[3]);
-        tmp[4] = asinf(tmp[4]);
-        tmp[5] = asinf(tmp[5]);
-        tmp[6] = asinf(tmp[6]);
-        tmp[7] = asinf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return asin256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -410,28 +346,12 @@ struct unary_op_acos
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = acosf(tmp[0]);
-        tmp[1] = acosf(tmp[1]);
-        tmp[2] = acosf(tmp[2]);
-        tmp[3] = acosf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return acos_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = acosf(tmp[0]);
-        tmp[1] = acosf(tmp[1]);
-        tmp[2] = acosf(tmp[2]);
-        tmp[3] = acosf(tmp[3]);
-        tmp[4] = acosf(tmp[4]);
-        tmp[5] = acosf(tmp[5]);
-        tmp[6] = acosf(tmp[6]);
-        tmp[7] = acosf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return acos256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx
@@ -446,28 +366,12 @@ struct unary_op_atan
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = atanf(tmp[0]);
-        tmp[1] = atanf(tmp[1]);
-        tmp[2] = atanf(tmp[2]);
-        tmp[3] = atanf(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return atan_ps(x);
     }
 #if __loongarch_asx
     __m256 func_pack8(const __m256& x) const
     {
-        float tmp[8];
-        __lasx_xvst(x, tmp, 0);
-        tmp[0] = atanf(tmp[0]);
-        tmp[1] = atanf(tmp[1]);
-        tmp[2] = atanf(tmp[2]);
-        tmp[3] = atanf(tmp[3]);
-        tmp[4] = atanf(tmp[4]);
-        tmp[5] = atanf(tmp[5]);
-        tmp[6] = atanf(tmp[6]);
-        tmp[7] = atanf(tmp[7]);
-        return (__m256)__lasx_xvld(tmp, 0);
+        return atan256_ps(x);
     }
 #endif // __loongarch_asx
 #endif // __loongarch_sx

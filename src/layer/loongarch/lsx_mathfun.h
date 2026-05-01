@@ -422,7 +422,6 @@ static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
 {
     __m128 ysin, ycos;
     __m128 eps = (__m128)__lsx_vreplgr2vr_w(c_eps.i);
-    __m128 zero = (__m128)__lsx_vreplgr2vr_w(c_0.i);
     sincos_ps(x, ysin, ycos);
     __m128i mask = __lsx_vfcmp_ceq_s(ycos, eps);
     mask = __lsx_vand_v(mask, (__m128i)eps);
@@ -501,7 +500,7 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
     __m128 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m128 output_approx, final_approx, small_final_approx, big_final_approx;
     __m128 tmp1, tmp2, tmp3, tmp4;
-    __m128i mask, mask2, is_small_input, is_big_input, lt_zero;
+    __m128i mask, is_small_input, is_big_input, lt_zero;
 
     lt_zero = __lsx_vfcmp_clt_s(x, (__m128)__lsx_vreplgr2vr_w(c_0.i));
     mask = __lsx_vand_v((__m128i)x, __lsx_vreplgr2vr_w(0x80000000));

@@ -339,7 +339,6 @@ static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
 {
     __m256 ysin, ycos;
     __m256 eps = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_eps.i);
-    __m256 zero = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i);
     sincos256_ps(x, ysin, ycos);
     __m256i mask = __lasx_xvfcmp_ceq_s(ycos, eps);
     mask = __lasx_xvand_v(mask, (__m256i)eps);
@@ -403,7 +402,7 @@ static NCNN_FORCEINLINE __m256 acos256_ps(__m256 x)
     __m256 big_input_approx, input_approx, square_of_input_approx, fourth_power_of_input_approx;
     __m256 output_approx, final_approx, small_final_approx, big_final_approx;
     __m256 tmp1, tmp2, tmp3, tmp4;
-    __m256i mask, mask2, is_small_input, is_big_input, lt_zero;
+    __m256i mask, is_small_input, is_big_input, lt_zero;
 
     lt_zero = __lasx_xvfcmp_clt_s(x, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
     mask = __lasx_xvand_v((__m256i)x, __lasx_xvreplgr2vr_w(0x80000000));

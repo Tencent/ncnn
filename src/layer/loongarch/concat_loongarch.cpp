@@ -25,11 +25,9 @@ Concat_loongarch::Concat_loongarch()
 
 int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if NCNN_BF16
     int elembits = bottom_blobs[0].elembits();
-    if (opt.use_bf16_storage && elembits == 16)
+    if (elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
-#endif
 
     int dims = bottom_blobs[0].dims;
     int positive_axis = axis < 0 ? dims + axis : axis;

@@ -113,9 +113,6 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
     int elempack = bottom_top_blob.elempack;
     int size = w * h * d * elempack;
 
-    const float kAlpha = 0.7978845608028654f;
-    const float kBeta = 0.044715f;
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {

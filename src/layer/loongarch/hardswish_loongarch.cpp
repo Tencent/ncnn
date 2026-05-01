@@ -113,23 +113,31 @@ int HardSwish_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
         int i = 0;
 #if __loongarch_sx
 #if __loongarch_asx
+        __m256 _zero8 = (__m256)__lasx_xvreplgr2vr_w(0);
+        __m256 _one8 = (__m256)__lasx_xvreplfr2vr_s(1.f);
+        __m256 _alpha8 = (__m256)__lasx_xvreplfr2vr_s(alpha);
+        __m256 _beta8 = (__m256)__lasx_xvreplfr2vr_s(beta);
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = bfloat2float_lasx((__m128i*)ptr);
-            __m256 _outp = __lasx_xvfmadd_s((__m256)__lasx_xvreplfr2vr_s(alpha), _p, (__m256)__lasx_xvreplfr2vr_s(beta));
-            _outp = __lasx_xvfmax_s(_outp, (__m256)__lasx_xvreplgr2vr_w(0));
-            _outp = __lasx_xvfmin_s(_outp, (__m256)__lasx_xvreplfr2vr_s(1.f));
+            __m256 _outp = __lasx_xvfmadd_s(_alpha8, _p, _beta8);
+            _outp = __lasx_xvfmax_s(_outp, _zero8);
+            _outp = __lasx_xvfmin_s(_outp, _one8);
             _outp = __lasx_xvfmul_s(_outp, _p);
             __lsx_vst(float2bfloat_lasx(_outp), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
+        __m128 _zero4 = (__m128)__lsx_vreplgr2vr_w(0);
+        __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
+        __m128 _alpha4 = (__m128)__lsx_vreplfr2vr_s(alpha);
+        __m128 _beta4 = (__m128)__lsx_vreplfr2vr_s(beta);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx((__m128i*)ptr);
-            __m128 _outp = __lsx_vfmadd_s((__m128)__lsx_vreplfr2vr_s(alpha), _p, (__m128)__lsx_vreplfr2vr_s(beta));
-            _outp = __lsx_vfmax_s(_outp, (__m128)__lsx_vreplgr2vr_w(0));
-            _outp = __lsx_vfmin_s(_outp, (__m128)__lsx_vreplfr2vr_s(1.f));
+            __m128 _outp = __lsx_vfmadd_s(_alpha4, _p, _beta4);
+            _outp = __lsx_vfmax_s(_outp, _zero4);
+            _outp = __lsx_vfmin_s(_outp, _one4);
             _outp = __lsx_vfmul_s(_outp, _p);
             __lsx_vstelm_d(float2bfloat_lsx(_outp), ptr, 0, 0);
             ptr += 4;

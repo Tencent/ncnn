@@ -220,11 +220,11 @@ static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 
 static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
 {
-    v2i64 hi64 = (v2i64)__msa_ilvl_d((v2i64)_v, (v2i64)_v);
-    v4i32 sum64 = __msa_addv_w((v4i32)hi64, _v);
-    v4i32 hi32 = (v4i32)__msa_ilvr_w((v4i32)hi64, sum64);
-    v4i32 sum32 = __msa_addv_w(sum64, hi32);
-    return __msa_copy_s_w(sum32, 0);
+    v4i32 _s = __msa_shf_w(_v, _MSA_SHUFFLE(1, 0, 3, 2));
+    _v = __msa_addv_w(_v, _s);
+    _s = __msa_shf_w(_v, _MSA_SHUFFLE(2, 3, 0, 1));
+    _v = __msa_addv_w(_v, _s);
+    return __msa_copy_s_w(_v, 0);
 }
 
 static NCNN_FORCEINLINE int __msa_cfcmsa_msacsr()
