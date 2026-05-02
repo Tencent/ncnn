@@ -7,17 +7,38 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 #include "loongarch_usability.h"
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "pooling_bf16s.h"
+#endif
+
+#if __loongarch_sx
+#include "pooling_2x2.h"
+#include "pooling_3x3.h"
+#include "pooling_2x2_pack4.h"
+#include "pooling_3x3_pack4.h"
+#if __loongarch_asx
+#include "pooling_2x2_pack8.h"
+#include "pooling_3x3_pack8.h"
+#endif // __loongarch_asx
+#endif // __loongarch_sx
+
 Pooling_loongarch::Pooling_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Pooling_loongarch::create_pipeline(const Option& /*opt*/)
@@ -36,13 +57,20 @@ int Pooling_loongarch::create_pipeline(const Option& /*opt*/)
 
 int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    // max value in NxN window
+    // avg value in NxN window
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
     if (adaptive_pooling)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
-
-    // max value in NxN window
-    // avg value in NxN window
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -52,6 +80,266 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
 #if __loongarch_sx
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+
+    if (elempack == 1 && pooling_type == PoolMethod_MAX && !global_pooling && stride_w == 2 && stride_h == 2 && ((kernel_w == 2 && kernel_h == 2) || (kernel_w == 3 && kernel_h == 3)))
+    {
+        Mat bottom_blob_bordered;
+        make_padding(bottom_blob, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+
+        int outw = (w - kernel_w) / stride_w + 1;
+        int outh = (h - kernel_h) / stride_h + 1;
+
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (kernel_w == 2)
+            pooling2x2s2_max_lsx(bottom_blob_bordered, top_blob, opt);
+        if (kernel_w == 3)
+            pooling3x3s2_max_lsx(bottom_blob_bordered, top_blob, opt);
+
+        return 0;
+    }
+
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        if (global_pooling)
+        {
+            top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int size = w * h;
+
+            if (pooling_type == PoolMethod_MAX)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+
+                    __m256 _max = (__m256)__lasx_xvld(ptr, 0);
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m256 _val = (__m256)__lasx_xvld(ptr, 0);
+                        _max = __lasx_xvfmax_s(_max, _val);
+                        ptr += 8;
+                    }
+
+                    float* outptr = top_blob;
+                    __lasx_xvst(_max, outptr + q * 8, 0);
+                }
+            }
+            else if (pooling_type == PoolMethod_AVE)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+
+                    __m256 _sum = (__m256)__lasx_xvldi(0);
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m256 _val = (__m256)__lasx_xvld(ptr, 0);
+                        _sum = __lasx_xvfadd_s(_sum, _val);
+                        ptr += 8;
+                    }
+
+                    __m256 _avg = __lasx_xvfmul_s(_sum, (__m256)__lasx_xvreplfr2vr_s(1.f / size));
+
+                    float* outptr = top_blob;
+                    __lasx_xvst(_avg, outptr + q * 8, 0);
+                }
+            }
+
+            return 0;
+        }
+
+        Mat bottom_blob_bordered;
+        make_padding(bottom_blob, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+
+        int outw = (w - kernel_w) / stride_w + 1;
+        int outh = (h - kernel_h) / stride_h + 1;
+
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int maxk = kernel_w * kernel_h;
+
+        // kernel offsets
+        std::vector<int> _space_ofs(maxk);
+        int* space_ofs = &_space_ofs[0];
+        {
+            int p1 = 0;
+            int p2 = 0;
+            int gap = w - kernel_w;
+            for (int i = 0; i < kernel_h; i++)
+            {
+                for (int j = 0; j < kernel_w; j++)
+                {
+                    space_ofs[p1] = p2;
+                    p1++;
+                    p2++;
+                }
+                p2 += gap;
+            }
+        }
+
+        if (pooling_type == PoolMethod_MAX)
+        {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack8_lasx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack8_lasx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
+
+                        __m256 _max = (__m256)__lasx_xvld(sptr, 0);
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m256 _val = (__m256)__lasx_xvld(sptr + space_ofs[k] * 8, 0);
+                            _max = __lasx_xvfmax_s(_max, _val);
+                        }
+
+                        __lasx_xvst(_max, outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            if (avgpool_count_include_pad == 0)
+            {
+                int wtailpad = 0;
+                int htailpad = 0;
+
+                if (pad_mode == 0) // full padding
+                {
+                    wtailpad = bottom_blob_bordered.w - bottom_blob.w - pad_left - pad_right;
+                    htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        int sy0 = i * stride_h;
+
+                        for (int j = 0; j < outw; j++)
+                        {
+                            int sx0 = j * stride_w;
+
+                            __m256 _sum = (__m256)__lasx_xvldi(0);
+                            int area = 0;
+
+                            for (int ki = 0; ki < kernel_h; ki++)
+                            {
+                                int sy = sy0 + ki;
+
+                                if (sy < pad_top)
+                                    continue;
+
+                                if (sy >= h - pad_bottom - htailpad)
+                                    break;
+
+                                for (int kj = 0; kj < kernel_w; kj++)
+                                {
+                                    int sx = sx0 + kj;
+
+                                    if (sx < pad_left)
+                                        continue;
+
+                                    if (sx >= w - pad_right - wtailpad)
+                                        break;
+
+                                    __m256 _val = (__m256)__lasx_xvld(m.row(sy) + sx * 8, 0);
+                                    _sum = __lasx_xvfadd_s(_sum, _val);
+                                    area += 1;
+                                }
+                            }
+
+                            __m256 _avg = __lasx_xvfmul_s(_sum, (__m256)__lasx_xvreplfr2vr_s(1.f / area));
+                            __lasx_xvst(_avg, outptr + j * 8, 0);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
+            }
+            else // if (avgpool_count_include_pad == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    const float inv_maxk = 1.f / maxk;
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
+
+                            __m256 _sum = (__m256)__lasx_xvldi(0);
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                __m256 _val = (__m256)__lasx_xvld(sptr + space_ofs[k] * 8, 0);
+                                _sum = __lasx_xvfadd_s(_sum, _val);
+                            }
+
+                            __m256 _avg = __lasx_xvfmul_s(_sum, (__m256)__lasx_xvreplfr2vr_s(inv_maxk));
+                            __lasx_xvst(_avg, outptr + j * 8, 0);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+#endif // __loongarch_asx
 
     if (elempack == 4)
     {
@@ -145,6 +433,19 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_MAX)
         {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack4_lsx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack4_lsx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -276,5 +577,67 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     return Pooling::forward(bottom_blob, top_blob, opt);
 }
+
+#if NCNN_BF16
+int Pooling_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    if (adaptive_pooling)
+    {
+        return Pooling::forward(bottom_blob, top_blob, opt);
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    //     NCNN_LOGE("Pooling bf16s input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+
+    if (global_pooling)
+    {
+        top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (pooling_type == PoolMethod_MAX)
+        {
+            pooling_global_max_bf16s_lsx(bottom_blob, top_blob, opt);
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            pooling_global_avg_bf16s_lsx(bottom_blob, top_blob, opt);
+        }
+
+        return 0;
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (pooling_type == PoolMethod_MAX)
+    {
+        pooling_max_bf16s_lsx(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pooling_avg_bf16s_lsx(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

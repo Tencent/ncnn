@@ -11,13 +11,21 @@
 #endif // __mips_msa
 
 #include "mips_activation.h"
+#include "mips_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "innerproduct_bf16s.h"
+#endif
 
 InnerProduct_mips::InnerProduct_mips()
 {
 #if __mips_msa
     support_packing = true;
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 #endif // __mips_msa
 
     flatten = 0;
@@ -46,6 +54,13 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
     if (opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
     }
 #endif
 
@@ -111,6 +126,14 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            return forward_int8_mips(bottom_blob_fp32, top_blob, opt);
+        }
+#endif
         return forward_int8_mips(bottom_blob, top_blob, opt);
     }
 #endif
@@ -119,6 +142,13 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (opt.use_fp16_storage)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -176,19 +206,19 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4i32 _w = __msa_ld_w(kptr, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
-                        _sum2 = __msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
-                        _sum3 = __msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
 
                         m += 4;
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                    _sum1 = activation_msa(_sum1, activation_type, activation_params);
+                    _sum2 = activation_msa(_sum2, activation_type, activation_params);
+                    _sum3 = activation_msa(_sum3, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum0, outptr, 0);
                     __msa_st_w((v4i32)_sum1, outptr + 4, 0);
@@ -227,10 +257,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                         v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                         v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                        _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                        _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                         m += 4;
                         kptr += 16;
@@ -239,7 +269,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         v4f32 _val = __msa_fill_w_f32(m[0]);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                         m += 1;
                         kptr += 4;
@@ -249,7 +279,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     _sum2 = __msa_fadd_w(_sum2, _sum3);
                     _sum0 = __msa_fadd_w(_sum0, _sum2);
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
+                    _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum0, outptr, 0);
                     outptr += 4;
@@ -278,13 +308,13 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(kptr[0]);
-                        _sum = __msa_fmadd_w(_sum, _val, _k);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _val, _k);
 
                         m += 4;
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_msa(_sum, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum, outptr, 0);
                     outptr += 4;
@@ -317,7 +347,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                        _sum = __msa_fmadd_w(_sum, _m, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _m, _w);
 
                         m += 4;
                         kptr += 4;
@@ -399,10 +429,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 v4f32 _w1 = (v4f32)__msa_ld_w(kptr + 4, 0);
                 v4f32 _w2 = (v4f32)__msa_ld_w(kptr + 8, 0);
                 v4f32 _w3 = (v4f32)__msa_ld_w(kptr + 12, 0);
-                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                 sptr += 4;
                 kptr += 16;
@@ -411,7 +441,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             {
                 v4f32 _val = __msa_fill_w_f32(sptr[0]);
                 v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
@@ -421,7 +451,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             _sum2 = __msa_fadd_w(_sum2, _sum3);
             _sum0 = __msa_fadd_w(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
             __msa_st_w((v4i32)_sum0, outptr + p * 4, 0);
@@ -477,10 +507,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 v4f32 _w1 = (v4f32)__msa_ld_w(w1, 0);
                 v4f32 _w2 = (v4f32)__msa_ld_w(w2, 0);
                 v4f32 _w3 = (v4f32)__msa_ld_w(w3, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _m, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _m, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _m, _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _m, _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _m, _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _m, _w3);
 
                 m += 4;
                 w0 += 4;
@@ -543,7 +573,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                 v4f32 _w = (v4f32)__msa_ld_w(w, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w);
 
                 m += 4;
                 w += 4;
@@ -701,19 +731,19 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4i32 _w = (v4i32)__msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
-                        _sum1 = __msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
-                        _sum2 = __msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
-                        _sum3 = __msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w, 0));
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, (v4f32)__msa_splati_w(_w, 1));
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, _val, (v4f32)__msa_splati_w(_w, 2));
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, _val, (v4f32)__msa_splati_w(_w, 3));
 
                         m += 4;
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                    _sum1 = activation_msa(_sum1, activation_type, activation_params);
+                    _sum2 = activation_msa(_sum2, activation_type, activation_params);
+                    _sum3 = activation_msa(_sum3, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum0, outptr, 0);
                     __msa_st_w((v4i32)_sum1, outptr + 4, 0);
@@ -754,10 +784,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         v4f32 _w1 = __msa_fexupl_w(_w01);
                         v4f32 _w2 = __msa_fexupr_w(_w23);
                         v4f32 _w3 = __msa_fexupl_w(_w23);
-                        _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                        _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                        _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                        _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                        _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                        _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                        _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                         m += 4;
                         kptr += 16;
@@ -766,7 +796,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         v4f32 _val = __msa_fill_w_f32(m[0]);
                         v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                        _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                         m += 1;
                         kptr += 4;
@@ -776,7 +806,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     _sum2 = __msa_fadd_w(_sum2, _sum3);
                     _sum0 = __msa_fadd_w(_sum0, _sum2);
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
+                    _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum0, outptr, 0);
                     outptr += 4;
@@ -805,13 +835,13 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(float16_to_float32(kptr[0]));
-                        _sum = __msa_fmadd_w(_sum, _val, _k);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _val, _k);
 
                         m += 4;
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_msa(_sum, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sum, outptr, 0);
                     outptr += 4;
@@ -842,7 +872,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                        _sum = __msa_fmadd_w(_sum, _m, _w);
+                        _sum = __ncnn_msa_fmadd_w(_sum, _m, _w);
 
                         m += 4;
                         kptr += 4;
@@ -922,10 +952,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 v4f32 _w1 = __msa_fexupl_w(_w01);
                 v4f32 _w2 = __msa_fexupr_w(_w23);
                 v4f32 _w3 = __msa_fexupl_w(_w23);
-                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
-                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
-                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
-                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val, 0), _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val, 1), _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val, 2), _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val, 3), _w3);
 
                 sptr += 4;
                 kptr += 16;
@@ -934,7 +964,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             {
                 v4f32 _val = __msa_fill_w_f32(sptr[0]);
                 v4f32 _w = __msa_fexupr_w(__msa_ld_h(kptr, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _val, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
@@ -944,7 +974,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             _sum2 = __msa_fadd_w(_sum2, _sum3);
             _sum0 = __msa_fadd_w(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
             __msa_st_w((v4i32)_sum0, outptr + p * 4, 0);
@@ -998,10 +1028,10 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 v4f32 _w1 = __msa_fexupr_w(__msa_ld_h(w1, 0));
                 v4f32 _w2 = __msa_fexupr_w(__msa_ld_h(w2, 0));
                 v4f32 _w3 = __msa_fexupr_w(__msa_ld_h(w3, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _m, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _m, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _m, _w3);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w0);
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _m, _w1);
+                _sum2 = __ncnn_msa_fmadd_w(_sum2, _m, _w2);
+                _sum3 = __ncnn_msa_fmadd_w(_sum3, _m, _w3);
 
                 m += 4;
                 w0 += 4;
@@ -1060,7 +1090,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
                 v4f32 _w = __msa_fexupr_w(__msa_ld_h(w, 0));
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _m, _w);
 
                 m += 4;
                 w += 4;
@@ -1273,14 +1303,14 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                     {
                         v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_00 = __msa_fmadd_w(_bias0, _sumfp32_00, _scale_in0);
-                        _sumfp32_01 = __msa_fmadd_w(_bias1, _sumfp32_01, _scale_in1);
-                        _sumfp32_10 = __msa_fmadd_w(_bias0, _sumfp32_10, _scale_in0);
-                        _sumfp32_11 = __msa_fmadd_w(_bias1, _sumfp32_11, _scale_in1);
-                        _sumfp32_20 = __msa_fmadd_w(_bias0, _sumfp32_20, _scale_in0);
-                        _sumfp32_21 = __msa_fmadd_w(_bias1, _sumfp32_21, _scale_in1);
-                        _sumfp32_30 = __msa_fmadd_w(_bias0, _sumfp32_30, _scale_in0);
-                        _sumfp32_31 = __msa_fmadd_w(_bias1, _sumfp32_31, _scale_in1);
+                        _sumfp32_00 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_00, _scale_in0);
+                        _sumfp32_01 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_01, _scale_in1);
+                        _sumfp32_10 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_10, _scale_in0);
+                        _sumfp32_11 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_11, _scale_in1);
+                        _sumfp32_20 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_20, _scale_in0);
+                        _sumfp32_21 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_21, _scale_in1);
+                        _sumfp32_30 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_30, _scale_in0);
+                        _sumfp32_31 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_31, _scale_in1);
                     }
                     else
                     {
@@ -1294,14 +1324,14 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                         _sumfp32_31 = __msa_fmul_w(_sumfp32_31, _scale_in1);
                     }
 
-                    _sumfp32_00 = activation_ps(_sumfp32_00, activation_type, activation_params);
-                    _sumfp32_01 = activation_ps(_sumfp32_01, activation_type, activation_params);
-                    _sumfp32_10 = activation_ps(_sumfp32_10, activation_type, activation_params);
-                    _sumfp32_11 = activation_ps(_sumfp32_11, activation_type, activation_params);
-                    _sumfp32_20 = activation_ps(_sumfp32_20, activation_type, activation_params);
-                    _sumfp32_21 = activation_ps(_sumfp32_21, activation_type, activation_params);
-                    _sumfp32_30 = activation_ps(_sumfp32_30, activation_type, activation_params);
-                    _sumfp32_31 = activation_ps(_sumfp32_31, activation_type, activation_params);
+                    _sumfp32_00 = activation_msa(_sumfp32_00, activation_type, activation_params);
+                    _sumfp32_01 = activation_msa(_sumfp32_01, activation_type, activation_params);
+                    _sumfp32_10 = activation_msa(_sumfp32_10, activation_type, activation_params);
+                    _sumfp32_11 = activation_msa(_sumfp32_11, activation_type, activation_params);
+                    _sumfp32_20 = activation_msa(_sumfp32_20, activation_type, activation_params);
+                    _sumfp32_21 = activation_msa(_sumfp32_21, activation_type, activation_params);
+                    _sumfp32_30 = activation_msa(_sumfp32_30, activation_type, activation_params);
+                    _sumfp32_31 = activation_msa(_sumfp32_31, activation_type, activation_params);
 
                     // transpose 4x8
                     v4i32 _r01r = __msa_ilvr_w((v4i32)_sumfp32_10, (v4i32)_sumfp32_00);
@@ -1436,8 +1466,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                     {
                         v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_0 = __msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
-                        _sumfp32_1 = __msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
+                        _sumfp32_0 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
+                        _sumfp32_1 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
                     }
                     else
                     {
@@ -1445,8 +1475,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                         _sumfp32_1 = __msa_fmul_w(_sumfp32_1, _scale_in1);
                     }
 
-                    _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-                    _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+                    _sumfp32_0 = activation_msa(_sumfp32_0, activation_type, activation_params);
+                    _sumfp32_1 = activation_msa(_sumfp32_1, activation_type, activation_params);
 
                     __msa_st_w((v4i32)_sumfp32_0, outptr, 0);
                     __msa_st_w((v4i32)_sumfp32_1, outptr + 4, 0);
@@ -1559,8 +1589,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
             {
                 v4f32 _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8, 0);
                 v4f32 _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + p * 8 + 4, 0);
-                _sumfp32_0 = __msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
-                _sumfp32_1 = __msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
+                _sumfp32_0 = __ncnn_msa_fmadd_w(_bias0, _sumfp32_0, _scale_in0);
+                _sumfp32_1 = __ncnn_msa_fmadd_w(_bias1, _sumfp32_1, _scale_in1);
             }
             else
             {
@@ -1568,8 +1598,8 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
                 _sumfp32_1 = __msa_fmul_w(_sumfp32_1, _scale_in1);
             }
 
-            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
-            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+            _sumfp32_0 = activation_msa(_sumfp32_0, activation_type, activation_params);
+            _sumfp32_1 = activation_msa(_sumfp32_1, activation_type, activation_params);
 
             float* outptr = (float*)top_blob + p * 8;
             __msa_st_w((v4i32)_sumfp32_0, outptr, 0);
@@ -1616,5 +1646,72 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
     return 0;
 }
 #endif // NCNN_INT8
+
+#if NCNN_BF16
+int InnerProduct_mips::create_pipeline_bf16s(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    innerproduct_transform_kernel_bf16s_msa(weight_data, weight_data_tm, num_input, num_output, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int InnerProduct_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        // gemm
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        innerproduct_gemm_bf16s_msa(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+        return 0;
+    }
+
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (bottom_blob_flattened.empty())
+            return -100;
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    innerproduct_bf16s_msa(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

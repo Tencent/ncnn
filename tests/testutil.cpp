@@ -391,6 +391,11 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             const int packn = ncnn::cpu_riscv_vlenb() / 4;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
+#elif NCNN_LASX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #else
             if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -419,6 +424,11 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
+#elif NCNN_LASX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #else
             if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -461,6 +471,11 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
                 const int packn = ncnn::cpu_riscv_vlenb() / 4;
                 if (elemcount % packn == 0)
                     any_elempack = 1;
+#elif NCNN_LASX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
+                    any_elempack = 1;
 #else
                 if (elemcount % 4 == 0)
                     any_elempack = 1;
@@ -488,6 +503,11 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
+                    any_elempack = 1;
+#elif NCNN_LASX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                    any_elempack = 4;
+                else if (elemcount % 4 == 0)
                     any_elempack = 1;
 #else
                 if (elemcount % 4 == 0)

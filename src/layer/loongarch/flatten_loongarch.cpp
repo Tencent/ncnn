@@ -3,9 +3,11 @@
 
 #include "flatten_loongarch.h"
 
+#include <string.h>
+
 #if __loongarch_sx
 #include <lsxintrin.h>
-#include "lsx_mathfun.h"
+#include "loongarch_usability.h"
 #endif // __loongarch_sx
 
 namespace ncnn {
@@ -15,6 +17,9 @@ Flatten_loongarch::Flatten_loongarch()
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -23,6 +28,9 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
+
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 
     int dims = bottom_blob.dims;
 
@@ -46,7 +54,11 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#else
         out_elempack = total % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -56,7 +68,7 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         return Flatten::forward(bottom_blob, top_blob, opt);
     }
 
-    if (dims == 2 && elempack == 1) // out_elempack == 4
+    if (dims == 2 && elempack == 1) // out_elempack == 4 || out_elempack == 8
     {
         top_blob = bottom_blob;
         top_blob.dims = 1;
@@ -75,6 +87,72 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (dims == 2)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const float* ptr = bottom_blob.row(i);
+                float* outptr0 = (float*)top_blob + w * i * 8;
+                float* outptr1 = (float*)top_blob + w * (i * 8 + 1);
+                float* outptr2 = (float*)top_blob + w * (i * 8 + 2);
+                float* outptr3 = (float*)top_blob + w * (i * 8 + 3);
+                float* outptr4 = (float*)top_blob + w * (i * 8 + 4);
+                float* outptr5 = (float*)top_blob + w * (i * 8 + 5);
+                float* outptr6 = (float*)top_blob + w * (i * 8 + 6);
+                float* outptr7 = (float*)top_blob + w * (i * 8 + 7);
+
+                int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __m256 _row0 = (__m256)__lasx_xvld(ptr, 0);
+                    __m256 _row1 = (__m256)__lasx_xvld(ptr + 8, 0);
+                    __m256 _row2 = (__m256)__lasx_xvld(ptr + 16, 0);
+                    __m256 _row3 = (__m256)__lasx_xvld(ptr + 24, 0);
+                    __m256 _row4 = (__m256)__lasx_xvld(ptr + 32, 0);
+                    __m256 _row5 = (__m256)__lasx_xvld(ptr + 40, 0);
+                    __m256 _row6 = (__m256)__lasx_xvld(ptr + 48, 0);
+                    __m256 _row7 = (__m256)__lasx_xvld(ptr + 56, 0);
+
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+
+                    __lasx_xvst((__m256i)_row0, outptr0, 0);
+                    __lasx_xvst((__m256i)_row1, outptr1, 0);
+                    __lasx_xvst((__m256i)_row2, outptr2, 0);
+                    __lasx_xvst((__m256i)_row3, outptr3, 0);
+                    __lasx_xvst((__m256i)_row4, outptr4, 0);
+                    __lasx_xvst((__m256i)_row5, outptr5, 0);
+                    __lasx_xvst((__m256i)_row6, outptr6, 0);
+                    __lasx_xvst((__m256i)_row7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __loongarch_asx
+
         if (elempack == 4) // out_elempack == 4
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -132,6 +210,72 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (dims == 3 || dims == 4)
     {
 #if __loongarch_sx
+#if __loongarch_asx
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr0 = (float*)top_blob + size * q * 8;
+                float* outptr1 = (float*)top_blob + size * (q * 8 + 1);
+                float* outptr2 = (float*)top_blob + size * (q * 8 + 2);
+                float* outptr3 = (float*)top_blob + size * (q * 8 + 3);
+                float* outptr4 = (float*)top_blob + size * (q * 8 + 4);
+                float* outptr5 = (float*)top_blob + size * (q * 8 + 5);
+                float* outptr6 = (float*)top_blob + size * (q * 8 + 6);
+                float* outptr7 = (float*)top_blob + size * (q * 8 + 7);
+
+                int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m256 _row0 = (__m256)__lasx_xvld(ptr, 0);
+                    __m256 _row1 = (__m256)__lasx_xvld(ptr + 8, 0);
+                    __m256 _row2 = (__m256)__lasx_xvld(ptr + 16, 0);
+                    __m256 _row3 = (__m256)__lasx_xvld(ptr + 24, 0);
+                    __m256 _row4 = (__m256)__lasx_xvld(ptr + 32, 0);
+                    __m256 _row5 = (__m256)__lasx_xvld(ptr + 40, 0);
+                    __m256 _row6 = (__m256)__lasx_xvld(ptr + 48, 0);
+                    __m256 _row7 = (__m256)__lasx_xvld(ptr + 56, 0);
+
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+
+                    __lasx_xvst((__m256i)_row0, outptr0, 0);
+                    __lasx_xvst((__m256i)_row1, outptr1, 0);
+                    __lasx_xvst((__m256i)_row2, outptr2, 0);
+                    __lasx_xvst((__m256i)_row3, outptr3, 0);
+                    __lasx_xvst((__m256i)_row4, outptr4, 0);
+                    __lasx_xvst((__m256i)_row5, outptr5, 0);
+                    __lasx_xvst((__m256i)_row6, outptr6, 0);
+                    __lasx_xvst((__m256i)_row7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __loongarch_asx
+
         if (elempack == 4) // out_elempack == 4
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -206,6 +350,189 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     *outptr++ = *ptr++;
                 }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int d = bottom_blob.d;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h * d;
+
+    int total = size * channels * elempack;
+
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+#if __loongarch_asx
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = total % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (out_elempack == 1)
+    {
+        return Flatten::forward(bottom_blob, top_blob, opt);
+    }
+
+    if (dims == 2 && elempack == 1) // out_elempack == 4 || out_elempack == 8
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_elempack;
+        top_blob.h = 1;
+        top_blob.cstep = bottom_blob.cstep / out_elempack;
+        top_blob.elemsize = out_elemsize;
+        top_blob.elempack = out_elempack;
+        return 0;
+    }
+
+    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (dims == 2)
+    {
+#if __loongarch_asx
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + w * (i * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + w * (i * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 8 + 7);
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __loongarch_asx
+
+        if (elempack == 4) // out_elempack == 4 || out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 4 + 3);
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    ptr += 4;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+#if __loongarch_asx
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + size * (q * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + size * (q * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 8 + 7);
+
+                for (int i = 0; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+#endif // __loongarch_asx
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 4 + 3);
+
+                for (int i = 0; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    ptr += 4;
+                }
+            }
+        }
+
+        if (elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr = (unsigned short*)top_blob + size * q;
+
+                memcpy(outptr, ptr, (size_t)size * sizeof(unsigned short));
             }
         }
     }

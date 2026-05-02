@@ -14,6 +14,11 @@ public:
     Interp_mips();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+protected:
+#if NCNN_BF16
+    int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

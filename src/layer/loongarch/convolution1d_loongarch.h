@@ -1,4 +1,5 @@
 // Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_CONVOLUTION1D_LOONGARCH_H
@@ -20,9 +21,14 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+protected:
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
 public:
-    // packn
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

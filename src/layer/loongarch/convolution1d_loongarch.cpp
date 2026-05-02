@@ -1,22 +1,36 @@
 // Copyright 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>
+// Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convolution1d_loongarch.h"
 
 #if __loongarch_sx
 #include <lsxintrin.h>
+#if __loongarch_asx
+#include <lasxintrin.h>
+#endif
 #endif // __loongarch_sx
 
+#include "cpu.h"
 #include "loongarch_activation.h"
 #include "loongarch_usability.h"
 
 namespace ncnn {
+
+#include "convolution1d_packed.h"
+#if NCNN_BF16
+#include "convolution1d_packed_bf16s.h"
+#endif // NCNN_BF16
 
 Convolution1D_loongarch::Convolution1D_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
 #endif // __loongarch_sx
+
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Convolution1D_loongarch::create_pipeline(const Option& opt)
@@ -24,48 +38,16 @@ int Convolution1D_loongarch::create_pipeline(const Option& opt)
     if (dynamic_weight)
         return 0;
 
-    const int num_input = weight_data_size / kernel_w / num_output;
-
-    int elempack = 1;
-    int out_elempack = 1;
-#if __loongarch_sx
-    if (opt.use_packing_layout)
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
     {
-        elempack = num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        return create_pipeline_bf16s(opt);
     }
 #endif
 
-    // src = kw-inch-outch
-    // dst = pb-pa-kw-inch/pa-outch/pb
-    {
-        Mat weight_data_r2 = weight_data.reshape(kernel_w, num_input, num_output);
+    int num_input = weight_data_size / kernel_w / num_output;
 
-        weight_data_packed.create(kernel_w, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            float* g00 = weight_data_packed.channel(q / out_elempack);
-
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-            {
-                for (int k = 0; k < kernel_w; k++)
-                {
-                    for (int i = 0; i < elempack; i++)
-                    {
-                        for (int j = 0; j < out_elempack; j++)
-                        {
-                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
-
-                            g00[0] = k00[k];
-
-                            g00++;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
     if (opt.lightmode)
         weight_data.release();
@@ -80,8 +62,14 @@ int Convolution1D_loongarch::destroy_pipeline(const Option& /*opt*/)
 
 int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -93,13 +81,16 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
         return -100;
 
     w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
 
     int out_elempack = 1;
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -111,192 +102,7 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
     if (top_blob.empty())
         return -100;
 
-#if __loongarch_sx
-    if (elempack == 4 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
-
-                    if (bias_term)
-                    {
-                        _sum = (__m128)__lsx_vld((const float*)bias_data + p * 4, 0);
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            __m128 _val0 = __lsx_vreplfr2vr_s(sptr[0]);
-                            __m128 _val1 = __lsx_vreplfr2vr_s(sptr[1]);
-                            __m128 _val2 = __lsx_vreplfr2vr_s(sptr[2]);
-                            __m128 _val3 = __lsx_vreplfr2vr_s(sptr[3]);
-
-                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
-                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
-                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
-                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
-
-                            _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
-                            _sum = __lsx_vfmadd_s(_w1, _val1, _sum);
-                            _sum = __lsx_vfmadd_s(_w2, _val2, _sum);
-                            _sum = __lsx_vfmadd_s(_w3, _val3, _sum);
-
-                            sptr += dilation_w * 4;
-                            kptr += 16;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    __lsx_vst(_sum, outptr, 0);
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
-
-                    if (bias_term)
-                    {
-                        _sum = (__m128)__lsx_vld((const float*)bias_data + p * 4, 0);
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            __m128 _val = __lsx_vreplfr2vr_s(sptr[0]);
-                            __m128 _w = (__m128)__lsx_vld(kptr, 0);
-                            _sum = __lsx_vfmadd_s(_w, _val, _sum);
-
-                            sptr += dilation_w;
-                            kptr += 4;
-                        }
-                    }
-
-                    _sum = activation_ps(_sum, activation_type, activation_params);
-
-                    __lsx_vst(_sum, outptr, 0);
-                    outptr += 4;
-                }
-            }
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            __m128 _val = (__m128)__lsx_vld(sptr, 0);
-                            __m128 _w = (__m128)__lsx_vld(kptr, 0);
-                            _sum = __lsx_vfmadd_s(_w, _val, _sum);
-
-                            sptr += dilation_w * 4;
-                            kptr += 4;
-                        }
-                    }
-
-                    sum += __lsx_reduce_fadd_s(_sum);
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-    }
-#endif // __loongarch_sx
-
-    if (elempack == 1 && out_elempack == 1)
-    {
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < outh; p++)
-            {
-                float* outptr = top_blob.row(p);
-
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const float* kptr = weight_data_packed.channel(p);
-
-                    for (int q = 0; q < h; q++)
-                    {
-                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
-
-                        for (int k = 0; k < kernel_w; k++)
-                        {
-                            float val = sptr[0];
-                            float wt = kptr[0];
-                            sum += val * wt;
-
-                            sptr += dilation_w;
-                            kptr += 1;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-    }
+    convolution1d_packed(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
 
     return 0;
 }
@@ -315,6 +121,15 @@ int Convolution1D_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
     if (weight_data_flattened.empty())
         return -100;
 
+#if NCNN_BF16
+    if (weight_data_flattened.elembits() == 16)
+    {
+        Mat tmp;
+        cast_bfloat16_to_float32(weight_data_flattened, tmp, opt);
+        weight_data_flattened = tmp;
+    }
+#endif
+
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
     weight_data_flattened.elemsize /= weight_data_flattened.elempack;
@@ -327,6 +142,15 @@ int Convolution1D_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (bias_data_flattened.elembits() == 16)
+        {
+            Mat tmp;
+            cast_bfloat16_to_float32(bias_data_flattened, tmp, opt);
+            bias_data_flattened = tmp;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -367,5 +191,59 @@ int Convolution1D_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::
 
     return 0;
 }
+
+#if NCNN_BF16
+int Convolution1D_loongarch::create_pipeline_bf16s(const Option& opt)
+{
+    int num_input = weight_data_size / kernel_w / num_output;
+
+    convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Convolution1D_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+#if __loongarch_asx
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = num_output / out_elempack;
+
+    top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    convolution1d_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

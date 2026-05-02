@@ -18,6 +18,9 @@ UnaryOp_mips::UnaryOp_mips()
 #if __mips_msa
     support_packing = true;
 #endif // __mips_msa
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 template<typename Op>
@@ -209,14 +212,7 @@ struct unary_op_sin
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = sinf(tmp[0]);
-        tmp[1] = sinf(tmp[1]);
-        tmp[2] = sinf(tmp[2]);
-        tmp[3] = sinf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return sin_ps(x);
     }
 #endif // __mips_msa
 };
@@ -230,14 +226,7 @@ struct unary_op_cos
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = cosf(tmp[0]);
-        tmp[1] = cosf(tmp[1]);
-        tmp[2] = cosf(tmp[2]);
-        tmp[3] = cosf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return cos_ps(x);
     }
 #endif // __mips_msa
 };
@@ -251,14 +240,7 @@ struct unary_op_tan
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = tanf(tmp[0]);
-        tmp[1] = tanf(tmp[1]);
-        tmp[2] = tanf(tmp[2]);
-        tmp[3] = tanf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return tan_ps(x);
     }
 #endif // __mips_msa
 };
@@ -272,14 +254,7 @@ struct unary_op_asin
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = asinf(tmp[0]);
-        tmp[1] = asinf(tmp[1]);
-        tmp[2] = asinf(tmp[2]);
-        tmp[3] = asinf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return asin_ps(x);
     }
 #endif // __mips_msa
 };
@@ -293,14 +268,7 @@ struct unary_op_acos
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = acosf(tmp[0]);
-        tmp[1] = acosf(tmp[1]);
-        tmp[2] = acosf(tmp[2]);
-        tmp[3] = acosf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return acos_ps(x);
     }
 #endif // __mips_msa
 };
@@ -314,14 +282,7 @@ struct unary_op_atan
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = atanf(tmp[0]);
-        tmp[1] = atanf(tmp[1]);
-        tmp[2] = atanf(tmp[2]);
-        tmp[3] = atanf(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        return atan_ps(x);
     }
 #endif // __mips_msa
 };
@@ -426,8 +387,54 @@ struct unary_op_trunc
 
 } // namespace UnaryOp_mips_functor
 
+#if NCNN_BF16
+#include "mips_usability.h"
+
+template<typename Op>
+static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = a.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = bfloat2float_msa(ptr);
+            _p = op.func_pack4(_p);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
+            ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *ptr = float32_to_bfloat16(op.func(bfloat16_to_float32(*ptr)));
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif
+
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     using namespace UnaryOp_mips_functor;
 
     if (op_type == Operation_ABS)
@@ -492,5 +499,74 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int UnaryOp_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    using namespace UnaryOp_mips_functor;
+
+    if (op_type == Operation_ABS)
+        return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
+
+    if (op_type == Operation_NEG)
+        return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
+
+    if (op_type == Operation_FLOOR)
+        return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
+
+    if (op_type == Operation_CEIL)
+        return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQUARE)
+        return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQRT)
+        return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RSQRT)
+        return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXP)
+        return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG)
+        return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIN)
+        return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COS)
+        return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TAN)
+        return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASIN)
+        return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOS)
+        return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATAN)
+        return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TANH)
+        return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
