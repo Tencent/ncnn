@@ -17,6 +17,13 @@ namespace ncnn {
 #include "pooling_bf16s.h"
 #endif
 
+#if __mips_msa
+#include "pooling_2x2.h"
+#include "pooling_3x3.h"
+#include "pooling_2x2_pack4.h"
+#include "pooling_3x3_pack4.h"
+#endif // __mips_msa
+
 Pooling_mips::Pooling_mips()
 {
 #if __mips_msa
@@ -66,6 +73,31 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 #if __mips_msa
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+
+    if (elempack == 1 && pooling_type == PoolMethod_MAX && !global_pooling && stride_w == 2 && stride_h == 2 && ((kernel_w == 2 && kernel_h == 2) || (kernel_w == 3 && kernel_h == 3)))
+    {
+        Mat bottom_blob_bordered;
+        make_padding(bottom_blob, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        w = bottom_blob_bordered.w;
+        h = bottom_blob_bordered.h;
+
+        int outw = (w - kernel_w) / stride_w + 1;
+        int outh = (h - kernel_h) / stride_h + 1;
+
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (kernel_w == 2)
+            pooling2x2s2_max_msa(bottom_blob_bordered, top_blob, opt);
+        if (kernel_w == 3)
+            pooling3x3s2_max_msa(bottom_blob_bordered, top_blob, opt);
+
+        return 0;
+    }
 
     if (elempack == 4)
     {
@@ -159,6 +191,19 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
         if (pooling_type == PoolMethod_MAX)
         {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack4_msa(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack4_msa(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {

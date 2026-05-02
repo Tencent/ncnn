@@ -1,6 +1,11 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "pooling_2x2_pack4_bf16s.h"
+#include "pooling_3x3_pack4_bf16s.h"
+#include "pooling_2x2_pack8_bf16s.h"
+#include "pooling_3x3_pack8_bf16s.h"
+
 static void pooling_global_max_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
@@ -168,6 +173,42 @@ static void pooling_max_bf16s_lsx(const Mat& bottom_blob_bordered, Mat& top_blob
 
     int outw = top_blob.w;
     int outh = top_blob.h;
+
+#if __loongarch_sx
+#if __loongarch_asx
+    if (elempack == 8)
+    {
+        if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+        {
+            pooling2x2s2_max_pack8_bf16s_lasx(bottom_blob_bordered, top_blob, opt);
+
+            return;
+        }
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+        {
+            pooling3x3s2_max_pack8_bf16s_lasx(bottom_blob_bordered, top_blob, opt);
+
+            return;
+        }
+    }
+#endif // __loongarch_asx
+
+    if (elempack == 4)
+    {
+        if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+        {
+            pooling2x2s2_max_pack4_bf16s_lsx(bottom_blob_bordered, top_blob, opt);
+
+            return;
+        }
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+        {
+            pooling3x3s2_max_pack4_bf16s_lsx(bottom_blob_bordered, top_blob, opt);
+
+            return;
+        }
+    }
+#endif // __loongarch_sx
 
     const int maxk = kernel_w * kernel_h;
 
