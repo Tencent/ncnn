@@ -14,6 +14,9 @@
 namespace ncnn {
 
 #include "convolution1d_packed.h"
+#if NCNN_BF16
+#include "convolution1d_packed_bf16s.h"
+#endif // NCNN_BF16
 
 Convolution1D_mips::Convolution1D_mips()
 {
@@ -186,7 +189,7 @@ int Convolution1D_mips::create_pipeline_bf16s(const Option& opt)
 {
     int num_input = weight_data_size / kernel_w / num_output;
 
-    convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+    convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
     if (opt.lightmode)
         weight_data.release();
@@ -197,6 +200,8 @@ int Convolution1D_mips::create_pipeline_bf16s(const Option& opt)
 int Convolution1D_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
 
@@ -207,13 +212,6 @@ int Convolution1D_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 
     w = bottom_blob_bordered.w;
 
-    // bf16 -> fp32
-    Mat bottom_blob_bordered_fp32;
-    cast_bfloat16_to_float32(bottom_blob_bordered, bottom_blob_bordered_fp32, opt);
-    if (bottom_blob_bordered_fp32.empty())
-        return -100;
-
-    // fp32 forward
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
@@ -221,20 +219,16 @@ int Convolution1D_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
         out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
 #endif
-    size_t out_elemsize = 4u * out_elempack;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;
     const int outh = num_output / out_elempack;
 
-    Mat top_blob_fp32;
-    top_blob_fp32.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob_fp32.empty())
+    top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
         return -100;
 
-    convolution1d_packed(bottom_blob_bordered_fp32, top_blob_fp32, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
-
-    // fp32 -> bf16
-    cast_float32_to_bfloat16(top_blob_fp32, top_blob, opt);
+    convolution1d_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
 
     return 0;
 }

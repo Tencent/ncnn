@@ -27,12 +27,15 @@ int InstanceNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
-#if __mips_msa
-    if (bottom_top_blob.elempack == 4)
-    {
-        const int channels = bottom_top_blob.c;
-        const int size = bottom_top_blob.w * bottom_top_blob.h;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
 
+#if __mips_msa
+    int elempack = bottom_top_blob.elempack;
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
@@ -110,18 +113,106 @@ int InstanceNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
     }
 #endif // __mips_msa
 
-    return InstanceNorm::forward_inplace(bottom_top_blob, opt);
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        float* ptr = bottom_top_blob.channel(q);
+        const float* ptr0 = ptr;
+
+        // mean and var
+        float sum = 0.f;
+        float sqsum = 0.f;
+
+        int i = 0;
+#if __mips_msa
+        v4f32 _sum = (v4f32)__msa_fill_w(0);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
+            _sum = __msa_fadd_w(_sum, _p);
+            ptr0 += 4;
+        }
+        sum += __msa_reduce_fadd_w(_sum);
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            sum += *ptr0++;
+        }
+
+        float mean = sum / size;
+
+        ptr0 = ptr;
+        i = 0;
+#if __mips_msa
+        v4f32 _sqsum = (v4f32)__msa_fill_w(0);
+        v4f32 _mean = __msa_fill_w_f32(mean);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
+            _p = __msa_fsub_w(_p, _mean);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
+            ptr0 += 4;
+        }
+        sqsum += __msa_reduce_fadd_w(_sqsum);
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float tmp = *ptr0++ - mean;
+            sqsum += tmp * tmp;
+        }
+
+        float var = sqsum / size;
+
+        float a;
+        float b;
+        if (affine)
+        {
+            float gamma = gamma_data[q];
+            float beta = beta_data[q];
+
+            a = gamma / sqrtf(var + eps);
+            b = -mean * a + beta;
+        }
+        else
+        {
+            a = 1.f / sqrtf(var + eps);
+            b = -mean * a;
+        }
+
+        i = 0;
+#if __mips_msa
+        v4f32 _a = __msa_fill_w_f32(a);
+        v4f32 _b = __msa_fill_w_f32(b);
+        for (; i + 3 < size; i += 4)
+        {
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            _p = __ncnn_msa_fmadd_w(_b, _p, _a);
+            __msa_st_w((v4i32)_p, ptr, 0);
+            ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *ptr = *ptr * a + b;
+            ptr++;
+        }
+    }
+
+    return 0;
 }
 
 #if NCNN_BF16
 int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __mips_msa
-    if (bottom_top_blob.elempack == 4)
-    {
-        const int channels = bottom_top_blob.c;
-        const int size = bottom_top_blob.w * bottom_top_blob.h;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
 
+#if __mips_msa
+    int elempack = bottom_top_blob.elempack;
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
@@ -201,98 +292,92 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
     }
 #endif // __mips_msa
 
-    // elempack == 1 bf16s path
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        const int channels = bottom_top_blob.c;
-        const int size = bottom_top_blob.w * bottom_top_blob.h;
+        unsigned short* ptr = bottom_top_blob.channel(q);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        // compute mean
+        float mean = 0.f;
         {
-            unsigned short* ptr = bottom_top_blob.channel(q);
-
-            // compute mean
-            float mean = 0.f;
-            {
-                const unsigned short* ptr0 = ptr;
-                int i = 0;
+            const unsigned short* ptr0 = ptr;
+            int i = 0;
 #if __mips_msa
-                v4f32 _sum = (v4f32)__msa_fill_w(0);
-                for (; i + 3 < size; i += 4)
-                {
-                    v4f32 _p = bfloat2float_msa(ptr0 + i);
-                    _sum = __msa_fadd_w(_sum, _p);
-                }
-                mean += __msa_reduce_fadd_w(_sum);
+            v4f32 _sum = (v4f32)__msa_fill_w(0);
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr0 + i);
+                _sum = __msa_fadd_w(_sum, _p);
+            }
+            mean += __msa_reduce_fadd_w(_sum);
 #endif // __mips_msa
-                for (; i < size; i++)
-                {
-                    mean += bfloat16_to_float32(ptr0[i]);
-                }
-                mean /= size;
-            }
-
-            // compute var
-            float var = 0.f;
+            for (; i < size; i++)
             {
-                const unsigned short* ptr0 = ptr;
-                int i = 0;
-#if __mips_msa
-                v4f32 _mean = __msa_fill_w_f32(mean);
-                v4f32 _sqsum = (v4f32)__msa_fill_w(0);
-                for (; i + 3 < size; i += 4)
-                {
-                    v4f32 _p = bfloat2float_msa(ptr0 + i);
-                    _p = __msa_fsub_w(_p, _mean);
-                    _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
-                }
-                var += __msa_reduce_fadd_w(_sqsum);
-#endif // __mips_msa
-                for (; i < size; i++)
-                {
-                    float v = bfloat16_to_float32(ptr0[i]) - mean;
-                    var += v * v;
-                }
-                var /= size;
+                mean += bfloat16_to_float32(ptr0[i]);
             }
-
-            float a;
-            float b;
-            if (affine)
-            {
-                float gamma = gamma_data[q];
-                float beta = beta_data[q];
-                a = gamma / sqrtf(var + eps);
-                b = -mean * a + beta;
-            }
-            else
-            {
-                a = 1.f / sqrtf(var + eps);
-                b = -mean * a;
-            }
-
-            // apply
-            {
-                int i = 0;
-#if __mips_msa
-                v4f32 _a = __msa_fill_w_f32(a);
-                v4f32 _b = __msa_fill_w_f32(b);
-                for (; i + 3 < size; i += 4)
-                {
-                    v4f32 _p = bfloat2float_msa(ptr + i);
-                    _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-                    __msa_storel_d(float2bfloat_msa(_p), ptr + i);
-                }
-#endif // __mips_msa
-                for (; i < size; i++)
-                {
-                    ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * a + b);
-                }
-            }
+            mean /= size;
         }
 
-        return 0;
+        // compute var
+        float var = 0.f;
+        {
+            const unsigned short* ptr0 = ptr;
+            int i = 0;
+#if __mips_msa
+            v4f32 _mean = __msa_fill_w_f32(mean);
+            v4f32 _sqsum = (v4f32)__msa_fill_w(0);
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr0 + i);
+                _p = __msa_fsub_w(_p, _mean);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p, _p);
+            }
+            var += __msa_reduce_fadd_w(_sqsum);
+#endif // __mips_msa
+            for (; i < size; i++)
+            {
+                float v = bfloat16_to_float32(ptr0[i]) - mean;
+                var += v * v;
+            }
+            var /= size;
+        }
+
+        float a;
+        float b;
+        if (affine)
+        {
+            float gamma = gamma_data[q];
+            float beta = beta_data[q];
+            a = gamma / sqrtf(var + eps);
+            b = -mean * a + beta;
+        }
+        else
+        {
+            a = 1.f / sqrtf(var + eps);
+            b = -mean * a;
+        }
+
+        // apply
+        {
+            int i = 0;
+#if __mips_msa
+            v4f32 _a = __msa_fill_w_f32(a);
+            v4f32 _b = __msa_fill_w_f32(b);
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr + i);
+                _p = __ncnn_msa_fmadd_w(_b, _p, _a);
+                __msa_storel_d(float2bfloat_msa(_p), ptr + i);
+            }
+#endif // __mips_msa
+            for (; i < size; i++)
+            {
+                ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * a + b);
+            }
+        }
     }
+
+    return 0;
 }
 #endif // NCNN_BF16
 

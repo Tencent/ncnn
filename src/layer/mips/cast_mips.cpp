@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -165,6 +166,24 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             float* outptr = top_blob.channel(q);
 
             int i = 0;
+#if __mips_msa
+            for (; i + 7 < size; i += 8)
+            {
+                v4f32 _p0 = bfloat2float_msa(ptr);
+                v4f32 _p1 = bfloat2float_msa(ptr + 4);
+                __msa_st_w((v4i32)_p0, outptr, 0);
+                __msa_st_w((v4i32)_p1, outptr + 4, 0);
+                ptr += 8;
+                outptr += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = bfloat2float_msa(ptr);
+                __msa_st_w((v4i32)_p, outptr, 0);
+                ptr += 4;
+                outptr += 4;
+            }
+#endif // __mips_msa
             for (; i < size; i++)
             {
                 *outptr = bfloat16_to_float32(*ptr);
@@ -183,6 +202,23 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             unsigned short* outptr = top_blob.channel(q);
 
             int i = 0;
+#if __mips_msa
+            for (; i + 7 < size; i += 8)
+            {
+                v4f32 _p0 = (v4f32)__msa_ld_w(ptr, 0);
+                v4f32 _p1 = (v4f32)__msa_ld_w(ptr + 4, 0);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+                ptr += 8;
+                outptr += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+                __msa_storel_d(float2bfloat_msa(_p), outptr);
+                ptr += 4;
+                outptr += 4;
+            }
+#endif // __mips_msa
             for (; i < size; i++)
             {
                 *outptr = float32_to_bfloat16(*ptr);

@@ -245,6 +245,54 @@ static NCNN_FORCEINLINE __m128 tanh_ps(__m128 x)
     return y;
 }
 
+_LOONGARCH_FLOAT_CONST(c_erf_threshold, 0.927734375f);
+_LOONGARCH_FLOAT_CONST(c_erf_c0, -1.72853470e-5f);
+_LOONGARCH_FLOAT_CONST(c_erf_c1, 3.83197126e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_c2, -3.88396438e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_c3, 2.42546219e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_c4, -1.06777877e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_c5, -6.34846687e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_c6, -1.28717512e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p0, -5.96761703e-4f);
+_LOONGARCH_FLOAT_CONST(c_erf_p1, 4.99119423e-3f);
+_LOONGARCH_FLOAT_CONST(c_erf_p2, -2.67681349e-2f);
+_LOONGARCH_FLOAT_CONST(c_erf_p3, 1.12819925e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p4, -3.76125336e-1f);
+_LOONGARCH_FLOAT_CONST(c_erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE __m128 erf_ps(__m128 a)
+{
+    __m128 one = (__m128)__lsx_vreplgr2vr_w(c_1.i);
+
+    __m128 t = (__m128)__lsx_vbitclri_w((__m128i)a, 31);
+    __m128 s = __lsx_vfmul_s(a, a);
+
+    __m128i mask = __lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_erf_threshold.i), t);
+
+    __m128 r1 = __lsx_vfmadd_s((__m128)__lsx_vreplgr2vr_w(c_erf_c0.i), t, (__m128)__lsx_vreplgr2vr_w(c_erf_c1.i));
+    __m128 u = __lsx_vfmadd_s((__m128)__lsx_vreplgr2vr_w(c_erf_c2.i), t, (__m128)__lsx_vreplgr2vr_w(c_erf_c3.i));
+    r1 = __lsx_vfmadd_s(r1, s, u);
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c4.i));
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c5.i));
+    r1 = __lsx_vfmadd_s(r1, t, (__m128)__lsx_vreplgr2vr_w(c_erf_c6.i));
+    __m128 neg_t = (__m128)__lsx_vbitrevi_w((__m128i)t, 31);
+    r1 = __lsx_vfmadd_s(r1, t, neg_t);
+    r1 = __lsx_vfsub_s(one, exp_ps(r1));
+    r1 = (__m128)__lsx_vor_v((__m128i)r1, __lsx_vand_v((__m128i)a, __lsx_vreplgr2vr_w(1 << 31)));
+
+    __m128 r2 = (__m128)__lsx_vreplgr2vr_w(c_erf_p0.i);
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p1.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p2.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p3.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p4.i));
+    r2 = __lsx_vfmadd_s(r2, s, (__m128)__lsx_vreplgr2vr_w(c_erf_p5.i));
+    r2 = __lsx_vfmadd_s(r2, a, a);
+
+    __m128 r = (__m128)__lsx_vbitsel_v((__m128i)r2, (__m128i)r1, mask);
+
+    return r;
+}
+
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP1, -0.78515625f);
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP2, -2.4187564849853515625e-4f);
 _LOONGARCH_FLOAT_CONST(c_minus_cephes_DP3, -3.77489497744594108e-8f);

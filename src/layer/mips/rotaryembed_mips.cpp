@@ -25,7 +25,136 @@ int RotaryEmbed_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    return RotaryEmbed::forward(bottom_blobs, top_blobs, opt);
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    const int embed_dim = bottom_blob.w;
+    const int seqlen = bottom_blob.h;
+    const int num_heads = bottom_blob.c;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        const Mat head = bottom_blob.channel(q);
+        Mat out_head = top_blob.channel(q);
+
+        for (int i = 0; i < seqlen; i++)
+        {
+            if (interleaved)
+            {
+                const float* ptr = head.row(i);
+                const float* cos_ptr = cos_cache.row(i);
+                const float* sin_ptr = sin_cache.row(i);
+                float* outptr = out_head.row(i);
+
+                int j = 0;
+#if __mips_msa
+                v4i32 _signmask = __msa_fill_w(0);
+                _signmask = __msa_insert_w(_signmask, 1, -1);
+                _signmask = __msa_insert_w(_signmask, 3, -1);
+
+                for (; j + 3 < embed_dim / 2; j += 4)
+                {
+                    v4f32 _a0 = (v4f32)__msa_ld_w(ptr, 0);
+                    v4f32 _a1 = (v4f32)__msa_ld_w(ptr + 4, 0);
+
+                    v4f32 _c4 = (v4f32)__msa_ld_w(cos_ptr, 0);
+                    v4f32 _s4 = (v4f32)__msa_ld_w(sin_ptr, 0);
+
+                    v4f32 _clo = (v4f32)__msa_ilvr_w((v4i32)_c4, (v4i32)_c4);
+                    v4f32 _chi = (v4f32)__msa_ilvl_w((v4i32)_c4, (v4i32)_c4);
+                    v4f32 _slo = (v4f32)__msa_ilvr_w((v4i32)_s4, (v4i32)_s4);
+                    v4f32 _shi = (v4f32)__msa_ilvl_w((v4i32)_s4, (v4i32)_s4);
+
+                    v4f32 _swap0 = (v4f32)__msa_shf_w((v4i32)_a0, _MSA_SHUFFLE(2, 3, 0, 1));
+                    v4f32 _swap1 = (v4f32)__msa_shf_w((v4i32)_a1, _MSA_SHUFFLE(2, 3, 0, 1));
+
+                    v4f32 _ac0 = __msa_fmul_w(_a0, _clo);
+                    v4f32 _ac1 = __msa_fmul_w(_a1, _chi);
+                    v4f32 _y0sub = __ncnn_msa_fmsub_w(_ac0, _swap0, _slo);
+                    v4f32 _y0add = __ncnn_msa_fmadd_w(_ac0, _swap0, _slo);
+                    v4f32 _y1sub = __ncnn_msa_fmsub_w(_ac1, _swap1, _shi);
+                    v4f32 _y1add = __ncnn_msa_fmadd_w(_ac1, _swap1, _shi);
+
+                    v4f32 _y0 = (v4f32)__msa_bsel_v((v16u8)_signmask, (v16u8)_y0sub, (v16u8)_y0add);
+                    v4f32 _y1 = (v4f32)__msa_bsel_v((v16u8)_signmask, (v16u8)_y1sub, (v16u8)_y1add);
+
+                    __msa_st_w((v4i32)_y0, outptr, 0);
+                    __msa_st_w((v4i32)_y1, outptr + 4, 0);
+
+                    ptr += 8;
+                    outptr += 8;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                }
+#endif // __mips_msa
+                for (; j < embed_dim / 2; j++)
+                {
+                    const float x0 = ptr[0];
+                    const float x1 = ptr[1];
+                    const float cos_val = *cos_ptr++;
+                    const float sin_val = *sin_ptr++;
+
+                    outptr[0] = x0 * cos_val - x1 * sin_val;
+                    outptr[1] = x0 * sin_val + x1 * cos_val;
+
+                    ptr += 2;
+                    outptr += 2;
+                }
+            }
+            else
+            {
+                const float* ptr0 = head.row(i);
+                const float* ptr1 = ptr0 + embed_dim / 2;
+                const float* cos_ptr = cos_cache.row(i);
+                const float* sin_ptr = sin_cache.row(i);
+                float* outptr0 = out_head.row(i);
+                float* outptr1 = outptr0 + embed_dim / 2;
+
+                int j = 0;
+#if __mips_msa
+                for (; j + 3 < embed_dim / 2; j += 4)
+                {
+                    v4f32 _x0 = (v4f32)__msa_ld_w(ptr0, 0);
+                    v4f32 _x1 = (v4f32)__msa_ld_w(ptr1, 0);
+                    v4f32 _c = (v4f32)__msa_ld_w(cos_ptr, 0);
+                    v4f32 _s = (v4f32)__msa_ld_w(sin_ptr, 0);
+
+                    v4f32 _y0 = __ncnn_msa_fmsub_w(__msa_fmul_w(_x0, _c), _x1, _s);
+                    v4f32 _y1 = __ncnn_msa_fmadd_w(__msa_fmul_w(_x1, _c), _x0, _s);
+
+                    __msa_st_w((v4i32)_y0, outptr0, 0);
+                    __msa_st_w((v4i32)_y1, outptr1, 0);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    cos_ptr += 4;
+                    sin_ptr += 4;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+#endif // __mips_msa
+                for (; j < embed_dim / 2; j++)
+                {
+                    const float x0 = *ptr0++;
+                    const float x1 = *ptr1++;
+                    const float cos_val = *cos_ptr++;
+                    const float sin_val = *sin_ptr++;
+
+                    *outptr0++ = x0 * cos_val - x1 * sin_val;
+                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 #if NCNN_BF16

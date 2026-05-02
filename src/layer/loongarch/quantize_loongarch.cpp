@@ -444,7 +444,6 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
 }
 
 #if __loongarch_sx
-#if !__loongarch_asx
 static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned short* ptr1, signed char* s8ptr, const Mat& scale_data, int elemcount)
 {
     const int scale_data_size = scale_data.w;
@@ -490,7 +489,6 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
         s8ptr += 8;
     }
 }
-#endif // !__loongarch_asx
 
 static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr0, signed char* s8ptr1, signed char* s8ptr2, signed char* s8ptr3, const Mat& scale_data, int elemcount)
 {
@@ -624,7 +622,6 @@ int Quantize_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
             return -100;
 
 #if __loongarch_sx
-#if !__loongarch_asx
         if (elempack == 4 && out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -639,7 +636,6 @@ int Quantize_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                 quantize_bf16_pack4to8(ptr0, ptr1, s8ptr, scale_data_i, w);
             }
         }
-#endif // !__loongarch_asx
         if (elempack == 4 && out_elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -689,7 +685,6 @@ int Quantize_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
             return -100;
 
 #if __loongarch_sx
-#if !__loongarch_asx
         if (elempack == 4 && out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -704,7 +699,6 @@ int Quantize_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                 quantize_bf16_pack4to8(ptr0, ptr1, s8ptr, scale_data_q, w * h);
             }
         }
-#endif // !__loongarch_asx
         if (elempack == 4 && out_elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
