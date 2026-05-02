@@ -28,7 +28,6 @@ static __m256 gridsample_set2_pack4_ps_lasx(float v0, float v1)
 }
 #endif // __loongarch_asx
 
-
 static void gridsample_2d_bilinear_apply_interpolation_pack4_lsx(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
     (void)opt;

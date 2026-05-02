@@ -660,29 +660,29 @@ static void gridsample_store_2d_bicubic_lasx(float* offset_value_ptr, __m256 _sa
 #endif // __loongarch_sx
 
 #define GRIDSAMPLE_COMPUTE_BLOB_DISPATCH(func, src, grid, offset_value, padding_mode, align_corner, permute_fusion) \
-    do \
-    { \
-        if (padding_mode == GridSample::Padding_ZEROS) \
-        { \
-            if (align_corner == 0) \
-                func<GridSample::Padding_ZEROS, false>(src, grid, offset_value, permute_fusion); \
-            else \
-                func<GridSample::Padding_ZEROS, true>(src, grid, offset_value, permute_fusion); \
-        } \
-        else if (padding_mode == GridSample::Padding_BORDER) \
-        { \
-            if (align_corner == 0) \
-                func<GridSample::Padding_BORDER, false>(src, grid, offset_value, permute_fusion); \
-            else \
-                func<GridSample::Padding_BORDER, true>(src, grid, offset_value, permute_fusion); \
-        } \
-        else if (padding_mode == GridSample::Padding_REFLECTION) \
-        { \
-            if (align_corner == 0) \
-                func<GridSample::Padding_REFLECTION, false>(src, grid, offset_value, permute_fusion); \
-            else \
-                func<GridSample::Padding_REFLECTION, true>(src, grid, offset_value, permute_fusion); \
-        } \
+    do                                                                                                              \
+    {                                                                                                               \
+        if (padding_mode == GridSample::Padding_ZEROS)                                                              \
+        {                                                                                                           \
+            if (align_corner == 0)                                                                                  \
+                func<GridSample::Padding_ZEROS, false>(src, grid, offset_value, permute_fusion);                    \
+            else                                                                                                    \
+                func<GridSample::Padding_ZEROS, true>(src, grid, offset_value, permute_fusion);                     \
+        }                                                                                                           \
+        else if (padding_mode == GridSample::Padding_BORDER)                                                        \
+        {                                                                                                           \
+            if (align_corner == 0)                                                                                  \
+                func<GridSample::Padding_BORDER, false>(src, grid, offset_value, permute_fusion);                   \
+            else                                                                                                    \
+                func<GridSample::Padding_BORDER, true>(src, grid, offset_value, permute_fusion);                    \
+        }                                                                                                           \
+        else if (padding_mode == GridSample::Padding_REFLECTION)                                                    \
+        {                                                                                                           \
+            if (align_corner == 0)                                                                                  \
+                func<GridSample::Padding_REFLECTION, false>(src, grid, offset_value, permute_fusion);               \
+            else                                                                                                    \
+                func<GridSample::Padding_REFLECTION, true>(src, grid, offset_value, permute_fusion);                \
+        }                                                                                                           \
     } while (0)
 
 #include "gridsample_bilinear_compute_blob.h"
