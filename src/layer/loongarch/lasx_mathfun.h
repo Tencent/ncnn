@@ -340,7 +340,7 @@ static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
     __m256 ysin, ycos;
     __m256 eps = (__m256)__lasx_xvreplgr2vr_w(_ps256_c_eps.i);
     sincos256_ps(x, ysin, ycos);
-    __m256i mask = __lasx_xvfcmp_ceq_s(ycos, eps);
+    __m256i mask = __lasx_xvfcmp_ceq_s(ycos, (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
     mask = __lasx_xvand_v(mask, (__m256i)eps);
     ycos = __lasx_xvfadd_s(ycos, (__m256)mask);
     __m256 ytan = __lasx_xvfdiv_s(ysin, ycos);
@@ -494,6 +494,7 @@ static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
 static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 {
     __m256i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
+    __m256i negative_mask_full_x;
     __m256i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
     __m256 pi_additions, tmp1, tmp2, normal_result, special_result, final_result;
 
@@ -515,8 +516,11 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
     normal_result = __lasx_xvfdiv_s(y, x);
     normal_result = __lasx_xvfadd_s(atan256_ps(normal_result), pi_additions);
 
-    tmp1 = (__m256)__lasx_xvand_v(negative_mask_y, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_half_pi.i));
-    tmp2 = (__m256)__lasx_xvand_v(negative_mask_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i));
+    tmp1 = (__m256)__lasx_xvor_v(negative_mask_y, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_half_pi.i));
+    negative_mask_full_x = __lasx_xvfcmp_clt_s(
+                               (__m256)__lasx_xvor_v(negative_mask_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i)),
+                               (__m256)__lasx_xvreplgr2vr_w(_ps256_c_0.i));
+    tmp2 = (__m256)__lasx_xvand_v(negative_mask_full_x, __lasx_xvreplgr2vr_w(_ps256_c_cephes_asin_pi.i));
     special_result = (__m256)__lasx_xvand_v(not_eq_zero_y, (__m256i)tmp1);
     special_result = (__m256)__lasx_xvor_v(__lasx_xvand_v(eq_zero_y, (__m256i)tmp2), (__m256i)special_result);
 

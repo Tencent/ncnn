@@ -122,10 +122,30 @@ int BNLL_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __lsx_vst(float2bfloat_lasx(_outp), ptr, 0);
             ptr += 8;
         }
+#else  // __loongarch_asx
+        {
+            __m128i _zero_raw = __lsx_vreplgr2vr_w(0);
+            __m128 _zero = (__m128)_zero_raw;
+            __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_raw);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_raw);
+                __m128 _abs_p0 = (__m128)__lsx_vand_v((__m128i)_p0, __lsx_vreplgr2vr_w(0x7fffffff));
+                __m128 _abs_p1 = (__m128)__lsx_vand_v((__m128i)_p1, __lsx_vreplgr2vr_w(0x7fffffff));
+                __m128 _tmp0 = log_ps(__lsx_vfadd_s(_one, exp_ps((__m128)__lsx_vbitrevi_w((__m128i)_abs_p0, 31))));
+                __m128 _tmp1 = log_ps(__lsx_vfadd_s(_one, exp_ps((__m128)__lsx_vbitrevi_w((__m128i)_abs_p1, 31))));
+                __m128 _outp0 = __lsx_vfadd_s(__lsx_vfmax_s(_p0, _zero), _tmp0);
+                __m128 _outp1 = __lsx_vfadd_s(__lsx_vfmax_s(_p1, _zero), _tmp1);
+                __lsx_vst(float2bfloat_lsx(_outp0, _outp1), ptr, 0);
+                ptr += 8;
+            }
+        }
 #endif
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx(ptr);
             __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
             __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
             __m128 _abs_p = (__m128)__lsx_vand_v((__m128i)_p, __lsx_vreplgr2vr_w(0x7fffffff));

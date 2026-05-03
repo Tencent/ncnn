@@ -409,6 +409,17 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 
         int i = 0;
 #if __mips_msa
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            _p0 = op.func_pack4(_p0);
+            _p1 = op.func_pack4(_p1);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);

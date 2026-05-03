@@ -277,7 +277,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmul_s(_v, _scale0);
-            __lsx_vstelm_d(float2bfloat_lsx(_v, _v), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_v), ptr, 0, 0);
             intptr += 4;
             ptr += 4;
         }
@@ -349,7 +349,7 @@ static void dequantize_bf16(const int* intptr, unsigned short* ptr, const Mat& s
         {
             __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
             _v = __lsx_vfmadd_s(_v, _scale0, _bias0);
-            __lsx_vstelm_d(float2bfloat_lsx(_v, _v), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_v), ptr, 0, 0);
             intptr += 4;
             ptr += 4;
         }

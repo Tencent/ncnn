@@ -3389,22 +3389,22 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = bfloat2float_lsx((__m128i)__lsx_vld(p0, 0));
-                __m128 _r1 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4, 0));
-                __m128 _r2 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 2, 0));
-                __m128 _r3 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 3, 0));
-                __m128 _r4 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 4, 0));
-                __m128 _r5 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 5, 0));
-                __m128 _r6 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 6, 0));
-                __m128 _r7 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 7, 0));
-                __m128 _r8 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 8, 0));
-                __m128 _r9 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 9, 0));
-                __m128 _ra = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 10, 0));
-                __m128 _rb = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 11, 0));
-                __m128 _rc = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 12, 0));
-                __m128 _rd = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 13, 0));
-                __m128 _re = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 14, 0));
-                __m128 _rf = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4 * 15, 0));
+                __m128 _r0 = bfloat2float_lsx(p0);
+                __m128 _r1 = bfloat2float_lsx(p0 + 4);
+                __m128 _r2 = bfloat2float_lsx(p0 + 4 * 2);
+                __m128 _r3 = bfloat2float_lsx(p0 + 4 * 3);
+                __m128 _r4 = bfloat2float_lsx(p0 + 4 * 4);
+                __m128 _r5 = bfloat2float_lsx(p0 + 4 * 5);
+                __m128 _r6 = bfloat2float_lsx(p0 + 4 * 6);
+                __m128 _r7 = bfloat2float_lsx(p0 + 4 * 7);
+                __m128 _r8 = bfloat2float_lsx(p0 + 4 * 8);
+                __m128 _r9 = bfloat2float_lsx(p0 + 4 * 9);
+                __m128 _ra = bfloat2float_lsx(p0 + 4 * 10);
+                __m128 _rb = bfloat2float_lsx(p0 + 4 * 11);
+                __m128 _rc = bfloat2float_lsx(p0 + 4 * 12);
+                __m128 _rd = bfloat2float_lsx(p0 + 4 * 13);
+                __m128 _re = bfloat2float_lsx(p0 + 4 * 14);
+                __m128 _rf = bfloat2float_lsx(p0 + 4 * 15);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
                 transpose4x4_ps(_r8, _r9, _ra, _rb);
@@ -3482,14 +3482,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = bfloat2float_lsx((__m128i)__lsx_vld(p0, 0));
-                __m128 _r1 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4, 0));
-                __m128 _r2 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 8, 0));
-                __m128 _r3 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 12, 0));
-                __m128 _r4 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 16, 0));
-                __m128 _r5 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 20, 0));
-                __m128 _r6 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 24, 0));
-                __m128 _r7 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 28, 0));
+                __m128 _r0 = bfloat2float_lsx(p0);
+                __m128 _r1 = bfloat2float_lsx(p0 + 4);
+                __m128 _r2 = bfloat2float_lsx(p0 + 8);
+                __m128 _r3 = bfloat2float_lsx(p0 + 12);
+                __m128 _r4 = bfloat2float_lsx(p0 + 16);
+                __m128 _r5 = bfloat2float_lsx(p0 + 20);
+                __m128 _r6 = bfloat2float_lsx(p0 + 24);
+                __m128 _r7 = bfloat2float_lsx(p0 + 28);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
                 __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
@@ -3552,10 +3552,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = bfloat2float_lsx((__m128i)__lsx_vld(p0, 0));
-                __m128 _r1 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 4, 0));
-                __m128 _r2 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 8, 0));
-                __m128 _r3 = bfloat2float_lsx((__m128i)__lsx_vld(p0 + 12, 0));
+                __m128 _r0 = bfloat2float_lsx(p0);
+                __m128 _r1 = bfloat2float_lsx(p0 + 4);
+                __m128 _r2 = bfloat2float_lsx(p0 + 8);
+                __m128 _r3 = bfloat2float_lsx(p0 + 12);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
                 __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4, 0, 0);
@@ -3788,22 +3788,22 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    __m128 _r0 = bfloat2float_lsx((__m128i)__lsx_vld(sptr, 0));
-                    __m128 _r1 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 4, 0));
-                    __m128 _r2 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 8, 0));
-                    __m128 _r3 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 12, 0));
-                    __m128 _r4 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 16, 0));
-                    __m128 _r5 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 20, 0));
-                    __m128 _r6 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 24, 0));
-                    __m128 _r7 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 28, 0));
-                    __m128 _r8 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 32, 0));
-                    __m128 _r9 = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 36, 0));
-                    __m128 _ra = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 40, 0));
-                    __m128 _rb = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 44, 0));
-                    __m128 _rc = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 48, 0));
-                    __m128 _rd = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 52, 0));
-                    __m128 _re = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 56, 0));
-                    __m128 _rf = bfloat2float_lsx((__m128i)__lsx_vld(sptr + stride_w * 60, 0));
+                    __m128 _r0 = bfloat2float_lsx(sptr);
+                    __m128 _r1 = bfloat2float_lsx(sptr + stride_w * 4);
+                    __m128 _r2 = bfloat2float_lsx(sptr + stride_w * 8);
+                    __m128 _r3 = bfloat2float_lsx(sptr + stride_w * 12);
+                    __m128 _r4 = bfloat2float_lsx(sptr + stride_w * 16);
+                    __m128 _r5 = bfloat2float_lsx(sptr + stride_w * 20);
+                    __m128 _r6 = bfloat2float_lsx(sptr + stride_w * 24);
+                    __m128 _r7 = bfloat2float_lsx(sptr + stride_w * 28);
+                    __m128 _r8 = bfloat2float_lsx(sptr + stride_w * 32);
+                    __m128 _r9 = bfloat2float_lsx(sptr + stride_w * 36);
+                    __m128 _ra = bfloat2float_lsx(sptr + stride_w * 40);
+                    __m128 _rb = bfloat2float_lsx(sptr + stride_w * 44);
+                    __m128 _rc = bfloat2float_lsx(sptr + stride_w * 48);
+                    __m128 _rd = bfloat2float_lsx(sptr + stride_w * 52);
+                    __m128 _re = bfloat2float_lsx(sptr + stride_w * 56);
+                    __m128 _rf = bfloat2float_lsx(sptr + stride_w * 60);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);
@@ -3950,22 +3950,22 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                 }
                 if (elempack == 4)
                 {
-                    __m128 _r0 = bfloat2float_lsx((__m128i)__lsx_vld(sptr0, 0));
-                    __m128 _r1 = bfloat2float_lsx((__m128i)__lsx_vld(sptr1, 0));
-                    __m128 _r2 = bfloat2float_lsx((__m128i)__lsx_vld(sptr2, 0));
-                    __m128 _r3 = bfloat2float_lsx((__m128i)__lsx_vld(sptr3, 0));
-                    __m128 _r4 = bfloat2float_lsx((__m128i)__lsx_vld(sptr4, 0));
-                    __m128 _r5 = bfloat2float_lsx((__m128i)__lsx_vld(sptr5, 0));
-                    __m128 _r6 = bfloat2float_lsx((__m128i)__lsx_vld(sptr6, 0));
-                    __m128 _r7 = bfloat2float_lsx((__m128i)__lsx_vld(sptr7, 0));
-                    __m128 _r8 = bfloat2float_lsx((__m128i)__lsx_vld(sptr8, 0));
-                    __m128 _r9 = bfloat2float_lsx((__m128i)__lsx_vld(sptr9, 0));
-                    __m128 _ra = bfloat2float_lsx((__m128i)__lsx_vld(sptra, 0));
-                    __m128 _rb = bfloat2float_lsx((__m128i)__lsx_vld(sptrb, 0));
-                    __m128 _rc = bfloat2float_lsx((__m128i)__lsx_vld(sptrc, 0));
-                    __m128 _rd = bfloat2float_lsx((__m128i)__lsx_vld(sptrd, 0));
-                    __m128 _re = bfloat2float_lsx((__m128i)__lsx_vld(sptre, 0));
-                    __m128 _rf = bfloat2float_lsx((__m128i)__lsx_vld(sptrf, 0));
+                    __m128 _r0 = bfloat2float_lsx(sptr0);
+                    __m128 _r1 = bfloat2float_lsx(sptr1);
+                    __m128 _r2 = bfloat2float_lsx(sptr2);
+                    __m128 _r3 = bfloat2float_lsx(sptr3);
+                    __m128 _r4 = bfloat2float_lsx(sptr4);
+                    __m128 _r5 = bfloat2float_lsx(sptr5);
+                    __m128 _r6 = bfloat2float_lsx(sptr6);
+                    __m128 _r7 = bfloat2float_lsx(sptr7);
+                    __m128 _r8 = bfloat2float_lsx(sptr8);
+                    __m128 _r9 = bfloat2float_lsx(sptr9);
+                    __m128 _ra = bfloat2float_lsx(sptra);
+                    __m128 _rb = bfloat2float_lsx(sptrb);
+                    __m128 _rc = bfloat2float_lsx(sptrc);
+                    __m128 _rd = bfloat2float_lsx(sptrd);
+                    __m128 _re = bfloat2float_lsx(sptre);
+                    __m128 _rf = bfloat2float_lsx(sptrf);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);

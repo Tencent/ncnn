@@ -48,9 +48,19 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             ptr0 += 8;
         }
 #endif // __loongarch_asx
+        __m128i _zero_bf16_mean = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr0, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16_mean);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16_mean);
+            _mean4 = __lsx_vfadd_s(_mean4, _p0);
+            _mean4 = __lsx_vfadd_s(_mean4, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+            __m128 _p = bfloat2float_lsx(ptr0);
             _mean4 = __lsx_vfadd_s(_mean4, _p);
             ptr0 += 4;
         }
@@ -101,9 +111,21 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
             ptr0 += 8;
         }
 #endif // __loongarch_asx
+        __m128i _zero_bf16_var = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr0, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16_var);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16_var);
+            _p0 = __lsx_vfsub_s(_p0, _mean4);
+            _p1 = __lsx_vfsub_s(_p1, _mean4);
+            _var4 = __lsx_vfmadd_s(_p0, _p0, _var4);
+            _var4 = __lsx_vfmadd_s(_p1, _p1, _var4);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+            __m128 _p = bfloat2float_lsx(ptr0);
             _p = __lsx_vfsub_s(_p, _mean4);
             _var4 = __lsx_vfmadd_s(_p, _p, _var4);
             ptr0 += 4;
@@ -204,9 +226,20 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 }
             }
 #endif // __loongarch_asx
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr0, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _p0 = __lsx_vfmadd_s(_p0, _a4, _b4);
+                _p1 = __lsx_vfmadd_s(_p1, _a4, _b4);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr0, 0);
+                ptr0 += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx(ptr0);
                 _p = __lsx_vfmadd_s(_p, _a4, _b4);
                 __lsx_vstelm_d(float2bfloat_lsx(_p), ptr0, 0, 0);
                 ptr0 += 4;
@@ -236,9 +269,20 @@ static void groupnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr
                 ptr0 += 8;
             }
 #endif // __loongarch_asx
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr0, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _p0 = __lsx_vfmadd_s(_p0, _var4, _mean4);
+                _p1 = __lsx_vfmadd_s(_p1, _var4, _mean4);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr0, 0);
+                ptr0 += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+                __m128 _p = bfloat2float_lsx(ptr0);
                 _p = __lsx_vfmadd_s(_p, _var4, _mean4);
                 __lsx_vstelm_d(float2bfloat_lsx(_p), ptr0, 0, 0);
                 ptr0 += 4;

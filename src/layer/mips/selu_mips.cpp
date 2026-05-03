@@ -101,6 +101,23 @@ int SELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
         v4f32 _lambda = (v4f32)__msa_fill_w_f32(lambda);
         v4f32 _alpha_lambda = (v4f32)__msa_fill_w_f32(alpha * lambda);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _pos0 = __msa_fmul_w(_lambda, _p0);
+            v4f32 _pos1 = __msa_fmul_w(_lambda, _p1);
+            v4f32 _neg0 = __msa_fmul_w(__msa_fsub_w(__msa_fmul_w(exp_ps(_p0), _alpha), _alpha), _lambda);
+            v4f32 _neg1 = __msa_fmul_w(__msa_fsub_w(__msa_fmul_w(exp_ps(_p1), _alpha), _alpha), _lambda);
+            v4i32 _mask0 = __msa_fclt_w(_p0, _zero);
+            v4i32 _mask1 = __msa_fclt_w(_p1, _zero);
+            _p0 = (v4f32)__msa_bsel_v((v16u8)_mask0, (v16u8)_pos0, (v16u8)_neg0);
+            _p1 = (v4f32)__msa_bsel_v((v16u8)_mask1, (v16u8)_pos1, (v16u8)_neg1);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);

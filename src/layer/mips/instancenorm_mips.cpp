@@ -221,7 +221,18 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             // compute mean
             v4f32 _sum = (v4f32)__msa_fill_w(0);
             const unsigned short* ptr0 = ptr;
-            for (int i = 0; i < size; i++)
+            int i = 0;
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 1 < size; i += 2)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _sum = __msa_fadd_w(_sum, _p0);
+                _sum = __msa_fadd_w(_sum, _p1);
+                ptr0 += 8;
+            }
+            for (; i < size; i++)
             {
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _sum = __msa_fadd_w(_sum, _p);
@@ -241,7 +252,19 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             // compute variance
             v4f32 _sqsum = (v4f32)__msa_fill_w(0);
             ptr0 = ptr;
-            for (int i = 0; i < size; i++)
+            i = 0;
+            for (; i + 1 < size; i += 2)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __msa_fsub_w(_p0, _mean);
+                _p1 = __msa_fsub_w(_p1, _mean);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p0, _p0);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p1, _p1);
+                ptr0 += 8;
+            }
+            for (; i < size; i++)
             {
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __msa_fsub_w(_p, _mean);
@@ -279,7 +302,17 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             v4f32 _a = (v4f32)__msa_ld_w(a_data, 0);
             v4f32 _b = (v4f32)__msa_ld_w(b_data, 0);
 
-            for (int i = 0; i < size; i++)
+            for (i = 0; i + 1 < size; i += 2)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+                _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i < size; i++)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
                 _p = __ncnn_msa_fmadd_w(_b, _p, _a);
@@ -304,6 +337,15 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             int i = 0;
 #if __mips_msa
             v4f32 _sum = (v4f32)__msa_fill_w(0);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr0 + i, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _sum = __msa_fadd_w(_sum, _p0);
+                _sum = __msa_fadd_w(_sum, _p1);
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr0 + i);
@@ -326,6 +368,17 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
 #if __mips_msa
             v4f32 _mean = __msa_fill_w_f32(mean);
             v4f32 _sqsum = (v4f32)__msa_fill_w(0);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr0 + i, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __msa_fsub_w(_p0, _mean);
+                _p1 = __msa_fsub_w(_p1, _mean);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p0, _p0);
+                _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p1, _p1);
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr0 + i);
@@ -363,6 +416,16 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
 #if __mips_msa
             v4f32 _a = __msa_fill_w_f32(a);
             v4f32 _b = __msa_fill_w_f32(b);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr + i, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+                _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr + i, 0);
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr + i);

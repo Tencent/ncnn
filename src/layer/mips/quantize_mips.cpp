@@ -336,8 +336,10 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
 #if __mips_msa
     for (; i + 7 < size; i += 8)
     {
-        v4f32 _v0 = bfloat2float_msa(ptr);
-        v4f32 _v1 = bfloat2float_msa(ptr + 4);
+        v8i16 _zero = __msa_fill_h(0);
+        v8i16 _v01_bf16 = __msa_ld_h(ptr, 0);
+        v4f32 _v0 = (v4f32)__msa_ilvr_h(_v01_bf16, _zero);
+        v4f32 _v1 = (v4f32)__msa_ilvl_h(_v01_bf16, _zero);
         _v0 = __msa_fmul_w(_v0, _scale);
         _v1 = __msa_fmul_w(_v1, _scale);
         *(int64_t*)s8ptr = float2int8(_v0, _v1);
@@ -382,12 +384,15 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
     }
 
     int i = 0;
+    v8i16 _zero = __msa_fill_h(0);
     for (; i + 1 < elemcount; i += 2)
     {
-        v4f32 _v0 = bfloat2float_msa(ptr0);
-        v4f32 _v1 = bfloat2float_msa(ptr1);
-        v4f32 _v2 = bfloat2float_msa(ptr0 + 4);
-        v4f32 _v3 = bfloat2float_msa(ptr1 + 4);
+        v8i16 _v02_bf16 = __msa_ld_h(ptr0, 0);
+        v8i16 _v13_bf16 = __msa_ld_h(ptr1, 0);
+        v4f32 _v0 = (v4f32)__msa_ilvr_h(_v02_bf16, _zero);
+        v4f32 _v2 = (v4f32)__msa_ilvl_h(_v02_bf16, _zero);
+        v4f32 _v1 = (v4f32)__msa_ilvr_h(_v13_bf16, _zero);
+        v4f32 _v3 = (v4f32)__msa_ilvl_h(_v13_bf16, _zero);
         _v0 = __msa_fmul_w(_v0, _scale0);
         _v1 = __msa_fmul_w(_v1, _scale1);
         _v2 = __msa_fmul_w(_v2, _scale0);
@@ -427,16 +432,21 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
     }
 
     int i = 0;
+    v8i16 _zero = __msa_fill_h(0);
     for (; i + 7 < elemcount; i += 8)
     {
-        v4f32 _v0 = bfloat2float_msa(ptr);
-        v4f32 _v1 = bfloat2float_msa(ptr + 4);
-        v4f32 _v2 = bfloat2float_msa(ptr + 8);
-        v4f32 _v3 = bfloat2float_msa(ptr + 12);
-        v4f32 _v4 = bfloat2float_msa(ptr + 16);
-        v4f32 _v5 = bfloat2float_msa(ptr + 20);
-        v4f32 _v6 = bfloat2float_msa(ptr + 24);
-        v4f32 _v7 = bfloat2float_msa(ptr + 28);
+        v8i16 _v01_bf16 = __msa_ld_h(ptr, 0);
+        v8i16 _v23_bf16 = __msa_ld_h(ptr + 8, 0);
+        v8i16 _v45_bf16 = __msa_ld_h(ptr + 16, 0);
+        v8i16 _v67_bf16 = __msa_ld_h(ptr + 24, 0);
+        v4f32 _v0 = (v4f32)__msa_ilvr_h(_v01_bf16, _zero);
+        v4f32 _v1 = (v4f32)__msa_ilvl_h(_v01_bf16, _zero);
+        v4f32 _v2 = (v4f32)__msa_ilvr_h(_v23_bf16, _zero);
+        v4f32 _v3 = (v4f32)__msa_ilvl_h(_v23_bf16, _zero);
+        v4f32 _v4 = (v4f32)__msa_ilvr_h(_v45_bf16, _zero);
+        v4f32 _v5 = (v4f32)__msa_ilvl_h(_v45_bf16, _zero);
+        v4f32 _v6 = (v4f32)__msa_ilvr_h(_v67_bf16, _zero);
+        v4f32 _v7 = (v4f32)__msa_ilvl_h(_v67_bf16, _zero);
         _v0 = __msa_fmul_w(_v0, _scale);
         _v1 = __msa_fmul_w(_v1, _scale);
         _v2 = __msa_fmul_w(_v2, _scale);

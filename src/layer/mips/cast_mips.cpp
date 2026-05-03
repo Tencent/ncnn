@@ -167,10 +167,12 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
             int i = 0;
 #if __mips_msa
+            v8i16 _zero_bf16 = __msa_fill_h(0);
             for (; i + 7 < size; i += 8)
             {
-                v4f32 _p0 = bfloat2float_msa(ptr);
-                v4f32 _p1 = bfloat2float_msa(ptr + 4);
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
                 __msa_st_w((v4i32)_p0, outptr, 0);
                 __msa_st_w((v4i32)_p1, outptr + 4, 0);
                 ptr += 8;

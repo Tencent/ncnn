@@ -153,6 +153,39 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 
                 ptr += 8;
             }
+#else  // __loongarch_asx
+            {
+                __m128i _zero = __lsx_vreplgr2vr_w(0);
+                __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
+                __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
+                __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
+                __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _p01 = __lsx_vld(ptr, 0);
+                    __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+                    __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+                    __m128 _cube0 = __lsx_vfmul_s(_p0, _p0);
+                    __m128 _cube1 = __lsx_vfmul_s(_p1, _p1);
+                    _cube0 = __lsx_vfmul_s(_cube0, _p0);
+                    _cube1 = __lsx_vfmul_s(_cube1, _p1);
+                    __m128 _blob0 = __lsx_vfmul_s(_fast2c4, _cube0);
+                    __m128 _blob1 = __lsx_vfmul_s(_fast2c4, _cube1);
+                    _blob0 = __lsx_vfadd_s(_blob0, _p0);
+                    _blob1 = __lsx_vfadd_s(_blob1, _p1);
+                    _blob0 = __lsx_vfmul_s(_fast1c4, _blob0);
+                    _blob1 = __lsx_vfmul_s(_fast1c4, _blob1);
+                    _blob0 = tanh_ps(_blob0);
+                    _blob1 = tanh_ps(_blob1);
+                    _blob0 = __lsx_vfadd_s(_one4, _blob0);
+                    _blob1 = __lsx_vfadd_s(_one4, _blob1);
+                    _blob0 = __lsx_vfmul_s(_half4, __lsx_vfmul_s(_blob0, _p0));
+                    _blob1 = __lsx_vfmul_s(_half4, __lsx_vfmul_s(_blob1, _p1));
+                    __lsx_vst(float2bfloat_lsx(_blob0, _blob1), ptr, 0);
+
+                    ptr += 8;
+                }
+            }
 #endif
             __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
             __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
@@ -160,7 +193,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+                __m128 _p = bfloat2float_lsx(ptr);
                 __m128 _cube = __lsx_vfmul_s(_p, _p);
                 _cube = __lsx_vfmul_s(_cube, _p);
                 __m128 _blob = __lsx_vfmul_s(_fast2c4, _cube);

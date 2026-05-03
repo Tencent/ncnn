@@ -124,6 +124,28 @@ int HardSigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Opt
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
+#else  // __loongarch_asx
+        {
+            __m128i _zero_raw = __lsx_vreplgr2vr_w(0);
+            __m128 _zero4 = (__m128)_zero_raw;
+            __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
+            __m128 _alpha4 = (__m128)__lsx_vreplfr2vr_s(alpha);
+            __m128 _beta4 = (__m128)__lsx_vreplfr2vr_s(beta);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_raw);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_raw);
+                _p0 = __lsx_vfmadd_s(_alpha4, _p0, _beta4);
+                _p1 = __lsx_vfmadd_s(_alpha4, _p1, _beta4);
+                _p0 = __lsx_vfmax_s(_p0, _zero4);
+                _p1 = __lsx_vfmax_s(_p1, _zero4);
+                _p0 = __lsx_vfmin_s(_p0, _one4);
+                _p1 = __lsx_vfmin_s(_p1, _one4);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
 #endif // __loongarch_asx
         __m128 _zero4 = (__m128)__lsx_vreplgr2vr_w(0);
         __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
@@ -131,7 +153,7 @@ int HardSigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Opt
         __m128 _beta4 = (__m128)__lsx_vreplfr2vr_s(beta);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx(ptr);
             _p = __lsx_vfmadd_s(_alpha4, _p, _beta4);
             _p = __lsx_vfmax_s(_p, _zero4);
             _p = __lsx_vfmin_s(_p, _one4);

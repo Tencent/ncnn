@@ -31,7 +31,20 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         // compute mean
         v4f32 _sum = (v4f32)__msa_fill_w(0);
         const unsigned short* ptr0 = ptr;
-        for (int i = 0; i < size; i += 4)
+        int i = 0;
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _sum = __msa_fadd_w(_sum, _p0);
+            _sum = __msa_fadd_w(_sum, _p1);
+            ptr0 += 8;
+        }
+        for (; i < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
 
@@ -53,7 +66,21 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         // compute variance
         v4f32 _sqsum = (v4f32)__msa_fill_w(0);
         ptr0 = ptr;
-        for (int i = 0; i < size; i += 4)
+        i = 0;
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __msa_fsub_w(_p0, _mean);
+            _p1 = __msa_fsub_w(_p1, _mean);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p0, _p0);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p1, _p1);
+            ptr0 += 8;
+        }
+        for (; i < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
 
@@ -80,7 +107,27 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 
         if (gamma_ptr && beta_ptr)
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+                _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+                v4f32 _gamma0 = __msa_fill_w_f32(gamma_ptr[0]);
+                v4f32 _gamma1 = __msa_fill_w_f32(gamma_ptr[1]);
+                v4f32 _beta0 = __msa_fill_w_f32(beta_ptr[0]);
+                v4f32 _beta1 = __msa_fill_w_f32(beta_ptr[1]);
+                _p0 = __ncnn_msa_fmadd_w(_beta0, _p0, _gamma0);
+                _p1 = __ncnn_msa_fmadd_w(_beta1, _p1, _gamma1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 2;
+                beta_ptr += 2;
+            }
+            for (; i < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
 
@@ -97,7 +144,19 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         }
         else
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+                _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
 
@@ -119,6 +178,18 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
         int i = 0;
 #if __mips_msa
         v4f32 _sum = (v4f32)__msa_fill_w(0);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _sum = __msa_fadd_w(_sum, _p0);
+            _sum = __msa_fadd_w(_sum, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -144,6 +215,20 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 #if __mips_msa
         v4f32 _mean = __msa_fill_w_f32(mean);
         v4f32 _sqsum = (v4f32)__msa_fill_w(0);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __msa_fsub_w(_p0, _mean);
+            _p1 = __msa_fsub_w(_p1, _mean);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p0, _p0);
+            _sqsum = __ncnn_msa_fmadd_w(_sqsum, _p1, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -172,6 +257,29 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 #if __mips_msa
         v4f32 _a = __msa_fill_w_f32(var);
         v4f32 _b = __msa_fill_w_f32(bias);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(gamma_ptr + 16);
+            __builtin_prefetch(beta_ptr + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _gamma0 = (v4f32)__msa_ld_w(gamma_ptr, 0);
+            v4f32 _gamma1 = (v4f32)__msa_ld_w(gamma_ptr + 4, 0);
+            v4f32 _beta0 = (v4f32)__msa_ld_w(beta_ptr, 0);
+            v4f32 _beta1 = (v4f32)__msa_ld_w(beta_ptr + 4, 0);
+            _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+            _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+            _p0 = __ncnn_msa_fmadd_w(_beta0, _p0, _gamma0);
+            _p1 = __ncnn_msa_fmadd_w(_beta1, _p1, _gamma1);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+            gamma_ptr += 8;
+            beta_ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -204,6 +312,19 @@ static void layernorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, con
 #if __mips_msa
         v4f32 _a = __msa_fill_w_f32(var);
         v4f32 _b = __msa_fill_w_f32(bias);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+            _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);

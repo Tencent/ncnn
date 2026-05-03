@@ -81,9 +81,20 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
     {
         __m128 _rms = (__m128)__lsx_vreplfr2vr_s(0.f);
         const unsigned short* ptr0 = ptr;
-        for (int i = 0; i < size; i += 4)
+        int i = 0;
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+            __m128i _p01 = __lsx_vld(ptr0, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _rms = __lsx_vfmadd_s(_p0, _p0, _rms);
+            _rms = __lsx_vfmadd_s(_p1, _p1, _rms);
+            ptr0 += 8;
+        }
+        for (; i < size; i += 4)
+        {
+            __m128 _p = bfloat2float_lsx(ptr0);
             _rms = __lsx_vfmadd_s(_p, _p, _rms);
             ptr0 += 4;
         }
@@ -98,9 +109,24 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 
         if (gamma_ptr)
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                __m128 _gamma0 = __lsx_vreplfr2vr_s(gamma_ptr[0]);
+                __m128 _gamma1 = __lsx_vreplfr2vr_s(gamma_ptr[1]);
+                _p0 = __lsx_vfmul_s(_p0, _rms);
+                _p1 = __lsx_vfmul_s(_p1, _rms);
+                _p0 = __lsx_vfmul_s(_p0, _gamma0);
+                _p1 = __lsx_vfmul_s(_p1, _gamma1);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 2;
+            }
+            for (; i < size; i += 4)
+            {
+                __m128 _p = bfloat2float_lsx(ptr);
                 __m128 _gamma = __lsx_vreplfr2vr_s(gamma_ptr[0]);
                 _p = __lsx_vfmul_s(_p, _rms);
                 _p = __lsx_vfmul_s(_p, _gamma);
@@ -111,9 +137,19 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         }
         else
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _p0 = __lsx_vfmul_s(_p0, _rms);
+                _p1 = __lsx_vfmul_s(_p1, _rms);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i < size; i += 4)
+            {
+                __m128 _p = bfloat2float_lsx(ptr);
                 _p = __lsx_vfmul_s(_p, _rms);
                 __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                 ptr += 4;
@@ -141,9 +177,19 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         rms += __lasx_reduce_fadd_s(_rms8);
 #endif // __loongarch_asx
         __m128 _rms4 = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr0, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _rms4 = __lsx_vfmadd_s(_p0, _p0, _rms4);
+            _rms4 = __lsx_vfmadd_s(_p1, _p1, _rms4);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr0);
+            __m128 _p = bfloat2float_lsx(ptr0);
             _rms4 = __lsx_vfmadd_s(_p, _p, _rms4);
             ptr0 += 4;
         }
@@ -177,9 +223,25 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         }
 #endif // __loongarch_asx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            __m128 _gamma0 = (__m128)__lsx_vld(gamma_ptr, 0);
+            __m128 _gamma1 = (__m128)__lsx_vld(gamma_ptr + 4, 0);
+            _p0 = __lsx_vfmul_s(_p0, _rms4);
+            _p1 = __lsx_vfmul_s(_p1, _rms4);
+            _p0 = __lsx_vfmul_s(_p0, _gamma0);
+            _p1 = __lsx_vfmul_s(_p1, _gamma1);
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+            ptr += 8;
+            gamma_ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx(ptr);
             __m128 _gamma = (__m128)__lsx_vld(gamma_ptr, 0);
             _p = __lsx_vfmul_s(_p, _rms4);
             _p = __lsx_vfmul_s(_p, _gamma);
@@ -210,9 +272,20 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
         }
 #endif // __loongarch_asx
         __m128 _rms4 = __lsx_vreplfr2vr_s(rms);
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _p0 = __lsx_vfmul_s(_p0, _rms4);
+            _p1 = __lsx_vfmul_s(_p1, _rms4);
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+            __m128 _p = bfloat2float_lsx(ptr);
             _p = __lsx_vfmul_s(_p, _rms4);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;

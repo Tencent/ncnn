@@ -118,27 +118,39 @@ int Sigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
+#else  // __loongarch_asx
+        {
+            __m128i _zero = __lsx_vreplgr2vr_w(0);
+            __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+                _p0 = (__m128)__lsx_vbitrevi_w((__m128i)_p0, 31);
+                _p1 = (__m128)__lsx_vbitrevi_w((__m128i)_p1, 31);
+                _p0 = exp_ps(_p0);
+                _p1 = exp_ps(_p1);
+                _p0 = __lsx_vfadd_s(_p0, _one);
+                _p1 = __lsx_vfadd_s(_p1, _one);
+                _p0 = __lsx_vfdiv_s(_one, _p0);
+                _p1 = __lsx_vfdiv_s(_one, _p1);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
 #endif // __loongarch_asx
-        __m128i _zero = __lsx_vreplgr2vr_w(0);
         __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
         for (; i + 3 < size; i += 4)
         {
-            // load 4 bf16 values safely via 64-bit load
-            int64_t v;
-            memcpy(&v, ptr, 8);
-            __m128i _raw = __lsx_vreplgr2vr_d(v);
-            __m128i _pi = __lsx_vilvl_h(_raw, _zero);
-            __m128 _p = (__m128)_pi;
+            __m128 _p = bfloat2float_lsx(ptr);
             // sigmoid
             _p = (__m128)__lsx_vbitrevi_w((__m128i)_p, 31);
             _p = exp_ps(_p);
             _p = __lsx_vfadd_s(_p, _one);
             _p = __lsx_vfdiv_s(_one, _p);
             // fp32 -> bf16
-            _pi = (__m128i)_p;
-            _pi = __lsx_vsrli_w(_pi, 16);
-            __m128i _out = __lsx_vpickev_h(__lsx_vreplgr2vr_w(0), _pi);
-            __lsx_vstelm_d(_out, ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

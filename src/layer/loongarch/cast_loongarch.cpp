@@ -216,9 +216,20 @@ int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 outptr += 8;
             }
 #endif // __loongarch_asx
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                __lsx_vst(_p0, outptr, 0);
+                __lsx_vst(_p1, outptr + 4, 0);
+                ptr += 8;
+                outptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+                __m128 _p = bfloat2float_lsx(ptr);
                 __lsx_vst(_p, outptr, 0);
                 ptr += 4;
                 outptr += 4;

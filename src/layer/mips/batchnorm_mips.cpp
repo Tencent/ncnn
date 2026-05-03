@@ -23,6 +23,17 @@ static void batchnorm_bf16s_msa(unsigned short* ptr, const float* a, const float
 
     int i = 0;
 #if __mips_msa
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
+    {
+        v8i16 _p01 = __msa_ld_h(ptr, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        _p0 = __ncnn_msa_fmadd_w(_a, _p0, _b);
+        _p1 = __ncnn_msa_fmadd_w(_a, _p1, _b);
+        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+        ptr += 8;
+    }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
@@ -43,6 +54,25 @@ static void batchnorm_bf16s_per_element_msa(unsigned short* ptr, const float* a,
     int nn_size = 0;
     int remain_size_start = 0;
 #if __mips_msa
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
+    {
+        int i = remain_size_start + ii * 8;
+        v8i16 _zero = __msa_fill_h(0);
+        v8i16 _p01 = __msa_ld_h(ptr + i, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
+        v4f32 _a1 = (v4f32)__msa_ld_w(a + i + 4, 0);
+        v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
+        v4f32 _b1 = (v4f32)__msa_ld_w(b + i + 4, 0);
+        _p0 = __ncnn_msa_fmadd_w(_a0, _p0, _b0);
+        _p1 = __ncnn_msa_fmadd_w(_a1, _p1, _b1);
+        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr + i, 0);
+    }
+    remain_size_start += nn_size * 8;
+
     nn_size = (size - remain_size_start) / 4;
     #pragma omp parallel for num_threads(num_threads)
     for (int ii = 0; ii < nn_size; ii++)

@@ -471,7 +471,7 @@ static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
     __m128 ysin, ycos;
     __m128 eps = (__m128)__lsx_vreplgr2vr_w(c_eps.i);
     sincos_ps(x, ysin, ycos);
-    __m128i mask = __lsx_vfcmp_ceq_s(ycos, eps);
+    __m128i mask = __lsx_vfcmp_ceq_s(ycos, (__m128)__lsx_vreplgr2vr_w(c_0.i));
     mask = __lsx_vand_v(mask, (__m128i)eps);
     ycos = __lsx_vfadd_s(ycos, (__m128)mask);
     __m128 ytan = __lsx_vfdiv_s(ysin, ycos);
@@ -640,6 +640,7 @@ static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
 static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
 {
     __m128i not_eq_zero_x, not_eq_zero_y, normal_mode, negative_mask_x, negative_mask_y;
+    __m128i negative_mask_full_x;
     __m128i lt_zero_mask_x, lt_zero_mask_y, ge_zero_mask_y, eq_zero_y;
     __m128 pi_additions, tmp1, tmp2, normal_result, special_result, final_result;
 
@@ -661,8 +662,11 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
     normal_result = __lsx_vfdiv_s(y, x);
     normal_result = __lsx_vfadd_s(atan_ps(normal_result), pi_additions);
 
-    tmp1 = (__m128)__lsx_vand_v(negative_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
-    tmp2 = (__m128)__lsx_vand_v(negative_mask_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
+    tmp1 = (__m128)__lsx_vor_v(negative_mask_y, __lsx_vreplgr2vr_w(c_cephes_asin_half_pi.i));
+    negative_mask_full_x = __lsx_vfcmp_clt_s(
+                               (__m128)__lsx_vor_v(negative_mask_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i)),
+                               (__m128)__lsx_vreplgr2vr_w(c_0.i));
+    tmp2 = (__m128)__lsx_vand_v(negative_mask_full_x, __lsx_vreplgr2vr_w(c_cephes_asin_pi.i));
     special_result = (__m128)__lsx_vand_v(not_eq_zero_y, (__m128i)tmp1);
     special_result = (__m128)__lsx_vor_v(__lsx_vand_v(eq_zero_y, (__m128i)tmp2), (__m128i)special_result);
 

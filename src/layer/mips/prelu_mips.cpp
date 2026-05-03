@@ -198,8 +198,9 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
         int w = bottom_top_blob.w * elempack;
 
 #if __mips_msa
-        int nn_w = w / 4;
-        int remain_w_start = nn_w * 4;
+        int nn_w8 = w / 8;
+        int nn_w = (w - nn_w8 * 8) / 4;
+        int remain_w_start = nn_w8 * 8 + nn_w * 4;
 #else
         int remain_w_start = 0;
 #endif // __mips_msa
@@ -212,13 +213,33 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
 
 #if __mips_msa
             #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < nn_w8; i++)
+            {
+                unsigned short* ptr0 = ptr + i * 8;
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _slope0 = (v4f32)__msa_ld_w((const float*)slope + i * 8, 0);
+                v4f32 _slope1 = (v4f32)__msa_ld_w((const float*)slope + i * 8 + 4, 0);
+                v4i32_w _lemask0 = __msa_fcle_w(_p0, _zero);
+                v4i32_w _lemask1 = __msa_fcle_w(_p1, _zero);
+                v4f32 _ps0 = __msa_fmul_w(_p0, _slope0);
+                v4f32 _ps1 = __msa_fmul_w(_p1, _slope1);
+                _p0 = (v4f32)__msa_bsel_v((v16u8)_lemask0, (v16u8)_p0, (v16u8)_ps0);
+                _p1 = (v4f32)__msa_bsel_v((v16u8)_lemask1, (v16u8)_p1, (v16u8)_ps1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr0, 0);
+            }
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < nn_w; i++)
             {
-                unsigned short* ptr0 = ptr + i * 4;
+                unsigned short* ptr0 = ptr + nn_w8 * 8 + i * 4;
 
                 v4f32 _p = bfloat2float_msa(ptr0);
                 v4f32 _zero = (v4f32)__msa_fill_w(0);
-                v4f32 _slope = (v4f32)__msa_ld_w((const float*)slope + i * 4, 0);
+                v4f32 _slope = (v4f32)__msa_ld_w((const float*)slope + nn_w8 * 8 + i * 4, 0);
                 v4i32_w _lemask = __msa_fcle_w(_p, _zero);
                 v4f32 _ps = __msa_fmul_w(_p, _slope);
                 _p = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_p, (v16u8)_ps);
@@ -242,9 +263,28 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
 
 #if __mips_msa
             #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < nn_w8; i++)
+            {
+                unsigned short* ptr0 = ptr + i * 8;
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _zero = (v4f32)__msa_fill_w(0);
+                v4f32 _slope = (v4f32)__msa_fill_w_f32(slope);
+                v4i32_w _lemask0 = __msa_fcle_w(_p0, _zero);
+                v4i32_w _lemask1 = __msa_fcle_w(_p1, _zero);
+                v4f32 _ps0 = __msa_fmul_w(_p0, _slope);
+                v4f32 _ps1 = __msa_fmul_w(_p1, _slope);
+                _p0 = (v4f32)__msa_bsel_v((v16u8)_lemask0, (v16u8)_p0, (v16u8)_ps0);
+                _p1 = (v4f32)__msa_bsel_v((v16u8)_lemask1, (v16u8)_p1, (v16u8)_ps1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr0, 0);
+            }
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < nn_w; i++)
             {
-                unsigned short* ptr0 = ptr + i * 4;
+                unsigned short* ptr0 = ptr + nn_w8 * 8 + i * 4;
 
                 v4f32 _p = bfloat2float_msa(ptr0);
                 v4f32 _zero = (v4f32)__msa_fill_w(0);
@@ -285,6 +325,21 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             v4f32 _slope = (elempack == 4 && num_slope > 1) ? (v4f32)__msa_ld_w((const float*)slope_data + i * 4, 0) : (v4f32)__msa_fill_w_f32(slope);
 
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; j + 7 < w; j += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4i32_w _lemask0 = __msa_fcle_w(_p0, _zero);
+                v4i32_w _lemask1 = __msa_fcle_w(_p1, _zero);
+                v4f32 _ps0 = __msa_fmul_w(_p0, _slope);
+                v4f32 _ps1 = __msa_fmul_w(_p1, _slope);
+                _p0 = (v4f32)__msa_bsel_v((v16u8)_lemask0, (v16u8)_p0, (v16u8)_ps0);
+                _p1 = (v4f32)__msa_bsel_v((v16u8)_lemask1, (v16u8)_p1, (v16u8)_ps1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
             for (; j + 3 < w; j += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
@@ -327,6 +382,21 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             v4f32 _slope = (elempack == 4 && num_slope > 1) ? (v4f32)__msa_ld_w((const float*)slope_data + q * 4, 0) : (v4f32)__msa_fill_w_f32(slope);
 
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4i32_w _lemask0 = __msa_fcle_w(_p0, _zero);
+                v4i32_w _lemask1 = __msa_fcle_w(_p1, _zero);
+                v4f32 _ps0 = __msa_fmul_w(_p0, _slope);
+                v4f32 _ps1 = __msa_fmul_w(_p1, _slope);
+                _p0 = (v4f32)__msa_bsel_v((v16u8)_lemask0, (v16u8)_p0, (v16u8)_ps0);
+                _p1 = (v4f32)__msa_bsel_v((v16u8)_lemask1, (v16u8)_p1, (v16u8)_ps1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);

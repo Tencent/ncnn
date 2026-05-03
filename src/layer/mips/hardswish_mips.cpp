@@ -94,6 +94,17 @@ int HardSwish_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #if __mips_msa
         v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
         v4f32 _beta = (v4f32)__msa_fill_w_f32(beta);
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            _p0 = hardswish_msa(_p0, _alpha, _beta);
+            _p1 = hardswish_msa(_p1, _alpha, _beta);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);

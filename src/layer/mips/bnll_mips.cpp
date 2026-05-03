@@ -90,6 +90,22 @@ int BNLL_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #if __mips_msa
         v4f32 _zero = (v4f32)__msa_fill_w(0);
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _abs_p0 = (v4f32)__msa_bclri_w((v4u32)_p0, 31);
+            v4f32 _abs_p1 = (v4f32)__msa_bclri_w((v4u32)_p1, 31);
+            v4f32 _tmp0 = log_ps(__msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_abs_p0, 31))));
+            v4f32 _tmp1 = log_ps(__msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_abs_p1, 31))));
+            v4f32 _outp0 = __msa_fadd_w(__msa_fmax_w(_p0, _zero), _tmp0);
+            v4f32 _outp1 = __msa_fadd_w(__msa_fmax_w(_p1, _zero), _tmp1);
+            __msa_st_w(float2bfloat_msa(_outp0, _outp1), ptr, 0);
+
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);

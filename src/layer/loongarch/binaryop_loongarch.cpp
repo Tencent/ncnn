@@ -453,13 +453,32 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
         ptr1 += 8;
         outptr += 8;
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128i _b01 = __lsx_vld(ptr1, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            __m128 _b0 = (__m128)__lsx_vilvl_h(_b01, _zero);
+            __m128 _b1 = (__m128)__lsx_vilvh_h(_b01, _zero);
+            __m128 _outp0 = op(_p0, _b0);
+            __m128 _outp1 = op(_p1, _b1);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            ptr1 += 8;
+            outptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
-        __m128 _b = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
+        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _b = bfloat2float_lsx(ptr1);
         __m128 _outp = op(_p, _b);
-        __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr += 4;
         ptr1 += 4;
         outptr += 4;
@@ -480,7 +499,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _b_128 = (elempack == 4) ? bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0)) : (__m128)__lsx_vreplfr2vr_s(b);
+    __m128 _b_128 = (elempack == 4) ? bfloat2float_lsx(ptr1) : (__m128)__lsx_vreplfr2vr_s(b);
 #if __loongarch_asx
     __m256 _b_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0)) : __lasx_concat_128_s(_b_128, _b_128);
     for (; i + 7 < size; i += 8)
@@ -491,12 +510,27 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
         ptr += 8;
         outptr += 8;
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            __m128 _outp0 = op(_p0, _b_128);
+            __m128 _outp1 = op(_p1, _b_128);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            outptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+        __m128 _p = bfloat2float_lsx(ptr);
         __m128 _outp = op(_p, _b_128);
-        __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr += 4;
         outptr += 4;
     }
@@ -516,7 +550,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _a_128 = (elempack == 4) ? bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0)) : (__m128)__lsx_vreplfr2vr_s(a);
+    __m128 _a_128 = (elempack == 4) ? bfloat2float_lsx(ptr) : (__m128)__lsx_vreplfr2vr_s(a);
 #if __loongarch_asx
     __m256 _a_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0)) : __lasx_concat_128_s(_a_128, _a_128);
     for (; i + 7 < size; i += 8)
@@ -527,12 +561,27 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
         ptr1 += 8;
         outptr += 8;
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _b01 = __lsx_vld(ptr1, 0);
+            __m128 _b0 = (__m128)__lsx_vilvl_h(_b01, _zero);
+            __m128 _b1 = (__m128)__lsx_vilvh_h(_b01, _zero);
+            __m128 _outp0 = op(_a_128, _b0);
+            __m128 _outp1 = op(_a_128, _b1);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr1 += 8;
+            outptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _b = bfloat2float_lsx((__m128i)__lsx_vld(ptr1, 0));
+        __m128 _b = bfloat2float_lsx(ptr1);
         __m128 _outp = op(_a_128, _b);
-        __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr1 += 4;
         outptr += 4;
     }
@@ -567,12 +616,28 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
 #endif // __loongarch_asx
     if (elempack == 4)
     {
-        for (int i = 0; i < w; i++)
+        int i = 0;
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 1 < w; i += 2)
         {
-            __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            __m128 _b0 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(ptr1[0]));
+            __m128 _b1 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(ptr1[1]));
+            __m128 _outp0 = op(_p0, _b0);
+            __m128 _outp1 = op(_p1, _b1);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            ptr1 += 2;
+            outptr += 8;
+        }
+        for (; i < w; i++)
+        {
+            __m128 _p = bfloat2float_lsx(ptr);
             __m128 _b = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(*ptr1));
             __m128 _outp = op(_p, _b);
-            __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
             ptr += 4;
             ptr1 += 1;
             outptr += 4;
@@ -604,14 +669,30 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
             outptr += 8;
         }
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        __m128 _b_128 = (__m128)__lsx_vreplfr2vr_s(b);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            __m128 _outp0 = op(_p0, _b_128);
+            __m128 _outp1 = op(_p1, _b_128);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            outptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     {
         __m128 _b_128 = (__m128)__lsx_vreplfr2vr_s(b);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+            __m128 _p = bfloat2float_lsx(ptr);
             __m128 _outp = op(_p, _b_128);
-            __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
             ptr += 4;
             outptr += 4;
         }
@@ -646,12 +727,23 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
 #endif // __loongarch_asx
     if (elempack == 4)
     {
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
-        for (int i = 0; i < w; i++)
+        __m128 _p = bfloat2float_lsx(ptr);
+        int i = 0;
+        for (; i + 1 < w; i += 2)
+        {
+            __m128 _b0 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(ptr1[0]));
+            __m128 _b1 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(ptr1[1]));
+            __m128 _outp0 = op(_p, _b0);
+            __m128 _outp1 = op(_p, _b1);
+            __lsx_vst(float2bfloat_lsx(_outp0, _outp1), outptr, 0);
+            ptr1 += 2;
+            outptr += 8;
+        }
+        for (; i < w; i++)
         {
             __m128 _b = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(*ptr1));
             __m128 _outp = op(_p, _b);
-            __lsx_vstelm_d(float2bfloat_lsx(_outp, _outp), outptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
             ptr1 += 1;
             outptr += 4;
         }

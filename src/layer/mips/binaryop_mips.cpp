@@ -329,6 +329,22 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
 
     int i = 0;
 #if __mips_msa
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
+    {
+        v8i16 _p01 = __msa_ld_h(ptr, 0);
+        v8i16 _b01 = __msa_ld_h(ptr1, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        v4f32 _b0 = (v4f32)__msa_ilvr_h(_b01, _zero);
+        v4f32 _b1 = (v4f32)__msa_ilvl_h(_b01, _zero);
+        v4f32 _outp0 = op(_p0, _b0);
+        v4f32 _outp1 = op(_p1, _b1);
+        __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+        ptr += 8;
+        ptr1 += 8;
+        outptr += 8;
+    }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
@@ -356,6 +372,18 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
     int i = 0;
 #if __mips_msa
     v4f32 _b_128 = (elempack == 4) ? bfloat2float_msa(ptr1) : __msa_fill_w_f32(b);
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
+    {
+        v8i16 _p01 = __msa_ld_h(ptr, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        v4f32 _outp0 = op(_p0, _b_128);
+        v4f32 _outp1 = op(_p1, _b_128);
+        __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+        ptr += 8;
+        outptr += 8;
+    }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
@@ -381,6 +409,18 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
     int i = 0;
 #if __mips_msa
     v4f32 _a_128 = (elempack == 4) ? bfloat2float_msa(ptr) : __msa_fill_w_f32(a);
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
+    {
+        v8i16 _b01 = __msa_ld_h(ptr1, 0);
+        v4f32 _b0 = (v4f32)__msa_ilvr_h(_b01, _zero);
+        v4f32 _b1 = (v4f32)__msa_ilvl_h(_b01, _zero);
+        v4f32 _outp0 = op(_a_128, _b0);
+        v4f32 _outp1 = op(_a_128, _b1);
+        __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+        ptr1 += 8;
+        outptr += 8;
+    }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _b = bfloat2float_msa(ptr1);
@@ -404,7 +444,23 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
 #if __mips_msa
     if (elempack == 4)
     {
-        for (int i = 0; i < w; i++)
+        int i = 0;
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 1 < w; i += 2)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            v4f32 _b0 = __msa_fill_w_f32(bfloat16_to_float32(ptr1[0]));
+            v4f32 _b1 = __msa_fill_w_f32(bfloat16_to_float32(ptr1[1]));
+            v4f32 _outp0 = op(_p0, _b0);
+            v4f32 _outp1 = op(_p1, _b1);
+            __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            ptr1 += 2;
+            outptr += 8;
+        }
+        for (; i < w; i++)
         {
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _b = __msa_fill_w_f32(bfloat16_to_float32(*ptr1));
@@ -431,6 +487,18 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
 #if __mips_msa
     {
         v4f32 _b_128 = __msa_fill_w_f32(b);
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            v4f32 _outp0 = op(_p0, _b_128);
+            v4f32 _outp1 = op(_p1, _b_128);
+            __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+            ptr += 8;
+            outptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);
@@ -456,7 +524,18 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
     if (elempack == 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
-        for (int i = 0; i < w; i++)
+        int i = 0;
+        for (; i + 1 < w; i += 2)
+        {
+            v4f32 _b0 = __msa_fill_w_f32(bfloat16_to_float32(ptr1[0]));
+            v4f32 _b1 = __msa_fill_w_f32(bfloat16_to_float32(ptr1[1]));
+            v4f32 _outp0 = op(_p, _b0);
+            v4f32 _outp1 = op(_p, _b1);
+            __msa_st_w(float2bfloat_msa(_outp0, _outp1), outptr, 0);
+            ptr1 += 2;
+            outptr += 8;
+        }
+        for (; i < w; i++)
         {
             v4f32 _b = __msa_fill_w_f32(bfloat16_to_float32(*ptr1));
             v4f32 _outp = op(_p, _b);

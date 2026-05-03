@@ -40,6 +40,23 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
             int i = 0;
 #if __mips_msa
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v8i16 _p11 = __msa_ld_h(ptr1, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                _p0 = __msa_fmul_w(_p0, _q0);
+                _p1 = __msa_fmul_w(_p1, _q1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                ptr += 8;
+                ptr1 += 8;
+                outptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
@@ -73,6 +90,22 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
                 int i = 0;
 #if __mips_msa
+                v8i16 _zero = __msa_fill_h(0);
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _p01 = __msa_ld_h(outptr, 0);
+                    v8i16 _p11 = __msa_ld_h(ptr, 0);
+                    v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                    v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                    v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                    v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                    _p0 = __msa_fmul_w(_p0, _q0);
+                    _p1 = __msa_fmul_w(_p1, _q1);
+                    __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                    ptr += 8;
+                    outptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = bfloat2float_msa(outptr);
@@ -109,6 +142,23 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
                 int i = 0;
 #if __mips_msa
+                v8i16 _zero = __msa_fill_h(0);
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _p01 = __msa_ld_h(ptr, 0);
+                    v8i16 _p11 = __msa_ld_h(ptr1, 0);
+                    v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                    v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                    v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                    v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                    _p0 = __msa_fadd_w(_p0, _q0);
+                    _p1 = __msa_fadd_w(_p1, _q1);
+                    __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                    ptr += 8;
+                    ptr1 += 8;
+                    outptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = bfloat2float_msa(ptr);
@@ -142,6 +192,22 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
                     int i = 0;
 #if __mips_msa
+                    v8i16 _zero = __msa_fill_h(0);
+                    for (; i + 7 < size; i += 8)
+                    {
+                        v8i16 _p01 = __msa_ld_h(outptr, 0);
+                        v8i16 _p11 = __msa_ld_h(ptr, 0);
+                        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                        v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                        v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                        _p0 = __msa_fadd_w(_p0, _q0);
+                        _p1 = __msa_fadd_w(_p1, _q1);
+                        __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                        ptr += 8;
+                        outptr += 8;
+                    }
                     for (; i + 3 < size; i += 4)
                     {
                         v4f32 _p = bfloat2float_msa(outptr);
@@ -181,6 +247,25 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 #if __mips_msa
                 v4f32 _coeff0 = (v4f32)__msa_fill_w_f32(coeff0);
                 v4f32 _coeff1 = (v4f32)__msa_fill_w_f32(coeff1);
+                v8i16 _zero = __msa_fill_h(0);
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _p01 = __msa_ld_h(ptr, 0);
+                    v8i16 _p11 = __msa_ld_h(ptr1, 0);
+                    v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                    v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                    v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                    v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                    _p0 = __msa_fmul_w(_p0, _coeff0);
+                    _p1 = __msa_fmul_w(_p1, _coeff0);
+                    _p0 = __ncnn_msa_fmadd_w(_p0, _q0, _coeff1);
+                    _p1 = __ncnn_msa_fmadd_w(_p1, _q1, _coeff1);
+                    __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                    ptr += 8;
+                    ptr1 += 8;
+                    outptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = bfloat2float_msa(ptr);
@@ -218,6 +303,22 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                     int i = 0;
 #if __mips_msa
                     v4f32 _coeff = (v4f32)__msa_fill_w_f32(coeff);
+                    v8i16 _zero = __msa_fill_h(0);
+                    for (; i + 7 < size; i += 8)
+                    {
+                        v8i16 _p01 = __msa_ld_h(outptr, 0);
+                        v8i16 _p11 = __msa_ld_h(ptr, 0);
+                        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                        v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                        v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                        _p0 = __ncnn_msa_fmadd_w(_p0, _q0, _coeff);
+                        _p1 = __ncnn_msa_fmadd_w(_p1, _q1, _coeff);
+                        __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                        ptr += 8;
+                        outptr += 8;
+                    }
                     for (; i + 3 < size; i += 4)
                     {
                         v4f32 _p = bfloat2float_msa(outptr);
@@ -253,6 +354,23 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
             int i = 0;
 #if __mips_msa
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v8i16 _p11 = __msa_ld_h(ptr1, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                _p0 = __msa_fmax_w(_p0, _q0);
+                _p1 = __msa_fmax_w(_p1, _q1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                ptr += 8;
+                ptr1 += 8;
+                outptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
@@ -286,6 +404,22 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
                 int i = 0;
 #if __mips_msa
+                v8i16 _zero = __msa_fill_h(0);
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _p01 = __msa_ld_h(outptr, 0);
+                    v8i16 _p11 = __msa_ld_h(ptr, 0);
+                    v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                    v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                    v4f32 _q0 = (v4f32)__msa_ilvr_h(_p11, _zero);
+                    v4f32 _q1 = (v4f32)__msa_ilvl_h(_p11, _zero);
+                    _p0 = __msa_fmax_w(_p0, _q0);
+                    _p1 = __msa_fmax_w(_p1, _q1);
+                    __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                    ptr += 8;
+                    outptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = bfloat2float_msa(outptr);

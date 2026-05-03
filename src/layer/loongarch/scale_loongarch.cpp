@@ -303,12 +303,26 @@ static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float
         __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
         ptr += 8;
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            _p0 = __lsx_vfmadd_s(_p0, _s128, _b128);
+            _p1 = __lsx_vfmadd_s(_p1, _s128, _b128);
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+        __m128 _p = bfloat2float_lsx(ptr);
         _p = __lsx_vfmadd_s(_p, _s128, _b128);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;
     }
 #endif // __loongarch_sx
@@ -339,12 +353,26 @@ static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int
         __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
         ptr += 8;
     }
+#else  // __loongarch_asx
+    {
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+            _p0 = __lsx_vfmul_s(_p0, _s128);
+            _p1 = __lsx_vfmul_s(_p1, _s128);
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
+    }
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+        __m128 _p = bfloat2float_lsx(ptr);
         _p = __lsx_vfmul_s(_p, _s128);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;
     }
 #endif // __loongarch_sx
@@ -373,17 +401,36 @@ static void scale_bf16s_per_element_lsx(unsigned short* ptr, const float* scale,
         __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
     }
     remain_size_start += nn_size * 8;
+#else  // __loongarch_asx
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
+    {
+        int i = remain_size_start + ii * 8;
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        __m128i _p01 = __lsx_vld(ptr + i, 0);
+        __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+        __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+        __m128 _s0 = (__m128)__lsx_vld(scale + i, 0);
+        __m128 _s1 = (__m128)__lsx_vld(scale + i + 4, 0);
+        __m128 _bias0 = (__m128)__lsx_vld(bias + i, 0);
+        __m128 _bias1 = (__m128)__lsx_vld(bias + i + 4, 0);
+        _p0 = __lsx_vfmadd_s(_p0, _s0, _bias0);
+        _p1 = __lsx_vfmadd_s(_p1, _s1, _bias1);
+        __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr + i, 0);
+    }
+    remain_size_start += nn_size * 8;
 #endif // __loongarch_asx
     nn_size = (size - remain_size_start) / 4;
     #pragma omp parallel for num_threads(num_threads)
     for (int ii = 0; ii < nn_size; ii++)
     {
         int i = remain_size_start + ii * 4;
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr + i, 0));
+        __m128 _p = bfloat2float_lsx(ptr + i);
         __m128 _s = (__m128)__lsx_vld(scale + i, 0);
         __m128 _bias = (__m128)__lsx_vld(bias + i, 0);
         _p = __lsx_vfmadd_s(_p, _s, _bias);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr + i, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
     }
     remain_size_start += nn_size * 4;
 #endif // __loongarch_sx
@@ -411,16 +458,33 @@ static void scale_bf16s_no_bias_per_element_lsx(unsigned short* ptr, const float
         __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
     }
     remain_size_start += nn_size * 8;
+#else  // __loongarch_asx
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
+    {
+        int i = remain_size_start + ii * 8;
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        __m128i _p01 = __lsx_vld(ptr + i, 0);
+        __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+        __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+        __m128 _s0 = (__m128)__lsx_vld(scale + i, 0);
+        __m128 _s1 = (__m128)__lsx_vld(scale + i + 4, 0);
+        _p0 = __lsx_vfmul_s(_p0, _s0);
+        _p1 = __lsx_vfmul_s(_p1, _s1);
+        __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr + i, 0);
+    }
+    remain_size_start += nn_size * 8;
 #endif // __loongarch_asx
     nn_size = (size - remain_size_start) / 4;
     #pragma omp parallel for num_threads(num_threads)
     for (int ii = 0; ii < nn_size; ii++)
     {
         int i = remain_size_start + ii * 4;
-        __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr + i, 0));
+        __m128 _p = bfloat2float_lsx(ptr + i);
         __m128 _s = (__m128)__lsx_vld(scale + i, 0);
         _p = __lsx_vfmul_s(_p, _s);
-        __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr + i, 0, 0);
+        __lsx_vstelm_d(float2bfloat_lsx(_p), ptr + i, 0, 0);
     }
     remain_size_start += nn_size * 4;
 #endif // __loongarch_sx

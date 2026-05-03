@@ -126,6 +126,29 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
             v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
             v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _cube0 = __msa_fmul_w(_p0, _p0);
+                v4f32 _cube1 = __msa_fmul_w(_p1, _p1);
+                _cube0 = __msa_fmul_w(_p0, _cube0);
+                _cube1 = __msa_fmul_w(_p1, _cube1);
+                v4f32 _blob0 = __msa_fmul_w(_fast2c, _cube0);
+                v4f32 _blob1 = __msa_fmul_w(_fast2c, _cube1);
+                _blob0 = __ncnn_msa_fmadd_w(_blob0, _fast1c, _p0);
+                _blob1 = __ncnn_msa_fmadd_w(_blob1, _fast1c, _p1);
+                _blob0 = tanh_ps(_blob0);
+                _blob1 = tanh_ps(_blob1);
+                _blob0 = __msa_fadd_w(_one, _blob0);
+                _blob1 = __msa_fadd_w(_one, _blob1);
+                _blob0 = __msa_fmul_w(_half, __msa_fmul_w(_blob0, _p0));
+                _blob1 = __msa_fmul_w(_half, __msa_fmul_w(_blob1, _p1));
+                __msa_st_w(float2bfloat_msa(_blob0, _blob1), ptr, 0);
+                ptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);
@@ -145,6 +168,23 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
             v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+            v8i16 _zero = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+                v4f32 _blob0 = __msa_fmul_w(_inv_sqrt2, _p0);
+                v4f32 _blob1 = __msa_fmul_w(_inv_sqrt2, _p1);
+                _blob0 = erf_ps(_blob0);
+                _blob1 = erf_ps(_blob1);
+                _blob0 = __msa_fadd_w(_one, _blob0);
+                _blob1 = __msa_fadd_w(_one, _blob1);
+                _blob0 = __msa_fmul_w(_half, __msa_fmul_w(_blob0, _p0));
+                _blob1 = __msa_fmul_w(_half, __msa_fmul_w(_blob1, _p1));
+                __msa_st_w(float2bfloat_msa(_blob0, _blob1), ptr, 0);
+                ptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = bfloat2float_msa(ptr);

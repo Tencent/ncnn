@@ -31,7 +31,20 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         // compute rms
         v4f32 _rms = (v4f32)__msa_fill_w(0);
         const unsigned short* ptr0 = ptr;
-        for (int i = 0; i < size; i += 4)
+        int i = 0;
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p0, _p0);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p1, _p1);
+            ptr0 += 8;
+        }
+        for (; i < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
 
@@ -50,7 +63,24 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
 
         if (gamma_ptr)
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _gamma0 = __msa_fill_w_f32(gamma_ptr[0]);
+                v4f32 _gamma1 = __msa_fill_w_f32(gamma_ptr[1]);
+                _p0 = __msa_fmul_w(_p0, _rms);
+                _p1 = __msa_fmul_w(_p1, _rms);
+                _p0 = __msa_fmul_w(_p0, _gamma0);
+                _p1 = __msa_fmul_w(_p1, _gamma1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 2;
+            }
+            for (; i < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
 
@@ -65,7 +95,19 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         }
         else
         {
-            for (int i = 0; i < size; i += 4)
+            for (i = 0; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __msa_fmul_w(_p0, _rms);
+                _p1 = __msa_fmul_w(_p1, _rms);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+            for (; i < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
 
@@ -87,6 +129,18 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         int i = 0;
 #if __mips_msa
         v4f32 _rms = (v4f32)__msa_fill_w(0);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p0, _p0);
+            _rms = __ncnn_msa_fmadd_w(_rms, _p1, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -112,6 +166,25 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         int i = 0;
 #if __mips_msa
         v4f32 _rms = __msa_fill_w_f32(rms);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(gamma_ptr + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _gamma0 = (v4f32)__msa_ld_w(gamma_ptr, 0);
+            v4f32 _gamma1 = (v4f32)__msa_ld_w(gamma_ptr + 4, 0);
+            _p0 = __msa_fmul_w(_p0, _rms);
+            _p1 = __msa_fmul_w(_p1, _rms);
+            _p0 = __msa_fmul_w(_p0, _gamma0);
+            _p1 = __msa_fmul_w(_p1, _gamma1);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+            gamma_ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -139,6 +212,19 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
         int i = 0;
 #if __mips_msa
         v4f32 _rms = __msa_fill_w_f32(rms);
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __msa_fmul_w(_p0, _rms);
+            _p1 = __msa_fmul_w(_p1, _rms);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);

@@ -117,12 +117,26 @@ int Bias_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
+#else  // __loongarch_asx
+        {
+            __m128i _zero = __lsx_vreplgr2vr_w(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+                _p0 = __lsx_vfadd_s(_p0, _bias);
+                _p1 = __lsx_vfadd_s(_p1, _bias);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx((__m128i)__lsx_vld(ptr, 0));
+            __m128 _p = bfloat2float_lsx(ptr);
             _p = __lsx_vfadd_s(_p, _bias);
-            __lsx_vstelm_d(float2bfloat_lsx(_p, _p), ptr, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

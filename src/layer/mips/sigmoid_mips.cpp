@@ -86,6 +86,23 @@ int Sigmoid_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
         int i = 0;
 #if __mips_msa
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v8i16 _zero = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+            _p0 = (v4f32)__msa_bnegi_w((v4u32)_p0, 31);
+            _p1 = (v4f32)__msa_bnegi_w((v4u32)_p1, 31);
+            _p0 = exp_ps(_p0);
+            _p1 = exp_ps(_p1);
+            _p0 = __msa_fadd_w(_p0, _one);
+            _p1 = __msa_fadd_w(_p1, _one);
+            v4f32 _outp0 = __msa_fdiv_w(_one, _p0);
+            v4f32 _outp1 = __msa_fdiv_w(_one, _p1);
+            __msa_st_w(float2bfloat_msa(_outp0, _outp1), ptr, 0);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);

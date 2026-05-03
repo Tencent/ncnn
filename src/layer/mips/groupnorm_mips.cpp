@@ -35,6 +35,18 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
         int i = 0;
 #if __mips_msa
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _mean = __msa_fadd_w(_mean, _p0);
+            _mean = __msa_fadd_w(_mean, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -73,6 +85,20 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
         int i = 0;
 #if __mips_msa
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __msa_fsub_w(_p0, _mean);
+            _p1 = __msa_fsub_w(_p1, _mean);
+            _var = __ncnn_msa_fmadd_w(_var, _p0, _p0);
+            _var = __ncnn_msa_fmadd_w(_var, _p1, _p1);
+            ptr0 += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -145,6 +171,19 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
             int i = 0;
 #if __mips_msa
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr0 + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_b, _p0, _a);
+                _p1 = __ncnn_msa_fmadd_w(_b, _p1, _a);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr0, 0);
+                ptr0 += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr0 + 16);
@@ -170,6 +209,19 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
             int i = 0;
 #if __mips_msa
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr0 + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr0, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __ncnn_msa_fmadd_w(_mean, _p0, _var);
+                _p1 = __ncnn_msa_fmadd_w(_mean, _p1, _var);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr0, 0);
+                ptr0 += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr0 + 16);

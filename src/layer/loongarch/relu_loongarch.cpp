@@ -155,10 +155,24 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                 ptr += 8;
             }
+#else  // __loongarch_asx
+            {
+                __m128i _zero = __lsx_vreplgr2vr_w(0);
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _p01 = __lsx_vld(ptr, 0);
+                    __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
+                    __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
+                    _p0 = __lsx_vfmax_s(_p0, (__m128)_zero);
+                    _p1 = __lsx_vfmax_s(_p1, (__m128)_zero);
+                    __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                    ptr += 8;
+                }
+            }
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+                __m128 _p = bfloat2float_lsx(ptr);
                 _p = __lsx_vfmax_s(_p, (__m128)__lsx_vreplgr2vr_w(0));
                 __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
                 ptr += 4;
@@ -195,13 +209,33 @@ int ReLU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
                 ptr += 8;
             }
+#else  // __loongarch_asx
+            {
+                __m128i _zero_raw = __lsx_vreplgr2vr_w(0);
+                __m128 _zero4 = (__m128)_zero_raw;
+                __m128 _slope4 = (__m128)__lsx_vreplfr2vr_s(slope);
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _p01 = __lsx_vld(ptr, 0);
+                    __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_raw);
+                    __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_raw);
+                    __m128i _lemask0 = __lsx_vfcmp_cle_s(_p0, _zero4);
+                    __m128i _lemask1 = __lsx_vfcmp_cle_s(_p1, _zero4);
+                    __m128 _ps0 = __lsx_vfmul_s(_p0, _slope4);
+                    __m128 _ps1 = __lsx_vfmul_s(_p1, _slope4);
+                    _p0 = (__m128)__lsx_vbitsel_v((__m128i)_p0, (__m128i)_ps0, _lemask0);
+                    _p1 = (__m128)__lsx_vbitsel_v((__m128i)_p1, (__m128i)_ps1, _lemask1);
+                    __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                    ptr += 8;
+                }
+            }
 #endif // __loongarch_asx
             {
                 __m128 _zero4 = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _slope4 = (__m128)__lsx_vreplfr2vr_s(slope);
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_lsx((__m128i*)ptr);
+                    __m128 _p = bfloat2float_lsx(ptr);
                     __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero4);
                     __m128 _ps = __lsx_vfmul_s(_p, _slope4);
                     _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
