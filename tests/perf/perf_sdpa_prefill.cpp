@@ -28,10 +28,10 @@ static void perf_sdpa_prefill(int embed_dim, int num_heads, int num_groups, int 
 
     // int8 variant
     ncnn::ParamDict pd_int8;
-    pd_int8.set(5, 0);    // attn_mask = 0
-    pd_int8.set(6, 0.f);  // scale = 0
-    pd_int8.set(7, 0);    // kv_cache = 0
-    pd_int8.set(18, 2);   // int8_scale_term
+    pd_int8.set(5, 0);   // attn_mask = 0
+    pd_int8.set(6, 0.f); // scale = 0
+    pd_int8.set(7, 0);   // kv_cache = 0
+    pd_int8.set(18, 2);  // int8_scale_term
     perf_layer_int8("SDPA", pd_int8, weights, inputs, 1,
                     "embed=%d heads=%d groups=%d seqlen=%d",
                     embed_dim, num_heads, num_groups, src_seqlen);
