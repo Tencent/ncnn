@@ -978,8 +978,8 @@ static inline void decode_qk_dot_int8_avx512_kernel(float* s, const signed char*
         {
             int off = b * 64;
             acc = _mm512_comp_dpwssd_epi32(acc,
-                _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)(q + off))),
-                _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)(kptr + off))));
+                                           _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)(q + off))),
+                                           _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)(kptr + off))));
         }
         for (int i = num_blocks_64 * 64; i < d; i++)
             scalar += q[i] * kptr[i];
@@ -991,8 +991,8 @@ static inline void decode_qk_dot_int8_avx512_kernel(float* s, const signed char*
 #endif // __AVX512F__
 
 static void decode_qk_dot_int8(float* s, const signed char* q,
-        const signed char* K, const float* qscales, const float* kscales,
-        int n_start, int block_n, int d, float scale)
+                               const signed char* K, const float* qscales, const float* kscales,
+                               int n_start, int block_n, int d, float scale)
 {
 #if __AVX512F__
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && !__AVX512VNNI__
@@ -1347,8 +1347,8 @@ static inline void qk_int8_gemm_row_avx512vnni_kernel(float* s_row,
 #endif // __AVX512VNNI__
 
 static void qk_int8_gemm_row(float* s_row,
-        const signed char* q_row, const signed char* K, float qscale, const float* kscales,
-        int n, int d, float scale)
+                             const signed char* q_row, const signed char* K, float qscale, const float* kscales,
+                             int n, int d, float scale)
 {
 #if __AVX512F__
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && !__AVX512VNNI__
@@ -2339,9 +2339,9 @@ static inline void qk_int8_gemm_tiled_avx512vnni_kernel(float* S,
 #endif // __AVX512VNNI__
 
 static void qk_int8_gemm_tiled(float* S,
-        const signed char* Q, const signed char* K,
-        const float* qscales, const float* kscales,
-        int m, int n, int d, float scale)
+                               const signed char* Q, const signed char* K,
+                               const float* qscales, const float* kscales,
+                               int m, int n, int d, float scale)
 {
 #if __AVX512F__
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && !__AVX512VNNI__
@@ -2439,9 +2439,9 @@ static inline void decode_pv_gemv_int8_sse2_kernel(float* out, const float* s,
             {
                 float p_invscale = s[j] / vscales[(n_start + j) * num_blocks + vb];
                 __m128 pvec = _mm_set1_ps(p_invscale);
-                __m128i v8 = _mm_set_epi8(0,0,0,0,0,0,0,0,0,0,0,0,
-                    V[(n_start+j)*out_d+k+3], V[(n_start+j)*out_d+k+2],
-                    V[(n_start+j)*out_d+k+1], V[(n_start+j)*out_d+k+0]);
+                __m128i v8 = _mm_set_epi8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                          V[(n_start + j) * out_d + k + 3], V[(n_start + j) * out_d + k + 2],
+                                          V[(n_start + j) * out_d + k + 1], V[(n_start + j) * out_d + k + 0]);
                 __m128i v32 = _mm_cvtepi8_epi32(v8);
                 __m128 vfp = _mm_cvtepi32_ps(v32);
                 oval = _mm_add_ps(oval, _mm_mul_ps(pvec, vfp));
@@ -2617,8 +2617,8 @@ static inline void decode_pv_gemv_int8_avx512_kernel(float* out, const float* s,
 #endif // __AVX512F__
 
 static void decode_pv_gemv_int8(float* out, const float* s,
-        const signed char* V, const float* vscales,
-        int n_start, int block_n, int out_d)
+                                const signed char* V, const float* vscales,
+                                int n_start, int block_n, int out_d)
 {
 #if __AVX512F__
     decode_pv_gemv_int8_avx512_kernel(out, s, V, vscales, n_start, block_n, out_d);
@@ -2802,8 +2802,8 @@ static inline void pv_float_int8_gemm_row_avx512_kernel(float* out, const float*
 #endif // __AVX512F__
 
 static void pv_float_int8_gemm_row(float* out, const float* p_row,
-        const signed char* V, const float* vscales,
-        int n, int out_d)
+                                   const signed char* V, const float* vscales,
+                                   int n, int out_d)
 {
 #if __AVX512F__
     pv_float_int8_gemm_row_avx512_kernel(out, p_row, V, vscales, n, out_d);
@@ -2924,104 +2924,104 @@ static void pv_float_int8_fma_block(float* out, float p_invscale, const signed c
 
 #if __AVX2__
 inline void pv_float_int8_gemm_tile_avx2_kernel(float* O, const float* P,
-                                    const signed char* V, const float* vscales,
-                                    int block_m, int block_n, int out_embed_dim)
+        const signed char* V, const float* vscales,
+        int block_m, int block_n, int out_embed_dim)
 {
     const int v_num_blocks = (out_embed_dim + 31) / 32;
-int i = 0;
-for (; i + 1 < block_m; i += 2)
-{
-    const float* p0 = P + i * block_n;
-    const float* p1 = P + (i + 1) * block_n;
-    for (int vb = 0; vb < v_num_blocks; vb++)
+    int i = 0;
+    for (; i + 1 < block_m; i += 2)
     {
-        int k_start = vb * 32;
-        int k_end = k_start + 32 < out_embed_dim ? k_start + 32 : out_embed_dim;
-        int len = k_end - k_start;
-        if (len <= 0) continue;
-        if (len == 32)
-        {
-            __m256 acc0_0 = _mm256_setzero_ps();
-            __m256 acc0_1 = _mm256_setzero_ps();
-            __m256 acc0_2 = _mm256_setzero_ps();
-            __m256 acc0_3 = _mm256_setzero_ps();
-            __m256 acc1_0 = _mm256_setzero_ps();
-            __m256 acc1_1 = _mm256_setzero_ps();
-            __m256 acc1_2 = _mm256_setzero_ps();
-            __m256 acc1_3 = _mm256_setzero_ps();
-            for (int j = 0; j < block_n; j++)
-            {
-                float vscale = vscales[j * v_num_blocks + vb];
-                __m256 vscale8 = _mm256_set1_ps(vscale);
-                const signed char* vptr = V + j * out_embed_dim + k_start;
-                __m128i v8_0 = _mm_loadl_epi64((const __m128i*)(vptr + 0));
-                __m128i v8_1 = _mm_loadl_epi64((const __m128i*)(vptr + 8));
-                __m128i v8_2 = _mm_loadl_epi64((const __m128i*)(vptr + 16));
-                __m128i v8_3 = _mm_loadl_epi64((const __m128i*)(vptr + 24));
-                __m256 vval_0 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_0)), vscale8);
-                __m256 vval_1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_1)), vscale8);
-                __m256 vval_2 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_2)), vscale8);
-                __m256 vval_3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_3)), vscale8);
-                __m256 pvec0 = _mm256_set1_ps(p0[j]);
-                __m256 pvec1 = _mm256_set1_ps(p1[j]);
-                acc0_0 = _mm256_fmadd_ps(pvec0, vval_0, acc0_0);
-                acc0_1 = _mm256_fmadd_ps(pvec0, vval_1, acc0_1);
-                acc0_2 = _mm256_fmadd_ps(pvec0, vval_2, acc0_2);
-                acc0_3 = _mm256_fmadd_ps(pvec0, vval_3, acc0_3);
-                acc1_0 = _mm256_fmadd_ps(pvec1, vval_0, acc1_0);
-                acc1_1 = _mm256_fmadd_ps(pvec1, vval_1, acc1_1);
-                acc1_2 = _mm256_fmadd_ps(pvec1, vval_2, acc1_2);
-                acc1_3 = _mm256_fmadd_ps(pvec1, vval_3, acc1_3);
-            }
-            float* optr0 = O + i * out_embed_dim + k_start;
-            float* optr1 = O + (i + 1) * out_embed_dim + k_start;
-            _mm256_storeu_ps(optr0 + 0, _mm256_add_ps(_mm256_loadu_ps(optr0 + 0), acc0_0));
-            _mm256_storeu_ps(optr0 + 8, _mm256_add_ps(_mm256_loadu_ps(optr0 + 8), acc0_1));
-            _mm256_storeu_ps(optr0 + 16, _mm256_add_ps(_mm256_loadu_ps(optr0 + 16), acc0_2));
-            _mm256_storeu_ps(optr0 + 24, _mm256_add_ps(_mm256_loadu_ps(optr0 + 24), acc0_3));
-            _mm256_storeu_ps(optr1 + 0, _mm256_add_ps(_mm256_loadu_ps(optr1 + 0), acc1_0));
-            _mm256_storeu_ps(optr1 + 8, _mm256_add_ps(_mm256_loadu_ps(optr1 + 8), acc1_1));
-            _mm256_storeu_ps(optr1 + 16, _mm256_add_ps(_mm256_loadu_ps(optr1 + 16), acc1_2));
-            _mm256_storeu_ps(optr1 + 24, _mm256_add_ps(_mm256_loadu_ps(optr1 + 24), acc1_3));
-        }
-        else
-        {
-            for (int j = 0; j < block_n; j++)
-            {
-                float vscale = vscales[j * v_num_blocks + vb];
-                const signed char* vptr = V + j * out_embed_dim + k_start;
-                for (int k = 0; k < len; k++)
-                {
-                    float vval = (float)vptr[k] * vscale;
-                    O[i * out_embed_dim + k_start + k] += p0[j] * vval;
-                    O[(i + 1) * out_embed_dim + k_start + k] += p1[j] * vval;
-                }
-            }
-        }
-    }
-}
-for (; i < block_m; i++)
-{
-    const float* p_row = P + i * block_n;
-    for (int j = 0; j < block_n; j++)
-    {
-        float p = p_row[j];
-        const signed char* vptr = V + j * out_embed_dim;
-        const float* vscales_row = vscales + j * v_num_blocks;
+        const float* p0 = P + i * block_n;
+        const float* p1 = P + (i + 1) * block_n;
         for (int vb = 0; vb < v_num_blocks; vb++)
         {
             int k_start = vb * 32;
             int k_end = k_start + 32 < out_embed_dim ? k_start + 32 : out_embed_dim;
             int len = k_end - k_start;
             if (len <= 0) continue;
-            float vscale = vscales_row[vb];
-            for (int k = 0; k < len; k++)
+            if (len == 32)
             {
-                O[i * out_embed_dim + k_start + k] += p * (float)vptr[k_start + k] * vscale;
+                __m256 acc0_0 = _mm256_setzero_ps();
+                __m256 acc0_1 = _mm256_setzero_ps();
+                __m256 acc0_2 = _mm256_setzero_ps();
+                __m256 acc0_3 = _mm256_setzero_ps();
+                __m256 acc1_0 = _mm256_setzero_ps();
+                __m256 acc1_1 = _mm256_setzero_ps();
+                __m256 acc1_2 = _mm256_setzero_ps();
+                __m256 acc1_3 = _mm256_setzero_ps();
+                for (int j = 0; j < block_n; j++)
+                {
+                    float vscale = vscales[j * v_num_blocks + vb];
+                    __m256 vscale8 = _mm256_set1_ps(vscale);
+                    const signed char* vptr = V + j * out_embed_dim + k_start;
+                    __m128i v8_0 = _mm_loadl_epi64((const __m128i*)(vptr + 0));
+                    __m128i v8_1 = _mm_loadl_epi64((const __m128i*)(vptr + 8));
+                    __m128i v8_2 = _mm_loadl_epi64((const __m128i*)(vptr + 16));
+                    __m128i v8_3 = _mm_loadl_epi64((const __m128i*)(vptr + 24));
+                    __m256 vval_0 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_0)), vscale8);
+                    __m256 vval_1 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_1)), vscale8);
+                    __m256 vval_2 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_2)), vscale8);
+                    __m256 vval_3 = _mm256_mul_ps(_mm256_cvtepi32_ps(_mm256_cvtepi8_epi32(v8_3)), vscale8);
+                    __m256 pvec0 = _mm256_set1_ps(p0[j]);
+                    __m256 pvec1 = _mm256_set1_ps(p1[j]);
+                    acc0_0 = _mm256_fmadd_ps(pvec0, vval_0, acc0_0);
+                    acc0_1 = _mm256_fmadd_ps(pvec0, vval_1, acc0_1);
+                    acc0_2 = _mm256_fmadd_ps(pvec0, vval_2, acc0_2);
+                    acc0_3 = _mm256_fmadd_ps(pvec0, vval_3, acc0_3);
+                    acc1_0 = _mm256_fmadd_ps(pvec1, vval_0, acc1_0);
+                    acc1_1 = _mm256_fmadd_ps(pvec1, vval_1, acc1_1);
+                    acc1_2 = _mm256_fmadd_ps(pvec1, vval_2, acc1_2);
+                    acc1_3 = _mm256_fmadd_ps(pvec1, vval_3, acc1_3);
+                }
+                float* optr0 = O + i * out_embed_dim + k_start;
+                float* optr1 = O + (i + 1) * out_embed_dim + k_start;
+                _mm256_storeu_ps(optr0 + 0, _mm256_add_ps(_mm256_loadu_ps(optr0 + 0), acc0_0));
+                _mm256_storeu_ps(optr0 + 8, _mm256_add_ps(_mm256_loadu_ps(optr0 + 8), acc0_1));
+                _mm256_storeu_ps(optr0 + 16, _mm256_add_ps(_mm256_loadu_ps(optr0 + 16), acc0_2));
+                _mm256_storeu_ps(optr0 + 24, _mm256_add_ps(_mm256_loadu_ps(optr0 + 24), acc0_3));
+                _mm256_storeu_ps(optr1 + 0, _mm256_add_ps(_mm256_loadu_ps(optr1 + 0), acc1_0));
+                _mm256_storeu_ps(optr1 + 8, _mm256_add_ps(_mm256_loadu_ps(optr1 + 8), acc1_1));
+                _mm256_storeu_ps(optr1 + 16, _mm256_add_ps(_mm256_loadu_ps(optr1 + 16), acc1_2));
+                _mm256_storeu_ps(optr1 + 24, _mm256_add_ps(_mm256_loadu_ps(optr1 + 24), acc1_3));
+            }
+            else
+            {
+                for (int j = 0; j < block_n; j++)
+                {
+                    float vscale = vscales[j * v_num_blocks + vb];
+                    const signed char* vptr = V + j * out_embed_dim + k_start;
+                    for (int k = 0; k < len; k++)
+                    {
+                        float vval = (float)vptr[k] * vscale;
+                        O[i * out_embed_dim + k_start + k] += p0[j] * vval;
+                        O[(i + 1) * out_embed_dim + k_start + k] += p1[j] * vval;
+                    }
+                }
             }
         }
     }
-}
+    for (; i < block_m; i++)
+    {
+        const float* p_row = P + i * block_n;
+        for (int j = 0; j < block_n; j++)
+        {
+            float p = p_row[j];
+            const signed char* vptr = V + j * out_embed_dim;
+            const float* vscales_row = vscales + j * v_num_blocks;
+            for (int vb = 0; vb < v_num_blocks; vb++)
+            {
+                int k_start = vb * 32;
+                int k_end = k_start + 32 < out_embed_dim ? k_start + 32 : out_embed_dim;
+                int len = k_end - k_start;
+                if (len <= 0) continue;
+                float vscale = vscales_row[vb];
+                for (int k = 0; k < len; k++)
+                {
+                    O[i * out_embed_dim + k_start + k] += p * (float)vptr[k_start + k] * vscale;
+                }
+            }
+        }
+    }
 }
 #endif
 
@@ -3324,5 +3324,3 @@ static void pv_float_int8_gemm_tile(float* O, const float* P,
 #if __SSE2__ && !__SSE4_1__
 #undef _mm_cvtepi8_epi32
 #endif
-
-

@@ -3676,14 +3676,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         bool use_kv_cache = kv_cache && past_seqlen > 0;
         bool cache_valid = false;
         if (use_kv_cache
-            && cached_kv_seqlen == past_seqlen
-            && cached_num_group == num_group
-            && cached_embed_dim == embed_dim
-            && cached_out_embed_dim == out_embed_dim
-            && !cached_key_int8.empty()
-            && !cached_key_scales.empty()
-            && !cached_value_int8.empty()
-            && !cached_value_scales.empty())
+                && cached_kv_seqlen == past_seqlen
+                && cached_num_group == num_group
+                && cached_embed_dim == embed_dim
+                && cached_out_embed_dim == out_embed_dim
+                && !cached_key_int8.empty()
+                && !cached_key_scales.empty()
+                && !cached_value_int8.empty()
+                && !cached_value_scales.empty())
         {
             cache_valid = true;
             for (int g = 0; g < num_group; g++)
@@ -3788,10 +3788,10 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
 
                             decode_qk_dot_int8(s, q_int8,
-                                key_int8_head.row<const signed char>(0),
-                                q_scale,
-                                key_scales_head.row(0),
-                                n_start, block_n, embed_dim, _scale);
+                                               key_int8_head.row<const signed char>(0),
+                                               q_scale,
+                                               key_scales_head.row(0),
+                                               n_start, block_n, embed_dim, _scale);
 
                             if (mask_ptr)
                             {
@@ -3820,9 +3820,9 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             l += l_add;
 
                             decode_pv_gemv_int8(out, s,
-                                value_int8_head.row<const signed char>(0),
-                                value_scales_head.row(0),
-                                n_start, block_n, out_embed_dim);
+                                                value_int8_head.row<const signed char>(0),
+                                                value_scales_head.row(0),
+                                                n_start, block_n, out_embed_dim);
 
                             m = new_m;
                         }
@@ -3879,10 +3879,10 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
 
                         decode_qk_dot_int8(s, q_int8,
-                            key_int8_head.row<const signed char>(0),
-                            q_scale,
-                            key_scales_head.row(0),
-                            n_start, block_n, embed_dim, _scale);
+                                           key_int8_head.row<const signed char>(0),
+                                           q_scale,
+                                           key_scales_head.row(0),
+                                           n_start, block_n, embed_dim, _scale);
 
                         if (mask_ptr)
                         {
@@ -3911,9 +3911,9 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         l += l_add;
 
                         decode_pv_gemv_int8(out, s,
-                            value_int8_head.row<const signed char>(0),
-                            value_scales_head.row(0),
-                            n_start, block_n, out_embed_dim);
+                                            value_int8_head.row<const signed char>(0),
+                                            value_scales_head.row(0),
+                                            n_start, block_n, out_embed_dim);
 
                         m = new_m;
                     }
@@ -3939,7 +3939,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
             return 0;
         }
-            // else: fall through to fp32 decode path below
+        // else: fall through to fp32 decode path below
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
@@ -4007,20 +4007,20 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     if (block_m == 1)
                     {
                         qk_int8_gemm_row(s_vec_ptr,
-                            q_int8_tile_head.row<const signed char>(0),
-                            key_int8_head.row<const signed char>(n_start),
-                            q_scales_tile_head.row(0)[0],
-                            key_scales_head.row(n_start),
-                            block_n, embed_dim, _scale);
+                                         q_int8_tile_head.row<const signed char>(0),
+                                         key_int8_head.row<const signed char>(n_start),
+                                         q_scales_tile_head.row(0)[0],
+                                         key_scales_head.row(n_start),
+                                         block_n, embed_dim, _scale);
                     }
                     else
                     {
                         qk_int8_gemm_tiled(s_vec_ptr,
-                            q_int8_tile_head.row<const signed char>(0),
-                            key_int8_head.row<const signed char>(n_start),
-                            q_scales_tile_head.row(0),
-                            key_scales_head.row(n_start),
-                            block_m, block_n, embed_dim, _scale);
+                                           q_int8_tile_head.row<const signed char>(0),
+                                           key_int8_head.row<const signed char>(n_start),
+                                           q_scales_tile_head.row(0),
+                                           key_scales_head.row(n_start),
+                                           block_m, block_n, embed_dim, _scale);
                     }
 
                     for (int i = 0; i < block_m; i++)
@@ -4065,15 +4065,15 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     if (kv_cache)
                     {
                         pv_float_int8_gemm_tile(o_accum_head.row(0), p_vec_ptr,
-                            value_int8_head.row<const signed char>(n_start),
-                            value_scales_head.row(n_start),
-                            block_m, block_n, out_embed_dim);
+                                                value_int8_head.row<const signed char>(n_start),
+                                                value_scales_head.row(n_start),
+                                                block_m, block_n, out_embed_dim);
                     }
                     else
                     {
                         pv_gemm_dispatch(o_accum_head.row(0), p_vec_ptr,
-                            value.channel(q / num_heads_per_group).row(n_start),
-                            block_m, block_n, out_embed_dim);
+                                         value.channel(q / num_heads_per_group).row(n_start),
+                                         block_m, block_n, out_embed_dim);
                     }
                 }
 
