@@ -30,14 +30,12 @@ namespace ncnn {
 SDPA_x86::SDPA_x86()
 {
 #if NCNN_BF16
-    support_bf16_storage = false;
+    support_bf16_storage = true;
 #endif
-#if NCNN_INT8
     cached_kv_seqlen = -1;
     cached_num_group = 0;
     cached_embed_dim = 0;
     cached_out_embed_dim = 0;
-#endif
 }
 
 int SDPA_x86::create_pipeline(const Option& /*_opt*/)
@@ -56,6 +54,10 @@ int SDPA_x86::destroy_pipeline(const Option& /*_opt*/)
 }
 
 #include "sdpa_x86_int8.h"
+
+#if NCNN_BF16
+#include "sdpa_x86_bf16s.h"
+#endif
 
 static inline void qk_gemm_scalar(float* S, const float* Q, const float* K,
                                   int m, int n, int d, float scale)
@@ -3619,6 +3621,31 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
+#if NCNN_BF16
+    bool use_bf16_path = opt.use_bf16_storage && query.elembits() == 16;
+    Mat query_fp32;
+    Mat attn_mask_fp32;
+    if (use_bf16_path)
+    {
+        cast_bfloat16_to_float32(query, query_fp32, opt);
+        if (query_fp32.empty())
+            return -100;
+        if (attn_mask && !attn_mask_blob.empty())
+        {
+            cast_bfloat16_to_float32(attn_mask_blob, attn_mask_fp32, opt);
+            if (attn_mask_fp32.empty())
+                return -100;
+        }
+    }
+    const Mat& query_ref = use_bf16_path ? query_fp32 : query;
+    const Mat& attn_mask_ref = (use_bf16_path && attn_mask) ? attn_mask_fp32 : attn_mask_blob;
+#else
+    const Mat& query_ref = query;
+    const Mat& attn_mask_ref = attn_mask_blob;
+    (void)query_ref;
+    (void)attn_mask_ref;
+#endif
+
 #if NCNN_INT8
     bool use_int8_path = int8_scale_term;
     if (use_int8_path && src_seqlen == 1)
@@ -3740,7 +3767,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         const float* mask_ptr = nullptr;
                         if (attn_mask)
                         {
-                            const Mat& maskm = attn_mask_blob;
+                            const Mat& maskm = attn_mask_ref;
                             Mat mask_head;
                             if (maskm.dims == 3)
                             {
@@ -3831,7 +3858,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     const float* mask_ptr = nullptr;
                     if (attn_mask)
                     {
-                        const Mat& maskm = attn_mask_blob;
+                        const Mat& maskm = attn_mask_ref;
                         Mat mask_head;
                         if (maskm.dims == 3)
                         {
@@ -3927,7 +3954,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             Mat mask_head;
             if (attn_mask)
             {
-                const Mat& maskm = attn_mask_blob;
+                const Mat& maskm = attn_mask_ref;
                 if (maskm.dims == 3)
                 {
                     mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
@@ -4091,6 +4118,114 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const int BLOCK_N = 128;
         const bool use_split_kv = opt.num_threads > 1 && dst_seqlen >= BLOCK_N * 2;
 
+#if NCNN_BF16
+        if (use_bf16_path)
+        {
+            if (use_split_kv)
+            {
+                const int num_kv_chunks = opt.num_threads;
+                Mat partials(2 + out_embed_dim, num_kv_chunks, num_heads, 4u, opt.workspace_allocator);
+                if (partials.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int task = 0; task < num_heads * num_kv_chunks; task++)
+                {
+                    int q = task / num_kv_chunks;
+                    int chunk = task % num_kv_chunks;
+
+                    int n_start = chunk * dst_seqlen / num_kv_chunks;
+                    int n_end = (chunk + 1 == num_kv_chunks) ? dst_seqlen : (chunk + 1) * dst_seqlen / num_kv_chunks;
+
+                    int g = q / num_heads_per_group;
+                    const Mat key_head = key.channel(g);
+                    const Mat value_head = value.channel(g);
+                    const Mat query_head = query_ref.channel(q);
+
+                    const float* qptr = query_head.row(0);
+                    const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+                    const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+                    const float* mask_ptr = nullptr;
+                    if (attn_mask)
+                    {
+                        const Mat& maskm = attn_mask_ref;
+                        Mat mask_head;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                        mask_ptr = mask_head.row(0);
+                    }
+
+                    float* p = partials.channel(q).row(chunk);
+                    sdpa_decode_chunk_bf16s_dispatch(p + 2, p, p + 1, qptr, Kptr, Vptr, mask_ptr,
+                                                     n_start, n_end, embed_dim, out_embed_dim, _scale);
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < num_heads; q++)
+                {
+                    Mat top_blob_head = top_blob.channel(q);
+                    float* outptr = top_blob_head.row(0);
+                    sdpa_decode_reduce_bf16s_dispatch(outptr, out_embed_dim,
+                                                      partials.channel(q), num_kv_chunks, 2 + out_embed_dim);
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < num_group; g++)
+                {
+                    const Mat key_head = key.channel(g);
+                    const Mat value_head = value.channel(g);
+
+                    for (int hq = 0; hq < num_heads_per_group; hq++)
+                    {
+                        int q = g * num_heads_per_group + hq;
+                        const Mat query_head = query_ref.channel(q);
+                        Mat top_blob_head = top_blob.channel(q);
+
+                        const float* qptr = query_head.row(0);
+                        float* outptr = top_blob_head.row(0);
+                        const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+                        const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+                        const float* mask_ptr = nullptr;
+                        if (attn_mask)
+                        {
+                            const Mat& maskm = attn_mask_ref;
+                            Mat mask_head;
+                            if (maskm.dims == 3)
+                            {
+                                mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                            }
+                            else
+                            {
+                                mask_head = maskm;
+                            }
+                            mask_ptr = mask_head.row(0);
+                        }
+
+                        sdpa_decode_bf16s_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                    }
+                }
+            }
+
+            if (kv_cache)
+            {
+                top_blobs[1] = key;
+                top_blobs[2] = value;
+            }
+
+            return 0;
+        }
+#endif // NCNN_BF16
+
         if (use_split_kv)
         {
             const int num_kv_chunks = opt.num_threads;
@@ -4110,7 +4245,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 int g = q / num_heads_per_group;
                 const Mat key_head = key.channel(g);
                 const Mat value_head = value.channel(g);
-                const Mat query_head = query.channel(q);
+                const Mat query_head = query_ref.channel(q);
 
                 const float* qptr = query_head.row(0);
                 const float* Kptr = key_head;
@@ -4119,7 +4254,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 const float* mask_ptr = nullptr;
                 if (attn_mask)
                 {
-                    const Mat& maskm = attn_mask_blob;
+                    const Mat& maskm = attn_mask_ref;
                     Mat mask_head;
                     if (maskm.dims == 3)
                     {
@@ -4158,7 +4293,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 for (int hq = 0; hq < num_heads_per_group; hq++)
                 {
                     int q = g * num_heads_per_group + hq;
-                    const Mat query_head = query.channel(q);
+                    const Mat query_head = query_ref.channel(q);
                     Mat top_blob_head = top_blob.channel(q);
 
                     const float* qptr = query_head.row(0);
@@ -4169,7 +4304,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     const float* mask_ptr = nullptr;
                     if (attn_mask)
                     {
-                        const Mat& maskm = attn_mask_blob;
+                        const Mat& maskm = attn_mask_ref;
                         Mat mask_head;
                         if (maskm.dims == 3)
                         {
@@ -4238,7 +4373,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             mask_stride[hq] = 0;
             if (attn_mask)
             {
-                const Mat& maskm = attn_mask_blob;
+                const Mat& maskm = attn_mask_ref;
                 Mat mh = (maskm.dims == 3 && maskm.c > 1) ? maskm.channel(q)
                          : (maskm.dims == 3 ? maskm.channel(0) : maskm);
                 mask_data[hq] = mh;
@@ -4254,7 +4389,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             for (int hq = 0; hq < num_heads_per_group; hq++)
             {
                 int q = g * num_heads_per_group + hq;
-                const Mat query_head = query.channel(q);
+                const Mat query_head = query_ref.channel(q);
                 float* q_dst = q_batch_thread.row(hq * block_m);
                 for (int i = 0; i < block_m; i++)
                 {
@@ -4288,10 +4423,22 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
             if (!large_dim)
             {
-                qk_gemm_dispatch(s_ptr,
-                                 q_batch_thread.row(0),
-                                 key_head.row(n_start),
-                                 block_m * num_heads_per_group, block_n, embed_dim, _scale);
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+                    qk_gemm_bf16s_dispatch(s_ptr,
+                                           q_batch_thread.row(0),
+                                           key_head.row<const unsigned short>(n_start),
+                                           block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                }
+                else
+#endif
+                {
+                    qk_gemm_dispatch(s_ptr,
+                                     q_batch_thread.row(0),
+                                     key_head.row(n_start),
+                                     block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                }
 
                 for (int hq = 0; hq < num_heads_per_group; hq++)
                 {
@@ -4356,15 +4503,25 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     }
                 }
 
-                pv_gemm_dispatch(o_accum_thread.row(0), s_ptr, value_head.row(n_start),
-                                 block_m * num_heads_per_group, block_n, out_embed_dim);
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+                    pv_gemm_bf16s_dispatch(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                           block_m * num_heads_per_group, block_n, out_embed_dim);
+                }
+                else
+#endif
+                {
+                    pv_gemm_dispatch(o_accum_thread.row(0), s_ptr, value_head.row(n_start),
+                                     block_m * num_heads_per_group, block_n, out_embed_dim);
+                }
             }
             else
             {
                 for (int hq = 0; hq < num_heads_per_group; hq++)
                 {
                     int q = g * num_heads_per_group + hq;
-                    const Mat query_head = query.channel(q);
+                    const Mat query_head = query_ref.channel(q);
 
                     float* q_dst = q_batch_thread.row(0);
                     for (int i = 0; i < block_m; i++)
@@ -4374,10 +4531,22 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     float* s_head = s_ptr;
 
-                    qk_gemm_dispatch(s_head,
-                                     q_dst,
-                                     key_head.row(n_start),
-                                     block_m, block_n, embed_dim, _scale);
+#if NCNN_BF16
+                    if (use_bf16_path)
+                    {
+                        qk_gemm_bf16s_dispatch(s_head,
+                                             q_dst,
+                                             key_head.row<const unsigned short>(n_start),
+                                             block_m, block_n, embed_dim, _scale);
+                    }
+                    else
+#endif
+                    {
+                        qk_gemm_dispatch(s_head,
+                                         q_dst,
+                                         key_head.row(n_start),
+                                         block_m, block_n, embed_dim, _scale);
+                    }
 
                     if (attn_mask && mask_data[hq])
                     {
@@ -4437,8 +4606,18 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         }
                     }
 
-                    pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start),
-                                     block_m, block_n, out_embed_dim);
+#if NCNN_BF16
+                    if (use_bf16_path)
+                    {
+                        pv_gemm_bf16s_dispatch(o_ptr, s_head, value_head.row<const unsigned short>(n_start),
+                                             block_m, block_n, out_embed_dim);
+                    }
+                    else
+#endif
+                    {
+                        pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start),
+                                         block_m, block_n, out_embed_dim);
+                    }
                 }
             }
         }
