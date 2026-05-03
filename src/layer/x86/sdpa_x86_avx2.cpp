@@ -18,23 +18,57 @@ namespace ncnn {
 #include "sdpa_x86_int8.h"
 
 #if __AVX2__
-// force emit inline function symbols for non-avx2 runtime dispatch
-static void __attribute__((used)) sdpa_x86_int8_avx2_dummy()
+
+void dynamic_quantize_blockwise_avx2(const float* src, signed char* dst, float* scales, int width)
 {
-    // call through volatile function pointer to force instantiation
-    void (* volatile f1)(const float*, signed char*, float*, int) = dynamic_quantize_blockwise_avx2;
-    void (* volatile f2)(const float*, signed char*, float*, int) = dynamic_quantize_rowwise_avx2;
-    int (* volatile f3)(const signed char*, const signed char*, int) = qk_int8_dot_block_avx2;
-    void (* volatile f4)(float*, const signed char*, const signed char*, const float*, const float*, int, int, int, float) = decode_qk_dot_int8_avx2;
-    void (* volatile f5)(float*, const signed char*, const signed char*, float, const float*, int, int, float) = qk_int8_gemm_row_avx2;
-    void (* volatile f6)(float*, const signed char*, const signed char*, const float*, const float*, int, int, int, float) = qk_int8_gemm_tiled_avx2;
-    void (* volatile f7)(float*, const float*, const signed char*, const float*, int, int, int) = decode_pv_gemv_int8_avx2;
-    void (* volatile f8)(float*, const float*, const signed char*, const float*, int, int) = pv_float_int8_gemm_row_avx2;
-    void (* volatile f9)(float*, float, const signed char*, int) = pv_float_int8_fma_block_avx2;
-    void (* volatile f10)(float*, const float*, const signed char*, const float*, int, int, int) = pv_float_int8_gemm_tile_avx2;
-    (void)f1; (void)f2; (void)f3; (void)f4; (void)f5;
-    (void)f6; (void)f7; (void)f8; (void)f9; (void)f10;
+    dynamic_quantize_blockwise_avx2_kernel(src, dst, scales, width);
 }
+
+void dynamic_quantize_rowwise_avx2(const float* src, signed char* dst, float* scale, int width)
+{
+    dynamic_quantize_rowwise_avx2_kernel(src, dst, scale, width);
+}
+
+int qk_int8_dot_block_avx2(const signed char* a, const signed char* b, int len)
+{
+    return qk_int8_dot_block_avx2_kernel(a, b, len);
+}
+
+void decode_qk_dot_int8_avx2(float* s, const signed char* q, const signed char* K, const float* qscales, const float* kscales, int n_start, int block_n, int d, float scale)
+{
+    decode_qk_dot_int8_avx2_kernel(s, q, K, qscales, kscales, n_start, block_n, d, scale);
+}
+
+void qk_int8_gemm_row_avx2(float* s_row, const signed char* q_row, const signed char* K, float qscale, const float* kscales, int n, int d, float scale)
+{
+    qk_int8_gemm_row_avx2_kernel(s_row, q_row, K, qscale, kscales, n, d, scale);
+}
+
+void qk_int8_gemm_tiled_avx2(float* S, const signed char* Q, const signed char* K, const float* qscales, const float* kscales, int m, int n, int d, float scale)
+{
+    qk_int8_gemm_tiled_avx2_kernel(S, Q, K, qscales, kscales, m, n, d, scale);
+}
+
+void decode_pv_gemv_int8_avx2(float* out, const float* s, const signed char* V, const float* vscales, int n_start, int block_n, int out_d)
+{
+    decode_pv_gemv_int8_avx2_kernel(out, s, V, vscales, n_start, block_n, out_d);
+}
+
+void pv_float_int8_gemm_row_avx2(float* out, const float* p_row, const signed char* V, const float* vscales, int n, int out_d)
+{
+    pv_float_int8_gemm_row_avx2_kernel(out, p_row, V, vscales, n, out_d);
+}
+
+void pv_float_int8_fma_block_avx2(float* out, float p_invscale, const signed char* v, int len)
+{
+    pv_float_int8_fma_block_avx2_kernel(out, p_invscale, v, len);
+}
+
+void pv_float_int8_gemm_tile_avx2(float* O, const float* P, const signed char* V, const float* vscales, int block_m, int block_n, int out_embed_dim)
+{
+    pv_float_int8_gemm_tile_avx2_kernel(O, P, V, vscales, block_m, block_n, out_embed_dim);
+}
+
 #endif // __AVX2__
 
 } // namespace ncnn

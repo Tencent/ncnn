@@ -32,6 +32,12 @@ SDPA_x86::SDPA_x86()
 #if NCNN_BF16
     support_bf16_storage = false;
 #endif
+#if NCNN_INT8
+    cached_kv_seqlen = -1;
+    cached_num_group = 0;
+    cached_embed_dim = 0;
+    cached_out_embed_dim = 0;
+#endif
 }
 
 int SDPA_x86::create_pipeline(const Option& /*_opt*/)
@@ -3614,18 +3620,53 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return -100;
 
 #if NCNN_INT8
-    if (int8_scale_term)
+    bool use_int8_path = int8_scale_term;
+    if (use_int8_path && src_seqlen == 1)
+    {
+        // Adaptive threshold: int8 decode is faster only when compute is large enough
+        // to amortize quantization overhead. For small problems, fall back to fp32.
+        if (embed_dim <= 128)
+            use_int8_path = (dst_seqlen >= 64);
+        else if (embed_dim <= 512)
+            use_int8_path = (dst_seqlen >= 512);
+        else
+            use_int8_path = (dst_seqlen >= 32);
+    }
+
+    if (use_int8_path)
     {
         const int qk_num_blocks = (embed_dim + 31) / 32;
         const int v_num_blocks = (out_embed_dim + 31) / 32;
 
         Mat key_int8(embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
-        Mat key_scales(qk_num_blocks, dst_seqlen, num_group, 4u, opt.blob_allocator);
+        Mat key_scales(1, dst_seqlen, num_group, 4u, opt.blob_allocator);
         Mat value_int8(out_embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
         Mat value_scales(v_num_blocks, dst_seqlen, num_group, 4u, opt.blob_allocator);
 
         if (key_int8.empty() || key_scales.empty() || value_int8.empty() || value_scales.empty())
             return -100;
+
+        bool use_kv_cache = kv_cache && past_seqlen > 0;
+        bool cache_valid = false;
+        if (use_kv_cache
+            && cached_kv_seqlen == past_seqlen
+            && cached_num_group == num_group
+            && cached_embed_dim == embed_dim
+            && cached_out_embed_dim == out_embed_dim
+            && !cached_key_int8.empty()
+            && !cached_key_scales.empty()
+            && !cached_value_int8.empty()
+            && !cached_value_scales.empty())
+        {
+            cache_valid = true;
+            for (int g = 0; g < num_group; g++)
+            {
+                memcpy(key_int8.channel(g), cached_key_int8.channel(g), embed_dim * past_seqlen);
+                memcpy(key_scales.channel(g), cached_key_scales.channel(g), past_seqlen * sizeof(float));
+                memcpy(value_int8.channel(g), cached_value_int8.channel(g), out_embed_dim * past_seqlen);
+                memcpy(value_scales.channel(g), cached_value_scales.channel(g), v_num_blocks * past_seqlen * sizeof(float));
+            }
+        }
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < num_group; g++)
@@ -3633,27 +3674,245 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             const Mat key_head = key.channel(g);
             Mat key_int8_head = key_int8.channel(g);
             Mat key_scales_head = key_scales.channel(g);
-            for (int j = 0; j < dst_seqlen; j++)
+            int j_start = cache_valid ? past_seqlen : 0;
+            for (int j = j_start; j < dst_seqlen; j++)
             {
-                dynamic_quantize_blockwise_dispatch(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
+                dynamic_quantize_rowwise(key_head.row(j), key_int8_head.row<signed char>(j), key_scales_head.row(j), embed_dim);
+                key_scales_head.row(j)[0] = 1.f / key_scales_head.row(j)[0];
             }
 
-            const Mat value_head = value.channel(g);
-            Mat value_int8_head = value_int8.channel(g);
-            Mat value_scales_head = value_scales.channel(g);
-            for (int j = 0; j < dst_seqlen; j++)
+            if (kv_cache)
             {
-                dynamic_quantize_blockwise_dispatch(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
+                const Mat value_head = value.channel(g);
+                Mat value_int8_head = value_int8.channel(g);
+                Mat value_scales_head = value_scales.channel(g);
+                for (int j = j_start; j < dst_seqlen; j++)
+                {
+                    dynamic_quantize_blockwise(value_head.row(j), value_int8_head.row<signed char>(j), value_scales_head.row(j), out_embed_dim);
+                    for (int vb = 0; vb < v_num_blocks; vb++)
+                    {
+                        value_scales_head.row(j)[vb] = 1.f / value_scales_head.row(j)[vb];
+                    }
+                }
             }
         }
 
         Mat o_accum(out_embed_dim, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
-        Mat s_vec(BLOCK_N, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat s_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat p_vec(BLOCK_N * BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
         Mat q_int8_tile(embed_dim, BLOCK_M, opt.num_threads, 1u, opt.workspace_allocator);
-        Mat q_scales_tile(qk_num_blocks, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat q_scales_tile(1, BLOCK_M, opt.num_threads, 4u, opt.workspace_allocator);
 
-        if (o_accum.empty() || s_vec.empty() || q_int8_tile.empty() || q_scales_tile.empty())
+        if (o_accum.empty() || s_vec.empty() || p_vec.empty() || q_int8_tile.empty() || q_scales_tile.empty())
             return -100;
+
+        if (src_seqlen == 1)
+        {
+            // Decode path with dedicated int8 GEMV kernels
+            // For GQA/MQA, group-parallel reduces KV cache contention
+            const bool group_parallel = num_group >= opt.num_threads;
+
+            if (group_parallel)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < num_group; g++)
+                {
+                    const Mat key_int8_head = key_int8.channel(g);
+                    const Mat key_scales_head = key_scales.channel(g);
+                    const Mat value_int8_head = value_int8.channel(g);
+                    const Mat value_scales_head = value_scales.channel(g);
+
+                    for (int hq = 0; hq < num_heads_per_group; hq++)
+                    {
+                        int q = g * num_heads_per_group + hq;
+                        const Mat query_head = query.channel(q);
+                        Mat top_blob_head = top_blob.channel(q);
+
+                        signed char* q_int8 = q_int8_tile.channel(get_omp_thread_num());
+                        float* q_scale = q_scales_tile.channel(get_omp_thread_num());
+                        dynamic_quantize_rowwise(query_head.row(0), q_int8, q_scale, embed_dim);
+                        q_scale[0] = 1.f / q_scale[0];
+
+                        float* s = s_vec.channel(get_omp_thread_num());
+                        float* out = o_accum.channel(get_omp_thread_num());
+                        vec_zero_dispatch(out, out_embed_dim);
+
+                        const float* mask_ptr = nullptr;
+                        if (attn_mask)
+                        {
+                            const Mat& maskm = attn_mask_blob;
+                            Mat mask_head;
+                            if (maskm.dims == 3)
+                            {
+                                mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                            }
+                            else
+                            {
+                                mask_head = maskm;
+                            }
+                            mask_ptr = mask_head.row(0);
+                        }
+
+                        float m = -FLT_MAX;
+                        float l = 0.f;
+
+                        for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                        {
+                            int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+                            decode_qk_dot_int8(s, q_int8,
+                                key_int8_head.row<const signed char>(0),
+                                q_scale,
+                                key_scales_head.row(0),
+                                n_start, block_n, embed_dim, _scale);
+
+                            if (mask_ptr)
+                            {
+                                for (int j = 0; j < block_n; j++)
+                                    s[j] += mask_ptr[n_start + j];
+                            }
+
+                            float tile_m = -FLT_MAX;
+                            for (int j = 0; j < block_n; j++)
+                                tile_m = std::max(tile_m, s[j]);
+
+                            float new_m = std::max(m, tile_m);
+                            if (m != new_m)
+                            {
+                                float scale_factor = expf(m - new_m);
+                                l *= scale_factor;
+                                vec_scale_dispatch(out, scale_factor, out_embed_dim);
+                            }
+
+                            float l_add = 0.f;
+                            for (int j = 0; j < block_n; j++)
+                            {
+                                s[j] = expf(s[j] - new_m);
+                                l_add += s[j];
+                            }
+                            l += l_add;
+
+                            decode_pv_gemv_int8(out, s,
+                                value_int8_head.row<const signed char>(0),
+                                value_scales_head.row(0),
+                                n_start, block_n, out_embed_dim);
+
+                            m = new_m;
+                        }
+
+                        float* outptr = top_blob_head.row(0);
+                        float inv_l = 1.f / l;
+                        for (int k = 0; k < out_embed_dim; k++)
+                            outptr[k] = out[k] * inv_l;
+                    }
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < num_heads; q++)
+                {
+                    const Mat query_head = query.channel(q);
+                    const Mat key_int8_head = key_int8.channel(q / num_heads_per_group);
+                    const Mat key_scales_head = key_scales.channel(q / num_heads_per_group);
+                    const Mat value_int8_head = value_int8.channel(q / num_heads_per_group);
+                    const Mat value_scales_head = value_scales.channel(q / num_heads_per_group);
+                    Mat top_blob_head = top_blob.channel(q);
+
+                    signed char* q_int8 = q_int8_tile.channel(get_omp_thread_num());
+                    float* q_scale = q_scales_tile.channel(get_omp_thread_num());
+                    dynamic_quantize_rowwise(query_head.row(0), q_int8, q_scale, embed_dim);
+                    q_scale[0] = 1.f / q_scale[0];
+
+                    float* s = s_vec.channel(get_omp_thread_num());
+                    float* out = o_accum.channel(get_omp_thread_num());
+                    vec_zero_dispatch(out, out_embed_dim);
+
+                    const float* mask_ptr = nullptr;
+                    if (attn_mask)
+                    {
+                        const Mat& maskm = attn_mask_blob;
+                        Mat mask_head;
+                        if (maskm.dims == 3)
+                        {
+                            mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                        }
+                        else
+                        {
+                            mask_head = maskm;
+                        }
+                        mask_ptr = mask_head.row(0);
+                    }
+
+                    float m = -FLT_MAX;
+                    float l = 0.f;
+
+                    for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+                    {
+                        int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
+
+                        decode_qk_dot_int8(s, q_int8,
+                            key_int8_head.row<const signed char>(0),
+                            q_scale,
+                            key_scales_head.row(0),
+                            n_start, block_n, embed_dim, _scale);
+
+                        if (mask_ptr)
+                        {
+                            for (int j = 0; j < block_n; j++)
+                                s[j] += mask_ptr[n_start + j];
+                        }
+
+                        float tile_m = -FLT_MAX;
+                        for (int j = 0; j < block_n; j++)
+                            tile_m = std::max(tile_m, s[j]);
+
+                        float new_m = std::max(m, tile_m);
+                        if (m != new_m)
+                        {
+                            float scale_factor = expf(m - new_m);
+                            l *= scale_factor;
+                            vec_scale_dispatch(out, scale_factor, out_embed_dim);
+                        }
+
+                        float l_add = 0.f;
+                        for (int j = 0; j < block_n; j++)
+                        {
+                            s[j] = expf(s[j] - new_m);
+                            l_add += s[j];
+                        }
+                        l += l_add;
+
+                        decode_pv_gemv_int8(out, s,
+                            value_int8_head.row<const signed char>(0),
+                            value_scales_head.row(0),
+                            n_start, block_n, out_embed_dim);
+
+                        m = new_m;
+                    }
+
+                    float* outptr = top_blob_head.row(0);
+                    float inv_l = 1.f / l;
+                    for (int k = 0; k < out_embed_dim; k++)
+                        outptr[k] = out[k] * inv_l;
+                }
+            }
+
+            if (kv_cache && dst_seqlen > 0)
+            {
+                cached_key_int8 = key_int8;
+                cached_key_scales = key_scales;
+                cached_value_int8 = value_int8;
+                cached_value_scales = value_scales;
+                cached_kv_seqlen = dst_seqlen;
+                cached_num_group = num_group;
+                cached_embed_dim = embed_dim;
+                cached_out_embed_dim = out_embed_dim;
+            }
+
+            return 0;
+        }
+            // else: fall through to fp32 decode path below
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_heads; q++)
@@ -3681,6 +3940,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
             Mat o_accum_head = o_accum.channel(get_omp_thread_num());
             float* s_vec_ptr = s_vec.row(get_omp_thread_num());
+            float* p_vec_ptr = p_vec.row(get_omp_thread_num());
             Mat q_int8_tile_head = q_int8_tile.channel(get_omp_thread_num());
             Mat q_scales_tile_head = q_scales_tile.channel(get_omp_thread_num());
 
@@ -3691,7 +3951,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 for (int i = 0; i < block_m; i++)
                 {
-                    dynamic_quantize_blockwise_dispatch(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                    dynamic_quantize_rowwise(query_head.row(m_start + i), q_int8_tile_head.row<signed char>(i), q_scales_tile_head.row(i), embed_dim);
+                    q_scales_tile_head.row(i)[0] = 1.f / q_scales_tile_head.row(i)[0];
                 }
 
                 for (int i = 0; i < block_m; i++)
@@ -3716,44 +3977,43 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
                     int block_n = n_end - n_start;
 
+                    if (block_m == 1)
+                    {
+                        qk_int8_gemm_row(s_vec_ptr,
+                            q_int8_tile_head.row<const signed char>(0),
+                            key_int8_head.row<const signed char>(n_start),
+                            q_scales_tile_head.row(0)[0],
+                            key_scales_head.row(n_start),
+                            block_n, embed_dim, _scale);
+                    }
+                    else
+                    {
+                        qk_int8_gemm_tiled(s_vec_ptr,
+                            q_int8_tile_head.row<const signed char>(0),
+                            key_int8_head.row<const signed char>(n_start),
+                            q_scales_tile_head.row(0),
+                            key_scales_head.row(n_start),
+                            block_m, block_n, embed_dim, _scale);
+                    }
+
                     for (int i = 0; i < block_m; i++)
                     {
-                        const signed char* qptr = q_int8_tile_head.row<const signed char>(i);
-                        const float* qscales = q_scales_tile_head.row(i);
-
-                        for (int j = 0; j < block_n; j++)
-                        {
-                            const signed char* kptr = key_int8_head.row<const signed char>(n_start + j);
-                            const float* kscales = key_scales_head.row(n_start + j);
-
-                            float sum = 0.f;
-                            for (int b = 0; b < qk_num_blocks; b++)
-                            {
-                                int k_start = b * 32;
-                                int k_end = k_start + 32 < embed_dim ? k_start + 32 : embed_dim;
-                                int block_sum = 0;
-                                for (int k = k_start; k < k_end; k++)
-                                {
-                                    block_sum += qptr[k] * kptr[k];
-                                }
-                                sum += (float)block_sum / (qscales[b] * kscales[b]);
-                            }
-                            s_vec_ptr[j] = sum * _scale;
-                        }
+                        float* s_row = (block_m == 1) ? s_vec_ptr : (s_vec_ptr + i * block_n);
+                        float* p_row = (block_m == 1) ? p_vec_ptr : (p_vec_ptr + i * block_n);
 
                         if (attn_mask)
                         {
                             const float* mptr = mask_head.row(m_start + i) + n_start;
                             for (int j = 0; j < block_n; j++)
                             {
-                                s_vec_ptr[j] += mptr[j];
+                                s_row[j] += mptr[j];
                             }
                         }
 
                         float m_new = m_vec[i];
                         for (int j = 0; j < block_n; j++)
                         {
-                            m_new = std::max(m_new, s_vec_ptr[j]);
+                            m_new = std::max(m_new, s_row[j]);
                         }
 
                         float scale_factor = expf(m_vec[i] - m_new);
@@ -3767,25 +4027,26 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                         for (int j = 0; j < block_n; j++)
                         {
-                            float p = expf(s_vec_ptr[j] - m_new);
-                            l_new += p;
-
-                            const signed char* vptr = value_int8_head.row<const signed char>(n_start + j);
-                            const float* vscales = value_scales_head.row(n_start + j);
-                            for (int vb = 0; vb < v_num_blocks; vb++)
-                            {
-                                float inv_scale = 1.f / vscales[vb];
-                                int k_start = vb * 32;
-                                int k_end = k_start + 32 < out_embed_dim ? k_start + 32 : out_embed_dim;
-                                for (int k = k_start; k < k_end; k++)
-                                {
-                                    optr[k] += p * (float)vptr[k] * inv_scale;
-                                }
-                            }
+                            p_row[j] = expf(s_row[j] - m_new);
+                            l_new += p_row[j];
                         }
 
                         m_vec[i] = m_new;
                         l_vec[i] = l_new;
+                    }
+
+                    if (kv_cache)
+                    {
+                        pv_float_int8_gemm_tile(o_accum_head.row(0), p_vec_ptr,
+                            value_int8_head.row<const signed char>(n_start),
+                            value_scales_head.row(n_start),
+                            block_m, block_n, out_embed_dim);
+                    }
+                    else
+                    {
+                        pv_gemm_dispatch(o_accum_head.row(0), p_vec_ptr,
+                            value.channel(q / num_heads_per_group).row(n_start),
+                            block_m, block_n, out_embed_dim);
                     }
                 }
 
@@ -3806,6 +4067,18 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
             top_blobs[1] = key;
             top_blobs[2] = value;
+        }
+
+        if (kv_cache && dst_seqlen > 0)
+        {
+            cached_key_int8 = key_int8;
+            cached_key_scales = key_scales;
+            cached_value_int8 = value_int8;
+            cached_value_scales = value_scales;
+            cached_kv_seqlen = dst_seqlen;
+            cached_num_group = num_group;
+            cached_embed_dim = embed_dim;
+            cached_out_embed_dim = out_embed_dim;
         }
 
         return 0;
