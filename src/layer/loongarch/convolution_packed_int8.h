@@ -301,16 +301,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     for (int k = 0; k < maxk; k++)
                     {
                         signed char val0, val1;
-                        if (elempack == 1)
+                        if (elempack == 8)
+                        {
+                            val0 = sptr0[space_ofs[k] * 8];
+                            val1 = sptr0[space_ofs[k] * 8 + 1];
+                        }
+                        else // elempack == 1
                         {
                             val0 = sptr0[space_ofs[k]];
                             const signed char* sptr1 = bottom_blob.channel(q + 1).row<const signed char>(i * stride_h) + j * stride_w;
                             val1 = sptr1[space_ofs[k]];
-                        }
-                        else
-                        {
-                            val0 = sptr0[space_ofs[k] * elempack + q % elempack];
-                            val1 = sptr0[space_ofs[k] * elempack + q % elempack + 1];
                         }
 
                         sum0 += val0 * kptr[0];
@@ -332,13 +332,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     for (int k = 0; k < maxk; k++)
                     {
                         signed char val;
-                        if (elempack == 1)
+                        if (elempack == 8)
+                        {
+                            val = sptr[space_ofs[k] * 8];
+                        }
+                        else // elempack == 1
                         {
                             val = sptr[space_ofs[k]];
-                        }
-                        else
-                        {
-                            val = sptr[space_ofs[k] * elempack + q % elempack];
                         }
 
                         sum0 += val * kptr[0];

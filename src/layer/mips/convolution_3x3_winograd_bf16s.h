@@ -35,6 +35,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
             int tj = (j + jj) % w_tiles;
 
             const unsigned short* r0 = bottom_blob.channel((k + kk) / elempack).row<const unsigned short>(ti * 2) + (tj * 2) * elempack;
+            const int lane = (k + kk) & 7;
 
             for (int m = 0; m < 4; m++)
             {
@@ -45,6 +46,13 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
 
                 if (ti * 2 + m < h)
                 {
+                    if (elempack == 8)
+                    {
+                        _r0 = bfloat2float_msa(r0 + lane);
+                        if (tj * 2 + 1 < w) _r1 = bfloat2float_msa(r0 + 8 + lane);
+                        if (tj * 2 + 2 < w) _r2 = bfloat2float_msa(r0 + 16 + lane);
+                        if (tj * 2 + 3 < w) _r3 = bfloat2float_msa(r0 + 24 + lane);
+                    }
                     if (elempack == 4)
                     {
                         _r0 = bfloat2float_msa(r0);
@@ -821,6 +829,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
             int tj = (j + jj) % w_tiles;
 
             const unsigned short* r0 = bottom_blob.channel((k + kk) / elempack).row<const unsigned short>(ti * 4) + (tj * 4) * elempack;
+            const int lane = (k + kk) & 7;
 
             v4f32 _vm2_5 = __msa_fill_w_f32(-2.5f);
             v4f32 _vsq2 = __msa_fill_w_f32(sq2);
@@ -839,6 +848,15 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
 
                 if (ti * 4 + m < h)
                 {
+                    if (elempack == 8)
+                    {
+                        _r0 = bfloat2float_msa(r0 + lane);
+                        if (tj * 4 + 1 < w) _r1 = bfloat2float_msa(r0 + 8 + lane);
+                        if (tj * 4 + 2 < w) _r2 = bfloat2float_msa(r0 + 16 + lane);
+                        if (tj * 4 + 3 < w) _r3 = bfloat2float_msa(r0 + 24 + lane);
+                        if (tj * 4 + 4 < w) _r4 = bfloat2float_msa(r0 + 32 + lane);
+                        if (tj * 4 + 5 < w) _r5 = bfloat2float_msa(r0 + 40 + lane);
+                    }
                     if (elempack == 4)
                     {
                         _r0 = bfloat2float_msa(r0);
@@ -1952,6 +1970,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
             int tj = (j + jj) % w_tiles;
 
             const unsigned short* r0 = bottom_blob.channel((k + kk) / elempack).row<const unsigned short>(ti * 6) + (tj * 6) * elempack;
+            const int lane = (k + kk) & 7;
 
             v4f32 _v5_25 = __msa_fill_w_f32(5.25f);
             v4f32 _vm4_25 = __msa_fill_w_f32(-4.25f);
@@ -1975,6 +1994,17 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
 
                 if (ti * 6 + m < h)
                 {
+                    if (elempack == 8)
+                    {
+                        _r0 = bfloat2float_msa(r0 + lane);
+                        if (tj * 6 + 1 < w) _r1 = bfloat2float_msa(r0 + 8 + lane);
+                        if (tj * 6 + 2 < w) _r2 = bfloat2float_msa(r0 + 16 + lane);
+                        if (tj * 6 + 3 < w) _r3 = bfloat2float_msa(r0 + 24 + lane);
+                        if (tj * 6 + 4 < w) _r4 = bfloat2float_msa(r0 + 32 + lane);
+                        if (tj * 6 + 5 < w) _r5 = bfloat2float_msa(r0 + 40 + lane);
+                        if (tj * 6 + 6 < w) _r6 = bfloat2float_msa(r0 + 48 + lane);
+                        if (tj * 6 + 7 < w) _r7 = bfloat2float_msa(r0 + 56 + lane);
+                    }
                     if (elempack == 4)
                     {
                         _r0 = bfloat2float_msa(r0);

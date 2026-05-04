@@ -21,293 +21,19 @@ RMSNorm_mips::RMSNorm_mips()
 #endif
 }
 
-static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
-{
-    const int size = elemcount * elempack;
-
-#if __mips_msa
-    if (elempack == 4)
-    {
-        // compute rms
-        v4f32 _rms = (v4f32)__msa_fill_w(0);
-        const unsigned short* ptr0 = ptr;
-        int i = 0;
-        v8i16 _zero_bf16 = __msa_fill_h(0);
-        for (; i + 7 < size; i += 8)
-        {
-            __builtin_prefetch(ptr0 + 16);
-
-            v8i16 _p01 = __msa_ld_h(ptr0, 0);
-            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p0, _p0);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p1, _p1);
-            ptr0 += 8;
-        }
-        for (; i < size; i += 4)
-        {
-            __builtin_prefetch(ptr0 + 16);
-
-            v4f32 _p = bfloat2float_msa(ptr0);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
-            ptr0 += 4;
-        }
-
-        float rms_data[4];
-        __msa_st_w((v4i32)_rms, rms_data, 0);
-        for (int i = 0; i < 4; i++)
-        {
-            rms_data[i] = 1.f / sqrtf(rms_data[i] / elemcount + eps);
-        }
-        _rms = (v4f32)__msa_ld_w(rms_data, 0);
-
-        if (gamma_ptr)
-        {
-            for (i = 0; i + 7 < size; i += 8)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v8i16 _p01 = __msa_ld_h(ptr, 0);
-                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-                v4f32 _gamma0 = __msa_fill_w_f32(gamma_ptr[0]);
-                v4f32 _gamma1 = __msa_fill_w_f32(gamma_ptr[1]);
-                _p0 = __msa_fmul_w(_p0, _rms);
-                _p1 = __msa_fmul_w(_p1, _rms);
-                _p0 = __msa_fmul_w(_p0, _gamma0);
-                _p1 = __msa_fmul_w(_p1, _gamma1);
-                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
-                ptr += 8;
-                gamma_ptr += 2;
-            }
-            for (; i < size; i += 4)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v4f32 _p = bfloat2float_msa(ptr);
-                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
-                _p = __msa_fmul_w(_p, _rms);
-                _p = __msa_fmul_w(_p, _gamma);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
-                ptr += 4;
-                gamma_ptr += 1;
-            }
-        }
-        else
-        {
-            for (i = 0; i + 7 < size; i += 8)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v8i16 _p01 = __msa_ld_h(ptr, 0);
-                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-                _p0 = __msa_fmul_w(_p0, _rms);
-                _p1 = __msa_fmul_w(_p1, _rms);
-                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
-                ptr += 8;
-            }
-            for (; i < size; i += 4)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v4f32 _p = bfloat2float_msa(ptr);
-                _p = __msa_fmul_w(_p, _rms);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
-                ptr += 4;
-            }
-        }
-
-        return;
-    }
-#endif // __mips_msa
-
-    // elempack == 1 or no MSA
-    float rms = 0.f;
-    {
-        const unsigned short* ptr0 = ptr;
-        int i = 0;
-#if __mips_msa
-        v4f32 _rms = (v4f32)__msa_fill_w(0);
-        v8i16 _zero_bf16 = __msa_fill_h(0);
-        for (; i + 7 < size; i += 8)
-        {
-            __builtin_prefetch(ptr0 + 16);
-
-            v8i16 _p01 = __msa_ld_h(ptr0, 0);
-            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p0, _p0);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p1, _p1);
-            ptr0 += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            __builtin_prefetch(ptr0 + 16);
-
-            v4f32 _p = bfloat2float_msa(ptr0);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
-            ptr0 += 4;
-        }
-        rms += __msa_reduce_fadd_w(_rms);
-#endif // __mips_msa
-        for (; i < size; i++)
-        {
-            float v = bfloat16_to_float32(ptr0[0]);
-            rms += v * v;
-            ptr0++;
-        }
-    }
-
-    rms = 1.f / sqrtf(rms / elemcount + eps);
-
-    if (gamma_ptr)
-    {
-        int i = 0;
-#if __mips_msa
-        v4f32 _rms = __msa_fill_w_f32(rms);
-        v8i16 _zero_bf16 = __msa_fill_h(0);
-        for (; i + 7 < size; i += 8)
-        {
-            __builtin_prefetch(ptr + 16);
-            __builtin_prefetch(gamma_ptr + 16);
-
-            v8i16 _p01 = __msa_ld_h(ptr, 0);
-            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-            v4f32 _gamma0 = (v4f32)__msa_ld_w(gamma_ptr, 0);
-            v4f32 _gamma1 = (v4f32)__msa_ld_w(gamma_ptr + 4, 0);
-            _p0 = __msa_fmul_w(_p0, _rms);
-            _p1 = __msa_fmul_w(_p1, _rms);
-            _p0 = __msa_fmul_w(_p0, _gamma0);
-            _p1 = __msa_fmul_w(_p1, _gamma1);
-            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
-            ptr += 8;
-            gamma_ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            __builtin_prefetch(ptr + 16);
-            __builtin_prefetch(gamma_ptr + 16);
-
-            v4f32 _p = bfloat2float_msa(ptr);
-            v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
-            _p = __msa_fmul_w(_p, _rms);
-            _p = __msa_fmul_w(_p, _gamma);
-            __msa_storel_d(float2bfloat_msa(_p), ptr);
-            ptr += 4;
-            gamma_ptr += 4;
-        }
-#endif // __mips_msa
-        for (; i < size; i++)
-        {
-            float v = bfloat16_to_float32(ptr[0]);
-            ptr[0] = float32_to_bfloat16((v * rms) * gamma_ptr[0]);
-            ptr++;
-            gamma_ptr++;
-        }
-    }
-    else
-    {
-        int i = 0;
-#if __mips_msa
-        v4f32 _rms = __msa_fill_w_f32(rms);
-        v8i16 _zero_bf16 = __msa_fill_h(0);
-        for (; i + 7 < size; i += 8)
-        {
-            __builtin_prefetch(ptr + 16);
-
-            v8i16 _p01 = __msa_ld_h(ptr, 0);
-            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
-            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
-            _p0 = __msa_fmul_w(_p0, _rms);
-            _p1 = __msa_fmul_w(_p1, _rms);
-            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
-            ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            __builtin_prefetch(ptr + 16);
-
-            v4f32 _p = bfloat2float_msa(ptr);
-            _p = __msa_fmul_w(_p, _rms);
-            __msa_storel_d(float2bfloat_msa(_p), ptr);
-            ptr += 4;
-        }
-#endif // __mips_msa
-        for (; i < size; i++)
-        {
-            float v = bfloat16_to_float32(ptr[0]);
-            ptr[0] = float32_to_bfloat16(v * rms);
-            ptr++;
-        }
-    }
-}
-
 static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
 
+    // compute rms
 #if __mips_msa
-    if (elempack == 4)
-    {
-        v4f32 _rms = (v4f32)__msa_fill_w(0);
-        const float* ptr0 = ptr;
-        for (int i = 0; i < size; i += 4)
-        {
-            __builtin_prefetch(ptr0 + 16);
-
-            v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
-            _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
-            ptr0 += 4;
-        }
-
-        float rms_data[4];
-        __msa_st_w((v4i32)_rms, rms_data, 0);
-        for (int i = 0; i < 4; i++)
-        {
-            rms_data[i] = 1.f / sqrtf(rms_data[i] / elemcount + eps);
-        }
-        _rms = (v4f32)__msa_ld_w(rms_data, 0);
-
-        if (gamma_ptr)
-        {
-            for (int i = 0; i < size; i += 4)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
-                _p = __msa_fmul_w(_p, _rms);
-                _p = __msa_fmul_w(_p, _gamma);
-                __msa_st_w((v4i32)_p, ptr, 0);
-                ptr += 4;
-                gamma_ptr += 1;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < size; i += 4)
-            {
-                __builtin_prefetch(ptr + 16);
-
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmul_w(_p, _rms);
-                __msa_st_w((v4i32)_p, ptr, 0);
-                ptr += 4;
-            }
-        }
-
-        return;
-    }
+    v4f32 _rms = (v4f32)__msa_fill_w(0);
 #endif // __mips_msa
-
     float rms = 0.f;
     {
         const float* ptr0 = ptr;
         int i = 0;
 #if __mips_msa
-        v4f32 _rms = (v4f32)__msa_fill_w(0);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr0 + 16);
@@ -316,7 +42,6 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
             _rms = __ncnn_msa_fmadd_w(_rms, _p, _p);
             ptr0 += 4;
         }
-        rms += __msa_reduce_fadd_w(_rms);
 #endif // __mips_msa
         for (; i < size; i++)
         {
@@ -325,25 +50,61 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
         }
     }
 
-    rms = 1.f / sqrtf(rms / elemcount + eps);
+#if __mips_msa
+    if (elempack == 4)
+    {
+        v4f32 _elemcount = __msa_fill_w_f32((float)elemcount);
+        v4f32 _eps = __msa_fill_w_f32(eps);
+        _rms = __msa_fdiv_w(_rms, _elemcount);
+        _rms = __msa_fadd_w(_rms, _eps);
+        _rms = __msa_frsqrt_w(_rms);
+    }
+#endif // __mips_msa
+    if (elempack == 1)
+    {
+#if __mips_msa
+        rms += __msa_reduce_fadd_w(_rms);
+#endif // __mips_msa
 
+        rms = 1.f / sqrtf(rms / elemcount + eps);
+#if __mips_msa
+        _rms = __msa_fill_w_f32(rms);
+#endif // __mips_msa
+    }
     if (gamma_ptr)
     {
         int i = 0;
 #if __mips_msa
-        v4f32 _rms = __msa_fill_w_f32(rms);
-        for (; i + 3 < size; i += 4)
+        if (elempack == 4)
         {
-            __builtin_prefetch(ptr + 16);
-            __builtin_prefetch(gamma_ptr + 16);
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
 
-            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
-            _p = __msa_fmul_w(_p, _rms);
-            _p = __msa_fmul_w(_p, _gamma);
-            __msa_st_w((v4i32)_p, ptr, 0);
-            ptr += 4;
-            gamma_ptr += 4;
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
+                _p = __msa_fmul_w(_p, _rms);
+                _p = __msa_fmul_w(_p, _gamma);
+                __msa_st_w((v4i32)_p, ptr, 0);
+                ptr += 4;
+                gamma_ptr += 1;
+            }
+        }
+        if (elempack == 1)
+        {
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
+                __builtin_prefetch(gamma_ptr + 16);
+
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+                v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
+                _p = __msa_fmul_w(_p, _rms);
+                _p = __msa_fmul_w(_p, _gamma);
+                __msa_st_w((v4i32)_p, ptr, 0);
+                ptr += 4;
+                gamma_ptr += 4;
+            }
         }
 #endif // __mips_msa
         for (; i < size; i++)
@@ -357,7 +118,6 @@ static void rmsnorm_mips(float* ptr, const float* gamma_ptr, float eps, int elem
     {
         int i = 0;
 #if __mips_msa
-        v4f32 _rms = __msa_fill_w_f32(rms);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -434,6 +194,220 @@ int RMSNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if NCNN_BF16
+static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
+{
+    const int size = elemcount * elempack;
+
+    // compute rms
+#if __mips_msa
+    v4f32 _rms0 = (v4f32)__msa_fill_w(0);
+    v4f32 _rms1 = (v4f32)__msa_fill_w(0);
+#endif // __mips_msa
+    float rms = 0.f;
+    {
+        const unsigned short* ptr0 = ptr;
+        int i = 0;
+#if __mips_msa
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr0, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _rms0 = __ncnn_msa_fmadd_w(_rms0, _p0, _p0);
+            _rms1 = __ncnn_msa_fmadd_w(_rms1, _p1, _p1);
+            ptr0 += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __builtin_prefetch(ptr0 + 16);
+
+            v4f32 _p = bfloat2float_msa(ptr0);
+            _rms0 = __ncnn_msa_fmadd_w(_rms0, _p, _p);
+            ptr0 += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(ptr0[0]);
+            rms += v * v;
+            ptr0++;
+        }
+    }
+
+#if __mips_msa
+    if (elempack == 8)
+    {
+        v4f32 _elemcount = __msa_fill_w_f32((float)elemcount);
+        v4f32 _eps = __msa_fill_w_f32(eps);
+        _rms0 = __msa_fdiv_w(_rms0, _elemcount);
+        _rms1 = __msa_fdiv_w(_rms1, _elemcount);
+        _rms0 = __msa_fadd_w(_rms0, _eps);
+        _rms1 = __msa_fadd_w(_rms1, _eps);
+        _rms0 = __msa_frsqrt_w(_rms0);
+        _rms1 = __msa_frsqrt_w(_rms1);
+    }
+    if (elempack == 4)
+    {
+        _rms0 = __msa_fadd_w(_rms0, _rms1);
+
+        v4f32 _elemcount = __msa_fill_w_f32((float)elemcount);
+        v4f32 _eps = __msa_fill_w_f32(eps);
+        _rms0 = __msa_fdiv_w(_rms0, _elemcount);
+        _rms0 = __msa_fadd_w(_rms0, _eps);
+        _rms0 = __msa_frsqrt_w(_rms0);
+        _rms1 = _rms0;
+    }
+#endif // __mips_msa
+    if (elempack == 1)
+    {
+#if __mips_msa
+        rms += __msa_reduce_fadd_w(_rms0);
+        rms += __msa_reduce_fadd_w(_rms1);
+#endif // __mips_msa
+
+        rms = 1.f / sqrtf(rms / elemcount + eps);
+#if __mips_msa
+        _rms0 = __msa_fill_w_f32(rms);
+        _rms1 = _rms0;
+#endif // __mips_msa
+    }
+    if (gamma_ptr)
+    {
+        int i = 0;
+#if __mips_msa
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        if (elempack == 8)
+        {
+            for (; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
+                _p0 = __msa_fmul_w(_p0, _rms0);
+                _p1 = __msa_fmul_w(_p1, _rms1);
+                _p0 = __msa_fmul_w(_p0, _gamma);
+                _p1 = __msa_fmul_w(_p1, _gamma);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 1;
+            }
+        }
+        if (elempack == 4)
+        {
+            for (; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _gamma0 = __msa_fill_w_f32(gamma_ptr[0]);
+                v4f32 _gamma1 = __msa_fill_w_f32(gamma_ptr[1]);
+                _p0 = __msa_fmul_w(_p0, _rms0);
+                _p1 = __msa_fmul_w(_p1, _rms1);
+                _p0 = __msa_fmul_w(_p0, _gamma0);
+                _p1 = __msa_fmul_w(_p1, _gamma1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 2;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
+
+                v4f32 _p = bfloat2float_msa(ptr);
+                v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
+                _p = __msa_fmul_w(_p, _rms0);
+                _p = __msa_fmul_w(_p, _gamma);
+                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                ptr += 4;
+                gamma_ptr += 1;
+            }
+        }
+        if (elempack == 1)
+        {
+            for (; i + 7 < size; i += 8)
+            {
+                __builtin_prefetch(ptr + 16);
+                __builtin_prefetch(gamma_ptr + 16);
+
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                v4f32 _gamma0 = (v4f32)__msa_ld_w(gamma_ptr, 0);
+                v4f32 _gamma1 = (v4f32)__msa_ld_w(gamma_ptr + 4, 0);
+                _p0 = __msa_fmul_w(_p0, _rms0);
+                _p1 = __msa_fmul_w(_p1, _rms1);
+                _p0 = __msa_fmul_w(_p0, _gamma0);
+                _p1 = __msa_fmul_w(_p1, _gamma1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+                gamma_ptr += 8;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                __builtin_prefetch(ptr + 16);
+                __builtin_prefetch(gamma_ptr + 16);
+
+                v4f32 _p = bfloat2float_msa(ptr);
+                v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
+                _p = __msa_fmul_w(_p, _rms0);
+                _p = __msa_fmul_w(_p, _gamma);
+                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                ptr += 4;
+                gamma_ptr += 4;
+            }
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            ptr[0] = float32_to_bfloat16(bfloat16_to_float32(ptr[0]) * rms * gamma_ptr[0]);
+            ptr++;
+            gamma_ptr++;
+        }
+    }
+    else
+    {
+        int i = 0;
+#if __mips_msa
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+        for (; i + 7 < size; i += 8)
+        {
+            __builtin_prefetch(ptr + 16);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            _p0 = __msa_fmul_w(_p0, _rms0);
+            _p1 = __msa_fmul_w(_p1, _rms1);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __builtin_prefetch(ptr + 16);
+
+            v4f32 _p = bfloat2float_msa(ptr);
+            _p = __msa_fmul_w(_p, _rms0);
+            __msa_storel_d(float2bfloat_msa(_p), ptr);
+            ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            float v = bfloat16_to_float32(ptr[0]);
+            ptr[0] = float32_to_bfloat16(v * rms);
+            ptr++;
+        }
+    }
+}
+
 int RMSNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     const int dims = bottom_top_blob.dims;

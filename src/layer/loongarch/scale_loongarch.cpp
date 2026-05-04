@@ -285,6 +285,17 @@ static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float
 #if __loongarch_sx
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
     __m128 _b128 = (elempack == 4) ? (__m128)__lsx_vld(bias, 0) : (__m128)__lsx_vreplfr2vr_s(bias[0]);
+    __m128 _s0 = _s128;
+    __m128 _s1 = _s128;
+    __m128 _b0 = _b128;
+    __m128 _b1 = _b128;
+    if (elempack == 8)
+    {
+        _s0 = (__m128)__lsx_vld(scale, 0);
+        _s1 = (__m128)__lsx_vld(scale + 4, 0);
+        _b0 = (__m128)__lsx_vld(bias, 0);
+        _b1 = (__m128)__lsx_vld(bias + 4, 0);
+    }
 #if __loongarch_asx
     __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : __lasx_concat_128_s(_s128, _s128);
     __m256 _b256 = (elempack == 8) ? (__m256)__lasx_xvld(bias, 0) : __lasx_concat_128_s(_b128, _b128);
@@ -311,8 +322,8 @@ static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float
             __m128i _p01 = __lsx_vld(ptr, 0);
             __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
             __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
-            _p0 = __lsx_vfmadd_s(_p0, _s128, _b128);
-            _p1 = __lsx_vfmadd_s(_p1, _s128, _b128);
+            _p0 = __lsx_vfmadd_s(_p0, _s0, _b0);
+            _p1 = __lsx_vfmadd_s(_p1, _s1, _b1);
             __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
             ptr += 8;
         }
@@ -337,6 +348,13 @@ static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int
 {
 #if __loongarch_sx
     __m128 _s128 = (elempack == 4) ? (__m128)__lsx_vld(scale, 0) : (__m128)__lsx_vreplfr2vr_s(scale[0]);
+    __m128 _s0 = _s128;
+    __m128 _s1 = _s128;
+    if (elempack == 8)
+    {
+        _s0 = (__m128)__lsx_vld(scale, 0);
+        _s1 = (__m128)__lsx_vld(scale + 4, 0);
+    }
 #if __loongarch_asx
     __m256 _s256 = (elempack == 8) ? (__m256)__lasx_xvld(scale, 0) : __lasx_concat_128_s(_s128, _s128);
 #endif
@@ -361,8 +379,8 @@ static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int
             __m128i _p01 = __lsx_vld(ptr, 0);
             __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
             __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
-            _p0 = __lsx_vfmul_s(_p0, _s128);
-            _p1 = __lsx_vfmul_s(_p1, _s128);
+            _p0 = __lsx_vfmul_s(_p0, _s0);
+            _p1 = __lsx_vfmul_s(_p1, _s1);
             __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
             ptr += 8;
         }

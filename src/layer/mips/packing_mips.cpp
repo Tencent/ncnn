@@ -215,7 +215,6 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
             }
         }
-
         return 0;
     }
 
@@ -594,8 +593,12 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     bool pack1to4 = elempack == 1 && out_elempack == 4;
     bool pack4to1 = elempack == 4 && out_elempack == 1;
+    bool pack1to8 = elempack == 1 && out_elempack == 8;
+    bool pack8to1 = elempack == 8 && out_elempack == 1;
+    bool pack4to8 = elempack == 4 && out_elempack == 8;
+    bool pack8to4 = elempack == 8 && out_elempack == 4;
 
-    if (!pack1to4 && !pack4to1)
+    if (!pack1to4 && !pack4to1 && !pack1to8 && !pack8to1 && !pack4to8 && !pack8to4)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
@@ -757,6 +760,212 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
             }
         }
+        if (pack1to8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < outh; i++)
+            {
+                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 8);
+                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 8 + 1);
+                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 8 + 2);
+                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 8 + 3);
+                const unsigned short* r4 = bottom_blob.row<const unsigned short>(i * 8 + 4);
+                const unsigned short* r5 = bottom_blob.row<const unsigned short>(i * 8 + 5);
+                const unsigned short* r6 = bottom_blob.row<const unsigned short>(i * 8 + 6);
+                const unsigned short* r7 = bottom_blob.row<const unsigned short>(i * 8 + 7);
+
+                unsigned short* outptr = top_blob.row<unsigned short>(i);
+
+                int j = 0;
+#if __mips_msa
+                for (; j + 7 < w; j += 8)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r3, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(r4, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(r5, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(r6, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(r7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr, 0);
+                    __msa_st_h(_r1, outptr + 8, 0);
+                    __msa_st_h(_r2, outptr + 16, 0);
+                    __msa_st_h(_r3, outptr + 24, 0);
+                    __msa_st_h(_r4, outptr + 32, 0);
+                    __msa_st_h(_r5, outptr + 40, 0);
+                    __msa_st_h(_r6, outptr + 48, 0);
+                    __msa_st_h(_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
+#endif // __mips_msa
+                for (; j < w; j++)
+                {
+                    outptr[0] = *r0++;
+                    outptr[1] = *r1++;
+                    outptr[2] = *r2++;
+                    outptr[3] = *r3++;
+                    outptr[4] = *r4++;
+                    outptr[5] = *r5++;
+                    outptr[6] = *r6++;
+                    outptr[7] = *r7++;
+
+                    outptr += 8;
+                }
+            }
+        }
+        if (pack8to1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+
+                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 8);
+                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 8 + 1);
+                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 8 + 2);
+                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 8 + 3);
+                unsigned short* outptr4 = top_blob.row<unsigned short>(i * 8 + 4);
+                unsigned short* outptr5 = top_blob.row<unsigned short>(i * 8 + 5);
+                unsigned short* outptr6 = top_blob.row<unsigned short>(i * 8 + 6);
+                unsigned short* outptr7 = top_blob.row<unsigned short>(i * 8 + 7);
+
+                int j = 0;
+#if __mips_msa
+                for (; j + 7 < w; j += 8)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r0 + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(r0 + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(r0 + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(r0 + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(r0 + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+#endif // __mips_msa
+                for (; j < w; j++)
+                {
+                    *outptr0++ = r0[0];
+                    *outptr1++ = r0[1];
+                    *outptr2++ = r0[2];
+                    *outptr3++ = r0[3];
+                    *outptr4++ = r0[4];
+                    *outptr5++ = r0[5];
+                    *outptr6++ = r0[6];
+                    *outptr7++ = r0[7];
+
+                    r0 += 8;
+                }
+            }
+        }
+        if (pack4to8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < outh; i++)
+            {
+                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 2);
+                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 2 + 1);
+
+                unsigned short* outptr = top_blob.row<unsigned short>(i);
+
+                int j = 0;
+#if __mips_msa
+                for (; j + 1 < w; j += 2)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r1, (v2i64)_r0), outptr, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r1, (v2i64)_r0), outptr + 8, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    outptr += 16;
+                }
+#endif // __mips_msa
+                for (; j < w; j++)
+                {
+                    outptr[0] = r0[0];
+                    outptr[1] = r0[1];
+                    outptr[2] = r0[2];
+                    outptr[3] = r0[3];
+                    outptr[4] = r1[0];
+                    outptr[5] = r1[1];
+                    outptr[6] = r1[2];
+                    outptr[7] = r1[3];
+
+                    r0 += 4;
+                    r1 += 4;
+                    outptr += 8;
+                }
+            }
+        }
+        if (pack8to4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
+
+                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 2);
+                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 2 + 1);
+
+                for (int j = 0; j < w; j++)
+                {
+#if __mips_msa
+                    v8i16 _p = (v8i16)__msa_ld_h(r0, 0);
+                    __msa_storel_d((v4i32)_p, outptr0);
+                    int64_t v = __msa_copy_s_d((v2i64)_p, 1);
+                    memcpy(outptr1, &v, 8);
+#else
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
+#endif
+                    r0 += 8;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+            }
+        }
 
         return 0;
     }
@@ -883,6 +1092,212 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                     *outptr3++ = r0[3];
 
                     r0 += 4;
+                }
+            }
+        }
+        if (pack1to8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                const unsigned short* r0 = bottom_blob.channel(q * 8);
+                const unsigned short* r1 = bottom_blob.channel(q * 8 + 1);
+                const unsigned short* r2 = bottom_blob.channel(q * 8 + 2);
+                const unsigned short* r3 = bottom_blob.channel(q * 8 + 3);
+                const unsigned short* r4 = bottom_blob.channel(q * 8 + 4);
+                const unsigned short* r5 = bottom_blob.channel(q * 8 + 5);
+                const unsigned short* r6 = bottom_blob.channel(q * 8 + 6);
+                const unsigned short* r7 = bottom_blob.channel(q * 8 + 7);
+
+                unsigned short* outptr = top_blob.channel(q);
+
+                int i = 0;
+#if __mips_msa
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r3, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(r4, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(r5, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(r6, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(r7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr, 0);
+                    __msa_st_h(_r1, outptr + 8, 0);
+                    __msa_st_h(_r2, outptr + 16, 0);
+                    __msa_st_h(_r3, outptr + 24, 0);
+                    __msa_st_h(_r4, outptr + 32, 0);
+                    __msa_st_h(_r5, outptr + 40, 0);
+                    __msa_st_h(_r6, outptr + 48, 0);
+                    __msa_st_h(_r7, outptr + 56, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+                    r3 += 8;
+                    r4 += 8;
+                    r5 += 8;
+                    r6 += 8;
+                    r7 += 8;
+                    outptr += 64;
+                }
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    outptr[0] = *r0++;
+                    outptr[1] = *r1++;
+                    outptr[2] = *r2++;
+                    outptr[3] = *r3++;
+                    outptr[4] = *r4++;
+                    outptr[5] = *r5++;
+                    outptr[6] = *r6++;
+                    outptr[7] = *r7++;
+
+                    outptr += 8;
+                }
+            }
+        }
+        if (pack8to1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* r0 = bottom_blob.channel(q);
+
+                unsigned short* outptr0 = top_blob.channel(q * 8);
+                unsigned short* outptr1 = top_blob.channel(q * 8 + 1);
+                unsigned short* outptr2 = top_blob.channel(q * 8 + 2);
+                unsigned short* outptr3 = top_blob.channel(q * 8 + 3);
+                unsigned short* outptr4 = top_blob.channel(q * 8 + 4);
+                unsigned short* outptr5 = top_blob.channel(q * 8 + 5);
+                unsigned short* outptr6 = top_blob.channel(q * 8 + 6);
+                unsigned short* outptr7 = top_blob.channel(q * 8 + 7);
+
+                int i = 0;
+#if __mips_msa
+                for (; i + 7 < size; i += 8)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(r0 + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(r0 + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(r0 + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(r0 + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(r0 + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    r0 += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    *outptr0++ = r0[0];
+                    *outptr1++ = r0[1];
+                    *outptr2++ = r0[2];
+                    *outptr3++ = r0[3];
+                    *outptr4++ = r0[4];
+                    *outptr5++ = r0[5];
+                    *outptr6++ = r0[6];
+                    *outptr7++ = r0[7];
+
+                    r0 += 8;
+                }
+            }
+        }
+        if (pack4to8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                const unsigned short* r0 = bottom_blob.channel(q * 2);
+                const unsigned short* r1 = bottom_blob.channel(q * 2 + 1);
+
+                unsigned short* outptr = top_blob.channel(q);
+
+                int i = 0;
+#if __mips_msa
+                for (; i + 1 < size; i += 2)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
+                    __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r1, (v2i64)_r0), outptr, 0);
+                    __msa_st_h((v8i16)__msa_ilvl_d((v2i64)_r1, (v2i64)_r0), outptr + 8, 0);
+
+                    r0 += 8;
+                    r1 += 8;
+                    outptr += 16;
+                }
+#endif // __mips_msa
+                for (; i < size; i++)
+                {
+                    outptr[0] = r0[0];
+                    outptr[1] = r0[1];
+                    outptr[2] = r0[2];
+                    outptr[3] = r0[3];
+                    outptr[4] = r1[0];
+                    outptr[5] = r1[1];
+                    outptr[6] = r1[2];
+                    outptr[7] = r1[3];
+
+                    r0 += 4;
+                    r1 += 4;
+                    outptr += 8;
+                }
+            }
+        }
+        if (pack8to4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* r0 = bottom_blob.channel(q);
+
+                unsigned short* outptr0 = top_blob.channel(q * 2);
+                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
+
+                for (int i = 0; i < size; i++)
+                {
+#if __mips_msa
+                    v8i16 _p = (v8i16)__msa_ld_h(r0, 0);
+                    __msa_storel_d((v4i32)_p, outptr0);
+                    int64_t v = __msa_copy_s_d((v2i64)_p, 1);
+                    memcpy(outptr1, &v, 8);
+#else
+                    outptr0[0] = r0[0];
+                    outptr0[1] = r0[1];
+                    outptr0[2] = r0[2];
+                    outptr0[3] = r0[3];
+                    outptr1[0] = r0[4];
+                    outptr1[1] = r0[5];
+                    outptr1[2] = r0[6];
+                    outptr1[3] = r0[7];
+#endif
+                    r0 += 8;
+                    outptr0 += 4;
+                    outptr1 += 4;
                 }
             }
         }

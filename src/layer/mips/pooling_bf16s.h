@@ -13,6 +13,35 @@ static void pooling_global_max_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, 
     int size = w * h;
 
 #if __mips_msa
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            v4f32 _max0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _max1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            ptr += 8;
+            for (int i = 1; i < size; i++)
+            {
+                _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _val0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _val1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _max0 = __msa_fmax_w(_max0, _val0);
+                _max1 = __msa_fmax_w(_max1, _val1);
+                ptr += 8;
+            }
+
+            unsigned short* outptr = top_blob;
+            __msa_st_w(float2bfloat_msa(_max0, _max1), outptr + q * 8, 0);
+        }
+
+        return;
+    }
+
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -66,6 +95,37 @@ static void pooling_global_avg_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, 
     int size = w * h;
 
 #if __mips_msa
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+
+            v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+            v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+            for (int i = 0; i < size; i++)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _val0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _val1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _sum0 = __msa_fadd_w(_sum0, _val0);
+                _sum1 = __msa_fadd_w(_sum1, _val1);
+                ptr += 8;
+            }
+
+            v4f32 _inv_size = __msa_fill_w_f32(1.f / size);
+            v4f32 _avg0 = __msa_fmul_w(_sum0, _inv_size);
+            v4f32 _avg1 = __msa_fmul_w(_sum1, _inv_size);
+
+            unsigned short* outptr = top_blob;
+            __msa_st_w(float2bfloat_msa(_avg0, _avg1), outptr + q * 8, 0);
+        }
+
+        return;
+    }
+
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -160,6 +220,44 @@ static void pooling_max_bf16s_msa(const Mat& bottom_blob_bordered, Mat& top_blob
     }
 
 #if __mips_msa
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat m = bottom_blob_bordered.channel(q);
+            unsigned short* outptr = top_blob.channel(q);
+            v8i16 _zero_bf16 = __msa_fill_h(0);
+
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
+                    const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
+
+                    v8i16 _p01 = __msa_ld_h(sptr, 0);
+                    v4f32 _max0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                    v4f32 _max1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        _p01 = __msa_ld_h(sptr + space_ofs[k] * 8, 0);
+                        v4f32 _val0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                        v4f32 _val1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                        _max0 = __msa_fmax_w(_max0, _val0);
+                        _max1 = __msa_fmax_w(_max1, _val1);
+                    }
+
+                    __msa_st_w(float2bfloat_msa(_max0, _max1), outptr + j * 8, 0);
+                }
+
+                outptr += outw * 8;
+            }
+        }
+
+        return;
+    }
+
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -267,6 +365,69 @@ static void pooling_avg_bf16s_msa(const Mat& bottom_blob_bordered, const Mat& bo
         }
 
 #if __mips_msa
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    int sy0 = i * stride_h;
+
+                    for (int j = 0; j < outw; j++)
+                    {
+                        int sx0 = j * stride_w;
+
+                        v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+                        v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                        int area = 0;
+
+                        for (int ki = 0; ki < kernel_h; ki++)
+                        {
+                            int sy = sy0 + ki;
+
+                            if (sy < pad_top)
+                                continue;
+
+                            if (sy >= h - pad_bottom - htailpad)
+                                break;
+
+                            for (int kj = 0; kj < kernel_w; kj++)
+                            {
+                                int sx = sx0 + kj;
+
+                                if (sx < pad_left)
+                                    continue;
+
+                                if (sx >= w - pad_right - wtailpad)
+                                    break;
+
+                                v8i16 _p01 = __msa_ld_h(m.row<const unsigned short>(sy) + sx * 8, 0);
+                                v4f32 _val0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                                v4f32 _val1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                                _sum0 = __msa_fadd_w(_sum0, _val0);
+                                _sum1 = __msa_fadd_w(_sum1, _val1);
+                                area += 1;
+                            }
+                        }
+
+                        v4f32 _inv_area = __msa_fill_w_f32(1.f / area);
+                        v4f32 _avg0 = __msa_fmul_w(_sum0, _inv_area);
+                        v4f32 _avg1 = __msa_fmul_w(_sum1, _inv_area);
+                        __msa_st_w(float2bfloat_msa(_avg0, _avg1), outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return;
+        }
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -380,6 +541,46 @@ static void pooling_avg_bf16s_msa(const Mat& bottom_blob_bordered, const Mat& bo
     else // if (avgpool_count_include_pad == 1)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+                v4f32 _inv_maxk = __msa_fill_w_f32(1.f / maxk);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
+
+                        v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+                        v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _p01 = __msa_ld_h(sptr + space_ofs[k] * 8, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                            _sum0 = __msa_fadd_w(_sum0, _val0);
+                            _sum1 = __msa_fadd_w(_sum1, _val1);
+                        }
+
+                        v4f32 _avg0 = __msa_fmul_w(_sum0, _inv_maxk);
+                        v4f32 _avg1 = __msa_fmul_w(_sum1, _inv_maxk);
+                        __msa_st_w(float2bfloat_msa(_avg0, _avg1), outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return;
+        }
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)

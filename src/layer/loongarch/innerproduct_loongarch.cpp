@@ -2554,7 +2554,7 @@ int InnerProduct_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob,
 #if __loongarch_asx
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif

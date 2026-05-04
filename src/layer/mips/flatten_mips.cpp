@@ -251,7 +251,7 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
     if (opt.use_packing_layout)
     {
-        out_elempack = total % 4 == 0 ? 4 : 1;
+        out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -279,6 +279,38 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     if (dims == 2)
     {
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + w * (i * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + w * (i * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 8 + 7);
+
+                for (int j = 0; j < w; j++)
+                {
+                    __builtin_prefetch(ptr + 64);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -306,6 +338,38 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     if (dims == 3 || dims == 4)
     {
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 8;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 8 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 8 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 8 + 3);
+                unsigned short* outptr4 = (unsigned short*)top_blob + size * (q * 8 + 4);
+                unsigned short* outptr5 = (unsigned short*)top_blob + size * (q * 8 + 5);
+                unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 8 + 6);
+                unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 8 + 7);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __builtin_prefetch(ptr + 64);
+
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    ptr += 8;
+                }
+            }
+        }
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)

@@ -503,14 +503,14 @@ static NCNN_FORCEINLINE void transpose8x8_epi16(v8i16& _r0, v8i16& _r1, v8i16& _
     v8i16 _tmpe = (v8i16)__msa_ilvr_w((v4i32)_tmp7, (v4i32)_tmp5);
     v8i16 _tmpf = (v8i16)__msa_ilvl_w((v4i32)_tmp7, (v4i32)_tmp5);
 
-    _r0 = (v8i16)__msa_ilvr_d((v2i64)_tmp8, (v2i64)_tmpc);
-    _r1 = (v8i16)__msa_ilvl_d((v2i64)_tmp8, (v2i64)_tmpc);
-    _r2 = (v8i16)__msa_ilvr_d((v2i64)_tmp9, (v2i64)_tmpd);
-    _r3 = (v8i16)__msa_ilvl_d((v2i64)_tmp9, (v2i64)_tmpd);
-    _r4 = (v8i16)__msa_ilvr_d((v2i64)_tmpa, (v2i64)_tmpe);
-    _r5 = (v8i16)__msa_ilvl_d((v2i64)_tmpa, (v2i64)_tmpe);
-    _r6 = (v8i16)__msa_ilvr_d((v2i64)_tmpb, (v2i64)_tmpf);
-    _r7 = (v8i16)__msa_ilvl_d((v2i64)_tmpb, (v2i64)_tmpf);
+    _r0 = (v8i16)__msa_ilvr_d((v2i64)_tmpc, (v2i64)_tmp8);
+    _r1 = (v8i16)__msa_ilvl_d((v2i64)_tmpc, (v2i64)_tmp8);
+    _r2 = (v8i16)__msa_ilvr_d((v2i64)_tmpd, (v2i64)_tmp9);
+    _r3 = (v8i16)__msa_ilvl_d((v2i64)_tmpd, (v2i64)_tmp9);
+    _r4 = (v8i16)__msa_ilvr_d((v2i64)_tmpe, (v2i64)_tmpa);
+    _r5 = (v8i16)__msa_ilvl_d((v2i64)_tmpe, (v2i64)_tmpa);
+    _r6 = (v8i16)__msa_ilvr_d((v2i64)_tmpf, (v2i64)_tmpb);
+    _r7 = (v8i16)__msa_ilvl_d((v2i64)_tmpf, (v2i64)_tmpb);
 }
 
 // transpose8x4_epi16 - transpose 8x4 block of int16

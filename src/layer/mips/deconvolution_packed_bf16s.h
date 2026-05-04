@@ -1,7 +1,7 @@
 // Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h)
+static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int out_elempack)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -31,9 +31,23 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     // clang-format off
     // *INDENT-OFF*
 #if __mips_msa
+    if (out_elempack == 8)
+    {
+        if (num_input >= 8)
+            weight_data_tm.create(8 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
+        else if (num_input >= 4)
+            weight_data_tm.create(8 * 4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
+        else if (num_input >= 2)
+            weight_data_tm.create(8 * 2 * maxk, num_input / 2 + num_input % 2, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
+        else
+            weight_data_tm.create(8 * maxk, num_input, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
+    }
+    else
     if (num_output >= 4)
     {
-        if (num_input >= 4)
+        if (num_input >= 8)
+            weight_data_tm.create(4 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
+        else if (num_input >= 4)
             weight_data_tm.create(4 * 4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
         else if (num_input >= 2)
             weight_data_tm.create(4 * 2 * maxk, num_input / 2 + num_input % 2, num_output / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
@@ -45,7 +59,9 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     if (num_output >= 2)
     {
 #if __mips_msa
-        if (num_input >= 4)
+        if (num_input >= 8)
+            weight_data_tm.create(2 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 2 + num_output % 2, (size_t)2u);
+        else if (num_input >= 4)
             weight_data_tm.create(2 * 4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 2 + num_output % 2, (size_t)2u);
         else
 #endif // __mips_msa
@@ -57,7 +73,9 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     else
     {
 #if __mips_msa
-        if (num_input >= 4)
+        if (num_input >= 8)
+            weight_data_tm.create(8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output, (size_t)2u);
+        else if (num_input >= 4)
             weight_data_tm.create(4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output, (size_t)2u);
         else
 #endif // __mips_msa
@@ -71,11 +89,89 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
 
     int q = 0;
 #if __mips_msa
+    for (; out_elempack == 8 && q + 7 < num_output; q += 8)
+    {
+        unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 8);
+
+        int p = 0;
+        for (; p + 7 < num_input; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                        g00[0] = float32_to_bfloat16(k00[k]);
+                        g00++;
+                    }
+                }
+            }
+        }
+        for (; p + 3 < num_input; p += 4)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                        g00[0] = float32_to_bfloat16(k00[k]);
+                        g00++;
+                    }
+                }
+            }
+        }
+        for (; p + 1 < num_input; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                        g00[0] = float32_to_bfloat16(k00[k]);
+                        g00++;
+                    }
+                }
+            }
+        }
+        for (; p < num_input; p++)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    const float* k00 = weight_data_r2.channel(q + j).row(p);
+                    g00[0] = float32_to_bfloat16(k00[k]);
+                    g00++;
+                }
+            }
+        }
+    }
     for (; q + 3 < num_output; q += 4)
     {
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 4);
 
         int p = 0;
+        for (; p + 7 < num_input; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                        g00[0] = float32_to_bfloat16(k00[k]);
+                        g00++;
+                    }
+                }
+            }
+        }
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -130,6 +226,21 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
 
         int p = 0;
 #if __mips_msa
+        for (; p + 7 < num_input; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int j = 0; j < 2; j++)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                        g00[0] = float32_to_bfloat16(k00[k]);
+                        g00++;
+                    }
+                }
+            }
+        }
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -184,6 +295,18 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
 
         int p = 0;
 #if __mips_msa
+        for (; p + 7 < num_input; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    const float* k00 = weight_data_r2.channel(q).row(p + i);
+                    g00[0] = float32_to_bfloat16(k00[k]);
+                    g00++;
+                }
+            }
+        }
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -240,7 +363,297 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     int remain_outch_start = 0;
 
 #if __mips_msa
-    nn_outch = outch / 4;
+    nn_outch = out_elempack == 8 ? outch / 8 : 0;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        const int p = pp * 8;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int w = bottom_blob.w;
+        const int h = bottom_blob.h;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
+        unsigned short* outptr = top_blob.channel(p / out_elempack);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum2 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum3 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum4 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum5 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum6 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum7 = (v4f32)__msa_fill_w(0);
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (v4f32)__msa_ld_w((const float*)bias_data_ptr + p, 0);
+                    _sum4 = (v4f32)__msa_ld_w((const float*)bias_data_ptr + p + 4, 0);
+                }
+
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 8);
+
+                int q = 0;
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8 * 8;
+
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr[0])), bfloat2float_msa(kptr0));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr[0])), bfloat2float_msa(kptr0 + 4));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr[1])), bfloat2float_msa(kptr0 + 8));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr[1])), bfloat2float_msa(kptr0 + 12));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr[2])), bfloat2float_msa(kptr0 + 16));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(sptr[2])), bfloat2float_msa(kptr0 + 20));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr[3])), bfloat2float_msa(kptr0 + 24));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(sptr[3])), bfloat2float_msa(kptr0 + 28));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr[4])), bfloat2float_msa(kptr0 + 32));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr[4])), bfloat2float_msa(kptr0 + 36));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr[5])), bfloat2float_msa(kptr0 + 40));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr[5])), bfloat2float_msa(kptr0 + 44));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr[6])), bfloat2float_msa(kptr0 + 48));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(sptr[6])), bfloat2float_msa(kptr0 + 52));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr[7])), bfloat2float_msa(kptr0 + 56));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(sptr[7])), bfloat2float_msa(kptr0 + 60));
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr0[0])), bfloat2float_msa(kptr0));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr0[0])), bfloat2float_msa(kptr0 + 4));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr0[1])), bfloat2float_msa(kptr0 + 8));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr0[1])), bfloat2float_msa(kptr0 + 12));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr0[2])), bfloat2float_msa(kptr0 + 16));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(sptr0[2])), bfloat2float_msa(kptr0 + 20));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr0[3])), bfloat2float_msa(kptr0 + 24));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(sptr0[3])), bfloat2float_msa(kptr0 + 28));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr1[0])), bfloat2float_msa(kptr0 + 32));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr1[0])), bfloat2float_msa(kptr0 + 36));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr1[1])), bfloat2float_msa(kptr0 + 40));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr1[1])), bfloat2float_msa(kptr0 + 44));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr1[2])), bfloat2float_msa(kptr0 + 48));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(sptr1[2])), bfloat2float_msa(kptr0 + 52));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr1[3])), bfloat2float_msa(kptr0 + 56));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(sptr1[3])), bfloat2float_msa(kptr0 + 60));
+                            }
+                            if (elempack == 1)
+                            {
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 4));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 8));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 12));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 16));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 20));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 24));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 28));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 32));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 36));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 40));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 44));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 48));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 52));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 56));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 60));
+                            }
+                        }
+                    }
+
+                    kptr += maxk * 8 * 8;
+                }
+                for (; q + 3 < inch; q += 4)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 4 * 8;
+
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr[0])), bfloat2float_msa(kptr0));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr[0])), bfloat2float_msa(kptr0 + 4));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr[1])), bfloat2float_msa(kptr0 + 8));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr[1])), bfloat2float_msa(kptr0 + 12));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr[2])), bfloat2float_msa(kptr0 + 16));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(sptr[2])), bfloat2float_msa(kptr0 + 20));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr[3])), bfloat2float_msa(kptr0 + 24));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(sptr[3])), bfloat2float_msa(kptr0 + 28));
+                            }
+                            if (elempack == 1)
+                            {
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0));
+                                _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 4));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 8));
+                                _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 12));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 16));
+                                _sum6 = __ncnn_msa_fmadd_w(_sum6, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 20));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 24));
+                                _sum7 = __ncnn_msa_fmadd_w(_sum7, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 28));
+                            }
+                        }
+                    }
+
+                    kptr += maxk * 4 * 8;
+                }
+                for (; q + 1 < inch; q += 2)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 2 * 8;
+
+                            const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
+                            const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr0[0])), bfloat2float_msa(kptr0));
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, __msa_fill_w_f32(bfloat16_to_float32(sptr0[0])), bfloat2float_msa(kptr0 + 4));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr1[0])), bfloat2float_msa(kptr0 + 8));
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, __msa_fill_w_f32(bfloat16_to_float32(sptr1[0])), bfloat2float_msa(kptr0 + 12));
+                        }
+                    }
+
+                    kptr += maxk * 2 * 8;
+                }
+                for (; q < inch; q++)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8;
+
+                            const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
+                            v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(sptr[0]));
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, bfloat2float_msa(kptr0));
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _val, bfloat2float_msa(kptr0 + 4));
+                        }
+                    }
+
+                    kptr += maxk * 8;
+                }
+
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                _sum2 = __msa_fadd_w(_sum2, _sum3);
+                _sum4 = __msa_fadd_w(_sum4, _sum5);
+                _sum6 = __msa_fadd_w(_sum6, _sum7);
+                _sum0 = __msa_fadd_w(_sum0, _sum2);
+                _sum4 = __msa_fadd_w(_sum4, _sum6);
+
+                _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                _sum4 = activation_msa(_sum4, activation_type, activation_params);
+
+                if (out_elempack == 8)
+                {
+                    __msa_st_w(float2bfloat_msa(_sum0, _sum4), outptr, 0);
+                    outptr += 8;
+                }
+                if (out_elempack == 4)
+                {
+                    __msa_storel_d(float2bfloat_msa(_sum0), outptr);
+                    __msa_storel_d(float2bfloat_msa(_sum4), outptr + M);
+                    outptr += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    float sum0[4];
+                    float sum1[4];
+                    __msa_st_w((v4i32)_sum0, sum0, 0);
+                    __msa_st_w((v4i32)_sum4, sum1, 0);
+
+                    outptr[0] = float32_to_bfloat16(sum0[0]);
+                    outptr[M] = float32_to_bfloat16(sum0[1]);
+                    outptr[M * 2] = float32_to_bfloat16(sum0[2]);
+                    outptr[M * 3] = float32_to_bfloat16(sum0[3]);
+                    outptr[M * 4] = float32_to_bfloat16(sum1[0]);
+                    outptr[M * 5] = float32_to_bfloat16(sum1[1]);
+                    outptr[M * 6] = float32_to_bfloat16(sum1[2]);
+                    outptr[M * 7] = float32_to_bfloat16(sum1[3]);
+                    outptr += 1;
+                }
+            }
+        }
+    }
+    remain_outch_start += nn_outch * 8;
+    nn_outch = (outch - remain_outch_start) / 4;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
@@ -274,6 +687,72 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4);
 
                 int q = 0;
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8 * 4;
+
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr[0])), bfloat2float_msa(kptr0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr[1])), bfloat2float_msa(kptr0 + 4));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr[2])), bfloat2float_msa(kptr0 + 8));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr[3])), bfloat2float_msa(kptr0 + 12));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr[4])), bfloat2float_msa(kptr0 + 16));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr[5])), bfloat2float_msa(kptr0 + 20));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr[6])), bfloat2float_msa(kptr0 + 24));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr[7])), bfloat2float_msa(kptr0 + 28));
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr0[0])), bfloat2float_msa(kptr0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr0[1])), bfloat2float_msa(kptr0 + 4));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr0[2])), bfloat2float_msa(kptr0 + 8));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr0[3])), bfloat2float_msa(kptr0 + 12));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(sptr1[0])), bfloat2float_msa(kptr0 + 16));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(sptr1[1])), bfloat2float_msa(kptr0 + 20));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(sptr1[2])), bfloat2float_msa(kptr0 + 24));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(sptr1[3])), bfloat2float_msa(kptr0 + 28));
+                            }
+                            if (elempack == 1)
+                            {
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 4));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 8));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 12));
+                                _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 16));
+                                _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 20));
+                                _sum2 = __ncnn_msa_fmadd_w(_sum2, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 24));
+                                _sum3 = __ncnn_msa_fmadd_w(_sum3, __msa_fill_w_f32(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), bfloat2float_msa(kptr0 + 28));
+                            }
+                        }
+                    }
+
+                    kptr += maxk * 8 * 4;
+                }
                 for (; q + 3 < inch; q += 4)
                 {
                     for (int y = 0; y < kernel_h; y++)
@@ -459,6 +938,80 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 int q = 0;
 #if __mips_msa
+                v4f32 _sum00 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum01 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum10 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum11 = (v4f32)__msa_fill_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8 * 2;
+
+                            v4f32 _r0 = (v4f32)__msa_fill_w(0);
+                            v4f32 _r1 = (v4f32)__msa_fill_w(0);
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _r0 = bfloat2float_msa(sptr);
+                                _r1 = bfloat2float_msa(sptr + 4);
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _r0 = bfloat2float_msa(sptr0);
+                                _r1 = bfloat2float_msa(sptr1);
+                            }
+                            if (elempack == 1)
+                            {
+                                unsigned short tmp[8];
+                                tmp[0] = bottom_blob.channel(q).row<const unsigned short>(sy)[sx];
+                                tmp[1] = bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx];
+                                tmp[2] = bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx];
+                                tmp[3] = bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx];
+                                tmp[4] = bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx];
+                                tmp[5] = bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx];
+                                tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
+                                tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
+
+                                _r0 = bfloat2float_msa(tmp);
+                                _r1 = bfloat2float_msa(tmp + 4);
+                            }
+
+                            _sum00 = __ncnn_msa_fmadd_w(_sum00, _r0, bfloat2float_msa(kptr0));
+                            _sum01 = __ncnn_msa_fmadd_w(_sum01, _r1, bfloat2float_msa(kptr0 + 4));
+                            _sum10 = __ncnn_msa_fmadd_w(_sum10, _r0, bfloat2float_msa(kptr0 + 8));
+                            _sum11 = __ncnn_msa_fmadd_w(_sum11, _r1, bfloat2float_msa(kptr0 + 12));
+                        }
+                    }
+
+                    kptr += maxk * 8 * 2;
+                }
+                _sum00 = __msa_fadd_w(_sum00, _sum01);
+                _sum10 = __msa_fadd_w(_sum10, _sum11);
+                sum0 += __msa_reduce_fadd_w(_sum00);
+                sum1 += __msa_reduce_fadd_w(_sum10);
+
                 for (; q + 3 < inch; q += 4)
                 {
                     for (int y = 0; y < kernel_h; y++)
@@ -634,6 +1187,74 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 int q = 0;
 #if __mips_msa
+                v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8;
+
+                            v4f32 _r0 = (v4f32)__msa_fill_w(0);
+                            v4f32 _r1 = (v4f32)__msa_fill_w(0);
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _r0 = bfloat2float_msa(sptr);
+                                _r1 = bfloat2float_msa(sptr + 4);
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _r0 = bfloat2float_msa(sptr0);
+                                _r1 = bfloat2float_msa(sptr1);
+                            }
+                            if (elempack == 1)
+                            {
+                                unsigned short tmp[8];
+                                tmp[0] = bottom_blob.channel(q).row<const unsigned short>(sy)[sx];
+                                tmp[1] = bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx];
+                                tmp[2] = bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx];
+                                tmp[3] = bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx];
+                                tmp[4] = bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx];
+                                tmp[5] = bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx];
+                                tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
+                                tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
+
+                                _r0 = bfloat2float_msa(tmp);
+                                _r1 = bfloat2float_msa(tmp + 4);
+                            }
+
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, bfloat2float_msa(kptr0));
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _r1, bfloat2float_msa(kptr0 + 4));
+                        }
+                    }
+
+                    kptr += maxk * 8;
+                }
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                sum += __msa_reduce_fadd_w(_sum0);
+
                 for (; q + 3 < inch; q += 4)
                 {
                     for (int y = 0; y < kernel_h; y++)

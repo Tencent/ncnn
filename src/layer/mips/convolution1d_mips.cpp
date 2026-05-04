@@ -216,7 +216,7 @@ int Convolution1D_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 #if __mips_msa
     if (opt.use_packing_layout)
     {
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;

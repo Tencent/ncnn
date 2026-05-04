@@ -85,7 +85,13 @@ int Bias_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __mips_msa
-        v4f32 _bias = (elempack == 4) ? (v4f32)__msa_ld_w(bias_ptr + q * 4, 0) : (v4f32)__msa_fill_w_f32(bias_ptr[q]);
+        v4f32 _bias0 = (elempack == 4) ? (v4f32)__msa_ld_w(bias_ptr + q * 4, 0) : (v4f32)__msa_fill_w_f32(bias_ptr[q]);
+        v4f32 _bias1 = _bias0;
+        if (elempack == 8)
+        {
+            _bias0 = (v4f32)__msa_ld_w(bias_ptr + q * 8, 0);
+            _bias1 = (v4f32)__msa_ld_w(bias_ptr + q * 8 + 4, 0);
+        }
 #endif
         float bias = bias_ptr[q];
 
@@ -97,15 +103,15 @@ int Bias_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             v8i16 _p01 = __msa_ld_h(ptr, 0);
             v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
             v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-            _p0 = __msa_fadd_w(_p0, _bias);
-            _p1 = __msa_fadd_w(_p1, _bias);
+            _p0 = __msa_fadd_w(_p0, _bias0);
+            _p1 = __msa_fadd_w(_p1, _bias1);
             __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = bfloat2float_msa(ptr);
-            _p = __msa_fadd_w(_p, _bias);
+            _p = __msa_fadd_w(_p, _bias0);
             __msa_storel_d(float2bfloat_msa(_p), ptr);
             ptr += 4;
         }

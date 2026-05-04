@@ -19,9 +19,7 @@ namespace ncnn {
 #include "padding_pack8_int8.h"
 #if NCNN_BF16
 #include "padding_pack4_bf16s.h"
-#if __loongarch_asx
 #include "padding_pack8_bf16s.h"
-#endif // __loongarch_asx
 #endif // NCNN_BF16
 #endif // __loongarch_sx
 
@@ -392,7 +390,6 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     const Mat& per_channel_pad_data_bf16_ref = opt.use_bf16_storage ? per_channel_pad_data_bf16 : Mat();
 
 #if __loongarch_sx
-#if __loongarch_asx
     if (elempack == 8)
     {
         if (dims == 1)
@@ -409,7 +406,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     return -100;
 
                 __m128i pad_value = __lsx_vreplgr2vr_h(pad_value_bf16);
-                padding_constant_pack8_bf16s_lasx(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+                padding_constant_pack8_bf16s_lsx(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
 
                 return 0;
             }
@@ -430,7 +427,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     return -100;
 
                 __m128i pad_value = __lsx_vreplgr2vr_h(pad_value_bf16);
-                padding_constant_pack8_bf16s_lasx(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+                padding_constant_pack8_bf16s_lsx(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
 
                 return 0;
             }
@@ -467,11 +464,11 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         const Mat m = bottom_blob.channel(q - front_);
                         if (type == 0)
-                            padding_constant_pack8_bf16s_lasx(m, borderm, top, bottom, left, right, pad_value);
+                            padding_constant_pack8_bf16s_lsx(m, borderm, top, bottom, left, right, pad_value);
                         if (type == 1)
-                            padding_replicate_pack8_bf16s_lasx(m, borderm, top, bottom, left, right);
+                            padding_replicate_pack8_bf16s_lsx(m, borderm, top, bottom, left, right);
                         if (type == 2)
-                            padding_reflect_pack8_bf16s_lasx(m, borderm, top, bottom, left, right);
+                            padding_reflect_pack8_bf16s_lsx(m, borderm, top, bottom, left, right);
                     }
                 }
 
@@ -508,7 +505,7 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            padding_constant_pack8_bf16s_lasx(m, borderm, top, bottom, left, right, pad_value);
+                            padding_constant_pack8_bf16s_lsx(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
@@ -517,7 +514,6 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             }
         }
     }
-#endif // __loongarch_asx
 
     if (elempack == 4)
     {
@@ -678,7 +674,26 @@ int Padding_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
             return -100;
     }
 
-    return Padding::forward(bottom_blob_unpacked, top_blob, opt);
+    Mat top_blob_unpacked;
+    int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+    if (ret != 0)
+        return ret;
+
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        int elemcount = top_blob_unpacked.w;
+        if (top_blob_unpacked.dims == 2) elemcount = top_blob_unpacked.h;
+        if (top_blob_unpacked.dims == 3 || top_blob_unpacked.dims == 4) elemcount = top_blob_unpacked.c;
+
+        out_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+    }
+#endif
+
+    convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+
+    return 0;
 }
 #endif // NCNN_BF16
 

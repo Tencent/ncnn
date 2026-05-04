@@ -40,6 +40,37 @@ static void pooling_global_max_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, 
     }
 #endif // __loongarch_asx
 
+#if !__loongarch_asx
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+            __m128 _max0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _max1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            ptr += 8;
+            for (int i = 1; i < size; i++)
+            {
+                _p01 = __lsx_vld(ptr, 0);
+                __m128 _val0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _val1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _max0 = __lsx_vfmax_s(_max0, _val0);
+                _max1 = __lsx_vfmax_s(_max1, _val1);
+                ptr += 8;
+            }
+
+            unsigned short* outptr = top_blob;
+            __lsx_vst(float2bfloat_lsx(_max0, _max1), outptr + q * 8, 0);
+        }
+
+        return;
+    }
+#endif // !__loongarch_asx
+
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -119,6 +150,39 @@ static void pooling_global_avg_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, 
         return;
     }
 #endif // __loongarch_asx
+
+#if !__loongarch_asx
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+
+            __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+            for (int i = 0; i < size; i++)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _val0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _val1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _sum0 = __lsx_vfadd_s(_sum0, _val0);
+                _sum1 = __lsx_vfadd_s(_sum1, _val1);
+                ptr += 8;
+            }
+
+            __m128 _inv_size = __lsx_vreplfr2vr_s(1.f / size);
+            __m128 _avg0 = __lsx_vfmul_s(_sum0, _inv_size);
+            __m128 _avg1 = __lsx_vfmul_s(_sum1, _inv_size);
+
+            unsigned short* outptr = top_blob;
+            __lsx_vst(float2bfloat_lsx(_avg0, _avg1), outptr + q * 8, 0);
+        }
+
+        return;
+    }
+#endif // !__loongarch_asx
 
     if (elempack == 4)
     {
@@ -265,6 +329,46 @@ static void pooling_max_bf16s_lsx(const Mat& bottom_blob_bordered, Mat& top_blob
         return;
     }
 #endif // __loongarch_asx
+
+#if !__loongarch_asx
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat m = bottom_blob_bordered.channel(q);
+            unsigned short* outptr = top_blob.channel(q);
+            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
+                    const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
+
+                    __m128i _p01 = __lsx_vld(sptr, 0);
+                    __m128 _max0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                    __m128 _max1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        _p01 = __lsx_vld(sptr + space_ofs[k] * 8, 0);
+                        __m128 _val0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                        __m128 _val1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                        _max0 = __lsx_vfmax_s(_max0, _val0);
+                        _max1 = __lsx_vfmax_s(_max1, _val1);
+                    }
+
+                    __lsx_vst(float2bfloat_lsx(_max0, _max1), outptr + j * 8, 0);
+                }
+
+                outptr += outw * 8;
+            }
+        }
+
+        return;
+    }
+#endif // !__loongarch_asx
 
     if (elempack == 4)
     {
@@ -432,6 +536,71 @@ static void pooling_avg_bf16s_lsx(const Mat& bottom_blob_bordered, const Mat& bo
         }
 #endif // __loongarch_asx
 
+#if !__loongarch_asx
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    int sy0 = i * stride_h;
+
+                    for (int j = 0; j < outw; j++)
+                    {
+                        int sx0 = j * stride_w;
+
+                        __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                        __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                        int area = 0;
+
+                        for (int ki = 0; ki < kernel_h; ki++)
+                        {
+                            int sy = sy0 + ki;
+
+                            if (sy < pad_top)
+                                continue;
+
+                            if (sy >= h - pad_bottom - htailpad)
+                                break;
+
+                            for (int kj = 0; kj < kernel_w; kj++)
+                            {
+                                int sx = sx0 + kj;
+
+                                if (sx < pad_left)
+                                    continue;
+
+                                if (sx >= w - pad_right - wtailpad)
+                                    break;
+
+                                __m128i _p01 = __lsx_vld(m.row<const unsigned short>(sy) + sx * 8, 0);
+                                __m128 _val0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                                __m128 _val1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                                _sum0 = __lsx_vfadd_s(_sum0, _val0);
+                                _sum1 = __lsx_vfadd_s(_sum1, _val1);
+                                area += 1;
+                            }
+                        }
+
+                        __m128 _inv_area = __lsx_vreplfr2vr_s(1.f / area);
+                        __m128 _avg0 = __lsx_vfmul_s(_sum0, _inv_area);
+                        __m128 _avg1 = __lsx_vfmul_s(_sum1, _inv_area);
+                        __lsx_vst(float2bfloat_lsx(_avg0, _avg1), outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return;
+        }
+#endif // !__loongarch_asx
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -581,6 +750,48 @@ static void pooling_avg_bf16s_lsx(const Mat& bottom_blob_bordered, const Mat& bo
             return;
         }
 #endif // __loongarch_asx
+
+#if !__loongarch_asx
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                unsigned short* outptr = top_blob.channel(q);
+                __m128 _inv_maxk = __lsx_vreplfr2vr_s(1.f / maxk);
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
+
+                        __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                        __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            __m128i _p01 = __lsx_vld(sptr + space_ofs[k] * 8, 0);
+                            __m128 _val0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                            __m128 _val1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                            _sum0 = __lsx_vfadd_s(_sum0, _val0);
+                            _sum1 = __lsx_vfadd_s(_sum1, _val1);
+                        }
+
+                        __m128 _avg0 = __lsx_vfmul_s(_sum0, _inv_maxk);
+                        __m128 _avg1 = __lsx_vfmul_s(_sum1, _inv_maxk);
+                        __lsx_vst(float2bfloat_lsx(_avg0, _avg1), outptr + j * 8, 0);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+
+            return;
+        }
+#endif // !__loongarch_asx
 
         if (elempack == 4)
         {

@@ -912,6 +912,23 @@ int Convolution_mips::create_pipeline_bf16s(const Option& opt)
 
     nT = opt.num_threads;
 
+    int l2_cache_size = get_cpu_level2_cache_size();
+    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+#if __mips_msa
+    if (opt.use_packing_layout && num_input % 8 == 0)
+        prefer_sgemm = true;
+
+    if ((opt.use_packing_layout && num_input % 8 == 0) && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+    {
+        convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
+
+        if (opt.lightmode)
+            weight_data.release();
+
+        return 0;
+    }
+#endif // __mips_msa
+
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -989,8 +1006,6 @@ int Convolution_mips::create_pipeline_bf16s(const Option& opt)
         return 0;
     }
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
@@ -1074,11 +1089,16 @@ int Convolution_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    const int num_input = channels * elempack;
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
+    bool use_winograd = opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1;
+
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
     {
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        out_elempack = !use_winograd && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -1087,11 +1107,29 @@ int Convolution_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    const int num_input = channels * elempack;
+    int l2_cache_size = get_cpu_level2_cache_size();
+    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
+#if __mips_msa
+    if (opt.use_packing_layout && num_input % 8 == 0)
+        prefer_sgemm = true;
 
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
+    if ((opt.use_packing_layout && num_input % 8 == 0) && ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1)))
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
+        }
 
-    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        int ret = convolution_im2col_gemm_bf16s(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, _nT, opt);
+        if (ret != 0)
+            return ret;
+
+        return 0;
+    }
+#endif // __mips_msa
+
+    if (use_winograd)
     {
         bool prefer_winograd63 = test_prefer_winograd63(num_input, num_output, w, h);
         bool prefer_winograd23 = test_prefer_winograd23(num_input, num_output, w, h);
@@ -1141,8 +1179,6 @@ int Convolution_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         return 0;
     }
 
-    int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(unsigned short) * 2 > l2_cache_size || (num_input > 16 || num_output > 16);
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         int _nT = nT ? nT : opt.num_threads;

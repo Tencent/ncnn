@@ -16,6 +16,7 @@ namespace ncnn {
 #include "padding_pack8_int8.h"
 #if NCNN_BF16
 #include "padding_pack4_bf16s.h"
+#include "padding_pack8_bf16s.h"
 #endif // NCNN_BF16
 #endif // __mips_msa
 
@@ -252,6 +253,131 @@ int Padding_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
     const Mat& per_channel_pad_data_bf16_ref = opt.use_bf16_storage ? per_channel_pad_data_bf16 : Mat();
 
 #if __mips_msa
+    if (elempack == 8)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                v8i16 pad_value = __msa_fill_h((short)pad_value_bf16);
+                padding_constant_pack8_bf16s_msa(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
+            {
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                v8i16 pad_value = __msa_fill_h((short)pad_value_bf16);
+                padding_constant_pack8_bf16s_msa(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
+            {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    v8i16 pad_value = per_channel_pad_data_size ? (v8i16)__msa_ld_h((const unsigned short*)per_channel_pad_data_bf16_ref + q * 8, 0) : __msa_fill_h((short)pad_value_bf16);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack8_bf16s_msa(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack8_bf16s_msa(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack8_bf16s_msa(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    v8i16 pad_value = per_channel_pad_data_size ? (v8i16)__msa_ld_h((const unsigned short*)per_channel_pad_data_bf16_ref + q * 8, 0) : __msa_fill_h((short)pad_value_bf16);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack8_bf16s_msa(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+
     if (elempack == 4)
     {
         if (dims == 1)
@@ -411,7 +537,26 @@ int Padding_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
             return -100;
     }
 
-    return Padding::forward(bottom_blob_unpacked, top_blob, opt);
+    Mat top_blob_unpacked;
+    int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+    if (ret != 0)
+        return ret;
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        int elemcount = top_blob_unpacked.w;
+        if (top_blob_unpacked.dims == 2) elemcount = top_blob_unpacked.h;
+        if (top_blob_unpacked.dims == 3 || top_blob_unpacked.dims == 4) elemcount = top_blob_unpacked.c;
+
+        out_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+    }
+#endif
+
+    convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+
+    return 0;
 }
 #endif // NCNN_BF16
 

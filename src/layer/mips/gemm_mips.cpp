@@ -69,6 +69,20 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                __msa_st_w(__msa_ld_w(p0 + 4, 0), pp + 4, 0);
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -162,6 +176,20 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __mips_msa
     for (; ii + 3 < max_ii; ii += 4)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                __msa_st_w(__msa_ld_w(p0, 0), pp, 0);
+                pp += 4;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -224,6 +252,25 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
         const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 8;
+            }
+
+            continue;
+        }
+#endif // __mips_msa
+
         for (int kk = 0; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -237,6 +284,24 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     for (; ii < max_ii; ii += 1)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 8;
+            }
+
+            continue;
+        }
+#endif // __mips_msa
 
         int kk = 0;
 #if __mips_msa
@@ -910,6 +975,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 pC0 = (const float*)C + (i + ii);
             }
+            if (broadcast_type_C == 3)
+            {
+                pC += max_jj * 8;
+            }
             if (broadcast_type_C == 4)
             {
                 pC0 = (const float*)C + j;
@@ -1247,6 +1316,40 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        v4f32 _r0 = _sum00;
+                        v4f32 _r1 = _sum10;
+                        v4f32 _r2 = _sum20;
+                        v4f32 _r3 = _sum30;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        v4f32 _r4 = _sum40;
+                        v4f32 _r5 = _sum50;
+                        v4f32 _r6 = _sum60;
+                        v4f32 _r7 = _sum70;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                        __msa_st_w(float2bfloat_msa(_r0, _r4), p0, 0);
+                        __msa_st_w(float2bfloat_msa(_r1, _r5), p0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_r2, _r6), p0 + 16, 0);
+                        __msa_st_w(float2bfloat_msa(_r3, _r7), p0 + 24, 0);
+
+                        _r0 = _sum01;
+                        _r1 = _sum11;
+                        _r2 = _sum21;
+                        _r3 = _sum31;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        _r4 = _sum41;
+                        _r5 = _sum51;
+                        _r6 = _sum61;
+                        _r7 = _sum71;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                        __msa_st_w(float2bfloat_msa(_r0, _r4), p0 + 32, 0);
+                        __msa_st_w(float2bfloat_msa(_r1, _r5), p0 + 40, 0);
+                        __msa_st_w(float2bfloat_msa(_r2, _r6), p0 + 48, 0);
+                        __msa_st_w(float2bfloat_msa(_r3, _r7), p0 + 56, 0);
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -1294,6 +1397,18 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __msa_st_w(float2bfloat_msa(_sum00, _sum01), p0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum10, _sum11), p0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum20, _sum21), p0 + 16, 0);
+                        __msa_st_w(float2bfloat_msa(_sum30, _sum31), p0 + 24, 0);
+                        __msa_st_w(float2bfloat_msa(_sum40, _sum41), p0 + 32, 0);
+                        __msa_st_w(float2bfloat_msa(_sum50, _sum51), p0 + 40, 0);
+                        __msa_st_w(float2bfloat_msa(_sum60, _sum61), p0 + 48, 0);
+                        __msa_st_w(float2bfloat_msa(_sum70, _sum71), p0 + 56, 0);
+                        p0 += 64;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -1570,6 +1685,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __msa_st_w(float2bfloat_msa(_sum00, _sum01), p0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum10, _sum11), p0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum20, _sum21), p0 + 16, 0);
+                        __msa_st_w(float2bfloat_msa(_sum30, _sum31), p0 + 24, 0);
+                        p0 += 32;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -1787,6 +1910,12 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __msa_st_w(float2bfloat_msa(_sum00, _sum01), p0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum10, _sum11), p0 + 8, 0);
+                        p0 += 16;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -1947,6 +2076,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), p0, 0);
+                        p0 += 8;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -2182,6 +2316,24 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        v4f32 _r0 = _sum0;
+                        v4f32 _r1 = _sum1;
+                        v4f32 _r2 = _sum2;
+                        v4f32 _r3 = _sum3;
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        v4f32 _r4 = _sum4;
+                        v4f32 _r5 = _sum5;
+                        v4f32 _r6 = _sum6;
+                        v4f32 _r7 = _sum7;
+                        transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                        __msa_st_w(float2bfloat_msa(_r0, _r4), p0, 0);
+                        __msa_st_w(float2bfloat_msa(_r1, _r5), p0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_r2, _r6), p0 + 16, 0);
+                        __msa_st_w(float2bfloat_msa(_r3, _r7), p0 + 24, 0);
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -2756,6 +2908,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0f[q] = sum0;
+                            p0f[q + 8] = sum1;
+                        }
                         if (out_elempack == 4)
                         {
                             p0f[q] = sum0;
@@ -2769,6 +2926,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0f[0] = sum0;
+                            p0f[out_hstep] = sum1;
+                        }
                         if (out_elempack == 4)
                         {
                             p0f[0] = sum0;
@@ -2785,6 +2947,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0[q] = float32_to_bfloat16(sum0);
+                            p0[q + 8] = float32_to_bfloat16(sum1);
+                        }
                         if (out_elempack == 4)
                         {
                             p0[q] = float32_to_bfloat16(sum0);
@@ -2798,6 +2965,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0[0] = float32_to_bfloat16(sum0);
+                            p0[out_hstep] = float32_to_bfloat16(sum1);
+                        }
                         if (out_elempack == 4)
                         {
                             p0[0] = float32_to_bfloat16(sum0);
@@ -2910,6 +3082,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0f[q] = sum;
+                        }
                         if (out_elempack == 4)
                         {
                             p0f[q] = sum;
@@ -2921,6 +3097,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0f[0] = sum;
+                        }
                         if (out_elempack == 4)
                         {
                             p0f[0] = sum;
@@ -2935,6 +3115,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (output_transpose)
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0[q] = float32_to_bfloat16(sum);
+                        }
                         if (out_elempack == 4)
                         {
                             p0[q] = float32_to_bfloat16(sum);
@@ -2946,6 +3130,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     else
                     {
+                        if (out_elempack == 8)
+                        {
+                            p0[0] = float32_to_bfloat16(sum);
+                        }
                         if (out_elempack == 4)
                         {
                             p0[0] = float32_to_bfloat16(sum);
@@ -4459,7 +4647,7 @@ int Gemm_mips::create_pipeline(const Option& opt)
 #if __mips_msa
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
             if (CT_data.empty())
                 return -100;
@@ -4997,7 +5185,7 @@ int Gemm_mips::create_pipeline_bf16s(const Option& opt)
 #if __mips_msa
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
             if (CT_data.empty())
                 return -100;
@@ -5446,7 +5634,10 @@ int Gemm_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (opt.use_packing_layout)
     {
         const int outh = output_transpose ? N : M;
-        out_elempack = outh % 4 == 0 ? 4 : 1;
+        if (output_elemtype == 1)
+            out_elempack = outh % 4 == 0 ? 4 : 1;
+        else
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
     }
 #endif
     if (output_elempack)

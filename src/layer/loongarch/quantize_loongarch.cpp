@@ -10,6 +10,8 @@
 #endif // __loongarch_asx
 #endif // __loongarch_sx
 
+#include <string.h>
+
 #include "loongarch_usability.h"
 
 namespace ncnn {
@@ -358,6 +360,38 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
 {
     const int scale_data_size = scale_data.w;
     const int size = elemcount * elempack;
+
+#if __loongarch_sx
+#if !__loongarch_asx
+    if (elempack == 8)
+    {
+        float scale = scale_data[0];
+        __m128 _scale0 = (__m128)__lsx_vreplfr2vr_s(scale);
+        __m128 _scale1 = _scale0;
+        if (scale_data_size > 1)
+        {
+            _scale0 = (__m128)__lsx_vld((const float*)scale_data, 0);
+            _scale1 = (__m128)__lsx_vld((const float*)scale_data + 4, 0);
+        }
+
+        __m128i _zero = __lsx_vreplgr2vr_w(0);
+        for (int i = 0; i < size; i += 8)
+        {
+            __m128i _v01_bf16 = __lsx_vld(ptr, 0);
+            __m128 _v0 = (__m128)__lsx_vilvl_h(_v01_bf16, _zero);
+            __m128 _v1 = (__m128)__lsx_vilvh_h(_v01_bf16, _zero);
+            _v0 = __lsx_vfmul_s(_v0, _scale0);
+            _v1 = __lsx_vfmul_s(_v1, _scale1);
+            int64_t v = float2int8(_v0, _v1);
+            memcpy(s8ptr, &v, 8);
+            ptr += 8;
+            s8ptr += 8;
+        }
+
+        return;
+    }
+#endif // !__loongarch_asx
+#endif // __loongarch_sx
 
     float scale = scale_data[0];
 #if __loongarch_sx

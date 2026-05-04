@@ -320,6 +320,36 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
     const int scale_data_size = scale_data.w;
     const int size = elemcount * elempack;
 
+#if __mips_msa
+    if (elempack == 8)
+    {
+        float scale = scale_data[0];
+        v4f32 _scale0 = (v4f32)__msa_fill_w_f32(scale);
+        v4f32 _scale1 = _scale0;
+        if (scale_data_size > 1)
+        {
+            _scale0 = (v4f32)__msa_ld_w((const float*)scale_data, 0);
+            _scale1 = (v4f32)__msa_ld_w((const float*)scale_data + 4, 0);
+        }
+
+        v8i16 _zero = __msa_fill_h(0);
+        for (int i = 0; i < size; i += 8)
+        {
+            v8i16 _v01_bf16 = __msa_ld_h(ptr, 0);
+            v4f32 _v0 = (v4f32)__msa_ilvr_h(_v01_bf16, _zero);
+            v4f32 _v1 = (v4f32)__msa_ilvl_h(_v01_bf16, _zero);
+            _v0 = __msa_fmul_w(_v0, _scale0);
+            _v1 = __msa_fmul_w(_v1, _scale1);
+            int64_t v = float2int8(_v0, _v1);
+            memcpy(s8ptr, &v, 8);
+            ptr += 8;
+            s8ptr += 8;
+        }
+
+        return;
+    }
+#endif // __mips_msa
+
     float scale = scale_data[0];
 #if __mips_msa
     v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);

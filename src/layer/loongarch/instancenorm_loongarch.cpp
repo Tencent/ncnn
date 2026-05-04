@@ -16,9 +16,6 @@ namespace ncnn {
 
 InstanceNorm_loongarch::InstanceNorm_loongarch()
 {
-#if __loongarch_sx
-    support_packing = true;
-#endif // __loongarch_sx
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -31,174 +28,15 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
         return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
+    // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
+    int c = bottom_top_blob.c;
     int size = w * h;
 
-#if __loongarch_sx
-    int elempack = bottom_top_blob.elempack;
-#if __loongarch_asx
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            __m256 _sum = (__m256)__lasx_xvreplfr2vr_s(0.f);
-            const float* ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = (__m256)__lasx_xvld(ptr0, 0);
-                _sum = __lasx_xvfadd_s(_sum, _p);
-                ptr0 += 8;
-            }
-
-            float sum_data[8];
-            __lasx_xvst(_sum, sum_data, 0);
-
-            float mean_data[8];
-            for (int i = 0; i < 8; i++)
-            {
-                mean_data[i] = sum_data[i] / size;
-            }
-            __m256 _mean = (__m256)__lasx_xvld(mean_data, 0);
-
-            __m256 _sqsum = (__m256)__lasx_xvreplfr2vr_s(0.f);
-            ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = (__m256)__lasx_xvld(ptr0, 0);
-                _p = __lasx_xvfsub_s(_p, _mean);
-                _sqsum = __lasx_xvfmadd_s(_p, _p, _sqsum);
-                ptr0 += 8;
-            }
-
-            float sqsum_data[8];
-            __lasx_xvst(_sqsum, sqsum_data, 0);
-
-            float a_data[8];
-            float b_data[8];
-            if (affine)
-            {
-                const float* gamma_ptr = (const float*)gamma_data + q * 8;
-                const float* beta_ptr = (const float*)beta_data + q * 8;
-
-                for (int i = 0; i < 8; i++)
-                {
-                    float a = gamma_ptr[i] / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a + beta_ptr[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    float a = 1.f / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a;
-                }
-            }
-
-            __m256 _a = (__m256)__lasx_xvld(a_data, 0);
-            __m256 _b = (__m256)__lasx_xvld(b_data, 0);
-
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = (__m256)__lasx_xvld(ptr, 0);
-                _p = __lasx_xvfmadd_s(_p, _a, _b);
-                __lasx_xvst(_p, ptr, 0);
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
-#endif // __loongarch_asx
-
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
-            const float* ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m128 _p = (__m128)__lsx_vld(ptr0, 0);
-                _sum = __lsx_vfadd_s(_sum, _p);
-                ptr0 += 4;
-            }
-
-            float sum_data[4];
-            __lsx_vst(_sum, sum_data, 0);
-
-            float mean_data[4];
-            for (int i = 0; i < 4; i++)
-            {
-                mean_data[i] = sum_data[i] / size;
-            }
-            __m128 _mean = (__m128)__lsx_vld(mean_data, 0);
-
-            __m128 _sqsum = (__m128)__lsx_vreplfr2vr_s(0.f);
-            ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m128 _p = (__m128)__lsx_vld(ptr0, 0);
-                _p = __lsx_vfsub_s(_p, _mean);
-                _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
-                ptr0 += 4;
-            }
-
-            float sqsum_data[4];
-            __lsx_vst(_sqsum, sqsum_data, 0);
-
-            float a_data[4];
-            float b_data[4];
-            if (affine)
-            {
-                const float* gamma_ptr = (const float*)gamma_data + q * 4;
-                const float* beta_ptr = (const float*)beta_data + q * 4;
-
-                for (int i = 0; i < 4; i++)
-                {
-                    float a = gamma_ptr[i] / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a + beta_ptr[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    float a = 1.f / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a;
-                }
-            }
-
-            __m128 _a = (__m128)__lsx_vld(a_data, 0);
-            __m128 _b = (__m128)__lsx_vld(b_data, 0);
-
-            for (int i = 0; i < size; i++)
-            {
-                __m128 _p = (__m128)__lsx_vld(ptr, 0);
-                _p = __lsx_vfmadd_s(_p, _a, _b);
-                __lsx_vst(_p, ptr, 0);
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __loongarch_sx
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int q = 0; q < c; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
         const float* ptr0 = ptr;
@@ -219,21 +57,23 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
         }
         sum += __lasx_reduce_fadd_s(_sum_lasx);
 #endif // __loongarch_asx
-        __m128 _sum_lsx = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr0, 0);
-            _sum_lsx = __lsx_vfadd_s(_sum_lsx, _p);
+            _sum = __lsx_vfadd_s(_sum, _p);
             ptr0 += 4;
         }
-        sum += __lsx_reduce_fadd_s(_sum_lsx);
+        sum += __lsx_reduce_fadd_s(_sum);
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            sum += *ptr0++;
+            sum += ptr0[0];
+            ptr0++;
         }
 
         float mean = sum / size;
+        float tmp = 0.f;
 
         ptr0 = ptr;
         i = 0;
@@ -250,24 +90,26 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
         }
         sqsum += __lasx_reduce_fadd_s(_sqsum_lasx);
 #endif // __loongarch_asx
-        __m128 _sqsum_lsx = (__m128)__lsx_vreplfr2vr_s(0.f);
-        __m128 _mean_lsx = (__m128)__lsx_vreplfr2vr_s(mean);
+        __m128 _sqsum = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128 _mean = (__m128)__lsx_vreplfr2vr_s(mean);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr0, 0);
-            _p = __lsx_vfsub_s(_p, _mean_lsx);
-            _sqsum_lsx = __lsx_vfmadd_s(_p, _p, _sqsum_lsx);
+            _p = __lsx_vfsub_s(_p, _mean);
+            _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
             ptr0 += 4;
         }
-        sqsum += __lsx_reduce_fadd_s(_sqsum_lsx);
+        sqsum += __lsx_reduce_fadd_s(_sqsum);
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            float tmp = *ptr0++ - mean;
+            tmp = ptr0[0] - mean;
             sqsum += tmp * tmp;
+            ptr0++;
         }
 
         float var = sqsum / size;
+        // the var maybe minus due to accuracy
 
         float a;
         float b;
@@ -276,12 +118,12 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = gamma / sqrtf(var + eps);
+            a = gamma / (sqrtf(var + eps));
             b = -mean * a + beta;
         }
         else
         {
-            a = 1.f / sqrtf(var + eps);
+            a = 1.f / (sqrtf(var + eps));
             b = -mean * a;
         }
 
@@ -298,19 +140,19 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
             ptr += 8;
         }
 #endif // __loongarch_asx
-        __m128 _a_lsx = (__m128)__lsx_vreplfr2vr_s(a);
-        __m128 _b_lsx = (__m128)__lsx_vreplfr2vr_s(b);
+        __m128 _a = (__m128)__lsx_vreplfr2vr_s(a);
+        __m128 _b = (__m128)__lsx_vreplfr2vr_s(b);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = (__m128)__lsx_vld(ptr, 0);
-            _p = __lsx_vfmadd_s(_p, _a_lsx, _b_lsx);
+            _p = __lsx_vfmadd_s(_p, _a, _b);
             __lsx_vst(_p, ptr, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            *ptr = *ptr * a + b;
+            ptr[0] = ptr[0] * a + b;
             ptr++;
         }
     }
@@ -321,214 +163,22 @@ int InstanceNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& 
 #if NCNN_BF16
 int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
+    int c = bottom_top_blob.c;
     int size = w * h;
 
-#if __loongarch_sx
-    int elempack = bottom_top_blob.elempack;
-#if __loongarch_asx
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
-
-            __m256 _sum = (__m256)__lasx_xvreplfr2vr_s(0.f);
-            const unsigned short* ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
-                _sum = __lasx_xvfadd_s(_sum, _p);
-                ptr0 += 8;
-            }
-
-            float sum_data[8];
-            __lasx_xvst(_sum, sum_data, 0);
-
-            float mean_data[8];
-            for (int i = 0; i < 8; i++)
-            {
-                mean_data[i] = sum_data[i] / size;
-            }
-            __m256 _mean = (__m256)__lasx_xvld(mean_data, 0);
-
-            __m256 _sqsum = (__m256)__lasx_xvreplfr2vr_s(0.f);
-            ptr0 = ptr;
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
-                _p = __lasx_xvfsub_s(_p, _mean);
-                _sqsum = __lasx_xvfmadd_s(_p, _p, _sqsum);
-                ptr0 += 8;
-            }
-
-            float sqsum_data[8];
-            __lasx_xvst(_sqsum, sqsum_data, 0);
-
-            float a_data[8];
-            float b_data[8];
-            if (affine)
-            {
-                const float* gamma_ptr = (const float*)gamma_data + q * 8;
-                const float* beta_ptr = (const float*)beta_data + q * 8;
-
-                for (int i = 0; i < 8; i++)
-                {
-                    float a = gamma_ptr[i] / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a + beta_ptr[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    float a = 1.f / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a;
-                }
-            }
-
-            __m256 _a = (__m256)__lasx_xvld(a_data, 0);
-            __m256 _b = (__m256)__lasx_xvld(b_data, 0);
-
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _p = bfloat2float_lasx((__m128i*)ptr);
-                _p = __lasx_xvfmadd_s(_p, _a, _b);
-                __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
-#endif // __loongarch_asx
-
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            unsigned short* ptr = (unsigned short*)bottom_top_blob.channel(q);
-
-            __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
-            const unsigned short* ptr0 = ptr;
-            int i = 0;
-            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
-            for (; i + 1 < size; i += 2)
-            {
-                __m128i _p01 = __lsx_vld(ptr0, 0);
-                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
-                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
-                _sum = __lsx_vfadd_s(_sum, _p0);
-                _sum = __lsx_vfadd_s(_sum, _p1);
-                ptr0 += 8;
-            }
-            for (; i < size; i++)
-            {
-                __m128 _p = bfloat2float_lsx(ptr0);
-                _sum = __lsx_vfadd_s(_sum, _p);
-                ptr0 += 4;
-            }
-
-            float sum_data[4];
-            __lsx_vst(_sum, sum_data, 0);
-
-            float mean_data[4];
-            for (int i = 0; i < 4; i++)
-            {
-                mean_data[i] = sum_data[i] / size;
-            }
-            __m128 _mean = (__m128)__lsx_vld(mean_data, 0);
-
-            __m128 _sqsum = (__m128)__lsx_vreplfr2vr_s(0.f);
-            ptr0 = ptr;
-            i = 0;
-            for (; i + 1 < size; i += 2)
-            {
-                __m128i _p01 = __lsx_vld(ptr0, 0);
-                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
-                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
-                _p0 = __lsx_vfsub_s(_p0, _mean);
-                _p1 = __lsx_vfsub_s(_p1, _mean);
-                _sqsum = __lsx_vfmadd_s(_p0, _p0, _sqsum);
-                _sqsum = __lsx_vfmadd_s(_p1, _p1, _sqsum);
-                ptr0 += 8;
-            }
-            for (; i < size; i++)
-            {
-                __m128 _p = bfloat2float_lsx(ptr0);
-                _p = __lsx_vfsub_s(_p, _mean);
-                _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
-                ptr0 += 4;
-            }
-
-            float sqsum_data[4];
-            __lsx_vst(_sqsum, sqsum_data, 0);
-
-            float a_data[4];
-            float b_data[4];
-            if (affine)
-            {
-                const float* gamma_ptr = (const float*)gamma_data + q * 4;
-                const float* beta_ptr = (const float*)beta_data + q * 4;
-
-                for (int i = 0; i < 4; i++)
-                {
-                    float a = gamma_ptr[i] / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a + beta_ptr[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    float a = 1.f / sqrtf(sqsum_data[i] / size + eps);
-                    a_data[i] = a;
-                    b_data[i] = -mean_data[i] * a;
-                }
-            }
-
-            __m128 _a = (__m128)__lsx_vld(a_data, 0);
-            __m128 _b = (__m128)__lsx_vld(b_data, 0);
-
-            for (i = 0; i + 1 < size; i += 2)
-            {
-                __m128i _p01 = __lsx_vld(ptr, 0);
-                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
-                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
-                _p0 = __lsx_vfmadd_s(_p0, _a, _b);
-                _p1 = __lsx_vfmadd_s(_p1, _a, _b);
-                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
-                ptr += 8;
-            }
-            for (; i < size; i++)
-            {
-                __m128 _p = bfloat2float_lsx(ptr);
-                _p = __lsx_vfmadd_s(_p, _a, _b);
-                __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __loongarch_sx
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int q = 0; q < c; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
+        const unsigned short* ptr0 = ptr;
 
         // mean and var
         float sum = 0.f;
         float sqsum = 0.f;
-        const unsigned short* ptr0 = ptr;
 
         int i = 0;
 #if __loongarch_sx
@@ -536,37 +186,39 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         __m256 _sum_lasx = (__m256)__lasx_xvreplfr2vr_s(0.f);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr0, 0));
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
             _sum_lasx = __lasx_xvfadd_s(_sum_lasx, _p);
             ptr0 += 8;
         }
         sum += __lasx_reduce_fadd_s(_sum_lasx);
 #endif // __loongarch_asx
-        __m128 _sum_lsx = (__m128)__lsx_vreplfr2vr_s(0.f);
-        __m128i _zero_bf16_sum = __lsx_vreplgr2vr_w(0);
+        __m128 _sum = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
         for (; i + 7 < size; i += 8)
         {
             __m128i _p01 = __lsx_vld(ptr0, 0);
-            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16_sum);
-            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16_sum);
-            _sum_lsx = __lsx_vfadd_s(_sum_lsx, _p0);
-            _sum_lsx = __lsx_vfadd_s(_sum_lsx, _p1);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _sum = __lsx_vfadd_s(_sum, _p0);
+            _sum = __lsx_vfadd_s(_sum, _p1);
             ptr0 += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx(ptr0);
-            _sum_lsx = __lsx_vfadd_s(_sum_lsx, _p);
+            _sum = __lsx_vfadd_s(_sum, _p);
             ptr0 += 4;
         }
-        sum += __lsx_reduce_fadd_s(_sum_lsx);
+        sum += __lsx_reduce_fadd_s(_sum);
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            sum += bfloat16_to_float32(*ptr0++);
+            sum += bfloat16_to_float32(ptr0[0]);
+            ptr0++;
         }
 
         float mean = sum / size;
+        float tmp = 0.f;
 
         ptr0 = ptr;
         i = 0;
@@ -576,43 +228,44 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         __m256 _mean_lasx = (__m256)__lasx_xvreplfr2vr_s(mean);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr0, 0));
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr0);
             _p = __lasx_xvfsub_s(_p, _mean_lasx);
             _sqsum_lasx = __lasx_xvfmadd_s(_p, _p, _sqsum_lasx);
             ptr0 += 8;
         }
         sqsum += __lasx_reduce_fadd_s(_sqsum_lasx);
 #endif // __loongarch_asx
-        __m128 _sqsum_lsx = (__m128)__lsx_vreplfr2vr_s(0.f);
-        __m128 _mean_lsx = (__m128)__lsx_vreplfr2vr_s(mean);
-        __m128i _zero_bf16_sqsum = __lsx_vreplgr2vr_w(0);
+        __m128 _sqsum = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128 _mean = (__m128)__lsx_vreplfr2vr_s(mean);
         for (; i + 7 < size; i += 8)
         {
             __m128i _p01 = __lsx_vld(ptr0, 0);
-            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16_sqsum);
-            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16_sqsum);
-            _p0 = __lsx_vfsub_s(_p0, _mean_lsx);
-            _p1 = __lsx_vfsub_s(_p1, _mean_lsx);
-            _sqsum_lsx = __lsx_vfmadd_s(_p0, _p0, _sqsum_lsx);
-            _sqsum_lsx = __lsx_vfmadd_s(_p1, _p1, _sqsum_lsx);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _p0 = __lsx_vfsub_s(_p0, _mean);
+            _p1 = __lsx_vfsub_s(_p1, _mean);
+            _sqsum = __lsx_vfmadd_s(_p0, _p0, _sqsum);
+            _sqsum = __lsx_vfmadd_s(_p1, _p1, _sqsum);
             ptr0 += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx(ptr0);
-            _p = __lsx_vfsub_s(_p, _mean_lsx);
-            _sqsum_lsx = __lsx_vfmadd_s(_p, _p, _sqsum_lsx);
+            _p = __lsx_vfsub_s(_p, _mean);
+            _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
             ptr0 += 4;
         }
-        sqsum += __lsx_reduce_fadd_s(_sqsum_lsx);
+        sqsum += __lsx_reduce_fadd_s(_sqsum);
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            float tmp = bfloat16_to_float32(*ptr0++) - mean;
+            tmp = bfloat16_to_float32(ptr0[0]) - mean;
             sqsum += tmp * tmp;
+            ptr0++;
         }
 
         float var = sqsum / size;
+        // the var maybe minus due to accuracy
 
         float a;
         float b;
@@ -621,12 +274,12 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = gamma / sqrtf(var + eps);
+            a = gamma / (sqrtf(var + eps));
             b = -mean * a + beta;
         }
         else
         {
-            a = 1.f / sqrtf(var + eps);
+            a = 1.f / (sqrtf(var + eps));
             b = -mean * a;
         }
 
@@ -637,36 +290,35 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         __m256 _b_lasx = (__m256)__lasx_xvreplfr2vr_s(b);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0));
+            __m256 _p = bfloat2float_lasx((__m128i*)ptr);
             _p = __lasx_xvfmadd_s(_p, _a_lasx, _b_lasx);
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
             ptr += 8;
         }
 #endif // __loongarch_asx
-        __m128 _a_lsx = (__m128)__lsx_vreplfr2vr_s(a);
-        __m128 _b_lsx = (__m128)__lsx_vreplfr2vr_s(b);
-        __m128i _zero_bf16_apply = __lsx_vreplgr2vr_w(0);
+        __m128 _a = (__m128)__lsx_vreplfr2vr_s(a);
+        __m128 _b = (__m128)__lsx_vreplfr2vr_s(b);
         for (; i + 7 < size; i += 8)
         {
             __m128i _p01 = __lsx_vld(ptr, 0);
-            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16_apply);
-            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16_apply);
-            _p0 = __lsx_vfmadd_s(_p0, _a_lsx, _b_lsx);
-            _p1 = __lsx_vfmadd_s(_p1, _a_lsx, _b_lsx);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            _p0 = __lsx_vfmadd_s(_p0, _a, _b);
+            _p1 = __lsx_vfmadd_s(_p1, _a, _b);
             __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = bfloat2float_lsx(ptr);
-            _p = __lsx_vfmadd_s(_p, _a_lsx, _b_lsx);
+            _p = __lsx_vfmadd_s(_p, _a, _b);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * a + b);
+            ptr[0] = float32_to_bfloat16(bfloat16_to_float32(ptr[0]) * a + b);
             ptr++;
         }
     }

@@ -10,7 +10,7 @@ static void innerproduct_transform_kernel_bf16s_lsx(const Mat& weight_data, Mat&
 #if __loongarch_asx
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif
@@ -97,6 +97,72 @@ static void innerproduct_transform_kernel_bf16s_lsx(const Mat& weight_data, Mat&
     }
 #endif // __loongarch_asx
 
+#if !__loongarch_asx
+    if (out_elempack == 8)
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_tm.create(num_input, num_output / 8, (size_t)16u, 8);
+
+        for (int q = 0; q + 7 < num_output; q += 8)
+        {
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / 8);
+
+            const float* k0 = weight_data_r2.row(q);
+            const float* k1 = weight_data_r2.row(q + 1);
+            const float* k2 = weight_data_r2.row(q + 2);
+            const float* k3 = weight_data_r2.row(q + 3);
+            const float* k4 = weight_data_r2.row(q + 4);
+            const float* k5 = weight_data_r2.row(q + 5);
+            const float* k6 = weight_data_r2.row(q + 6);
+            const float* k7 = weight_data_r2.row(q + 7);
+
+            int p = 0;
+            for (; p + 3 < num_input; p += 4)
+            {
+                __m128 _r0 = (__m128)__lsx_vld(k0, 0);
+                __m128 _r1 = (__m128)__lsx_vld(k1, 0);
+                __m128 _r2 = (__m128)__lsx_vld(k2, 0);
+                __m128 _r3 = (__m128)__lsx_vld(k3, 0);
+                __m128 _r4 = (__m128)__lsx_vld(k4, 0);
+                __m128 _r5 = (__m128)__lsx_vld(k5, 0);
+                __m128 _r6 = (__m128)__lsx_vld(k6, 0);
+                __m128 _r7 = (__m128)__lsx_vld(k7, 0);
+
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                __lsx_vst(float2bfloat_lsx(_r0, _r4), g0, 0);
+                __lsx_vst(float2bfloat_lsx(_r1, _r5), g0 + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_r2, _r6), g0 + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_r3, _r7), g0 + 24, 0);
+
+                k0 += 4;
+                k1 += 4;
+                k2 += 4;
+                k3 += 4;
+                k4 += 4;
+                k5 += 4;
+                k6 += 4;
+                k7 += 4;
+                g0 += 32;
+            }
+            for (; p < num_input; p++)
+            {
+                g0[0] = float32_to_bfloat16(*k0++);
+                g0[1] = float32_to_bfloat16(*k1++);
+                g0[2] = float32_to_bfloat16(*k2++);
+                g0[3] = float32_to_bfloat16(*k3++);
+                g0[4] = float32_to_bfloat16(*k4++);
+                g0[5] = float32_to_bfloat16(*k5++);
+                g0[6] = float32_to_bfloat16(*k6++);
+                g0[7] = float32_to_bfloat16(*k7++);
+                g0 += 8;
+            }
+        }
+    }
+#endif // !__loongarch_asx
+
     if (out_elempack == 4)
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
@@ -168,7 +234,7 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 #if __loongarch_asx
         num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        num_output_elempack = num_output % 4 == 0 ? 4 : 1;
+        num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif
@@ -353,6 +419,319 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
                 const unsigned short* m = bottom_blob.row<const unsigned short>(j);
 
+                __m256 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
+                __m256 _sum1 = _sum0;
+                __m256 _sum2 = _sum0;
+                __m256 _sum3 = _sum0;
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (__m256)__lasx_xvreplfr2vr_s(bias_data_ptr[p * 4 + 0]);
+                    _sum1 = (__m256)__lasx_xvreplfr2vr_s(bias_data_ptr[p * 4 + 1]);
+                    _sum2 = (__m256)__lasx_xvreplfr2vr_s(bias_data_ptr[p * 4 + 2]);
+                    _sum3 = (__m256)__lasx_xvreplfr2vr_s(bias_data_ptr[p * 4 + 3]);
+                }
+
+                for (int i = 0; i < num_input; i++)
+                {
+                    __m256 _val = bfloat2float_lasx(__lsx_vld(m, 0));
+                    _sum0 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[0])), _val, _sum0);
+                    _sum1 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[1])), _val, _sum1);
+                    _sum2 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[2])), _val, _sum2);
+                    _sum3 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[3])), _val, _sum3);
+
+                    m += 8;
+                    kptr += 4;
+                }
+
+                _sum0 = activation_lasx(_sum0, activation_type, activation_params);
+                _sum1 = activation_lasx(_sum1, activation_type, activation_params);
+                _sum2 = activation_lasx(_sum2, activation_type, activation_params);
+                _sum3 = activation_lasx(_sum3, activation_type, activation_params);
+
+                __lsx_vst(float2bfloat_lasx(_sum0), outptr, 0);
+                __lsx_vst(float2bfloat_lasx(_sum1), outptr + 8, 0);
+                __lsx_vst(float2bfloat_lasx(_sum2), outptr + 16, 0);
+                __lsx_vst(float2bfloat_lasx(_sum3), outptr + 24, 0);
+                outptr += 32;
+            }
+        }
+
+        if (elempack == 8 && num_output_elempack == 1)
+        {
+            unsigned short* outptr = top_blob.row<unsigned short>(j);
+
+            for (int p = 0; p < num_output; p++)
+            {
+                const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+                const unsigned short* m = bottom_blob.row<const unsigned short>(j);
+
+                __m256 _sum = (__m256)__lasx_xvreplgr2vr_w(0);
+
+                if (bias_data_ptr)
+                {
+                    _sum = (__m256)__lasx_xvreplfr2vr_s(bias_data_ptr[p]);
+                }
+
+                for (int i = 0; i < num_input; i++)
+                {
+                    __m256 _val = bfloat2float_lasx(__lsx_vld(m, 0));
+                    __m256 _w = (__m256)__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[0]));
+                    _sum = __lasx_xvfmadd_s(_w, _val, _sum);
+
+                    m += 8;
+                    kptr += 1;
+                }
+
+                _sum = activation_lasx(_sum, activation_type, activation_params);
+
+                __lsx_vst(float2bfloat_lasx(_sum), outptr, 0);
+                outptr += 8;
+            }
+        }
+
+#endif // __loongarch_asx
+
+#if !__loongarch_asx
+
+        if (elempack == 8 && num_output_elempack == 8)
+        {
+            unsigned short* outptr = top_blob.row<unsigned short>(j);
+
+            for (int p = 0; p < num_output / num_output_elempack; p++)
+            {
+                const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+                const unsigned short* m = bottom_blob.row<const unsigned short>(j);
+
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = _sum0;
+                __m128 _sum2 = _sum0;
+                __m128 _sum3 = _sum0;
+                __m128 _sum4 = _sum0;
+                __m128 _sum5 = _sum0;
+                __m128 _sum6 = _sum0;
+                __m128 _sum7 = _sum0;
+                __m128 _sum8 = _sum0;
+                __m128 _sum9 = _sum0;
+                __m128 _suma = _sum0;
+                __m128 _sumb = _sum0;
+                __m128 _sumc = _sum0;
+                __m128 _sumd = _sum0;
+                __m128 _sume = _sum0;
+                __m128 _sumf = _sum0;
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (__m128)__lsx_vld(bias_data_ptr + p * 8, 0);
+                    _sum8 = (__m128)__lsx_vld(bias_data_ptr + p * 8 + 4, 0);
+                }
+                _sum1 = _sum0;
+                _sum2 = _sum0;
+                _sum3 = _sum0;
+                _sum4 = _sum0;
+                _sum5 = _sum0;
+                _sum6 = _sum0;
+                _sum7 = _sum0;
+                _sum9 = _sum8;
+                _suma = _sum8;
+                _sumb = _sum8;
+                _sumc = _sum8;
+                _sumd = _sum8;
+                _sume = _sum8;
+                _sumf = _sum8;
+
+                for (int i = 0; i < num_input; i++)
+                {
+                    __m128 _m0 = bfloat2float_lsx(m);
+                    __m128 _m1 = bfloat2float_lsx(m + 4);
+                    __m128 _w0 = bfloat2float_lsx(kptr);
+                    __m128 _w1 = bfloat2float_lsx(kptr + 4);
+
+                    __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 0);
+                    __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 1);
+                    __m128 _val2 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 2);
+                    __m128 _val3 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 3);
+                    __m128 _val4 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 0);
+                    __m128 _val5 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 1);
+                    __m128 _val6 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 2);
+                    __m128 _val7 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 3);
+
+                    _sum0 = __lsx_vfmadd_s(_val0, _w0, _sum0);
+                    _sum1 = __lsx_vfmadd_s(_val1, _w0, _sum1);
+                    _sum2 = __lsx_vfmadd_s(_val2, _w0, _sum2);
+                    _sum3 = __lsx_vfmadd_s(_val3, _w0, _sum3);
+                    _sum4 = __lsx_vfmadd_s(_val4, _w0, _sum4);
+                    _sum5 = __lsx_vfmadd_s(_val5, _w0, _sum5);
+                    _sum6 = __lsx_vfmadd_s(_val6, _w0, _sum6);
+                    _sum7 = __lsx_vfmadd_s(_val7, _w0, _sum7);
+                    _sum8 = __lsx_vfmadd_s(_val0, _w1, _sum8);
+                    _sum9 = __lsx_vfmadd_s(_val1, _w1, _sum9);
+                    _suma = __lsx_vfmadd_s(_val2, _w1, _suma);
+                    _sumb = __lsx_vfmadd_s(_val3, _w1, _sumb);
+                    _sumc = __lsx_vfmadd_s(_val4, _w1, _sumc);
+                    _sumd = __lsx_vfmadd_s(_val5, _w1, _sumd);
+                    _sume = __lsx_vfmadd_s(_val6, _w1, _sume);
+                    _sumf = __lsx_vfmadd_s(_val7, _w1, _sumf);
+
+                    m += 8;
+                    kptr += 8;
+                }
+
+                _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+                _sum2 = activation_lsx(_sum2, activation_type, activation_params);
+                _sum3 = activation_lsx(_sum3, activation_type, activation_params);
+                _sum4 = activation_lsx(_sum4, activation_type, activation_params);
+                _sum5 = activation_lsx(_sum5, activation_type, activation_params);
+                _sum6 = activation_lsx(_sum6, activation_type, activation_params);
+                _sum7 = activation_lsx(_sum7, activation_type, activation_params);
+                _sum8 = activation_lsx(_sum8, activation_type, activation_params);
+                _sum9 = activation_lsx(_sum9, activation_type, activation_params);
+                _suma = activation_lsx(_suma, activation_type, activation_params);
+                _sumb = activation_lsx(_sumb, activation_type, activation_params);
+                _sumc = activation_lsx(_sumc, activation_type, activation_params);
+                _sumd = activation_lsx(_sumd, activation_type, activation_params);
+                _sume = activation_lsx(_sume, activation_type, activation_params);
+                _sumf = activation_lsx(_sumf, activation_type, activation_params);
+
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+                transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
+                transpose4x4_ps(_sumc, _sumd, _sume, _sumf);
+
+                __lsx_vst(float2bfloat_lsx(_sum0, _sum4), outptr, 0);
+                __lsx_vst(float2bfloat_lsx(_sum1, _sum5), outptr + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_sum2, _sum6), outptr + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_sum3, _sum7), outptr + 24, 0);
+                __lsx_vst(float2bfloat_lsx(_sum8, _sumc), outptr + 32, 0);
+                __lsx_vst(float2bfloat_lsx(_sum9, _sumd), outptr + 40, 0);
+                __lsx_vst(float2bfloat_lsx(_suma, _sume), outptr + 48, 0);
+                __lsx_vst(float2bfloat_lsx(_sumb, _sumf), outptr + 56, 0);
+                outptr += 64;
+            }
+        }
+
+        if (elempack == 1 && num_output_elempack == 8)
+        {
+            unsigned short* outptr = top_blob.row<unsigned short>(j);
+
+            for (int p = 0; p < num_output / num_output_elempack; p++)
+            {
+                const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+                const unsigned short* m = bottom_blob.row<const unsigned short>(j);
+
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (__m128)__lsx_vld(bias_data_ptr + p * 8, 0);
+                    _sum1 = (__m128)__lsx_vld(bias_data_ptr + p * 8 + 4, 0);
+                }
+
+                int i = 0;
+                for (; i < num_input; i++)
+                {
+                    __m128 _val = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[0]));
+                    __m128 _w0 = bfloat2float_lsx(kptr);
+                    __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                    _sum0 = __lsx_vfmadd_s(_val, _w0, _sum0);
+                    _sum1 = __lsx_vfmadd_s(_val, _w1, _sum1);
+
+                    m += 1;
+                    kptr += 8;
+                }
+
+                _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+
+                __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr, 0);
+                outptr += 8;
+            }
+        }
+
+        if (elempack == 4 && num_output_elempack == 8)
+        {
+            unsigned short* outptr = top_blob.row<unsigned short>(j);
+
+            for (int p = 0; p < num_output / num_output_elempack; p++)
+            {
+                const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+                const unsigned short* m = bottom_blob.row<const unsigned short>(j);
+
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = _sum0;
+                __m128 _sum2 = _sum0;
+                __m128 _sum3 = _sum0;
+                __m128 _sum4 = _sum0;
+                __m128 _sum5 = _sum0;
+                __m128 _sum6 = _sum0;
+                __m128 _sum7 = _sum0;
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (__m128)__lsx_vld(bias_data_ptr + p * 8, 0);
+                    _sum4 = (__m128)__lsx_vld(bias_data_ptr + p * 8 + 4, 0);
+                }
+                _sum1 = _sum0;
+                _sum2 = _sum0;
+                _sum3 = _sum0;
+                _sum5 = _sum4;
+                _sum6 = _sum4;
+                _sum7 = _sum4;
+
+                int i = 0;
+                for (; i < num_input; i++)
+                {
+                    __m128 _val0 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[0]));
+                    __m128 _val1 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[1]));
+                    __m128 _val2 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[2]));
+                    __m128 _val3 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[3]));
+                    __m128 _w0 = bfloat2float_lsx(kptr);
+                    __m128 _w1 = bfloat2float_lsx(kptr + 4);
+
+                    _sum0 = __lsx_vfmadd_s(_val0, _w0, _sum0);
+                    _sum1 = __lsx_vfmadd_s(_val1, _w0, _sum1);
+                    _sum2 = __lsx_vfmadd_s(_val2, _w0, _sum2);
+                    _sum3 = __lsx_vfmadd_s(_val3, _w0, _sum3);
+                    _sum4 = __lsx_vfmadd_s(_val0, _w1, _sum4);
+                    _sum5 = __lsx_vfmadd_s(_val1, _w1, _sum5);
+                    _sum6 = __lsx_vfmadd_s(_val2, _w1, _sum6);
+                    _sum7 = __lsx_vfmadd_s(_val3, _w1, _sum7);
+
+                    m += 4;
+                    kptr += 8;
+                }
+
+                _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                _sum1 = activation_lsx(_sum1, activation_type, activation_params);
+                _sum2 = activation_lsx(_sum2, activation_type, activation_params);
+                _sum3 = activation_lsx(_sum3, activation_type, activation_params);
+                _sum4 = activation_lsx(_sum4, activation_type, activation_params);
+                _sum5 = activation_lsx(_sum5, activation_type, activation_params);
+                _sum6 = activation_lsx(_sum6, activation_type, activation_params);
+                _sum7 = activation_lsx(_sum7, activation_type, activation_params);
+
+                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
+                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
+
+                __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr, 0);
+                __lsx_vst(float2bfloat_lsx(_sum2, _sum3), outptr + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_sum4, _sum5), outptr + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_sum6, _sum7), outptr + 24, 0);
+                outptr += 32;
+            }
+        }
+
+        if (elempack == 8 && num_output_elempack == 4)
+        {
+            unsigned short* outptr = top_blob.row<unsigned short>(j);
+
+            for (int p = 0; p < num_output / num_output_elempack; p++)
+            {
+                const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+                const unsigned short* m = bottom_blob.row<const unsigned short>(j);
+
                 __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
 
                 if (bias_data_ptr)
@@ -368,18 +747,21 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 __m128 _sum6 = _sum0;
                 __m128 _sum7 = _sum0;
 
-                int i = 0;
-                for (; i < num_input; i++)
+                for (int i = 0; i < num_input; i++)
                 {
-                    __m128 _val0 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[0]));
-                    __m128 _val1 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[1]));
-                    __m128 _val2 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[2]));
-                    __m128 _val3 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[3]));
-                    __m128 _val4 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[4]));
-                    __m128 _val5 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[5]));
-                    __m128 _val6 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[6]));
-                    __m128 _val7 = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[7]));
+                    __m128 _m0 = bfloat2float_lsx(m);
+                    __m128 _m1 = bfloat2float_lsx(m + 4);
                     __m128 _w = bfloat2float_lsx(kptr);
+
+                    __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 0);
+                    __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 1);
+                    __m128 _val2 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 2);
+                    __m128 _val3 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 3);
+                    __m128 _val4 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 0);
+                    __m128 _val5 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 1);
+                    __m128 _val6 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 2);
+                    __m128 _val7 = (__m128)__lsx_vreplvei_w((__m128i)_m1, 3);
+
                     _sum0 = __lsx_vfmadd_s(_val0, _w, _sum0);
                     _sum1 = __lsx_vfmadd_s(_val1, _w, _sum1);
                     _sum2 = __lsx_vfmadd_s(_val2, _w, _sum2);
@@ -402,21 +784,13 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 _sum6 = activation_lsx(_sum6, activation_type, activation_params);
                 _sum7 = activation_lsx(_sum7, activation_type, activation_params);
 
-                // transpose 4x8 and store as bf16
-                // _sum0..3 hold batch 0..3, _sum4..7 hold batch 4..7
-                // each has [out0, out1, out2, out3]
                 transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                 transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                // after transpose: _sum0=[out0_b0..3], _sum4=[out0_b4..7] etc.
 
-                __m128i _bf16_0 = float2bfloat_lsx(_sum0, _sum4);
-                __m128i _bf16_1 = float2bfloat_lsx(_sum1, _sum5);
-                __m128i _bf16_2 = float2bfloat_lsx(_sum2, _sum6);
-                __m128i _bf16_3 = float2bfloat_lsx(_sum3, _sum7);
-                __lsx_vst(_bf16_0, outptr, 0);
-                __lsx_vst(_bf16_1, outptr + 8, 0);
-                __lsx_vst(_bf16_2, outptr + 16, 0);
-                __lsx_vst(_bf16_3, outptr + 24, 0);
+                __lsx_vst(float2bfloat_lsx(_sum0, _sum4), outptr, 0);
+                __lsx_vst(float2bfloat_lsx(_sum1, _sum5), outptr + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_sum2, _sum6), outptr + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_sum3, _sum7), outptr + 24, 0);
                 outptr += 32;
             }
         }
@@ -430,58 +804,33 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
                 const unsigned short* m = bottom_blob.row<const unsigned short>(j);
 
-                __m256 _sum0 = (__m256)__lasx_xvreplgr2vr_w(0);
-                __m256 _sum1 = _sum0;
-                __m256 _sum2 = _sum0;
-                __m256 _sum3 = _sum0;
-
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
                 if (bias_data_ptr)
                 {
-                    _sum0 = __lasx_xvreplfr2vr_s(bias_data_ptr[p]);
+                    _sum0 = __lsx_vreplfr2vr_s(bias_data_ptr[p]);
                 }
+                __m128 _sum1 = _sum0;
 
-                int i = 0;
-                for (; i + 3 < num_input; i += 4)
+                for (int i = 0; i < num_input; i++)
                 {
-                    __m256 _val0 = bfloat2float_lasx(__lsx_vld(m, 0));
-                    __m256 _val1 = bfloat2float_lasx(__lsx_vld(m + 8, 0));
-                    __m256 _val2 = bfloat2float_lasx(__lsx_vld(m + 16, 0));
-                    __m256 _val3 = bfloat2float_lasx(__lsx_vld(m + 24, 0));
-
-                    __m256 _w0 = __lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[0]));
-                    __m256 _w1 = __lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[1]));
-                    __m256 _w2 = __lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[2]));
-                    __m256 _w3 = __lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[3]));
-
-                    _sum0 = __lasx_xvfmadd_s(_val0, _w0, _sum0);
-                    _sum1 = __lasx_xvfmadd_s(_val1, _w1, _sum1);
-                    _sum2 = __lasx_xvfmadd_s(_val2, _w2, _sum2);
-                    _sum3 = __lasx_xvfmadd_s(_val3, _w3, _sum3);
-
-                    m += 32;
-                    kptr += 4;
-                }
-                for (; i < num_input; i++)
-                {
-                    __m256 _val = bfloat2float_lasx(__lsx_vld(m, 0));
-                    __m256 _w = __lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[0]));
-                    _sum0 = __lasx_xvfmadd_s(_val, _w, _sum0);
+                    __m128 _m0 = bfloat2float_lsx(m);
+                    __m128 _m1 = bfloat2float_lsx(m + 4);
+                    __m128 _w = __lsx_vreplfr2vr_s(bfloat16_to_float32(kptr[0]));
+                    _sum0 = __lsx_vfmadd_s(_m0, _w, _sum0);
+                    _sum1 = __lsx_vfmadd_s(_m1, _w, _sum1);
 
                     m += 8;
                     kptr += 1;
                 }
 
-                _sum0 = __lasx_xvfadd_s(_sum0, _sum1);
-                _sum2 = __lasx_xvfadd_s(_sum2, _sum3);
-                _sum0 = __lasx_xvfadd_s(_sum0, _sum2);
+                _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                _sum1 = activation_lsx(_sum1, activation_type, activation_params);
 
-                _sum0 = activation_lasx(_sum0, activation_type, activation_params);
-
-                __lsx_vst(float2bfloat_lasx(_sum0), outptr, 0);
+                __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr, 0);
                 outptr += 8;
             }
         }
-#endif // __loongarch_asx
+#endif // !__loongarch_asx
 
         if (elempack == 4 && num_output_elempack == 4)
         {
@@ -811,6 +1160,87 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 #endif // __loongarch_asx
+
+#if !__loongarch_asx
+    if (out_elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < outw; p++)
+        {
+            __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum4 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum5 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum6 = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum7 = (__m128)__lsx_vreplgr2vr_w(0);
+
+            if (bias_data_ptr)
+            {
+                _sum0 = (__m128)__lsx_vld(bias_data_ptr + p * 8, 0);
+                _sum4 = (__m128)__lsx_vld(bias_data_ptr + p * 8 + 4, 0);
+            }
+
+            const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
+            const unsigned short* sptr = bottom_blob;
+
+            int i = 0;
+            for (; i + 3 < num_input; i += 4)
+            {
+                __m128 _val0 = __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0]));
+                __m128 _val1 = __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1]));
+                __m128 _val2 = __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2]));
+                __m128 _val3 = __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3]));
+
+                __m128 _w0 = bfloat2float_lsx(kptr);
+                __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                __m128 _w2 = bfloat2float_lsx(kptr + 8);
+                __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                __m128 _w4 = bfloat2float_lsx(kptr + 16);
+                __m128 _w5 = bfloat2float_lsx(kptr + 20);
+                __m128 _w6 = bfloat2float_lsx(kptr + 24);
+                __m128 _w7 = bfloat2float_lsx(kptr + 28);
+
+                _sum0 = __lsx_vfmadd_s(_val0, _w0, _sum0);
+                _sum1 = __lsx_vfmadd_s(_val1, _w2, _sum1);
+                _sum2 = __lsx_vfmadd_s(_val2, _w4, _sum2);
+                _sum3 = __lsx_vfmadd_s(_val3, _w6, _sum3);
+                _sum4 = __lsx_vfmadd_s(_val0, _w1, _sum4);
+                _sum5 = __lsx_vfmadd_s(_val1, _w3, _sum5);
+                _sum6 = __lsx_vfmadd_s(_val2, _w5, _sum6);
+                _sum7 = __lsx_vfmadd_s(_val3, _w7, _sum7);
+
+                sptr += 4;
+                kptr += 32;
+            }
+            for (; i < num_input; i++)
+            {
+                __m128 _val = __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0]));
+                __m128 _w0 = bfloat2float_lsx(kptr);
+                __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                _sum0 = __lsx_vfmadd_s(_val, _w0, _sum0);
+                _sum4 = __lsx_vfmadd_s(_val, _w1, _sum4);
+
+                sptr += 1;
+                kptr += 8;
+            }
+
+            _sum0 = __lsx_vfadd_s(_sum0, _sum1);
+            _sum2 = __lsx_vfadd_s(_sum2, _sum3);
+            _sum4 = __lsx_vfadd_s(_sum4, _sum5);
+            _sum6 = __lsx_vfadd_s(_sum6, _sum7);
+            _sum0 = __lsx_vfadd_s(_sum0, _sum2);
+            _sum4 = __lsx_vfadd_s(_sum4, _sum6);
+
+            _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+            _sum4 = activation_lsx(_sum4, activation_type, activation_params);
+
+            unsigned short* outptr = (unsigned short*)top_blob;
+            __lsx_vst(float2bfloat_lsx(_sum0, _sum4), outptr + p * 8, 0);
+        }
+    }
+#endif // !__loongarch_asx
 
     if (out_elempack == 4)
     {

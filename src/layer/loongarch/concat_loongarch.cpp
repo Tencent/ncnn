@@ -688,13 +688,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
         int out_elempack = 1;
 #if __loongarch_sx
         if (opt.use_packing_layout)
-        {
-#if __loongarch_asx
             out_elempack = top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
-#else
-            out_elempack = top_w % 4 == 0 ? 4 : 1;
-#endif
-        }
 #endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -735,13 +729,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
         int out_elempack = 1;
 #if __loongarch_sx
         if (opt.use_packing_layout)
-        {
-#if __loongarch_asx
             out_elempack = top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
-#else
-            out_elempack = top_h % 4 == 0 ? 4 : 1;
-#endif
-        }
 #endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -763,7 +751,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
-#if __loongarch_asx
+#if __loongarch_sx
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -852,7 +840,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     outptr += w * 8;
                 }
             }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -866,26 +854,38 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 
                     int j = 0;
 #if __loongarch_sx
-                    for (; j + 3 < w; j += 4)
+                    for (; j + 7 < w; j += 8)
                     {
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                        __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                        __m128i _r3 = __lsx_vld(r0 + 24, 0);
 
                         __m128i _r01l = __lsx_vilvl_h(_r1, _r0);
                         __m128i _r01h = __lsx_vilvh_h(_r1, _r0);
                         __m128i _r0123ll = __lsx_vilvl_h(_r01h, _r01l);
                         __m128i _r0123lh = __lsx_vilvh_h(_r01h, _r01l);
 
-                        __lsx_vstelm_d(_r0123ll, outptr0, 0, 0);
-                        __lsx_vstelm_d(_r0123ll, outptr1, 0, 1);
-                        __lsx_vstelm_d(_r0123lh, outptr2, 0, 0);
-                        __lsx_vstelm_d(_r0123lh, outptr3, 0, 1);
+                        __m128i _r23l = __lsx_vilvl_h(_r3, _r2);
+                        __m128i _r23h = __lsx_vilvh_h(_r3, _r2);
+                        __m128i _r4567ll = __lsx_vilvl_h(_r23h, _r23l);
+                        __m128i _r4567lh = __lsx_vilvh_h(_r23h, _r23l);
 
-                        r0 += 16;
-                        outptr0 += 4;
-                        outptr1 += 4;
-                        outptr2 += 4;
-                        outptr3 += 4;
+                        __m128i _out0 = __lsx_vilvl_d(_r4567ll, _r0123ll);
+                        __m128i _out1 = __lsx_vilvh_d(_r4567ll, _r0123ll);
+                        __m128i _out2 = __lsx_vilvl_d(_r4567lh, _r0123lh);
+                        __m128i _out3 = __lsx_vilvh_d(_r4567lh, _r0123lh);
+
+                        __lsx_vst(_out0, outptr0, 0);
+                        __lsx_vst(_out1, outptr1, 0);
+                        __lsx_vst(_out2, outptr2, 0);
+                        __lsx_vst(_out3, outptr3, 0);
+
+                        r0 += 32;
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        outptr2 += 8;
+                        outptr3 += 8;
                     }
 #endif // __loongarch_sx
                     for (; j < w; j++)
@@ -977,13 +977,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
         int out_elempack = 1;
 #if __loongarch_sx
         if (opt.use_packing_layout)
-        {
-#if __loongarch_asx
             out_elempack = top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
-#else
-            out_elempack = top_channels % 4 == 0 ? 4 : 1;
-#endif
-        }
 #endif // __loongarch_sx
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -1009,7 +1003,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
-#if __loongarch_asx
+#if __loongarch_sx
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
@@ -1102,7 +1096,7 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     p += 8;
                 }
             }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
@@ -1118,26 +1112,38 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 
                     int i = 0;
 #if __loongarch_sx
-                    for (; i + 3 < size; i += 4)
+                    for (; i + 7 < size; i += 8)
                     {
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                        __m128i _r2 = __lsx_vld(r0 + 16, 0);
+                        __m128i _r3 = __lsx_vld(r0 + 24, 0);
 
                         __m128i _r01l = __lsx_vilvl_h(_r1, _r0);
                         __m128i _r01h = __lsx_vilvh_h(_r1, _r0);
                         __m128i _r0123ll = __lsx_vilvl_h(_r01h, _r01l);
                         __m128i _r0123lh = __lsx_vilvh_h(_r01h, _r01l);
 
-                        __lsx_vstelm_d(_r0123ll, outptr0, 0, 0);
-                        __lsx_vstelm_d(_r0123ll, outptr1, 0, 1);
-                        __lsx_vstelm_d(_r0123lh, outptr2, 0, 0);
-                        __lsx_vstelm_d(_r0123lh, outptr3, 0, 1);
+                        __m128i _r23l = __lsx_vilvl_h(_r3, _r2);
+                        __m128i _r23h = __lsx_vilvh_h(_r3, _r2);
+                        __m128i _r4567ll = __lsx_vilvl_h(_r23h, _r23l);
+                        __m128i _r4567lh = __lsx_vilvh_h(_r23h, _r23l);
 
-                        r0 += 16;
-                        outptr0 += 4;
-                        outptr1 += 4;
-                        outptr2 += 4;
-                        outptr3 += 4;
+                        __m128i _out0 = __lsx_vilvl_d(_r4567ll, _r0123ll);
+                        __m128i _out1 = __lsx_vilvh_d(_r4567ll, _r0123ll);
+                        __m128i _out2 = __lsx_vilvl_d(_r4567lh, _r0123lh);
+                        __m128i _out3 = __lsx_vilvh_d(_r4567lh, _r0123lh);
+
+                        __lsx_vst(_out0, outptr0, 0);
+                        __lsx_vst(_out1, outptr1, 0);
+                        __lsx_vst(_out2, outptr2, 0);
+                        __lsx_vst(_out3, outptr3, 0);
+
+                        r0 += 32;
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        outptr2 += 8;
+                        outptr3 += 8;
                     }
 #endif // __loongarch_sx
                     for (; i < size; i++)

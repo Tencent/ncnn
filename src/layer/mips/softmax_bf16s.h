@@ -5,6 +5,75 @@ static void softmax_bf16s_msa(unsigned short* _ptr, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
 
+#if __mips_msa
+    if (elempack == 8)
+    {
+        v8i16 _zero_bf16 = __msa_fill_h(0);
+
+        // reduce max
+        v4f32 _max0 = (v4f32)__msa_fill_w_f32(-FLT_MAX);
+        v4f32 _max1 = (v4f32)__msa_fill_w_f32(-FLT_MAX);
+        {
+            const unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _max0 = __msa_fmax_w(_max0, _p0);
+                _max1 = __msa_fmax_w(_max1, _p1);
+                ptr += 8;
+            }
+        }
+
+        // reduce exp(x - max) and store back to bf16
+        v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+        v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+        {
+            unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __msa_fsub_w(_p0, _max0);
+                _p1 = __msa_fsub_w(_p1, _max1);
+                _p0 = exp_ps(_p0);
+                _p1 = exp_ps(_p1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                _sum0 = __msa_fadd_w(_sum0, _p0);
+                _sum1 = __msa_fadd_w(_sum1, _p1);
+                ptr += 8;
+            }
+        }
+
+        // reciprocal per-lane
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        _sum0 = __msa_fdiv_w(_one, _sum0);
+        _sum1 = __msa_fdiv_w(_one, _sum1);
+
+        // div sum (multiply by reciprocal)
+        {
+            unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                v8i16 _p01 = __msa_ld_h(ptr, 0);
+                v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+                v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+                _p0 = __msa_fmul_w(_p0, _sum0);
+                _p1 = __msa_fmul_w(_p1, _sum1);
+                __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
+
+        return;
+    }
+#endif // __mips_msa
+
     // reduce max
 #if __mips_msa
     v4f32 _max = (v4f32)__msa_fill_w_f32(-FLT_MAX);
@@ -110,6 +179,92 @@ static void softmax_bf16s_msa(unsigned short* _ptr, int elemcount, int elempack)
 }
 
 #if __mips_msa
+static void softmax_bf16s_pack8_msa(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+{
+    v8i16 _zero_bf16 = __msa_fill_h(0);
+
+    // reduce max
+    for (int i = 0; i < elemcount; i++)
+    {
+        const unsigned short* ptr = _ptr + i * stride;
+        float* maxptr = _maxptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            *maxptr = std::max(*maxptr, std::max(__msa_reduce_fmax_w(_p0), __msa_reduce_fmax_w(_p1)));
+            ptr += 8;
+            maxptr++;
+        }
+    }
+
+    // reduce exp(x - max)
+    for (int i = 0; i < elemcount; i++)
+    {
+        unsigned short* ptr = _ptr + i * stride;
+        const float* maxptr = _maxptr;
+        float* sumptr = _sumptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _max = (v4f32)__msa_fill_w_f32(*maxptr);
+            _p0 = exp_ps(__msa_fsub_w(_p0, _max));
+            _p1 = exp_ps(__msa_fsub_w(_p1, _max));
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            *sumptr += __msa_reduce_fadd_w(_p0) + __msa_reduce_fadd_w(_p1);
+            ptr += 8;
+            maxptr++;
+            sumptr++;
+        }
+    }
+
+    {
+        float* sumptr = _sumptr;
+        int j = 0;
+        for (; j + 3 < size1; j += 4)
+        {
+            v4f32 _sum = (v4f32)__msa_ld_w(sumptr, 0);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            _sum = __msa_fdiv_w(_one, _sum);
+            __msa_st_w((v4i32)_sum, sumptr, 0);
+            sumptr += 4;
+        }
+        for (; j < size1; j++)
+        {
+            *sumptr = 1.f / *sumptr;
+            sumptr++;
+        }
+    }
+
+    // div sum
+    for (int i = 0; i < elemcount; i++)
+    {
+        unsigned short* ptr = _ptr + i * stride;
+        const float* sumptr = _sumptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            v8i16 _p01 = __msa_ld_h(ptr, 0);
+            v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero_bf16);
+            v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero_bf16);
+            v4f32 _sum = (v4f32)__msa_fill_w_f32(*sumptr);
+            _p0 = __msa_fmul_w(_p0, _sum);
+            _p1 = __msa_fmul_w(_p1, _sum);
+            __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+            ptr += 8;
+            sumptr++;
+        }
+    }
+}
+
 static void softmax_bf16s_pack4_msa(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
@@ -338,6 +493,10 @@ static void softmax_bf16s_msa_dispatch(unsigned short* _ptr, int elemcount, int 
     }
 
 #if __mips_msa
+    if (elempack == 8)
+    {
+        softmax_bf16s_pack8_msa(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
+    }
     if (elempack == 4)
     {
         softmax_bf16s_pack4_msa(_ptr, elemcount, stride, size1, _maxptr, _sumptr);

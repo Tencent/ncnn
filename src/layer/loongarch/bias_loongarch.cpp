@@ -101,6 +101,13 @@ int Bias_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 
 #if __loongarch_sx
         __m128 _bias = (elempack == 4) ? (__m128)__lsx_vld(bias_ptr + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(bias_ptr[q]);
+        __m128 _bias0 = _bias;
+        __m128 _bias1 = _bias;
+        if (elempack == 8)
+        {
+            _bias0 = (__m128)__lsx_vld(bias_ptr + q * 8, 0);
+            _bias1 = (__m128)__lsx_vld(bias_ptr + q * 8 + 4, 0);
+        }
 #if __loongarch_asx
         __m256 _bias256 = (elempack == 8) ? (__m256)__lasx_xvld(bias_ptr + q * 8, 0) : __lasx_concat_128_s(_bias, _bias);
 #endif
@@ -125,8 +132,8 @@ int Bias_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 __m128i _p01 = __lsx_vld(ptr, 0);
                 __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero);
                 __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero);
-                _p0 = __lsx_vfadd_s(_p0, _bias);
-                _p1 = __lsx_vfadd_s(_p1, _bias);
+                _p0 = __lsx_vfadd_s(_p0, _bias0);
+                _p1 = __lsx_vfadd_s(_p1, _bias1);
                 __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
                 ptr += 8;
             }

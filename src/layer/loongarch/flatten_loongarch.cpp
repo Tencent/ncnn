@@ -381,11 +381,7 @@ int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if __loongarch_sx
     if (opt.use_packing_layout)
     {
-#if __loongarch_asx
         out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
-#else
-        out_elempack = total % 4 == 0 ? 4 : 1;
-#endif
     }
 #endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -413,7 +409,7 @@ int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     if (dims == 2)
     {
-#if __loongarch_asx
+#if __loongarch_sx
         if (elempack == 8) // out_elempack == 8
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -443,7 +439,7 @@ int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 
         if (elempack == 4) // out_elempack == 4 || out_elempack == 8
         {
@@ -470,7 +466,7 @@ int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     if (dims == 3 || dims == 4)
     {
-#if __loongarch_asx
+#if __loongarch_sx
         if (elempack == 8) // out_elempack == 8
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -500,7 +496,7 @@ int Flatten_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 }
             }
         }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 
         if (elempack == 4)
         {

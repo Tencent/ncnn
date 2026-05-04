@@ -424,8 +424,21 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
                 dst_elempack = packn;
-#elif NCNN_LASX
+#elif NCNN_LASX || NCNN_LSX
+#if NCNN_LASX
             if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                dst_elempack = 8;
+            else
+#endif // NCNN_LASX
+#if NCNN_LSX
+            if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_loongarch_lsx())
+                dst_elempack = 8;
+            else
+#endif // NCNN_LSX
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_MSA
+            if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_mips_msa())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -504,8 +517,21 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
                     any_elempack = 1;
-#elif NCNN_LASX
+#elif NCNN_LASX || NCNN_LSX
+#if NCNN_LASX
                 if (elemcount % 8 == 0 && ncnn::cpu_support_loongarch_lasx())
+                    any_elempack = 4;
+                else
+#endif // NCNN_LASX
+#if NCNN_LSX
+                if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_loongarch_lsx())
+                    any_elempack = 4;
+                else
+#endif // NCNN_LSX
+                if (elemcount % 4 == 0)
+                    any_elempack = 1;
+#elif NCNN_MSA
+                if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_mips_msa())
                     any_elempack = 4;
                 else if (elemcount % 4 == 0)
                     any_elempack = 1;

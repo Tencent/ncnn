@@ -61,19 +61,23 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __loongarch_sx
     for (; ii + 7 < max_ii; ii += 8)
     {
-#if __loongarch_asx
         if (elempack == 8)
         {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 8;
+            const int i_pack = (i + ii) / 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+#if __loongarch_asx
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
+#else
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
+#endif
                 pp += 8;
                 p0 += 8;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -154,6 +158,19 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __lsx_vst(__lsx_vld(p0, 0), pp, 0);
+                pp += 4;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
@@ -208,6 +225,23 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     for (; ii + 1 < max_ii; ii += 2)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 8;
+            }
+
+            continue;
+        }
+
         // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -226,6 +260,22 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     for (; ii < max_ii; ii += 1)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const float* p0 = (const float*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 8;
+            }
+
+            continue;
+        }
+
         // if (elempack == 1)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -2885,6 +2935,26 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __m128i _bf0 = float2bfloat_lsx(_sum00, _sum01);
+                        __m128i _bf1 = float2bfloat_lsx(_sum10, _sum11);
+                        __m128i _bf2 = float2bfloat_lsx(_sum20, _sum21);
+                        __m128i _bf3 = float2bfloat_lsx(_sum30, _sum31);
+                        __m128i _bf4 = float2bfloat_lsx(_sum40, _sum41);
+                        __m128i _bf5 = float2bfloat_lsx(_sum50, _sum51);
+                        __m128i _bf6 = float2bfloat_lsx(_sum60, _sum61);
+                        __m128i _bf7 = float2bfloat_lsx(_sum70, _sum71);
+                        transpose8x8_epi16(_bf0, _bf1, _bf2, _bf3, _bf4, _bf5, _bf6, _bf7);
+                        __lsx_vst(_bf0, p0, 0);
+                        __lsx_vst(_bf1, p0 + 8, 0);
+                        __lsx_vst(_bf2, p0 + 16, 0);
+                        __lsx_vst(_bf3, p0 + 24, 0);
+                        __lsx_vst(_bf4, p0 + 32, 0);
+                        __lsx_vst(_bf5, p0 + 40, 0);
+                        __lsx_vst(_bf6, p0 + 48, 0);
+                        __lsx_vst(_bf7, p0 + 56, 0);
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -2935,6 +3005,18 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vst(float2bfloat_lsx(_sum00, _sum01), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum10, _sum11), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum20, _sum21), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum30, _sum31), p0 + 24, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum40, _sum41), p0 + 32, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum50, _sum51), p0 + 40, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum60, _sum61), p0 + 48, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum70, _sum71), p0 + 56, 0);
+                        p0 += 64;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -3188,6 +3270,22 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
             {
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __m128i _bf0 = float2bfloat_lsx(_sum00, _sum01);
+                        __m128i _bf1 = float2bfloat_lsx(_sum10, _sum11);
+                        __m128i _bf2 = float2bfloat_lsx(_sum20, _sum21);
+                        __m128i _bf3 = float2bfloat_lsx(_sum30, _sum31);
+                        transpose8x4_epi16(_bf0, _bf1, _bf2, _bf3);
+                        __lsx_vstelm_d(_bf0, p0, 0, 0);
+                        __lsx_vstelm_d(_bf0, p0 + 8, 0, 1);
+                        __lsx_vstelm_d(_bf1, p0 + 16, 0, 0);
+                        __lsx_vstelm_d(_bf1, p0 + 24, 0, 1);
+                        __lsx_vstelm_d(_bf2, p0 + 32, 0, 0);
+                        __lsx_vstelm_d(_bf2, p0 + 40, 0, 1);
+                        __lsx_vstelm_d(_bf3, p0 + 48, 0, 0);
+                        __lsx_vstelm_d(_bf3, p0 + 56, 0, 1);
+                    }
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
@@ -3217,6 +3315,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vst(float2bfloat_lsx(_sum00, _sum01), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum10, _sum11), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum20, _sum21), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum30, _sum31), p0 + 24, 0);
+                        p0 += 32;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -3398,6 +3504,25 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_h(_bf00, p0, 0, 0);
+                        __lsx_vstelm_h(_bf10, p0 + 1, 0, 0);
+                        __lsx_vstelm_h(_bf00, p0 + 8, 0, 1);
+                        __lsx_vstelm_h(_bf10, p0 + 9, 0, 1);
+                        __lsx_vstelm_h(_bf00, p0 + 16, 0, 2);
+                        __lsx_vstelm_h(_bf10, p0 + 17, 0, 2);
+                        __lsx_vstelm_h(_bf00, p0 + 24, 0, 3);
+                        __lsx_vstelm_h(_bf10, p0 + 25, 0, 3);
+                        __lsx_vstelm_h(_bf01, p0 + 32, 0, 0);
+                        __lsx_vstelm_h(_bf11, p0 + 33, 0, 0);
+                        __lsx_vstelm_h(_bf01, p0 + 40, 0, 1);
+                        __lsx_vstelm_h(_bf11, p0 + 41, 0, 1);
+                        __lsx_vstelm_h(_bf01, p0 + 48, 0, 2);
+                        __lsx_vstelm_h(_bf11, p0 + 49, 0, 2);
+                        __lsx_vstelm_h(_bf01, p0 + 56, 0, 3);
+                        __lsx_vstelm_h(_bf11, p0 + 57, 0, 3);
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_h(_bf00, p0, 0, 0);
@@ -3428,6 +3553,12 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vst(float2bfloat_lsx(_sum00, _sum01), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum10, _sum11), p0 + 8, 0);
+                        p0 += 16;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -3547,6 +3678,17 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_h(_bf0, p0, 0, 0);
+                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 1);
+                        __lsx_vstelm_h(_bf0, p0 + 16, 0, 2);
+                        __lsx_vstelm_h(_bf0, p0 + 24, 0, 3);
+                        __lsx_vstelm_h(_bf1, p0 + 32, 0, 0);
+                        __lsx_vstelm_h(_bf1, p0 + 40, 0, 1);
+                        __lsx_vstelm_h(_bf1, p0 + 48, 0, 2);
+                        __lsx_vstelm_h(_bf1, p0 + 56, 0, 3);
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_h(_bf0, p0, 0, 0);
@@ -3567,6 +3709,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        p0 += 8;
+                    }
                     if (out_elempack == 4)
                     {
                         unsigned short* p1 = p0 + out_hstep * 4;
@@ -3973,6 +4120,18 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 32, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 40, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 48, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 56, 0, 0);
+                        p0 += 64;
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
@@ -4251,6 +4410,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
+                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
+                        p0 += 32;
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
@@ -4549,6 +4716,17 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_h(_bf0, p0, 0, 0);
+                        __lsx_vstelm_h(_bf1, p0 + 1, 0, 0);
+                        __lsx_vstelm_h(_bf0, p0 + 8, 0, 1);
+                        __lsx_vstelm_h(_bf1, p0 + 9, 0, 1);
+                        __lsx_vstelm_h(_bf0, p0 + 16, 0, 2);
+                        __lsx_vstelm_h(_bf1, p0 + 17, 0, 2);
+                        __lsx_vstelm_h(_bf0, p0 + 24, 0, 3);
+                        __lsx_vstelm_h(_bf1, p0 + 25, 0, 3);
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_h(_bf0, p0, 0, 0);
@@ -4569,6 +4747,12 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_d(_bf0, p0, 0, 0);
+                        __lsx_vstelm_d(_bf1, p0 + 8, 0, 0);
+                        p0 += 16;
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(_bf0, p0, 0, 0);
@@ -4660,6 +4844,13 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
 
                 if (output_transpose)
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_h(_bf, p0, 0, 0);
+                        __lsx_vstelm_h(_bf, p0 + 8, 0, 1);
+                        __lsx_vstelm_h(_bf, p0 + 16, 0, 2);
+                        __lsx_vstelm_h(_bf, p0 + 24, 0, 3);
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_h(_bf, p0, 0, 0);
@@ -4675,6 +4866,11 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 }
                 else
                 {
+                    if (out_elempack == 8)
+                    {
+                        __lsx_vstelm_d(_bf, p0, 0, 0);
+                        p0 += 8;
+                    }
                     if (out_elempack == 4)
                     {
                         __lsx_vstelm_d(_bf, p0, 0, 0);
@@ -7377,7 +7573,7 @@ int Gemm_loongarch::create_pipeline(const Option& opt)
 #if __loongarch_asx
             int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #else
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #endif
             convert_packing(C_data, CT_data, C_elempack, opt);
             if (CT_data.empty())
@@ -7959,7 +8155,7 @@ int Gemm_loongarch::create_pipeline_bf16s(const Option& opt)
 #if __loongarch_asx
             int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #else
-            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #endif
             convert_packing(C_data, CT_data, C_elempack, opt);
             if (CT_data.empty())
@@ -8412,7 +8608,7 @@ int Gemm_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vec
 #if __loongarch_asx
         out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = outh % 4 == 0 ? 4 : 1;
+        out_elempack = output_elemtype != 1 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif

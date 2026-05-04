@@ -11,89 +11,6 @@
 
 namespace ncnn {
 
-#if NCNN_BF16
-static void batchnorm_bf16s_msa(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
-{
-#if __mips_msa
-    v4f32 _a = (elempack == 4) ? (v4f32)__msa_ld_w(a, 0) : (v4f32)__msa_fill_w_f32(a[0]);
-    v4f32 _b = (elempack == 4) ? (v4f32)__msa_ld_w(b, 0) : (v4f32)__msa_fill_w_f32(b[0]);
-#endif
-    float sa = a[0];
-    float sb = b[0];
-
-    int i = 0;
-#if __mips_msa
-    v8i16 _zero = __msa_fill_h(0);
-    for (; i + 7 < size; i += 8)
-    {
-        v8i16 _p01 = __msa_ld_h(ptr, 0);
-        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
-        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-        _p0 = __ncnn_msa_fmadd_w(_a, _p0, _b);
-        _p1 = __ncnn_msa_fmadd_w(_a, _p1, _b);
-        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
-        ptr += 8;
-    }
-    for (; i + 3 < size; i += 4)
-    {
-        v4f32 _p = bfloat2float_msa(ptr);
-        _p = __ncnn_msa_fmadd_w(_a, _p, _b);
-        __msa_storel_d(float2bfloat_msa(_p), ptr);
-        ptr += 4;
-    }
-#endif // __mips_msa
-    for (; i < size; i++)
-    {
-        *ptr = float32_to_bfloat16(sb * bfloat16_to_float32(*ptr) + sa);
-        ptr++;
-    }
-}
-
-static void batchnorm_bf16s_per_element_msa(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
-{
-    int nn_size = 0;
-    int remain_size_start = 0;
-#if __mips_msa
-    nn_size = (size - remain_size_start) / 8;
-    #pragma omp parallel for num_threads(num_threads)
-    for (int ii = 0; ii < nn_size; ii++)
-    {
-        int i = remain_size_start + ii * 8;
-        v8i16 _zero = __msa_fill_h(0);
-        v8i16 _p01 = __msa_ld_h(ptr + i, 0);
-        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
-        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-        v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
-        v4f32 _a1 = (v4f32)__msa_ld_w(a + i + 4, 0);
-        v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
-        v4f32 _b1 = (v4f32)__msa_ld_w(b + i + 4, 0);
-        _p0 = __ncnn_msa_fmadd_w(_a0, _p0, _b0);
-        _p1 = __ncnn_msa_fmadd_w(_a1, _p1, _b1);
-        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr + i, 0);
-    }
-    remain_size_start += nn_size * 8;
-
-    nn_size = (size - remain_size_start) / 4;
-    #pragma omp parallel for num_threads(num_threads)
-    for (int ii = 0; ii < nn_size; ii++)
-    {
-        int i = remain_size_start + ii * 4;
-        v4f32 _p = bfloat2float_msa(ptr + i);
-        v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
-        v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
-        _p = __ncnn_msa_fmadd_w(_a0, _p, _b0);
-        __msa_storel_d(float2bfloat_msa(_p), ptr + i);
-    }
-    remain_size_start += nn_size * 4;
-#endif // __mips_msa
-    #pragma omp parallel for num_threads(num_threads)
-    for (int i = remain_size_start; i < size; i++)
-    {
-        ptr[i] = float32_to_bfloat16(b[i] * bfloat16_to_float32(ptr[i]) + a[i]);
-    }
-}
-#endif
-
 BatchNorm_mips::BatchNorm_mips()
 {
 #if __mips_msa
@@ -223,6 +140,96 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 }
 
 #if NCNN_BF16
+static void batchnorm_bf16s_msa(unsigned short* ptr, const float* a, const float* b, int size, int elempack)
+{
+#if __mips_msa
+    v4f32 _a0 = (elempack == 4) ? (v4f32)__msa_ld_w(a, 0) : (v4f32)__msa_fill_w_f32(a[0]);
+    v4f32 _a1 = _a0;
+    v4f32 _b0 = (elempack == 4) ? (v4f32)__msa_ld_w(b, 0) : (v4f32)__msa_fill_w_f32(b[0]);
+    v4f32 _b1 = _b0;
+    if (elempack == 8)
+    {
+        _a0 = (v4f32)__msa_ld_w(a, 0);
+        _a1 = (v4f32)__msa_ld_w(a + 4, 0);
+        _b0 = (v4f32)__msa_ld_w(b, 0);
+        _b1 = (v4f32)__msa_ld_w(b + 4, 0);
+    }
+#endif
+    float sa = a[0];
+    float sb = b[0];
+
+    int i = 0;
+#if __mips_msa
+    v8i16 _zero = __msa_fill_h(0);
+    for (; i + 7 < size; i += 8)
+    {
+        v8i16 _p01 = __msa_ld_h(ptr, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        _p0 = __ncnn_msa_fmadd_w(_a0, _p0, _b0);
+        _p1 = __ncnn_msa_fmadd_w(_a1, _p1, _b1);
+        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
+        ptr += 8;
+    }
+    for (; i + 3 < size; i += 4)
+    {
+        v4f32 _p = bfloat2float_msa(ptr);
+        _p = __ncnn_msa_fmadd_w(_a0, _p, _b0);
+        __msa_storel_d(float2bfloat_msa(_p), ptr);
+        ptr += 4;
+    }
+#endif // __mips_msa
+    for (; i < size; i++)
+    {
+        *ptr = float32_to_bfloat16(sb * bfloat16_to_float32(*ptr) + sa);
+        ptr++;
+    }
+}
+
+static void batchnorm_bf16s_per_element_msa(unsigned short* ptr, const float* a, const float* b, int size, int num_threads)
+{
+    int nn_size = 0;
+    int remain_size_start = 0;
+#if __mips_msa
+    nn_size = (size - remain_size_start) / 8;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
+    {
+        int i = remain_size_start + ii * 8;
+        v8i16 _zero = __msa_fill_h(0);
+        v8i16 _p01 = __msa_ld_h(ptr + i, 0);
+        v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
+        v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
+        v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
+        v4f32 _a1 = (v4f32)__msa_ld_w(a + i + 4, 0);
+        v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
+        v4f32 _b1 = (v4f32)__msa_ld_w(b + i + 4, 0);
+        _p0 = __ncnn_msa_fmadd_w(_a0, _p0, _b0);
+        _p1 = __ncnn_msa_fmadd_w(_a1, _p1, _b1);
+        __msa_st_w(float2bfloat_msa(_p0, _p1), ptr + i, 0);
+    }
+    remain_size_start += nn_size * 8;
+
+    nn_size = (size - remain_size_start) / 4;
+    #pragma omp parallel for num_threads(num_threads)
+    for (int ii = 0; ii < nn_size; ii++)
+    {
+        int i = remain_size_start + ii * 4;
+        v4f32 _p = bfloat2float_msa(ptr + i);
+        v4f32 _a0 = (v4f32)__msa_ld_w(a + i, 0);
+        v4f32 _b0 = (v4f32)__msa_ld_w(b + i, 0);
+        _p = __ncnn_msa_fmadd_w(_a0, _p, _b0);
+        __msa_storel_d(float2bfloat_msa(_p), ptr + i);
+    }
+    remain_size_start += nn_size * 4;
+#endif // __mips_msa
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = remain_size_start; i < size; i++)
+    {
+        ptr[i] = float32_to_bfloat16(b[i] * bfloat16_to_float32(ptr[i]) + a[i]);
+    }
+}
+
 int BatchNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;

@@ -370,7 +370,7 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
         int out_elempack = 1;
 #if __mips_msa
         if (opt.use_packing_layout)
-            out_elempack = outh % 4 == 0 ? 4 : 1;
+            out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #endif // __mips_msa
         const size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -411,6 +411,39 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
             return -100;
 
 #if __mips_msa
+        if (out_elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < top_blob.h; i++)
+            {
+                const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + outw * i * 8;
+                const unsigned short* ptr1 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 1);
+                const unsigned short* ptr2 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 2);
+                const unsigned short* ptr3 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 3);
+                const unsigned short* ptr4 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 4);
+                const unsigned short* ptr5 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 5);
+                const unsigned short* ptr6 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 6);
+                const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 7);
+                unsigned short* outptr = top_blob.row<unsigned short>(i);
+
+                for (int j = 0; j < outw; j++)
+                {
+                    outptr[0] = *ptr0++;
+                    outptr[1] = *ptr1++;
+                    outptr[2] = *ptr2++;
+                    outptr[3] = *ptr3++;
+                    outptr[4] = *ptr4++;
+                    outptr[5] = *ptr5++;
+                    outptr[6] = *ptr6++;
+                    outptr[7] = *ptr7++;
+
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
         if (out_elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -483,7 +516,7 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
-        out_elempack = outc % 4 == 0 ? 4 : 1;
+        out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #endif // __mips_msa
     const size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -517,6 +550,39 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
     const int size = top_blob.w * top_blob.h * top_blob.d;
 
 #if __mips_msa
+    if (out_elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < top_blob.c; q++)
+        {
+            const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + size * q * 8;
+            const unsigned short* ptr1 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 1);
+            const unsigned short* ptr2 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 2);
+            const unsigned short* ptr3 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 3);
+            const unsigned short* ptr4 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 4);
+            const unsigned short* ptr5 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 5);
+            const unsigned short* ptr6 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 6);
+            const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 7);
+            unsigned short* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                outptr[0] = *ptr0++;
+                outptr[1] = *ptr1++;
+                outptr[2] = *ptr2++;
+                outptr[3] = *ptr3++;
+                outptr[4] = *ptr4++;
+                outptr[5] = *ptr5++;
+                outptr[6] = *ptr6++;
+                outptr[7] = *ptr7++;
+
+                outptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
     if (out_elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)

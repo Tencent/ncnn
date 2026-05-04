@@ -5,6 +5,77 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
 
+#if __loongarch_sx
+#if !__loongarch_asx
+    if (elempack == 8)
+    {
+        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+        // reduce max
+        __m128 _max0 = (__m128)__lsx_vreplfr2vr_s(-FLT_MAX);
+        __m128 _max1 = (__m128)__lsx_vreplfr2vr_s(-FLT_MAX);
+        {
+            const unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _max0 = __lsx_vfmax_s(_max0, _p0);
+                _max1 = __lsx_vfmax_s(_max1, _p1);
+                ptr += 8;
+            }
+        }
+
+        // reduce exp(x - max) and store back to bf16
+        __m128 _sum0 = (__m128)__lsx_vreplfr2vr_s(0.f);
+        __m128 _sum1 = (__m128)__lsx_vreplfr2vr_s(0.f);
+        {
+            unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _p0 = __lsx_vfsub_s(_p0, _max0);
+                _p1 = __lsx_vfsub_s(_p1, _max1);
+                _p0 = exp_ps(_p0);
+                _p1 = exp_ps(_p1);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                _sum0 = __lsx_vfadd_s(_sum0, _p0);
+                _sum1 = __lsx_vfadd_s(_sum1, _p1);
+                ptr += 8;
+            }
+        }
+
+        // reciprocal per-lane
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+        _sum0 = __lsx_vfdiv_s(_one, _sum0);
+        _sum1 = __lsx_vfdiv_s(_one, _sum1);
+
+        // div sum (multiply by reciprocal)
+        {
+            unsigned short* ptr = _ptr;
+
+            for (int i = 0; i < size; i += 8)
+            {
+                __m128i _p01 = __lsx_vld(ptr, 0);
+                __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+                __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+                _p0 = __lsx_vfmul_s(_p0, _sum0);
+                _p1 = __lsx_vfmul_s(_p1, _sum1);
+                __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+                ptr += 8;
+            }
+        }
+
+        return;
+    }
+#endif // !__loongarch_asx
+#endif // __loongarch_sx
+
     // reduce max
 #if __loongarch_sx
 #if __loongarch_asx
@@ -41,10 +112,6 @@ static void softmax_bf16s_lsx(unsigned short* _ptr, int elemcount, int elempack)
 
 #if __loongarch_sx
 #if __loongarch_asx
-    if (elempack == 8)
-    {
-        _max_lasx = __lasx_xvfmax_s(_max_lasx, _max_lasx);
-    }
     if (elempack == 4)
     {
         {
@@ -281,6 +348,92 @@ static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t 
             __m256 _sum = (__m256)__lasx_xvreplfr2vr_s(*sumptr);
             _p = __lasx_xvfmul_s(_p, _sum);
             __lsx_vst(float2bfloat_lasx(_p), ptr, 0);
+            ptr += 8;
+            sumptr++;
+        }
+    }
+}
+#else  // __loongarch_asx
+static void softmax_bf16s_pack8_lsx(unsigned short* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
+{
+    __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+
+    // reduce max
+    for (int i = 0; i < elemcount; i++)
+    {
+        const unsigned short* ptr = _ptr + i * stride;
+        float* maxptr = _maxptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            *maxptr = std::max(*maxptr, std::max(__lsx_reduce_fmax_s(_p0), __lsx_reduce_fmax_s(_p1)));
+            ptr += 8;
+            maxptr++;
+        }
+    }
+
+    // reduce exp(x - max)
+    for (int i = 0; i < elemcount; i++)
+    {
+        unsigned short* ptr = _ptr + i * stride;
+        const float* maxptr = _maxptr;
+        float* sumptr = _sumptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            __m128 _max = (__m128)__lsx_vreplfr2vr_s(*maxptr);
+            _p0 = exp_ps(__lsx_vfsub_s(_p0, _max));
+            _p1 = exp_ps(__lsx_vfsub_s(_p1, _max));
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
+            *sumptr += __lsx_reduce_fadd_s(_p0) + __lsx_reduce_fadd_s(_p1);
+            ptr += 8;
+            maxptr++;
+            sumptr++;
+        }
+    }
+
+    {
+        float* sumptr = _sumptr;
+        int j = 0;
+        for (; j + 3 < size1; j += 4)
+        {
+            __m128 _sum = (__m128)__lsx_vld(sumptr, 0);
+            __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+            _sum = __lsx_vfdiv_s(_one, _sum);
+            __lsx_vst(_sum, sumptr, 0);
+            sumptr += 4;
+        }
+        for (; j < size1; j++)
+        {
+            *sumptr = 1.f / *sumptr;
+            sumptr++;
+        }
+    }
+
+    // div sum
+    for (int i = 0; i < elemcount; i++)
+    {
+        unsigned short* ptr = _ptr + i * stride;
+        const float* sumptr = _sumptr;
+
+        int j = 0;
+        for (; j < size1; j++)
+        {
+            __m128i _p01 = __lsx_vld(ptr, 0);
+            __m128 _p0 = (__m128)__lsx_vilvl_h(_p01, _zero_bf16);
+            __m128 _p1 = (__m128)__lsx_vilvh_h(_p01, _zero_bf16);
+            __m128 _sum = (__m128)__lsx_vreplfr2vr_s(*sumptr);
+            _p0 = __lsx_vfmul_s(_p0, _sum);
+            _p1 = __lsx_vfmul_s(_p1, _sum);
+            __lsx_vst(float2bfloat_lsx(_p0, _p1), ptr, 0);
             ptr += 8;
             sumptr++;
         }
@@ -590,12 +743,10 @@ static void softmax_bf16s_lsx_dispatch(unsigned short* _ptr, int elemcount, int 
     }
 
 #if __loongarch_sx
-#if __loongarch_asx
     if (elempack == 8)
     {
         softmax_bf16s_pack8_lsx(_ptr, elemcount, stride, size1, _maxptr, _sumptr);
     }
-#endif // __loongarch_asx
     if (elempack == 4)
     {
         softmax_bf16s_pack4_lsx(_ptr, elemcount, stride, size1, _maxptr, _sumptr);

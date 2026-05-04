@@ -525,11 +525,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
-#if __loongarch_asx
             out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-#else
-            out_elempack = outh % 4 == 0 ? 4 : 1;
-#endif // __loongarch_asx
         }
 #endif // __loongarch_sx
         const size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -570,7 +566,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
         if (top_blob.empty())
             return -100;
 
-#if __loongarch_asx
+#if __loongarch_sx
         if (out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -603,7 +599,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 
             return 0;
         }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 
 #if __loongarch_sx
         if (out_elempack == 4)
@@ -678,11 +674,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #if __loongarch_sx
         if (opt.use_packing_layout)
         {
-#if __loongarch_asx
             out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-#else
-            out_elempack = outc % 4 == 0 ? 4 : 1;
-#endif // __loongarch_asx
         }
 #endif // __loongarch_sx
         const size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -716,7 +708,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 
         const int size = top_blob.w * top_blob.h * top_blob.d;
 
-#if __loongarch_asx
+#if __loongarch_sx
         if (out_elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -749,7 +741,7 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 
             return 0;
         }
-#endif // __loongarch_asx
+#endif // __loongarch_sx
 
 #if __loongarch_sx
         if (out_elempack == 4)

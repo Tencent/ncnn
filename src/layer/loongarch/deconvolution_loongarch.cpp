@@ -488,7 +488,15 @@ int Deconvolution_loongarch::create_pipeline_bf16s(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    deconvolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+    int out_elempack = 1;
+#if __loongarch_sx
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
+
+    deconvolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, out_elempack);
 
     if (opt.lightmode)
         weight_data.release();
@@ -514,7 +522,7 @@ int Deconvolution_loongarch::forward_bf16s(const Mat& bottom_blob, Mat& top_blob
 #if __loongarch_asx
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif

@@ -1,7 +1,7 @@
 // Copyright 2024 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h)
+static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int out_elempack)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -31,8 +31,7 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     // clang-format off
     // *INDENT-OFF*
 #if __loongarch_sx
-#if __loongarch_asx
-    if (num_output >= 8)
+    if (out_elempack == 8)
     {
         if (num_input >= 8)
             weight_data_tm.create(8 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
@@ -44,14 +43,11 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
             weight_data_tm.create(8 * maxk, num_input, num_output / 8 + (num_output % 8) / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
     }
     else
-#endif // __loongarch_asx
     if (num_output >= 4)
     {
-#if __loongarch_asx
         if (num_input >= 8)
             weight_data_tm.create(4 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
         else
-#endif
         if (num_input >= 4)
             weight_data_tm.create(4 * 4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 4 + (num_output % 4) / 2 + num_output % 2, (size_t)2u);
         else if (num_input >= 2)
@@ -64,11 +60,9 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     if (num_output >= 2)
     {
 #if __loongarch_sx
-#if __loongarch_asx
         if (num_input >= 8)
             weight_data_tm.create(2 * 8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 2 + num_output % 2, (size_t)2u);
         else
-#endif // __loongarch_asx
         if (num_input >= 4)
             weight_data_tm.create(2 * 4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output / 2 + num_output % 2, (size_t)2u);
         else
@@ -81,11 +75,9 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     else
     {
 #if __loongarch_sx
-#if __loongarch_asx
         if (num_input >= 8)
             weight_data_tm.create(8 * maxk, num_input / 8 + (num_input % 8) / 4 + (num_input % 4) / 2 + num_input % 2, num_output, (size_t)2u);
         else
-#endif // __loongarch_asx
         if (num_input >= 4)
             weight_data_tm.create(4 * maxk, num_input / 4 + (num_input % 4) / 2 + num_input % 2, num_output, (size_t)2u);
         else
@@ -100,8 +92,7 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
 
     int q = 0;
 #if __loongarch_sx
-#if __loongarch_asx
-    for (; q + 7 < num_output; q += 8)
+    for (; out_elempack == 8 && q + 7 < num_output; q += 8)
     {
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 8);
 
@@ -164,17 +155,11 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
             }
         }
     }
-#endif // __loongarch_asx
     for (; q + 3 < num_output; q += 4)
     {
-#if __loongarch_asx
-        unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 8 + (q % 8) / 4);
-#else
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 4);
-#endif
 
         int p = 0;
-#if __loongarch_asx
         for (; p + 7 < num_input; p += 8)
         {
             for (int k = 0; k < maxk; k++)
@@ -190,7 +175,6 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
                 }
             }
         }
-#endif
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -238,18 +222,13 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     for (; q + 1 < num_output; q += 2)
     {
 #if __loongarch_sx
-#if __loongarch_asx
-        unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 8 + (q % 8) / 4 + (q % 4) / 2);
-#else
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 4 + (q % 4) / 2);
-#endif
 #else
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 2);
 #endif
 
         int p = 0;
 #if __loongarch_sx
-#if __loongarch_asx
         for (; p + 7 < num_input; p += 8)
         {
             for (int k = 0; k < maxk; k++)
@@ -265,7 +244,6 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
                 }
             }
         }
-#endif // __loongarch_asx
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -313,18 +291,13 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
     for (; q < num_output; q++)
     {
 #if __loongarch_sx
-#if __loongarch_asx
-        unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 8 + (q % 8) / 4 + (q % 4) / 2 + q % 2);
-#else
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 4 + (q % 4) / 2 + q % 2);
-#endif
 #else
         unsigned short* g00 = (unsigned short*)weight_data_tm.channel(q / 2 + q % 2);
 #endif
 
         int p = 0;
 #if __loongarch_sx
-#if __loongarch_asx
         for (; p + 7 < num_input; p += 8)
         {
             for (int k = 0; k < maxk; k++)
@@ -337,7 +310,6 @@ static void deconvolution_transform_kernel_packed_bf16s(const Mat& weight_data, 
                 }
             }
         }
-#endif // __loongarch_asx
         for (; p + 3 < num_input; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -395,7 +367,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
 #if __loongarch_sx
 #if __loongarch_asx
-    nn_outch = outch / 8;
+    nn_outch = out_elempack == 8 ? outch / 8 : 0;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
@@ -545,9 +517,9 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             int k = y * kernel_w + x;
                             const unsigned short* kptr0 = kptr + k * 4 * 8;
 
-                            if (elempack == 8 || elempack == 4)
+                            if (elempack == 4)
                             {
-                                const unsigned short* sptr = bottom_blob.channel(q / elempack).row<const unsigned short>(sy) + sx * elempack + (q % elempack);
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
                                 __m256 _w0 = bfloat2float_lasx((__m128i)__lsx_vld(kptr0, 0));
                                 __m256 _w1 = bfloat2float_lasx((__m128i)__lsx_vld(kptr0 + 8, 0));
@@ -685,7 +657,297 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     remain_outch_start += nn_outch * 8;
     nn_outch = (outch - remain_outch_start) / 4;
 #else  // __loongarch_asx
-    nn_outch = outch / 4;
+    nn_outch = out_elempack == 8 ? outch / 8 : 0;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        const int p = pp * 8;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int w = bottom_blob.w;
+        const int h = bottom_blob.h;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
+        unsigned short* outptr = top_blob.channel(p / out_elempack);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum4 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum5 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum6 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum7 = (__m128)__lsx_vreplgr2vr_w(0);
+
+                if (bias_data_ptr)
+                {
+                    _sum0 = (__m128)__lsx_vld(bias_data_ptr + p, 0);
+                    _sum4 = (__m128)__lsx_vld(bias_data_ptr + p + 4, 0);
+                }
+
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 8);
+
+                int q = 0;
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8 * 8;
+
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum7);
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum7);
+                            }
+                            if (elempack == 1)
+                            {
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum7);
+                            }
+                        }
+                    }
+
+                    kptr += maxk * 8 * 8;
+                }
+                for (; q + 3 < inch; q += 4)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 4 * 8;
+
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
+                            }
+                            if (elempack == 1)
+                            {
+                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
+                            }
+                        }
+                    }
+
+                    kptr += maxk * 4 * 8;
+                }
+                for (; q + 1 < inch; q += 2)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 2 * 8;
+
+                            const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
+                            const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
+                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
+                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
+                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum1);
+                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum5);
+                        }
+                    }
+
+                    kptr += maxk * 2 * 8;
+                }
+                for (; q < inch; q++)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8;
+
+                            const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
+                            __m128 _val = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0]));
+                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), _val, _sum0);
+                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), _val, _sum4);
+                        }
+                    }
+
+                    kptr += maxk * 8;
+                }
+
+                _sum0 = __lsx_vfadd_s(_sum0, _sum1);
+                _sum2 = __lsx_vfadd_s(_sum2, _sum3);
+                _sum4 = __lsx_vfadd_s(_sum4, _sum5);
+                _sum6 = __lsx_vfadd_s(_sum6, _sum7);
+                _sum0 = __lsx_vfadd_s(_sum0, _sum2);
+                _sum4 = __lsx_vfadd_s(_sum4, _sum6);
+
+                _sum0 = activation_lsx(_sum0, activation_type, activation_params);
+                _sum4 = activation_lsx(_sum4, activation_type, activation_params);
+
+                if (out_elempack == 8)
+                {
+                    __lsx_vst(float2bfloat_lsx(_sum0, _sum4), outptr, 0);
+                    outptr += 8;
+                }
+                if (out_elempack == 4)
+                {
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum4), outptr + M, 0, 0);
+                    outptr += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    float sum0[4];
+                    float sum1[4];
+                    __lsx_vst(_sum0, sum0, 0);
+                    __lsx_vst(_sum4, sum1, 0);
+
+                    outptr[0] = float32_to_bfloat16(sum0[0]);
+                    outptr[M] = float32_to_bfloat16(sum0[1]);
+                    outptr[M * 2] = float32_to_bfloat16(sum0[2]);
+                    outptr[M * 3] = float32_to_bfloat16(sum0[3]);
+                    outptr[M * 4] = float32_to_bfloat16(sum1[0]);
+                    outptr[M * 5] = float32_to_bfloat16(sum1[1]);
+                    outptr[M * 6] = float32_to_bfloat16(sum1[2]);
+                    outptr[M * 7] = float32_to_bfloat16(sum1[3]);
+                    outptr += 1;
+                }
+            }
+        }
+    }
+    remain_outch_start += nn_outch * 8;
+    nn_outch = (outch - remain_outch_start) / 4;
 #endif // __loongarch_asx
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
@@ -718,13 +980,12 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 }
 
 #if __loongarch_asx
-                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 8 + (p % 8) / 4);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4);
 #else
                 const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4);
 #endif
 
                 int q = 0;
-#if __loongarch_asx
                 for (; q + 7 < inch; q += 8)
                 {
                     for (int y = 0; y < kernel_h; y++)
@@ -818,7 +1079,6 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                     kptr += maxk * 8 * 4;
                 }
-#endif // __loongarch_asx
                 for (; q + 3 < inch; q += 4)
                 {
                     for (int y = 0; y < kernel_h; y++)
@@ -842,9 +1102,9 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             int k = y * kernel_w + x;
                             const unsigned short* kptr0 = kptr + k * 4 * 4;
 
-                            if (elempack == 8 || elempack == 4)
+                            if (elempack == 4)
                             {
-                                const unsigned short* sptr = bottom_blob.channel(q / elempack).row<const unsigned short>(sy) + sx * elempack + (q % elempack);
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
                                 __m128 _w0 = bfloat2float_lsx(kptr0);
                                 __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
@@ -1004,7 +1264,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
 #if __loongarch_sx
 #if __loongarch_asx
-                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4 + (p % 4) / 2);
 #else
                 const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4 + (p % 4) / 2);
 #endif
@@ -1089,6 +1349,85 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 }
                 sum0 += __lasx_reduce_fadd_s(_sum0_256);
                 sum1 += __lasx_reduce_fadd_s(_sum1_256);
+#else  // __loongarch_asx
+                __m128 _sum00 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum01 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum10 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum11 = (__m128)__lsx_vreplgr2vr_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8 * 2;
+
+                            __m128 _r0 = (__m128)__lsx_vreplgr2vr_w(0);
+                            __m128 _r1 = (__m128)__lsx_vreplgr2vr_w(0);
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _r0 = bfloat2float_lsx(sptr);
+                                _r1 = bfloat2float_lsx(sptr + 4);
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _r0 = bfloat2float_lsx(sptr0);
+                                _r1 = bfloat2float_lsx(sptr1);
+                            }
+                            if (elempack == 1)
+                            {
+                                unsigned short tmp[8];
+                                tmp[0] = bottom_blob.channel(q).row<const unsigned short>(sy)[sx];
+                                tmp[1] = bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx];
+                                tmp[2] = bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx];
+                                tmp[3] = bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx];
+                                tmp[4] = bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx];
+                                tmp[5] = bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx];
+                                tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
+                                tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
+
+                                _r0 = bfloat2float_lsx(tmp);
+                                _r1 = bfloat2float_lsx(tmp + 4);
+                            }
+
+                            __m128 _w00 = bfloat2float_lsx(kptr0);
+                            __m128 _w01 = bfloat2float_lsx(kptr0 + 4);
+                            __m128 _w10 = bfloat2float_lsx(kptr0 + 8);
+                            __m128 _w11 = bfloat2float_lsx(kptr0 + 12);
+
+                            _sum00 = __lsx_vfmadd_s(_r0, _w00, _sum00);
+                            _sum01 = __lsx_vfmadd_s(_r1, _w01, _sum01);
+                            _sum10 = __lsx_vfmadd_s(_r0, _w10, _sum10);
+                            _sum11 = __lsx_vfmadd_s(_r1, _w11, _sum11);
+                        }
+                    }
+
+                    kptr += maxk * 8 * 2;
+                }
+                _sum00 = __lsx_vfadd_s(_sum00, _sum01);
+                _sum10 = __lsx_vfadd_s(_sum10, _sum11);
+                sum0 += __lsx_reduce_fadd_s(_sum00);
+                sum1 += __lsx_reduce_fadd_s(_sum10);
 #endif // __loongarch_asx
                 __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
                 __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
@@ -1115,9 +1454,9 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             int k = y * kernel_w + x;
                             const unsigned short* kptr0 = kptr + k * 4 * 2;
 
-                            if (elempack == 8 || elempack == 4)
+                            if (elempack == 4)
                             {
-                                const unsigned short* sptr = bottom_blob.channel(q / elempack).row<const unsigned short>(sy) + sx * elempack + (q % elempack);
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
                                 __m128 _r0 = bfloat2float_lsx(sptr);
                                 __m128 _w0 = bfloat2float_lsx(kptr0);
@@ -1256,7 +1595,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
 #if __loongarch_sx
 #if __loongarch_asx
-                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2 + p % 2);
+                const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4 + (p % 4) / 2 + p % 2);
 #else
                 const unsigned short* kptr = (const unsigned short*)weight_data_tm.channel(p / 4 + (p % 4) / 2 + p % 2);
 #endif
@@ -1330,6 +1669,77 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                     kptr += maxk * 8;
                 }
                 sum += __lasx_reduce_fadd_s(_sum_256);
+#else  // __loongarch_asx
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    for (int y = 0; y < kernel_h; y++)
+                    {
+                        int sys = (i + y * dilation_h - (kernel_extent_h - 1));
+                        if (sys < 0 || sys % stride_h != 0)
+                            continue;
+                        int sy = sys / stride_h;
+                        if (sy >= h)
+                            continue;
+
+                        for (int x = 0; x < kernel_w; x++)
+                        {
+                            int sxs = (j + x * dilation_w - (kernel_extent_w - 1));
+                            if (sxs < 0 || sxs % stride_w != 0)
+                                continue;
+                            int sx = sxs / stride_w;
+                            if (sx >= w)
+                                continue;
+
+                            int k = y * kernel_w + x;
+                            const unsigned short* kptr0 = kptr + k * 8;
+
+                            __m128 _r0 = (__m128)__lsx_vreplgr2vr_w(0);
+                            __m128 _r1 = (__m128)__lsx_vreplgr2vr_w(0);
+                            if (elempack == 8)
+                            {
+                                const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
+
+                                _r0 = bfloat2float_lsx(sptr);
+                                _r1 = bfloat2float_lsx(sptr + 4);
+                            }
+                            if (elempack == 4)
+                            {
+                                const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
+                                const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
+
+                                _r0 = bfloat2float_lsx(sptr0);
+                                _r1 = bfloat2float_lsx(sptr1);
+                            }
+                            if (elempack == 1)
+                            {
+                                unsigned short tmp[8];
+                                tmp[0] = bottom_blob.channel(q).row<const unsigned short>(sy)[sx];
+                                tmp[1] = bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx];
+                                tmp[2] = bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx];
+                                tmp[3] = bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx];
+                                tmp[4] = bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx];
+                                tmp[5] = bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx];
+                                tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
+                                tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
+
+                                _r0 = bfloat2float_lsx(tmp);
+                                _r1 = bfloat2float_lsx(tmp + 4);
+                            }
+
+                            __m128 _w0 = bfloat2float_lsx(kptr0);
+                            __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
+
+                            _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
+                            _sum1 = __lsx_vfmadd_s(_r1, _w1, _sum1);
+                        }
+                    }
+
+                    kptr += maxk * 8;
+                }
+                _sum0 = __lsx_vfadd_s(_sum0, _sum1);
+                sum += __lsx_reduce_fadd_s(_sum0);
 #endif // __loongarch_asx
                 __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
                 for (; q + 3 < inch; q += 4)
@@ -1355,9 +1765,9 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             int k = y * kernel_w + x;
                             const unsigned short* kptr0 = kptr + k * 4;
 
-                            if (elempack == 8 || elempack == 4)
+                            if (elempack == 4)
                             {
-                                const unsigned short* sptr = bottom_blob.channel(q / elempack).row<const unsigned short>(sy) + sx * elempack + (q % elempack);
+                                const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
                                 __m128 _r0 = bfloat2float_lsx(sptr);
                                 __m128 _w = bfloat2float_lsx(kptr0);

@@ -10,6 +10,85 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 
     int ii = 0;
 #if __mips_msa
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+        const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+        const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+        const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
+
+        int kk = 0;
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
+            v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
+            v4f32 _r1 = (v4f32)__msa_ld_w(p1, 0);
+            v4f32 _r2 = (v4f32)__msa_ld_w(p2, 0);
+            v4f32 _r3 = (v4f32)__msa_ld_w(p3, 0);
+            v4f32 _r4 = (v4f32)__msa_ld_w(p4, 0);
+            v4f32 _r5 = (v4f32)__msa_ld_w(p5, 0);
+            v4f32 _r6 = (v4f32)__msa_ld_w(p6, 0);
+            v4f32 _r7 = (v4f32)__msa_ld_w(p7, 0);
+            transpose4x4_ps(_r0, _r1, _r2, _r3);
+            transpose4x4_ps(_r4, _r5, _r6, _r7);
+            __msa_st_w((v4i32)_r0, pp, 0);
+            __msa_st_w((v4i32)_r4, pp + 4, 0);
+            __msa_st_w((v4i32)_r1, pp + 8, 0);
+            __msa_st_w((v4i32)_r5, pp + 12, 0);
+            __msa_st_w((v4i32)_r2, pp + 16, 0);
+            __msa_st_w((v4i32)_r6, pp + 20, 0);
+            __msa_st_w((v4i32)_r3, pp + 24, 0);
+            __msa_st_w((v4i32)_r7, pp + 28, 0);
+            pp += 32;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+            p4 += 4;
+            p5 += 4;
+            p6 += 4;
+            p7 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp[4] = p4[0];
+            pp[5] = p5[0];
+            pp[6] = p6[0];
+            pp[7] = p7[0];
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+        }
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
@@ -126,6 +205,615 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
     int ii = 0;
 #if __mips_msa
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
+
+        const float* pB = pBT;
+        const float* pC0 = pC ? (const float*)CT_tile + i + ii : 0;
+
+        v4f32 _bias0 = (v4f32)__msa_fill_w(0);
+        v4f32 _bias1 = (v4f32)__msa_fill_w(0);
+        if (pC0)
+        {
+            _bias0 = (v4f32)__msa_ld_w(pC0, 0);
+            _bias1 = (v4f32)__msa_ld_w(pC0 + 4, 0);
+        }
+
+        int jj = 0;
+        for (; jj + 7 < max_jj; jj += 8)
+        {
+            v4f32 _sum00;
+            v4f32 _sum01;
+            v4f32 _sum10;
+            v4f32 _sum11;
+            v4f32 _sum20;
+            v4f32 _sum21;
+            v4f32 _sum30;
+            v4f32 _sum31;
+            v4f32 _sum40;
+            v4f32 _sum41;
+            v4f32 _sum50;
+            v4f32 _sum51;
+            v4f32 _sum60;
+            v4f32 _sum61;
+            v4f32 _sum70;
+            v4f32 _sum71;
+
+            if (k == 0)
+            {
+                _sum00 = (v4f32)__msa_fill_w(0);
+                _sum01 = (v4f32)__msa_fill_w(0);
+                _sum10 = (v4f32)__msa_fill_w(0);
+                _sum11 = (v4f32)__msa_fill_w(0);
+                _sum20 = (v4f32)__msa_fill_w(0);
+                _sum21 = (v4f32)__msa_fill_w(0);
+                _sum30 = (v4f32)__msa_fill_w(0);
+                _sum31 = (v4f32)__msa_fill_w(0);
+                _sum40 = (v4f32)__msa_fill_w(0);
+                _sum41 = (v4f32)__msa_fill_w(0);
+                _sum50 = (v4f32)__msa_fill_w(0);
+                _sum51 = (v4f32)__msa_fill_w(0);
+                _sum60 = (v4f32)__msa_fill_w(0);
+                _sum61 = (v4f32)__msa_fill_w(0);
+                _sum70 = (v4f32)__msa_fill_w(0);
+                _sum71 = (v4f32)__msa_fill_w(0);
+            }
+            else
+            {
+                _sum00 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum01 = (v4f32)__msa_ld_w(outptr + 4, 0);
+                _sum10 = (v4f32)__msa_ld_w(outptr + 8, 0);
+                _sum11 = (v4f32)__msa_ld_w(outptr + 12, 0);
+                _sum20 = (v4f32)__msa_ld_w(outptr + 16, 0);
+                _sum21 = (v4f32)__msa_ld_w(outptr + 20, 0);
+                _sum30 = (v4f32)__msa_ld_w(outptr + 24, 0);
+                _sum31 = (v4f32)__msa_ld_w(outptr + 28, 0);
+                _sum40 = (v4f32)__msa_ld_w(outptr + 32, 0);
+                _sum41 = (v4f32)__msa_ld_w(outptr + 36, 0);
+                _sum50 = (v4f32)__msa_ld_w(outptr + 40, 0);
+                _sum51 = (v4f32)__msa_ld_w(outptr + 44, 0);
+                _sum60 = (v4f32)__msa_ld_w(outptr + 48, 0);
+                _sum61 = (v4f32)__msa_ld_w(outptr + 52, 0);
+                _sum70 = (v4f32)__msa_ld_w(outptr + 56, 0);
+                _sum71 = (v4f32)__msa_ld_w(outptr + 60, 0);
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
+                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
+                v4f32 _pA0r = (v4f32)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pA1r = (v4f32)__msa_shf_w((v4i32)_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
+                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
+                v4f32 _pB0r = (v4f32)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
+                v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
+
+                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB0);
+                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA0, _pB0r);
+                _sum20 = __ncnn_msa_fmadd_w(_sum20, _pA0r, _pB0);
+                _sum30 = __ncnn_msa_fmadd_w(_sum30, _pA0r, _pB0r);
+                _sum40 = __ncnn_msa_fmadd_w(_sum40, _pA0, _pB1);
+                _sum50 = __ncnn_msa_fmadd_w(_sum50, _pA0, _pB1r);
+                _sum60 = __ncnn_msa_fmadd_w(_sum60, _pA0r, _pB1);
+                _sum70 = __ncnn_msa_fmadd_w(_sum70, _pA0r, _pB1r);
+                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA1, _pB0);
+                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB0r);
+                _sum21 = __ncnn_msa_fmadd_w(_sum21, _pA1r, _pB0);
+                _sum31 = __ncnn_msa_fmadd_w(_sum31, _pA1r, _pB0r);
+                _sum41 = __ncnn_msa_fmadd_w(_sum41, _pA1, _pB1);
+                _sum51 = __ncnn_msa_fmadd_w(_sum51, _pA1, _pB1r);
+                _sum61 = __ncnn_msa_fmadd_w(_sum61, _pA1r, _pB1);
+                _sum71 = __ncnn_msa_fmadd_w(_sum71, _pA1r, _pB1r);
+                pA += 8;
+                pB += 8;
+            }
+
+            if (k_end)
+            {
+                _sum10 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum30 = (v4f32)__msa_shf_w((v4i32)_sum30, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum30, (v4i32)_sum00);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum30, (v4i32)_sum00);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum10, (v4i32)_sum20);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum10, (v4i32)_sum20);
+                    _sum00 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum10 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum20 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum30 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum10 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum30 = (v4f32)__msa_shf_w((v4i32)_sum30, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum50 = (v4f32)__msa_shf_w((v4i32)_sum50, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum70 = (v4f32)__msa_shf_w((v4i32)_sum70, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum70, (v4i32)_sum40);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum70, (v4i32)_sum40);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum50, (v4i32)_sum60);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum50, (v4i32)_sum60);
+                    _sum40 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum50 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum60 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum70 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum50 = (v4f32)__msa_shf_w((v4i32)_sum50, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum70 = (v4f32)__msa_shf_w((v4i32)_sum70, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum11 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum31 = (v4f32)__msa_shf_w((v4i32)_sum31, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum31, (v4i32)_sum01);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum31, (v4i32)_sum01);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum11, (v4i32)_sum21);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum11, (v4i32)_sum21);
+                    _sum01 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum11 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum21 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum31 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum11 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum31 = (v4f32)__msa_shf_w((v4i32)_sum31, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum51 = (v4f32)__msa_shf_w((v4i32)_sum51, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum71 = (v4f32)__msa_shf_w((v4i32)_sum71, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum71, (v4i32)_sum41);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum71, (v4i32)_sum41);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum51, (v4i32)_sum61);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum51, (v4i32)_sum61);
+                    _sum41 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum51 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum61 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum71 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum51 = (v4f32)__msa_shf_w((v4i32)_sum51, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum71 = (v4f32)__msa_shf_w((v4i32)_sum71, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                if (pC0)
+                {
+                    _sum00 = __msa_fadd_w(_sum00, _bias0);
+                    _sum10 = __msa_fadd_w(_sum10, _bias0);
+                    _sum20 = __msa_fadd_w(_sum20, _bias0);
+                    _sum30 = __msa_fadd_w(_sum30, _bias0);
+                    _sum40 = __msa_fadd_w(_sum40, _bias0);
+                    _sum50 = __msa_fadd_w(_sum50, _bias0);
+                    _sum60 = __msa_fadd_w(_sum60, _bias0);
+                    _sum70 = __msa_fadd_w(_sum70, _bias0);
+                    _sum01 = __msa_fadd_w(_sum01, _bias1);
+                    _sum11 = __msa_fadd_w(_sum11, _bias1);
+                    _sum21 = __msa_fadd_w(_sum21, _bias1);
+                    _sum31 = __msa_fadd_w(_sum31, _bias1);
+                    _sum41 = __msa_fadd_w(_sum41, _bias1);
+                    _sum51 = __msa_fadd_w(_sum51, _bias1);
+                    _sum61 = __msa_fadd_w(_sum61, _bias1);
+                    _sum71 = __msa_fadd_w(_sum71, _bias1);
+                }
+
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    __msa_st_w((v4i32)_sum00, outptr0, 0);
+                    __msa_st_w((v4i32)_sum01, outptr1, 0);
+                    __msa_st_w((v4i32)_sum10, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum11, outptr1 + 4, 0);
+                    __msa_st_w((v4i32)_sum20, outptr0 + 8, 0);
+                    __msa_st_w((v4i32)_sum21, outptr1 + 8, 0);
+                    __msa_st_w((v4i32)_sum30, outptr0 + 12, 0);
+                    __msa_st_w((v4i32)_sum31, outptr1 + 12, 0);
+                    __msa_st_w((v4i32)_sum40, outptr0 + 16, 0);
+                    __msa_st_w((v4i32)_sum41, outptr1 + 16, 0);
+                    __msa_st_w((v4i32)_sum50, outptr0 + 20, 0);
+                    __msa_st_w((v4i32)_sum51, outptr1 + 20, 0);
+                    __msa_st_w((v4i32)_sum60, outptr0 + 24, 0);
+                    __msa_st_w((v4i32)_sum61, outptr1 + 24, 0);
+                    __msa_st_w((v4i32)_sum70, outptr0 + 28, 0);
+                    __msa_st_w((v4i32)_sum71, outptr1 + 28, 0);
+                    outptr0 += 32;
+                }
+                if (out_elempack == 1)
+                {
+                    v4f32 _r0 = _sum00;
+                    v4f32 _r1 = _sum10;
+                    v4f32 _r2 = _sum20;
+                    v4f32 _r3 = _sum30;
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    v4f32 _r4 = _sum40;
+                    v4f32 _r5 = _sum50;
+                    v4f32 _r6 = _sum60;
+                    v4f32 _r7 = _sum70;
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+                    v4f32 _r8 = _sum01;
+                    v4f32 _r9 = _sum11;
+                    v4f32 _ra = _sum21;
+                    v4f32 _rb = _sum31;
+                    transpose4x4_ps(_r8, _r9, _ra, _rb);
+                    v4f32 _rc = _sum41;
+                    v4f32 _rd = _sum51;
+                    v4f32 _re = _sum61;
+                    v4f32 _rf = _sum71;
+                    transpose4x4_ps(_rc, _rd, _re, _rf);
+
+                    __msa_st_w((v4i32)_r0, outptr0, 0);
+                    __msa_st_w((v4i32)_r4, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_r1, outptr0 + out_hstep, 0);
+                    __msa_st_w((v4i32)_r5, outptr0 + out_hstep + 4, 0);
+                    __msa_st_w((v4i32)_r2, outptr0 + out_hstep * 2, 0);
+                    __msa_st_w((v4i32)_r6, outptr0 + out_hstep * 2 + 4, 0);
+                    __msa_st_w((v4i32)_r3, outptr0 + out_hstep * 3, 0);
+                    __msa_st_w((v4i32)_r7, outptr0 + out_hstep * 3 + 4, 0);
+                    __msa_st_w((v4i32)_r8, outptr0 + out_hstep * 4, 0);
+                    __msa_st_w((v4i32)_rc, outptr0 + out_hstep * 4 + 4, 0);
+                    __msa_st_w((v4i32)_r9, outptr0 + out_hstep * 5, 0);
+                    __msa_st_w((v4i32)_rd, outptr0 + out_hstep * 5 + 4, 0);
+                    __msa_st_w((v4i32)_ra, outptr0 + out_hstep * 6, 0);
+                    __msa_st_w((v4i32)_re, outptr0 + out_hstep * 6 + 4, 0);
+                    __msa_st_w((v4i32)_rb, outptr0 + out_hstep * 7, 0);
+                    __msa_st_w((v4i32)_rf, outptr0 + out_hstep * 7 + 4, 0);
+                    outptr0 += 8;
+                }
+            }
+            else
+            {
+                __msa_st_w((v4i32)_sum00, outptr, 0);
+                __msa_st_w((v4i32)_sum01, outptr + 4, 0);
+                __msa_st_w((v4i32)_sum10, outptr + 8, 0);
+                __msa_st_w((v4i32)_sum11, outptr + 12, 0);
+                __msa_st_w((v4i32)_sum20, outptr + 16, 0);
+                __msa_st_w((v4i32)_sum21, outptr + 20, 0);
+                __msa_st_w((v4i32)_sum30, outptr + 24, 0);
+                __msa_st_w((v4i32)_sum31, outptr + 28, 0);
+                __msa_st_w((v4i32)_sum40, outptr + 32, 0);
+                __msa_st_w((v4i32)_sum41, outptr + 36, 0);
+                __msa_st_w((v4i32)_sum50, outptr + 40, 0);
+                __msa_st_w((v4i32)_sum51, outptr + 44, 0);
+                __msa_st_w((v4i32)_sum60, outptr + 48, 0);
+                __msa_st_w((v4i32)_sum61, outptr + 52, 0);
+                __msa_st_w((v4i32)_sum70, outptr + 56, 0);
+                __msa_st_w((v4i32)_sum71, outptr + 60, 0);
+            }
+
+            outptr += 64;
+        }
+        for (; jj + 3 < max_jj; jj += 4)
+        {
+            v4f32 _sum00;
+            v4f32 _sum01;
+            v4f32 _sum10;
+            v4f32 _sum11;
+            v4f32 _sum20;
+            v4f32 _sum21;
+            v4f32 _sum30;
+            v4f32 _sum31;
+
+            if (k == 0)
+            {
+                _sum00 = (v4f32)__msa_fill_w(0);
+                _sum01 = (v4f32)__msa_fill_w(0);
+                _sum10 = (v4f32)__msa_fill_w(0);
+                _sum11 = (v4f32)__msa_fill_w(0);
+                _sum20 = (v4f32)__msa_fill_w(0);
+                _sum21 = (v4f32)__msa_fill_w(0);
+                _sum30 = (v4f32)__msa_fill_w(0);
+                _sum31 = (v4f32)__msa_fill_w(0);
+            }
+            else
+            {
+                _sum00 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum01 = (v4f32)__msa_ld_w(outptr + 4, 0);
+                _sum10 = (v4f32)__msa_ld_w(outptr + 8, 0);
+                _sum11 = (v4f32)__msa_ld_w(outptr + 12, 0);
+                _sum20 = (v4f32)__msa_ld_w(outptr + 16, 0);
+                _sum21 = (v4f32)__msa_ld_w(outptr + 20, 0);
+                _sum30 = (v4f32)__msa_ld_w(outptr + 24, 0);
+                _sum31 = (v4f32)__msa_ld_w(outptr + 28, 0);
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
+                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
+                v4f32 _pA0r = (v4f32)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pA1r = (v4f32)__msa_shf_w((v4i32)_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
+                v4f32 _pB = (v4f32)__msa_ld_w(pB, 0);
+                v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
+
+                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB);
+                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA0, _pB1);
+                _sum20 = __ncnn_msa_fmadd_w(_sum20, _pA0r, _pB);
+                _sum30 = __ncnn_msa_fmadd_w(_sum30, _pA0r, _pB1);
+                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA1, _pB);
+                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB1);
+                _sum21 = __ncnn_msa_fmadd_w(_sum21, _pA1r, _pB);
+                _sum31 = __ncnn_msa_fmadd_w(_sum31, _pA1r, _pB1);
+                pA += 8;
+                pB += 4;
+            }
+
+            if (k_end)
+            {
+                _sum10 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum30 = (v4f32)__msa_shf_w((v4i32)_sum30, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum30, (v4i32)_sum00);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum30, (v4i32)_sum00);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum10, (v4i32)_sum20);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum10, (v4i32)_sum20);
+                    _sum00 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum10 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum20 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum30 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum10 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum30 = (v4f32)__msa_shf_w((v4i32)_sum30, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                _sum11 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum31 = (v4f32)__msa_shf_w((v4i32)_sum31, _MSA_SHUFFLE(2, 1, 0, 3));
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum31, (v4i32)_sum01);
+                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum31, (v4i32)_sum01);
+                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum11, (v4i32)_sum21);
+                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum11, (v4i32)_sum21);
+                    _sum01 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum11 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
+                    _sum21 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
+                    _sum31 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
+                }
+                _sum11 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(2, 1, 0, 3));
+                _sum31 = (v4f32)__msa_shf_w((v4i32)_sum31, _MSA_SHUFFLE(2, 1, 0, 3));
+
+                if (pC0)
+                {
+                    _sum00 = __msa_fadd_w(_sum00, _bias0);
+                    _sum10 = __msa_fadd_w(_sum10, _bias0);
+                    _sum20 = __msa_fadd_w(_sum20, _bias0);
+                    _sum30 = __msa_fadd_w(_sum30, _bias0);
+                    _sum01 = __msa_fadd_w(_sum01, _bias1);
+                    _sum11 = __msa_fadd_w(_sum11, _bias1);
+                    _sum21 = __msa_fadd_w(_sum21, _bias1);
+                    _sum31 = __msa_fadd_w(_sum31, _bias1);
+                }
+
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    __msa_st_w((v4i32)_sum00, outptr0, 0);
+                    __msa_st_w((v4i32)_sum01, outptr1, 0);
+                    __msa_st_w((v4i32)_sum10, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum11, outptr1 + 4, 0);
+                    __msa_st_w((v4i32)_sum20, outptr0 + 8, 0);
+                    __msa_st_w((v4i32)_sum21, outptr1 + 8, 0);
+                    __msa_st_w((v4i32)_sum30, outptr0 + 12, 0);
+                    __msa_st_w((v4i32)_sum31, outptr1 + 12, 0);
+                    outptr0 += 16;
+                }
+                if (out_elempack == 1)
+                {
+                    v4f32 _r0 = _sum00;
+                    v4f32 _r1 = _sum10;
+                    v4f32 _r2 = _sum20;
+                    v4f32 _r3 = _sum30;
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    v4f32 _r4 = _sum01;
+                    v4f32 _r5 = _sum11;
+                    v4f32 _r6 = _sum21;
+                    v4f32 _r7 = _sum31;
+                    transpose4x4_ps(_r4, _r5, _r6, _r7);
+
+                    __msa_st_w((v4i32)_r0, outptr0, 0);
+                    __msa_st_w((v4i32)_r1, outptr0 + out_hstep, 0);
+                    __msa_st_w((v4i32)_r2, outptr0 + out_hstep * 2, 0);
+                    __msa_st_w((v4i32)_r3, outptr0 + out_hstep * 3, 0);
+                    __msa_st_w((v4i32)_r4, outptr0 + out_hstep * 4, 0);
+                    __msa_st_w((v4i32)_r5, outptr0 + out_hstep * 5, 0);
+                    __msa_st_w((v4i32)_r6, outptr0 + out_hstep * 6, 0);
+                    __msa_st_w((v4i32)_r7, outptr0 + out_hstep * 7, 0);
+                    outptr0 += 4;
+                }
+            }
+            else
+            {
+                __msa_st_w((v4i32)_sum00, outptr, 0);
+                __msa_st_w((v4i32)_sum01, outptr + 4, 0);
+                __msa_st_w((v4i32)_sum10, outptr + 8, 0);
+                __msa_st_w((v4i32)_sum11, outptr + 12, 0);
+                __msa_st_w((v4i32)_sum20, outptr + 16, 0);
+                __msa_st_w((v4i32)_sum21, outptr + 20, 0);
+                __msa_st_w((v4i32)_sum30, outptr + 24, 0);
+                __msa_st_w((v4i32)_sum31, outptr + 28, 0);
+            }
+
+            outptr += 32;
+        }
+        for (; jj + 1 < max_jj; jj += 2)
+        {
+            v4f32 _sum00;
+            v4f32 _sum01;
+            v4f32 _sum10;
+            v4f32 _sum11;
+
+            if (k == 0)
+            {
+                _sum00 = (v4f32)__msa_fill_w(0);
+                _sum01 = (v4f32)__msa_fill_w(0);
+                _sum10 = (v4f32)__msa_fill_w(0);
+                _sum11 = (v4f32)__msa_fill_w(0);
+            }
+            else
+            {
+                _sum00 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum01 = (v4f32)__msa_ld_w(outptr + 4, 0);
+                _sum10 = (v4f32)__msa_ld_w(outptr + 8, 0);
+                _sum11 = (v4f32)__msa_ld_w(outptr + 12, 0);
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
+                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
+                v4f32 _pB = (v4f32)__msa_fill_d_ptr(pB);
+                v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(2, 3, 0, 1));
+
+                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB);
+                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA0, _pB1);
+                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA1, _pB);
+                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB1);
+                pA += 8;
+                pB += 2;
+            }
+
+            if (k_end)
+            {
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_shf_w((v4i32)_sum00, _MSA_SHUFFLE(3, 1, 2, 0));
+                    v4f32 _tmp1 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(0, 2, 3, 1));
+                    _sum00 = (v4f32)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum10 = (v4f32)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum10 = (v4f32)__msa_shf_w((v4i32)_sum10, _MSA_SHUFFLE(2, 1, 0, 3));
+                }
+                {
+                    v4f32 _tmp0 = (v4f32)__msa_shf_w((v4i32)_sum01, _MSA_SHUFFLE(3, 1, 2, 0));
+                    v4f32 _tmp1 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(0, 2, 3, 1));
+                    _sum01 = (v4f32)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum11 = (v4f32)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
+                    _sum11 = (v4f32)__msa_shf_w((v4i32)_sum11, _MSA_SHUFFLE(2, 1, 0, 3));
+                }
+
+                if (pC0)
+                {
+                    _sum00 = __msa_fadd_w(_sum00, _bias0);
+                    _sum10 = __msa_fadd_w(_sum10, _bias0);
+                    _sum01 = __msa_fadd_w(_sum01, _bias1);
+                    _sum11 = __msa_fadd_w(_sum11, _bias1);
+                }
+
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    __msa_st_w((v4i32)_sum00, outptr0, 0);
+                    __msa_st_w((v4i32)_sum01, outptr1, 0);
+                    __msa_st_w((v4i32)_sum10, outptr0 + 4, 0);
+                    __msa_st_w((v4i32)_sum11, outptr1 + 4, 0);
+                    outptr0 += 8;
+                }
+                if (out_elempack == 1)
+                {
+                    uint64_t v0 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 0) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 0) << 32);
+                    uint64_t v1 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 1) << 32);
+                    uint64_t v2 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 2) << 32);
+                    uint64_t v3 = (uint32_t)__msa_copy_s_w((v4i32)_sum00, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum10, 3) << 32);
+                    uint64_t v4 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 0) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 0) << 32);
+                    uint64_t v5 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 1) << 32);
+                    uint64_t v6 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 2) << 32);
+                    uint64_t v7 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 3) << 32);
+                    memcpy(outptr0, &v0, 8);
+                    memcpy(outptr0 + out_hstep, &v1, 8);
+                    memcpy(outptr0 + out_hstep * 2, &v2, 8);
+                    memcpy(outptr0 + out_hstep * 3, &v3, 8);
+                    memcpy(outptr0 + out_hstep * 4, &v4, 8);
+                    memcpy(outptr0 + out_hstep * 5, &v5, 8);
+                    memcpy(outptr0 + out_hstep * 6, &v6, 8);
+                    memcpy(outptr0 + out_hstep * 7, &v7, 8);
+                    outptr0 += 2;
+                }
+            }
+            else
+            {
+                __msa_st_w((v4i32)_sum00, outptr, 0);
+                __msa_st_w((v4i32)_sum01, outptr + 4, 0);
+                __msa_st_w((v4i32)_sum10, outptr + 8, 0);
+                __msa_st_w((v4i32)_sum11, outptr + 12, 0);
+            }
+
+            outptr += 16;
+        }
+        for (; jj < max_jj; jj += 1)
+        {
+            v4f32 _sum0;
+            v4f32 _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = (v4f32)__msa_fill_w(0);
+                _sum1 = (v4f32)__msa_fill_w(0);
+            }
+            else
+            {
+                _sum0 = (v4f32)__msa_ld_w(outptr, 0);
+                _sum1 = (v4f32)__msa_ld_w(outptr + 4, 0);
+            }
+
+            const float* pA = pAT;
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
+                v4f32 _pA0 = (v4f32)__msa_ld_w(pA, 0);
+                v4f32 _pA1 = (v4f32)__msa_ld_w(pA + 4, 0);
+                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, __msa_fill_w_f32(pB[0]));
+                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA1, __msa_fill_w_f32(pB[0]));
+                pA += 8;
+                pB += 1;
+            }
+
+            if (k_end)
+            {
+                if (pC0)
+                {
+                    _sum0 = __msa_fadd_w(_sum0, _bias0);
+                    _sum1 = __msa_fadd_w(_sum1, _bias1);
+                }
+
+                if (out_elempack == 4)
+                {
+                    float* outptr1 = outptr0 + out_hstep * 4;
+                    __msa_st_w((v4i32)_sum0, outptr0, 0);
+                    __msa_st_w((v4i32)_sum1, outptr1, 0);
+                    outptr0 += 4;
+                }
+                if (out_elempack == 1)
+                {
+                    uint32_t v0 = __msa_copy_s_w((v4i32)_sum0, 0);
+                    uint32_t v1 = __msa_copy_s_w((v4i32)_sum0, 1);
+                    uint32_t v2 = __msa_copy_s_w((v4i32)_sum0, 2);
+                    uint32_t v3 = __msa_copy_s_w((v4i32)_sum0, 3);
+                    uint32_t v4 = __msa_copy_s_w((v4i32)_sum1, 0);
+                    uint32_t v5 = __msa_copy_s_w((v4i32)_sum1, 1);
+                    uint32_t v6 = __msa_copy_s_w((v4i32)_sum1, 2);
+                    uint32_t v7 = __msa_copy_s_w((v4i32)_sum1, 3);
+                    memcpy(outptr0, &v0, 4);
+                    memcpy(outptr0 + out_hstep, &v1, 4);
+                    memcpy(outptr0 + out_hstep * 2, &v2, 4);
+                    memcpy(outptr0 + out_hstep * 3, &v3, 4);
+                    memcpy(outptr0 + out_hstep * 4, &v4, 4);
+                    memcpy(outptr0 + out_hstep * 5, &v5, 4);
+                    memcpy(outptr0 + out_hstep * 6, &v6, 4);
+                    memcpy(outptr0 + out_hstep * 7, &v7, 4);
+                    outptr0++;
+                }
+            }
+            else
+            {
+                __msa_st_w((v4i32)_sum0, outptr, 0);
+                __msa_st_w((v4i32)_sum1, outptr + 4, 0);
+            }
+
+            outptr += 8;
+        }
+
+        pAT += max_kk * 8;
+    }
     for (; ii + 3 < max_ii; ii += 4)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
@@ -138,231 +826,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
         }
 
         int jj = 0;
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            const float* pA = pAT;
-
-            v4f32 _sum0;
-            v4f32 _sum1;
-            v4f32 _sum2;
-            v4f32 _sum3;
-            v4f32 _sum4;
-            v4f32 _sum5;
-            v4f32 _sum6;
-            v4f32 _sum7;
-            v4f32 _sum8;
-            v4f32 _sum9;
-            v4f32 _suma;
-            v4f32 _sumb;
-
-            if (k == 0)
-            {
-                if (pC)
-                {
-                    _sum0 = (v4f32)__msa_ld_w(pC, 0);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                    _sum4 = _sum0;
-                    _sum5 = _sum0;
-                    _sum6 = _sum0;
-                    _sum7 = _sum0;
-                    _sum8 = _sum0;
-                    _sum9 = _sum0;
-                    _suma = _sum0;
-                    _sumb = _sum0;
-                }
-                else
-                {
-                    _sum0 = (v4f32)__msa_fill_w(0);
-                    _sum1 = (v4f32)__msa_fill_w(0);
-                    _sum2 = (v4f32)__msa_fill_w(0);
-                    _sum3 = (v4f32)__msa_fill_w(0);
-                    _sum4 = (v4f32)__msa_fill_w(0);
-                    _sum5 = (v4f32)__msa_fill_w(0);
-                    _sum6 = (v4f32)__msa_fill_w(0);
-                    _sum7 = (v4f32)__msa_fill_w(0);
-                    _sum8 = (v4f32)__msa_fill_w(0);
-                    _sum9 = (v4f32)__msa_fill_w(0);
-                    _suma = (v4f32)__msa_fill_w(0);
-                    _sumb = (v4f32)__msa_fill_w(0);
-                }
-            }
-            else
-            {
-                _sum0 = (v4f32)__msa_ld_w(outptr, 0);
-                _sum1 = (v4f32)__msa_ld_w(outptr + 4 * 1, 0);
-                _sum2 = (v4f32)__msa_ld_w(outptr + 4 * 2, 0);
-                _sum3 = (v4f32)__msa_ld_w(outptr + 4 * 3, 0);
-                _sum4 = (v4f32)__msa_ld_w(outptr + 4 * 4, 0);
-                _sum5 = (v4f32)__msa_ld_w(outptr + 4 * 5, 0);
-                _sum6 = (v4f32)__msa_ld_w(outptr + 4 * 6, 0);
-                _sum7 = (v4f32)__msa_ld_w(outptr + 4 * 7, 0);
-                _sum8 = (v4f32)__msa_ld_w(outptr + 4 * 8, 0);
-                _sum9 = (v4f32)__msa_ld_w(outptr + 4 * 9, 0);
-                _suma = (v4f32)__msa_ld_w(outptr + 4 * 10, 0);
-                _sumb = (v4f32)__msa_ld_w(outptr + 4 * 11, 0);
-            }
-
-            if (k == 0)
-            {
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
-
-                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(0, 3, 2, 1));
-                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(1, 0, 3, 2));
-
-                transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
-                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(0, 3, 2, 1));
-                _suma = (v4f32)__msa_shf_w((v4i32)_suma, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
-                _suma = (v4f32)__msa_shf_w((v4i32)_suma, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(1, 0, 3, 2));
-            }
-
-            int kk = 0;
-            for (; kk < max_kk; kk += 1)
-            {
-                __builtin_prefetch(pA + 16);
-                __builtin_prefetch(pB + 16);
-                v4f32 _pA = (v4f32)__msa_ld_w(pA, 0);
-                v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
-                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
-                v4f32 _pB2 = (v4f32)__msa_ld_w(pB + 8, 0);
-                v4f32 _pB0r = (v4f32)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
-                v4f32 _pB1r = (v4f32)__msa_shf_w((v4i32)_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
-                v4f32 _pB2r = (v4f32)__msa_shf_w((v4i32)_pB2, _MSA_SHUFFLE(0, 3, 2, 1));
-
-                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB0);
-                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA, _pB0r);
-                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA1, _pB0);
-                _sum3 = __ncnn_msa_fmadd_w(_sum3, _pA1, _pB0r);
-                _sum4 = __ncnn_msa_fmadd_w(_sum4, _pA, _pB1);
-                _sum5 = __ncnn_msa_fmadd_w(_sum5, _pA, _pB1r);
-                _sum6 = __ncnn_msa_fmadd_w(_sum6, _pA1, _pB1);
-                _sum7 = __ncnn_msa_fmadd_w(_sum7, _pA1, _pB1r);
-                _sum8 = __ncnn_msa_fmadd_w(_sum8, _pA, _pB2);
-                _sum9 = __ncnn_msa_fmadd_w(_sum9, _pA, _pB2r);
-                _suma = __ncnn_msa_fmadd_w(_suma, _pA1, _pB2);
-                _sumb = __ncnn_msa_fmadd_w(_sumb, _pA1, _pB2r);
-
-                pA += 4;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
-                {
-                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum3, (v4i32)_sum0);
-                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum3, (v4i32)_sum0);
-                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum1, (v4i32)_sum2);
-                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum1, (v4i32)_sum2);
-                    _sum0 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _sum1 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _sum2 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
-                    _sum3 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
-                }
-                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
-
-                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
-                {
-                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum7, (v4i32)_sum4);
-                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum7, (v4i32)_sum4);
-                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum5, (v4i32)_sum6);
-                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum5, (v4i32)_sum6);
-                    _sum4 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _sum5 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _sum6 = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
-                    _sum7 = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
-                }
-                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
-
-                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
-                {
-                    v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sumb, (v4i32)_sum8);
-                    v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sumb, (v4i32)_sum8);
-                    v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum9, (v4i32)_suma);
-                    v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum9, (v4i32)_suma);
-                    _sum8 = (v4f32)__msa_ilvr_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _sum9 = (v4f32)__msa_ilvl_d((v2i64)_tmp2, (v2i64)_tmp0);
-                    _suma = (v4f32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp3);
-                    _sumb = (v4f32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp3);
-                }
-                _sum9 = (v4f32)__msa_shf_w((v4i32)_sum9, _MSA_SHUFFLE(2, 1, 0, 3));
-                _sumb = (v4f32)__msa_shf_w((v4i32)_sumb, _MSA_SHUFFLE(2, 1, 0, 3));
-                if (out_elempack == 4)
-                {
-                    __msa_st_w((v4i32)_sum0, outptr0, 0);
-                    __msa_st_w((v4i32)_sum1, outptr0 + 4, 0);
-                    __msa_st_w((v4i32)_sum2, outptr0 + 4 * 2, 0);
-                    __msa_st_w((v4i32)_sum3, outptr0 + 4 * 3, 0);
-                    __msa_st_w((v4i32)_sum4, outptr0 + 4 * 4, 0);
-                    __msa_st_w((v4i32)_sum5, outptr0 + 4 * 5, 0);
-                    __msa_st_w((v4i32)_sum6, outptr0 + 4 * 6, 0);
-                    __msa_st_w((v4i32)_sum7, outptr0 + 4 * 7, 0);
-                    __msa_st_w((v4i32)_sum8, outptr0 + 4 * 8, 0);
-                    __msa_st_w((v4i32)_sum9, outptr0 + 4 * 9, 0);
-                    __msa_st_w((v4i32)_suma, outptr0 + 4 * 10, 0);
-                    __msa_st_w((v4i32)_sumb, outptr0 + 4 * 11, 0);
-                    outptr0 += 48;
-                }
-                if (out_elempack == 1)
-                {
-                    transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                    transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                    transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
-
-                    __msa_st_w((v4i32)_sum0, outptr0, 0);
-                    __msa_st_w((v4i32)_sum1, outptr0 + out_hstep * 1, 0);
-                    __msa_st_w((v4i32)_sum2, outptr0 + out_hstep * 2, 0);
-                    __msa_st_w((v4i32)_sum3, outptr0 + out_hstep * 3, 0);
-                    __msa_st_w((v4i32)_sum4, outptr0 + 4, 0);
-                    __msa_st_w((v4i32)_sum5, outptr0 + out_hstep * 1 + 4, 0);
-                    __msa_st_w((v4i32)_sum6, outptr0 + out_hstep * 2 + 4, 0);
-                    __msa_st_w((v4i32)_sum7, outptr0 + out_hstep * 3 + 4, 0);
-                    __msa_st_w((v4i32)_sum8, outptr0 + 8, 0);
-                    __msa_st_w((v4i32)_sum9, outptr0 + out_hstep * 1 + 8, 0);
-                    __msa_st_w((v4i32)_suma, outptr0 + out_hstep * 2 + 8, 0);
-                    __msa_st_w((v4i32)_sumb, outptr0 + out_hstep * 3 + 8, 0);
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
-                __msa_st_w((v4i32)_sum0, outptr, 0);
-                __msa_st_w((v4i32)_sum1, outptr + 4, 0);
-                __msa_st_w((v4i32)_sum2, outptr + 4 * 2, 0);
-                __msa_st_w((v4i32)_sum3, outptr + 4 * 3, 0);
-                __msa_st_w((v4i32)_sum4, outptr + 4 * 4, 0);
-                __msa_st_w((v4i32)_sum5, outptr + 4 * 5, 0);
-                __msa_st_w((v4i32)_sum6, outptr + 4 * 6, 0);
-                __msa_st_w((v4i32)_sum7, outptr + 4 * 7, 0);
-                __msa_st_w((v4i32)_sum8, outptr + 4 * 8, 0);
-                __msa_st_w((v4i32)_sum9, outptr + 4 * 9, 0);
-                __msa_st_w((v4i32)_suma, outptr + 4 * 10, 0);
-                __msa_st_w((v4i32)_sumb, outptr + 4 * 11, 0);
-            }
-
-            outptr += 48;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             const float* pA = pAT;
@@ -811,106 +1274,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
         int jj = 0;
 #if __mips_msa
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            v4f32 _sum00;
-            v4f32 _sum01;
-            v4f32 _sum02;
-            v4f32 _sum10;
-            v4f32 _sum11;
-            v4f32 _sum12;
-
-            if (k == 0)
-            {
-                if (pC)
-                {
-                    _sum00 = __msa_fill_w_f32(pC[0]);
-                    _sum01 = __msa_fill_w_f32(pC[0]);
-                    _sum02 = __msa_fill_w_f32(pC[0]);
-                    _sum10 = __msa_fill_w_f32(pC[1]);
-                    _sum11 = __msa_fill_w_f32(pC[1]);
-                    _sum12 = __msa_fill_w_f32(pC[1]);
-                }
-                else
-                {
-                    _sum00 = (v4f32)__msa_fill_w(0);
-                    _sum01 = (v4f32)__msa_fill_w(0);
-                    _sum02 = (v4f32)__msa_fill_w(0);
-                    _sum10 = (v4f32)__msa_fill_w(0);
-                    _sum11 = (v4f32)__msa_fill_w(0);
-                    _sum12 = (v4f32)__msa_fill_w(0);
-                }
-            }
-            else
-            {
-                v4f32 _tmp0 = (v4f32)__msa_ld_w(outptr, 0);
-                v4f32 _tmp1 = (v4f32)__msa_ld_w(outptr + 4, 0);
-                v4f32 _tmp2 = (v4f32)__msa_ld_w(outptr + 8, 0);
-                v4f32 _tmp3 = (v4f32)__msa_ld_w(outptr + 12, 0);
-                v4f32 _tmp4 = (v4f32)__msa_ld_w(outptr + 16, 0);
-                v4f32 _tmp5 = (v4f32)__msa_ld_w(outptr + 20, 0);
-                _sum00 = (v4f32)__msa_pckev_w((v4i32)_tmp1, (v4i32)_tmp0);
-                _sum01 = (v4f32)__msa_pckev_w((v4i32)_tmp3, (v4i32)_tmp2);
-                _sum02 = (v4f32)__msa_pckev_w((v4i32)_tmp5, (v4i32)_tmp4);
-                _sum10 = (v4f32)__msa_pckod_w((v4i32)_tmp1, (v4i32)_tmp0);
-                _sum11 = (v4f32)__msa_pckod_w((v4i32)_tmp3, (v4i32)_tmp2);
-                _sum12 = (v4f32)__msa_pckod_w((v4i32)_tmp5, (v4i32)_tmp4);
-            }
-
-            const float* pA = pAT;
-            int kk = 0;
-            for (; kk < max_kk; kk += 1)
-            {
-                __builtin_prefetch(pA + 16);
-                __builtin_prefetch(pB + 16);
-                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
-                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
-                v4f32 _pB2 = (v4f32)__msa_ld_w(pB + 8, 0);
-
-                v4f32 _pA0 = __msa_fill_w_f32(pA[0]);
-                _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB0);
-                _sum01 = __ncnn_msa_fmadd_w(_sum01, _pA0, _pB1);
-                _sum02 = __ncnn_msa_fmadd_w(_sum02, _pA0, _pB2);
-                v4f32 _pA1 = __msa_fill_w_f32(pA[1]);
-                _sum10 = __ncnn_msa_fmadd_w(_sum10, _pA1, _pB0);
-                _sum11 = __ncnn_msa_fmadd_w(_sum11, _pA1, _pB1);
-                _sum12 = __ncnn_msa_fmadd_w(_sum12, _pA1, _pB2);
-
-                pA += 2;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    __msa_st_w((v4i32)_sum00, outptr0, 0);
-                    __msa_st_w((v4i32)_sum01, outptr0 + 4, 0);
-                    __msa_st_w((v4i32)_sum02, outptr0 + 8, 0);
-                    __msa_st_w((v4i32)_sum10, outptr0 + out_hstep, 0);
-                    __msa_st_w((v4i32)_sum11, outptr0 + out_hstep + 4, 0);
-                    __msa_st_w((v4i32)_sum12, outptr0 + out_hstep + 8, 0);
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
-                v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_sum10, (v4i32)_sum00);
-                v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_sum10, (v4i32)_sum00);
-                v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_sum11, (v4i32)_sum01);
-                v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_sum11, (v4i32)_sum01);
-                v4f32 _tmp4 = (v4f32)__msa_ilvr_w((v4i32)_sum12, (v4i32)_sum02);
-                v4f32 _tmp5 = (v4f32)__msa_ilvl_w((v4i32)_sum12, (v4i32)_sum02);
-                __msa_st_w((v4i32)_tmp0, outptr, 0);
-                __msa_st_w((v4i32)_tmp1, outptr + 4, 0);
-                __msa_st_w((v4i32)_tmp2, outptr + 8, 0);
-                __msa_st_w((v4i32)_tmp3, outptr + 12, 0);
-                __msa_st_w((v4i32)_tmp4, outptr + 16, 0);
-                __msa_st_w((v4i32)_tmp5, outptr + 20, 0);
-            }
-
-            outptr += 24;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum00;
@@ -1186,72 +1549,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 
         int jj = 0;
 #if __mips_msa
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            v4f32 _sum0;
-            v4f32 _sum1;
-            v4f32 _sum2;
-
-            if (k == 0)
-            {
-                if (pC)
-                {
-                    _sum0 = __msa_fill_w_f32(pC[0]);
-                    _sum1 = __msa_fill_w_f32(pC[0]);
-                    _sum2 = __msa_fill_w_f32(pC[0]);
-                }
-                else
-                {
-                    _sum0 = (v4f32)__msa_fill_w(0);
-                    _sum1 = (v4f32)__msa_fill_w(0);
-                    _sum2 = (v4f32)__msa_fill_w(0);
-                }
-            }
-            else
-            {
-                _sum0 = (v4f32)__msa_ld_w(outptr, 0);
-                _sum1 = (v4f32)__msa_ld_w(outptr + 4, 0);
-                _sum2 = (v4f32)__msa_ld_w(outptr + 8, 0);
-            }
-
-            const float* pA = pAT;
-            int kk = 0;
-            for (; kk < max_kk; kk += 1)
-            {
-                __builtin_prefetch(pA + 16);
-                __builtin_prefetch(pB + 16);
-                v4f32 _pB0 = (v4f32)__msa_ld_w(pB, 0);
-                v4f32 _pB1 = (v4f32)__msa_ld_w(pB + 4, 0);
-                v4f32 _pB2 = (v4f32)__msa_ld_w(pB + 8, 0);
-
-                v4f32 _pA0 = __msa_fill_w_f32(pA[0]);
-                _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA0, _pB0);
-                _sum1 = __ncnn_msa_fmadd_w(_sum1, _pA0, _pB1);
-                _sum2 = __ncnn_msa_fmadd_w(_sum2, _pA0, _pB2);
-
-                pA += 1;
-                pB += 12;
-            }
-
-            if (k_end)
-            {
-                // if (out_elempack == 1)
-                {
-                    __msa_st_w((v4i32)_sum0, outptr0, 0);
-                    __msa_st_w((v4i32)_sum1, outptr0 + 4, 0);
-                    __msa_st_w((v4i32)_sum2, outptr0 + 8, 0);
-                    outptr0 += 12;
-                }
-            }
-            else
-            {
-                __msa_st_w((v4i32)_sum0, outptr, 0);
-                __msa_st_w((v4i32)_sum1, outptr + 4, 0);
-                __msa_st_w((v4i32)_sum2, outptr + 8, 0);
-            }
-
-            outptr += 12;
-        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             v4f32 _sum0;
@@ -1501,7 +1798,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 #endif
 
 #if __mips_msa
-        TILE_M = std::max(4, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::max(8, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
         TILE_M = std::max(2, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -1512,7 +1809,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __mips_msa
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -1520,7 +1817,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
         if (nT > 1)
         {
 #if __mips_msa
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #else
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
@@ -1529,6 +1826,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 
     if (N > 0)
     {
+#if __mips_msa
+        TILE_N = 8;
+#else
         int tile_size;
         if (TILE_K >= K)
         {
@@ -1539,22 +1839,11 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
             tile_size = (l2_cache_size_fp32 - TILE_M * TILE_K) / (TILE_M + TILE_K);
         }
 
-#if __mips_msa
-        TILE_N = std::max(4, tile_size / 4 * 4);
-#else
         TILE_N = std::max(1, tile_size);
-#endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
-#if __mips_msa
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
-#else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
-#endif
 
-#if __mips_msa
-        TILE_N = std::max(4, TILE_N);
-#else
         TILE_N = std::max(1, TILE_N);
 #endif
     }
@@ -1568,67 +1857,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
 
     int jj = 0;
 #if __mips_msa
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
-
-            int kk = 0;
-            for (; kk < max_kk / 4; kk++)
-            {
-                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
-                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
-                v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
-                v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 4 * 2, 0);
-                v4f32 _r3 = (v4f32)__msa_ld_w(p0 + 4 * 3, 0);
-                v4f32 _r4 = (v4f32)__msa_ld_w(p0 + 4 * 4, 0);
-                v4f32 _r5 = (v4f32)__msa_ld_w(p0 + 4 * 5, 0);
-                v4f32 _r6 = (v4f32)__msa_ld_w(p0 + 4 * 6, 0);
-                v4f32 _r7 = (v4f32)__msa_ld_w(p0 + 4 * 7, 0);
-                v4f32 _r8 = (v4f32)__msa_ld_w(p0 + 4 * 8, 0);
-                v4f32 _r9 = (v4f32)__msa_ld_w(p0 + 4 * 9, 0);
-                v4f32 _ra = (v4f32)__msa_ld_w(p0 + 4 * 10, 0);
-                v4f32 _rb = (v4f32)__msa_ld_w(p0 + 4 * 11, 0);
-                transpose4x4_ps(_r0, _r1, _r2, _r3);
-                transpose4x4_ps(_r4, _r5, _r6, _r7);
-                transpose4x4_ps(_r8, _r9, _ra, _rb);
-                __msa_st_w((v4i32)_r0, pp, 0);
-                __msa_st_w((v4i32)_r4, pp + 4 * 1, 0);
-                __msa_st_w((v4i32)_r8, pp + 4 * 2, 0);
-                __msa_st_w((v4i32)_r1, pp + 4 * 3, 0);
-                __msa_st_w((v4i32)_r5, pp + 4 * 4, 0);
-                __msa_st_w((v4i32)_r9, pp + 4 * 5, 0);
-                __msa_st_w((v4i32)_r2, pp + 4 * 6, 0);
-                __msa_st_w((v4i32)_r6, pp + 4 * 7, 0);
-                __msa_st_w((v4i32)_ra, pp + 4 * 8, 0);
-                __msa_st_w((v4i32)_r3, pp + 4 * 9, 0);
-                __msa_st_w((v4i32)_r7, pp + 4 * 10, 0);
-                __msa_st_w((v4i32)_rb, pp + 4 * 11, 0);
-                pp += 48;
-                p0 += bottom_blob.cstep * 4;
-            }
-        }
-
-        if (elempack == 1)
-        {
-            const float* p0 = (const float*)bottom_blob.channel(k) + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                __builtin_prefetch(p0 + bottom_blob.cstep);
-                v4f32 _r0 = (v4f32)__msa_ld_w(p0, 0);
-                v4f32 _r1 = (v4f32)__msa_ld_w(p0 + 4, 0);
-                v4f32 _r2 = (v4f32)__msa_ld_w(p0 + 8, 0);
-                __msa_st_w((v4i32)_r0, pp, 0);
-                __msa_st_w((v4i32)_r1, pp + 4, 0);
-                __msa_st_w((v4i32)_r2, pp + 8, 0);
-                pp += 12;
-                p0 += bottom_blob.cstep;
-            }
-        }
-    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 4)
@@ -1810,200 +2038,6 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
 
     int jj = 0;
 #if __mips_msa
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        int dy0 = (j + jj) / outw;
-        int dy1 = (j + jj + 1) / outw;
-        int dy2 = (j + jj + 2) / outw;
-        int dy3 = (j + jj + 3) / outw;
-        int dy4 = (j + jj + 4) / outw;
-        int dy5 = (j + jj + 5) / outw;
-        int dy6 = (j + jj + 6) / outw;
-        int dy7 = (j + jj + 7) / outw;
-        int dy8 = (j + jj + 8) / outw;
-        int dy9 = (j + jj + 9) / outw;
-        int dya = (j + jj + 10) / outw;
-        int dyb = (j + jj + 11) / outw;
-        int dx0 = (j + jj) % outw;
-        int dx1 = (j + jj + 1) % outw;
-        int dx2 = (j + jj + 2) % outw;
-        int dx3 = (j + jj + 3) % outw;
-        int dx4 = (j + jj + 4) % outw;
-        int dx5 = (j + jj + 5) % outw;
-        int dx6 = (j + jj + 6) % outw;
-        int dx7 = (j + jj + 7) % outw;
-        int dx8 = (j + jj + 8) % outw;
-        int dx9 = (j + jj + 9) % outw;
-        int dxa = (j + jj + 10) % outw;
-        int dxb = (j + jj + 11) % outw;
-
-        if (dy0 == dyb)
-        {
-            int kk = 0;
-            for (; kk < max_kk / elempack; kk++)
-            {
-                int p = (k / elempack + kk) / maxk;
-                int uv = (k / elempack + kk) % maxk;
-                int u = uv / kernel_w;
-                int v = uv % kernel_w;
-
-                const Mat img = bottom_blob.channel(p);
-
-                int x0 = stride_w * dx0 + dilation_w * v;
-                int y0 = stride_h * dy0 + dilation_h * u;
-
-                const float* sptr = img.row(y0) + x0 * elempack;
-
-                if (elempack == 4)
-                {
-                    v4f32 _r0 = (v4f32)__msa_ld_w(sptr, 0);
-                    v4f32 _r1 = (v4f32)__msa_ld_w(sptr + stride_w * 4, 0);
-                    v4f32 _r2 = (v4f32)__msa_ld_w(sptr + stride_w * 8, 0);
-                    v4f32 _r3 = (v4f32)__msa_ld_w(sptr + stride_w * 12, 0);
-                    v4f32 _r4 = (v4f32)__msa_ld_w(sptr + stride_w * 16, 0);
-                    v4f32 _r5 = (v4f32)__msa_ld_w(sptr + stride_w * 20, 0);
-                    v4f32 _r6 = (v4f32)__msa_ld_w(sptr + stride_w * 24, 0);
-                    v4f32 _r7 = (v4f32)__msa_ld_w(sptr + stride_w * 28, 0);
-                    v4f32 _r8 = (v4f32)__msa_ld_w(sptr + stride_w * 32, 0);
-                    v4f32 _r9 = (v4f32)__msa_ld_w(sptr + stride_w * 36, 0);
-                    v4f32 _ra = (v4f32)__msa_ld_w(sptr + stride_w * 40, 0);
-                    v4f32 _rb = (v4f32)__msa_ld_w(sptr + stride_w * 44, 0);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    transpose4x4_ps(_r8, _r9, _ra, _rb);
-                    __msa_st_w((v4i32)_r0, pp, 0);
-                    __msa_st_w((v4i32)_r4, pp + 4 * 1, 0);
-                    __msa_st_w((v4i32)_r8, pp + 4 * 2, 0);
-                    __msa_st_w((v4i32)_r1, pp + 4 * 3, 0);
-                    __msa_st_w((v4i32)_r5, pp + 4 * 4, 0);
-                    __msa_st_w((v4i32)_r9, pp + 4 * 5, 0);
-                    __msa_st_w((v4i32)_r2, pp + 4 * 6, 0);
-                    __msa_st_w((v4i32)_r6, pp + 4 * 7, 0);
-                    __msa_st_w((v4i32)_ra, pp + 4 * 8, 0);
-                    __msa_st_w((v4i32)_r3, pp + 4 * 9, 0);
-                    __msa_st_w((v4i32)_r7, pp + 4 * 10, 0);
-                    __msa_st_w((v4i32)_rb, pp + 4 * 11, 0);
-                    pp += 48;
-                }
-                if (elempack == 1)
-                {
-                    pp[0] = sptr[0];
-                    pp[1] = sptr[stride_w];
-                    pp[2] = sptr[stride_w * 2];
-                    pp[3] = sptr[stride_w * 3];
-                    pp[4] = sptr[stride_w * 4];
-                    pp[5] = sptr[stride_w * 5];
-                    pp[6] = sptr[stride_w * 6];
-                    pp[7] = sptr[stride_w * 7];
-                    pp[8] = sptr[stride_w * 8];
-                    pp[9] = sptr[stride_w * 9];
-                    pp[10] = sptr[stride_w * 10];
-                    pp[11] = sptr[stride_w * 11];
-                    pp += 12;
-                }
-            }
-        }
-        else
-        {
-            int kk = 0;
-            for (; kk < max_kk / elempack; kk++)
-            {
-                int p = (k / elempack + kk) / maxk;
-                int uv = (k / elempack + kk) % maxk;
-                int u = uv / kernel_w;
-                int v = uv % kernel_w;
-
-                const Mat img = bottom_blob.channel(p);
-
-                int x0 = stride_w * dx0 + dilation_w * v;
-                int x1 = stride_w * dx1 + dilation_w * v;
-                int x2 = stride_w * dx2 + dilation_w * v;
-                int x3 = stride_w * dx3 + dilation_w * v;
-                int x4 = stride_w * dx4 + dilation_w * v;
-                int x5 = stride_w * dx5 + dilation_w * v;
-                int x6 = stride_w * dx6 + dilation_w * v;
-                int x7 = stride_w * dx7 + dilation_w * v;
-                int x8 = stride_w * dx8 + dilation_w * v;
-                int x9 = stride_w * dx9 + dilation_w * v;
-                int xa = stride_w * dxa + dilation_w * v;
-                int xb = stride_w * dxb + dilation_w * v;
-
-                int y0 = stride_h * dy0 + dilation_h * u;
-                int y1 = stride_h * dy1 + dilation_h * u;
-                int y2 = stride_h * dy2 + dilation_h * u;
-                int y3 = stride_h * dy3 + dilation_h * u;
-                int y4 = stride_h * dy4 + dilation_h * u;
-                int y5 = stride_h * dy5 + dilation_h * u;
-                int y6 = stride_h * dy6 + dilation_h * u;
-                int y7 = stride_h * dy7 + dilation_h * u;
-                int y8 = stride_h * dy8 + dilation_h * u;
-                int y9 = stride_h * dy9 + dilation_h * u;
-                int ya = stride_h * dya + dilation_h * u;
-                int yb = stride_h * dyb + dilation_h * u;
-
-                const float* sptr0 = img.row(y0) + x0 * elempack;
-                const float* sptr1 = img.row(y1) + x1 * elempack;
-                const float* sptr2 = img.row(y2) + x2 * elempack;
-                const float* sptr3 = img.row(y3) + x3 * elempack;
-                const float* sptr4 = img.row(y4) + x4 * elempack;
-                const float* sptr5 = img.row(y5) + x5 * elempack;
-                const float* sptr6 = img.row(y6) + x6 * elempack;
-                const float* sptr7 = img.row(y7) + x7 * elempack;
-                const float* sptr8 = img.row(y8) + x8 * elempack;
-                const float* sptr9 = img.row(y9) + x9 * elempack;
-                const float* sptra = img.row(ya) + xa * elempack;
-                const float* sptrb = img.row(yb) + xb * elempack;
-
-                if (elempack == 4)
-                {
-                    v4f32 _r0 = (v4f32)__msa_ld_w(sptr0, 0);
-                    v4f32 _r1 = (v4f32)__msa_ld_w(sptr1, 0);
-                    v4f32 _r2 = (v4f32)__msa_ld_w(sptr2, 0);
-                    v4f32 _r3 = (v4f32)__msa_ld_w(sptr3, 0);
-                    v4f32 _r4 = (v4f32)__msa_ld_w(sptr4, 0);
-                    v4f32 _r5 = (v4f32)__msa_ld_w(sptr5, 0);
-                    v4f32 _r6 = (v4f32)__msa_ld_w(sptr6, 0);
-                    v4f32 _r7 = (v4f32)__msa_ld_w(sptr7, 0);
-                    v4f32 _r8 = (v4f32)__msa_ld_w(sptr8, 0);
-                    v4f32 _r9 = (v4f32)__msa_ld_w(sptr9, 0);
-                    v4f32 _ra = (v4f32)__msa_ld_w(sptra, 0);
-                    v4f32 _rb = (v4f32)__msa_ld_w(sptrb, 0);
-                    transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    transpose4x4_ps(_r8, _r9, _ra, _rb);
-                    __msa_st_w((v4i32)_r0, pp, 0);
-                    __msa_st_w((v4i32)_r4, pp + 4 * 1, 0);
-                    __msa_st_w((v4i32)_r8, pp + 4 * 2, 0);
-                    __msa_st_w((v4i32)_r1, pp + 4 * 3, 0);
-                    __msa_st_w((v4i32)_r5, pp + 4 * 4, 0);
-                    __msa_st_w((v4i32)_r9, pp + 4 * 5, 0);
-                    __msa_st_w((v4i32)_r2, pp + 4 * 6, 0);
-                    __msa_st_w((v4i32)_r6, pp + 4 * 7, 0);
-                    __msa_st_w((v4i32)_ra, pp + 4 * 8, 0);
-                    __msa_st_w((v4i32)_r3, pp + 4 * 9, 0);
-                    __msa_st_w((v4i32)_r7, pp + 4 * 10, 0);
-                    __msa_st_w((v4i32)_rb, pp + 4 * 11, 0);
-                    pp += 48;
-                }
-                if (elempack == 1)
-                {
-                    pp[0] = sptr0[0];
-                    pp[1] = sptr1[0];
-                    pp[2] = sptr2[0];
-                    pp[3] = sptr3[0];
-                    pp[4] = sptr4[0];
-                    pp[5] = sptr5[0];
-                    pp[6] = sptr6[0];
-                    pp[7] = sptr7[0];
-                    pp[8] = sptr8[0];
-                    pp[9] = sptr9[0];
-                    pp[10] = sptra[0];
-                    pp[11] = sptrb[0];
-                    pp += 12;
-                }
-            }
-        }
-    }
     for (; jj + 7 < max_jj; jj += 8)
     {
         int dy0 = (j + jj) / outw;

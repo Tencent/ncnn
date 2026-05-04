@@ -3,9 +3,7 @@
 
 static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-#if __mips_msa
     const int elempack = A.elempack;
-#endif
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
     unsigned short* pp = AT;
@@ -14,6 +12,18 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                __msa_st_h((v8i16)__msa_ld_h(p0, 0), pp, 0);
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
@@ -78,6 +88,23 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
+        if (elempack == 8)
+        {
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp += 4;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
@@ -121,27 +148,91 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 #endif // __mips_msa
     for (; ii + 1 < max_ii; ii += 2)
     {
-        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-        const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
+#if __mips_msa
+        if (elempack == 8)
         {
-            pp[0] = p0[0];
-            pp[1] = p1[0];
-            pp += 2;
-            p0++;
-            p1++;
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            const int i_pack = (i + ii) / 4;
+            const int i_lane = (i + ii) % 4;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 4 + k * 4 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 4;
+            }
+        }
+#endif // __mips_msa
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p1[0];
+                pp += 2;
+                p0++;
+                p1++;
+            }
         }
     }
     for (; ii < max_ii; ii++)
     {
-        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-
-        for (int kk = 0; kk < max_kk; kk++)
+#if __mips_msa
+        if (elempack == 8)
         {
-            pp[0] = p0[0];
-            pp += 1;
-            p0++;
+            const int i_pack = (i + ii) / 8;
+            const int i_lane = (i + ii) % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 8;
+            }
+        }
+        if (elempack == 4)
+        {
+            const int i_pack = (i + ii) / 4;
+            const int i_lane = (i + ii) % 4;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 4 + k * 4 + i_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 4;
+            }
+        }
+#endif // __mips_msa
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0++;
+            }
         }
     }
 }
@@ -157,6 +248,31 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
 #if __mips_msa
     for (; ii + 7 < max_ii; ii += 8)
     {
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)k_pack * A_hstep * 8 + (i + ii) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + A_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[16];
+                pp[3] = p0[24];
+                pp[4] = p0[32];
+                pp[5] = p0[40];
+                pp[6] = p0[48];
+                pp[7] = p0[56];
+                pp += 8;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += A_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
@@ -236,6 +352,27 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)k_pack * A_hstep * 8 + (i + ii) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + A_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[16];
+                pp[3] = p0[24];
+                pp += 4;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += A_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
@@ -293,6 +430,25 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     for (; ii + 1 < max_ii; ii += 2)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)k_pack * A_hstep * 8 + (i + ii) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + A_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp += 2;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += A_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
@@ -338,6 +494,24 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     for (; ii < max_ii; ii++)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)A + (size_t)k_pack * A_hstep * 8 + (i + ii) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + A_hstep);
+                pp[0] = p0[0];
+                pp += 1;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += A_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
@@ -387,6 +561,18 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 #if __mips_msa
     for (; jj + 7 < max_jj; jj += 8)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                __msa_st_h((v8i16)__msa_ld_h(p0, 0), pp, 0);
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
@@ -452,6 +638,23 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     for (; jj + 3 < max_jj; jj += 4)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int j_pack = (j + jj) / 8;
+            const int j_lane = (j + jj) % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + 32);
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp += 4;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
@@ -495,6 +698,40 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const int j_pack = (j + jj) / 8;
+            const int j_lane = (j + jj) % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 8;
+            }
+
+            continue;
+        }
+        if (elempack == 4)
+        {
+            const int j_pack = (j + jj) / 4;
+            const int j_lane = (j + jj) % 4;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 4 + k * 4 + j_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp += 2;
+                p0 += 4;
+            }
+
+            continue;
+        }
+#endif // __mips_msa
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
         const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
@@ -509,6 +746,38 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     }
     for (; jj < max_jj; jj++)
     {
+#if __mips_msa
+        if (elempack == 8)
+        {
+            const int j_pack = (j + jj) / 8;
+            const int j_lane = (j + jj) % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 8 + k * 8 + j_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 8;
+            }
+
+            continue;
+        }
+        if (elempack == 4)
+        {
+            const int j_pack = (j + jj) / 4;
+            const int j_lane = (j + jj) % 4;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)j_pack * B_hstep * 4 + k * 4 + j_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                pp[0] = p0[0];
+                pp += 1;
+                p0 += 4;
+            }
+
+            continue;
+        }
+#endif // __mips_msa
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
         for (int kk = 0; kk < max_kk; kk++)
@@ -531,6 +800,31 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 #if __mips_msa
     for (; jj + 7 < max_jj; jj += 8)
     {
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)k_pack * B_hstep * 8 + (j + jj) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + B_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[16];
+                pp[3] = p0[24];
+                pp[4] = p0[32];
+                pp[5] = p0[40];
+                pp[6] = p0[48];
+                pp[7] = p0[56];
+                pp += 8;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += B_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
@@ -582,6 +876,27 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     for (; jj + 3 < max_jj; jj += 4)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)k_pack * B_hstep * 8 + (j + jj) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + B_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[16];
+                pp[3] = p0[24];
+                pp += 4;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += B_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
@@ -639,6 +954,25 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     for (; jj + 1 < max_jj; jj += 2)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)k_pack * B_hstep * 8 + (j + jj) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + B_hstep);
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp += 2;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += B_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
@@ -684,6 +1018,24 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     for (; jj < max_jj; jj++)
     {
 #if __mips_msa
+        if (elempack == 8)
+        {
+            const int k_pack = k / 8;
+            const int k_lane = k % 8;
+            const unsigned short* p0 = (const unsigned short*)B + (size_t)k_pack * B_hstep * 8 + (j + jj) * 8 + k_lane;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                __builtin_prefetch(p0 + B_hstep);
+                pp[0] = p0[0];
+                pp += 1;
+                p0++;
+                if ((k_lane + kk + 1) % 8 == 0)
+                {
+                    p0 += B_hstep * 8 - 8;
+                }
+            }
+        }
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
@@ -1667,7 +2019,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
 #if __mips_msa
     TILE_M = std::max(8, tile_size / 8 * 8);
     TILE_N = std::max(8, tile_size / 8 * 8);
-    TILE_K = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
     TILE_N = std::max(1, tile_size);
@@ -1678,7 +2030,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
     {
         int nn_K = (K + TILE_K - 1) / TILE_K;
 #if __mips_msa
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #endif
@@ -1746,7 +2098,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
     if (constant_TILE_K > 0)
     {
 #if __mips_msa
-        TILE_K = (constant_TILE_K + 3) / 4 * 4;
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
 #else
         TILE_K = (constant_TILE_K + 1) / 2 * 2;
 #endif

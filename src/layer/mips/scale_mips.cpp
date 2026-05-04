@@ -205,8 +205,17 @@ int Scale_mips::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option
 static void scale_bf16s_msa(unsigned short* ptr, const float* scale, const float* bias, int size, int elempack)
 {
 #if __mips_msa
-    v4f32 _s = (elempack == 4) ? (v4f32)__msa_ld_w(scale, 0) : (v4f32)__msa_fill_w_f32(scale[0]);
-    v4f32 _b = (elempack == 4) ? (v4f32)__msa_ld_w(bias, 0) : (v4f32)__msa_fill_w_f32(bias[0]);
+    v4f32 _s0 = (elempack == 4) ? (v4f32)__msa_ld_w(scale, 0) : (v4f32)__msa_fill_w_f32(scale[0]);
+    v4f32 _s1 = _s0;
+    v4f32 _b0 = (elempack == 4) ? (v4f32)__msa_ld_w(bias, 0) : (v4f32)__msa_fill_w_f32(bias[0]);
+    v4f32 _b1 = _b0;
+    if (elempack == 8)
+    {
+        _s0 = (v4f32)__msa_ld_w(scale, 0);
+        _s1 = (v4f32)__msa_ld_w(scale + 4, 0);
+        _b0 = (v4f32)__msa_ld_w(bias, 0);
+        _b1 = (v4f32)__msa_ld_w(bias + 4, 0);
+    }
 #endif
     float s = scale[0];
     float b = bias[0];
@@ -219,15 +228,15 @@ static void scale_bf16s_msa(unsigned short* ptr, const float* scale, const float
         v8i16 _p01 = __msa_ld_h(ptr, 0);
         v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
         v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-        _p0 = __ncnn_msa_fmadd_w(_b, _p0, _s);
-        _p1 = __ncnn_msa_fmadd_w(_b, _p1, _s);
+        _p0 = __ncnn_msa_fmadd_w(_b0, _p0, _s0);
+        _p1 = __ncnn_msa_fmadd_w(_b1, _p1, _s1);
         __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
         ptr += 8;
     }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
-        _p = __ncnn_msa_fmadd_w(_b, _p, _s);
+        _p = __ncnn_msa_fmadd_w(_b0, _p, _s0);
         __msa_storel_d(float2bfloat_msa(_p), ptr);
         ptr += 4;
     }
@@ -242,7 +251,13 @@ static void scale_bf16s_msa(unsigned short* ptr, const float* scale, const float
 static void scale_bf16s_no_bias_msa(unsigned short* ptr, const float* scale, int size, int elempack)
 {
 #if __mips_msa
-    v4f32 _s = (elempack == 4) ? (v4f32)__msa_ld_w(scale, 0) : (v4f32)__msa_fill_w_f32(scale[0]);
+    v4f32 _s0 = (elempack == 4) ? (v4f32)__msa_ld_w(scale, 0) : (v4f32)__msa_fill_w_f32(scale[0]);
+    v4f32 _s1 = _s0;
+    if (elempack == 8)
+    {
+        _s0 = (v4f32)__msa_ld_w(scale, 0);
+        _s1 = (v4f32)__msa_ld_w(scale + 4, 0);
+    }
 #endif
     float s = scale[0];
 
@@ -254,15 +269,15 @@ static void scale_bf16s_no_bias_msa(unsigned short* ptr, const float* scale, int
         v8i16 _p01 = __msa_ld_h(ptr, 0);
         v4f32 _p0 = (v4f32)__msa_ilvr_h(_p01, _zero);
         v4f32 _p1 = (v4f32)__msa_ilvl_h(_p01, _zero);
-        _p0 = __msa_fmul_w(_p0, _s);
-        _p1 = __msa_fmul_w(_p1, _s);
+        _p0 = __msa_fmul_w(_p0, _s0);
+        _p1 = __msa_fmul_w(_p1, _s1);
         __msa_st_w(float2bfloat_msa(_p0, _p1), ptr, 0);
         ptr += 8;
     }
     for (; i + 3 < size; i += 4)
     {
         v4f32 _p = bfloat2float_msa(ptr);
-        _p = __msa_fmul_w(_p, _s);
+        _p = __msa_fmul_w(_p, _s0);
         __msa_storel_d(float2bfloat_msa(_p), ptr);
         ptr += 4;
     }

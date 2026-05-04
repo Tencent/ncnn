@@ -82,7 +82,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int i_pack = (i + ii) / 8;
@@ -95,10 +94,9 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp[2] = p0[2];
                 pp[3] = p0[3];
                 pp += 4;
-                p0 += A_hstep * 8;
+                p0 += 8;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
@@ -141,7 +139,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
 
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int i_pack = (i + ii) / 8;
@@ -153,10 +150,9 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
-                p0 += A_hstep * 8;
+                p0 += 8;
             }
         }
-#endif // __loongarch_asx
 #endif // __loongarch_sx
         for (int kk = 0; kk < max_kk; kk++)
         {
@@ -175,7 +171,6 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
 
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int i_pack = (i + ii) / 8;
@@ -186,10 +181,9 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             {
                 pp[0] = p0[0];
                 pp += 1;
-                p0 += A_hstep * 8;
+                p0 += 8;
             }
         }
-#endif // __loongarch_asx
 #endif // __loongarch_sx
         for (int kk = 0; kk < max_kk; kk++)
         {
@@ -304,7 +298,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
-#if __loongarch_asx
         if (elempack == 8)
         {
             if ((k & 7) == 0)
@@ -359,7 +352,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 }
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const int k_pack = k / 4;
@@ -400,7 +392,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             if ((k & 7) == 0)
@@ -458,7 +449,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 }
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const int k_pack = k / 4;
@@ -495,7 +485,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
     {
         const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             if ((k & 7) == 0)
@@ -543,7 +532,6 @@ static void transpose_pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii,
                 }
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const int k_pack = k / 4;
@@ -681,7 +669,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 #endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
-#if __loongarch_asx
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 8;
@@ -700,7 +687,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p0 += 8;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * 4;
@@ -759,7 +745,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
     {
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int j_pack = (j + jj) / 8;
@@ -776,7 +761,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 p0 += 8;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             for (int kk = 0; kk < max_kk; kk++)
@@ -817,7 +801,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int j_pack = (j + jj) / 8;
@@ -833,7 +816,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             continue;
         }
-#endif // __loongarch_asx
 #endif // __loongarch_sx
         for (int kk = 0; kk < max_kk; kk++)
         {
@@ -849,7 +831,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             const int j_pack = (j + jj) / 8;
@@ -864,7 +845,6 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
             }
             continue;
         }
-#endif // __loongarch_asx
 #endif // __loongarch_sx
         for (int kk = 0; kk < max_kk; kk++)
         {
@@ -971,7 +951,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 #endif // __loongarch_asx
     for (; jj + 7 < max_jj; jj += 8)
     {
-#if __loongarch_asx
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -994,7 +973,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 }
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
@@ -1044,7 +1022,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -1097,7 +1074,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 p0++;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             int kk = 0;
@@ -1152,7 +1128,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -1187,7 +1162,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 p0++;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             int kk = 0;
@@ -1230,7 +1204,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
     {
         const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * elempack;
 #if __loongarch_sx
-#if __loongarch_asx
         if (elempack == 8)
         {
             p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -1256,7 +1229,6 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
                 p0++;
             }
         }
-#endif // __loongarch_asx
         if (elempack == 4)
         {
             int kk = 0;
@@ -2652,7 +2624,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
     TILE_K = std::max(8, tile_size / 8 * 8);
 #else
-    TILE_K = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #endif
 #else
     TILE_M = std::max(2, tile_size / 2 * 2);
@@ -2667,7 +2639,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #endif
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
@@ -2751,7 +2723,7 @@ static void get_optimal_tile_mnk_bf16(int M, int N, int K, int constant_TILE_M, 
 #if __loongarch_asx
         TILE_K = (constant_TILE_K + 7) / 8 * 8;
 #else
-        TILE_K = (constant_TILE_K + 3) / 4 * 4;
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
 #endif
 #else
         TILE_K = (constant_TILE_K + 1) / 2 * 2;
