@@ -4240,15 +4240,55 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < num_group; g++)
-                {
-                    const Mat key_head = key.channel(g);
-                    const Mat value_head = value.channel(g);
+                const bool group_parallel = num_group >= opt.num_threads;
 
-                    for (int hq = 0; hq < num_heads_per_group; hq++)
+                if (group_parallel)
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int g = 0; g < num_group; g++)
                     {
-                        int q = g * num_heads_per_group + hq;
+                        const Mat key_head = key.channel(g);
+                        const Mat value_head = value.channel(g);
+
+                        for (int hq = 0; hq < num_heads_per_group; hq++)
+                        {
+                            int q = g * num_heads_per_group + hq;
+                            const Mat query_head = query_ref.channel(q);
+                            Mat top_blob_head = top_blob.channel(q);
+
+                            const float* qptr = query_head.row(0);
+                            float* outptr = top_blob_head.row(0);
+                            const unsigned short* Kptr = key_head.row<const unsigned short>(0);
+                            const unsigned short* Vptr = value_head.row<const unsigned short>(0);
+
+                            const float* mask_ptr = nullptr;
+                            if (attn_mask)
+                            {
+                                const Mat& maskm = attn_mask_ref;
+                                Mat mask_head;
+                                if (maskm.dims == 3)
+                                {
+                                    mask_head = maskm.c > 1 ? maskm.channel(q) : maskm.channel(0);
+                                }
+                                else
+                                {
+                                    mask_head = maskm;
+                                }
+                                mask_ptr = mask_head.row(0);
+                            }
+
+                            sdpa_decode_bf16s_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < num_heads; q++)
+                    {
+                        int g = q / num_heads_per_group;
+                        const Mat key_head = key.channel(g);
+                        const Mat value_head = value.channel(g);
                         const Mat query_head = query_ref.channel(q);
                         Mat top_blob_head = top_blob.channel(q);
 
