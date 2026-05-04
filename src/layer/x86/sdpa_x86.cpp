@@ -740,6 +740,11 @@ static inline void decode_exp_sum_vec(float* s, int block_n, float new_m, float*
 #endif
 }
 
+static void sdpa_decode_chunk(
+    float* out, float* m_out, float* l_out,
+    const float* q, const float* K, const float* V, const float* mask,
+    int n_start, int n_end, int d, int out_d, float scale);
+
 static void sdpa_decode(float* out, const float* q,
                         const float* K, const float* V, const float* mask,
                         int n, int d, int out_d, float scale)
@@ -837,6 +842,32 @@ static void sdpa_decode_reduce(
         float inv_s = 1.f / S_final;
         vec_scale(out, inv_s, out_d);
     }
+}
+
+static inline void sdpa_int8_decode_core(
+    float* s, float* out, float* m, float* l,
+    const signed char* q_int8, const float* q_scale,
+    const signed char* key_int8, const float* key_scales,
+    const signed char* value_int8, const float* value_scales,
+    const float* mask_ptr,
+    int n_start, int block_n, int embed_dim, int out_embed_dim, float scale)
+{
+    decode_qk_dot_int8(s, q_int8, key_int8, q_scale, key_scales, n_start, block_n, embed_dim, scale);
+    if (mask_ptr)
+        decode_mask_vec(s, mask_ptr + n_start, block_n);
+    float tile_m = decode_max_vec(s, block_n);
+    float new_m = std::max(*m, tile_m);
+    if (*m != new_m)
+    {
+        float scale_factor = expf(*m - new_m);
+        *l *= scale_factor;
+        vec_scale(out, scale_factor, out_embed_dim);
+    }
+    float l_add;
+    decode_exp_sum_vec(s, block_n, new_m, &l_add);
+    *l += l_add;
+    decode_pv_gemv_int8(out, s, value_int8, value_scales, n_start, block_n, out_embed_dim);
+    *m = new_m;
 }
 
 #if __AVX512F__
@@ -3490,6 +3521,7 @@ static int sdpa_forward_prefill(
     int attn_mask,
     bool use_bf16_path)
 {
+    (void)num_heads;
     const int BLOCK_M = 64;
     const int BLOCK_N = 128;
     Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
@@ -4039,35 +4071,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         {
                             int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
 
-                            decode_qk_dot_int8(s, q_int8,
-                                               key_int8_head.row<const signed char>(0),
-                                               q_scale,
-                                               key_scales_head.row(0),
-                                               n_start, block_n, embed_dim, _scale);
-
-                            if (mask_ptr)
-                                decode_mask_vec(s, mask_ptr + n_start, block_n);
-
-                            float tile_m = decode_max_vec(s, block_n);
-
-                            float new_m = std::max(m, tile_m);
-                            if (m != new_m)
-                            {
-                                float scale_factor = expf(m - new_m);
-                                l *= scale_factor;
-                                vec_scale(out, scale_factor, out_embed_dim);
-                            }
-
-                            float l_add;
-                            decode_exp_sum_vec(s, block_n, new_m, &l_add);
-                            l += l_add;
-
-                            decode_pv_gemv_int8(out, s,
-                                                value_int8_head.row<const signed char>(0),
-                                                value_scales_head.row(0),
-                                                n_start, block_n, out_embed_dim);
-
-                            m = new_m;
+                            sdpa_int8_decode_core(s, out, &m, &l,
+                                                  q_int8, q_scale,
+                                                  key_int8_head.row<const signed char>(0),
+                                                  key_scales_head.row(0),
+                                                  value_int8_head.row<const signed char>(0),
+                                                  value_scales_head.row(0),
+                                                  mask_ptr,
+                                                  n_start, block_n, embed_dim, out_embed_dim, _scale);
                         }
 
                         float* outptr = top_blob_head.row(0);
@@ -4121,35 +4132,14 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         int block_n = std::min(BLOCK_N, dst_seqlen - n_start);
 
-                        decode_qk_dot_int8(s, q_int8,
-                                           key_int8_head.row<const signed char>(0),
-                                           q_scale,
-                                           key_scales_head.row(0),
-                                           n_start, block_n, embed_dim, _scale);
-
-                        if (mask_ptr)
-                            decode_mask_vec(s, mask_ptr + n_start, block_n);
-
-                        float tile_m = decode_max_vec(s, block_n);
-
-                        float new_m = std::max(m, tile_m);
-                        if (m != new_m)
-                        {
-                            float scale_factor = expf(m - new_m);
-                            l *= scale_factor;
-                            vec_scale(out, scale_factor, out_embed_dim);
-                        }
-
-                        float l_add;
-                        decode_exp_sum_vec(s, block_n, new_m, &l_add);
-                        l += l_add;
-
-                        decode_pv_gemv_int8(out, s,
-                                            value_int8_head.row<const signed char>(0),
-                                            value_scales_head.row(0),
-                                            n_start, block_n, out_embed_dim);
-
-                        m = new_m;
+                        sdpa_int8_decode_core(s, out, &m, &l,
+                                              q_int8, q_scale,
+                                              key_int8_head.row<const signed char>(0),
+                                              key_scales_head.row(0),
+                                              value_int8_head.row<const signed char>(0),
+                                              value_scales_head.row(0),
+                                              mask_ptr,
+                                              n_start, block_n, embed_dim, out_embed_dim, _scale);
                     }
 
                     float* outptr = top_blob_head.row(0);
