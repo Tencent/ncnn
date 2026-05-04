@@ -4473,7 +4473,6 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     // FP32 optimized path using tiled GEMM + online softmax
     if (src_seqlen == 1)
     {
-        const int BLOCK_N = 128;
         const bool use_split_kv = opt.num_threads > 1 && dst_seqlen >= BLOCK_N * 2;
 
 #if NCNN_BF16
