@@ -1292,6 +1292,13 @@ static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, co
             int j = 0;
             for (; j + 4 <= n; j += 4)
             {
+                if (D >= 512 && j + 8 <= n)
+                {
+                    _mm_prefetch((const char*)(K + (j + 4) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 5) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 6) * D), _MM_HINT_T1);
+                    _mm_prefetch((const char*)(K + (j + 7) * D), _MM_HINT_T1);
+                }
                 const float* k0 = K + (j + 0) * D;
                 const float* k1 = K + (j + 1) * D;
                 const float* k2 = K + (j + 2) * D;
@@ -1393,6 +1400,13 @@ static inline void qk_gemm_specialized_tiled_avx512(float* S, const float* Q, co
         int j = 0;
         for (; j + 4 <= n; j += 4)
         {
+            if (D >= 512 && j + 8 <= n)
+            {
+                _mm_prefetch((const char*)(K + (j + 4) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 5) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 6) * D), _MM_HINT_T1);
+                _mm_prefetch((const char*)(K + (j + 7) * D), _MM_HINT_T1);
+            }
             const float* k0 = K + (j + 0) * D;
             const float* k1 = K + (j + 1) * D;
             const float* k2 = K + (j + 2) * D;
