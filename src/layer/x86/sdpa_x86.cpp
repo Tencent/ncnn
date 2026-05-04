@@ -3989,19 +3989,40 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         float* p_row = (block_m == 1) ? p_vec_ptr : (p_vec_ptr + i * block_n);
 
                         if (attn_mask)
-                        {
-                            const float* mptr = mask_head.row(m_start + i) + n_start;
-                            for (int j = 0; j < block_n; j++)
-                            {
-                                s_row[j] += mptr[j];
-                            }
-                        }
+                            decode_mask_vec(s_row, mask_head.row(m_start + i) + n_start, block_n);
 
+#if __AVX512F__
+                        __m512 vmax = _mm512_set1_ps(m_vec[i]);
+                        int j = 0;
+                        for (; j + 15 < block_n; j += 16)
+                            vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(s_row + j));
+                        if (j < block_n)
+                        {
+                            __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
+                            vmax = _mm512_max_ps(vmax, _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask, s_row + j));
+                        }
+                        float m_new = _mm512_comp_reduce_max_ps(vmax);
+#elif __AVX__
+                        __m256 vmax = _mm256_set1_ps(m_vec[i]);
+                        int j = 0;
+                        for (; j + 7 < block_n; j += 8)
+                            vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(s_row + j));
+                        float m_new = _mm256_reduce_max_ps(vmax);
+                        for (; j < block_n; j++)
+                            m_new = std::max(m_new, s_row[j]);
+#elif __SSE2__
+                        __m128 vmax = _mm_set1_ps(m_vec[i]);
+                        int j = 0;
+                        for (; j + 3 < block_n; j += 4)
+                            vmax = _mm_max_ps(vmax, _mm_loadu_ps(s_row + j));
+                        float m_new = _mm_reduce_max_ps(vmax);
+                        for (; j < block_n; j++)
+                            m_new = std::max(m_new, s_row[j]);
+#else
                         float m_new = m_vec[i];
                         for (int j = 0; j < block_n; j++)
-                        {
                             m_new = std::max(m_new, s_row[j]);
-                        }
+#endif
 
                         float scale_factor = expf(m_vec[i] - m_new);
                         float l_new = l_vec[i] * scale_factor;
@@ -4012,11 +4033,63 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             optr[k] *= scale_factor;
                         }
 
+#if __AVX512F__
+                        __m512 vm_new = _mm512_set1_ps(m_new);
+                        __m512 vsum = _mm512_setzero_ps();
+                        j = 0;
+                        for (; j + 15 < block_n; j += 16)
+                        {
+                            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(s_row + j), vm_new));
+                            _mm512_storeu_ps(p_row + j, pvec);
+                            vsum = _mm512_add_ps(vsum, pvec);
+                        }
+                        if (j < block_n)
+                        {
+                            __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
+                            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_maskz_loadu_ps(mask, s_row + j), vm_new));
+                            _mm512_mask_storeu_ps(p_row + j, mask, pvec);
+                            vsum = _mm512_mask_add_ps(vsum, mask, vsum, pvec);
+                        }
+                        l_new += _mm512_comp_reduce_add_ps(vsum);
+#elif __AVX__
+                        __m256 vm_new = _mm256_set1_ps(m_new);
+                        __m256 vsum = _mm256_setzero_ps();
+                        j = 0;
+                        for (; j + 7 < block_n; j += 8)
+                        {
+                            __m256 pvec = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(s_row + j), vm_new));
+                            _mm256_storeu_ps(p_row + j, pvec);
+                            vsum = _mm256_add_ps(vsum, pvec);
+                        }
+                        l_new += _mm256_reduce_add_ps(vsum);
+                        for (; j < block_n; j++)
+                        {
+                            p_row[j] = expf(s_row[j] - m_new);
+                            l_new += p_row[j];
+                        }
+#elif __SSE2__
+                        __m128 vm_new = _mm_set1_ps(m_new);
+                        __m128 vsum = _mm_setzero_ps();
+                        j = 0;
+                        for (; j + 3 < block_n; j += 4)
+                        {
+                            __m128 pvec = exp_ps(_mm_sub_ps(_mm_loadu_ps(s_row + j), vm_new));
+                            _mm_storeu_ps(p_row + j, pvec);
+                            vsum = _mm_add_ps(vsum, pvec);
+                        }
+                        l_new += _mm_reduce_add_ps(vsum);
+                        for (; j < block_n; j++)
+                        {
+                            p_row[j] = expf(s_row[j] - m_new);
+                            l_new += p_row[j];
+                        }
+#else
                         for (int j = 0; j < block_n; j++)
                         {
                             p_row[j] = expf(s_row[j] - m_new);
                             l_new += p_row[j];
                         }
+#endif
 
                         m_vec[i] = m_new;
                         l_vec[i] = l_new;
@@ -4450,35 +4523,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         {
                             const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start;
                             float* sptr = s_head + i * block_n;
-                            int j = 0;
-#if __AVX512F__
-                            for (; j + 15 < block_n; j += 16)
-                            {
-                                _mm512_storeu_ps(sptr + j, _mm512_add_ps(_mm512_loadu_ps(sptr + j), _mm512_loadu_ps(mptr + j)));
-                            }
-                            if (j < block_n)
-                            {
-                                __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
-                                __m512 _s = _mm512_maskz_loadu_ps(mask, sptr + j);
-                                __m512 _m = _mm512_maskz_loadu_ps(mask, mptr + j);
-                                _mm512_mask_storeu_ps(sptr + j, mask, _mm512_add_ps(_s, _m));
-                                j = block_n;
-                            }
-#elif __AVX__
-                            for (; j + 7 < block_n; j += 8)
-                            {
-                                _mm256_storeu_ps(sptr + j, _mm256_add_ps(_mm256_loadu_ps(sptr + j), _mm256_loadu_ps(mptr + j)));
-                            }
-#elif __SSE2__
-                            for (; j + 3 < block_n; j += 4)
-                            {
-                                _mm_storeu_ps(sptr + j, _mm_add_ps(_mm_loadu_ps(sptr + j), _mm_loadu_ps(mptr + j)));
-                            }
-#endif
-                            for (; j < block_n; j++)
-                            {
-                                sptr[j] += mptr[j];
-                            }
+                            decode_mask_vec(sptr, mptr, block_n);
                         }
                     }
 
@@ -4518,6 +4563,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
             else
             {
+                // large_dim: copy Q per head once, then loop over N-tiles
                 for (int hq = 0; hq < num_heads_per_group; hq++)
                 {
                     int q = g * num_heads_per_group + hq;
@@ -4529,94 +4575,72 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
                     }
 
-                    float* s_head = s_ptr;
+                    for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
+                    {
+                        int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
+                        int block_n2 = n_end2 - n_start2;
+
+                        float* s_head = s_ptr;
 
 #if NCNN_BF16
-                    if (use_bf16_path)
-                    {
-                        qk_gemm_bf16s_dispatch(s_head,
-                                             q_dst,
-                                             key_head.row<const unsigned short>(n_start),
-                                             block_m, block_n, embed_dim, _scale);
-                    }
-                    else
+                        if (use_bf16_path)
+                        {
+                            qk_gemm_bf16s_dispatch(s_head,
+                                                 q_dst,
+                                                 key_head.row<const unsigned short>(n_start2),
+                                                 block_m, block_n2, embed_dim, _scale);
+                        }
+                        else
 #endif
-                    {
-                        qk_gemm_dispatch(s_head,
-                                         q_dst,
-                                         key_head.row(n_start),
-                                         block_m, block_n, embed_dim, _scale);
-                    }
+                        {
+                            qk_gemm_dispatch(s_head,
+                                             q_dst,
+                                             key_head.row(n_start2),
+                                             block_m, block_n2, embed_dim, _scale);
+                        }
 
-                    if (attn_mask && mask_data[hq])
-                    {
+                        if (attn_mask && mask_data[hq])
+                        {
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                float* sptr = s_head + i * block_n2;
+                                decode_mask_vec(sptr, mptr, block_n2);
+                            }
+                        }
+
+                        float* m_vec = m_state_tile.row(hq);
+                        float* l_vec = l_state_tile.row(hq);
+                        float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                        float m_old[BLOCK_M];
+                        float scale_factors[BLOCK_M];
                         for (int i = 0; i < block_m; i++)
                         {
-                            const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start;
-                            float* sptr = s_head + i * block_n;
-                            int j = 0;
-#if __AVX512F__
-                            for (; j + 15 < block_n; j += 16)
-                            {
-                                _mm512_storeu_ps(sptr + j, _mm512_add_ps(_mm512_loadu_ps(sptr + j), _mm512_loadu_ps(mptr + j)));
-                            }
-                            if (j < block_n)
-                            {
-                                __mmask16 mask = (__mmask16)((1u << (block_n - j)) - 1);
-                                __m512 _s = _mm512_maskz_loadu_ps(mask, sptr + j);
-                                __m512 _m = _mm512_maskz_loadu_ps(mask, mptr + j);
-                                _mm512_mask_storeu_ps(sptr + j, mask, _mm512_add_ps(_s, _m));
-                                j = block_n;
-                            }
-#elif __AVX__
-                            for (; j + 7 < block_n; j += 8)
-                            {
-                                _mm256_storeu_ps(sptr + j, _mm256_add_ps(_mm256_loadu_ps(sptr + j), _mm256_loadu_ps(mptr + j)));
-                            }
-#elif __SSE2__
-                            for (; j + 3 < block_n; j += 4)
-                            {
-                                _mm_storeu_ps(sptr + j, _mm_add_ps(_mm_loadu_ps(sptr + j), _mm_loadu_ps(mptr + j)));
-                            }
-#endif
-                            for (; j < block_n; j++)
-                            {
-                                sptr[j] += mptr[j];
-                            }
+                            m_old[i] = m_vec[i];
                         }
-                    }
+                        softmax_tile_dispatch(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
 
-                    float* m_vec = m_state_tile.row(hq);
-                    float* l_vec = l_state_tile.row(hq);
-                    float* o_ptr = o_accum_thread.row(hq * block_m);
-
-                    float m_old[BLOCK_M];
-                    float scale_factors[BLOCK_M];
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        m_old[i] = m_vec[i];
-                    }
-                    softmax_tile_dispatch(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
-
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        if (m_old[i] != m_vec[i])
+                        for (int i = 0; i < block_m; i++)
                         {
-                            vec_scale_dispatch(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                            if (m_old[i] != m_vec[i])
+                            {
+                                vec_scale_dispatch(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                            }
                         }
-                    }
 
 #if NCNN_BF16
-                    if (use_bf16_path)
-                    {
-                        pv_gemm_bf16s_dispatch(o_ptr, s_head, value_head.row<const unsigned short>(n_start),
-                                             block_m, block_n, out_embed_dim);
-                    }
-                    else
+                        if (use_bf16_path)
+                        {
+                            pv_gemm_bf16s_dispatch(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                 block_m, block_n2, out_embed_dim);
+                        }
+                        else
 #endif
-                    {
-                        pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start),
-                                         block_m, block_n, out_embed_dim);
+                        {
+                            pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start2),
+                                             block_m, block_n2, out_embed_dim);
+                        }
                     }
                 }
             }
