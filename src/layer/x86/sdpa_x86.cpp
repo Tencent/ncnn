@@ -3509,29 +3509,6 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
 #endif
 }
 
-static inline void vec_scale_dispatch(float* x, float s, int n)
-{
-    vec_scale(x, s, n);
-}
-
-static inline void vec_zero_dispatch(float* x, int n)
-{
-    vec_zero(x, n);
-}
-
-static inline void softmax_tile_dispatch(float* P, const float* S,
-        float* m_vec, float* l_vec, float* scale_out, int m, int n)
-{
-    softmax_tile(P, S, m_vec, l_vec, scale_out, m, n);
-}
-
-static inline void sdpa_decode_dispatch(float* out, const float* q,
-                                        const float* K, const float* V, const float* mask,
-                                        int n, int d, int out_d, float scale)
-{
-    sdpa_decode(out, q, K, V, mask, n, d, out_d, scale);
-}
-
 // Timing instrumentation removed
 
 int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
@@ -3758,7 +3735,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                         float* s = s_vec.channel(get_omp_thread_num());
                         float* out = o_accum.channel(get_omp_thread_num());
-                        vec_zero_dispatch(out, out_embed_dim);
+                        vec_zero(out, out_embed_dim);
 
                         const float* mask_ptr = nullptr;
                         if (attn_mask)
@@ -3799,7 +3776,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             {
                                 float scale_factor = expf(m - new_m);
                                 l *= scale_factor;
-                                vec_scale_dispatch(out, scale_factor, out_embed_dim);
+                                vec_scale(out, scale_factor, out_embed_dim);
                             }
 
                             float l_add;
@@ -3817,7 +3794,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         float* outptr = top_blob_head.row(0);
                         float inv_l = 1.f / l;
                         memcpy(outptr, out, out_embed_dim * sizeof(float));
-                        vec_scale_dispatch(outptr, inv_l, out_embed_dim);
+                        vec_scale(outptr, inv_l, out_embed_dim);
                     }
                 }
             }
@@ -3840,7 +3817,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     float* s = s_vec.channel(get_omp_thread_num());
                     float* out = o_accum.channel(get_omp_thread_num());
-                    vec_zero_dispatch(out, out_embed_dim);
+                    vec_zero(out, out_embed_dim);
 
                     const float* mask_ptr = nullptr;
                     if (attn_mask)
@@ -3881,7 +3858,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         {
                             float scale_factor = expf(m - new_m);
                             l *= scale_factor;
-                            vec_scale_dispatch(out, scale_factor, out_embed_dim);
+                            vec_scale(out, scale_factor, out_embed_dim);
                         }
 
                         float l_add;
@@ -3899,7 +3876,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float* outptr = top_blob_head.row(0);
                     float inv_l = 1.f / l;
                     memcpy(outptr, out, out_embed_dim * sizeof(float));
-                    vec_scale_dispatch(outptr, inv_l, out_embed_dim);
+                    vec_scale(outptr, inv_l, out_embed_dim);
                 }
             }
 
@@ -3963,7 +3940,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 for (int i = 0; i < block_m; i++)
                 {
                     float* optr = o_accum_head.row(i);
-                    vec_zero_dispatch(optr, out_embed_dim);
+                    vec_zero(optr, out_embed_dim);
                 }
 
                 float m_vec[BLOCK_M];
@@ -4043,7 +4020,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         float l_new = l_vec[i] * scale_factor;
 
                         float* optr = o_accum_head.row(i);
-                        vec_scale_dispatch(optr, scale_factor, out_embed_dim);
+                        vec_scale(optr, scale_factor, out_embed_dim);
 
 #if __AVX512F__
                         __m512 vm_new = _mm512_set1_ps(m_new);
@@ -4423,7 +4400,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             mask_ptr = mask_head.row(0);
                         }
 
-                        sdpa_decode_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                       sdpa_decode(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
                     }
                 }
             }
@@ -4459,7 +4436,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         mask_ptr = mask_head.row(0);
                     }
 
-                    sdpa_decode_dispatch(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
+                   sdpa_decode(outptr, qptr, Kptr, Vptr, mask_ptr, dst_seqlen, embed_dim, out_embed_dim, _scale);
                 }
             }
         }
@@ -4552,7 +4529,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
 
             float* o_ptr = o_accum_thread.row(hq * block_m);
-            vec_zero_dispatch(o_ptr, out_embed_dim * block_m);
+            vec_zero(o_ptr, out_embed_dim * block_m);
         }
 
         // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group
@@ -4606,13 +4583,13 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         m_old[i] = m_vec[i];
                     }
-                    softmax_tile_dispatch(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
+                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
 
                     for (int i = 0; i < block_m; i++)
                     {
                         if (m_old[i] != m_vec[i])
                         {
-                            vec_scale_dispatch(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                            vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                         }
                     }
                 }
@@ -4688,13 +4665,13 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         {
                             m_old[i] = m_vec[i];
                         }
-                        softmax_tile_dispatch(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+                        softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
 
                         for (int i = 0; i < block_m; i++)
                         {
                             if (m_old[i] != m_vec[i])
                             {
-                                vec_scale_dispatch(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
                             }
                         }
 
