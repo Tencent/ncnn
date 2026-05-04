@@ -1825,6 +1825,937 @@ static void pv_gemm_bf16s_scalar(float* O, const float* P, const unsigned short*
     }
 }
 
+#if __AVX512F__ && __AVX512BF16__
+
+static void decode_qk_dot_bf16s_avx512bf16_kernel(float* s, const float* q, const unsigned short* K, int n_start, int block_n, int d, float scale)
+{
+    int n_end = n_start + block_n;
+    int j = n_start;
+    for (; j + 1 < n_end; j += 2)
+    {
+        __m512 acc0 = _mm512_setzero_ps();
+        __m512 acc1 = _mm512_setzero_ps();
+        int k = 0;
+        for (; k + 31 < d; k += 32)
+        {
+            __m512i qv = _mm512_loadu_si512((const __m512i*)(q + k));
+            __m512i kv0 = _mm512_loadu_si512((const __m512i*)(K + j * d + k));
+            __m512i kv1 = _mm512_loadu_si512((const __m512i*)(K + (j + 1) * d + k));
+            acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)qv, (__m512bh)kv0);
+            acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)qv, (__m512bh)kv1);
+        }
+        if (k + 15 < d)
+        {
+            __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q + k)), 0);
+            __m512i kv0 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(K + j * d + k)), 0);
+            __m512i kv1 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(K + (j + 1) * d + k)), 0);
+            acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)qv, (__m512bh)kv0);
+            acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)qv, (__m512bh)kv1);
+            k += 16;
+        }
+        float tail_sum0 = 0, tail_sum1 = 0;
+        for (; k < d; k++)
+        {
+            float qv = q[k];
+            tail_sum0 += qv * bfloat16_to_float32(K[j * d + k]);
+            tail_sum1 += qv * bfloat16_to_float32(K[(j + 1) * d + k]);
+        }
+        s[j] = (_mm512_comp_reduce_add_ps(acc0) + tail_sum0) * scale;
+        s[j + 1] = (_mm512_comp_reduce_add_ps(acc1) + tail_sum1) * scale;
+    }
+    for (; j < n_end; j++)
+    {
+        __m512 acc = _mm512_setzero_ps();
+        int k = 0;
+        for (; k + 31 < d; k += 32)
+        {
+            __m512i qv = _mm512_loadu_si512((const __m512i*)(q + k));
+            __m512i kv = _mm512_loadu_si512((const __m512i*)(K + j * d + k));
+            acc = _mm512_dpbf16_ps(acc, (__m512bh)qv, (__m512bh)kv);
+        }
+        if (k + 15 < d)
+        {
+            __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q + k)), 0);
+            __m512i kv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(K + j * d + k)), 0);
+            acc = _mm512_dpbf16_ps(acc, (__m512bh)qv, (__m512bh)kv);
+            k += 16;
+        }
+        float tail_sum = 0;
+        for (; k < d; k++)
+            tail_sum += q[k] * bfloat16_to_float32(K[j * d + k]);
+        s[j] = (_mm512_comp_reduce_add_ps(acc) + tail_sum) * scale;
+    }
+}
+
+static void decode_pv_gemv_bf16s_avx512bf16_kernel(float* out, const float* s, const unsigned short* V, int n_start, int block_n, int out_d)
+{
+    int n_end = n_start + block_n;
+    int k = 0;
+    for (; k + 31 < out_d; k += 32)
+    {
+        __m512 oval0 = _mm512_loadu_ps(out + k);
+        __m512 oval1 = _mm512_loadu_ps(out + k + 16);
+        for (int j = n_start; j < n_end; j++)
+        {
+            __m512 sj = _mm512_set1_ps(s[j]);
+            __m512i v0 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(V + j * out_d + k)));
+            __m512i v1 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(V + j * out_d + k + 16)));
+            oval0 = _mm512_fmadd_ps(sj, _mm512_castsi512_ps(_mm512_slli_epi32(v0, 16)), oval0);
+            oval1 = _mm512_fmadd_ps(sj, _mm512_castsi512_ps(_mm512_slli_epi32(v1, 16)), oval1);
+        }
+        _mm512_storeu_ps(out + k, oval0);
+        _mm512_storeu_ps(out + k + 16, oval1);
+    }
+    if (k + 15 < out_d)
+    {
+        __m512 oval0 = _mm512_loadu_ps(out + k);
+        for (int j = n_start; j < n_end; j++)
+        {
+            __m512 sj = _mm512_set1_ps(s[j]);
+            __m512i v0 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((const __m256i*)(V + j * out_d + k)));
+            oval0 = _mm512_fmadd_ps(sj, _mm512_castsi512_ps(_mm512_slli_epi32(v0, 16)), oval0);
+        }
+        _mm512_storeu_ps(out + k, oval0);
+        k += 16;
+    }
+    for (; k < out_d; k++)
+    {
+        for (int j = n_start; j < n_end; j++)
+            out[k] += s[j] * bfloat16_to_float32(V[j * out_d + k]);
+    }
+}
+
+static void qk_gemm_bf16s_avx512bf16_kernel(float* S, const float* Q, const unsigned short* K,
+                                            int m, int n, int d, float scale)
+{
+    unsigned short* q_bf16 = (unsigned short*)_mm_malloc(m * d * sizeof(unsigned short), 64);
+
+    for (int i = 0; i < m; i++)
+    {
+        const float* qptr = Q + i * d;
+        unsigned short* qdst = q_bf16 + i * d;
+        int k = 0;
+        for (; k + 15 < d; k += 16)
+        {
+            __m256i t = float2bfloat_avx512(_mm512_loadu_ps(qptr + k));
+            _mm256_storeu_si256((__m256i*)(qdst + k), t);
+        }
+        for (; k < d; k++)
+            qdst[k] = float32_to_bfloat16(qptr[k]);
+    }
+
+    int i = 0;
+    for (; i + 8 <= m; i += 8)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const unsigned short* k0 = K + (j + 0) * d;
+            const unsigned short* k1 = K + (j + 1) * d;
+
+            __m512 acc[8][2];
+            for (int mi = 0; mi < 8; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 31 < d; k += 32)
+            {
+                __m512i kv0 = _mm512_loadu_si512((const __m512i*)(k0 + k));
+                __m512i kv1 = _mm512_loadu_si512((const __m512i*)(k1 + k));
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * d + k));
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+            }
+            if (k + 15 < d)
+            {
+                __m512i kv0 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k0 + k)), 0);
+                __m512i kv1 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k1 + k)), 0);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * d + k)), 0);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+                k += 16;
+            }
+            float tail_sum[8][2] = {};
+            for (; k < d; k++)
+            {
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * d + k]);
+                    tail_sum[mi][0] += qv * bfloat16_to_float32(k0[k]);
+                    tail_sum[mi][1] += qv * bfloat16_to_float32(k1[k]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+            {
+                S[(i + mi) * n + j + 0] = (_mm512_comp_reduce_add_ps(acc[mi][0]) + tail_sum[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = (_mm512_comp_reduce_add_ps(acc[mi][1]) + tail_sum[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const unsigned short* kptr = K + j * d;
+            __m512 acc[8];
+            for (int mi = 0; mi < 8; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 31 < d; k += 32)
+            {
+                __m512i kv = _mm512_loadu_si512((const __m512i*)(kptr + k));
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * d + k));
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+            }
+            if (k + 15 < d)
+            {
+                __m512i kv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(kptr + k)), 0);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * d + k)), 0);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+                k += 16;
+            }
+            float tail_sum[8] = {};
+            for (; k < d; k++)
+            {
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * d + k]);
+                    tail_sum[mi] += qv * bfloat16_to_float32(kptr[k]);
+                }
+            }
+            for (int mi = 0; mi < 8; mi++)
+                S[(i + mi) * n + j] = (_mm512_comp_reduce_add_ps(acc[mi]) + tail_sum[mi]) * scale;
+        }
+    }
+
+    for (; i + 4 <= m; i += 4)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const unsigned short* k0 = K + (j + 0) * d;
+            const unsigned short* k1 = K + (j + 1) * d;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 31 < d; k += 32)
+            {
+                __m512i kv0 = _mm512_loadu_si512((const __m512i*)(k0 + k));
+                __m512i kv1 = _mm512_loadu_si512((const __m512i*)(k1 + k));
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * d + k));
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+            }
+            if (k + 15 < d)
+            {
+                __m512i kv0 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k0 + k)), 0);
+                __m512i kv1 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k1 + k)), 0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * d + k)), 0);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+                k += 16;
+            }
+            float tail_sum[4][2] = {};
+            for (; k < d; k++)
+            {
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * d + k]);
+                    tail_sum[mi][0] += qv * bfloat16_to_float32(k0[k]);
+                    tail_sum[mi][1] += qv * bfloat16_to_float32(k1[k]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                S[(i + mi) * n + j + 0] = (_mm512_comp_reduce_add_ps(acc[mi][0]) + tail_sum[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = (_mm512_comp_reduce_add_ps(acc[mi][1]) + tail_sum[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const unsigned short* kptr = K + j * d;
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 31 < d; k += 32)
+            {
+                __m512i kv = _mm512_loadu_si512((const __m512i*)(kptr + k));
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * d + k));
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+            }
+            if (k + 15 < d)
+            {
+                __m512i kv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(kptr + k)), 0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * d + k)), 0);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+                k += 16;
+            }
+            float tail_sum[4] = {};
+            for (; k < d; k++)
+            {
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * d + k]);
+                    tail_sum[mi] += qv * bfloat16_to_float32(kptr[k]);
+                }
+            }
+            for (int mi = 0; mi < 4; mi++)
+                S[(i + mi) * n + j] = (_mm512_comp_reduce_add_ps(acc[mi]) + tail_sum[mi]) * scale;
+        }
+    }
+
+    if (i < m)
+    {
+        qk_gemm_bf16s_avx512(S + i * n, Q + i * d, K, m - i, n, d, scale);
+    }
+
+    _mm_free(q_bf16);
+}
+
+static void pv_gemm_bf16s_avx512bf16_kernel(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+{
+    unsigned short* p_bf16 = (unsigned short*)_mm_malloc(m * n * sizeof(unsigned short), 64);
+    for (int i = 0; i < m; i++)
+    {
+        const float* pptr = P + i * n;
+        unsigned short* pdst = p_bf16 + i * n;
+        int j = 0;
+        for (; j + 15 < n; j += 16)
+        {
+            __m512 pvec = _mm512_loadu_ps(pptr + j);
+            __m256i pbf16 = (__m256i)_mm512_cvtneps_pbh(pvec);
+            _mm256_storeu_si256((__m256i*)(pdst + j), pbf16);
+        }
+        for (; j < n; j++)
+            pdst[j] = float32_to_bfloat16(pptr[j]);
+    }
+
+    int dd = 0;
+    for (; dd + 31 < d; dd += 32)
+    {
+        int i = 0;
+        for (; i + 4 <= m; i += 4)
+        {
+            float* op[4];
+            for (int mi = 0; mi < 4; mi++)
+                op[mi] = O + (i + mi) * d + dd;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_loadu_ps(op[mi] + 0);
+                acc[mi][1] = _mm512_loadu_ps(op[mi] + 16);
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * d + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    unsigned short p_val = p_bf16[(i + mi) * n + j];
+                    __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)p_ext, (__m512bh)v0_ext);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)p_ext, (__m512bh)v1_ext);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                _mm512_storeu_ps(op[mi] + 0, acc[mi][0]);
+                _mm512_storeu_ps(op[mi] + 16, acc[mi][1]);
+            }
+        }
+        for (; i + 2 <= m; i += 2)
+        {
+            float* op0 = O + i * d + dd;
+            float* op1 = O + (i + 1) * d + dd;
+            __m512 acc00 = _mm512_loadu_ps(op0 + 0);
+            __m512 acc01 = _mm512_loadu_ps(op0 + 16);
+            __m512 acc10 = _mm512_loadu_ps(op1 + 0);
+            __m512 acc11 = _mm512_loadu_ps(op1 + 16);
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * d + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+                unsigned short p0 = p_bf16[i * n + j];
+                unsigned short p1 = p_bf16[(i + 1) * n + j];
+                __m512i p_ext0 = _mm512_set1_epi32((unsigned int)p0);
+                __m512i p_ext1 = _mm512_set1_epi32((unsigned int)p1);
+                acc00 = _mm512_dpbf16_ps(acc00, (__m512bh)p_ext0, (__m512bh)v0_ext);
+                acc01 = _mm512_dpbf16_ps(acc01, (__m512bh)p_ext0, (__m512bh)v1_ext);
+                acc10 = _mm512_dpbf16_ps(acc10, (__m512bh)p_ext1, (__m512bh)v0_ext);
+                acc11 = _mm512_dpbf16_ps(acc11, (__m512bh)p_ext1, (__m512bh)v1_ext);
+            }
+            _mm512_storeu_ps(op0 + 0, acc00); _mm512_storeu_ps(op1 + 0, acc10);
+            _mm512_storeu_ps(op0 + 16, acc01); _mm512_storeu_ps(op1 + 16, acc11);
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            __m512 acc0 = _mm512_loadu_ps(optr + 0);
+            __m512 acc1 = _mm512_loadu_ps(optr + 16);
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * d + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+                unsigned short p_val = p_bf16[i * n + j];
+                __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)p_ext, (__m512bh)v0_ext);
+                acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)p_ext, (__m512bh)v1_ext);
+            }
+            _mm512_storeu_ps(optr + 0, acc0);
+            _mm512_storeu_ps(optr + 16, acc1);
+        }
+    }
+
+    for (; dd + 15 < d; dd += 16)
+    {
+        int i = 0;
+        for (; i + 4 <= m; i += 4)
+        {
+            float* op[4];
+            for (int mi = 0; mi < 4; mi++)
+                op[mi] = O + (i + mi) * d + dd;
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_loadu_ps(op[mi]);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * d + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    unsigned short p_val = p_bf16[(i + mi) * n + j];
+                    __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)p_ext, (__m512bh)v0_ext);
+                }
+            }
+            for (int mi = 0; mi < 4; mi++)
+                _mm512_storeu_ps(op[mi], acc[mi]);
+        }
+        for (; i + 2 <= m; i += 2)
+        {
+            float* op0 = O + i * d + dd;
+            float* op1 = O + (i + 1) * d + dd;
+            __m512 acc0 = _mm512_loadu_ps(op0);
+            __m512 acc1 = _mm512_loadu_ps(op1);
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * d + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                unsigned short p0 = p_bf16[i * n + j];
+                unsigned short p1 = p_bf16[(i + 1) * n + j];
+                __m512i p_ext0 = _mm512_set1_epi32((unsigned int)p0);
+                __m512i p_ext1 = _mm512_set1_epi32((unsigned int)p1);
+                acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)p_ext0, (__m512bh)v0_ext);
+                acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)p_ext1, (__m512bh)v0_ext);
+            }
+            _mm512_storeu_ps(op0, acc0);
+            _mm512_storeu_ps(op1, acc1);
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            __m512 acc = _mm512_loadu_ps(optr);
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * d + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                unsigned short p_val = p_bf16[i * n + j];
+                __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                acc = _mm512_dpbf16_ps(acc, (__m512bh)p_ext, (__m512bh)v0_ext);
+            }
+            _mm512_storeu_ps(optr, acc);
+        }
+    }
+
+    for (; dd < d; dd++)
+    {
+        for (int i = 0; i < m; i++)
+        {
+            float* optr = O + i * d + dd;
+            float acc = optr[0];
+            for (int j = 0; j < n; j++)
+                acc += bfloat16_to_float32(p_bf16[i * n + j]) * bfloat16_to_float32(V[j * d + dd]);
+            optr[0] = acc;
+        }
+    }
+
+    _mm_free(p_bf16);
+}
+
+template<int D>
+static void qk_gemm_bf16s_avx512bf16_kernel_t(float* S, const float* Q, const unsigned short* K,
+                                            int m, int n, float scale)
+{
+    unsigned short* q_bf16 = (unsigned short*)_mm_malloc(m * D * sizeof(unsigned short), 64);
+
+    for (int i = 0; i < m; i++)
+    {
+        const float* qptr = Q + i * D;
+        unsigned short* qdst = q_bf16 + i * D;
+        int k = 0;
+        for (; k + 15 < D; k += 16)
+        {
+            __m256i t = float2bfloat_avx512(_mm512_loadu_ps(qptr + k));
+            _mm256_storeu_si256((__m256i*)(qdst + k), t);
+        }
+        for (; k < D; k++)
+            qdst[k] = float32_to_bfloat16(qptr[k]);
+    }
+
+    int i = 0;
+    for (; i + 8 <= m; i += 8)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const unsigned short* k0 = K + (j + 0) * D;
+            const unsigned short* k1 = K + (j + 1) * D;
+
+            __m512 acc[8][2];
+            for (int mi = 0; mi < 8; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 31 < D; k += 32)
+            {
+                __m512i kv0 = _mm512_loadu_si512((const __m512i*)(k0 + k));
+                __m512i kv1 = _mm512_loadu_si512((const __m512i*)(k1 + k));
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * D + k));
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+            }
+            if (k + 15 < D)
+            {
+                __m512i kv0 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k0 + k)), 0);
+                __m512i kv1 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k1 + k)), 0);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * D + k)), 0);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+                k += 16;
+            }
+            float tail_sum[8][2] = {};
+            for (; k < D; k++)
+            {
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * D + k]);
+                    tail_sum[mi][0] += qv * bfloat16_to_float32(k0[k]);
+                    tail_sum[mi][1] += qv * bfloat16_to_float32(k1[k]);
+                }
+            }
+
+            for (int mi = 0; mi < 8; mi++)
+            {
+                S[(i + mi) * n + j + 0] = (_mm512_comp_reduce_add_ps(acc[mi][0]) + tail_sum[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = (_mm512_comp_reduce_add_ps(acc[mi][1]) + tail_sum[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const unsigned short* kptr = K + j * D;
+            __m512 acc[8];
+            for (int mi = 0; mi < 8; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 31 < D; k += 32)
+            {
+                __m512i kv = _mm512_loadu_si512((const __m512i*)(kptr + k));
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * D + k));
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+            }
+            if (k + 15 < D)
+            {
+                __m512i kv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(kptr + k)), 0);
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * D + k)), 0);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+                k += 16;
+            }
+            float tail_sum[8] = {};
+            for (; k < D; k++)
+            {
+                for (int mi = 0; mi < 8; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * D + k]);
+                    tail_sum[mi] += qv * bfloat16_to_float32(kptr[k]);
+                }
+            }
+            for (int mi = 0; mi < 8; mi++)
+                S[(i + mi) * n + j] = (_mm512_comp_reduce_add_ps(acc[mi]) + tail_sum[mi]) * scale;
+        }
+    }
+
+    for (; i + 4 <= m; i += 4)
+    {
+        int j = 0;
+        for (; j + 2 <= n; j += 2)
+        {
+            const unsigned short* k0 = K + (j + 0) * D;
+            const unsigned short* k1 = K + (j + 1) * D;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_setzero_ps();
+                acc[mi][1] = _mm512_setzero_ps();
+            }
+
+            int k = 0;
+            for (; k + 31 < D; k += 32)
+            {
+                __m512i kv0 = _mm512_loadu_si512((const __m512i*)(k0 + k));
+                __m512i kv1 = _mm512_loadu_si512((const __m512i*)(k1 + k));
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * D + k));
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+            }
+            if (k + 15 < D)
+            {
+                __m512i kv0 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k0 + k)), 0);
+                __m512i kv1 = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(k1 + k)), 0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * D + k)), 0);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)qv, (__m512bh)kv0);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)qv, (__m512bh)kv1);
+                }
+                k += 16;
+            }
+            float tail_sum[4][2] = {};
+            for (; k < D; k++)
+            {
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * D + k]);
+                    tail_sum[mi][0] += qv * bfloat16_to_float32(k0[k]);
+                    tail_sum[mi][1] += qv * bfloat16_to_float32(k1[k]);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                S[(i + mi) * n + j + 0] = (_mm512_comp_reduce_add_ps(acc[mi][0]) + tail_sum[mi][0]) * scale;
+                S[(i + mi) * n + j + 1] = (_mm512_comp_reduce_add_ps(acc[mi][1]) + tail_sum[mi][1]) * scale;
+            }
+        }
+
+        for (; j < n; j++)
+        {
+            const unsigned short* kptr = K + j * D;
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_setzero_ps();
+
+            int k = 0;
+            for (; k + 31 < D; k += 32)
+            {
+                __m512i kv = _mm512_loadu_si512((const __m512i*)(kptr + k));
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_loadu_si512((const __m512i*)(q_bf16 + (i + mi) * D + k));
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+            }
+            if (k + 15 < D)
+            {
+                __m512i kv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(kptr + k)), 0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    __m512i qv = _mm512_inserti64x4(_mm512_setzero_si512(), _mm256_loadu_si256((const __m256i*)(q_bf16 + (i + mi) * D + k)), 0);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)qv, (__m512bh)kv);
+                }
+                k += 16;
+            }
+            float tail_sum[4] = {};
+            for (; k < D; k++)
+            {
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    float qv = bfloat16_to_float32(q_bf16[(i + mi) * D + k]);
+                    tail_sum[mi] += qv * bfloat16_to_float32(kptr[k]);
+                }
+            }
+            for (int mi = 0; mi < 4; mi++)
+                S[(i + mi) * n + j] = (_mm512_comp_reduce_add_ps(acc[mi]) + tail_sum[mi]) * scale;
+        }
+    }
+
+    if (i < m)
+    {
+        // scalar tail fallback not available in template
+        for (int ii = i; ii < m; ii++)
+            for (int j = 0; j < n; j++)
+            {
+                float sum = 0;
+                for (int k = 0; k < D; k++)
+                    sum += Q[ii * D + k] * bfloat16_to_float32(K[j * D + k]);
+                S[ii * n + j] = sum * scale;
+            }
+    }
+
+    _mm_free(q_bf16);
+}
+
+
+template<int D>
+static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const unsigned short* V, int m, int n)
+{
+    unsigned short* p_bf16 = (unsigned short*)_mm_malloc(m * n * sizeof(unsigned short), 64);
+    for (int i = 0; i < m; i++)
+    {
+        const float* pptr = P + i * n;
+        unsigned short* pdst = p_bf16 + i * n;
+        int j = 0;
+        for (; j + 15 < n; j += 16)
+        {
+            __m512 pvec = _mm512_loadu_ps(pptr + j);
+            __m256i pbf16 = (__m256i)_mm512_cvtneps_pbh(pvec);
+            _mm256_storeu_si256((__m256i*)(pdst + j), pbf16);
+        }
+        for (; j < n; j++)
+            pdst[j] = float32_to_bfloat16(pptr[j]);
+    }
+
+    int dd = 0;
+    for (; dd + 31 < D; dd += 32)
+    {
+        int i = 0;
+        for (; i + 4 <= m; i += 4)
+        {
+            float* op[4];
+            for (int mi = 0; mi < 4; mi++)
+                op[mi] = O + (i + mi) * D + dd;
+
+            __m512 acc[4][2];
+            for (int mi = 0; mi < 4; mi++)
+            {
+                acc[mi][0] = _mm512_loadu_ps(op[mi] + 0);
+                acc[mi][1] = _mm512_loadu_ps(op[mi] + 16);
+            }
+
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * D + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    unsigned short p_val = p_bf16[(i + mi) * n + j];
+                    __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                    acc[mi][0] = _mm512_dpbf16_ps(acc[mi][0], (__m512bh)p_ext, (__m512bh)v0_ext);
+                    acc[mi][1] = _mm512_dpbf16_ps(acc[mi][1], (__m512bh)p_ext, (__m512bh)v1_ext);
+                }
+            }
+
+            for (int mi = 0; mi < 4; mi++)
+            {
+                _mm512_storeu_ps(op[mi] + 0, acc[mi][0]);
+                _mm512_storeu_ps(op[mi] + 16, acc[mi][1]);
+            }
+        }
+        for (; i + 2 <= m; i += 2)
+        {
+            float* op0 = O + i * D + dd;
+            float* op1 = O + (i + 1) * D + dd;
+            __m512 acc00 = _mm512_loadu_ps(op0 + 0);
+            __m512 acc01 = _mm512_loadu_ps(op0 + 16);
+            __m512 acc10 = _mm512_loadu_ps(op1 + 0);
+            __m512 acc11 = _mm512_loadu_ps(op1 + 16);
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * D + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+                unsigned short p0 = p_bf16[i * n + j];
+                unsigned short p1 = p_bf16[(i + 1) * n + j];
+                __m512i p_ext0 = _mm512_set1_epi32((unsigned int)p0);
+                __m512i p_ext1 = _mm512_set1_epi32((unsigned int)p1);
+                acc00 = _mm512_dpbf16_ps(acc00, (__m512bh)p_ext0, (__m512bh)v0_ext);
+                acc01 = _mm512_dpbf16_ps(acc01, (__m512bh)p_ext0, (__m512bh)v1_ext);
+                acc10 = _mm512_dpbf16_ps(acc10, (__m512bh)p_ext1, (__m512bh)v0_ext);
+                acc11 = _mm512_dpbf16_ps(acc11, (__m512bh)p_ext1, (__m512bh)v1_ext);
+            }
+            _mm512_storeu_ps(op0 + 0, acc00); _mm512_storeu_ps(op1 + 0, acc10);
+            _mm512_storeu_ps(op0 + 16, acc01); _mm512_storeu_ps(op1 + 16, acc11);
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * D + dd;
+            __m512 acc0 = _mm512_loadu_ps(optr + 0);
+            __m512 acc1 = _mm512_loadu_ps(optr + 16);
+            for (int j = 0; j < n; j++)
+            {
+                const unsigned short* vptr = V + j * D + dd;
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(vptr + 0));
+                __m256i v1 = _mm256_loadu_si256((const __m256i*)(vptr + 16));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                __m512i v1_ext = _mm512_cvtepu16_epi32(v1);
+                unsigned short p_val = p_bf16[i * n + j];
+                __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)p_ext, (__m512bh)v0_ext);
+                acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)p_ext, (__m512bh)v1_ext);
+            }
+            _mm512_storeu_ps(optr + 0, acc0);
+            _mm512_storeu_ps(optr + 16, acc1);
+        }
+    }
+
+    for (; dd + 15 < D; dd += 16)
+    {
+        int i = 0;
+        for (; i + 4 <= m; i += 4)
+        {
+            float* op[4];
+            for (int mi = 0; mi < 4; mi++)
+                op[mi] = O + (i + mi) * D + dd;
+            __m512 acc[4];
+            for (int mi = 0; mi < 4; mi++)
+                acc[mi] = _mm512_loadu_ps(op[mi]);
+
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * D + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                for (int mi = 0; mi < 4; mi++)
+                {
+                    unsigned short p_val = p_bf16[(i + mi) * n + j];
+                    __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                    acc[mi] = _mm512_dpbf16_ps(acc[mi], (__m512bh)p_ext, (__m512bh)v0_ext);
+                }
+            }
+            for (int mi = 0; mi < 4; mi++)
+                _mm512_storeu_ps(op[mi], acc[mi]);
+        }
+        for (; i + 2 <= m; i += 2)
+        {
+            float* op0 = O + i * D + dd;
+            float* op1 = O + (i + 1) * D + dd;
+            __m512 acc0 = _mm512_loadu_ps(op0);
+            __m512 acc1 = _mm512_loadu_ps(op1);
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * D + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                unsigned short p0 = p_bf16[i * n + j];
+                unsigned short p1 = p_bf16[(i + 1) * n + j];
+                __m512i p_ext0 = _mm512_set1_epi32((unsigned int)p0);
+                __m512i p_ext1 = _mm512_set1_epi32((unsigned int)p1);
+                acc0 = _mm512_dpbf16_ps(acc0, (__m512bh)p_ext0, (__m512bh)v0_ext);
+                acc1 = _mm512_dpbf16_ps(acc1, (__m512bh)p_ext1, (__m512bh)v0_ext);
+            }
+            _mm512_storeu_ps(op0, acc0);
+            _mm512_storeu_ps(op1, acc1);
+        }
+        for (; i < m; i++)
+        {
+            float* optr = O + i * D + dd;
+            __m512 acc = _mm512_loadu_ps(optr);
+            for (int j = 0; j < n; j++)
+            {
+                __m256i v0 = _mm256_loadu_si256((const __m256i*)(V + j * D + dd));
+                __m512i v0_ext = _mm512_cvtepu16_epi32(v0);
+                unsigned short p_val = p_bf16[i * n + j];
+                __m512i p_ext = _mm512_set1_epi32((unsigned int)p_val);
+                acc = _mm512_dpbf16_ps(acc, (__m512bh)p_ext, (__m512bh)v0_ext);
+            }
+            _mm512_storeu_ps(optr, acc);
+        }
+    }
+
+    for (; dd < D; dd++)
+    {
+        for (int i = 0; i < m; i++)
+        {
+            float* optr = O + i * D + dd;
+            float acc = optr[0];
+            for (int j = 0; j < n; j++)
+                acc += bfloat16_to_float32(p_bf16[i * n + j]) * bfloat16_to_float32(V[j * D + dd]);
+            optr[0] = acc;
+        }
+    }
+
+    _mm_free(p_bf16);
+}
+
+#endif // __AVX512F__ && __AVX512BF16__
+
+
+
 
 // ---------------------------------------------------------------------------
 // Dispatch wrappers
@@ -1931,5 +2862,4 @@ static inline void sdpa_decode_reduce_bf16s_dispatch(
 {
     sdpa_decode_reduce_bf16s(out, out_d, partials, num_chunks, partial_stride);
 }
-
 #endif // SDPA_X86_BF16S_H
