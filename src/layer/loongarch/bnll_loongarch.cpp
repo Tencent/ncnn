@@ -122,7 +122,7 @@ int BNLL_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __lsx_vst(float2bfloat_lasx(_outp), ptr, 0);
             ptr += 8;
         }
-#else  // __loongarch_asx
+#else // __loongarch_asx
         {
             __m128i _zero_raw = __lsx_vreplgr2vr_w(0);
             __m128 _zero = (__m128)_zero_raw;

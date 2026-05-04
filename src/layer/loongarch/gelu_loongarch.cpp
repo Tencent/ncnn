@@ -153,7 +153,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 
                 ptr += 8;
             }
-#else  // __loongarch_asx
+#else // __loongarch_asx
             {
                 __m128i _zero = __lsx_vreplgr2vr_w(0);
                 __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);

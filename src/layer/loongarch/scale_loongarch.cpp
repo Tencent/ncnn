@@ -419,7 +419,7 @@ static void scale_bf16s_per_element_lsx(unsigned short* ptr, const float* scale,
         __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
     }
     remain_size_start += nn_size * 8;
-#else  // __loongarch_asx
+#else // __loongarch_asx
     nn_size = (size - remain_size_start) / 8;
     #pragma omp parallel for num_threads(num_threads)
     for (int ii = 0; ii < nn_size; ii++)
@@ -476,7 +476,7 @@ static void scale_bf16s_no_bias_per_element_lsx(unsigned short* ptr, const float
         __lsx_vst(float2bfloat_lasx(_p), ptr + i, 0);
     }
     remain_size_start += nn_size * 8;
-#else  // __loongarch_asx
+#else // __loongarch_asx
     nn_size = (size - remain_size_start) / 8;
     #pragma omp parallel for num_threads(num_threads)
     for (int ii = 0; ii < nn_size; ii++)

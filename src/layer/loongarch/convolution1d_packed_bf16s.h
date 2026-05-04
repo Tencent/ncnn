@@ -769,7 +769,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     }
     remain_outh_start += nn_outh * 8;
     nn_outh = (outh - remain_outh_start) / 4;
-#else  // __loongarch_asx
+#else // __loongarch_asx
     nn_outh = outh / 8;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outh; pp++)
