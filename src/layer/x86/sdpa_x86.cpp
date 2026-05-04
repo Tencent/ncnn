@@ -3511,6 +3511,325 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
 
 // Timing instrumentation removed
 
+static int sdpa_forward_prefill(
+    const Mat& query_ref,
+    const Mat& attn_mask_ref,
+    Mat& key,
+    Mat& value,
+    Mat& top_blob,
+    std::vector<Mat>& top_blobs,
+    const Option& opt,
+    int embed_dim,
+    int src_seqlen,
+    int num_heads,
+    int num_group,
+    int out_embed_dim,
+    int dst_seqlen,
+    int num_heads_per_group,
+    float _scale,
+    int kv_cache,
+    int attn_mask,
+    bool use_bf16_path)
+{
+    const int BLOCK_M = 64;
+    const int BLOCK_N = 128;
+    Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+    const bool large_dim = embed_dim > 512;
+    Mat q_batch(embed_dim, large_dim ? BLOCK_M : BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
+
+    if (s_vec.empty() || o_accum.empty() || q_batch.empty())
+        return -100;
+
+    int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
+
+    // Per-head per-M-tile softmax state for cross-N-tile accumulation
+    Mat m_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+    Mat l_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
+
+    if (m_state.empty() || l_state.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int idx = 0; idx < num_group * num_m_tiles; idx++)
+    {
+        int g = idx / num_m_tiles;
+        int m_tile = idx % num_m_tiles;
+        int m_start = m_tile * BLOCK_M;
+        int block_m = m_start + BLOCK_M < src_seqlen ? BLOCK_M : src_seqlen - m_start;
+
+        const Mat key_head = key.channel(g);
+        const Mat value_head = value.channel(g);
+
+        Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
+        Mat o_accum_thread = o_accum.channel(get_omp_thread_num());
+        Mat q_batch_thread = q_batch.channel(get_omp_thread_num());
+
+        // Pre-resolve mask pointers for all heads in this group
+        const float* mask_data[num_heads_per_group];
+        int mask_stride[num_heads_per_group];
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            int q = g * num_heads_per_group + hq;
+            mask_data[hq] = nullptr;
+            mask_stride[hq] = 0;
+            if (attn_mask)
+            {
+                const Mat& maskm = attn_mask_ref;
+                Mat mh = (maskm.dims == 3 && maskm.c > 1) ? maskm.channel(q)
+                         : (maskm.dims == 3 ? maskm.channel(0) : maskm);
+                mask_data[hq] = mh;
+                mask_stride[hq] = mh.w;
+            }
+        }
+
+        Mat m_state_tile = m_state.channel(idx);
+        Mat l_state_tile = l_state.channel(idx);
+
+        if (!large_dim)
+        {
+            for (int hq = 0; hq < num_heads_per_group; hq++)
+            {
+                int q = g * num_heads_per_group + hq;
+                const Mat query_head = query_ref.channel(q);
+                float* q_dst = q_batch_thread.row(hq * block_m);
+                for (int i = 0; i < block_m; i++)
+                {
+                    memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
+                }
+            }
+        }
+
+        // Initialize softmax state and zero output accumulator for all Q heads in this group
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            float* m_vec = m_state_tile.row(hq);
+            float* l_vec = l_state_tile.row(hq);
+            for (int i = 0; i < block_m; i++)
+            {
+                m_vec[i] = -FLT_MAX;
+                l_vec[i] = 0.f;
+            }
+
+            float* o_ptr = o_accum_thread.row(hq * block_m);
+            vec_zero(o_ptr, out_embed_dim * block_m);
+        }
+
+        // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group
+        for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
+        {
+            int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
+            int block_n = n_end - n_start;
+
+            float* s_ptr = s_vec_thread.row(0);
+
+            if (!large_dim)
+            {
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+                    qk_gemm_bf16s_dispatch(s_ptr,
+                                           q_batch_thread.row(0),
+                                           key_head.row<const unsigned short>(n_start),
+                                           block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                }
+                else
+#endif
+                {
+                    qk_gemm_dispatch(s_ptr,
+                                     q_batch_thread.row(0),
+                                     key_head.row(n_start),
+                                     block_m * num_heads_per_group, block_n, embed_dim, _scale);
+                }
+
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    float* s_head = s_ptr + hq * block_m * block_n;
+
+                    if (attn_mask && mask_data[hq])
+                    {
+                        for (int i = 0; i < block_m; i++)
+                        {
+                            const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start;
+                            float* sptr = s_head + i * block_n;
+                            decode_mask_vec(sptr, mptr, block_n);
+                        }
+                    }
+
+                    float* m_vec = m_state_tile.row(hq);
+                    float* l_vec = l_state_tile.row(hq);
+                    float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                    float m_old[BLOCK_M];
+                    float scale_factors[BLOCK_M];
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        m_old[i] = m_vec[i];
+                    }
+                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
+
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        if (m_old[i] != m_vec[i])
+                        {
+                            vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                        }
+                    }
+                }
+
+#if NCNN_BF16
+                if (use_bf16_path)
+                {
+                    pv_gemm_bf16s_dispatch(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
+                                           block_m * num_heads_per_group, block_n, out_embed_dim);
+                }
+                else
+#endif
+                {
+                    pv_gemm_dispatch(o_accum_thread.row(0), s_ptr, value_head.row(n_start),
+                                     block_m * num_heads_per_group, block_n, out_embed_dim);
+                }
+            }
+            else
+            {
+                // large_dim: copy Q per head once, then loop over N-tiles
+                for (int hq = 0; hq < num_heads_per_group; hq++)
+                {
+                    int q = g * num_heads_per_group + hq;
+                    const Mat query_head = query_ref.channel(q);
+
+                    float* q_dst = q_batch_thread.row(0);
+                    for (int i = 0; i < block_m; i++)
+                    {
+                        memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
+                    }
+
+                    for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
+                    {
+                        int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
+                        int block_n2 = n_end2 - n_start2;
+
+                        float* s_head = s_ptr;
+
+#if NCNN_BF16
+                        if (use_bf16_path)
+                        {
+                            qk_gemm_bf16s_dispatch(s_head,
+                                                 q_dst,
+                                                 key_head.row<const unsigned short>(n_start2),
+                                                 block_m, block_n2, embed_dim, _scale);
+                        }
+                        else
+#endif
+                        {
+                            qk_gemm_dispatch(s_head,
+                                             q_dst,
+                                             key_head.row(n_start2),
+                                             block_m, block_n2, embed_dim, _scale);
+                        }
+
+                        if (attn_mask && mask_data[hq])
+                        {
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                float* sptr = s_head + i * block_n2;
+                                decode_mask_vec(sptr, mptr, block_n2);
+                            }
+                        }
+
+                        float* m_vec = m_state_tile.row(hq);
+                        float* l_vec = l_state_tile.row(hq);
+                        float* o_ptr = o_accum_thread.row(hq * block_m);
+
+                        float m_old[BLOCK_M];
+                        float scale_factors[BLOCK_M];
+                        for (int i = 0; i < block_m; i++)
+                        {
+                            m_old[i] = m_vec[i];
+                        }
+                        softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+
+                        for (int i = 0; i < block_m; i++)
+                        {
+                            if (m_old[i] != m_vec[i])
+                            {
+                                vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                            }
+                        }
+
+#if NCNN_BF16
+                        if (use_bf16_path)
+                        {
+                            pv_gemm_bf16s_dispatch(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                 block_m, block_n2, out_embed_dim);
+                        }
+                        else
+#endif
+                        {
+                            pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start2),
+                                             block_m, block_n2, out_embed_dim);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Normalize all Q heads for this M tile and write back to top_blob
+        for (int hq = 0; hq < num_heads_per_group; hq++)
+        {
+            int q = g * num_heads_per_group + hq;
+            Mat top_blob_head = top_blob.channel(q);
+            float* l_vec = l_state_tile.row(hq);
+            float* o_ptr = o_accum_thread.row(hq * block_m);
+
+            for (int i = 0; i < block_m; i++)
+            {
+                float* outptr = top_blob_head.row(m_start + i);
+                float inv_l = 1.f / l_vec[i];
+                int k = 0;
+#if __AVX512F__
+                __m512 vinv_l = _mm512_set1_ps(inv_l);
+                for (; k + 15 < out_embed_dim; k += 16)
+                {
+                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+                if (k < out_embed_dim)
+                {
+                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, o_ptr + i * out_embed_dim + k), vinv_l));
+                    k = out_embed_dim;
+                }
+#elif __AVX__
+                __m256 vinv_l = _mm256_set1_ps(inv_l);
+                for (; k + 7 < out_embed_dim; k += 8)
+                {
+                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+#elif __SSE2__
+                __m128 vinv_l = _mm_set1_ps(inv_l);
+                for (; k + 3 < out_embed_dim; k += 4)
+                {
+                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
+                }
+#endif
+                for (; k < out_embed_dim; k++)
+                {
+                    outptr[k] = o_ptr[i * out_embed_dim + k] * inv_l;
+                }
+            }
+        }
+    }
+
+    if (kv_cache)
+    {
+        top_blobs[1] = key;
+        top_blobs[2] = value;
+    }
+
+    return 0;
+}
+
 int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
     Option opt = _opt;
@@ -4450,301 +4769,11 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return 0;
     }
 
-    Mat s_vec(BLOCK_N * BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
-    Mat o_accum(out_embed_dim, BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
-    const bool large_dim = embed_dim > 512;
-    Mat q_batch(embed_dim, large_dim ? BLOCK_M : BLOCK_M * num_heads_per_group, opt.num_threads, 4u, opt.workspace_allocator);
-
-    if (s_vec.empty() || o_accum.empty() || q_batch.empty())
-        return -100;
-
-    int num_m_tiles = (src_seqlen + BLOCK_M - 1) / BLOCK_M;
-
-    // Per-head per-M-tile softmax state for cross-N-tile accumulation
-    Mat m_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
-    Mat l_state(BLOCK_M, num_heads_per_group, num_group * num_m_tiles, 4u, opt.workspace_allocator);
-
-    if (m_state.empty() || l_state.empty())
-        return -100;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int idx = 0; idx < num_group * num_m_tiles; idx++)
-    {
-        int g = idx / num_m_tiles;
-        int m_tile = idx % num_m_tiles;
-        int m_start = m_tile * BLOCK_M;
-        int block_m = m_start + BLOCK_M < src_seqlen ? BLOCK_M : src_seqlen - m_start;
-
-        const Mat key_head = key.channel(g);
-        const Mat value_head = value.channel(g);
-
-        Mat s_vec_thread = s_vec.channel(get_omp_thread_num());
-        Mat o_accum_thread = o_accum.channel(get_omp_thread_num());
-        Mat q_batch_thread = q_batch.channel(get_omp_thread_num());
-
-        // Pre-resolve mask pointers for all heads in this group
-        const float* mask_data[num_heads_per_group];
-        int mask_stride[num_heads_per_group];
-        for (int hq = 0; hq < num_heads_per_group; hq++)
-        {
-            int q = g * num_heads_per_group + hq;
-            mask_data[hq] = nullptr;
-            mask_stride[hq] = 0;
-            if (attn_mask)
-            {
-                const Mat& maskm = attn_mask_ref;
-                Mat mh = (maskm.dims == 3 && maskm.c > 1) ? maskm.channel(q)
-                         : (maskm.dims == 3 ? maskm.channel(0) : maskm);
-                mask_data[hq] = mh;
-                mask_stride[hq] = mh.w;
-            }
-        }
-
-        Mat m_state_tile = m_state.channel(idx);
-        Mat l_state_tile = l_state.channel(idx);
-
-        if (!large_dim)
-        {
-            for (int hq = 0; hq < num_heads_per_group; hq++)
-            {
-                int q = g * num_heads_per_group + hq;
-                const Mat query_head = query_ref.channel(q);
-                float* q_dst = q_batch_thread.row(hq * block_m);
-                for (int i = 0; i < block_m; i++)
-                {
-                    memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
-                }
-            }
-        }
-
-        // Initialize softmax state and zero output accumulator for all Q heads in this group
-        for (int hq = 0; hq < num_heads_per_group; hq++)
-        {
-            float* m_vec = m_state_tile.row(hq);
-            float* l_vec = l_state_tile.row(hq);
-            for (int i = 0; i < block_m; i++)
-            {
-                m_vec[i] = -FLT_MAX;
-                l_vec[i] = 0.f;
-            }
-
-            float* o_ptr = o_accum_thread.row(hq * block_m);
-            vec_zero(o_ptr, out_embed_dim * block_m);
-        }
-
-        // N-outer loop: K/V N-tile is loaded once and reused by all Q heads in this group
-        for (int n_start = 0; n_start < dst_seqlen; n_start += BLOCK_N)
-        {
-            int n_end = n_start + BLOCK_N < dst_seqlen ? n_start + BLOCK_N : dst_seqlen;
-            int block_n = n_end - n_start;
-
-            float* s_ptr = s_vec_thread.row(0);
-
-            if (!large_dim)
-            {
-#if NCNN_BF16
-                if (use_bf16_path)
-                {
-                    qk_gemm_bf16s_dispatch(s_ptr,
-                                           q_batch_thread.row(0),
-                                           key_head.row<const unsigned short>(n_start),
-                                           block_m * num_heads_per_group, block_n, embed_dim, _scale);
-                }
-                else
-#endif
-                {
-                    qk_gemm_dispatch(s_ptr,
-                                     q_batch_thread.row(0),
-                                     key_head.row(n_start),
-                                     block_m * num_heads_per_group, block_n, embed_dim, _scale);
-                }
-
-                for (int hq = 0; hq < num_heads_per_group; hq++)
-                {
-                    float* s_head = s_ptr + hq * block_m * block_n;
-
-                    if (attn_mask && mask_data[hq])
-                    {
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start;
-                            float* sptr = s_head + i * block_n;
-                            decode_mask_vec(sptr, mptr, block_n);
-                        }
-                    }
-
-                    float* m_vec = m_state_tile.row(hq);
-                    float* l_vec = l_state_tile.row(hq);
-                    float* o_ptr = o_accum_thread.row(hq * block_m);
-
-                    float m_old[BLOCK_M];
-                    float scale_factors[BLOCK_M];
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        m_old[i] = m_vec[i];
-                    }
-                    softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n);
-
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        if (m_old[i] != m_vec[i])
-                        {
-                            vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
-                        }
-                    }
-                }
-
-#if NCNN_BF16
-                if (use_bf16_path)
-                {
-                    pv_gemm_bf16s_dispatch(o_accum_thread.row(0), s_ptr, value_head.row<const unsigned short>(n_start),
-                                           block_m * num_heads_per_group, block_n, out_embed_dim);
-                }
-                else
-#endif
-                {
-                    pv_gemm_dispatch(o_accum_thread.row(0), s_ptr, value_head.row(n_start),
-                                     block_m * num_heads_per_group, block_n, out_embed_dim);
-                }
-            }
-            else
-            {
-                // large_dim: copy Q per head once, then loop over N-tiles
-                for (int hq = 0; hq < num_heads_per_group; hq++)
-                {
-                    int q = g * num_heads_per_group + hq;
-                    const Mat query_head = query_ref.channel(q);
-
-                    float* q_dst = q_batch_thread.row(0);
-                    for (int i = 0; i < block_m; i++)
-                    {
-                        memcpy(q_dst + i * embed_dim, query_head.row(m_start + i), embed_dim * sizeof(float));
-                    }
-
-                    for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
-                    {
-                        int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
-                        int block_n2 = n_end2 - n_start2;
-
-                        float* s_head = s_ptr;
-
-#if NCNN_BF16
-                        if (use_bf16_path)
-                        {
-                            qk_gemm_bf16s_dispatch(s_head,
-                                                 q_dst,
-                                                 key_head.row<const unsigned short>(n_start2),
-                                                 block_m, block_n2, embed_dim, _scale);
-                        }
-                        else
-#endif
-                        {
-                            qk_gemm_dispatch(s_head,
-                                             q_dst,
-                                             key_head.row(n_start2),
-                                             block_m, block_n2, embed_dim, _scale);
-                        }
-
-                        if (attn_mask && mask_data[hq])
-                        {
-                            for (int i = 0; i < block_m; i++)
-                            {
-                                const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
-                                float* sptr = s_head + i * block_n2;
-                                decode_mask_vec(sptr, mptr, block_n2);
-                            }
-                        }
-
-                        float* m_vec = m_state_tile.row(hq);
-                        float* l_vec = l_state_tile.row(hq);
-                        float* o_ptr = o_accum_thread.row(hq * block_m);
-
-                        float m_old[BLOCK_M];
-                        float scale_factors[BLOCK_M];
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            m_old[i] = m_vec[i];
-                        }
-                        softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
-
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            if (m_old[i] != m_vec[i])
-                            {
-                                vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
-                            }
-                        }
-
-#if NCNN_BF16
-                        if (use_bf16_path)
-                        {
-                            pv_gemm_bf16s_dispatch(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                 block_m, block_n2, out_embed_dim);
-                        }
-                        else
-#endif
-                        {
-                            pv_gemm_dispatch(o_ptr, s_head, value_head.row(n_start2),
-                                             block_m, block_n2, out_embed_dim);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Normalize all Q heads for this M tile and write back to top_blob
-        for (int hq = 0; hq < num_heads_per_group; hq++)
-        {
-            int q = g * num_heads_per_group + hq;
-            Mat top_blob_head = top_blob.channel(q);
-            float* l_vec = l_state_tile.row(hq);
-            float* o_ptr = o_accum_thread.row(hq * block_m);
-
-            for (int i = 0; i < block_m; i++)
-            {
-                float* outptr = top_blob_head.row(m_start + i);
-                float inv_l = 1.f / l_vec[i];
-                int k = 0;
-#if __AVX512F__
-                __m512 vinv_l = _mm512_set1_ps(inv_l);
-                for (; k + 15 < out_embed_dim; k += 16)
-                {
-                    _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
-                }
-                if (k < out_embed_dim)
-                {
-                    __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
-                    _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, o_ptr + i * out_embed_dim + k), vinv_l));
-                    k = out_embed_dim;
-                }
-#elif __AVX__
-                __m256 vinv_l = _mm256_set1_ps(inv_l);
-                for (; k + 7 < out_embed_dim; k += 8)
-                {
-                    _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
-                }
-#elif __SSE2__
-                __m128 vinv_l = _mm_set1_ps(inv_l);
-                for (; k + 3 < out_embed_dim; k += 4)
-                {
-                    _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(o_ptr + i * out_embed_dim + k), vinv_l));
-                }
-#endif
-                for (; k < out_embed_dim; k++)
-                {
-                    outptr[k] = o_ptr[i * out_embed_dim + k] * inv_l;
-                }
-            }
-        }
-    }
-
-    if (kv_cache)
-    {
-        top_blobs[1] = key;
-        top_blobs[2] = value;
-    }
-
-    return 0;
+    return sdpa_forward_prefill(query_ref, attn_mask_ref, key, value, top_blob,
+                                top_blobs, opt, embed_dim, src_seqlen, num_heads,
+                                num_group, out_embed_dim, dst_seqlen,
+                                num_heads_per_group, _scale, kv_cache, attn_mask,
+                                use_bf16_path);
 }
 
 } // namespace ncnn
