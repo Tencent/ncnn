@@ -1608,6 +1608,8 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
 
             for (int j = 0; j < n; j++)
             {
+                if (d >= 512 && j + 4 < n)
+                    _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
                 __m512 vvec[VEC_PER_UNROLL];
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
                     vvec[vi] = _mm512_loadu_ps(V + j * d + dd + vi * 16);
@@ -1636,6 +1638,8 @@ static inline void pv_gemm_avx512(float* O, const float* P, const float* V, int 
 
             for (int j = 0; j < n; j++)
             {
+                if (d >= 512 && j + 4 < n)
+                    _mm_prefetch((const char*)(V + (j + 4) * d + dd), _MM_HINT_T1);
                 __m512 pvec = _mm512_set1_ps(pptr[j]);
                 for (int vi = 0; vi < VEC_PER_UNROLL; vi++)
                     acc[vi] = _mm512_fmadd_ps(pvec, _mm512_loadu_ps(V + j * d + dd + vi * 16), acc[vi]);
@@ -3378,104 +3382,104 @@ static inline void pv_gemm_dispatch(float* O, const float* P, const float* V,
     if (d == 256)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 256>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 256);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 256>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 256);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 256>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 256);
         return;
 #endif
     }
     if (d == 512)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 512>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 512);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 512>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 512);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 512>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 512);
         return;
 #endif
     }
     if (d == 1024)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 1024>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 1024);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 1024>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 1024);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 1024>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 1024);
         return;
 #endif
     }
     if (d == 2048)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 2048>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 2048);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 2048>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 2048);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 2048>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 2048);
         return;
 #endif
     }
     if (d == 4096)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 4096>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 4096);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 4096>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 4096);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 4096>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 4096);
         return;
 #endif
     }
     if (d == 768)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 768>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 768);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 768>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 768);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 768>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 768);
         return;
 #endif
     }
     if (d == 1536)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 1536>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 1536);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 1536>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 1536);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 1536>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 1536);
         return;
 #endif
     }
     if (d == 3072)
     {
 #if __AVX512F__
-        pv_gemm_avx512<2, 3072>(O, P, V, m, n);
+        pv_gemm_avx512<2, 128>(O, P, V, m, n, 3072);
         return;
 #elif __AVX__
-        pv_gemm_avx<2, 3072>(O, P, V, m, n);
+        pv_gemm_avx<2, 64>(O, P, V, m, n, 3072);
         return;
 #elif __SSE2__
-        pv_gemm_sse2<2, 3072>(O, P, V, m, n);
+        pv_gemm_sse2<2, 32>(O, P, V, m, n, 3072);
         return;
 #endif
     }
@@ -3798,8 +3802,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                         float* outptr = top_blob_head.row(0);
                         float inv_l = 1.f / l;
-                        for (int k = 0; k < out_embed_dim; k++)
-                            outptr[k] = out[k] * inv_l;
+                        memcpy(outptr, out, out_embed_dim * sizeof(float));
+                        vec_scale_dispatch(outptr, inv_l, out_embed_dim);
                     }
                 }
             }
@@ -3880,8 +3884,8 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     float* outptr = top_blob_head.row(0);
                     float inv_l = 1.f / l;
-                    for (int k = 0; k < out_embed_dim; k++)
-                        outptr[k] = out[k] * inv_l;
+                    memcpy(outptr, out, out_embed_dim * sizeof(float));
+                    vec_scale_dispatch(outptr, inv_l, out_embed_dim);
                 }
             }
 
@@ -3945,10 +3949,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 for (int i = 0; i < block_m; i++)
                 {
                     float* optr = o_accum_head.row(i);
-                    for (int k = 0; k < out_embed_dim; k++)
-                    {
-                        optr[k] = 0.f;
-                    }
+                    vec_zero_dispatch(optr, out_embed_dim);
                 }
 
                 float m_vec[BLOCK_M];
@@ -4028,10 +4029,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         float l_new = l_vec[i] * scale_factor;
 
                         float* optr = o_accum_head.row(i);
-                        for (int k = 0; k < out_embed_dim; k++)
-                        {
-                            optr[k] *= scale_factor;
-                        }
+                        vec_scale_dispatch(optr, scale_factor, out_embed_dim);
 
 #if __AVX512F__
                         __m512 vm_new = _mm512_set1_ps(m_new);
@@ -4115,10 +4113,27 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     float* optr = o_accum_head.row(i);
                     float* outptr = top_blob_head.row(m_start + i);
                     float inv_l = 1.f / l_vec[i];
-                    for (int k = 0; k < out_embed_dim; k++)
+                    int k = 0;
+#if __AVX512F__
+                    __m512 vinv_l = _mm512_set1_ps(inv_l);
+                    for (; k + 15 < out_embed_dim; k += 16)
+                        _mm512_storeu_ps(outptr + k, _mm512_mul_ps(_mm512_loadu_ps(optr + k), vinv_l));
+                    if (k < out_embed_dim)
                     {
-                        outptr[k] = optr[k] * inv_l;
+                        __mmask16 mask = (__mmask16)((1u << (out_embed_dim - k)) - 1);
+                        _mm512_mask_storeu_ps(outptr + k, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, optr + k), vinv_l));
                     }
+#elif __AVX__
+                    __m256 vinv_l256 = _mm256_set1_ps(inv_l);
+                    for (; k + 7 < out_embed_dim; k += 8)
+                        _mm256_storeu_ps(outptr + k, _mm256_mul_ps(_mm256_loadu_ps(optr + k), vinv_l256));
+#elif __SSE2__
+                    __m128 vinv_l128 = _mm_set1_ps(inv_l);
+                    for (; k + 3 < out_embed_dim; k += 4)
+                        _mm_storeu_ps(outptr + k, _mm_mul_ps(_mm_loadu_ps(optr + k), vinv_l128));
+#endif
+                    for (; k < out_embed_dim; k++)
+                        outptr[k] = optr[k] * inv_l;
                 }
             }
         }
