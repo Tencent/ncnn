@@ -318,11 +318,13 @@ int RotaryEmbed_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, s
                 __m128i _signmask = __lsx_vreplgr2vr_w(0);
                 _signmask = __lsx_vinsgr2vr_w(_signmask, -1, 1);
                 _signmask = __lsx_vinsgr2vr_w(_signmask, -1, 3);
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
 
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    __m128 _a0 = bfloat2float_lsx(ptr);
-                    __m128 _a1 = bfloat2float_lsx(ptr + 4);
+                    __m128i _a01 = __lsx_vld(ptr, 0);
+                    __m128 _a0 = (__m128)__lsx_vilvl_h(_a01, _zero_bf16);
+                    __m128 _a1 = (__m128)__lsx_vilvh_h(_a01, _zero_bf16);
 
                     __m128 _c4 = bfloat2float_lsx(cos_ptr);
                     __m128 _s4 = bfloat2float_lsx(sin_ptr);

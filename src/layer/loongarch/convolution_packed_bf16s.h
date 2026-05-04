@@ -865,22 +865,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val6 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[6]));
                             __m128 _val7 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[7]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 16), _val2, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 20), _val2, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 24), _val3, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 28), _val3, _sum7);
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 32), _val4, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 36), _val4, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 40), _val5, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 44), _val5, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 48), _val6, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 52), _val6, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 56), _val7, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 60), _val7, _sum7);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                            __m128i _w89_bf16 = __lsx_vld(kptr + 32, 0);
+                            __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                            __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                            __m128i _wab_bf16 = __lsx_vld(kptr + 40, 0);
+                            __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                            __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                            __m128i _wcd_bf16 = __lsx_vld(kptr + 48, 0);
+                            __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                            __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                            __m128i _wef_bf16 = __lsx_vld(kptr + 56, 0);
+                            __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                            __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_w4, _val2, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_w5, _val2, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_w6, _val3, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_w7, _val3, _sum7);
+                            _sum0 = __lsx_vfmadd_s(_w8, _val4, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w9, _val4, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_wa, _val5, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_wb, _val5, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_wc, _val6, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_wd, _val6, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_we, _val7, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_wf, _val7, _sum7);
 
                             kptr += 64;
                         }
@@ -903,22 +928,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val6 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r1s[2]));
                             __m128 _val7 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r1s[3]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 16), _val2, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 20), _val2, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 24), _val3, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 28), _val3, _sum7);
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 32), _val4, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 36), _val4, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 40), _val5, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 44), _val5, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 48), _val6, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 52), _val6, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 56), _val7, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 60), _val7, _sum7);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                            __m128i _w89_bf16 = __lsx_vld(kptr + 32, 0);
+                            __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                            __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                            __m128i _wab_bf16 = __lsx_vld(kptr + 40, 0);
+                            __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                            __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                            __m128i _wcd_bf16 = __lsx_vld(kptr + 48, 0);
+                            __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                            __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                            __m128i _wef_bf16 = __lsx_vld(kptr + 56, 0);
+                            __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                            __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_w4, _val2, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_w5, _val2, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_w6, _val3, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_w7, _val3, _sum7);
+                            _sum0 = __lsx_vfmadd_s(_w8, _val4, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w9, _val4, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_wa, _val5, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_wb, _val5, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_wc, _val6, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_wd, _val6, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_we, _val7, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_wf, _val7, _sum7);
 
                             kptr += 64;
                         }
@@ -938,22 +988,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val6 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N * 6]));
                             __m128 _val7 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N * 7]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 16), _val2, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 20), _val2, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 24), _val3, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 28), _val3, _sum7);
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 32), _val4, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 36), _val4, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 40), _val5, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 44), _val5, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 48), _val6, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 52), _val6, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 56), _val7, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 60), _val7, _sum7);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                            __m128i _w89_bf16 = __lsx_vld(kptr + 32, 0);
+                            __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                            __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                            __m128i _wab_bf16 = __lsx_vld(kptr + 40, 0);
+                            __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                            __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                            __m128i _wcd_bf16 = __lsx_vld(kptr + 48, 0);
+                            __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                            __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                            __m128i _wef_bf16 = __lsx_vld(kptr + 56, 0);
+                            __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                            __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_w4, _val2, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_w5, _val2, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_w6, _val3, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_w7, _val3, _sum7);
+                            _sum0 = __lsx_vfmadd_s(_w8, _val4, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w9, _val4, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_wa, _val5, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_wb, _val5, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_wc, _val6, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_wd, _val6, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_we, _val7, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_wf, _val7, _sum7);
 
                             kptr += 64;
                         }
@@ -974,14 +1049,27 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val2 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[2]));
                             __m128 _val3 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[3]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 16), _val2, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 20), _val2, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 24), _val3, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 28), _val3, _sum7);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_w4, _val2, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_w5, _val2, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_w6, _val3, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_w7, _val3, _sum7);
 
                             kptr += 32;
                         }
@@ -997,14 +1085,27 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val2 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N * 2]));
                             __m128 _val3 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N * 3]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
-                            _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 16), _val2, _sum2);
-                            _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 20), _val2, _sum6);
-                            _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 24), _val3, _sum3);
-                            _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 28), _val3, _sum7);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
+                            _sum2 = __lsx_vfmadd_s(_w4, _val2, _sum2);
+                            _sum6 = __lsx_vfmadd_s(_w5, _val2, _sum6);
+                            _sum3 = __lsx_vfmadd_s(_w6, _val3, _sum3);
+                            _sum7 = __lsx_vfmadd_s(_w7, _val3, _sum7);
 
                             kptr += 32;
                         }
@@ -1023,10 +1124,17 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _val0 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok]));
                             __m128 _val1 = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N]));
 
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val0, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val0, _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 8), _val1, _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 12), _val1, _sum5);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val0, _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, _val1, _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, _val1, _sum5);
 
                             kptr += 16;
                         }
@@ -1041,8 +1149,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             __m128 _val = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[space_ofs[k]]));
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr), _val, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr + 4), _val, _sum4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val, _sum4);
 
                             kptr += 8;
                         }
@@ -1138,14 +1250,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* r0s = r0 + space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
-                            __m128 _w4 = bfloat2float_lsx(kptr + 16);
-                            __m128 _w5 = bfloat2float_lsx(kptr + 20);
-                            __m128 _w6 = bfloat2float_lsx(kptr + 24);
-                            __m128 _w7 = bfloat2float_lsx(kptr + 28);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[0])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[1])), _sum1);
@@ -1168,14 +1285,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             const unsigned short* r0s = r0 + space_ofs[k];
                             const unsigned short* r1s = r1 + space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
-                            __m128 _w4 = bfloat2float_lsx(kptr + 16);
-                            __m128 _w5 = bfloat2float_lsx(kptr + 20);
-                            __m128 _w6 = bfloat2float_lsx(kptr + 24);
-                            __m128 _w7 = bfloat2float_lsx(kptr + 28);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[0])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[1])), _sum1);
@@ -1195,14 +1317,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const int sok = space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
-                            __m128 _w4 = bfloat2float_lsx(kptr + 16);
-                            __m128 _w5 = bfloat2float_lsx(kptr + 20);
-                            __m128 _w6 = bfloat2float_lsx(kptr + 24);
-                            __m128 _w7 = bfloat2float_lsx(kptr + 28);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            __m128i _w45_bf16 = __lsx_vld(kptr + 16, 0);
+                            __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                            __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                            __m128i _w67_bf16 = __lsx_vld(kptr + 24, 0);
+                            __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                            __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N])), _sum1);
@@ -1227,10 +1354,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const unsigned short* r0s = r0 + space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[0])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0s[1])), _sum1);
@@ -1246,10 +1376,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const int sok = space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N])), _sum1);
@@ -1270,8 +1403,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const int sok = space_ofs[k];
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(r0[sok + N])), _sum1);
@@ -1377,12 +1512,16 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m128 _r0 = bfloat2float_lsx(r0 + sok);
-                            __m128 _r1 = bfloat2float_lsx(r0 + sok + 4);
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _r01_bf16 = __lsx_vld(r0 + sok, 0);
+                            __m128 _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                            __m128 _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum0 = __lsx_vfmadd_s(_r1, _w1, _sum0);
@@ -1399,12 +1538,15 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                             __m128 _r0 = bfloat2float_lsx(r0 + sok);
                             __m128 _r1 = bfloat2float_lsx(r1 + sok);
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum0 = __lsx_vfmadd_s(_r1, _w1, _sum0);
@@ -1425,10 +1567,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _r0 = bfloat2float_lsx(tmpbuf0);
                             __m128 _r1 = bfloat2float_lsx(tmpbuf1);
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
-                            __m128 _w2 = bfloat2float_lsx(kptr + 8);
-                            __m128 _w3 = bfloat2float_lsx(kptr + 12);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum0 = __lsx_vfmadd_s(_r1, _w1, _sum0);
@@ -1448,9 +1593,11 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                             __m128 _r0 = bfloat2float_lsx(r0 + sok);
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum1 = __lsx_vfmadd_s(_r0, _w1, _sum1);
@@ -1467,8 +1614,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             unsigned short tmpbuf[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             __m128 _r0 = bfloat2float_lsx(tmpbuf);
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum1 = __lsx_vfmadd_s(_r0, _w1, _sum1);
@@ -1571,10 +1720,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const int sok = space_ofs[k];
 
-                            __m128 _r0 = bfloat2float_lsx(r0 + sok);
-                            __m128 _r1 = bfloat2float_lsx(r0 + sok + 4);
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _r01_bf16 = __lsx_vld(r0 + sok, 0);
+                            __m128 _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                            __m128 _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
                             _sum = __lsx_vfmadd_s(_r0, _w0, _sum);
                             _sum = __lsx_vfmadd_s(_r1, _w1, _sum);
 
@@ -1589,10 +1741,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const int sok = space_ofs[k];
 
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                             __m128 _r0 = bfloat2float_lsx(r0 + sok);
                             __m128 _r1 = bfloat2float_lsx(r1 + sok);
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
                             _sum = __lsx_vfmadd_s(_r0, _w0, _sum);
                             _sum = __lsx_vfmadd_s(_r1, _w1, _sum);
 
@@ -1610,8 +1764,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __m128 _r0 = bfloat2float_lsx(tmpbuf0);
                             __m128 _r1 = bfloat2float_lsx(tmpbuf1);
 
-                            __m128 _w0 = bfloat2float_lsx(kptr);
-                            __m128 _w1 = bfloat2float_lsx(kptr + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
                             _sum = __lsx_vfmadd_s(_r0, _w0, _sum);
                             _sum = __lsx_vfmadd_s(_r1, _w1, _sum);
 

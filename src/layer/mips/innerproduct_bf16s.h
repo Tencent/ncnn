@@ -245,8 +245,9 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     v8i16 _m01 = __msa_ld_h(m, 0);
                     v4f32 _m0 = (v4f32)__msa_ilvr_h(_m01, _zero_bf16);
                     v4f32 _m1 = (v4f32)__msa_ilvl_h(_m01, _zero_bf16);
-                    v4f32 _w0 = bfloat2float_msa(kptr);
-                    v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                    v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                    v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                    v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
 
                     v4f32 _val0 = (v4f32)__msa_splati_w((v4i32)_m0, 0);
                     v4f32 _val1 = (v4f32)__msa_splati_w((v4i32)_m0, 1);
@@ -369,8 +370,10 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     __builtin_prefetch(kptr + 16);
 
                     v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(m[0]));
-                    v4f32 _w0 = bfloat2float_msa(kptr);
-                    v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                    v8i16 _zero_bf16 = __msa_fill_h(0);
+                    v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                    v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                    v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                     _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w0);
                     _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, _w1);
 
@@ -426,8 +429,10 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                     v4f32 _val1 = __msa_fill_w_f32(bfloat16_to_float32(m[1]));
                     v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(m[2]));
                     v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(m[3]));
-                    v4f32 _w0 = bfloat2float_msa(kptr);
-                    v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                    v8i16 _zero_bf16 = __msa_fill_h(0);
+                    v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                    v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                    v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
 
                     _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
                     _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w0);
@@ -718,10 +723,13 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                 {
                     __builtin_prefetch(m + 16);
                     __builtin_prefetch(kptr + 16);
-                    v4f32 _val0 = bfloat2float_msa(m);
-                    v4f32 _val1 = bfloat2float_msa(m + 4);
-                    v4f32 _val2 = bfloat2float_msa(m + 8);
-                    v4f32 _val3 = bfloat2float_msa(m + 12);
+                    v8i16 _zero_bf16 = __msa_fill_h(0);
+                    v8i16 _val01_bf16 = __msa_ld_h(m, 0);
+                    v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                    v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                    v8i16 _val23_bf16 = __msa_ld_h(m + 8, 0);
+                    v4f32 _val2 = (v4f32)__msa_ilvr_h(_val23_bf16, _zero_bf16);
+                    v4f32 _val3 = (v4f32)__msa_ilvl_h(_val23_bf16, _zero_bf16);
 
                     v4f32 _w = bfloat2float_msa(kptr);
 
@@ -851,14 +859,19 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(sptr[2]));
                 v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(sptr[3]));
 
-                v4f32 _w0 = bfloat2float_msa(kptr);
-                v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                v4f32 _w3 = bfloat2float_msa(kptr + 12);
-                v4f32 _w4 = bfloat2float_msa(kptr + 16);
-                v4f32 _w5 = bfloat2float_msa(kptr + 20);
-                v4f32 _w6 = bfloat2float_msa(kptr + 24);
-                v4f32 _w7 = bfloat2float_msa(kptr + 28);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
 
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
                 _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w2);
@@ -875,8 +888,10 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
             for (; i < num_input; i++)
             {
                 v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(sptr[0]));
-                v4f32 _w0 = bfloat2float_msa(kptr);
-                v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w0);
                 _sum4 = __ncnn_msa_fmadd_w(_sum4, _val, _w1);
 
@@ -927,10 +942,13 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
                 v4f32 _val2 = __msa_fill_w_f32(bfloat16_to_float32(sptr[2]));
                 v4f32 _val3 = __msa_fill_w_f32(bfloat16_to_float32(sptr[3]));
 
-                v4f32 _w0 = bfloat2float_msa(kptr);
-                v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
 
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
                 _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);

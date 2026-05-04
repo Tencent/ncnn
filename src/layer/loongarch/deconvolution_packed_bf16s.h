@@ -723,63 +723,138 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
 
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum7);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                                __m128i _w89_bf16 = __lsx_vld(kptr0 + 32, 0);
+                                __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                                __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                                __m128i _wab_bf16 = __lsx_vld(kptr0 + 40, 0);
+                                __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                                __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                                __m128i _wcd_bf16 = __lsx_vld(kptr0 + 48, 0);
+                                __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                                __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                                __m128i _wef_bf16 = __lsx_vld(kptr0 + 56, 0);
+                                __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                                __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_w4, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_w5, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_w6, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_w7, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(_w8, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w9, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[4])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_wa, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_wb, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[5])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_wc, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_wd, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[6])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_we, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_wf, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[7])), _sum7);
                             }
                             if (elempack == 4)
                             {
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
 
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum7);
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum7);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                                __m128i _w89_bf16 = __lsx_vld(kptr0 + 32, 0);
+                                __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                                __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                                __m128i _wab_bf16 = __lsx_vld(kptr0 + 40, 0);
+                                __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                                __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                                __m128i _wcd_bf16 = __lsx_vld(kptr0 + 48, 0);
+                                __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                                __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                                __m128i _wef_bf16 = __lsx_vld(kptr0 + 56, 0);
+                                __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                                __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_w4, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_w5, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_w6, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_w7, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[3])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(_w8, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w9, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_wa, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_wb, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_wc, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_wd, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_we, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_wf, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[3])), _sum7);
                             }
                             if (elempack == 1)
                             {
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 32), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 36), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 40), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 44), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 48), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 52), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 56), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 60), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum7);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                                __m128i _w89_bf16 = __lsx_vld(kptr0 + 32, 0);
+                                __m128 _w8 = (__m128)__lsx_vilvl_h(_w89_bf16, _zero_bf16);
+                                __m128 _w9 = (__m128)__lsx_vilvh_h(_w89_bf16, _zero_bf16);
+                                __m128i _wab_bf16 = __lsx_vld(kptr0 + 40, 0);
+                                __m128 _wa = (__m128)__lsx_vilvl_h(_wab_bf16, _zero_bf16);
+                                __m128 _wb = (__m128)__lsx_vilvh_h(_wab_bf16, _zero_bf16);
+                                __m128i _wcd_bf16 = __lsx_vld(kptr0 + 48, 0);
+                                __m128 _wc = (__m128)__lsx_vilvl_h(_wcd_bf16, _zero_bf16);
+                                __m128 _wd = (__m128)__lsx_vilvh_h(_wcd_bf16, _zero_bf16);
+                                __m128i _wef_bf16 = __lsx_vld(kptr0 + 56, 0);
+                                __m128 _we = (__m128)__lsx_vilvl_h(_wef_bf16, _zero_bf16);
+                                __m128 _wf = (__m128)__lsx_vilvh_h(_wef_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_w4, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_w5, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_w6, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_w7, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
+                                _sum0 = __lsx_vfmadd_s(_w8, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w9, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 4).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_wa, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_wb, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 5).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_wc, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_wd, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_we, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_wf, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx])), _sum7);
                             }
                         }
                     }
@@ -813,25 +888,51 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_w4, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_w5, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[2])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_w6, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_w7, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[3])), _sum7);
                             }
                             if (elempack == 1)
                             {
-                                _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
-                                _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
-                                _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
-                                _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
-                                _sum2 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 16), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
-                                _sum6 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 20), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
-                                _sum3 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 24), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
-                                _sum7 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 28), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
+                                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
+                                _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum4);
+                                _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
+                                _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum5);
+                                _sum2 = __lsx_vfmadd_s(_w4, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum2);
+                                _sum6 = __lsx_vfmadd_s(_w5, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 2).row<const unsigned short>(sy)[sx])), _sum6);
+                                _sum3 = __lsx_vfmadd_s(_w6, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum3);
+                                _sum7 = __lsx_vfmadd_s(_w7, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 3).row<const unsigned short>(sy)[sx])), _sum7);
                             }
                         }
                     }
@@ -863,10 +964,17 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                             const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
-                            _sum1 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 8), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum1);
-                            _sum5 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 12), (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum5);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                            __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                            __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum4);
+                            _sum1 = __lsx_vfmadd_s(_w2, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum1);
+                            _sum5 = __lsx_vfmadd_s(_w3, (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum5);
                         }
                     }
 
@@ -897,8 +1005,12 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                             const unsigned short* sptr = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             __m128 _val = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0]));
-                            _sum0 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0), _val, _sum0);
-                            _sum4 = __lsx_vfmadd_s(bfloat2float_lsx(kptr0 + 4), _val, _sum4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __lsx_vfmadd_s(_w0, _val, _sum0);
+                            _sum4 = __lsx_vfmadd_s(_w1, _val, _sum4);
                         }
                     }
 
@@ -1013,14 +1125,19 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
 
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
-                                __m128 _w2 = bfloat2float_lsx(kptr0 + 8);
-                                __m128 _w3 = bfloat2float_lsx(kptr0 + 12);
-                                __m128 _w4 = bfloat2float_lsx(kptr0 + 16);
-                                __m128 _w5 = bfloat2float_lsx(kptr0 + 20);
-                                __m128 _w6 = bfloat2float_lsx(kptr0 + 24);
-                                __m128 _w7 = bfloat2float_lsx(kptr0 + 28);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
                                 _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
@@ -1036,14 +1153,19 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 const unsigned short* sptr0 = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
                                 const unsigned short* sptr1 = bottom_blob.channel(q / 4 + 1).row<const unsigned short>(sy) + sx * 4;
 
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
-                                __m128 _w2 = bfloat2float_lsx(kptr0 + 8);
-                                __m128 _w3 = bfloat2float_lsx(kptr0 + 12);
-                                __m128 _w4 = bfloat2float_lsx(kptr0 + 16);
-                                __m128 _w5 = bfloat2float_lsx(kptr0 + 20);
-                                __m128 _w6 = bfloat2float_lsx(kptr0 + 24);
-                                __m128 _w7 = bfloat2float_lsx(kptr0 + 28);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
                                 _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[1])), _sum1);
@@ -1056,14 +1178,19 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
-                                __m128 _w2 = bfloat2float_lsx(kptr0 + 8);
-                                __m128 _w3 = bfloat2float_lsx(kptr0 + 12);
-                                __m128 _w4 = bfloat2float_lsx(kptr0 + 16);
-                                __m128 _w5 = bfloat2float_lsx(kptr0 + 20);
-                                __m128 _w6 = bfloat2float_lsx(kptr0 + 24);
-                                __m128 _w7 = bfloat2float_lsx(kptr0 + 28);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
+                                __m128i _w45_bf16 = __lsx_vld(kptr0 + 16, 0);
+                                __m128 _w4 = (__m128)__lsx_vilvl_h(_w45_bf16, _zero_bf16);
+                                __m128 _w5 = (__m128)__lsx_vilvh_h(_w45_bf16, _zero_bf16);
+                                __m128i _w67_bf16 = __lsx_vld(kptr0 + 24, 0);
+                                __m128 _w6 = (__m128)__lsx_vilvl_h(_w67_bf16, _zero_bf16);
+                                __m128 _w7 = (__m128)__lsx_vilvh_h(_w67_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
                                 _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
@@ -1106,10 +1233,13 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
-                                __m128 _w2 = bfloat2float_lsx(kptr0 + 8);
-                                __m128 _w3 = bfloat2float_lsx(kptr0 + 12);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[0])), _sum0);
                                 _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr[1])), _sum1);
@@ -1118,10 +1248,13 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             }
                             if (elempack == 1)
                             {
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
-                                __m128 _w2 = bfloat2float_lsx(kptr0 + 8);
-                                __m128 _w3 = bfloat2float_lsx(kptr0 + 12);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
+                                __m128i _w23_bf16 = __lsx_vld(kptr0 + 8, 0);
+                                __m128 _w2 = (__m128)__lsx_vilvl_h(_w23_bf16, _zero_bf16);
+                                __m128 _w3 = (__m128)__lsx_vilvh_h(_w23_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q).row<const unsigned short>(sy)[sx])), _sum0);
                                 _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(bottom_blob.channel(q + 1).row<const unsigned short>(sy)[sx])), _sum1);
@@ -1159,8 +1292,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             const unsigned short* sptr0 = bottom_blob.channel(q).row<const unsigned short>(sy) + sx;
                             const unsigned short* sptr1 = bottom_blob.channel(q + 1).row<const unsigned short>(sy) + sx;
 
-                            __m128 _w0 = bfloat2float_lsx(kptr0);
-                            __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_w0, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr0[0])), _sum0);
                             _sum1 = __lsx_vfmadd_s(_w1, __lsx_vreplfr2vr_s(bfloat16_to_float32(sptr1[0])), _sum1);
@@ -1383,8 +1518,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
 
-                                _r0 = bfloat2float_lsx(sptr);
-                                _r1 = bfloat2float_lsx(sptr + 4);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _r01_bf16 = __lsx_vld(sptr, 0);
+                                _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                                _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
                             }
                             if (elempack == 4)
                             {
@@ -1406,14 +1543,19 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
                                 tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
 
-                                _r0 = bfloat2float_lsx(tmp);
-                                _r1 = bfloat2float_lsx(tmp + 4);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _r01_bf16 = __lsx_vld(tmp, 0);
+                                _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                                _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
                             }
 
-                            __m128 _w00 = bfloat2float_lsx(kptr0);
-                            __m128 _w01 = bfloat2float_lsx(kptr0 + 4);
-                            __m128 _w10 = bfloat2float_lsx(kptr0 + 8);
-                            __m128 _w11 = bfloat2float_lsx(kptr0 + 12);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w0001_bf16 = __lsx_vld(kptr0, 0);
+                            __m128 _w00 = (__m128)__lsx_vilvl_h(_w0001_bf16, _zero_bf16);
+                            __m128 _w01 = (__m128)__lsx_vilvh_h(_w0001_bf16, _zero_bf16);
+                            __m128i _w1011_bf16 = __lsx_vld(kptr0 + 8, 0);
+                            __m128 _w10 = (__m128)__lsx_vilvl_h(_w1011_bf16, _zero_bf16);
+                            __m128 _w11 = (__m128)__lsx_vilvh_h(_w1011_bf16, _zero_bf16);
 
                             _sum00 = __lsx_vfmadd_s(_r0, _w00, _sum00);
                             _sum01 = __lsx_vfmadd_s(_r1, _w01, _sum01);
@@ -1458,9 +1600,11 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 4).row<const unsigned short>(sy) + sx * 4;
 
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                                 __m128 _r0 = bfloat2float_lsx(sptr);
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                                 _sum1 = __lsx_vfmadd_s(_r0, _w1, _sum1);
@@ -1476,8 +1620,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 __m128 _val23 = (__m128)__lsx_vilvl_w((__m128i)_val3, (__m128i)_val2);
                                 __m128 _r0 = (__m128)__lsx_vilvl_d((__m128i)_val23, (__m128i)_val01);
 
-                                __m128 _w0 = bfloat2float_lsx(kptr0);
-                                __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                                __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                                __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                                 _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                                 _sum1 = __lsx_vfmadd_s(_r0, _w1, _sum1);
@@ -1701,8 +1847,10 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                             {
                                 const unsigned short* sptr = bottom_blob.channel(q / 8).row<const unsigned short>(sy) + sx * 8;
 
-                                _r0 = bfloat2float_lsx(sptr);
-                                _r1 = bfloat2float_lsx(sptr + 4);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _r01_bf16 = __lsx_vld(sptr, 0);
+                                _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                                _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
                             }
                             if (elempack == 4)
                             {
@@ -1724,12 +1872,16 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                                 tmp[6] = bottom_blob.channel(q + 6).row<const unsigned short>(sy)[sx];
                                 tmp[7] = bottom_blob.channel(q + 7).row<const unsigned short>(sy)[sx];
 
-                                _r0 = bfloat2float_lsx(tmp);
-                                _r1 = bfloat2float_lsx(tmp + 4);
+                                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                                __m128i _r01_bf16 = __lsx_vld(tmp, 0);
+                                _r0 = (__m128)__lsx_vilvl_h(_r01_bf16, _zero_bf16);
+                                _r1 = (__m128)__lsx_vilvh_h(_r01_bf16, _zero_bf16);
                             }
 
-                            __m128 _w0 = bfloat2float_lsx(kptr0);
-                            __m128 _w1 = bfloat2float_lsx(kptr0 + 4);
+                            __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                            __m128i _w01_bf16 = __lsx_vld(kptr0, 0);
+                            __m128 _w0 = (__m128)__lsx_vilvl_h(_w01_bf16, _zero_bf16);
+                            __m128 _w1 = (__m128)__lsx_vilvh_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __lsx_vfmadd_s(_r0, _w0, _sum0);
                             _sum1 = __lsx_vfmadd_s(_r1, _w1, _sum1);

@@ -625,22 +625,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val6 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[6]));
                             v4f32 _val7 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[7]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 16), _val2);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 20), _val2);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 24), _val3);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 28), _val3);
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr + 32), _val4);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 36), _val4);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 40), _val5);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 44), _val5);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 48), _val6);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 52), _val6);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 56), _val7);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 60), _val7);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+                            v8i16 _w89_bf16 = __msa_ld_h(kptr + 32, 0);
+                            v4f32 _w8 = (v4f32)__msa_ilvr_h(_w89_bf16, _zero_bf16);
+                            v4f32 _w9 = (v4f32)__msa_ilvl_h(_w89_bf16, _zero_bf16);
+                            v8i16 _wab_bf16 = __msa_ld_h(kptr + 40, 0);
+                            v4f32 _wa = (v4f32)__msa_ilvr_h(_wab_bf16, _zero_bf16);
+                            v4f32 _wb = (v4f32)__msa_ilvl_h(_wab_bf16, _zero_bf16);
+                            v8i16 _wcd_bf16 = __msa_ld_h(kptr + 48, 0);
+                            v4f32 _wc = (v4f32)__msa_ilvr_h(_wcd_bf16, _zero_bf16);
+                            v4f32 _wd = (v4f32)__msa_ilvl_h(_wcd_bf16, _zero_bf16);
+                            v8i16 _wef_bf16 = __msa_ld_h(kptr + 56, 0);
+                            v4f32 _we = (v4f32)__msa_ilvr_h(_wef_bf16, _zero_bf16);
+                            v4f32 _wf = (v4f32)__msa_ilvl_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w4, _val2);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _w5, _val2);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w6, _val3);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _w7, _val3);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w8, _val4);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w9, _val4);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _wa, _val5);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _wb, _val5);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _wc, _val6);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _wd, _val6);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _we, _val7);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _wf, _val7);
 
                             kptr += 64;
                         }
@@ -665,22 +690,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val6 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r1s[2]));
                             v4f32 _val7 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r1s[3]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 16), _val2);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 20), _val2);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 24), _val3);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 28), _val3);
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr + 32), _val4);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 36), _val4);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 40), _val5);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 44), _val5);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 48), _val6);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 52), _val6);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 56), _val7);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 60), _val7);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+                            v8i16 _w89_bf16 = __msa_ld_h(kptr + 32, 0);
+                            v4f32 _w8 = (v4f32)__msa_ilvr_h(_w89_bf16, _zero_bf16);
+                            v4f32 _w9 = (v4f32)__msa_ilvl_h(_w89_bf16, _zero_bf16);
+                            v8i16 _wab_bf16 = __msa_ld_h(kptr + 40, 0);
+                            v4f32 _wa = (v4f32)__msa_ilvr_h(_wab_bf16, _zero_bf16);
+                            v4f32 _wb = (v4f32)__msa_ilvl_h(_wab_bf16, _zero_bf16);
+                            v8i16 _wcd_bf16 = __msa_ld_h(kptr + 48, 0);
+                            v4f32 _wc = (v4f32)__msa_ilvr_h(_wcd_bf16, _zero_bf16);
+                            v4f32 _wd = (v4f32)__msa_ilvl_h(_wcd_bf16, _zero_bf16);
+                            v8i16 _wef_bf16 = __msa_ld_h(kptr + 56, 0);
+                            v4f32 _we = (v4f32)__msa_ilvr_h(_wef_bf16, _zero_bf16);
+                            v4f32 _wf = (v4f32)__msa_ilvl_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w4, _val2);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _w5, _val2);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w6, _val3);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _w7, _val3);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w8, _val4);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w9, _val4);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _wa, _val5);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _wb, _val5);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _wc, _val6);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _wd, _val6);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _we, _val7);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _wf, _val7);
 
                             kptr += 64;
                         }
@@ -701,22 +751,47 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val6 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 6]));
                             v4f32 _val7 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 7]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 16), _val2);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 20), _val2);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 24), _val3);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 28), _val3);
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr + 32), _val4);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 36), _val4);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 40), _val5);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 44), _val5);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 48), _val6);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 52), _val6);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 56), _val7);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 60), _val7);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+                            v8i16 _w89_bf16 = __msa_ld_h(kptr + 32, 0);
+                            v4f32 _w8 = (v4f32)__msa_ilvr_h(_w89_bf16, _zero_bf16);
+                            v4f32 _w9 = (v4f32)__msa_ilvl_h(_w89_bf16, _zero_bf16);
+                            v8i16 _wab_bf16 = __msa_ld_h(kptr + 40, 0);
+                            v4f32 _wa = (v4f32)__msa_ilvr_h(_wab_bf16, _zero_bf16);
+                            v4f32 _wb = (v4f32)__msa_ilvl_h(_wab_bf16, _zero_bf16);
+                            v8i16 _wcd_bf16 = __msa_ld_h(kptr + 48, 0);
+                            v4f32 _wc = (v4f32)__msa_ilvr_h(_wcd_bf16, _zero_bf16);
+                            v4f32 _wd = (v4f32)__msa_ilvl_h(_wcd_bf16, _zero_bf16);
+                            v8i16 _wef_bf16 = __msa_ld_h(kptr + 56, 0);
+                            v4f32 _we = (v4f32)__msa_ilvr_h(_wef_bf16, _zero_bf16);
+                            v4f32 _wf = (v4f32)__msa_ilvl_h(_wef_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w4, _val2);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _w5, _val2);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w6, _val3);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _w7, _val3);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w8, _val4);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w9, _val4);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _wa, _val5);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _wb, _val5);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _wc, _val6);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _wd, _val6);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _we, _val7);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _wf, _val7);
 
                             kptr += 64;
                         }
@@ -739,14 +814,27 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val2 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[2]));
                             v4f32 _val3 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[3]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 16), _val2);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 20), _val2);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 24), _val3);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 28), _val3);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w4, _val2);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _w5, _val2);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w6, _val3);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _w7, _val3);
 
                             kptr += 32;
                         }
@@ -763,14 +851,27 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val2 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 2]));
                             v4f32 _val3 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N * 3]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
-                            _sum2 = __ncnn_msa_fmadd_w(_sum2, bfloat2float_msa(kptr + 16), _val2);
-                            _sum6 = __ncnn_msa_fmadd_w(_sum6, bfloat2float_msa(kptr + 20), _val2);
-                            _sum3 = __ncnn_msa_fmadd_w(_sum3, bfloat2float_msa(kptr + 24), _val3);
-                            _sum7 = __ncnn_msa_fmadd_w(_sum7, bfloat2float_msa(kptr + 28), _val3);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _w4, _val2);
+                            _sum6 = __ncnn_msa_fmadd_w(_sum6, _w5, _val2);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _w6, _val3);
+                            _sum7 = __ncnn_msa_fmadd_w(_sum7, _w7, _val3);
 
                             kptr += 32;
                         }
@@ -790,10 +891,17 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _val0 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok]));
                             v4f32 _val1 = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N]));
 
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val0);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val0);
-                            _sum1 = __ncnn_msa_fmadd_w(_sum1, bfloat2float_msa(kptr + 8), _val1);
-                            _sum5 = __ncnn_msa_fmadd_w(_sum5, bfloat2float_msa(kptr + 12), _val1);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val0);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _w2, _val1);
+                            _sum5 = __ncnn_msa_fmadd_w(_sum5, _w3, _val1);
 
                             kptr += 16;
                         }
@@ -810,8 +918,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(kptr + 16);
 
                             v4f32 _val = (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[space_ofs[k]]));
-                            _sum0 = __ncnn_msa_fmadd_w(_sum0, bfloat2float_msa(kptr), _val);
-                            _sum4 = __ncnn_msa_fmadd_w(_sum4, bfloat2float_msa(kptr + 4), _val);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, _val);
+                            _sum4 = __ncnn_msa_fmadd_w(_sum4, _w1, _val);
 
                             kptr += 8;
                         }
@@ -904,14 +1016,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r0s + 16);
                             __builtin_prefetch(kptr + 32);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
-                            v4f32 _w4 = bfloat2float_msa(kptr + 16);
-                            v4f32 _w5 = bfloat2float_msa(kptr + 20);
-                            v4f32 _w6 = bfloat2float_msa(kptr + 24);
-                            v4f32 _w7 = bfloat2float_msa(kptr + 28);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[0])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[1])));
@@ -936,14 +1053,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r1s + 16);
                             __builtin_prefetch(kptr + 32);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
-                            v4f32 _w4 = bfloat2float_msa(kptr + 16);
-                            v4f32 _w5 = bfloat2float_msa(kptr + 20);
-                            v4f32 _w6 = bfloat2float_msa(kptr + 24);
-                            v4f32 _w7 = bfloat2float_msa(kptr + 28);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[0])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[1])));
@@ -964,14 +1086,19 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             const int sok = space_ofs[k];
                             __builtin_prefetch(kptr + 32);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
-                            v4f32 _w4 = bfloat2float_msa(kptr + 16);
-                            v4f32 _w5 = bfloat2float_msa(kptr + 20);
-                            v4f32 _w6 = bfloat2float_msa(kptr + 24);
-                            v4f32 _w7 = bfloat2float_msa(kptr + 28);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                            v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                            v4f32 _w4 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                            v4f32 _w5 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                            v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                            v4f32 _w6 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                            v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
@@ -998,10 +1125,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r0s + 16);
                             __builtin_prefetch(kptr + 32);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[0])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0s[1])));
@@ -1018,10 +1148,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             const int sok = space_ofs[k];
                             __builtin_prefetch(kptr + 32);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
@@ -1043,8 +1176,10 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             const int sok = space_ofs[k];
                             __builtin_prefetch(kptr + 16);
 
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
 
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _w0, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok])));
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _w1, (v4f32)__msa_fill_w_f32(bfloat16_to_float32(r0[sok + N])));
@@ -1151,12 +1286,16 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r0 + sok + 16);
                             __builtin_prefetch(kptr + 16);
 
-                            v4f32 _r0 = bfloat2float_msa(r0 + sok);
-                            v4f32 _r1 = bfloat2float_msa(r0 + sok + 4);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _r01_bf16 = __msa_ld_h(r0 + sok, 0);
+                            v4f32 _r0 = (v4f32)__msa_ilvr_h(_r01_bf16, _zero_bf16);
+                            v4f32 _r1 = (v4f32)__msa_ilvl_h(_r01_bf16, _zero_bf16);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r1, _w1);
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w2);
@@ -1175,12 +1314,15 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r1 + sok + 16);
                             __builtin_prefetch(kptr + 16);
 
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _r1 = bfloat2float_msa(r1 + sok);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r1, _w1);
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w2);
@@ -1198,12 +1340,15 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                             unsigned short tmpbuf0[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             unsigned short tmpbuf1[4] = {r0[sok + N * 4], r0[sok + N * 5], r0[sok + N * 6], r0[sok + N * 7]};
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(tmpbuf0);
                             v4f32 _r1 = bfloat2float_msa(tmpbuf1);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
-                            v4f32 _w2 = bfloat2float_msa(kptr + 8);
-                            v4f32 _w3 = bfloat2float_msa(kptr + 12);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                            v4f32 _w2 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                            v4f32 _w3 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r1, _w1);
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w2);
@@ -1225,9 +1370,11 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r0 + sok + 16);
                             __builtin_prefetch(kptr + 16);
 
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
@@ -1242,9 +1389,11 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(kptr + 16);
 
                             unsigned short tmpbuf[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(tmpbuf);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                             _sum0 = __ncnn_msa_fmadd_w(_sum0, _r0, _w0);
                             _sum1 = __ncnn_msa_fmadd_w(_sum1, _r0, _w1);
 
@@ -1341,10 +1490,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r0 + sok + 16);
                             __builtin_prefetch(kptr + 16);
 
-                            v4f32 _r0 = bfloat2float_msa(r0 + sok);
-                            v4f32 _r1 = bfloat2float_msa(r0 + sok + 4);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
+                            v8i16 _r01_bf16 = __msa_ld_h(r0 + sok, 0);
+                            v4f32 _r0 = (v4f32)__msa_ilvr_h(_r01_bf16, _zero_bf16);
+                            v4f32 _r1 = (v4f32)__msa_ilvl_h(_r01_bf16, _zero_bf16);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w0);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r1, _w1);
 
@@ -1361,10 +1513,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             __builtin_prefetch(r1 + sok + 16);
                             __builtin_prefetch(kptr + 16);
 
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(r0 + sok);
                             v4f32 _r1 = bfloat2float_msa(r1 + sok);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w0);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r1, _w1);
 
@@ -1380,10 +1534,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                             unsigned short tmpbuf0[4] = {r0[sok], r0[sok + N], r0[sok + N * 2], r0[sok + N * 3]};
                             unsigned short tmpbuf1[4] = {r0[sok + N * 4], r0[sok + N * 5], r0[sok + N * 6], r0[sok + N * 7]};
+                            v8i16 _zero_bf16 = __msa_fill_h(0);
                             v4f32 _r0 = bfloat2float_msa(tmpbuf0);
                             v4f32 _r1 = bfloat2float_msa(tmpbuf1);
-                            v4f32 _w0 = bfloat2float_msa(kptr);
-                            v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r0, _w0);
                             _sum = __ncnn_msa_fmadd_w(_sum, _r1, _w1);
 

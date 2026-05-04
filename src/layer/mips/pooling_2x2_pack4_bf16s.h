@@ -27,10 +27,13 @@ static void pooling2x2s2_max_pack4_bf16s_msa(const Mat& bottom_blob, Mat& top_bl
 
             for (; j < outw; j++)
             {
-                v4f32 _r00 = bfloat2float_msa(r0);
-                v4f32 _r01 = bfloat2float_msa(r0 + 4);
-                v4f32 _r10 = bfloat2float_msa(r1);
-                v4f32 _r11 = bfloat2float_msa(r1 + 4);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
+                v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
+                v4f32 _r00 = (v4f32)__msa_ilvr_h(_r0, _zero_bf16);
+                v4f32 _r01 = (v4f32)__msa_ilvl_h(_r0, _zero_bf16);
+                v4f32 _r10 = (v4f32)__msa_ilvr_h(_r1, _zero_bf16);
+                v4f32 _r11 = (v4f32)__msa_ilvl_h(_r1, _zero_bf16);
 
                 v4f32 _max0 = __msa_fmax_w(_r00, _r01);
                 v4f32 _max1 = __msa_fmax_w(_r10, _r11);

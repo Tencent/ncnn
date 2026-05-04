@@ -193,11 +193,13 @@ int RotaryEmbed_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 v4i32 _signmask = __msa_fill_w(0);
                 _signmask = __msa_insert_w(_signmask, 1, -1);
                 _signmask = __msa_insert_w(_signmask, 3, -1);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
 
                 for (; j + 3 < embed_dim / 2; j += 4)
                 {
-                    v4f32 _a0 = bfloat2float_msa(ptr);
-                    v4f32 _a1 = bfloat2float_msa(ptr + 4);
+                    v8i16 _a01 = (v8i16)__msa_ld_h(ptr, 0);
+                    v4f32 _a0 = (v4f32)__msa_ilvr_h(_a01, _zero_bf16);
+                    v4f32 _a1 = (v4f32)__msa_ilvl_h(_a01, _zero_bf16);
 
                     v4f32 _c4 = bfloat2float_msa(cos_ptr);
                     v4f32 _s4 = bfloat2float_msa(sin_ptr);

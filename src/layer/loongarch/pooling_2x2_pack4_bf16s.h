@@ -27,10 +27,13 @@ static void pooling2x2s2_max_pack4_bf16s_lsx(const Mat& bottom_blob, Mat& top_bl
 
             for (; j < outw; j++)
             {
-                __m128 _r00 = bfloat2float_lsx(r0);
-                __m128 _r01 = bfloat2float_lsx(r0 + 4);
-                __m128 _r10 = bfloat2float_lsx(r1);
-                __m128 _r11 = bfloat2float_lsx(r1 + 4);
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _r0 = __lsx_vld(r0, 0);
+                __m128i _r1 = __lsx_vld(r1, 0);
+                __m128 _r00 = (__m128)__lsx_vilvl_h(_r0, _zero_bf16);
+                __m128 _r01 = (__m128)__lsx_vilvh_h(_r0, _zero_bf16);
+                __m128 _r10 = (__m128)__lsx_vilvl_h(_r1, _zero_bf16);
+                __m128 _r11 = (__m128)__lsx_vilvh_h(_r1, _zero_bf16);
 
                 __m128 _max0 = __lsx_vfmax_s(_r00, _r01);
                 __m128 _max1 = __lsx_vfmax_s(_r10, _r11);

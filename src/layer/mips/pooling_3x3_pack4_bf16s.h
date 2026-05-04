@@ -26,14 +26,18 @@ static void pooling3x3s2_max_pack4_bf16s_msa(const Mat& bottom_blob, Mat& top_bl
             int j = 0;
             for (; j + 1 < outw; j += 2)
             {
-                v4f32 _r00 = bfloat2float_msa(r0);
-                v4f32 _r01 = bfloat2float_msa(r0 + 4);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _r001 = (v8i16)__msa_ld_h(r0, 0);
+                v4f32 _r00 = (v4f32)__msa_ilvr_h(_r001, _zero_bf16);
+                v4f32 _r01 = (v4f32)__msa_ilvl_h(_r001, _zero_bf16);
                 v4f32 _r02 = bfloat2float_msa(r0 + 8);
-                v4f32 _r10 = bfloat2float_msa(r1);
-                v4f32 _r11 = bfloat2float_msa(r1 + 4);
+                v8i16 _r101 = (v8i16)__msa_ld_h(r1, 0);
+                v4f32 _r10 = (v4f32)__msa_ilvr_h(_r101, _zero_bf16);
+                v4f32 _r11 = (v4f32)__msa_ilvl_h(_r101, _zero_bf16);
                 v4f32 _r12 = bfloat2float_msa(r1 + 8);
-                v4f32 _r20 = bfloat2float_msa(r2);
-                v4f32 _r21 = bfloat2float_msa(r2 + 4);
+                v8i16 _r201 = (v8i16)__msa_ld_h(r2, 0);
+                v4f32 _r20 = (v4f32)__msa_ilvr_h(_r201, _zero_bf16);
+                v4f32 _r21 = (v4f32)__msa_ilvl_h(_r201, _zero_bf16);
                 v4f32 _r22 = bfloat2float_msa(r2 + 8);
 
                 v4f32 _max00 = __msa_fmax_w(_r00, _r01);
@@ -44,12 +48,15 @@ static void pooling3x3s2_max_pack4_bf16s_msa(const Mat& bottom_blob, Mat& top_bl
                 _max01 = __msa_fmax_w(_max01, _r21);
                 _max01 = __msa_fmax_w(_max01, _r22);
 
-                v4f32 _r03 = bfloat2float_msa(r0 + 12);
-                v4f32 _r04 = bfloat2float_msa(r0 + 16);
-                v4f32 _r13 = bfloat2float_msa(r1 + 12);
-                v4f32 _r14 = bfloat2float_msa(r1 + 16);
-                v4f32 _r23 = bfloat2float_msa(r2 + 12);
-                v4f32 _r24 = bfloat2float_msa(r2 + 16);
+                v8i16 _r034_bf16 = __msa_ld_h(r0 + 12, 0);
+                v4f32 _r03 = (v4f32)__msa_ilvr_h(_r034_bf16, _zero_bf16);
+                v4f32 _r04 = (v4f32)__msa_ilvl_h(_r034_bf16, _zero_bf16);
+                v8i16 _r134_bf16 = __msa_ld_h(r1 + 12, 0);
+                v4f32 _r13 = (v4f32)__msa_ilvr_h(_r134_bf16, _zero_bf16);
+                v4f32 _r14 = (v4f32)__msa_ilvl_h(_r134_bf16, _zero_bf16);
+                v8i16 _r234_bf16 = __msa_ld_h(r2 + 12, 0);
+                v4f32 _r23 = (v4f32)__msa_ilvr_h(_r234_bf16, _zero_bf16);
+                v4f32 _r24 = (v4f32)__msa_ilvl_h(_r234_bf16, _zero_bf16);
 
                 __msa_storel_d(float2bfloat_msa(__msa_fmax_w(_max00, _max01)), outptr);
 
@@ -71,14 +78,18 @@ static void pooling3x3s2_max_pack4_bf16s_msa(const Mat& bottom_blob, Mat& top_bl
 
             for (; j < outw; j++)
             {
-                v4f32 _r00 = bfloat2float_msa(r0);
-                v4f32 _r01 = bfloat2float_msa(r0 + 4);
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _r001 = (v8i16)__msa_ld_h(r0, 0);
+                v4f32 _r00 = (v4f32)__msa_ilvr_h(_r001, _zero_bf16);
+                v4f32 _r01 = (v4f32)__msa_ilvl_h(_r001, _zero_bf16);
                 v4f32 _r02 = bfloat2float_msa(r0 + 8);
-                v4f32 _r10 = bfloat2float_msa(r1);
-                v4f32 _r11 = bfloat2float_msa(r1 + 4);
+                v8i16 _r101 = (v8i16)__msa_ld_h(r1, 0);
+                v4f32 _r10 = (v4f32)__msa_ilvr_h(_r101, _zero_bf16);
+                v4f32 _r11 = (v4f32)__msa_ilvl_h(_r101, _zero_bf16);
                 v4f32 _r12 = bfloat2float_msa(r1 + 8);
-                v4f32 _r20 = bfloat2float_msa(r2);
-                v4f32 _r21 = bfloat2float_msa(r2 + 4);
+                v8i16 _r201 = (v8i16)__msa_ld_h(r2, 0);
+                v4f32 _r20 = (v4f32)__msa_ilvr_h(_r201, _zero_bf16);
+                v4f32 _r21 = (v4f32)__msa_ilvl_h(_r201, _zero_bf16);
                 v4f32 _r22 = bfloat2float_msa(r2 + 8);
 
                 v4f32 _max0 = __msa_fmax_w(_r00, _r01);
