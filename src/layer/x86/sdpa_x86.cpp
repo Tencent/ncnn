@@ -744,49 +744,8 @@ static void sdpa_decode(float* out, const float* q,
                         const float* K, const float* V, const float* mask,
                         int n, int d, int out_d, float scale)
 {
-    const int BLOCK_N = 128;
-#if __AVX512F__
-    __attribute__((aligned(64))) float s[BLOCK_N];
-#elif __AVX__
-    __attribute__((aligned(32))) float s[BLOCK_N];
-#elif __SSE2__
-    __attribute__((aligned(16))) float s[BLOCK_N];
-#else
-    float s[BLOCK_N];
-#endif
-
-    vec_zero(out, out_d);
-
-    float m = -FLT_MAX;
-    float l = 0.f;
-
-    for (int n_start = 0; n_start < n; n_start += BLOCK_N)
-    {
-        int block_n = std::min(BLOCK_N, n - n_start);
-
-        decode_qk_dot(s, q, K, n_start, block_n, d, scale);
-
-        if (mask)
-            decode_mask_vec(s, mask + n_start, block_n);
-
-        float tile_m = decode_max_vec(s, block_n);
-        float new_m = std::max(m, tile_m);
-        if (m != new_m)
-        {
-            float scale_factor = expf(m - new_m);
-            l *= scale_factor;
-            vec_scale(out, scale_factor, out_d);
-        }
-
-        float l_add;
-        decode_exp_sum_vec(s, block_n, new_m, &l_add);
-        l += l_add;
-
-        decode_pv_gemv(out, s, V, n_start, block_n, out_d);
-
-        m = new_m;
-    }
-
+    float m, l;
+    sdpa_decode_chunk(out, &m, &l, q, K, V, mask, 0, n, d, out_d, scale);
     float inv_l = 1.f / l;
     vec_scale(out, inv_l, out_d);
 }
@@ -3955,6 +3914,7 @@ int SDPA_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (use_int8_path)
     {
         const int qk_num_blocks = (embed_dim + 31) / 32;
+        (void)qk_num_blocks;
         const int v_num_blocks = (out_embed_dim + 31) / 32;
 
         Mat key_int8(embed_dim, dst_seqlen, num_group, 1u, opt.blob_allocator);
