@@ -409,521 +409,8 @@ static inline void decode_pv_gemv_bf16s_scalar_kernel(float* out, const float* s
 
 
 // ---------------------------------------------------------------------------
-// sdpa_decode_bf16s : full decode with bf16 K/V
+// sdpa_decode_reduce_bf16s : reduce partial results from split-kv chunks
 // ---------------------------------------------------------------------------
-
-static inline void sdpa_decode_bf16s(float* out, const float* q,
-                                     const unsigned short* K, const unsigned short* V, const float* mask,
-                                     int n, int d, int out_d, float scale)
-{
-    const int BLOCK_N = 128;
-#if __AVX512F__
-    __attribute__((aligned(64))) float s[BLOCK_N];
-#elif __AVX__
-    __attribute__((aligned(32))) float s[BLOCK_N];
-#elif __SSE2__
-    __attribute__((aligned(16))) float s[BLOCK_N];
-#else
-    float s[BLOCK_N];
-#endif
-
-    // vec_zero
-    {
-#if __AVX512F__
-        __m512 zero512 = _mm512_setzero_ps();
-        int i = 0;
-        for (; i + 15 < out_d; i += 16)
-            _mm512_storeu_ps(out + i, zero512);
-        if (i < out_d)
-        {
-            __mmask16 mask = (__mmask16)((1u << (out_d - i)) - 1);
-            _mm512_mask_storeu_ps(out + i, mask, zero512);
-        }
-#else
-        int i = 0;
-#if __AVX__
-        __m256 zero256 = _mm256_setzero_ps();
-        for (; i + 7 < out_d; i += 8)
-            _mm256_storeu_ps(out + i, zero256);
-#endif
-#if __SSE2__
-        __m128 zero128 = _mm_setzero_ps();
-        for (; i + 3 < out_d; i += 4)
-            _mm_storeu_ps(out + i, zero128);
-#endif
-        for (; i < out_d; i++)
-            out[i] = 0.f;
-#endif
-    }
-
-    float m = -FLT_MAX;
-    float l = 0.f;
-
-    for (int n_start = 0; n_start < n; n_start += BLOCK_N)
-    {
-        int block_n = std::min(BLOCK_N, n - n_start);
-
-#if __AVX512F__
-        decode_qk_dot_bf16s_avx512_kernel(s, q, K, n_start, block_n, d, scale);
-#elif __AVX__
-        decode_qk_dot_bf16s_avx_kernel(s, q, K, n_start, block_n, d, scale);
-#elif __SSE2__
-        decode_qk_dot_bf16s_sse2_kernel(s, q, K, n_start, block_n, d, scale);
-#else
-        decode_qk_dot_bf16s_scalar_kernel(s, q, K, n_start, block_n, d, scale);
-#endif
-
-        if (mask)
-        {
-#if __AVX512F__
-            int j = 0;
-            for (; j + 15 < block_n; j += 16)
-                _mm512_storeu_ps(s + j, _mm512_add_ps(_mm512_loadu_ps(s + j), _mm512_loadu_ps(mask + n_start + j)));
-            if (j < block_n)
-            {
-                __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-                _mm512_mask_storeu_ps(s + j, mask_n,
-                                      _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + n_start + j)));
-            }
-#elif __AVX__
-            int j = 0;
-            for (; j + 7 < block_n; j += 8)
-                _mm256_storeu_ps(s + j, _mm256_add_ps(_mm256_loadu_ps(s + j), _mm256_loadu_ps(mask + n_start + j)));
-            for (; j < block_n; j++)
-                s[j] += mask[n_start + j];
-#elif __SSE2__
-            int j = 0;
-            for (; j + 3 < block_n; j += 4)
-                _mm_storeu_ps(s + j, _mm_add_ps(_mm_loadu_ps(s + j), _mm_loadu_ps(mask + n_start + j)));
-            for (; j < block_n; j++)
-                s[j] += mask[n_start + j];
-#else
-            for (int j = 0; j < block_n; j++)
-                s[j] += mask[n_start + j];
-#endif
-        }
-
-        // tile max
-#if __AVX512F__
-        __m512 vmax = _mm512_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 15 < block_n; j += 16)
-            vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(s + j));
-        if (j < block_n)
-        {
-            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-            vmax = _mm512_max_ps(vmax, _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask_n, s + j));
-        }
-        float tile_m = _mm512_comp_reduce_max_ps(vmax);
-#elif __AVX__
-        __m256 vmax = _mm256_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 7 < block_n; j += 8)
-            vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(s + j));
-        float tile_m = _mm256_reduce_max_ps(vmax);
-        for (; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#elif __SSE2__
-        __m128 vmax = _mm_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 3 < block_n; j += 4)
-            vmax = _mm_max_ps(vmax, _mm_loadu_ps(s + j));
-        float tile_m = _mm_reduce_max_ps(vmax);
-        for (; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#else
-        float tile_m = -FLT_MAX;
-        for (int j = 0; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#endif
-
-        float new_m = std::max(m, tile_m);
-        if (m != new_m)
-        {
-            float scale_factor = expf(m - new_m);
-            l *= scale_factor;
-            // vec_scale(out, scale_factor, out_d);
-            {
-#if __AVX512F__
-                __m512 vscale512 = _mm512_set1_ps(scale_factor);
-                int i = 0;
-                for (; i + 15 < out_d; i += 16)
-                    _mm512_storeu_ps(out + i, _mm512_mul_ps(_mm512_loadu_ps(out + i), vscale512));
-                if (i < out_d)
-                {
-                    __mmask16 mask = (__mmask16)((1u << (out_d - i)) - 1);
-                    _mm512_mask_storeu_ps(out + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, out + i), vscale512));
-                }
-#else
-                int i = 0;
-#if __AVX__
-                __m256 vscale256 = _mm256_set1_ps(scale_factor);
-                for (; i + 7 < out_d; i += 8)
-                    _mm256_storeu_ps(out + i, _mm256_mul_ps(_mm256_loadu_ps(out + i), vscale256));
-#endif
-#if __SSE2__
-                __m128 vscale128 = _mm_set1_ps(scale_factor);
-                for (; i + 3 < out_d; i += 4)
-                    _mm_storeu_ps(out + i, _mm_mul_ps(_mm_loadu_ps(out + i), vscale128));
-#endif
-                for (; i < out_d; i++)
-                    out[i] *= scale_factor;
-#endif
-            }
-        }
-
-        // exp and sum
-#if __AVX512F__
-        __m512 vm_new = _mm512_set1_ps(new_m);
-        __m512 vsum = _mm512_setzero_ps();
-        j = 0;
-        for (; j + 15 < block_n; j += 16)
-        {
-            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(s + j), vm_new));
-            _mm512_storeu_ps(s + j, pvec);
-            vsum = _mm512_add_ps(vsum, pvec);
-        }
-        if (j < block_n)
-        {
-            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_maskz_loadu_ps(mask_n, s + j), vm_new));
-            _mm512_mask_storeu_ps(s + j, mask_n, pvec);
-            vsum = _mm512_mask_add_ps(vsum, mask_n, vsum, pvec);
-        }
-        l += _mm512_comp_reduce_add_ps(vsum);
-#elif __AVX__
-        __m256 vm_new = _mm256_set1_ps(new_m);
-        __m256 vsum = _mm256_setzero_ps();
-        j = 0;
-        for (; j + 7 < block_n; j += 8)
-        {
-            __m256 pvec = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(s + j), vm_new));
-            _mm256_storeu_ps(s + j, pvec);
-            vsum = _mm256_add_ps(vsum, pvec);
-        }
-        float l_add = _mm256_reduce_add_ps(vsum);
-        for (; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#elif __SSE2__
-        __m128 vm_new = _mm_set1_ps(new_m);
-        __m128 vsum = _mm_setzero_ps();
-        j = 0;
-        for (; j + 3 < block_n; j += 4)
-        {
-            __m128 pvec = exp_ps(_mm_sub_ps(_mm_loadu_ps(s + j), vm_new));
-            _mm_storeu_ps(s + j, pvec);
-            vsum = _mm_add_ps(vsum, pvec);
-        }
-        float l_add = _mm_reduce_add_ps(vsum);
-        for (; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#else
-        float l_add = 0.f;
-        for (int j = 0; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#endif
-
-#if __AVX512F__
-        decode_pv_gemv_bf16s_avx512_kernel(out, s, V, n_start, block_n, out_d);
-#elif __AVX__
-        decode_pv_gemv_bf16s_avx_kernel(out, s, V, n_start, block_n, out_d);
-#elif __SSE2__
-        decode_pv_gemv_bf16s_sse2_kernel(out, s, V, n_start, block_n, out_d);
-#else
-        decode_pv_gemv_bf16s_scalar_kernel(out, s, V, n_start, block_n, out_d);
-#endif
-
-        m = new_m;
-    }
-
-    float inv_l = 1.f / l;
-    // vec_scale(out, inv_l, out_d);
-    {
-#if __AVX512F__
-        __m512 vscale512 = _mm512_set1_ps(inv_l);
-        int i = 0;
-        for (; i + 15 < out_d; i += 16)
-            _mm512_storeu_ps(out + i, _mm512_mul_ps(_mm512_loadu_ps(out + i), vscale512));
-        if (i < out_d)
-        {
-            __mmask16 mask = (__mmask16)((1u << (out_d - i)) - 1);
-            _mm512_mask_storeu_ps(out + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, out + i), vscale512));
-        }
-#else
-        int i = 0;
-#if __AVX__
-        __m256 vscale256 = _mm256_set1_ps(inv_l);
-        for (; i + 7 < out_d; i += 8)
-            _mm256_storeu_ps(out + i, _mm256_mul_ps(_mm256_loadu_ps(out + i), vscale256));
-#endif
-#if __SSE2__
-        __m128 vscale128 = _mm_set1_ps(inv_l);
-        for (; i + 3 < out_d; i += 4)
-            _mm_storeu_ps(out + i, _mm_mul_ps(_mm_loadu_ps(out + i), vscale128));
-#endif
-        for (; i < out_d; i++)
-            out[i] *= inv_l;
-#endif
-    }
-}
-
-
-// ---------------------------------------------------------------------------
-// sdpa_decode_chunk_bf16s / sdpa_decode_reduce_bf16s
-// ---------------------------------------------------------------------------
-
-static inline void sdpa_decode_chunk_bf16s(
-    float* out, float* m_out, float* l_out,
-    const float* q, const unsigned short* K, const unsigned short* V, const float* mask,
-    int n_start, int n_end, int d, int out_d, float scale)
-{
-    const int BLOCK_N = 128;
-#if __AVX512F__
-    __attribute__((aligned(64))) float s[BLOCK_N];
-#elif __AVX__
-    __attribute__((aligned(32))) float s[BLOCK_N];
-#elif __SSE2__
-    __attribute__((aligned(16))) float s[BLOCK_N];
-#else
-    float s[BLOCK_N];
-#endif
-
-    // vec_zero
-    {
-#if __AVX512F__
-        __m512 zero512 = _mm512_setzero_ps();
-        int i = 0;
-        for (; i + 15 < out_d; i += 16)
-            _mm512_storeu_ps(out + i, zero512);
-        if (i < out_d)
-        {
-            __mmask16 mask = (__mmask16)((1u << (out_d - i)) - 1);
-            _mm512_mask_storeu_ps(out + i, mask, zero512);
-        }
-#else
-        int i = 0;
-#if __AVX__
-        __m256 zero256 = _mm256_setzero_ps();
-        for (; i + 7 < out_d; i += 8)
-            _mm256_storeu_ps(out + i, zero256);
-#endif
-#if __SSE2__
-        __m128 zero128 = _mm_setzero_ps();
-        for (; i + 3 < out_d; i += 4)
-            _mm_storeu_ps(out + i, zero128);
-#endif
-        for (; i < out_d; i++)
-            out[i] = 0.f;
-#endif
-    }
-
-    float m = -FLT_MAX;
-    float l = 0.f;
-
-    for (int n = n_start; n < n_end; n += BLOCK_N)
-    {
-        int block_n = std::min(BLOCK_N, n_end - n);
-
-#if __AVX512F__
-        decode_qk_dot_bf16s_avx512_kernel(s, q, K, n, block_n, d, scale);
-#elif __AVX__
-        decode_qk_dot_bf16s_avx_kernel(s, q, K, n, block_n, d, scale);
-#elif __SSE2__
-        decode_qk_dot_bf16s_sse2_kernel(s, q, K, n, block_n, d, scale);
-#else
-        decode_qk_dot_bf16s_scalar_kernel(s, q, K, n, block_n, d, scale);
-#endif
-
-        if (mask)
-        {
-#if __AVX512F__
-            int j = 0;
-            for (; j + 15 < block_n; j += 16)
-                _mm512_storeu_ps(s + j, _mm512_add_ps(_mm512_loadu_ps(s + j), _mm512_loadu_ps(mask + n + j)));
-            if (j < block_n)
-            {
-                __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-                _mm512_mask_storeu_ps(s + j, mask_n,
-                                      _mm512_add_ps(_mm512_maskz_loadu_ps(mask_n, s + j), _mm512_maskz_loadu_ps(mask_n, mask + n + j)));
-            }
-#elif __AVX__
-            int j = 0;
-            for (; j + 7 < block_n; j += 8)
-                _mm256_storeu_ps(s + j, _mm256_add_ps(_mm256_loadu_ps(s + j), _mm256_loadu_ps(mask + n + j)));
-            for (; j < block_n; j++)
-                s[j] += mask[n + j];
-#elif __SSE2__
-            int j = 0;
-            for (; j + 3 < block_n; j += 4)
-                _mm_storeu_ps(s + j, _mm_add_ps(_mm_loadu_ps(s + j), _mm_loadu_ps(mask + n + j)));
-            for (; j < block_n; j++)
-                s[j] += mask[n + j];
-#else
-            for (int j = 0; j < block_n; j++)
-                s[j] += mask[n + j];
-#endif
-        }
-
-        // tile max
-#if __AVX512F__
-        __m512 vmax = _mm512_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 15 < block_n; j += 16)
-            vmax = _mm512_max_ps(vmax, _mm512_loadu_ps(s + j));
-        if (j < block_n)
-        {
-            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-            vmax = _mm512_max_ps(vmax, _mm512_mask_loadu_ps(_mm512_set1_ps(-FLT_MAX), mask_n, s + j));
-        }
-        float tile_m = _mm512_comp_reduce_max_ps(vmax);
-#elif __AVX__
-        __m256 vmax = _mm256_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 7 < block_n; j += 8)
-            vmax = _mm256_max_ps(vmax, _mm256_loadu_ps(s + j));
-        float tile_m = _mm256_reduce_max_ps(vmax);
-        for (; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#elif __SSE2__
-        __m128 vmax = _mm_set1_ps(-FLT_MAX);
-        int j = 0;
-        for (; j + 3 < block_n; j += 4)
-            vmax = _mm_max_ps(vmax, _mm_loadu_ps(s + j));
-        float tile_m = _mm_reduce_max_ps(vmax);
-        for (; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#else
-        float tile_m = -FLT_MAX;
-        for (int j = 0; j < block_n; j++)
-            tile_m = std::max(tile_m, s[j]);
-#endif
-
-        float new_m = std::max(m, tile_m);
-        if (m != new_m)
-        {
-            float scale_factor = expf(m - new_m);
-            l *= scale_factor;
-            // vec_scale
-            {
-#if __AVX512F__
-                __m512 vscale512 = _mm512_set1_ps(scale_factor);
-                int i = 0;
-                for (; i + 15 < out_d; i += 16)
-                    _mm512_storeu_ps(out + i, _mm512_mul_ps(_mm512_loadu_ps(out + i), vscale512));
-                if (i < out_d)
-                {
-                    __mmask16 mask = (__mmask16)((1u << (out_d - i)) - 1);
-                    _mm512_mask_storeu_ps(out + i, mask, _mm512_mul_ps(_mm512_maskz_loadu_ps(mask, out + i), vscale512));
-                }
-#else
-                int i = 0;
-#if __AVX__
-                __m256 vscale256 = _mm256_set1_ps(scale_factor);
-                for (; i + 7 < out_d; i += 8)
-                    _mm256_storeu_ps(out + i, _mm256_mul_ps(_mm256_loadu_ps(out + i), vscale256));
-#endif
-#if __SSE2__
-                __m128 vscale128 = _mm_set1_ps(scale_factor);
-                for (; i + 3 < out_d; i += 4)
-                    _mm_storeu_ps(out + i, _mm_mul_ps(_mm_loadu_ps(out + i), vscale128));
-#endif
-                for (; i < out_d; i++)
-                    out[i] *= scale_factor;
-#endif
-            }
-        }
-
-        // exp and sum
-#if __AVX512F__
-        __m512 vm_new = _mm512_set1_ps(new_m);
-        __m512 vsum = _mm512_setzero_ps();
-        j = 0;
-        for (; j + 15 < block_n; j += 16)
-        {
-            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_loadu_ps(s + j), vm_new));
-            _mm512_storeu_ps(s + j, pvec);
-            vsum = _mm512_add_ps(vsum, pvec);
-        }
-        if (j < block_n)
-        {
-            __mmask16 mask_n = (__mmask16)((1u << (block_n - j)) - 1);
-            __m512 pvec = exp512_ps(_mm512_sub_ps(_mm512_maskz_loadu_ps(mask_n, s + j), vm_new));
-            _mm512_mask_storeu_ps(s + j, mask_n, pvec);
-            vsum = _mm512_mask_add_ps(vsum, mask_n, vsum, pvec);
-        }
-        l += _mm512_comp_reduce_add_ps(vsum);
-#elif __AVX__
-        __m256 vm_new = _mm256_set1_ps(new_m);
-        __m256 vsum = _mm256_setzero_ps();
-        j = 0;
-        for (; j + 7 < block_n; j += 8)
-        {
-            __m256 pvec = exp256_ps(_mm256_sub_ps(_mm256_loadu_ps(s + j), vm_new));
-            _mm256_storeu_ps(s + j, pvec);
-            vsum = _mm256_add_ps(vsum, pvec);
-        }
-        float l_add = _mm256_reduce_add_ps(vsum);
-        for (; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#elif __SSE2__
-        __m128 vm_new = _mm_set1_ps(new_m);
-        __m128 vsum = _mm_setzero_ps();
-        j = 0;
-        for (; j + 3 < block_n; j += 4)
-        {
-            __m128 pvec = exp_ps(_mm_sub_ps(_mm_loadu_ps(s + j), vm_new));
-            _mm_storeu_ps(s + j, pvec);
-            vsum = _mm_add_ps(vsum, pvec);
-        }
-        float l_add = _mm_reduce_add_ps(vsum);
-        for (; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#else
-        float l_add = 0.f;
-        for (int j = 0; j < block_n; j++)
-        {
-            s[j] = expf(s[j] - new_m);
-            l_add += s[j];
-        }
-        l += l_add;
-#endif
-
-#if __AVX512F__
-        decode_pv_gemv_bf16s_avx512_kernel(out, s, V, n, block_n, out_d);
-#elif __AVX__
-        decode_pv_gemv_bf16s_avx_kernel(out, s, V, n, block_n, out_d);
-#elif __SSE2__
-        decode_pv_gemv_bf16s_sse2_kernel(out, s, V, n, block_n, out_d);
-#else
-        decode_pv_gemv_bf16s_scalar_kernel(out, s, V, n, block_n, out_d);
-#endif
-
-        m = new_m;
-    }
-
-    *m_out = m;
-    *l_out = l;
-}
 
 static inline void sdpa_decode_reduce_bf16s(
     float* out, int out_d,
@@ -1022,7 +509,7 @@ static inline void sdpa_decode_reduce_bf16s(
 // ---------------------------------------------------------------------------
 
 #if __AVX512F__
-static void qk_gemm_bf16s_avx512(float* S, const float* Q, const unsigned short* K,
+static void qk_gemm_bf16s_avx512_kernel(float* S, const float* Q, const unsigned short* K,
                                  int m, int n, int d, float scale)
 {
     int i = 0;
@@ -1265,7 +752,7 @@ static void qk_gemm_bf16s_avx512(float* S, const float* Q, const unsigned short*
 
 
 #if __AVX__
-static void qk_gemm_bf16s_avx(float* S, const float* Q, const unsigned short* K,
+static void qk_gemm_bf16s_avx_kernel(float* S, const float* Q, const unsigned short* K,
                               int m, int n, int d, float scale)
 {
     int i = 0;
@@ -1392,7 +879,7 @@ static void qk_gemm_bf16s_avx(float* S, const float* Q, const unsigned short* K,
 #endif // __AVX__
 
 #if __SSE2__
-static void qk_gemm_bf16s_sse2(float* S, const float* Q, const unsigned short* K,
+static void qk_gemm_bf16s_sse2_kernel(float* S, const float* Q, const unsigned short* K,
                                int m, int n, int d, float scale)
 {
     for (int i = 0; i < m; i++)
@@ -1442,7 +929,7 @@ static void qk_gemm_bf16s_sse2(float* S, const float* Q, const unsigned short* K
 }
 #endif // __SSE2__
 
-static void qk_gemm_bf16s_scalar(float* S, const float* Q, const unsigned short* K,
+static void qk_gemm_bf16s_scalar_kernel(float* S, const float* Q, const unsigned short* K,
                                  int m, int n, int d, float scale)
 {
     for (int i = 0; i < m; i++)
@@ -1465,7 +952,7 @@ static void qk_gemm_bf16s_scalar(float* S, const float* Q, const unsigned short*
 // ---------------------------------------------------------------------------
 
 #if __AVX512F__
-static void pv_gemm_bf16s_avx512(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+static void pv_gemm_bf16s_avx512_kernel(float* O, const float* P, const unsigned short* V, int m, int n, int d)
 {
     int dd = 0;
     for (; dd + 127 < d; dd += 128)
@@ -1622,7 +1109,7 @@ static void pv_gemm_bf16s_avx512(float* O, const float* P, const unsigned short*
 #endif // __AVX512F__
 
 #if __AVX__
-static void pv_gemm_bf16s_avx(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+static void pv_gemm_bf16s_avx_kernel(float* O, const float* P, const unsigned short* V, int m, int n, int d)
 {
     int dd = 0;
     for (; dd + 31 < d; dd += 32)
@@ -1751,7 +1238,7 @@ static void pv_gemm_bf16s_avx(float* O, const float* P, const unsigned short* V,
 #endif // __AVX__
 
 #if __SSE2__
-static void pv_gemm_bf16s_sse2(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+static void pv_gemm_bf16s_sse2_kernel(float* O, const float* P, const unsigned short* V, int m, int n, int d)
 {
     int dd = 0;
     for (; dd + 15 < d; dd += 16)
@@ -1809,7 +1296,7 @@ static void pv_gemm_bf16s_sse2(float* O, const float* P, const unsigned short* V
 }
 #endif // __SSE2__
 
-static void pv_gemm_bf16s_scalar(float* O, const float* P, const unsigned short* V, int m, int n, int d)
+static void pv_gemm_bf16s_scalar_kernel(float* O, const float* P, const unsigned short* V, int m, int n, int d)
 {
     for (int i = 0; i < m; i++)
     {
@@ -2143,7 +1630,7 @@ static void qk_gemm_bf16s_avx512bf16_kernel(float* S, const float* Q, const unsi
 
     if (i < m)
     {
-        qk_gemm_bf16s_avx512(S + i * n, Q + i * d, K, m - i, n, d, scale);
+        qk_gemm_bf16s_avx512_kernel(S + i * n, Q + i * d, K, m - i, n, d, scale);
     }
 
     _mm_free(q_bf16);
@@ -2757,109 +2244,4 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
 
 
 
-// ---------------------------------------------------------------------------
-// Dispatch wrappers
-// ---------------------------------------------------------------------------
-
-static inline void decode_qk_dot_bf16s(float* s, const float* q, const unsigned short* K, int n_start, int block_n, int d, float scale)
-{
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-    if (ncnn::cpu_support_x86_avx512_bf16())
-    {
-        decode_qk_dot_bf16s_avx512bf16(s, q, K, n_start, block_n, d, scale);
-        return;
-    }
-#endif
-    decode_qk_dot_bf16s_avx512_kernel(s, q, K, n_start, block_n, d, scale);
-#elif __AVX__
-    decode_qk_dot_bf16s_avx_kernel(s, q, K, n_start, block_n, d, scale);
-#elif __SSE2__
-    decode_qk_dot_bf16s_sse2_kernel(s, q, K, n_start, block_n, d, scale);
-#else
-    decode_qk_dot_bf16s_scalar_kernel(s, q, K, n_start, block_n, d, scale);
-#endif
-}
-
-static inline void decode_pv_gemv_bf16s(float* out, const float* s, const unsigned short* V, int n_start, int block_n, int out_d)
-{
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-    if (ncnn::cpu_support_x86_avx512_bf16())
-    {
-        decode_pv_gemv_bf16s_avx512bf16(out, s, V, n_start, block_n, out_d);
-        return;
-    }
-#endif
-    decode_pv_gemv_bf16s_avx512_kernel(out, s, V, n_start, block_n, out_d);
-#elif __AVX__
-    decode_pv_gemv_bf16s_avx_kernel(out, s, V, n_start, block_n, out_d);
-#elif __SSE2__
-    decode_pv_gemv_bf16s_sse2_kernel(out, s, V, n_start, block_n, out_d);
-#else
-    decode_pv_gemv_bf16s_scalar_kernel(out, s, V, n_start, block_n, out_d);
-#endif
-}
-
-static inline void qk_gemm_bf16s_dispatch(float* S, const float* Q, const unsigned short* K, int m, int n, int d, float scale)
-{
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-    if (ncnn::cpu_support_x86_avx512_bf16())
-    {
-        qk_gemm_bf16s_avx512bf16(S, Q, K, m, n, d, scale);
-        return;
-    }
-#endif
-    qk_gemm_bf16s_avx512(S, Q, K, m, n, d, scale);
-#elif __AVX__
-    qk_gemm_bf16s_avx(S, Q, K, m, n, d, scale);
-#elif __SSE2__
-    qk_gemm_bf16s_sse2(S, Q, K, m, n, d, scale);
-#else
-    qk_gemm_bf16s_scalar(S, Q, K, m, n, d, scale);
-#endif
-}
-
-static inline void pv_gemm_bf16s_dispatch(float* O, const float* P, const unsigned short* V, int m, int n, int d)
-{
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-    if (ncnn::cpu_support_x86_avx512_bf16())
-    {
-        pv_gemm_bf16s_avx512bf16(O, P, V, m, n, d);
-        return;
-    }
-#endif
-    pv_gemm_bf16s_avx512(O, P, V, m, n, d);
-#elif __AVX__
-    pv_gemm_bf16s_avx(O, P, V, m, n, d);
-#elif __SSE2__
-    pv_gemm_bf16s_sse2(O, P, V, m, n, d);
-#else
-    pv_gemm_bf16s_scalar(O, P, V, m, n, d);
-#endif
-}
-
-static inline void sdpa_decode_bf16s_dispatch(float* out, const float* q,
-        const unsigned short* K, const unsigned short* V, const float* mask,
-        int n, int d, int out_d, float scale)
-{
-    sdpa_decode_bf16s(out, q, K, V, mask, n, d, out_d, scale);
-}
-
-static inline void sdpa_decode_chunk_bf16s_dispatch(
-    float* out, float* m_out, float* l_out,
-    const float* q, const unsigned short* K, const unsigned short* V, const float* mask,
-    int n_start, int n_end, int d, int out_d, float scale)
-{
-    sdpa_decode_chunk_bf16s(out, m_out, l_out, q, K, V, mask, n_start, n_end, d, out_d, scale);
-}
-
-static inline void sdpa_decode_reduce_bf16s_dispatch(
-    float* out, int out_d,
-    const float* partials, int num_chunks, int partial_stride)
-{
-    sdpa_decode_reduce_bf16s(out, out_d, partials, num_chunks, partial_stride);
-}
 #endif // SDPA_X86_BF16S_H

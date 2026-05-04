@@ -1,3 +1,6 @@
+#ifndef SDPA_X86_INT8_H
+#define SDPA_X86_INT8_H
+
 static inline signed char float2int8(float v)
 {
     int int32 = static_cast<int>(roundf(v));
@@ -3324,3 +3327,5 @@ static void pv_float_int8_gemm_tile(float* O, const float* P,
 #if __SSE2__ && !__SSE4_1__
 #undef _mm_cvtepi8_epi32
 #endif
+
+#endif // SDPA_X86_INT8_H
