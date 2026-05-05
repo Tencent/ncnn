@@ -1584,7 +1584,18 @@ template<>
 void qk_gemm_specialized_avx512<4096>(float* S, const float* Q, const float* K,
                                       int m, int n, float scale)
 {
-    qk_gemm_specialized_tiled_avx512<4096, 8, 2>(S, Q, K, m, n, scale);
+    qk_gemm_specialized_tiled_avx512<4096, 2, 2>(S, Q, K, m, n, scale);
+}
+
+template<int D>
+static inline void qk_gemm_specialized_avx512_large_m(float* S, const float* Q, const float* K,
+                                                      int m, int n, float scale) {}
+
+template<>
+void qk_gemm_specialized_avx512_large_m<4096>(float* S, const float* Q, const float* K,
+                                               int m, int n, float scale)
+{
+    qk_gemm_specialized_tiled_avx512<4096, 2, 2>(S, Q, K, m, n, scale);
 }
 
 template<int M_BLOCK, int D_UNROLL>
@@ -3199,7 +3210,7 @@ static int sdpa_forward_prefill(
     if (m_state.empty() || l_state.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads) if(num_group * num_m_tiles > 1)
     for (int idx = 0; idx < num_group * num_m_tiles; idx++)
     {
         int g = idx / num_m_tiles;
@@ -3677,415 +3688,825 @@ static int sdpa_forward_prefill(
             }
             else
             {
-                // large_dim: copy Q per head once, then loop over N-tiles
-                for (int hq = 0; hq < num_heads_per_group; hq++)
+                // large_dim: N-outer loop, head-inner loop to reuse K/V tiles across heads
+                for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
                 {
-                    int q = g * num_heads_per_group + hq;
-                    const Mat query_head = query_ref.channel(q);
+                    int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
+                    int block_n2 = n_end2 - n_start2;
 
-                    const float* q_ptr = query_head.row(m_start);
-
-                    for (int n_start2 = 0; n_start2 < dst_seqlen; n_start2 += BLOCK_N)
+                    if (num_group * num_m_tiles == 1)
                     {
-                        int n_end2 = n_start2 + BLOCK_N < dst_seqlen ? n_start2 + BLOCK_N : dst_seqlen;
-                        int block_n2 = n_end2 - n_start2;
-
-                        float* s_head = s_ptr;
-
-#if NCNN_BF16
-                        if (use_bf16_path)
+                        #pragma omp parallel for num_threads(opt.num_threads) if(opt.num_threads > 1)
+                        for (int hq = 0; hq < num_heads_per_group; hq++)
                         {
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-                            if (ncnn::cpu_support_x86_avx512_bf16())
+                            int q = g * num_heads_per_group + hq;
+                            const Mat query_head = query_ref.channel(q);
+    
+                            const float* q_ptr = query_head.row(m_start);
+                            float* s_head = s_ptr + hq * block_m * block_n2;
+    
+    #if NCNN_BF16
+                            if (use_bf16_path)
                             {
-                                qk_gemm_bf16s_avx512bf16(s_head,
+    #if __AVX512F__
+    #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    qk_gemm_bf16s_avx512bf16(s_head,
+                                                             q_ptr,
+                                                             key_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, embed_dim, _scale);
+                                }
+                                else
+    #endif
+                                {
+                                    qk_gemm_bf16s_avx512_kernel(s_head,
+                                                                q_ptr,
+                                                                key_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, embed_dim, _scale);
+                                }
+    #elif __AVX__
+                                qk_gemm_bf16s_avx_kernel(s_head,
                                                          q_ptr,
                                                          key_head.row<const unsigned short>(n_start2),
                                                          block_m, block_n2, embed_dim, _scale);
-                            }
-                            else
-#endif
-                            {
-                                qk_gemm_bf16s_avx512_kernel(s_head,
+    #elif __SSE2__
+                                qk_gemm_bf16s_sse2_kernel(s_head,
+                                                          q_ptr,
+                                                          key_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, embed_dim, _scale);
+    #else
+                                qk_gemm_bf16s_scalar_kernel(s_head,
                                                             q_ptr,
                                                             key_head.row<const unsigned short>(n_start2),
                                                             block_m, block_n2, embed_dim, _scale);
-                            }
-#elif __AVX__
-                            qk_gemm_bf16s_avx_kernel(s_head,
-                                                     q_ptr,
-                                                     key_head.row<const unsigned short>(n_start2),
-                                                     block_m, block_n2, embed_dim, _scale);
-#elif __SSE2__
-                            qk_gemm_bf16s_sse2_kernel(s_head,
-                                                      q_ptr,
-                                                      key_head.row<const unsigned short>(n_start2),
-                                                      block_m, block_n2, embed_dim, _scale);
-#else
-                            qk_gemm_bf16s_scalar_kernel(s_head,
-                                                        q_ptr,
-                                                        key_head.row<const unsigned short>(n_start2),
-                                                        block_m, block_n2, embed_dim, _scale);
-#endif
-                        }
-                        else
-#endif
-                        {
-                    switch (embed_dim)
-                    {
-                    case 128:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 64:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 512:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 256:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 32:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 80:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 96:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 160:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 1024:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 2048:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 4096:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<4096>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 768:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 1536:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    case 3072:
-#if __AVX512F__
-                        qk_gemm_specialized_avx512<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __AVX__
-                        qk_gemm_specialized_avx<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#elif __SSE2__
-                        qk_gemm_specialized_sse2<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
-                        break;
-#endif
-                    default:
-#if __AVX512F__
-                        qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
-#elif __AVX__
-                        qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
-#elif __SSE2__
-                        qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
-#else
-                        qk_gemm_scalar(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
-#endif
-                        break;
-                    }
-                        }
-
-                        if (attn_mask && mask_data[hq])
-                        {
-                            for (int i = 0; i < block_m; i++)
-                            {
-                                const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
-                                float* sptr = s_head + i * block_n2;
-                                decode_mask_vec(sptr, mptr, block_n2);
-                            }
-                        }
-
-                        float* m_vec = m_state_tile.row(hq);
-                        float* l_vec = l_state_tile.row(hq);
-                        float* o_ptr = o_accum_thread.row(hq * block_m);
-
-                        float m_old[BLOCK_M];
-                        float scale_factors[BLOCK_M];
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            m_old[i] = m_vec[i];
-                        }
-                        softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
-
-                        for (int i = 0; i < block_m; i++)
-                        {
-                            if (m_old[i] != m_vec[i])
-                            {
-                                vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
-                            }
-                        }
-
-#if NCNN_BF16
-                        if (use_bf16_path)
-                        {
-#if __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
-                            if (ncnn::cpu_support_x86_avx512_bf16())
-                            {
-                                pv_gemm_bf16s_avx512bf16(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                         block_m, block_n2, out_embed_dim);
+    #endif
                             }
                             else
-#endif
+    #endif
                             {
-                                pv_gemm_bf16s_avx512_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                            block_m, block_n2, out_embed_dim);
-                            }
-#elif __AVX__
-                            pv_gemm_bf16s_avx_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                     block_m, block_n2, out_embed_dim);
-#elif __SSE2__
-                            pv_gemm_bf16s_sse2_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                      block_m, block_n2, out_embed_dim);
-#else
-                            pv_gemm_bf16s_scalar_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
-                                                        block_m, block_n2, out_embed_dim);
-#endif
-                        }
-                        else
-#endif
+                        switch (embed_dim)
                         {
-                    switch (out_embed_dim)
-                    {
-                    case 128:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#endif
-                    case 64:
-#if __AVX512F__
-                        pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
-                        break;
-#endif
-                    case 256:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
-                        break;
-#endif
-                    case 512:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
-                        break;
-#endif
-                    case 1024:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
-                        break;
-#endif
-                    case 2048:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
-                        break;
-#endif
-                    case 4096:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
-                        break;
-#endif
-                    case 768:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
-                        break;
-#endif
-                    case 1536:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
-                        break;
-#endif
-                    case 3072:
-#if __AVX512F__
-                        pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
-                        break;
-#elif __AVX__
-                        pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
-                        break;
-#elif __SSE2__
-                        pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
-                        break;
-#endif
-                    default:
-#if __AVX512F__
-                        pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
-#elif __AVX__
-                        pv_gemm_avx<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
-#elif __SSE2__
-                        pv_gemm_sse2<2, 16>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
-#else
-                        pv_gemm_scalar(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
-#endif
-                        break;
+                        case 128:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 64:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 512:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 256:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 32:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 80:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 96:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 160:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 1024:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 2048:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 4096:
+    #if __AVX512F__
+                            qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #endif
+                        case 768:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 1536:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 3072:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        default:
+    #if __AVX512F__
+                            qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #elif __AVX__
+                            qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #elif __SSE2__
+                            qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #else
+                            qk_gemm_scalar(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #endif
+                            break;
+                        }
+                            }
+    
+                            if (attn_mask && mask_data[hq])
+                            {
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                    float* sptr = s_head + i * block_n2;
+                                    decode_mask_vec(sptr, mptr, block_n2);
+                                }
+                            }
+    
+                            float* m_vec = m_state_tile.row(hq);
+                            float* l_vec = l_state_tile.row(hq);
+                            float* o_ptr = o_accum_thread.row(hq * block_m);
+    
+                            float m_old[BLOCK_M];
+                            float scale_factors[BLOCK_M];
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                m_old[i] = m_vec[i];
+                            }
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+    
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                if (m_old[i] != m_vec[i])
+                                {
+                                    vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                }
+                            }
+    
+    #if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+    #if __AVX512F__
+    #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    pv_gemm_bf16s_avx512bf16(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, out_embed_dim);
+                                }
+                                else
+    #endif
+                                {
+                                    pv_gemm_bf16s_avx512_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, out_embed_dim);
+                                }
+    #elif __AVX__
+                                pv_gemm_bf16s_avx_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, out_embed_dim);
+    #elif __SSE2__
+                                pv_gemm_bf16s_sse2_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, out_embed_dim);
+    #else
+                                pv_gemm_bf16s_scalar_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, out_embed_dim);
+    #endif
+                            }
+                            else
+    #endif
+                            {
+                        switch (out_embed_dim)
+                        {
+                        case 128:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #endif
+                        case 64:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #endif
+                        case 256:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #endif
+                        case 512:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #endif
+                        case 1024:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #endif
+                        case 2048:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #endif
+                        case 4096:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #endif
+                        case 768:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #endif
+                        case 1536:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #endif
+                        case 3072:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #endif
+                        default:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #elif __AVX__
+                            pv_gemm_avx<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 16>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #else
+                            pv_gemm_scalar(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #endif
+                            break;
+                        }
+                            }
+                        }
                     }
+                    else
+                    {
+                        for (int hq = 0; hq < num_heads_per_group; hq++)
+                        {
+                            int q = g * num_heads_per_group + hq;
+                            const Mat query_head = query_ref.channel(q);
+    
+                            const float* q_ptr = query_head.row(m_start);
+                            float* s_head = s_ptr + hq * block_m * block_n2;
+    
+    #if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+    #if __AVX512F__
+    #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    qk_gemm_bf16s_avx512bf16(s_head,
+                                                             q_ptr,
+                                                             key_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, embed_dim, _scale);
+                                }
+                                else
+    #endif
+                                {
+                                    qk_gemm_bf16s_avx512_kernel(s_head,
+                                                                q_ptr,
+                                                                key_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, embed_dim, _scale);
+                                }
+    #elif __AVX__
+                                qk_gemm_bf16s_avx_kernel(s_head,
+                                                         q_ptr,
+                                                         key_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, embed_dim, _scale);
+    #elif __SSE2__
+                                qk_gemm_bf16s_sse2_kernel(s_head,
+                                                          q_ptr,
+                                                          key_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, embed_dim, _scale);
+    #else
+                                qk_gemm_bf16s_scalar_kernel(s_head,
+                                                            q_ptr,
+                                                            key_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, embed_dim, _scale);
+    #endif
+                            }
+                            else
+    #endif
+                            {
+                        switch (embed_dim)
+                        {
+                        case 128:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<128>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 64:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<64>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 512:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<512>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 256:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<256>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 32:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<32>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 80:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<80>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 96:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<96>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 160:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<160>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 1024:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<1024>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 2048:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<2048>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 4096:
+    #if __AVX512F__
+                            qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, 4096, _scale);
+                            break;
+    #endif
+                        case 768:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<768>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 1536:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<1536>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        case 3072:
+    #if __AVX512F__
+                            qk_gemm_specialized_avx512<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __AVX__
+                            qk_gemm_specialized_avx<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #elif __SSE2__
+                            qk_gemm_specialized_sse2<3072>(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, _scale);
+                            break;
+    #endif
+                        default:
+    #if __AVX512F__
+                            qk_gemm_avx512(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #elif __AVX__
+                            qk_gemm_avx(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #elif __SSE2__
+                            qk_gemm_sse2(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #else
+                            qk_gemm_scalar(s_head, q_ptr, key_head.row(n_start2), block_m, block_n2, embed_dim, _scale);
+    #endif
+                            break;
+                        }
+                            }
+    
+                            if (attn_mask && mask_data[hq])
+                            {
+                                for (int i = 0; i < block_m; i++)
+                                {
+                                    const float* mptr = mask_data[hq] + (m_start + i) * mask_stride[hq] + n_start2;
+                                    float* sptr = s_head + i * block_n2;
+                                    decode_mask_vec(sptr, mptr, block_n2);
+                                }
+                            }
+    
+                            float* m_vec = m_state_tile.row(hq);
+                            float* l_vec = l_state_tile.row(hq);
+                            float* o_ptr = o_accum_thread.row(hq * block_m);
+    
+                            float m_old[BLOCK_M];
+                            float scale_factors[BLOCK_M];
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                m_old[i] = m_vec[i];
+                            }
+                            softmax_tile(s_head, s_head, m_vec, l_vec, scale_factors, block_m, block_n2);
+    
+                            for (int i = 0; i < block_m; i++)
+                            {
+                                if (m_old[i] != m_vec[i])
+                                {
+                                    vec_scale(o_ptr + i * out_embed_dim, scale_factors[i], out_embed_dim);
+                                }
+                            }
+    
+    #if NCNN_BF16
+                            if (use_bf16_path)
+                            {
+    #if __AVX512F__
+    #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && !__AVX512BF16__
+                                if (ncnn::cpu_support_x86_avx512_bf16())
+                                {
+                                    pv_gemm_bf16s_avx512bf16(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                             block_m, block_n2, out_embed_dim);
+                                }
+                                else
+    #endif
+                                {
+                                    pv_gemm_bf16s_avx512_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                                block_m, block_n2, out_embed_dim);
+                                }
+    #elif __AVX__
+                                pv_gemm_bf16s_avx_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                         block_m, block_n2, out_embed_dim);
+    #elif __SSE2__
+                                pv_gemm_bf16s_sse2_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                          block_m, block_n2, out_embed_dim);
+    #else
+                                pv_gemm_bf16s_scalar_kernel(o_ptr, s_head, value_head.row<const unsigned short>(n_start2),
+                                                            block_m, block_n2, out_embed_dim);
+    #endif
+                            }
+                            else
+    #endif
+                            {
+                        switch (out_embed_dim)
+                        {
+                        case 128:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #endif
+                        case 64:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2);
+                            break;
+    #endif
+                        case 256:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 256);
+                            break;
+    #endif
+                        case 512:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 512);
+                            break;
+    #endif
+                        case 1024:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1024);
+                            break;
+    #endif
+                        case 2048:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 2048);
+                            break;
+    #endif
+                        case 4096:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 4096);
+                            break;
+    #endif
+                        case 768:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 768);
+                            break;
+    #endif
+                        case 1536:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 1536);
+                            break;
+    #endif
+                        case 3072:
+    #if __AVX512F__
+                            pv_gemm_avx512<2, 128>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #elif __AVX__
+                            pv_gemm_avx<2, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, 3072);
+                            break;
+    #endif
+                        default:
+    #if __AVX512F__
+                            pv_gemm_avx512<4, 64>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #elif __AVX__
+                            pv_gemm_avx<2, 32>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #elif __SSE2__
+                            pv_gemm_sse2<2, 16>(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #else
+                            pv_gemm_scalar(o_ptr, s_head, value_head.row(n_start2), block_m, block_n2, out_embed_dim);
+    #endif
+                            break;
+                        }
+                            }
                         }
                     }
                 }
