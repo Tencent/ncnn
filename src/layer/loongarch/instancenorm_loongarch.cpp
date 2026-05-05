@@ -205,7 +205,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr0);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr0, 0));
             _sum = __lsx_vfadd_s(_sum, _p);
             ptr0 += 4;
         }
@@ -250,7 +250,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr0);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr0, 0));
             _p = __lsx_vfsub_s(_p, _mean);
             _sqsum = __lsx_vfmadd_s(_p, _p, _sqsum);
             ptr0 += 4;
@@ -310,7 +310,7 @@ int InstanceNorm_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Op
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             _p = __lsx_vfmadd_s(_p, _a, _b);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;

@@ -694,7 +694,7 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
 
                 _sum = activation_msa(_sum, activation_type, activation_params);
 
-                __msa_storel_d(float2bfloat_msa(_sum), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum), 0);
                 outptr += 4;
             }
         }
@@ -762,7 +762,7 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
 
                 _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
-                __msa_storel_d(float2bfloat_msa(_sum0), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
                 outptr += 4;
             }
         }
@@ -975,7 +975,7 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
             _sum0 = activation_msa(_sum0, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            __msa_storel_d(float2bfloat_msa(_sum0), outptr + p * 4);
+            *(int64_t*)(outptr + p * 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
         }
     }
 
@@ -1070,7 +1070,7 @@ static void innerproduct_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, const 
             _sums = activation_msa(_sums, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            __msa_storel_d(float2bfloat_msa(_sums), outptr + p);
+            *(int64_t*)(outptr + p) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sums), 0);
         }
 
         remain_outw_start += (nn_outw << 2);

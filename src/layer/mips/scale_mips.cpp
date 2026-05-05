@@ -237,7 +237,7 @@ static void scale_bf16s_msa(unsigned short* ptr, const float* scale, const float
     {
         v4f32 _p = bfloat2float_msa(ptr);
         _p = __ncnn_msa_fmadd_w(_b0, _p, _s0);
-        __msa_storel_d(float2bfloat_msa(_p), ptr);
+        *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
         ptr += 4;
     }
 #endif // __mips_msa
@@ -278,7 +278,7 @@ static void scale_bf16s_no_bias_msa(unsigned short* ptr, const float* scale, int
     {
         v4f32 _p = bfloat2float_msa(ptr);
         _p = __msa_fmul_w(_p, _s0);
-        __msa_storel_d(float2bfloat_msa(_p), ptr);
+        *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
         ptr += 4;
     }
 #endif // __mips_msa
@@ -322,7 +322,7 @@ static void scale_bf16s_per_element_msa(unsigned short* ptr, const float* scale,
         v4f32 _s = (v4f32)__msa_ld_w(scale + i, 0);
         v4f32 _b = (v4f32)__msa_ld_w(bias + i, 0);
         _p = __ncnn_msa_fmadd_w(_b, _p, _s);
-        __msa_storel_d(float2bfloat_msa(_p), ptr + i);
+        *(int64_t*)(ptr + i) = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
     }
     remain_size_start += nn_size * 4;
 #endif // __mips_msa
@@ -363,7 +363,7 @@ static void scale_bf16s_no_bias_per_element_msa(unsigned short* ptr, const float
         v4f32 _p = bfloat2float_msa(ptr + i);
         v4f32 _s = (v4f32)__msa_ld_w(scale + i, 0);
         _p = __msa_fmul_w(_p, _s);
-        __msa_storel_d(float2bfloat_msa(_p), ptr + i);
+        *(int64_t*)(ptr + i) = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
     }
     remain_size_start += nn_size * 4;
 #endif // __mips_msa

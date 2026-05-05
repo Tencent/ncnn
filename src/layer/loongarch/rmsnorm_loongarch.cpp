@@ -318,7 +318,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr0);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr0, 0));
             _rms = __lsx_vfmadd_s(_p, _p, _rms);
             ptr0 += 4;
         }
@@ -456,7 +456,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                 __m128 _gamma = (__m128)__lsx_vreplfr2vr_s(gamma_ptr[0]);
                 _p = __lsx_vfmul_s(_p, _rms);
                 _p = __lsx_vfmul_s(_p, _gamma);
@@ -481,7 +481,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                 __m128 _gamma = (__m128)__lsx_vld(gamma_ptr, 0);
                 _p = __lsx_vfmul_s(_p, _rms);
                 _p = __lsx_vfmul_s(_p, _gamma);
@@ -525,7 +525,7 @@ static void rmsnorm_loongarch_bf16(unsigned short* ptr, const float* gamma_ptr, 
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             _p = __lsx_vfmul_s(_p, _rms);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;

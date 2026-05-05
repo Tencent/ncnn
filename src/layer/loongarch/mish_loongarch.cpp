@@ -123,7 +123,7 @@ int Mish_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             _p = __lsx_vfmul_s(_p, tanh_ps(log_ps(__lsx_vfadd_s(exp_ps(_p), (__m128)__lsx_vreplfr2vr_s(1.f)))));
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;

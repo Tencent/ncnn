@@ -107,9 +107,7 @@ int TanH_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
         __m128i _zero = __lsx_vreplgr2vr_w(0);
         for (; i + 3 < size; i += 4)
         {
-            // load 4 bf16 values safely via 64-bit load
-            int64_t v;
-            memcpy(&v, ptr, 8);
+            int64_t v = *(const int64_t*)ptr;
             __m128i _raw = __lsx_vreplgr2vr_d(v);
             __m128i _pi = __lsx_vilvl_h(_raw, _zero);
             __m128 _p = (__m128)_pi;

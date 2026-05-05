@@ -193,7 +193,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                 __m128 _cube = __lsx_vfmul_s(_p, _p);
                 _cube = __lsx_vfmul_s(_cube, _p);
                 __m128 _blob = __lsx_vfmul_s(_fast2c4, _cube);

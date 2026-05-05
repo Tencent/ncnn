@@ -535,7 +535,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v4f32 _pA1 = (v4f32)__msa_ilvl_h(_pA01, _zero_bf16);
                 v4f32 _pA0r = (v4f32)__msa_shf_w((v4i32)_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
                 v4f32 _pA1r = (v4f32)__msa_shf_w((v4i32)_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
-                v4f32 _pB = bfloat2float_msa(pB);
+                v4f32 _pB = bfloat2float_msa(__msa_fill_d_ptr(pB));
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
 
                 _sum00 = __ncnn_msa_fmadd_w(_sum00, _pA0, _pB);
@@ -632,14 +632,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     v4f32 _r7 = _sum31;
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
 
-                    __msa_storel_d(float2bfloat_msa(_r0), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_r1), outptr0 + out_hstep);
-                    __msa_storel_d(float2bfloat_msa(_r2), outptr0 + out_hstep * 2);
-                    __msa_storel_d(float2bfloat_msa(_r3), outptr0 + out_hstep * 3);
-                    __msa_storel_d(float2bfloat_msa(_r4), outptr0 + out_hstep * 4);
-                    __msa_storel_d(float2bfloat_msa(_r5), outptr0 + out_hstep * 5);
-                    __msa_storel_d(float2bfloat_msa(_r6), outptr0 + out_hstep * 6);
-                    __msa_storel_d(float2bfloat_msa(_r7), outptr0 + out_hstep * 7);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_r0), 0);
+                    *(int64_t*)(outptr0 + out_hstep) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r1), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 2) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r2), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 3) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r3), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r4), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 5) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r5), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 6) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r6), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 7) = __msa_copy_s_d((v2i64)float2bfloat_msa(_r7), 0);
                     outptr0 += 4;
                 }
             }
@@ -688,8 +688,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 v8i16 _pA01 = (v8i16)__msa_ld_h(pA, 0);
                 v4f32 _pA0 = (v4f32)__msa_ilvr_h(_pA01, _zero_bf16);
                 v4f32 _pA1 = (v4f32)__msa_ilvl_h(_pA01, _zero_bf16);
-                int v;
-                memcpy(&v, pB, 4);
+                int v = *(const int*)pB;
                 v8i16 _raw = (v8i16)__msa_fill_w(v);
                 v4f32 _pB = (v4f32)__msa_ilvr_h(_raw, _zero_bf16);
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(2, 3, 0, 1));
@@ -758,14 +757,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     uint32_t v5 = (unsigned short)__msa_copy_s_h(_bf2, 1) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 1) << 16);
                     uint32_t v6 = (unsigned short)__msa_copy_s_h(_bf2, 2) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 2) << 16);
                     uint32_t v7 = (unsigned short)__msa_copy_s_h(_bf2, 3) | ((uint32_t)(unsigned short)__msa_copy_s_h(_bf3, 3) << 16);
-                    memcpy(outptr0, &v0, 4);
-                    memcpy(outptr0 + out_hstep, &v1, 4);
-                    memcpy(outptr0 + out_hstep * 2, &v2, 4);
-                    memcpy(outptr0 + out_hstep * 3, &v3, 4);
-                    memcpy(outptr0 + out_hstep * 4, &v4, 4);
-                    memcpy(outptr0 + out_hstep * 5, &v5, 4);
-                    memcpy(outptr0 + out_hstep * 6, &v6, 4);
-                    memcpy(outptr0 + out_hstep * 7, &v7, 4);
+                    *(uint32_t*)outptr0 = v0;
+                    *(uint32_t*)(outptr0 + out_hstep) = v1;
+                    *(uint32_t*)(outptr0 + out_hstep * 2) = v2;
+                    *(uint32_t*)(outptr0 + out_hstep * 3) = v3;
+                    *(uint32_t*)(outptr0 + out_hstep * 4) = v4;
+                    *(uint32_t*)(outptr0 + out_hstep * 5) = v5;
+                    *(uint32_t*)(outptr0 + out_hstep * 6) = v6;
+                    *(uint32_t*)(outptr0 + out_hstep * 7) = v7;
                     outptr0 += 2;
                 }
             }
@@ -830,8 +829,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 if (out_elempack == 4)
                 {
                     unsigned short* outptr1 = outptr0 + out_hstep * 4;
-                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum1), outptr1);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
+                    *(int64_t*)outptr1 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum1), 0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -913,7 +912,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 32);
-                v4f32 _pA = bfloat2float_msa(pA);
+                v4f32 _pA = bfloat2float_msa(__msa_fill_d_ptr(pA));
                 v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
                 v8i16 _zero_bf16 = __msa_fill_h(0);
                 v8i16 _pB01_bf16 = (v8i16)__msa_ld_h(pB, 0);
@@ -1000,14 +999,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                     transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
-                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep * 1);
-                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + out_hstep * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum3), outptr0 + out_hstep * 3);
-                    __msa_storel_d(float2bfloat_msa(_sum4), outptr0 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum5), outptr0 + out_hstep * 1 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum6), outptr0 + out_hstep * 2 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum7), outptr0 + out_hstep * 3 + 4);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 1) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum1), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 2) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum2), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 3) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum3), 0);
+                    *(int64_t*)(outptr0 + 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum4), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 1 + 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum5), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 2 + 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum6), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 3 + 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum7), 0);
                     outptr0 += 8;
                 }
             }
@@ -1054,9 +1053,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 16);
-                v4f32 _pA = bfloat2float_msa(pA);
+                v4f32 _pA = bfloat2float_msa(__msa_fill_d_ptr(pA));
                 v4f32 _pA1 = (v4f32)__msa_shf_w((v4i32)_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v4f32 _pB = bfloat2float_msa(pB);
+                v4f32 _pB = bfloat2float_msa(__msa_fill_d_ptr(pB));
                 v4f32 _pB1 = (v4f32)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, _pB);
@@ -1107,10 +1106,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 {
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
 
-                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep * 1);
-                    __msa_storel_d(float2bfloat_msa(_sum2), outptr0 + out_hstep * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum3), outptr0 + out_hstep * 3);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 1) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum1), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 2) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum2), 0);
+                    *(int64_t*)(outptr0 + out_hstep * 3) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum3), 0);
                     outptr0 += 4;
                 }
             }
@@ -1147,9 +1146,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 8);
-                v4f32 _pA = bfloat2float_msa(pA);
-                int v;
-                memcpy(&v, pB, 4);
+                v4f32 _pA = bfloat2float_msa(__msa_fill_d_ptr(pA));
+                int v = *(const int*)pB;
                 v8i16 _zero = (v8i16)__msa_fill_w(0);
                 v8i16 _raw = (v8i16)__msa_fill_w(v);
                 v4f32 _pB = (v4f32)__msa_ilvr_h(_raw, _zero);
@@ -1238,7 +1236,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             {
                 __builtin_prefetch(pA + 32);
                 __builtin_prefetch(pB + 4);
-                v4f32 _pA = bfloat2float_msa(pA);
+                v4f32 _pA = bfloat2float_msa(__msa_fill_d_ptr(pA));
 
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, _pA, __msa_fill_w_f32(bfloat16_to_float32(pB[0])));
 
@@ -1252,7 +1250,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -1411,7 +1409,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 16);
 
-                v4f32 _pB = bfloat2float_msa(pB);
+                v4f32 _pB = bfloat2float_msa(__msa_fill_d_ptr(pB));
 
                 _sum0 = __ncnn_msa_fmadd_w(_sum0, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
                 _sum1 = __ncnn_msa_fmadd_w(_sum1, __msa_fill_w_f32(bfloat16_to_float32(pA[1])), _pB);
@@ -1427,8 +1425,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum0), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum1), outptr0 + out_hstep);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum0), 0);
+                    *(int64_t*)(outptr0 + out_hstep) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum1), 0);
                     outptr0 += 4;
                 }
             }
@@ -1674,7 +1672,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 16);
 
-                v4f32 _pB = bfloat2float_msa(pB);
+                v4f32 _pB = bfloat2float_msa(__msa_fill_d_ptr(pB));
 
                 _sum = __ncnn_msa_fmadd_w(_sum, __msa_fill_w_f32(bfloat16_to_float32(pA[0])), _pB);
 
@@ -1688,7 +1686,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 // if (out_elempack == 1)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum), outptr0);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum), 0);
                     outptr0 += 4;
                 }
             }

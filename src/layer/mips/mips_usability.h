@@ -192,8 +192,14 @@ static NCNN_FORCEINLINE void __msa_storel_d(const v4i32& v, void* ptr)
 
 static NCNN_FORCEINLINE v4i32 __msa_fill_d_ptr(const void* ptr)
 {
-    v4i32 _v = __msa_loadl_d(ptr);
+#if __mips64
+    return (v4i32)__msa_fill_d(*(const int64_t*)ptr);
+#else
+    const int* ptr32 = (const int*)ptr;
+    v4i32 _v = __msa_fill_w(ptr32[0]);
+    _v = __msa_insert_w(_v, 1, ptr32[1]);
     return (v4i32)__msa_ilvr_d((v2i64)_v, (v2i64)_v);
+#endif
 }
 
 static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)

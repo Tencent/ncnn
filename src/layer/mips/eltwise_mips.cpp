@@ -62,7 +62,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _p1 = bfloat2float_msa(ptr1);
                 _p = __msa_fmul_w(_p, _p1);
-                __msa_storel_d(float2bfloat_msa(_p), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                 ptr += 4;
                 ptr1 += 4;
@@ -111,7 +111,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                     v4f32 _p = bfloat2float_msa(outptr);
                     v4f32 _p1 = bfloat2float_msa(ptr);
                     _p = __msa_fmul_w(_p, _p1);
-                    __msa_storel_d(float2bfloat_msa(_p), outptr);
+                    *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                     ptr += 4;
                     outptr += 4;
@@ -164,7 +164,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                     v4f32 _p = bfloat2float_msa(ptr);
                     v4f32 _p1 = bfloat2float_msa(ptr1);
                     _p = __msa_fadd_w(_p, _p1);
-                    __msa_storel_d(float2bfloat_msa(_p), outptr);
+                    *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                     ptr += 4;
                     ptr1 += 4;
@@ -213,7 +213,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                         v4f32 _p = bfloat2float_msa(outptr);
                         v4f32 _p1 = bfloat2float_msa(ptr);
                         _p = __msa_fadd_w(_p, _p1);
-                        __msa_storel_d(float2bfloat_msa(_p), outptr);
+                        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                         ptr += 4;
                         outptr += 4;
@@ -272,7 +272,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                     v4f32 _p1 = bfloat2float_msa(ptr1);
                     _p = __msa_fmul_w(_p, _coeff0);
                     _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff1);
-                    __msa_storel_d(float2bfloat_msa(_p), outptr);
+                    *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                     ptr += 4;
                     ptr1 += 4;
@@ -324,7 +324,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                         v4f32 _p = bfloat2float_msa(outptr);
                         v4f32 _p1 = bfloat2float_msa(ptr);
                         _p = __ncnn_msa_fmadd_w(_p, _p1, _coeff);
-                        __msa_storel_d(float2bfloat_msa(_p), outptr);
+                        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                         ptr += 4;
                         outptr += 4;
@@ -376,7 +376,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 v4f32 _p = bfloat2float_msa(ptr);
                 v4f32 _p1 = bfloat2float_msa(ptr1);
                 _p = __msa_fmax_w(_p, _p1);
-                __msa_storel_d(float2bfloat_msa(_p), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                 ptr += 4;
                 ptr1 += 4;
@@ -425,7 +425,7 @@ int Eltwise_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                     v4f32 _p = bfloat2float_msa(outptr);
                     v4f32 _p1 = bfloat2float_msa(ptr);
                     _p = __msa_fmax_w(_p, _p1);
-                    __msa_storel_d(float2bfloat_msa(_p), outptr);
+                    *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
 
                     ptr += 4;
                     outptr += 4;

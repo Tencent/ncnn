@@ -145,7 +145,7 @@ int BNLL_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #endif
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
             __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
             __m128 _abs_p = (__m128)__lsx_vand_v((__m128i)_p, __lsx_vreplgr2vr_w(0x7fffffff));

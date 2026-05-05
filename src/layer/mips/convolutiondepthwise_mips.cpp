@@ -801,7 +801,7 @@ int ConvolutionDepthWise_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_bl
 
                         _sum = activation_msa(_sum, activation_type, activation_params);
 
-                        __msa_storel_d(float2bfloat_msa(_sum), outptr + j * 4);
+                        *(int64_t*)(outptr + j * 4) = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum), 0);
                     }
 
                     outptr += outw * 4;

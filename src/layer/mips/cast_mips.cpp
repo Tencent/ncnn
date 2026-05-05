@@ -216,7 +216,7 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                __msa_storel_d(float2bfloat_msa(_p), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr += 4;
                 outptr += 4;
             }

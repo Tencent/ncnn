@@ -229,7 +229,7 @@ int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                 __lsx_vst(_p, outptr, 0);
                 ptr += 4;
                 outptr += 4;

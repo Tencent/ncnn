@@ -717,14 +717,14 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                     uint64_t v5 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 1) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 1) << 32);
                     uint64_t v6 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 2) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 2) << 32);
                     uint64_t v7 = (uint32_t)__msa_copy_s_w((v4i32)_sum01, 3) | ((uint64_t)(uint32_t)__msa_copy_s_w((v4i32)_sum11, 3) << 32);
-                    memcpy(outptr0, &v0, 8);
-                    memcpy(outptr0 + out_hstep, &v1, 8);
-                    memcpy(outptr0 + out_hstep * 2, &v2, 8);
-                    memcpy(outptr0 + out_hstep * 3, &v3, 8);
-                    memcpy(outptr0 + out_hstep * 4, &v4, 8);
-                    memcpy(outptr0 + out_hstep * 5, &v5, 8);
-                    memcpy(outptr0 + out_hstep * 6, &v6, 8);
-                    memcpy(outptr0 + out_hstep * 7, &v7, 8);
+                    *(uint64_t*)outptr0 = v0;
+                    *(uint64_t*)(outptr0 + out_hstep) = v1;
+                    *(uint64_t*)(outptr0 + out_hstep * 2) = v2;
+                    *(uint64_t*)(outptr0 + out_hstep * 3) = v3;
+                    *(uint64_t*)(outptr0 + out_hstep * 4) = v4;
+                    *(uint64_t*)(outptr0 + out_hstep * 5) = v5;
+                    *(uint64_t*)(outptr0 + out_hstep * 6) = v6;
+                    *(uint64_t*)(outptr0 + out_hstep * 7) = v7;
                     outptr0 += 2;
                 }
             }
@@ -792,14 +792,14 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                     uint32_t v5 = __msa_copy_s_w((v4i32)_sum1, 1);
                     uint32_t v6 = __msa_copy_s_w((v4i32)_sum1, 2);
                     uint32_t v7 = __msa_copy_s_w((v4i32)_sum1, 3);
-                    memcpy(outptr0, &v0, 4);
-                    memcpy(outptr0 + out_hstep, &v1, 4);
-                    memcpy(outptr0 + out_hstep * 2, &v2, 4);
-                    memcpy(outptr0 + out_hstep * 3, &v3, 4);
-                    memcpy(outptr0 + out_hstep * 4, &v4, 4);
-                    memcpy(outptr0 + out_hstep * 5, &v5, 4);
-                    memcpy(outptr0 + out_hstep * 6, &v6, 4);
-                    memcpy(outptr0 + out_hstep * 7, &v7, 4);
+                    *(uint32_t*)outptr0 = v0;
+                    *(uint32_t*)(outptr0 + out_hstep) = v1;
+                    *(uint32_t*)(outptr0 + out_hstep * 2) = v2;
+                    *(uint32_t*)(outptr0 + out_hstep * 3) = v3;
+                    *(uint32_t*)(outptr0 + out_hstep * 4) = v4;
+                    *(uint32_t*)(outptr0 + out_hstep * 5) = v5;
+                    *(uint32_t*)(outptr0 + out_hstep * 6) = v6;
+                    *(uint32_t*)(outptr0 + out_hstep * 7) = v7;
                     outptr0++;
                 }
             }

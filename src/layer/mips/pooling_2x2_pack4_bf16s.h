@@ -39,7 +39,7 @@ static void pooling2x2s2_max_pack4_bf16s_msa(const Mat& bottom_blob, Mat& top_bl
                 v4f32 _max1 = __msa_fmax_w(_r10, _r11);
                 v4f32 _max = __msa_fmax_w(_max0, _max1);
 
-                __msa_storel_d(float2bfloat_msa(_max), outptr);
+                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_max), 0);
 
                 r0 += 8;
                 r1 += 8;

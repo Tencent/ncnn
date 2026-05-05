@@ -475,8 +475,8 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
-        __m128 _b = bfloat2float_lsx(ptr1);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+        __m128 _b = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
         __m128 _outp = op(_p, _b);
         __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr += 4;
@@ -499,7 +499,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _b_128 = (elempack == 4) ? bfloat2float_lsx(ptr1) : (__m128)__lsx_vreplfr2vr_s(b);
+    __m128 _b_128 = (elempack == 4) ? bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0)) : (__m128)__lsx_vreplfr2vr_s(b);
 #if __loongarch_asx
     __m256 _b_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr1, 0)) : __lasx_concat_128_s(_b_128, _b_128);
     for (; i + 7 < size; i += 8)
@@ -536,7 +536,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         __m128 _outp = op(_p, _b_128);
         __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr += 4;
@@ -558,7 +558,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 
     int i = 0;
 #if __loongarch_sx
-    __m128 _a_128 = (elempack == 4) ? bfloat2float_lsx(ptr) : (__m128)__lsx_vreplfr2vr_s(a);
+    __m128 _a_128 = (elempack == 4) ? bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0)) : (__m128)__lsx_vreplfr2vr_s(a);
 #if __loongarch_asx
     __m256 _a_256 = (elempack == 8) ? bfloat2float_lasx((__m128i)__lsx_vld(ptr, 0)) : __lasx_concat_128_s(_a_128, _a_128);
     for (; i + 7 < size; i += 8)
@@ -595,7 +595,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _b = bfloat2float_lsx(ptr1);
+        __m128 _b = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
         __m128 _outp = op(_a_128, _b);
         __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
         ptr1 += 4;
@@ -669,7 +669,7 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
         }
         for (; i < w; i++)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             __m128 _b = (__m128)__lsx_vreplfr2vr_s(bfloat16_to_float32(*ptr1));
             __m128 _outp = op(_p, _b);
             __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
@@ -734,7 +734,7 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
         __m128 _b_128 = (__m128)__lsx_vreplfr2vr_s(b);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             __m128 _outp = op(_p, _b_128);
             __lsx_vstelm_d(float2bfloat_lsx(_outp), outptr, 0, 0);
             ptr += 4;
@@ -789,7 +789,7 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
 
     if (elempack == 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         int i = 0;
         for (; i + 1 < w; i += 2)
         {

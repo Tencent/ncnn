@@ -158,7 +158,7 @@ int HardSwish_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
         __m128 _beta4 = (__m128)__lsx_vreplfr2vr_s(beta);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             __m128 _outp = __lsx_vfmadd_s(_alpha4, _p, _beta4);
             _outp = __lsx_vfmax_s(_outp, _zero4);
             _outp = __lsx_vfmin_s(_outp, _one4);

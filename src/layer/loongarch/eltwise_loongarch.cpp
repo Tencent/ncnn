@@ -78,8 +78,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
-                __m128 _p1 = bfloat2float_lsx(ptr1);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+                __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
                 _p = __lsx_vfmul_s(_p, _p1);
                 __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -142,8 +142,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_lsx(outptr);
-                    __m128 _p1 = bfloat2float_lsx(ptr);
+                    __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(outptr, 0));
+                    __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                     _p = __lsx_vfmul_s(_p, _p1);
                     __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -211,8 +211,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_lsx(ptr);
-                    __m128 _p1 = bfloat2float_lsx(ptr1);
+                    __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+                    __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
                     _p = __lsx_vfadd_s(_p, _p1);
                     __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -275,8 +275,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p = bfloat2float_lsx(outptr);
-                        __m128 _p1 = bfloat2float_lsx(ptr);
+                        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(outptr, 0));
+                        __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                         _p = __lsx_vfadd_s(_p, _p1);
                         __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -352,8 +352,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_lsx(ptr);
-                    __m128 _p1 = bfloat2float_lsx(ptr1);
+                    __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+                    __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
                     _p = __lsx_vfmul_s(_p, _coeff0);
                     _p = __lsx_vfmadd_s(_coeff1, _p1, _p);
                     __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
@@ -421,8 +421,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                     for (; i + 3 < size; i += 4)
                     {
-                        __m128 _p = bfloat2float_lsx(outptr);
-                        __m128 _p1 = bfloat2float_lsx(ptr);
+                        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(outptr, 0));
+                        __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                         _p = __lsx_vfmadd_s(_coeff, _p1, _p);
                         __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -489,8 +489,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p = bfloat2float_lsx(ptr);
-                __m128 _p1 = bfloat2float_lsx(ptr1);
+                __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
+                __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
                 _p = __lsx_vfmax_s(_p, _p1);
                 __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 
@@ -553,8 +553,8 @@ int Eltwise_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
 #endif // __loongarch_asx
                 for (; i + 3 < size; i += 4)
                 {
-                    __m128 _p = bfloat2float_lsx(outptr);
-                    __m128 _p1 = bfloat2float_lsx(ptr);
+                    __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(outptr, 0));
+                    __m128 _p1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
                     _p = __lsx_vfmax_s(_p, _p1);
                     __lsx_vstelm_d(float2bfloat_lsx(_p), outptr, 0, 0);
 

@@ -819,7 +819,6 @@ static NCNN_FORCEINLINE __m128 bfloat2float_lsx(const __m128i* ptr)
     return bfloat2float_lsx(v0);
 }
 
-// Load 4 bf16 values from pointer using safe 64-bit load (no 16-byte overread)
 static NCNN_FORCEINLINE __m128 bfloat2float_lsx(const unsigned short* ptr)
 {
     int64_t v;

@@ -243,7 +243,7 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
                 v4i32_w _lemask = __msa_fcle_w(_p, _zero);
                 v4f32 _ps = __msa_fmul_w(_p, _slope);
                 _p = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_p, (v16u8)_ps);
-                __msa_storel_d(float2bfloat_msa(_p), ptr0);
+                *(int64_t*)ptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             }
 #endif // __mips_msa
 
@@ -292,7 +292,7 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
                 v4i32_w _lemask = __msa_fcle_w(_p, _zero);
                 v4f32 _ps = __msa_fmul_w(_p, _slope);
                 _p = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_p, (v16u8)_ps);
-                __msa_storel_d(float2bfloat_msa(_p), ptr0);
+                *(int64_t*)ptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             }
 #endif // __mips_msa
 
@@ -352,7 +352,7 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
                 v4i32_w _lemask = __msa_fcle_w(_p, _zero);
                 v4f32 _ps = __msa_fmul_w(_p, _slope0);
                 _p = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_p, (v16u8)_ps);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr += 4;
             }
 #endif // __mips_msa
@@ -415,7 +415,7 @@ int PReLU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) c
                 v4i32_w _lemask = __msa_fcle_w(_p, _zero);
                 v4f32 _ps = __msa_fmul_w(_p, _slope0);
                 _p = (v4f32)__msa_bsel_v((v16u8)_lemask, (v16u8)_p, (v16u8)_ps);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr += 4;
             }
 #endif // __mips_msa

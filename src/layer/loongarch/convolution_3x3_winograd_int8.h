@@ -1361,7 +1361,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA0 = __lsx_vldrepl_d(pA, 0);
                     __m128i _pA1 = __lsx_vldrepl_d(pA + 4, 0);
-                    __m128i _pB = __lsx_vreplgr2vr_w_ptr(pB);
+                    __m128i _pB = __lsx_vldrepl_w(pB, 0);
                     __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 1, 0, 1)), _pB);
                     __m128i _sl0 = __lsx_vmul_h(_pA0, _pB01);
                     __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB01);
@@ -1423,7 +1423,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA0 = __lsx_vld(pA, 0);
                     __m128i _pA1 = __lsx_vld(pA + 8, 0);
-                    __m128i _pB = __lsx_vreplgr2vr_w_ptr(pB);
+                    __m128i _pB = __lsx_vldrepl_w(pB, 0);
 
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB), __lsx_vmulwod_w_h(_pA0, _pB)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB), __lsx_vmulwod_w_h(_pA1, _pB)));
@@ -1433,8 +1433,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m128i _pA0 = __lsx_loadl_d(pA);
-                    __m128i _pA1 = __lsx_loadl_d(pA + 4);
+                    __m128i _pA0 = __lsx_vldrepl_d(pA, 0);
+                    __m128i _pA1 = __lsx_vldrepl_d(pA + 4, 0);
                     __m128i _pB = __lsx_vreplgr2vr_h(pB[0]);
 
                     __m128i _sl0 = __lsx_vmul_h(_pA0, _pB);
@@ -1886,7 +1886,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     __m128i _pA = __lsx_vldrepl_d(pA, 0);
-                    __m128i _pB = __lsx_vreplgr2vr_w_ptr(pB);
+                    __m128i _pB = __lsx_vldrepl_w(pB, 0);
 
                     __m128i _pB01 = __lsx_vilvl_d(__lsx_vshuf4i_h(_pB, _LSX_SHUFFLE(0, 1, 0, 1)), _pB);
                     __m128i _sl = __lsx_vmul_h(_pA, _pB01);
@@ -1940,7 +1940,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     __m128i _pA = __lsx_vld(pA, 0);
-                    __m128i _pB = __lsx_vreplgr2vr_w_ptr(pB);
+                    __m128i _pB = __lsx_vldrepl_w(pB, 0);
 
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB), __lsx_vmulwod_w_h(_pA, _pB)));
 
@@ -1949,7 +1949,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 for (; kk < max_kk; kk++)
                 {
-                    __m128i _pA = __lsx_loadl_d(pA);
+                    __m128i _pA = __lsx_vldrepl_d(pA, 0);
                     __m128i _pB = __lsx_vreplgr2vr_h(pB[0]);
 
                     __m128i _sl = __lsx_vmul_h(_pA, _pB);
@@ -2080,8 +2080,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    __m128i _pA0 = __lsx_vreplgr2vr_w_ptr(pA);
-                    __m128i _pA1 = __lsx_vreplgr2vr_w_ptr(pA + 2);
+                    __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                    __m128i _pA1 = __lsx_vldrepl_w(pA + 2, 0);
                     __m128i _pB0 = __lsx_vld(pB, 0);
                     __m128i _pB1 = __lsx_vld(pB + 8, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB0), __lsx_vmulwod_w_h(_pA0, _pB0)));
@@ -2153,8 +2153,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    __m128i _pA0 = __lsx_vreplgr2vr_w_ptr(pA);
-                    __m128i _pA1 = __lsx_vreplgr2vr_w_ptr(pA + 2);
+                    __m128i _pA0 = __lsx_vldrepl_w(pA, 0);
+                    __m128i _pA1 = __lsx_vldrepl_w(pA + 2, 0);
                     __m128i _pB = __lsx_vld(pB, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA0, _pB), __lsx_vmulwod_w_h(_pA0, _pB)));
                     _sum1 = __lsx_vadd_w(_sum1, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA1, _pB), __lsx_vmulwod_w_h(_pA1, _pB)));
@@ -2166,7 +2166,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     __m128i _pA0 = __lsx_vreplgr2vr_h(pA[0]);
                     __m128i _pA1 = __lsx_vreplgr2vr_h(pA[1]);
-                    __m128i _pB = __lsx_loadl_d(pB);
+                    __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _sl0 = __lsx_vmul_h(_pA0, _pB);
                     __m128i _sh0 = __lsx_vmuh_h(_pA0, _pB);
                     __m128i _sl1 = __lsx_vmul_h(_pA1, _pB);
@@ -2369,7 +2369,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    __m128i _pA = __lsx_vreplgr2vr_w_ptr(pA);
+                    __m128i _pA = __lsx_vldrepl_w(pA, 0);
                     __m128i _pB0 = __lsx_vld(pB, 0);
                     __m128i _pB1 = __lsx_vld(pB + 8, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB0), __lsx_vmulwod_w_h(_pA, _pB0)));
@@ -2414,7 +2414,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-                    __m128i _pA = __lsx_vreplgr2vr_w_ptr(pA);
+                    __m128i _pA = __lsx_vldrepl_w(pA, 0);
                     __m128i _pB = __lsx_vld(pB, 0);
                     _sum0 = __lsx_vadd_w(_sum0, __lsx_vadd_w(__lsx_vmulwev_w_h(_pA, _pB), __lsx_vmulwod_w_h(_pA, _pB)));
 
@@ -2424,7 +2424,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     __m128i _pA = __lsx_vreplgr2vr_h(pA[0]);
-                    __m128i _pB = __lsx_loadl_d(pB);
+                    __m128i _pB = __lsx_vldrepl_d(pB, 0);
                     __m128i _sl = __lsx_vmul_h(_pA, _pB);
                     __m128i _sh = __lsx_vmuh_h(_pA, _pB);
                     __m128i _s0 = __lsx_vilvl_h(_sh, _sl);

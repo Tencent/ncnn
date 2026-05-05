@@ -331,7 +331,7 @@ static void scale_bf16s_lsx(unsigned short* ptr, const float* scale, const float
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         _p = __lsx_vfmadd_s(_p, _s128, _b128);
         __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;
@@ -388,7 +388,7 @@ static void scale_bf16s_no_bias_lsx(unsigned short* ptr, const float* scale, int
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         _p = __lsx_vfmul_s(_p, _s128);
         __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;

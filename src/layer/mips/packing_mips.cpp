@@ -958,9 +958,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
 #if __mips_msa
                     v8i16 _p = (v8i16)__msa_ld_h(r0, 0);
-                    __msa_storel_d((v4i32)_p, outptr0);
-                    int64_t v = __msa_copy_s_d((v2i64)_p, 1);
-                    memcpy(outptr1, &v, 8);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)_p, 0);
+                    *(int64_t*)outptr1 = __msa_copy_s_d((v2i64)_p, 1);
 #else
                     outptr0[0] = r0[0];
                     outptr0[1] = r0[1];
@@ -1309,9 +1308,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                     __builtin_prefetch(r0 + 16);
 
                     v8i16 _p = (v8i16)__msa_ld_h(r0, 0);
-                    __msa_storel_d((v4i32)_p, outptr0);
-                    int64_t v = __msa_copy_s_d((v2i64)_p, 1);
-                    memcpy(outptr1, &v, 8);
+                    *(int64_t*)outptr0 = __msa_copy_s_d((v2i64)_p, 0);
+                    *(int64_t*)outptr1 = __msa_copy_s_d((v2i64)_p, 1);
 #else
                     outptr0[0] = r0[0];
                     outptr0[1] = r0[1];

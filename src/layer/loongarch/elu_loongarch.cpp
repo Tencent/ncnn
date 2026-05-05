@@ -162,7 +162,7 @@ int ELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         __m128 _alpha4 = (__m128)__lsx_vreplfr2vr_s(alpha);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             __m128 _pos = __lsx_vfmax_s(_p, _zero4);
             __m128 _neg = __lsx_vfmin_s(_p, _zero4);
             __m128 _outp = exp_ps(_neg);

@@ -242,7 +242,7 @@ int InstanceNorm_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-            __msa_storel_d(float2bfloat_msa(_p), ptr);
+            *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             ptr += 4;
         }
 #endif // __mips_msa

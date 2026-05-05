@@ -250,7 +250,7 @@ static void batchnorm_bf16s_lsx(unsigned short* ptr, const float* a, const float
 #endif // __loongarch_asx
     for (; i + 3 < size; i += 4)
     {
-        __m128 _p = bfloat2float_lsx(ptr);
+        __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         _p = __lsx_vfmadd_s(_p, _b128, _a128);
         __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
         ptr += 4;

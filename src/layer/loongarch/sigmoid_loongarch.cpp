@@ -143,7 +143,7 @@ int Sigmoid_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option&
         __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             // sigmoid
             _p = (__m128)__lsx_vbitrevi_w((__m128i)_p, 31);
             _p = exp_ps(_p);

@@ -138,7 +138,7 @@ int Clip_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
         __m128 _max = (__m128)__lsx_vreplfr2vr_s(max);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             _p = __lsx_vfmax_s(_p, _min);
             _p = __lsx_vfmin_s(_p, _max);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);

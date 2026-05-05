@@ -118,7 +118,7 @@ int Erf_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 #endif // __loongarch_asx
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = bfloat2float_lsx(ptr);
+            __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
             _p = erf_ps(_p);
             __lsx_vstelm_d(float2bfloat_lsx(_p), ptr, 0, 0);
             ptr += 4;

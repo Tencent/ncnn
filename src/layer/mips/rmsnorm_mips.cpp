@@ -325,7 +325,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
                 v4f32 _gamma = __msa_fill_w_f32(gamma_ptr[0]);
                 _p = __msa_fmul_w(_p, _rms0);
                 _p = __msa_fmul_w(_p, _gamma);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr += 4;
                 gamma_ptr += 1;
             }
@@ -359,7 +359,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
                 v4f32 _gamma = (v4f32)__msa_ld_w(gamma_ptr, 0);
                 _p = __msa_fmul_w(_p, _rms0);
                 _p = __msa_fmul_w(_p, _gamma);
-                __msa_storel_d(float2bfloat_msa(_p), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr += 4;
                 gamma_ptr += 4;
             }
@@ -395,7 +395,7 @@ static void rmsnorm_mips_bf16(unsigned short* ptr, const float* gamma_ptr, float
 
             v4f32 _p = bfloat2float_msa(ptr);
             _p = __msa_fmul_w(_p, _rms0);
-            __msa_storel_d(float2bfloat_msa(_p), ptr);
+            *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             ptr += 4;
         }
 #endif // __mips_msa

@@ -159,7 +159,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
                 _blob = tanh_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
-                __msa_storel_d(float2bfloat_msa(_blob), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_blob), 0);
                 ptr += 4;
             }
         }
@@ -192,7 +192,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
                 _blob = erf_ps(_blob);
                 _blob = __msa_fadd_w(_one, _blob);
                 _blob = __msa_fmul_w(_half, __msa_fmul_w(_blob, _p));
-                __msa_storel_d(float2bfloat_msa(_blob), ptr);
+                *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_blob), 0);
                 ptr += 4;
             }
         }

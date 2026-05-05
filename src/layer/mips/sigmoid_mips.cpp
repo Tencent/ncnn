@@ -110,7 +110,7 @@ int Sigmoid_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
             _p = exp_ps(_p);
             _p = __msa_fadd_w(_p, _one);
             v4f32 _outp = __msa_fdiv_w(_one, _p);
-            __msa_storel_d(float2bfloat_msa(_outp), ptr);
+            *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
             ptr += 4;
         }
 #endif // __mips_msa

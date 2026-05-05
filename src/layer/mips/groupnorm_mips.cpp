@@ -451,7 +451,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __ncnn_msa_fmadd_w(_b, _p, _a);
-                __msa_storel_d(float2bfloat_msa(_p), ptr0);
+                *(int64_t*)ptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr0 += 4;
             }
 #endif // __mips_msa
@@ -489,7 +489,7 @@ static void groupnorm_mips_bf16(Mat& bottom_top_blob, const float* gamma_ptr, co
 
                 v4f32 _p = bfloat2float_msa(ptr0);
                 _p = __ncnn_msa_fmadd_w(_mean, _p, _var);
-                __msa_storel_d(float2bfloat_msa(_p), ptr0);
+                *(int64_t*)ptr0 = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
                 ptr0 += 4;
             }
 #endif // __mips_msa

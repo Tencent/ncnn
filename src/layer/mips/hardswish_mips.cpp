@@ -109,7 +109,7 @@ int HardSwish_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
         {
             v4f32 _p = bfloat2float_msa(ptr);
             _p = hardswish_msa(_p, _alpha, _beta);
-            __msa_storel_d(float2bfloat_msa(_p), ptr);
+            *(int64_t*)ptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_p), 0);
             ptr += 4;
         }
 #endif // __mips_msa

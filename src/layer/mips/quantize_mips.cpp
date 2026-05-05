@@ -341,7 +341,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
             _v0 = __msa_fmul_w(_v0, _scale0);
             _v1 = __msa_fmul_w(_v1, _scale1);
             int64_t v = float2int8(_v0, _v1);
-            memcpy(s8ptr, &v, 8);
+            *(int64_t*)s8ptr = v;
             ptr += 8;
             s8ptr += 8;
         }

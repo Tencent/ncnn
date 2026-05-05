@@ -383,7 +383,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
             _v0 = __lsx_vfmul_s(_v0, _scale0);
             _v1 = __lsx_vfmul_s(_v1, _scale1);
             int64_t v = float2int8(_v0, _v1);
-            memcpy(s8ptr, &v, 8);
+            *(int64_t*)s8ptr = v;
             ptr += 8;
             s8ptr += 8;
         }
@@ -458,7 +458,7 @@ static void quantize_bf16(const unsigned short* ptr, signed char* s8ptr, const M
     }
     for (; i + 3 < size; i += 4)
     {
-        __m128 _v = bfloat2float_lsx(ptr);
+        __m128 _v = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         _v = __lsx_vfmul_s(_v, _scale);
         __m128i v = float2int8(_v);
         int32_t vi = __lsx_vpickve2gr_w(v, 0);
@@ -518,8 +518,8 @@ static void quantize_bf16_pack4to8(const unsigned short* ptr0, const unsigned sh
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v0 = bfloat2float_lsx(ptr0);
-        __m128 _v1 = bfloat2float_lsx(ptr1);
+        __m128 _v0 = bfloat2float_lsx(__lsx_vldrepl_d(ptr0, 0));
+        __m128 _v1 = bfloat2float_lsx(__lsx_vldrepl_d(ptr1, 0));
         _v0 = __lsx_vfmul_s(_v0, _scale0);
         _v1 = __lsx_vfmul_s(_v1, _scale1);
         *(int64_t*)s8ptr = float2int8(_v0, _v1);
@@ -590,7 +590,7 @@ static void quantize_bf16_pack4to1(const unsigned short* ptr, signed char* s8ptr
     }
     for (; i < elemcount; i++)
     {
-        __m128 _v = bfloat2float_lsx(ptr);
+        __m128 _v = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
         _v = __lsx_vfmul_s(_v, _scale);
         int64_t v = float2int8(_v, _v);
         s8ptr0[0] = (v >> 32) & 0xff;

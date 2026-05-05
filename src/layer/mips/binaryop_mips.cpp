@@ -350,7 +350,7 @@ static void binary_op_vector_no_broadcast_bf16s(const unsigned short* ptr, const
         v4f32 _p = bfloat2float_msa(ptr);
         v4f32 _b = bfloat2float_msa(ptr1);
         v4f32 _outp = op(_p, _b);
-        __msa_storel_d(float2bfloat_msa(_outp), outptr);
+        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
         ptr += 4;
         ptr1 += 4;
         outptr += 4;
@@ -396,7 +396,7 @@ static void binary_op_vector_broadcast_b_bf16s(const unsigned short* ptr, const 
     {
         v4f32 _p = bfloat2float_msa(ptr);
         v4f32 _outp = op(_p, _b0);
-        __msa_storel_d(float2bfloat_msa(_outp), outptr);
+        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
         ptr += 4;
         outptr += 4;
     }
@@ -441,7 +441,7 @@ static void binary_op_vector_broadcast_a_bf16s(const unsigned short* ptr, const 
     {
         v4f32 _b = bfloat2float_msa(ptr1);
         v4f32 _outp = op(_a0, _b);
-        __msa_storel_d(float2bfloat_msa(_outp), outptr);
+        *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
         ptr1 += 4;
         outptr += 4;
     }
@@ -500,7 +500,7 @@ static void binary_op_vector_broadcast_pb_bf16s(const unsigned short* ptr, const
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _b = __msa_fill_w_f32(bfloat16_to_float32(*ptr1));
             v4f32 _outp = op(_p, _b);
-            __msa_storel_d(float2bfloat_msa(_outp), outptr);
+            *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
             ptr += 4;
             ptr1 += 1;
             outptr += 4;
@@ -547,7 +547,7 @@ static void binary_op_vector_broadcast_pb_b_bf16s(const unsigned short* ptr, con
         {
             v4f32 _p = bfloat2float_msa(ptr);
             v4f32 _outp = op(_p, _b_128);
-            __msa_storel_d(float2bfloat_msa(_outp), outptr);
+            *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
             ptr += 4;
             outptr += 4;
         }
@@ -601,7 +601,7 @@ static void binary_op_vector_broadcast_pb_a_bf16s(const unsigned short* ptr, con
         {
             v4f32 _b = __msa_fill_w_f32(bfloat16_to_float32(*ptr1));
             v4f32 _outp = op(_p, _b);
-            __msa_storel_d(float2bfloat_msa(_outp), outptr);
+            *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_outp), 0);
             ptr1 += 1;
             outptr += 4;
         }
