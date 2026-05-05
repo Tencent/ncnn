@@ -422,22 +422,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum00), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum10), outptr0 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum20), outptr0 + 4 * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum30), outptr0 + 4 * 3);
-                    __msa_storel_d(float2bfloat_msa(_sum40), outptr0 + 4 * 4);
-                    __msa_storel_d(float2bfloat_msa(_sum50), outptr0 + 4 * 5);
-                    __msa_storel_d(float2bfloat_msa(_sum60), outptr0 + 4 * 6);
-                    __msa_storel_d(float2bfloat_msa(_sum70), outptr0 + 4 * 7);
-                    __msa_storel_d(float2bfloat_msa(_sum01), outptr0 + out_hstep * 4);
-                    __msa_storel_d(float2bfloat_msa(_sum11), outptr0 + out_hstep * 4 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum21), outptr0 + out_hstep * 4 + 4 * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum31), outptr0 + out_hstep * 4 + 4 * 3);
-                    __msa_storel_d(float2bfloat_msa(_sum41), outptr0 + out_hstep * 4 + 4 * 4);
-                    __msa_storel_d(float2bfloat_msa(_sum51), outptr0 + out_hstep * 4 + 4 * 5);
-                    __msa_storel_d(float2bfloat_msa(_sum61), outptr0 + out_hstep * 4 + 4 * 6);
-                    __msa_storel_d(float2bfloat_msa(_sum71), outptr0 + out_hstep * 4 + 4 * 7);
+                    __msa_st_w(float2bfloat_msa(_sum00, _sum10), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum20, _sum30), outptr0 + 8, 0);
+                    __msa_st_w(float2bfloat_msa(_sum40, _sum50), outptr0 + 16, 0);
+                    __msa_st_w(float2bfloat_msa(_sum60, _sum70), outptr0 + 24, 0);
+                    __msa_st_w(float2bfloat_msa(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_sum21, _sum31), outptr0 + out_hstep * 4 + 8, 0);
+                    __msa_st_w(float2bfloat_msa(_sum41, _sum51), outptr0 + out_hstep * 4 + 16, 0);
+                    __msa_st_w(float2bfloat_msa(_sum61, _sum71), outptr0 + out_hstep * 4 + 24, 0);
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -619,14 +611,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum00), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum10), outptr0 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum20), outptr0 + 4 * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum30), outptr0 + 4 * 3);
-                    __msa_storel_d(float2bfloat_msa(_sum01), outptr0 + out_hstep * 4);
-                    __msa_storel_d(float2bfloat_msa(_sum11), outptr0 + out_hstep * 4 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum21), outptr0 + out_hstep * 4 + 4 * 2);
-                    __msa_storel_d(float2bfloat_msa(_sum31), outptr0 + out_hstep * 4 + 4 * 3);
+                    __msa_st_w(float2bfloat_msa(_sum00, _sum10), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum20, _sum30), outptr0 + 8, 0);
+                    __msa_st_w(float2bfloat_msa(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
+                    __msa_st_w(float2bfloat_msa(_sum21, _sum31), outptr0 + out_hstep * 4 + 8, 0);
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
@@ -750,10 +738,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __msa_storel_d(float2bfloat_msa(_sum00), outptr0);
-                    __msa_storel_d(float2bfloat_msa(_sum10), outptr0 + 4);
-                    __msa_storel_d(float2bfloat_msa(_sum01), outptr0 + out_hstep * 4);
-                    __msa_storel_d(float2bfloat_msa(_sum11), outptr0 + out_hstep * 4 + 4);
+                    __msa_st_w(float2bfloat_msa(_sum00, _sum10), outptr0, 0);
+                    __msa_st_w(float2bfloat_msa(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -899,28 +885,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             if (k == 0)
             {
-                if (pC)
-                {
-                    _sum0 = (v4f32)__msa_ld_w(pC, 0);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                    _sum4 = _sum0;
-                    _sum5 = _sum0;
-                    _sum6 = _sum0;
-                    _sum7 = _sum0;
-                }
-                else
-                {
-                    _sum0 = (v4f32)__msa_fill_w(0);
-                    _sum1 = (v4f32)__msa_fill_w(0);
-                    _sum2 = (v4f32)__msa_fill_w(0);
-                    _sum3 = (v4f32)__msa_fill_w(0);
-                    _sum4 = (v4f32)__msa_fill_w(0);
-                    _sum5 = (v4f32)__msa_fill_w(0);
-                    _sum6 = (v4f32)__msa_fill_w(0);
-                    _sum7 = (v4f32)__msa_fill_w(0);
-                }
+                _sum0 = (v4f32)__msa_fill_w(0);
+                _sum1 = (v4f32)__msa_fill_w(0);
+                _sum2 = (v4f32)__msa_fill_w(0);
+                _sum3 = (v4f32)__msa_fill_w(0);
+                _sum4 = (v4f32)__msa_fill_w(0);
+                _sum5 = (v4f32)__msa_fill_w(0);
+                _sum6 = (v4f32)__msa_fill_w(0);
+                _sum7 = (v4f32)__msa_fill_w(0);
             }
             else
             {
@@ -932,25 +904,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum5 = (v4f32)__msa_ld_w(outptr + 4 * 5, 0);
                 _sum6 = (v4f32)__msa_ld_w(outptr + 4 * 6, 0);
                 _sum7 = (v4f32)__msa_ld_w(outptr + 4 * 7, 0);
-            }
-
-            if (k == 0)
-            {
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
-
-                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(0, 3, 2, 1));
-                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
-                _sum6 = (v4f32)__msa_shf_w((v4i32)_sum6, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(1, 0, 3, 2));
             }
 
             int kk = 0;
@@ -1011,6 +964,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 _sum5 = (v4f32)__msa_shf_w((v4i32)_sum5, _MSA_SHUFFLE(2, 1, 0, 3));
                 _sum7 = (v4f32)__msa_shf_w((v4i32)_sum7, _MSA_SHUFFLE(2, 1, 0, 3));
+                if (pC)
+                {
+                    v4f32 _bias = (v4f32)__msa_ld_w(pC, 0);
+                    _sum0 = __msa_fadd_w(_sum0, _bias);
+                    _sum1 = __msa_fadd_w(_sum1, _bias);
+                    _sum2 = __msa_fadd_w(_sum2, _bias);
+                    _sum3 = __msa_fadd_w(_sum3, _bias);
+                    _sum4 = __msa_fadd_w(_sum4, _bias);
+                    _sum5 = __msa_fadd_w(_sum5, _bias);
+                    _sum6 = __msa_fadd_w(_sum6, _bias);
+                    _sum7 = __msa_fadd_w(_sum7, _bias);
+                }
                 _sum0 = activation_msa(_sum0, activation_type, activation_params);
                 _sum1 = activation_msa(_sum1, activation_type, activation_params);
                 _sum2 = activation_msa(_sum2, activation_type, activation_params);
@@ -1069,20 +1034,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             if (k == 0)
             {
-                if (pC)
-                {
-                    _sum0 = (v4f32)__msa_ld_w(pC, 0);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                }
-                else
-                {
-                    _sum0 = (v4f32)__msa_fill_w(0);
-                    _sum1 = (v4f32)__msa_fill_w(0);
-                    _sum2 = (v4f32)__msa_fill_w(0);
-                    _sum3 = (v4f32)__msa_fill_w(0);
-                }
+                _sum0 = (v4f32)__msa_fill_w(0);
+                _sum1 = (v4f32)__msa_fill_w(0);
+                _sum2 = (v4f32)__msa_fill_w(0);
+                _sum3 = (v4f32)__msa_fill_w(0);
             }
             else
             {
@@ -1090,17 +1045,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 _sum1 = (v4f32)__msa_ld_w(outptr + 4 * 1, 0);
                 _sum2 = (v4f32)__msa_ld_w(outptr + 4 * 2, 0);
                 _sum3 = (v4f32)__msa_ld_w(outptr + 4 * 3, 0);
-            }
-
-            if (k == 0)
-            {
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
-                transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                _sum2 = (v4f32)__msa_shf_w((v4i32)_sum2, _MSA_SHUFFLE(1, 0, 3, 2));
-                _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(1, 0, 3, 2));
             }
 
             int kk = 0;
@@ -1138,6 +1082,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
                 _sum3 = (v4f32)__msa_shf_w((v4i32)_sum3, _MSA_SHUFFLE(2, 1, 0, 3));
+                if (pC)
+                {
+                    v4f32 _bias = (v4f32)__msa_ld_w(pC, 0);
+                    _sum0 = __msa_fadd_w(_sum0, _bias);
+                    _sum1 = __msa_fadd_w(_sum1, _bias);
+                    _sum2 = __msa_fadd_w(_sum2, _bias);
+                    _sum3 = __msa_fadd_w(_sum3, _bias);
+                }
                 _sum0 = activation_msa(_sum0, activation_type, activation_params);
                 _sum1 = activation_msa(_sum1, activation_type, activation_params);
                 _sum2 = activation_msa(_sum2, activation_type, activation_params);
@@ -1179,32 +1131,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             if (k == 0)
             {
-                if (pC)
-                {
-                    _sum0 = (v4f32)__msa_ld_w(pC, 0);
-                    _sum1 = _sum0;
-                }
-                else
-                {
-                    _sum0 = (v4f32)__msa_fill_w(0);
-                    _sum1 = (v4f32)__msa_fill_w(0);
-                }
+                _sum0 = (v4f32)__msa_fill_w(0);
+                _sum1 = (v4f32)__msa_fill_w(0);
             }
             else
             {
                 _sum0 = (v4f32)__msa_ld_w(outptr, 0);
                 _sum1 = (v4f32)__msa_ld_w(outptr + 4, 0);
-            }
-
-            if (k == 0)
-            {
-                {
-                    v4f32 _sum1r = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(0, 3, 2, 1));
-                    v4f32 _tmp0 = (v4f32)__msa_pckev_w((v4i32)_sum1r, (v4i32)_sum0);
-                    v4f32 _tmp1 = (v4f32)__msa_pckod_w((v4i32)_sum1r, (v4i32)_sum0);
-                    _sum0 = (v4f32)__msa_shf_w((v4i32)_tmp0, _MSA_SHUFFLE(3, 1, 2, 0));
-                    _sum1 = (v4f32)__msa_shf_w((v4i32)_tmp1, _MSA_SHUFFLE(1, 2, 0, 3));
-                }
             }
 
             int kk = 0;
@@ -1235,6 +1168,12 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     _sum0 = (v4f32)__msa_ilvr_w((v4i32)_tmp1, (v4i32)_tmp0);
                     _sum1 = (v4f32)__msa_ilvl_w((v4i32)_tmp1, (v4i32)_tmp0);
                     _sum1 = (v4f32)__msa_shf_w((v4i32)_sum1, _MSA_SHUFFLE(2, 1, 0, 3));
+                }
+                if (pC)
+                {
+                    v4f32 _bias = (v4f32)__msa_ld_w(pC, 0);
+                    _sum0 = __msa_fadd_w(_sum0, _bias);
+                    _sum1 = __msa_fadd_w(_sum1, _bias);
                 }
                 _sum0 = activation_msa(_sum0, activation_type, activation_params);
                 _sum1 = activation_msa(_sum1, activation_type, activation_params);

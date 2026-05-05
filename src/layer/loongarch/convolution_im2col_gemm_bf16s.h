@@ -119,10 +119,8 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             __m128 _r2 = (__m128)__lsx_vld(p2, 0);
             __m128 _r3 = (__m128)__lsx_vld(p3, 0);
             transpose4x4_ps(_r0, _r1, _r2, _r3);
-            __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-            __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4, 0, 0);
-            __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 8, 0, 0);
-            __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 12, 0, 0);
+            __lsx_vst(float2bfloat_lsx(_r0, _r1), pp, 0);
+            __lsx_vst(float2bfloat_lsx(_r2, _r3), pp + 8, 0);
             pp += 16;
             p0 += 4;
             p1 += 4;
@@ -156,8 +154,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
             __m128 _r1 = (__m128)__lsx_vld(p1, 0);
             __m128i _t0 = __lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
             __m128i _t1 = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-            __lsx_vstelm_d(float2bfloat_lsx((__m128)_t0, (__m128)_t0), pp, 0, 0);
-            __lsx_vstelm_d(float2bfloat_lsx((__m128)_t1, (__m128)_t1), pp + 4, 0, 0);
+            __lsx_vst(float2bfloat_lsx((__m128)_t0, (__m128)_t1), pp, 0);
             pp += 8;
             p0 += 4;
             p1 += 4;
@@ -181,7 +178,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
         for (; kk + 3 < max_kk; kk += 4)
         {
             __m128 _r0 = (__m128)__lsx_vld(p0, 0);
-            __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
+            __lsx_vstelm_d(float2bfloat_lsx(_r0), pp, 0, 0);
             pp += 4;
             p0 += 4;
         }
@@ -706,23 +703,15 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     __m128 _sum6_hi = __lasx_extract_128_hi_s(_sum6);
                     __m128 _sum7_lo = __lasx_extract_128_lo_s(_sum7);
                     __m128 _sum7_hi = __lasx_extract_128_hi_s(_sum7);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2_lo, _sum2_lo), outptr0 + 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3_lo, _sum3_lo), outptr0 + 12, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum4_lo, _sum4_lo), outptr0 + 16, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum5_lo, _sum5_lo), outptr0 + 20, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum6_lo, _sum6_lo), outptr0 + 24, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum7_lo, _sum7_lo), outptr0 + 28, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_lo, _sum1_lo), outptr0 + 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2_lo, _sum3_lo), outptr0 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum4_lo, _sum5_lo), outptr0 + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum6_lo, _sum7_lo), outptr0 + 24, 0);
                     outptr0 += 32;
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi, _sum0_hi), outptr0 + out_hstep * 4 - 32 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_hi, _sum1_hi), outptr0 + out_hstep * 4 - 32 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2_hi, _sum2_hi), outptr0 + out_hstep * 4 - 32 + 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3_hi, _sum3_hi), outptr0 + out_hstep * 4 - 32 + 12, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum4_hi, _sum4_hi), outptr0 + out_hstep * 4 - 32 + 16, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum5_hi, _sum5_hi), outptr0 + out_hstep * 4 - 32 + 20, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum6_hi, _sum6_hi), outptr0 + out_hstep * 4 - 32 + 24, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum7_hi, _sum7_hi), outptr0 + out_hstep * 4 - 32 + 28, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_hi, _sum1_hi), outptr0 + out_hstep * 4 - 32 + 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2_hi, _sum3_hi), outptr0 + out_hstep * 4 - 32 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum4_hi, _sum5_hi), outptr0 + out_hstep * 4 - 32 + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum6_hi, _sum7_hi), outptr0 + out_hstep * 4 - 32 + 24, 0);
                 }
                 if (out_elempack == 1)
                 {
@@ -914,15 +903,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     __m128 _sum2_hi = __lasx_extract_128_hi_s(_sum2);
                     __m128 _sum3_lo = __lasx_extract_128_lo_s(_sum3);
                     __m128 _sum3_hi = __lasx_extract_128_hi_s(_sum3);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2_lo, _sum2_lo), outptr0 + 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3_lo, _sum3_lo), outptr0 + 12, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_lo, _sum1_lo), outptr0 + 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2_lo, _sum3_lo), outptr0 + 8, 0);
                     outptr0 += 16;
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi, _sum0_hi), outptr0 + out_hstep * 4 - 16 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_hi, _sum1_hi), outptr0 + out_hstep * 4 - 16 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2_hi, _sum2_hi), outptr0 + out_hstep * 4 - 16 + 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3_hi, _sum3_hi), outptr0 + out_hstep * 4 - 16 + 12, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_hi, _sum1_hi), outptr0 + out_hstep * 4 - 16 + 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2_hi, _sum3_hi), outptr0 + out_hstep * 4 - 16 + 8, 0);
                 }
                 if (out_elempack == 1)
                 {
@@ -1044,11 +1029,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
                     __m128 _sum1_lo = __lasx_extract_128_lo_s(_sum1);
                     __m128 _sum1_hi = __lasx_extract_128_hi_s(_sum1);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_lo, _sum1_lo), outptr0 + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_lo, _sum1_lo), outptr0 + 0, 0);
                     outptr0 += 8;
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi, _sum0_hi), outptr0 + out_hstep * 4 - 8 + 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1_hi, _sum1_hi), outptr0 + out_hstep * 4 - 8 + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0_hi, _sum1_hi), outptr0 + out_hstep * 4 - 8 + 0, 0);
                 }
                 if (out_elempack == 1)
                 {
@@ -1130,9 +1113,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 {
                     __m128 _sum0_lo = __lasx_extract_128_lo_s(_sum0);
                     __m128 _sum0_hi = __lasx_extract_128_hi_s(_sum0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo, _sum0_lo), outptr0 + 0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_lo), outptr0 + 0, 0, 0);
                     outptr0 += 4;
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi, _sum0_hi), outptr0 + out_hstep * 4 - 4 + 0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0_hi), outptr0 + out_hstep * 4 - 4 + 0, 0, 0);
                 }
                 if (out_elempack == 1)
                 {
@@ -1368,22 +1351,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum00, _sum00), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum10, _sum10), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum20, _sum20), outptr0 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum30, _sum30), outptr0 + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum40, _sum40), outptr0 + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum50, _sum50), outptr0 + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum60, _sum60), outptr0 + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum70, _sum70), outptr0 + 4 * 7, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum01, _sum01), outptr0 + out_hstep * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum11, _sum11), outptr0 + out_hstep * 4 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum21, _sum21), outptr0 + out_hstep * 4 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum31, _sum31), outptr0 + out_hstep * 4 + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum41, _sum41), outptr0 + out_hstep * 4 + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum51, _sum51), outptr0 + out_hstep * 4 + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum61, _sum61), outptr0 + out_hstep * 4 + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum71, _sum71), outptr0 + out_hstep * 4 + 4 * 7, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum00, _sum10), outptr0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum20, _sum30), outptr0 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum40, _sum50), outptr0 + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum60, _sum70), outptr0 + 24, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum21, _sum31), outptr0 + out_hstep * 4 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum41, _sum51), outptr0 + out_hstep * 4 + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum61, _sum71), outptr0 + out_hstep * 4 + 24, 0);
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -1393,22 +1368,22 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum01, _sum11, _sum21, _sum31);
                     transpose4x4_ps(_sum41, _sum51, _sum61, _sum71);
 
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum00, _sum00), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum10, _sum10), outptr0 + out_hstep * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum20, _sum20), outptr0 + out_hstep * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum30, _sum30), outptr0 + out_hstep * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum01, _sum01), outptr0 + out_hstep * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum11, _sum11), outptr0 + out_hstep * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum21, _sum21), outptr0 + out_hstep * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum31, _sum31), outptr0 + out_hstep * 7, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum40, _sum40), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum50, _sum50), outptr0 + out_hstep * 1 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum60, _sum60), outptr0 + out_hstep * 2 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum70, _sum70), outptr0 + out_hstep * 3 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum41, _sum41), outptr0 + out_hstep * 4 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum51, _sum51), outptr0 + out_hstep * 5 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum61, _sum61), outptr0 + out_hstep * 6 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum71, _sum71), outptr0 + out_hstep * 7 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum00), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum10), outptr0 + out_hstep * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum20), outptr0 + out_hstep * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum30), outptr0 + out_hstep * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum01), outptr0 + out_hstep * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum11), outptr0 + out_hstep * 5, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum21), outptr0 + out_hstep * 6, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum31), outptr0 + out_hstep * 7, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum40), outptr0 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum50), outptr0 + out_hstep * 1 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum60), outptr0 + out_hstep * 2 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum70), outptr0 + out_hstep * 3 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum41), outptr0 + out_hstep * 4 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum51), outptr0 + out_hstep * 5 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum61), outptr0 + out_hstep * 6 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum71), outptr0 + out_hstep * 7 + 4, 0, 0);
                     outptr0 += 8;
                 }
             }
@@ -1560,14 +1535,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum00, _sum00), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum10, _sum10), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum20, _sum20), outptr0 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum30, _sum30), outptr0 + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum01, _sum01), outptr0 + out_hstep * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum11, _sum11), outptr0 + out_hstep * 4 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum21, _sum21), outptr0 + out_hstep * 4 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum31, _sum31), outptr0 + out_hstep * 4 + 4 * 3, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum00, _sum10), outptr0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum20, _sum30), outptr0 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum21, _sum31), outptr0 + out_hstep * 4 + 8, 0);
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
@@ -1575,14 +1546,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum00, _sum10, _sum20, _sum30);
                     transpose4x4_ps(_sum01, _sum11, _sum21, _sum31);
 
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum00, _sum00), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum10, _sum10), outptr0 + out_hstep * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum20, _sum20), outptr0 + out_hstep * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum30, _sum30), outptr0 + out_hstep * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum01, _sum01), outptr0 + out_hstep * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum11, _sum11), outptr0 + out_hstep * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum21, _sum21), outptr0 + out_hstep * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum31, _sum31), outptr0 + out_hstep * 7, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum00), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum10), outptr0 + out_hstep * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum20), outptr0 + out_hstep * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum30), outptr0 + out_hstep * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum01), outptr0 + out_hstep * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum11), outptr0 + out_hstep * 5, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum21), outptr0 + out_hstep * 6, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum31), outptr0 + out_hstep * 7, 0, 0);
                     outptr0 += 4;
                 }
             }
@@ -1686,10 +1657,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum00, _sum00), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum10, _sum10), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum01, _sum01), outptr0 + out_hstep * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum11, _sum11), outptr0 + out_hstep * 4 + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum00, _sum10), outptr0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum01, _sum11), outptr0 + out_hstep * 4, 0);
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -1784,8 +1753,8 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + out_hstep * 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum1), outptr0 + out_hstep * 4, 0, 0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -2145,14 +2114,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2, _sum2), outptr0 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3, _sum3), outptr0 + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum4, _sum4), outptr0 + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum5, _sum5), outptr0 + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum6, _sum6), outptr0 + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum7, _sum7), outptr0 + 4 * 7, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2, _sum3), outptr0 + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum4, _sum5), outptr0 + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum6, _sum7), outptr0 + 24, 0);
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -2160,14 +2125,14 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                     transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + out_hstep * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2, _sum2), outptr0 + out_hstep * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3, _sum3), outptr0 + out_hstep * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum4, _sum4), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum5, _sum5), outptr0 + out_hstep * 1 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum6, _sum6), outptr0 + out_hstep * 2 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum7, _sum7), outptr0 + out_hstep * 3 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum1), outptr0 + out_hstep * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum2), outptr0 + out_hstep * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum3), outptr0 + out_hstep * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum4), outptr0 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum5), outptr0 + out_hstep * 1 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum6), outptr0 + out_hstep * 2 + 4, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum7), outptr0 + out_hstep * 3 + 4, 0, 0);
                     outptr0 += 8;
                 }
             }
@@ -2270,20 +2235,18 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2, _sum2), outptr0 + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3, _sum3), outptr0 + 4 * 3, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum2, _sum3), outptr0 + 8, 0);
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
                 {
                     transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
 
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + out_hstep * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum2, _sum2), outptr0 + out_hstep * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum3, _sum3), outptr0 + out_hstep * 3, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum1), outptr0 + out_hstep * 1, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum2), outptr0 + out_hstep * 2, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum3), outptr0 + out_hstep * 3, 0, 0);
                     outptr0 += 4;
                 }
             }
@@ -2365,8 +2328,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum1, _sum1), outptr0 + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_sum0, _sum1), outptr0, 0);
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -2435,7 +2397,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr0, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr0, 0, 0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -3460,22 +3422,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
                 transpose4x4_ps(_r8, _r9, _ra, _rb);
                 transpose4x4_ps(_rc, _rd, _re, _rf);
-                __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r8, _r8), pp + 4 * 2, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_rc, _rc), pp + 4 * 3, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 4, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 4 * 5, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r9, _r9), pp + 4 * 6, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_rd, _rd), pp + 4 * 7, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 8, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 4 * 9, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_ra, _ra), pp + 4 * 10, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_re, _re), pp + 4 * 11, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 12, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 4 * 13, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_rb, _rb), pp + 4 * 14, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_rf, _rf), pp + 4 * 15, 0, 0);
+                __lsx_vst(float2bfloat_lsx(_r0, _r4), pp, 0);
+                __lsx_vst(float2bfloat_lsx(_r8, _rc), pp + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_r9, _rd), pp + 24, 0);
+                __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 32, 0);
+                __lsx_vst(float2bfloat_lsx(_ra, _re), pp + 40, 0);
+                __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 48, 0);
+                __lsx_vst(float2bfloat_lsx(_rb, _rf), pp + 56, 0);
                 pp += 64;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -3546,14 +3500,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 __m128 _r7 = (__m128)__lsx_vilvh_h(_r67, _zero_bf16);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
                 transpose4x4_ps(_r4, _r5, _r6, _r7);
-                __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 8, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 12, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 16, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 20, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 24, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 28, 0, 0);
+                __lsx_vst(float2bfloat_lsx(_r0, _r4), pp, 0);
+                __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 8, 0);
+                __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 16, 0);
+                __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 24, 0);
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -3608,10 +3558,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 __m128 _r2 = (__m128)__lsx_vilvl_h(_r23, _zero_bf16);
                 __m128 _r3 = (__m128)__lsx_vilvh_h(_r23, _zero_bf16);
                 transpose4x4_ps(_r0, _r1, _r2, _r3);
-                __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 8, 0, 0);
-                __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 12, 0, 0);
+                __lsx_vst(float2bfloat_lsx(_r0, _r1), pp, 0);
+                __lsx_vst(float2bfloat_lsx(_r2, _r3), pp + 8, 0);
                 pp += 16;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -3855,22 +3803,14 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);
                     transpose4x4_ps(_rc, _rd, _re, _rf);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r8, _r8), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rc, _rc), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r9, _r9), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rd, _rd), pp + 4 * 7, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 4 * 9, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_ra, _ra), pp + 4 * 10, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_re, _re), pp + 4 * 11, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 12, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 4 * 13, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rb, _rb), pp + 4 * 14, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rf, _rf), pp + 4 * 15, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r4), pp, 0);
+                    __lsx_vst(float2bfloat_lsx(_r8, _rc), pp + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_r9, _rd), pp + 24, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 32, 0);
+                    __lsx_vst(float2bfloat_lsx(_ra, _re), pp + 40, 0);
+                    __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 48, 0);
+                    __lsx_vst(float2bfloat_lsx(_rb, _rf), pp + 56, 0);
                     pp += 64;
                 }
                 if (elempack == 1)
@@ -4017,22 +3957,14 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
                     transpose4x4_ps(_r8, _r9, _ra, _rb);
                     transpose4x4_ps(_rc, _rd, _re, _rf);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r8, _r8), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rc, _rc), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r9, _r9), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rd, _rd), pp + 4 * 7, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 8, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 4 * 9, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_ra, _ra), pp + 4 * 10, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_re, _re), pp + 4 * 11, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 12, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 4 * 13, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rb, _rb), pp + 4 * 14, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_rf, _rf), pp + 4 * 15, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r4), pp, 0);
+                    __lsx_vst(float2bfloat_lsx(_r8, _rc), pp + 8, 0);
+                    __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 16, 0);
+                    __lsx_vst(float2bfloat_lsx(_r9, _rd), pp + 24, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 32, 0);
+                    __lsx_vst(float2bfloat_lsx(_ra, _re), pp + 40, 0);
+                    __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 48, 0);
+                    __lsx_vst(float2bfloat_lsx(_rb, _rf), pp + 56, 0);
                     pp += 64;
                 }
                 if (elempack == 1)
@@ -4128,14 +4060,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r7 = bfloat2float_lsx(sptr + stride_w * 28);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 4 * 7, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r4), pp + 4 * 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 4 * 2, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 4 * 4, 0);
+                    __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 4 * 6, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -4223,14 +4151,10 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r7 = bfloat2float_lsx(sptr7);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
                     transpose4x4_ps(_r4, _r5, _r6, _r7);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r4, _r4), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r5, _r5), pp + 4 * 3, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 4, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r6, _r6), pp + 4 * 5, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 6, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r7, _r7), pp + 4 * 7, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r4), pp + 4 * 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r1, _r5), pp + 4 * 2, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r6), pp + 4 * 4, 0);
+                    __lsx_vst(float2bfloat_lsx(_r3, _r7), pp + 4 * 6, 0);
                     pp += 32;
                 }
                 if (elempack == 1)
@@ -4296,10 +4220,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r2 = bfloat2float_lsx(sptr + stride_w * 8);
                     __m128 _r3 = bfloat2float_lsx(sptr + stride_w * 12);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 3, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r1), pp + 4 * 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r3), pp + 4 * 2, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -4358,10 +4280,8 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r2 = bfloat2float_lsx(sptr2);
                     __m128 _r3 = bfloat2float_lsx(sptr3);
                     transpose4x4_ps(_r0, _r1, _r2, _r3);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r0, _r0), pp + 4 * 0, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r1, _r1), pp + 4 * 1, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r2, _r2), pp + 4 * 2, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_r3, _r3), pp + 4 * 3, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r0, _r1), pp + 4 * 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_r2, _r3), pp + 4 * 2, 0);
                     pp += 16;
                 }
                 if (elempack == 1)
@@ -4417,8 +4337,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r1 = bfloat2float_lsx(sptr + stride_w * 4);
                     __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_tmp0, _tmp0), pp, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_tmp1, _tmp1), pp + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_tmp0, _tmp1), pp, 0);
                     pp += 8;
                 }
 #endif // __loongarch_sx
@@ -4467,8 +4386,7 @@ static inline void convolution_im2col_input_tile_impl_bf16s(const Mat& bottom_bl
                     __m128 _r1 = bfloat2float_lsx(sptr1);
                     __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
                     __m128 _tmp1 = (__m128)__lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_tmp0, _tmp0), pp, 0, 0);
-                    __lsx_vstelm_d(float2bfloat_lsx(_tmp1, _tmp1), pp + 4, 0, 0);
+                    __lsx_vst(float2bfloat_lsx(_tmp0, _tmp1), pp, 0);
                     pp += 8;
                 }
 #endif // __loongarch_sx

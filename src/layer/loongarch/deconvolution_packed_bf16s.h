@@ -1346,7 +1346,7 @@ static void deconvolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 if (out_elempack == 4)
                 {
-                    __lsx_vstelm_d(float2bfloat_lsx(_sum0, _sum0), outptr, 0, 0);
+                    __lsx_vstelm_d(float2bfloat_lsx(_sum0), outptr, 0, 0);
                     outptr += 4;
                 }
                 if (out_elempack == 1)

@@ -1706,38 +1706,22 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __m128i _bfd = float2bfloat_lasx(_sumd);
                         __m128i _bfe = float2bfloat_lasx(_sume);
                         __m128i _bff = float2bfloat_lasx(_sumf);
-                        __lsx_vstelm_d(_bf0, p0, 0, 0);
-                        __lsx_vstelm_d(_bf1, p0 + 4, 0, 0);
-                        __lsx_vstelm_d(_bf2, p0 + 8, 0, 0);
-                        __lsx_vstelm_d(_bf3, p0 + 12, 0, 0);
-                        __lsx_vstelm_d(_bf4, p0 + 16, 0, 0);
-                        __lsx_vstelm_d(_bf5, p0 + 20, 0, 0);
-                        __lsx_vstelm_d(_bf6, p0 + 24, 0, 0);
-                        __lsx_vstelm_d(_bf7, p0 + 28, 0, 0);
-                        __lsx_vstelm_d(_bf8, p0 + 32, 0, 0);
-                        __lsx_vstelm_d(_bf9, p0 + 36, 0, 0);
-                        __lsx_vstelm_d(_bfa, p0 + 40, 0, 0);
-                        __lsx_vstelm_d(_bfb, p0 + 44, 0, 0);
-                        __lsx_vstelm_d(_bfc, p0 + 48, 0, 0);
-                        __lsx_vstelm_d(_bfd, p0 + 52, 0, 0);
-                        __lsx_vstelm_d(_bfe, p0 + 56, 0, 0);
-                        __lsx_vstelm_d(_bff, p0 + 60, 0, 0);
-                        __lsx_vstelm_d(_bf0, p1, 0, 1);
-                        __lsx_vstelm_d(_bf1, p1 + 4, 0, 1);
-                        __lsx_vstelm_d(_bf2, p1 + 8, 0, 1);
-                        __lsx_vstelm_d(_bf3, p1 + 12, 0, 1);
-                        __lsx_vstelm_d(_bf4, p1 + 16, 0, 1);
-                        __lsx_vstelm_d(_bf5, p1 + 20, 0, 1);
-                        __lsx_vstelm_d(_bf6, p1 + 24, 0, 1);
-                        __lsx_vstelm_d(_bf7, p1 + 28, 0, 1);
-                        __lsx_vstelm_d(_bf8, p1 + 32, 0, 1);
-                        __lsx_vstelm_d(_bf9, p1 + 36, 0, 1);
-                        __lsx_vstelm_d(_bfa, p1 + 40, 0, 1);
-                        __lsx_vstelm_d(_bfb, p1 + 44, 0, 1);
-                        __lsx_vstelm_d(_bfc, p1 + 48, 0, 1);
-                        __lsx_vstelm_d(_bfd, p1 + 52, 0, 1);
-                        __lsx_vstelm_d(_bfe, p1 + 56, 0, 1);
-                        __lsx_vstelm_d(_bff, p1 + 60, 0, 1);
+                        __lsx_vst(__lsx_vilvl_d(_bf1, _bf0), p0, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf3, _bf2), p0 + 8, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf5, _bf4), p0 + 16, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf7, _bf6), p0 + 24, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf9, _bf8), p0 + 32, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bfb, _bfa), p0 + 40, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bfd, _bfc), p0 + 48, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bff, _bfe), p0 + 56, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf1, _bf0), p1, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf3, _bf2), p1 + 8, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf5, _bf4), p1 + 16, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf7, _bf6), p1 + 24, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf9, _bf8), p1 + 32, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bfb, _bfa), p1 + 40, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bfd, _bfc), p1 + 48, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bff, _bfe), p1 + 56, 0);
                         p0 += 64;
                     }
                     if (out_elempack == 1)
@@ -2053,22 +2037,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         __m128i _bf5 = float2bfloat_lasx(_sum5);
                         __m128i _bf6 = float2bfloat_lasx(_sum6);
                         __m128i _bf7 = float2bfloat_lasx(_sum7);
-                        __lsx_vstelm_d(_bf0, p0, 0, 0);
-                        __lsx_vstelm_d(_bf1, p0 + 4, 0, 0);
-                        __lsx_vstelm_d(_bf2, p0 + 8, 0, 0);
-                        __lsx_vstelm_d(_bf3, p0 + 12, 0, 0);
-                        __lsx_vstelm_d(_bf4, p0 + 16, 0, 0);
-                        __lsx_vstelm_d(_bf5, p0 + 20, 0, 0);
-                        __lsx_vstelm_d(_bf6, p0 + 24, 0, 0);
-                        __lsx_vstelm_d(_bf7, p0 + 28, 0, 0);
-                        __lsx_vstelm_d(_bf0, p1, 0, 1);
-                        __lsx_vstelm_d(_bf1, p1 + 4, 0, 1);
-                        __lsx_vstelm_d(_bf2, p1 + 8, 0, 1);
-                        __lsx_vstelm_d(_bf3, p1 + 12, 0, 1);
-                        __lsx_vstelm_d(_bf4, p1 + 16, 0, 1);
-                        __lsx_vstelm_d(_bf5, p1 + 20, 0, 1);
-                        __lsx_vstelm_d(_bf6, p1 + 24, 0, 1);
-                        __lsx_vstelm_d(_bf7, p1 + 28, 0, 1);
+                        __lsx_vst(__lsx_vilvl_d(_bf1, _bf0), p0, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf3, _bf2), p0 + 8, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf5, _bf4), p0 + 16, 0);
+                        __lsx_vst(__lsx_vilvl_d(_bf7, _bf6), p0 + 24, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf1, _bf0), p1, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf3, _bf2), p1 + 8, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf5, _bf4), p1 + 16, 0);
+                        __lsx_vst(__lsx_vilvh_d(_bf7, _bf6), p1 + 24, 0);
                         p0 += 32;
                     }
                     if (out_elempack == 1)
@@ -4053,22 +4029,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
                         transpose4x4_ps(_sumc, _sumd, _sume, _sumf);
 
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 20, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 28, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum8), p1, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumc), p1 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum9), p1 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumd), p1 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_suma), p1 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sume), p1 + 20, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumb), p1 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumf), p1 + 28, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum4), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum1, _sum5), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum6), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum3, _sum7), p0 + 24, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum8, _sumc), p1, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum9, _sumd), p1 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_suma, _sume), p1 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sumb, _sumf), p1 + 24, 0);
                     }
                     if (out_elempack == 4)
                     {
@@ -4080,22 +4048,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         transpose4x4_ps(_sum8, _sum9, _suma, _sumb);
                         transpose4x4_ps(_sumc, _sumd, _sume, _sumf);
 
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p1, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p1 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p1 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p1 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum8), p2, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum9), p2 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_suma), p2 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumb), p2 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumc), p3, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumd), p3 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sume), p3 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumf), p3 + 12, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum4, _sum5), p1, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum6, _sum7), p1 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum8, _sum9), p2, 0);
+                        __lsx_vst(float2bfloat_lsx(_suma, _sumb), p2 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sumc, _sumd), p3, 0);
+                        __lsx_vst(float2bfloat_lsx(_sume, _sumf), p3 + 8, 0);
                     }
                     if (out_elempack == 1)
                     {
@@ -4134,22 +4094,14 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     if (out_elempack == 4)
                     {
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 20, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 28, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum8), p0 + 32, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum9), p0 + 36, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_suma), p0 + 40, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumb), p0 + 44, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumc), p0 + 48, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumd), p0 + 52, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sume), p0 + 56, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sumf), p0 + 60, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum4, _sum5), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum6, _sum7), p0 + 24, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum8, _sum9), p0 + 32, 0);
+                        __lsx_vst(float2bfloat_lsx(_suma, _sumb), p0 + 40, 0);
+                        __lsx_vst(float2bfloat_lsx(_sumc, _sumd), p0 + 48, 0);
+                        __lsx_vst(float2bfloat_lsx(_sume, _sumf), p0 + 56, 0);
                         p0 += 64;
                     }
                     if (out_elempack == 1)
@@ -4372,28 +4324,20 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                         transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 20, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 28, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum4), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum1, _sum5), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum6), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum3, _sum7), p0 + 24, 0);
                     }
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
                         transpose4x4_ps(_sum4, _sum5, _sum6, _sum7);
 
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 4 * 2, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 4 * 3, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + out_hstep * 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + out_hstep * 4 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + out_hstep * 4 + 4 * 2, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + out_hstep * 4 + 4 * 3, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum4, _sum5), p0 + out_hstep * 4, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum6, _sum7), p0 + out_hstep * 4 + 8, 0);
                     }
                     if (out_elempack == 1)
                     {
@@ -4420,14 +4364,10 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     }
                     if (out_elempack == 4)
                     {
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 12, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum4), p0 + 16, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum5), p0 + 20, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum6), p0 + 24, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum7), p0 + 28, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum4, _sum5), p0 + 16, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum6, _sum7), p0 + 24, 0);
                         p0 += 32;
                     }
                     if (out_elempack == 1)
@@ -4581,10 +4521,8 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                     if (out_elempack == 4)
                     {
                         transpose4x4_ps(_sum0, _sum1, _sum2, _sum3);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 4 * 2, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 4 * 3, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
                     }
                     if (out_elempack == 1)
                     {
@@ -4599,10 +4537,8 @@ static void unpack_output_tile(const Mat& topT, const Mat& C, Mat& top_blob, int
                 {
                     if (out_elempack == 4)
                     {
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum0), p0, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum1), p0 + 4, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum2), p0 + 8, 0, 0);
-                        __lsx_vstelm_d(float2bfloat_lsx(_sum3), p0 + 12, 0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum0, _sum1), p0, 0);
+                        __lsx_vst(float2bfloat_lsx(_sum2, _sum3), p0 + 8, 0);
                         p0 += 16;
                     }
                     if (out_elempack == 1)
