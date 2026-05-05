@@ -184,14 +184,14 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
             else
 #endif // NCNN_LASX
 #if NCNN_LSX
-                if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_loongarch_lsx())
+                if (elemcount % 8 == 0 && opt.use_bf16_storage && op->support_bf16_storage && ncnn::cpu_support_loongarch_lsx())
                     dst_elempack = 8;
                 else
 #endif // NCNN_LSX
                     if (elemcount % 4 == 0)
                         dst_elempack = 4;
 #elif NCNN_MSA
-            if (elemcount % 8 == 0 && opt.use_bf16_storage && ncnn::cpu_support_mips_msa())
+            if (elemcount % 8 == 0 && opt.use_bf16_storage && op->support_bf16_storage && ncnn::cpu_support_mips_msa())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;

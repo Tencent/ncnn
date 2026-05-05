@@ -48,10 +48,10 @@ Convolution_mips::Convolution_mips()
 {
 #if __mips_msa
     support_packing = true;
+#endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-#endif // __mips_msa
 
     activation = 0;
     nT = 0;
@@ -227,9 +227,9 @@ int Convolution_mips::create_pipeline(const Option& opt)
 
     nT = opt.num_threads;
 
+#if __mips_msa
     int elempack = 1;
     int out_elempack = 1;
-#if __mips_msa
     if (opt.use_packing_layout)
     {
         elempack = num_input % 4 == 0 ? 4 : 1;
@@ -717,16 +717,6 @@ int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
 
     nT = opt.num_threads;
 
-    int elempack = 1;
-    int out_elempack = 1;
-#if __mips_msa
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % 8 == 0 ? 8 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-#endif // __mips_msa
-
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -804,6 +794,10 @@ int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, c
     }
 #endif // __mips_msa
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())

@@ -48,10 +48,10 @@ Convolution_loongarch::Convolution_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+#endif // __loongarch_sx
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-#endif // __loongarch_sx
 
     activation = 0;
     nT = 0;
@@ -284,9 +284,9 @@ int Convolution_loongarch::create_pipeline(const Option& opt)
 
     nT = opt.num_threads;
 
+#if __loongarch_sx
     int elempack = 1;
     int out_elempack = 1;
-#if __loongarch_sx
     if (opt.use_packing_layout)
     {
 #if __loongarch_asx
@@ -783,16 +783,6 @@ int Convolution_loongarch::create_pipeline_int8_loongarch(const Option& opt)
 
     nT = opt.num_threads;
 
-    int elempack = 1;
-    int out_elempack = 1;
-#if __loongarch_sx
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % 8 == 0 ? 8 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-#endif // __loongarch_sx
-
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -870,6 +860,10 @@ int Convolution_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& t
     }
 #endif // __loongarch_sx
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())

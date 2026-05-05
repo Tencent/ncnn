@@ -194,7 +194,9 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
 
 static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int activation_type, const Mat& activation_params)
 {
+#if __loongarch_sx
     const int out_elempack = top_blob.elempack;
+#endif // __loongarch_sx
     const int out_hstep = (int)top_blob.cstep;
 
     const unsigned short* pAT = AT_tile;
@@ -2510,6 +2512,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             outptr += 32;
         }
 #endif // __loongarch_asx
+#if __loongarch_sx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
@@ -2758,6 +2761,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             outptr += 8;
         }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             const unsigned short* pA = pAT;
@@ -2956,6 +2960,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             outptr += 16;
         }
 #endif // __loongarch_asx
+#if __loongarch_sx
         for (; jj + 7 < max_jj; jj += 8)
         {
             const unsigned short* pA = pAT;
@@ -3106,6 +3111,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 
             outptr += 4;
         }
+#endif // __loongarch_sx
         for (; jj + 1 < max_jj; jj += 2)
         {
             const unsigned short* pA = pAT;

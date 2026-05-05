@@ -187,7 +187,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
 {
     // NCNN_LOGE("convolution_gemm_transB_packed_tile %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
+#if __mips_msa
     const int out_elempack = top_blob.elempack;
+#endif // __mips_msa
     const int out_hstep = (int)top_blob.cstep;
 
     const unsigned short* pAT = AT_tile;
