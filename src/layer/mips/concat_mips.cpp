@@ -573,6 +573,8 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         v8i16 _p = __msa_ld_h(r0, 0);
                         __msa_storel_d((v4i32)_p, outptr0);
                         __msa_storel_d((v4i32)__msa_ilvl_d((v2i64)_p, (v2i64)_p), outptr1);
@@ -604,6 +606,8 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 #if __mips_msa
                     for (; j + 7 < w; j += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                         v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
                         v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
@@ -831,6 +835,8 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         v8i16 _p = __msa_ld_h(r0, 0);
                         __msa_storel_d((v4i32)_p, outptr0);
                         __msa_storel_d((v4i32)__msa_ilvl_d((v2i64)_p, (v2i64)_p), outptr1);
@@ -864,6 +870,8 @@ int Concat_mips::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::
 #if __mips_msa
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                         v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
                         v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);

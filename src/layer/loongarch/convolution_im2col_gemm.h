@@ -25,6 +25,14 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 #if __loongarch_asx
         for (; kk + 7 < max_kk; kk += 8)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
             __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
             __m256 _r1 = (__m256)__lasx_xvld(p1, 0);
             __m256 _r2 = (__m256)__lasx_xvld(p2, 0);
@@ -55,6 +63,14 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 #endif // __loongarch_asx
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
+            __builtin_prefetch(p4 + 16);
+            __builtin_prefetch(p5 + 16);
+            __builtin_prefetch(p6 + 16);
+            __builtin_prefetch(p7 + 16);
             __m128 _r0 = (__m128)__lsx_vld(p0, 0);
             __m128 _r1 = (__m128)__lsx_vld(p1, 0);
             __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -114,6 +130,10 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
         int kk = 0;
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
+            __builtin_prefetch(p2 + 16);
+            __builtin_prefetch(p3 + 16);
             __m128 _r0 = (__m128)__lsx_vld(p0, 0);
             __m128 _r1 = (__m128)__lsx_vld(p1, 0);
             __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -152,6 +172,8 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 #if __loongarch_sx
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
+            __builtin_prefetch(p1 + 16);
             __m128 _r0 = (__m128)__lsx_vld(p0, 0);
             __m128 _r1 = (__m128)__lsx_vld(p1, 0);
             __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
@@ -180,6 +202,7 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 #if __loongarch_sx
         for (; kk + 3 < max_kk; kk += 4)
         {
+            __builtin_prefetch(p0 + 16);
             __lsx_vst((__m128i)(__m128)__lsx_vld(p0, 0), pp, 0);
             pp += 4;
             p0 += 4;
@@ -285,6 +308,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m256 _pA2 = (__m256)__lasx_xvpermi_q((__m256i)_pA, (__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 1));
@@ -573,6 +598,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
@@ -810,6 +837,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB4 = (__m128)__lsx_vld(pB, 0);
@@ -948,6 +977,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
                 __m256 _pB = (__m256)__lasx_xvldrepl_d(pB, 0);
                 __m256 _pB1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
@@ -1049,6 +1080,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 __m256 _pA = (__m256)__lasx_xvld(pA, 0);
 
                 _sum0 = __lasx_xvfmadd_s(_pA, (__m256)__lasx_xvreplfr2vr_s(pB[0]), _sum0);
@@ -1158,6 +1191,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 __m128 _pA0 = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA1 = (__m128)__lsx_vld(pA + 4, 0);
                 __m128 _pA0r = (__m128)__lsx_vshuf4i_w((__m128i)_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
@@ -1379,6 +1414,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
                 __m128 _pA0 = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA1 = (__m128)__lsx_vld(pA + 4, 0);
                 __m128 _pA0r = (__m128)__lsx_vshuf4i_w((__m128i)_pA0, _LSX_SHUFFLE(1, 0, 3, 2));
@@ -1514,6 +1551,8 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 __m128 _pA0 = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA1 = (__m128)__lsx_vld(pA + 4, 0);
                 __m128 _pB = (__m128)__lsx_vldrepl_d(pB, 0);
@@ -3019,6 +3058,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
@@ -3064,6 +3105,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 4 * 2, 0);
@@ -3112,6 +3155,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 __lasx_xvst(__lasx_xvld(p0 + 8, 0), pp + 8, 0);
                 pp += 16;
@@ -3130,6 +3175,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
@@ -3159,6 +3206,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 4 * 2, 0);
@@ -3189,6 +3238,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __lsx_vst((__m128i)_r0, pp, 0);
@@ -3208,6 +3259,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 8 * 2, 0);
@@ -3229,6 +3282,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 4 * 2, 0);
@@ -3250,6 +3305,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep);
+
                 __lsx_vst((__m128i)(__m128)__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += bottom_blob.cstep;
@@ -3268,6 +3325,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 transpose8x2_ps(_r0, _r1);
@@ -3285,6 +3344,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 // transpose4x2
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
@@ -3323,6 +3384,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 8);
+
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 pp += 8;
                 p0 += bottom_blob.cstep * 8;
@@ -3336,6 +3399,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+                __builtin_prefetch(p0 + bottom_blob.cstep * 4);
+
                 __lsx_vst((__m128i)(__m128)__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;

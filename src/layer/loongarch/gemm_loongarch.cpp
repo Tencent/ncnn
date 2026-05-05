@@ -68,6 +68,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
 #if __loongarch_asx
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
 #else
@@ -85,6 +86,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 __lsx_vst(__lsx_vld(p1, 0), pp + 4, 0);
                 pp += 8;
@@ -106,6 +109,14 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
+                __builtin_prefetch(p4 + 16);
+                __builtin_prefetch(p5 + 16);
+                __builtin_prefetch(p6 + 16);
+                __builtin_prefetch(p7 + 16);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p1, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -166,6 +177,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 8;
@@ -177,6 +189,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -192,6 +205,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p1, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -284,6 +301,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __loongarch_sx
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -318,6 +336,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + A_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
@@ -347,6 +366,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
@@ -375,6 +395,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
                 pp += 8;
@@ -392,6 +413,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + A_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
@@ -413,6 +435,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
@@ -432,6 +455,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -454,6 +478,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + A_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 transpose8x2_ps(_r0, _r1);
@@ -471,6 +496,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
@@ -488,6 +514,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
@@ -507,6 +534,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + A_hstep * 8);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 pp += 8;
                 p0 += A_hstep * 8;
@@ -520,6 +548,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + A_hstep * 4);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += A_hstep * 4;
@@ -532,6 +561,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + A_hstep);
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += A_hstep;
@@ -559,6 +589,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 __lasx_xvst(__lasx_xvld(p1, 0), pp + 8, 0);
                 pp += 16;
@@ -575,6 +607,10 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
                 __m256 _r0 = __lasx_concat_128_s((__m128)__lsx_vld(p0, 0), (__m128)__lsx_vld(p1, 0));
                 __m256 _r1 = __lasx_concat_128_s((__m128)__lsx_vld(p2, 0), (__m128)__lsx_vld(p3, 0));
                 __lasx_xvst(_r0, pp, 0);
@@ -607,6 +643,22 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
+                __builtin_prefetch(p4 + 16);
+                __builtin_prefetch(p5 + 16);
+                __builtin_prefetch(p6 + 16);
+                __builtin_prefetch(p7 + 16);
+                __builtin_prefetch(p8 + 16);
+                __builtin_prefetch(p9 + 16);
+                __builtin_prefetch(pa + 16);
+                __builtin_prefetch(pb + 16);
+                __builtin_prefetch(pc + 16);
+                __builtin_prefetch(pd + 16);
+                __builtin_prefetch(pe + 16);
+                __builtin_prefetch(pf + 16);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -653,6 +705,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 pp += 8;
                 p0 += 8;
@@ -666,6 +719,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 __lsx_vst(__lsx_vld(p1, 0), pp + 4, 0);
                 pp += 8;
@@ -687,6 +742,14 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
+                __builtin_prefetch(p4 + 16);
+                __builtin_prefetch(p5 + 16);
+                __builtin_prefetch(p6 + 16);
+                __builtin_prefetch(p7 + 16);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p1, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -747,6 +810,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -764,6 +828,10 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __loongarch_sx
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
+                __builtin_prefetch(p1 + 16);
+                __builtin_prefetch(p2 + 16);
+                __builtin_prefetch(p3 + 16);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p1, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p2, 0);
@@ -823,6 +891,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __loongarch_sx
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + 16);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += 4;
@@ -857,6 +926,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + B_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
@@ -904,6 +974,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
@@ -942,6 +1013,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 __lasx_xvst(__lasx_xvld(p0 + 8, 0), pp + 8, 0);
                 pp += 16;
@@ -960,6 +1032,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + B_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
@@ -989,6 +1062,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
@@ -1017,6 +1091,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 __lsx_vst(__lsx_vld(p0 + 4, 0), pp + 4, 0);
                 pp += 8;
@@ -1036,6 +1111,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + B_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 __m256 _r2 = (__m256)__lasx_xvld(p0 + 16, 0);
@@ -1057,6 +1133,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _r2 = (__m128)__lsx_vld(p0 + 8, 0);
@@ -1077,6 +1154,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -1098,6 +1176,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + B_hstep * 8);
                 __m256 _r0 = (__m256)__lasx_xvld(p0, 0);
                 __m256 _r1 = (__m256)__lasx_xvld(p0 + 8, 0);
                 transpose8x2_ps(_r0, _r1);
@@ -1115,6 +1194,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __m128 _r0 = (__m128)__lsx_vld(p0, 0);
                 __m128 _r1 = (__m128)__lsx_vld(p0 + 4, 0);
                 __m128 _tmp0 = (__m128)__lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
@@ -1132,6 +1212,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
@@ -1151,6 +1232,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
+                __builtin_prefetch(p0 + B_hstep * 8);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 pp += 8;
                 p0 += B_hstep * 8;
@@ -1164,6 +1246,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
                 __lsx_vst(__lsx_vld(p0, 0), pp, 0);
                 pp += 4;
                 p0 += B_hstep * 4;
@@ -1176,6 +1259,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp += 1;
                 p0 += B_hstep;
@@ -6373,6 +6457,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 64);
                 __m256 _pA0 = (__m256)__lasx_xvldrepl_d(pA, 0);
                 __m256 _pA1 = (__m256)__lasx_xvldrepl_d(pA + 2, 0);
                 __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
@@ -6399,6 +6485,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 32);
                 __m256 _pA = (__m256)__lasx_xvldrepl_d(pA, 0);
                 __m256 _pB0 = (__m256)__lasx_xvld(pB, 0);
                 __m256 _pB1 = (__m256)__lasx_xvld(pB + 8, 0);
@@ -6449,6 +6537,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 32);
                 __m128 _pA = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
                 __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
@@ -6483,6 +6573,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 16);
                 const float a0 = pA[0];
                 const float a1 = pA[1];
                 outptr[0] += a0 * pB[0];
@@ -6529,6 +6621,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 16);
                 __m128 _pA = (__m128)__lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
                 __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
@@ -6551,6 +6645,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 8);
                 const float a0 = pA[0];
                 const float a1 = pA[1];
                 outptr[0] += a0 * pB[0];

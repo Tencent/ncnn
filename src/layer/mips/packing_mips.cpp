@@ -780,6 +780,15 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; j + 7 < w; j += 8)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+                    __builtin_prefetch(r4 + 16);
+                    __builtin_prefetch(r5 + 16);
+                    __builtin_prefetch(r6 + 16);
+                    __builtin_prefetch(r7 + 16);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
@@ -846,6 +855,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; j + 7 < w; j += 8)
                 {
+                    __builtin_prefetch(r0 + 64);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
@@ -1115,6 +1126,15 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+                    __builtin_prefetch(r2 + 16);
+                    __builtin_prefetch(r3 + 16);
+                    __builtin_prefetch(r4 + 16);
+                    __builtin_prefetch(r5 + 16);
+                    __builtin_prefetch(r6 + 16);
+                    __builtin_prefetch(r7 + 16);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r2, 0);
@@ -1181,6 +1201,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(r0 + 64);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r0 + 8, 0);
                     v8i16 _r2 = (v8i16)__msa_ld_h(r0 + 16, 0);
@@ -1241,6 +1263,9 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __mips_msa
                 for (; i + 1 < size; i += 2)
                 {
+                    __builtin_prefetch(r0 + 16);
+                    __builtin_prefetch(r1 + 16);
+
                     v8i16 _r0 = (v8i16)__msa_ld_h(r0, 0);
                     v8i16 _r1 = (v8i16)__msa_ld_h(r1, 0);
                     __msa_st_h((v8i16)__msa_ilvr_d((v2i64)_r1, (v2i64)_r0), outptr, 0);
@@ -1281,6 +1306,8 @@ int Packing_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 for (int i = 0; i < size; i++)
                 {
 #if __mips_msa
+                    __builtin_prefetch(r0 + 16);
+
                     v8i16 _p = (v8i16)__msa_ld_h(r0, 0);
                     __msa_storel_d((v4i32)_p, outptr0);
                     int64_t v = __msa_copy_s_d((v2i64)_p, 1);

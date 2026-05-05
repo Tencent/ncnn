@@ -17,6 +17,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -35,6 +36,8 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -60,6 +63,14 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
+                __builtin_prefetch(p4 + 32);
+                __builtin_prefetch(p5 + 32);
+                __builtin_prefetch(p6 + 32);
+                __builtin_prefetch(p7 + 32);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -89,6 +100,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
             const unsigned short* p0 = (const unsigned short*)A + (size_t)i_pack * A_hstep * 8 + k * 8 + i_lane;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -103,6 +115,7 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -120,6 +133,10 @@ static void pack_A_tile_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -583,6 +600,8 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
                 __m256i _r0 = __lasx_concat_128(__lsx_vld(p0, 0), __lsx_vld(p1, 0));
                 __lasx_xvst(_r0, pp, 0);
                 pp += 16;
@@ -599,6 +618,10 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
                 __m128i _r0 = __lsx_vilvl_d(__lsx_vldrepl_d((const void*)p1, 0), __lsx_vldrepl_d((const void*)p0, 0));
                 __m128i _r1 = __lsx_vilvl_d(__lsx_vldrepl_d((const void*)p3, 0), __lsx_vldrepl_d((const void*)p2, 0));
                 __lasx_xvst(__lasx_concat_128(_r0, _r1), pp, 0);
@@ -630,6 +653,22 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
+                __builtin_prefetch(p4 + 32);
+                __builtin_prefetch(p5 + 32);
+                __builtin_prefetch(p6 + 32);
+                __builtin_prefetch(p7 + 32);
+                __builtin_prefetch(p8 + 32);
+                __builtin_prefetch(p9 + 32);
+                __builtin_prefetch(pa + 32);
+                __builtin_prefetch(pb + 32);
+                __builtin_prefetch(pc + 32);
+                __builtin_prefetch(pd + 32);
+                __builtin_prefetch(pe + 32);
+                __builtin_prefetch(pf + 32);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -675,6 +714,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -694,6 +734,8 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -720,6 +762,14 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
+                __builtin_prefetch(p4 + 32);
+                __builtin_prefetch(p5 + 32);
+                __builtin_prefetch(p6 + 32);
+                __builtin_prefetch(p7 + 32);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -753,6 +803,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -765,6 +816,7 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         {
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -783,6 +835,10 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + 32);
+                __builtin_prefetch(p1 + 32);
+                __builtin_prefetch(p2 + 32);
+                __builtin_prefetch(p3 + 32);
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp[2] = p2[0];
@@ -873,6 +929,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[8];
                 pp[2] = p0[16];
@@ -906,6 +963,10 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
+                __builtin_prefetch(p1 + B_hstep * 4);
+                __builtin_prefetch(p2 + B_hstep * 4);
+                __builtin_prefetch(p3 + B_hstep * 4);
                 pp[0] = p0[0];
                 pp[1] = p0[4];
                 pp[2] = p0[8];
@@ -942,6 +1003,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 __lasx_xvst(__lasx_xvld(p0, 0), pp, 0);
                 pp += 16;
                 p0 += B_hstep;
@@ -957,6 +1019,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[8];
                 pp[2] = p0[16];
@@ -980,6 +1043,8 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep * 4);
+                __builtin_prefetch(p1 + B_hstep * 4);
                 pp[0] = p0[0];
                 pp[1] = p0[4];
                 pp[2] = p0[8];
@@ -1004,6 +1069,7 @@ static void transpose_pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj,
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(p0 + B_hstep);
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -1327,6 +1393,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 32);
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m256 _pA2 = (__m256)__lasx_xvpermi_q((__m256i)_pA, (__m256i)_pA, _LSX_SHUFFLE(0, 0, 0, 1));
@@ -1404,6 +1472,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 32);
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
@@ -1455,6 +1525,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 16);
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m256 _pA1 = (__m256)__lasx_xvshuf4i_w((__m256i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB4 = bfloat2float_lsx(pB);
@@ -1493,6 +1565,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 8);
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
                 __m128 _pB01 = bfloat2float_lsx(__lsx_vldrepl_w(pB, 0));
                 __m256 _pB = __lasx_concat_128_s(_pB01, _pB01);
@@ -1524,6 +1598,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 4);
                 __m256 _pA = bfloat2float_lasx((__m128i)__lsx_vld(pA, 0));
 
                 __m256 _pB = (__m256)__lasx_xvreplgr2vr_w((int)((unsigned int)pB[0] << 16));
@@ -1599,6 +1675,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             const unsigned short* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 32);
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                 __m128i _pA01 = __lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_h(_pA01, _zero_bf16);
@@ -1688,6 +1766,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             const unsigned short* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 16);
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                 __m128i _pA01 = __lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_h(_pA01, _zero_bf16);
@@ -1746,6 +1826,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             const unsigned short* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 8);
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                 __m128i _pA01 = __lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_h(_pA01, _zero_bf16);
@@ -1786,6 +1868,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             const unsigned short* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 32);
+                __builtin_prefetch(pB + 4);
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                 __m128i _pA01 = __lsx_vld(pA, 0);
                 __m128 _pA0 = (__m128)__lsx_vilvl_h(_pA01, _zero_bf16);
@@ -1850,6 +1934,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
                 __m128 _pA4 = bfloat2float_lsx(pA);
                 __m128 _pA4r = (__m128)__lsx_vshuf4i_w((__m128i)_pA4, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m256 _pA = __lasx_concat_128_s(_pA4, _pA4);
@@ -1923,6 +2009,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 32);
                 __m128 _pA = bfloat2float_lsx(pA);
                 __m128 _pA1 = (__m128)__lsx_vshuf4i_w((__m128i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
@@ -1983,6 +2071,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 16);
                 __m128 _pA = bfloat2float_lsx(pA);
                 __m128 _pA1 = (__m128)__lsx_vshuf4i_w((__m128i)_pA, _LSX_SHUFFLE(1, 0, 3, 2));
                 __m128 _pB = bfloat2float_lsx(pB);
@@ -2025,6 +2115,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 8);
                 __m128 _pA = bfloat2float_lsx(pA);
                 __m128 _pB = bfloat2float_lsx(__lsx_vldrepl_w(pB, 0));
                 __m128 _pB1 = (__m128)__lsx_vshuf4i_w((__m128i)_pB, _LSX_SHUFFLE(2, 3, 0, 1));
@@ -2059,6 +2151,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
+                __builtin_prefetch(pA + 16);
+                __builtin_prefetch(pB + 4);
                 __m128 _pA = bfloat2float_lsx(pA);
 
                 __m128 _pB = (__m128)__lsx_vreplgr2vr_w((int)((unsigned int)pB[0] << 16));
@@ -2109,6 +2203,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 64);
                 __m256 _pA0 = bfloat2float_lasx(__lsx_vldrepl_w(pA, 0));
                 __m256 _pA1 = bfloat2float_lasx(__lsx_vldrepl_w(pA + 2, 0));
                 __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
@@ -2135,6 +2231,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             }
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 32);
                 __m256 _pA = bfloat2float_lasx(__lsx_vldrepl_w(pA, 0));
                 __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
                 __m256 _pB1 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
@@ -2185,6 +2283,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 32);
                 __m128 _pA = bfloat2float_lsx(pA);
                 __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
                 __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
@@ -2222,6 +2322,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 16);
                 float a0 = bfloat16_to_float32(pA[0]);
                 float a1 = bfloat16_to_float32(pA[1]);
                 outptr[0] += a0 * bfloat16_to_float32(pB[0]);
@@ -2268,6 +2370,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
+                __builtin_prefetch(pA + 8);
+                __builtin_prefetch(pB + 16);
                 __m128 _pA = bfloat2float_lsx(pA);
                 __m128 _pA0 = (__m128)__lsx_vilvl_d((__m128i)_pA, (__m128i)_pA);
                 __m128 _pA1 = (__m128)__lsx_vilvh_d((__m128i)_pA, (__m128i)_pA);
@@ -2292,6 +2396,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 8);
                 float a0 = bfloat16_to_float32(pA[0]);
                 float a1 = bfloat16_to_float32(pA[1]);
                 outptr[0] += a0 * bfloat16_to_float32(pB[0]);
@@ -2453,6 +2559,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             const unsigned short* pA = pAT;
             for (int kk = 0; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 32);
                 __m256 _pB0 = bfloat2float_lasx((__m128i)__lsx_vld(pB, 0));
                 __m256 _pB1 = bfloat2float_lasx((__m128i)__lsx_vld(pB + 8, 0));
                 __m256 _pA0 = (__m256)__lasx_xvreplgr2vr_w((int)((unsigned int)pA[0] << 16));
@@ -2488,6 +2596,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 16);
                 __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                 __m128i _pB01_bf16 = __lsx_vld(pB, 0);
                 __m128 _pB0 = (__m128)__lsx_vilvl_h(_pB01_bf16, _zero_bf16);
@@ -2523,6 +2633,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+                __builtin_prefetch(pA + 4);
+                __builtin_prefetch(pB + 8);
                 __m128 _pA = (__m128)__lsx_vreplgr2vr_w((int)((unsigned int)pA[0] << 16));
                 __m128 _pB = bfloat2float_lsx(pB);
                 _sum0 = __lsx_vfmadd_s(_pA, _pB, _sum0);

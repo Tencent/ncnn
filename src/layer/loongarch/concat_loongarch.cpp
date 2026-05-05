@@ -135,6 +135,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         __m256 _p = (__m256)__lasx_xvld(r0, 0);
                         __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
                         __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
@@ -165,6 +167,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     int j = 0;
                     for (; j + 7 < w; j += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
                         __m256 _r1 = (__m256)__lasx_xvld(r0 + 8, 0);
                         __m256 _r2 = (__m256)__lasx_xvld(r0 + 16, 0);
@@ -228,6 +232,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 #if __loongarch_sx
                     for (; j + 3 < w; j += 4)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         __m128 _r0 = (__m128)__lsx_vld(r0, 0);
                         __m128 _r1 = (__m128)__lsx_vld(r0 + 4, 0);
                         __m128 _r2 = (__m128)__lsx_vld(r0 + 8, 0);
@@ -382,6 +388,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         __m256 _p = (__m256)__lasx_xvld(r0, 0);
                         __lsx_vst(__lasx_extract_128_lo((__m256i)_p), outptr0, 0);
                         __lsx_vst(__lasx_extract_128_hi((__m256i)_p), outptr1, 0);
@@ -414,6 +422,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     int i = 0;
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         __m256 _r0 = (__m256)__lasx_xvld(r0, 0);
                         __m256 _r1 = (__m256)__lasx_xvld(r0 + 8, 0);
                         __m256 _r2 = (__m256)__lasx_xvld(r0 + 16, 0);
@@ -479,6 +489,8 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 #if __loongarch_sx
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         __m128 _r0 = (__m128)__lsx_vld(r0, 0);
                         __m128 _r1 = (__m128)__lsx_vld(r0 + 4, 0);
                         __m128 _r2 = (__m128)__lsx_vld(r0 + 8, 0);
@@ -763,6 +775,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         __m128i _p = __lsx_vld(r0, 0);
                         __lsx_vstelm_d(_p, outptr0, 0, 0);
                         __lsx_vstelm_d(_p, outptr1, 0, 1);
@@ -793,6 +807,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     int j = 0;
                     for (; j + 7 < w; j += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
                         __m128i _r2 = __lsx_vld(r0 + 16, 0);
@@ -856,6 +872,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 #if __loongarch_sx
                     for (; j + 7 < w; j += 8)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
                         __m128i _r2 = __lsx_vld(r0 + 16, 0);
@@ -1017,6 +1035,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 
                     for (int i = 0; i < size; i++)
                     {
+                        __builtin_prefetch(r0 + 16);
+
                         __m128i _p = __lsx_vld(r0, 0);
                         __lsx_vstelm_d(_p, outptr0, 0, 0);
                         __lsx_vstelm_d(_p, outptr1, 0, 1);
@@ -1049,6 +1069,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     int i = 0;
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(r0 + 64);
+
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
                         __m128i _r2 = __lsx_vld(r0 + 16, 0);
@@ -1114,6 +1136,8 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
 #if __loongarch_sx
                     for (; i + 7 < size; i += 8)
                     {
+                        __builtin_prefetch(r0 + 32);
+
                         __m128i _r0 = __lsx_vld(r0, 0);
                         __m128i _r1 = __lsx_vld(r0 + 8, 0);
                         __m128i _r2 = __lsx_vld(r0 + 16, 0);

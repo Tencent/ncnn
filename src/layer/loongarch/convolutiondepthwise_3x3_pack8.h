@@ -36,6 +36,11 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             int j = 0;
             for (; j + 3 < outw; j += 4)
             {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+                __builtin_prefetch(r3 + 64);
+
                 __m256 _sum00 = _bias0;
                 __m256 _sum01 = _bias0;
                 __m256 _sum02 = _bias0;
@@ -183,6 +188,11 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 32);
+                __builtin_prefetch(r1 + 32);
+                __builtin_prefetch(r2 + 32);
+                __builtin_prefetch(r3 + 32);
+
                 __m256 _sum00 = _bias0;
                 __m256 _sum01 = _bias0;
                 __m256 _sum10 = _bias0;
@@ -278,6 +288,11 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 16);
+                __builtin_prefetch(r1 + 16);
+                __builtin_prefetch(r2 + 16);
+                __builtin_prefetch(r3 + 16);
+
                 __m256 _sum0 = _bias0;
                 __m256 _sum1 = _bias0;
 
@@ -355,6 +370,10 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             int j = 0;
             for (; j + 3 < outw; j += 4)
             {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+
                 __m256 _sum0 = _bias0;
                 __m256 _sum1 = _bias0;
                 __m256 _sum2 = _bias0;
@@ -444,6 +463,10 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 32);
+                __builtin_prefetch(r1 + 32);
+                __builtin_prefetch(r2 + 32);
+
                 __m256 _sum0 = _bias0;
                 __m256 _sum1 = _bias0;
 
@@ -505,6 +528,10 @@ static void convdw3x3s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 16);
+                __builtin_prefetch(r1 + 16);
+                __builtin_prefetch(r2 + 16);
+
                 __m256 _sum0 = _bias0;
 
                 __m256 _k00 = (__m256)__lasx_xvld(k0, 0);
@@ -604,6 +631,10 @@ static void convdw3x3s2_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             int j = 0;
             for (; j + 3 < outw; j += 4)
             {
+                __builtin_prefetch(r0 + 128);
+                __builtin_prefetch(r1 + 128);
+                __builtin_prefetch(r2 + 128);
+
                 __m256 _sum0 = _bias0;
                 __m256 _sum1 = _bias0;
                 __m256 _sum2 = _bias0;
@@ -690,6 +721,10 @@ static void convdw3x3s2_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+
                 __m256 _sum0 = _bias0;
                 __m256 _sum1 = _bias0;
 
@@ -742,6 +777,10 @@ static void convdw3x3s2_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 32);
+                __builtin_prefetch(r1 + 32);
+                __builtin_prefetch(r2 + 32);
+
                 __m256 _sum0 = _bias0;
 
                 __m256 _r00 = (__m256)__lasx_xvld(r0, 0);

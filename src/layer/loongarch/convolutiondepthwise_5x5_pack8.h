@@ -35,6 +35,12 @@ static void convdw5x5s1_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
 
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+                __builtin_prefetch(r3 + 64);
+                __builtin_prefetch(r4 + 64);
+
                 __m256 _sum0 = _bias0;
 
                 __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
@@ -189,6 +195,12 @@ static void convdw5x5s2_pack8_lasx(const Mat& bottom_blob, Mat& top_blob, const 
 
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 64);
+                __builtin_prefetch(r1 + 64);
+                __builtin_prefetch(r2 + 64);
+                __builtin_prefetch(r3 + 64);
+                __builtin_prefetch(r4 + 64);
+
                 __m256 _sum0 = _bias0;
 
                 __m256 _r00 = (__m256)__lasx_xvld(r0, 0);
