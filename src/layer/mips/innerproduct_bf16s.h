@@ -355,36 +355,82 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* m = bottom_blob.row<const unsigned short>(j);
 
                 v4f32 _sum0 = (v4f32)__msa_fill_w(0);
-                v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum1 = _sum0;
+                v4f32 _sum2 = _sum0;
+                v4f32 _sum3 = _sum0;
+                v4f32 _sum4 = _sum0;
+                v4f32 _sum5 = _sum0;
+                v4f32 _sum6 = _sum0;
+                v4f32 _sum7 = _sum0;
 
                 if (bias_data_ptr)
                 {
                     _sum0 = (v4f32)__msa_ld_w(bias_data_ptr + p * 8, 0);
-                    _sum1 = (v4f32)__msa_ld_w(bias_data_ptr + p * 8 + 4, 0);
+                    _sum4 = (v4f32)__msa_ld_w(bias_data_ptr + p * 8 + 4, 0);
                 }
 
                 int i = 0;
-                for (; i < num_input; i++)
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                for (; i + 3 < num_input; i += 4)
                 {
                     __builtin_prefetch(m + 16);
-                    __builtin_prefetch(kptr + 16);
+                    __builtin_prefetch(kptr + 64);
 
+                    v4f32 _m0 = bfloat2float_msa(m);
+                    v4f32 _val0 = (v4f32)__msa_splati_w((v4i32)_m0, 0);
+                    v4f32 _val1 = (v4f32)__msa_splati_w((v4i32)_m0, 1);
+                    v4f32 _val2 = (v4f32)__msa_splati_w((v4i32)_m0, 2);
+                    v4f32 _val3 = (v4f32)__msa_splati_w((v4i32)_m0, 3);
+
+                    v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
+                    v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                    v4f32 _w4 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                    v8i16 _w23_bf16 = __msa_ld_h(kptr + 8, 0);
+                    v4f32 _w1 = (v4f32)__msa_ilvr_h(_w23_bf16, _zero_bf16);
+                    v4f32 _w5 = (v4f32)__msa_ilvl_h(_w23_bf16, _zero_bf16);
+                    v8i16 _w45_bf16 = __msa_ld_h(kptr + 16, 0);
+                    v4f32 _w2 = (v4f32)__msa_ilvr_h(_w45_bf16, _zero_bf16);
+                    v4f32 _w6 = (v4f32)__msa_ilvl_h(_w45_bf16, _zero_bf16);
+                    v8i16 _w67_bf16 = __msa_ld_h(kptr + 24, 0);
+                    v4f32 _w3 = (v4f32)__msa_ilvr_h(_w67_bf16, _zero_bf16);
+                    v4f32 _w7 = (v4f32)__msa_ilvl_h(_w67_bf16, _zero_bf16);
+
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, _w2);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, _w3);
+                    _sum4 = __ncnn_msa_fmadd_w(_sum4, _val0, _w4);
+                    _sum5 = __ncnn_msa_fmadd_w(_sum5, _val1, _w5);
+                    _sum6 = __ncnn_msa_fmadd_w(_sum6, _val2, _w6);
+                    _sum7 = __ncnn_msa_fmadd_w(_sum7, _val3, _w7);
+
+                    m += 4;
+                    kptr += 32;
+                }
+                for (; i < num_input; i++)
+                {
                     v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(m[0]));
-                    v8i16 _zero_bf16 = __msa_fill_h(0);
                     v8i16 _w01_bf16 = __msa_ld_h(kptr, 0);
                     v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
                     v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
                     _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w0);
-                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _val, _w1);
+                    _sum4 = __ncnn_msa_fmadd_w(_sum4, _val, _w1);
 
                     m += 1;
                     kptr += 8;
                 }
 
-                _sum0 = activation_msa(_sum0, activation_type, activation_params);
-                _sum1 = activation_msa(_sum1, activation_type, activation_params);
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                _sum2 = __msa_fadd_w(_sum2, _sum3);
+                _sum4 = __msa_fadd_w(_sum4, _sum5);
+                _sum6 = __msa_fadd_w(_sum6, _sum7);
+                _sum0 = __msa_fadd_w(_sum0, _sum2);
+                _sum4 = __msa_fadd_w(_sum4, _sum6);
 
-                __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr, 0);
+                _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                _sum4 = activation_msa(_sum4, activation_type, activation_params);
+
+                __msa_st_w(float2bfloat_msa(_sum0, _sum4), outptr, 0);
                 outptr += 8;
             }
         }
@@ -674,29 +720,58 @@ static void innerproduct_gemm_bf16s_msa(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_tm.row<const unsigned short>(p);
                 const unsigned short* m = bottom_blob.row<const unsigned short>(j);
 
-                v4f32 _sum = (v4f32)__msa_fill_w(0);
+                v4f32 _sum0 = (v4f32)__msa_fill_w(0);
+                v4f32 _sum1 = _sum0;
+                v4f32 _sum2 = _sum0;
+                v4f32 _sum3 = _sum0;
 
                 if (bias_data_ptr)
                 {
-                    _sum = (v4f32)__msa_ld_w(bias_data_ptr + p * 4, 0);
+                    _sum0 = (v4f32)__msa_ld_w(bias_data_ptr + p * 4, 0);
                 }
 
                 int i = 0;
-                for (; i < num_input; i++)
+                for (; i + 3 < num_input; i += 4)
                 {
                     __builtin_prefetch(m + 16);
-                    __builtin_prefetch(kptr + 16);
+                    __builtin_prefetch(kptr + 32);
+
+                    v4f32 _m0 = bfloat2float_msa(m);
+                    v4f32 _val0 = (v4f32)__msa_splati_w((v4i32)_m0, 0);
+                    v4f32 _val1 = (v4f32)__msa_splati_w((v4i32)_m0, 1);
+                    v4f32 _val2 = (v4f32)__msa_splati_w((v4i32)_m0, 2);
+                    v4f32 _val3 = (v4f32)__msa_splati_w((v4i32)_m0, 3);
+
+                    v4f32 _w0 = bfloat2float_msa(kptr);
+                    v4f32 _w1 = bfloat2float_msa(kptr + 4);
+                    v4f32 _w2 = bfloat2float_msa(kptr + 8);
+                    v4f32 _w3 = bfloat2float_msa(kptr + 12);
+
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                    _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+                    _sum2 = __ncnn_msa_fmadd_w(_sum2, _val2, _w2);
+                    _sum3 = __ncnn_msa_fmadd_w(_sum3, _val3, _w3);
+
+                    m += 4;
+                    kptr += 16;
+                }
+                for (; i < num_input; i++)
+                {
                     v4f32 _val = __msa_fill_w_f32(bfloat16_to_float32(m[0]));
                     v4f32 _w = bfloat2float_msa(kptr);
-                    _sum = __ncnn_msa_fmadd_w(_sum, _val, _w);
+                    _sum0 = __ncnn_msa_fmadd_w(_sum0, _val, _w);
 
                     m += 1;
                     kptr += 4;
                 }
 
-                _sum = activation_msa(_sum, activation_type, activation_params);
+                _sum0 = __msa_fadd_w(_sum0, _sum1);
+                _sum2 = __msa_fadd_w(_sum2, _sum3);
+                _sum0 = __msa_fadd_w(_sum0, _sum2);
 
-                *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_sum), 0);
+                _sum0 = activation_msa(_sum0, activation_type, activation_params);
+
+                __msa_storel_d(float2bfloat_msa(_sum0), outptr);
                 outptr += 4;
             }
         }
