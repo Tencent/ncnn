@@ -263,7 +263,6 @@ static inline void decode_qk_dot_bf16s_scalar_kernel(float* s, const float* q, c
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // decode_pv_gemv_bf16s : S(fp32) gemv V(bf16) -> out(fp32)
 // ---------------------------------------------------------------------------
@@ -407,7 +406,6 @@ static inline void decode_pv_gemv_bf16s_scalar_kernel(float* out, const float* s
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // sdpa_decode_reduce_bf16s : reduce partial results from split-kv chunks
 // ---------------------------------------------------------------------------
@@ -503,14 +501,13 @@ static inline void sdpa_decode_reduce_bf16s(
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // qk_gemm_bf16s : Q(fp32) x K^T(bf16) -> S(fp32)   [prefill]
 // ---------------------------------------------------------------------------
 
 #if __AVX512F__
 static void qk_gemm_bf16s_avx512_kernel(float* S, const float* Q, const unsigned short* K,
-                                 int m, int n, int d, float scale)
+                                        int m, int n, int d, float scale)
 {
     int i = 0;
     for (; i + 8 <= m; i += 8)
@@ -750,10 +747,9 @@ static void qk_gemm_bf16s_avx512_kernel(float* S, const float* Q, const unsigned
 }
 #endif // __AVX512F__
 
-
 #if __AVX__
 static void qk_gemm_bf16s_avx_kernel(float* S, const float* Q, const unsigned short* K,
-                              int m, int n, int d, float scale)
+                                     int m, int n, int d, float scale)
 {
     int i = 0;
     for (; i + 6 <= m; i += 6)
@@ -880,7 +876,7 @@ static void qk_gemm_bf16s_avx_kernel(float* S, const float* Q, const unsigned sh
 
 #if __SSE2__
 static void qk_gemm_bf16s_sse2_kernel(float* S, const float* Q, const unsigned short* K,
-                               int m, int n, int d, float scale)
+                                      int m, int n, int d, float scale)
 {
     for (int i = 0; i < m; i++)
     {
@@ -930,7 +926,7 @@ static void qk_gemm_bf16s_sse2_kernel(float* S, const float* Q, const unsigned s
 #endif // __SSE2__
 
 static void qk_gemm_bf16s_scalar_kernel(float* S, const float* Q, const unsigned short* K,
-                                 int m, int n, int d, float scale)
+                                        int m, int n, int d, float scale)
 {
     for (int i = 0; i < m; i++)
     {
@@ -945,7 +941,6 @@ static void qk_gemm_bf16s_scalar_kernel(float* S, const float* Q, const unsigned
         }
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // pv_gemm_bf16s : P(fp32) x V(bf16) -> O(fp32)   [prefill]
@@ -1413,7 +1408,7 @@ static void decode_pv_gemv_bf16s_avx512bf16_kernel(float* out, const float* s, c
 }
 
 static void qk_gemm_bf16s_avx512bf16_kernel(float* S, const float* Q, const unsigned short* K,
-                                            int m, int n, int d, float scale)
+        int m, int n, int d, float scale)
 {
     unsigned short* q_bf16 = (unsigned short*)_mm_malloc(m * d * sizeof(unsigned short), 64);
 
@@ -1718,8 +1713,10 @@ static void pv_gemm_bf16s_avx512bf16_kernel(float* O, const float* P, const unsi
                 acc10 = _mm512_dpbf16_ps(acc10, (__m512bh)p_ext1, (__m512bh)v0_ext);
                 acc11 = _mm512_dpbf16_ps(acc11, (__m512bh)p_ext1, (__m512bh)v1_ext);
             }
-            _mm512_storeu_ps(op0 + 0, acc00); _mm512_storeu_ps(op1 + 0, acc10);
-            _mm512_storeu_ps(op0 + 16, acc01); _mm512_storeu_ps(op1 + 16, acc11);
+            _mm512_storeu_ps(op0 + 0, acc00);
+            _mm512_storeu_ps(op1 + 0, acc10);
+            _mm512_storeu_ps(op0 + 16, acc01);
+            _mm512_storeu_ps(op1 + 16, acc11);
         }
         for (; i < m; i++)
         {
@@ -1822,7 +1819,7 @@ static void pv_gemm_bf16s_avx512bf16_kernel(float* O, const float* P, const unsi
 
 template<int D>
 static void qk_gemm_bf16s_avx512bf16_kernel_t(float* S, const float* Q, const unsigned short* K,
-                                            int m, int n, float scale)
+        int m, int n, float scale)
 {
     unsigned short* q_bf16 = (unsigned short*)_mm_malloc(m * D * sizeof(unsigned short), 64);
 
@@ -2053,7 +2050,6 @@ static void qk_gemm_bf16s_avx512bf16_kernel_t(float* S, const float* Q, const un
     _mm_free(q_bf16);
 }
 
-
 template<int D>
 static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const unsigned short* V, int m, int n)
 {
@@ -2137,8 +2133,10 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
                 acc10 = _mm512_dpbf16_ps(acc10, (__m512bh)p_ext1, (__m512bh)v0_ext);
                 acc11 = _mm512_dpbf16_ps(acc11, (__m512bh)p_ext1, (__m512bh)v1_ext);
             }
-            _mm512_storeu_ps(op0 + 0, acc00); _mm512_storeu_ps(op1 + 0, acc10);
-            _mm512_storeu_ps(op0 + 16, acc01); _mm512_storeu_ps(op1 + 16, acc11);
+            _mm512_storeu_ps(op0 + 0, acc00);
+            _mm512_storeu_ps(op1 + 0, acc10);
+            _mm512_storeu_ps(op0 + 16, acc01);
+            _mm512_storeu_ps(op1 + 16, acc11);
         }
         for (; i < m; i++)
         {
@@ -2240,8 +2238,5 @@ static void pv_gemm_bf16s_avx512bf16_kernel_t(float* O, const float* P, const un
 }
 
 #endif // __AVX512F__ && __AVX512BF16__
-
-
-
 
 #endif // SDPA_X86_BF16S_H
