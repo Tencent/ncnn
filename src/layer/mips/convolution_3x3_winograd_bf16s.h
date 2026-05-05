@@ -386,6 +386,14 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
                 _tmp0h = activation_msa(_tmp0h, activation_type, activation_params);
                 _tmp1h = activation_msa(_tmp1h, activation_type, activation_params);
 
+                if (out_elempack == 8)
+                {
+                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp0h), outptr0, 0);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        __msa_st_w(float2bfloat_msa(_tmp1, _tmp1h), outptr0 + 8, 0);
+                    }
+                }
                 if (out_elempack == 4)
                 {
                     unsigned short* outptr1 = outptr0 + N;
@@ -1361,6 +1369,13 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
                 _tmp2h = activation_msa(_tmp2h, activation_type, activation_params);
                 _tmp3h = activation_msa(_tmp3h, activation_type, activation_params);
 
+                if (out_elempack == 8)
+                {
+                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp0h), outptr0, 0);
+                    if (tj * 4 + 1 < outw) __msa_st_w(float2bfloat_msa(_tmp1, _tmp1h), outptr0 + 8, 0);
+                    if (tj * 4 + 2 < outw) __msa_st_w(float2bfloat_msa(_tmp2, _tmp2h), outptr0 + 16, 0);
+                    if (tj * 4 + 3 < outw) __msa_st_w(float2bfloat_msa(_tmp3, _tmp3h), outptr0 + 24, 0);
+                }
                 if (out_elempack == 4)
                 {
                     unsigned short* outptr1 = outptr0 + N;
@@ -2642,6 +2657,15 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
                 _tmp4h = activation_msa(_tmp4h, activation_type, activation_params);
                 _tmp5h = activation_msa(_tmp5h, activation_type, activation_params);
 
+                if (out_elempack == 8)
+                {
+                    __msa_st_w(float2bfloat_msa(_tmp0, _tmp0h), outptr0, 0);
+                    if (tj * 6 + 1 < outw) __msa_st_w(float2bfloat_msa(_tmp1, _tmp1h), outptr0 + 8, 0);
+                    if (tj * 6 + 2 < outw) __msa_st_w(float2bfloat_msa(_tmp2, _tmp2h), outptr0 + 16, 0);
+                    if (tj * 6 + 3 < outw) __msa_st_w(float2bfloat_msa(_tmp3, _tmp3h), outptr0 + 24, 0);
+                    if (tj * 6 + 4 < outw) __msa_st_w(float2bfloat_msa(_tmp4, _tmp4h), outptr0 + 32, 0);
+                    if (tj * 6 + 5 < outw) __msa_st_w(float2bfloat_msa(_tmp5, _tmp5h), outptr0 + 40, 0);
+                }
                 if (out_elempack == 4)
                 {
                     unsigned short* outptr1 = outptr0 + N;
