@@ -44,7 +44,7 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
                 elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
             else
 #endif
-            elempack = channels % 4 == 0 ? 4 : 1;
+                elempack = channels % 4 == 0 ? 4 : 1;
         }
 #endif
 
