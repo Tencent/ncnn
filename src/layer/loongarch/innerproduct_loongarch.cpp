@@ -23,10 +23,11 @@ InnerProduct_loongarch::InnerProduct_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+#endif // __loongarch_sx
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-#endif // __loongarch_sx
 
     flatten = 0;
 }
@@ -1194,14 +1195,19 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(m + 32);
                         __builtin_prefetch(kptr + 8);
                         __m256 _val = (__m256)__lasx_xvld(m, 0);
-                        _sum0 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[0])), _val, _sum0);
-                        _sum1 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[1])), _val, _sum1);
-                        _sum2 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[2])), _val, _sum2);
-                        _sum3 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[3])), _val, _sum3);
-                        _sum4 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[4])), _val, _sum4);
-                        _sum5 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[5])), _val, _sum5);
-                        _sum6 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[6])), _val, _sum6);
-                        _sum7 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[7])), _val, _sum7);
+                        __m128i _w_fp16 = __lsx_vld(kptr, 0);
+                        __m128 _wlo = __lsx_vfcvtl_s_h(_w_fp16);
+                        __m128 _whi = __lsx_vfcvth_s_h(_w_fp16);
+                        __m256 _w0 = __lasx_concat_128_s(_wlo, _wlo);
+                        __m256 _w1 = __lasx_concat_128_s(_whi, _whi);
+                        _sum0 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(0, 0, 0, 0)), _val, _sum0);
+                        _sum1 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(1, 1, 1, 1)), _val, _sum1);
+                        _sum2 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(2, 2, 2, 2)), _val, _sum2);
+                        _sum3 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(3, 3, 3, 3)), _val, _sum3);
+                        _sum4 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w1, _LSX_SHUFFLE(0, 0, 0, 0)), _val, _sum4);
+                        _sum5 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w1, _LSX_SHUFFLE(1, 1, 1, 1)), _val, _sum5);
+                        _sum6 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w1, _LSX_SHUFFLE(2, 2, 2, 2)), _val, _sum6);
+                        _sum7 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w1, _LSX_SHUFFLE(3, 3, 3, 3)), _val, _sum7);
 
                         m += 8;
                         kptr += 8;
@@ -1256,19 +1262,22 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                     {
                         __builtin_prefetch(m + 32);
                         __builtin_prefetch(kptr + 64);
-                        float tmp[64];
-                        for (int n = 0; n < 64; n++)
-                        {
-                            tmp[n] = float16_to_float32(kptr[n]);
-                        }
-                        __m256 _w0 = (__m256)__lasx_xvld(tmp, 0);
-                        __m256 _w1 = (__m256)__lasx_xvld(tmp + 8, 0);
-                        __m256 _w2 = (__m256)__lasx_xvld(tmp + 16, 0);
-                        __m256 _w3 = (__m256)__lasx_xvld(tmp + 24, 0);
-                        __m256 _w4 = (__m256)__lasx_xvld(tmp + 32, 0);
-                        __m256 _w5 = (__m256)__lasx_xvld(tmp + 40, 0);
-                        __m256 _w6 = (__m256)__lasx_xvld(tmp + 48, 0);
-                        __m256 _w7 = (__m256)__lasx_xvld(tmp + 56, 0);
+                        __m128i _w0_fp16 = __lsx_vld(kptr, 0);
+                        __m128i _w1_fp16 = __lsx_vld(kptr + 8, 0);
+                        __m128i _w2_fp16 = __lsx_vld(kptr + 16, 0);
+                        __m128i _w3_fp16 = __lsx_vld(kptr + 24, 0);
+                        __m128i _w4_fp16 = __lsx_vld(kptr + 32, 0);
+                        __m128i _w5_fp16 = __lsx_vld(kptr + 40, 0);
+                        __m128i _w6_fp16 = __lsx_vld(kptr + 48, 0);
+                        __m128i _w7_fp16 = __lsx_vld(kptr + 56, 0);
+                        __m256 _w0 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w0_fp16), __lsx_vfcvth_s_h(_w0_fp16));
+                        __m256 _w1 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w1_fp16), __lsx_vfcvth_s_h(_w1_fp16));
+                        __m256 _w2 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w2_fp16), __lsx_vfcvth_s_h(_w2_fp16));
+                        __m256 _w3 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w3_fp16), __lsx_vfcvth_s_h(_w3_fp16));
+                        __m256 _w4 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w4_fp16), __lsx_vfcvth_s_h(_w4_fp16));
+                        __m256 _w5 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w5_fp16), __lsx_vfcvth_s_h(_w5_fp16));
+                        __m256 _w6 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w6_fp16), __lsx_vfcvth_s_h(_w6_fp16));
+                        __m256 _w7 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w7_fp16), __lsx_vfcvth_s_h(_w7_fp16));
                         _sum0 = __lasx_xvfmadd_s(_w0, __lasx_xvreplfr2vr_s(m[0]), _sum0);
                         _sum1 = __lasx_xvfmadd_s(_w1, __lasx_xvreplfr2vr_s(m[1]), _sum1);
                         _sum2 = __lasx_xvfmadd_s(_w2, __lasx_xvreplfr2vr_s(m[2]), _sum2);
@@ -1283,13 +1292,9 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                     }
                     for (; i < num_input; i++)
                     {
-                        float tmp[8];
-                        for (int n = 0; n < 8; n++)
-                        {
-                            tmp[n] = float16_to_float32(kptr[n]);
-                        }
+                        __m128i _w_fp16 = __lsx_vld(kptr, 0);
                         __m256 _val = (__m256)__lasx_xvreplfr2vr_s(m[0]);
-                        __m256 _w = (__m256)__lasx_xvld(tmp, 0);
+                        __m256 _w = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w_fp16), __lsx_vfcvth_s_h(_w_fp16));
                         _sum0 = __lasx_xvfmadd_s(_w, _val, _sum0);
 
                         m += 1;
@@ -1338,10 +1343,12 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(m + 32);
                         __builtin_prefetch(kptr + 4);
                         __m256 _val = (__m256)__lasx_xvld(m, 0);
-                        _sum0 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[0])), _val, _sum0);
-                        _sum1 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[1])), _val, _sum1);
-                        _sum2 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[2])), _val, _sum2);
-                        _sum3 = __lasx_xvfmadd_s(__lasx_xvreplfr2vr_s(float16_to_float32(kptr[3])), _val, _sum3);
+                        __m128 _w = __lsx_vfcvtl_s_h(__lsx_vldrepl_d(kptr, 0));
+                        __m256 _w0 = __lasx_concat_128_s(_w, _w);
+                        _sum0 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(0, 0, 0, 0)), _val, _sum0);
+                        _sum1 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(1, 1, 1, 1)), _val, _sum1);
+                        _sum2 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(2, 2, 2, 2)), _val, _sum2);
+                        _sum3 = __lasx_xvfmadd_s((__m256)__lasx_xvshuf4i_w((__m256i)_w0, _LSX_SHUFFLE(3, 3, 3, 3)), _val, _sum3);
 
                         m += 8;
                         kptr += 4;
@@ -1430,14 +1437,17 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(m + 16);
                         __builtin_prefetch(kptr + 8);
                         __m128 _val = (__m128)__lsx_vld(m, 0);
-                        _sum0 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[0])), _val, _sum0);
-                        _sum1 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[1])), _val, _sum1);
-                        _sum2 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[2])), _val, _sum2);
-                        _sum3 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[3])), _val, _sum3);
-                        _sum4 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[4])), _val, _sum4);
-                        _sum5 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[5])), _val, _sum5);
-                        _sum6 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[6])), _val, _sum6);
-                        _sum7 = __lsx_vfmadd_s(__lsx_vreplfr2vr_s(float16_to_float32(kptr[7])), _val, _sum7);
+                        __m128i _w_fp16 = __lsx_vld(kptr, 0);
+                        __m128 _w0 = __lsx_vfcvtl_s_h(_w_fp16);
+                        __m128 _w1 = __lsx_vfcvth_s_h(_w_fp16);
+                        _sum0 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w0, 0), _val, _sum0);
+                        _sum1 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w0, 1), _val, _sum1);
+                        _sum2 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w0, 2), _val, _sum2);
+                        _sum3 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w0, 3), _val, _sum3);
+                        _sum4 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w1, 0), _val, _sum4);
+                        _sum5 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w1, 1), _val, _sum5);
+                        _sum6 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w1, 2), _val, _sum6);
+                        _sum7 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w((__m128i)_w1, 3), _val, _sum7);
 
                         m += 4;
                         kptr += 8;
@@ -1717,19 +1727,22 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
             {
                 __builtin_prefetch(sptr + 32);
                 __builtin_prefetch(kptr + 64);
-                float tmp[64];
-                for (int n = 0; n < 64; n++)
-                {
-                    tmp[n] = float16_to_float32(kptr[n]);
-                }
-                __m256 _w0 = (__m256)__lasx_xvld(tmp, 0);
-                __m256 _w1 = (__m256)__lasx_xvld(tmp + 8, 0);
-                __m256 _w2 = (__m256)__lasx_xvld(tmp + 16, 0);
-                __m256 _w3 = (__m256)__lasx_xvld(tmp + 24, 0);
-                __m256 _w4 = (__m256)__lasx_xvld(tmp + 32, 0);
-                __m256 _w5 = (__m256)__lasx_xvld(tmp + 40, 0);
-                __m256 _w6 = (__m256)__lasx_xvld(tmp + 48, 0);
-                __m256 _w7 = (__m256)__lasx_xvld(tmp + 56, 0);
+                __m128i _w0_fp16 = __lsx_vld(kptr, 0);
+                __m128i _w1_fp16 = __lsx_vld(kptr + 8, 0);
+                __m128i _w2_fp16 = __lsx_vld(kptr + 16, 0);
+                __m128i _w3_fp16 = __lsx_vld(kptr + 24, 0);
+                __m128i _w4_fp16 = __lsx_vld(kptr + 32, 0);
+                __m128i _w5_fp16 = __lsx_vld(kptr + 40, 0);
+                __m128i _w6_fp16 = __lsx_vld(kptr + 48, 0);
+                __m128i _w7_fp16 = __lsx_vld(kptr + 56, 0);
+                __m256 _w0 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w0_fp16), __lsx_vfcvth_s_h(_w0_fp16));
+                __m256 _w1 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w1_fp16), __lsx_vfcvth_s_h(_w1_fp16));
+                __m256 _w2 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w2_fp16), __lsx_vfcvth_s_h(_w2_fp16));
+                __m256 _w3 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w3_fp16), __lsx_vfcvth_s_h(_w3_fp16));
+                __m256 _w4 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w4_fp16), __lsx_vfcvth_s_h(_w4_fp16));
+                __m256 _w5 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w5_fp16), __lsx_vfcvth_s_h(_w5_fp16));
+                __m256 _w6 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w6_fp16), __lsx_vfcvth_s_h(_w6_fp16));
+                __m256 _w7 = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w7_fp16), __lsx_vfcvth_s_h(_w7_fp16));
                 _sum0 = __lasx_xvfmadd_s(_w0, __lasx_xvreplfr2vr_s(sptr[0]), _sum0);
                 _sum1 = __lasx_xvfmadd_s(_w1, __lasx_xvreplfr2vr_s(sptr[1]), _sum1);
                 _sum2 = __lasx_xvfmadd_s(_w2, __lasx_xvreplfr2vr_s(sptr[2]), _sum2);
@@ -1744,13 +1757,9 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
             }
             for (; i < num_input; i++)
             {
-                float tmp[8];
-                for (int n = 0; n < 8; n++)
-                {
-                    tmp[n] = float16_to_float32(kptr[n]);
-                }
+                __m128i _w_fp16 = __lsx_vld(kptr, 0);
                 __m256 _val = (__m256)__lasx_xvreplfr2vr_s(sptr[0]);
-                __m256 _w = (__m256)__lasx_xvld(tmp, 0);
+                __m256 _w = __lasx_concat_128_s(__lsx_vfcvtl_s_h(_w_fp16), __lsx_vfcvth_s_h(_w_fp16));
                 _sum0 = __lasx_xvfmadd_s(_w, _val, _sum0);
 
                 sptr += 1;

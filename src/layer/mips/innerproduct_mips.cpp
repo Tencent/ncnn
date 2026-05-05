@@ -23,10 +23,11 @@ InnerProduct_mips::InnerProduct_mips()
 {
 #if __mips_msa
     support_packing = true;
+#endif // __mips_msa
+
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
-#endif // __mips_msa
 
     flatten = 0;
 }
