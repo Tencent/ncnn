@@ -50,17 +50,17 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
     }
 #endif
 
-#if __mips_msa
-    if (opt.use_fp16_storage)
-    {
-        return create_pipeline_fp16s(opt);
-    }
-#endif
-
 #if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
+    }
+#endif
+
+#if __mips_msa
+    if (opt.use_fp16_storage)
+    {
+        return create_pipeline_fp16s(opt);
     }
 #endif
 
@@ -138,17 +138,17 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
 #endif
 
-#if __mips_msa
-    if (opt.use_fp16_storage)
-    {
-        return forward_fp16s(bottom_blob, top_blob, opt);
-    }
-#endif
-
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
     {
         return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if __mips_msa
+    if (opt.use_fp16_storage)
+    {
+        return forward_fp16s(bottom_blob, top_blob, opt);
     }
 #endif
 
