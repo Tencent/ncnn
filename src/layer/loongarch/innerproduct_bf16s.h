@@ -277,6 +277,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 32);
                     __m256 _m01 = bfloat2float_lasx((__m128i)__lsx_vld(m, 0));
                     __m128 _m01lo = __lasx_extract_128_lo_s(_m01);
                     __m128 _m01hi = __lasx_extract_128_hi_s(_m01);
@@ -347,6 +349,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 32);
                     __m256 _val = __lasx_xvreplfr2vr_s(bfloat16_to_float32(m[0]));
                     __m256 _w = bfloat2float_lasx(__lsx_vld(kptr, 0));
                     _sum = __lasx_xvfmadd_s(_val, _w, _sum);
@@ -385,6 +389,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 16);
+                    __builtin_prefetch(kptr + 32);
                     __m128 _m0_128 = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
                     __m256 _m0 = __lasx_concat_128_s(_m0_128, _m0_128);
                     __m256 _val0 = (__m256)__lasx_xvshuf4i_w((__m256i)_m0, _LSX_SHUFFLE(0, 0, 0, 0));
@@ -441,6 +447,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int i = 0; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 16);
                     __m256 _val = bfloat2float_lasx((__m128i)__lsx_vld(m, 0));
                     __m128 _w0_128 = bfloat2float_lsx(__lsx_vldrepl_d(kptr, 0));
                     __m256 _w0 = __lasx_concat_128_s(_w0_128, _w0_128);
@@ -484,6 +492,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int i = 0; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 8);
                     __m256 _val = bfloat2float_lasx(__lsx_vld(m, 0));
                     __m256 _w = (__m256)__lasx_xvreplfr2vr_s(bfloat16_to_float32(kptr[0]));
                     _sum = __lasx_xvfmadd_s(_w, _val, _sum);
@@ -551,6 +561,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int i = 0; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 32);
                     __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                     __m128i _m01_bf16 = __lsx_vld(m, 0);
                     __m128 _m0 = (__m128)__lsx_vilvl_h(_m01_bf16, _zero_bf16);
@@ -644,6 +656,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 32);
                     __m128 _val = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[0]));
                     __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                     __m128i _w01_bf16 = __lsx_vld(kptr, 0);
@@ -697,6 +711,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 16);
+                    __builtin_prefetch(kptr + 32);
                     __m128 _m0 = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
                     __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 0);
                     __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 1);
@@ -766,6 +782,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int i = 0; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 16);
                     __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                     __m128i _m01_bf16 = __lsx_vld(m, 0);
                     __m128 _m0 = (__m128)__lsx_vilvl_h(_m01_bf16, _zero_bf16);
@@ -832,6 +850,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
 
                 for (int i = 0; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 8);
                     __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                     __m128i _m01_bf16 = __lsx_vld(m, 0);
                     __m128 _m0 = (__m128)__lsx_vilvl_h(_m01_bf16, _zero_bf16);
@@ -876,6 +896,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 16);
+                    __builtin_prefetch(kptr + 16);
                     __m128 _m0 = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
                     __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 0);
                     __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_m0, 1);
@@ -925,6 +947,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i < num_input; i++)
                 {
+                    __builtin_prefetch(m + 16);
+                    __builtin_prefetch(kptr + 16);
                     __m128 _val = __lsx_vreplfr2vr_s(bfloat16_to_float32(m[0]));
                     __m128 _w = bfloat2float_lsx(__lsx_vldrepl_d(kptr, 0));
                     _sum = __lsx_vfmadd_s(_val, _w, _sum);
@@ -962,6 +986,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 int i = 0;
                 for (; i + 3 < num_input; i += 4)
                 {
+                    __builtin_prefetch(m + 64);
+                    __builtin_prefetch(kptr + 16);
                     __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
                     __m128i _val01_bf16 = __lsx_vld(m, 0);
                     __m128 _val0 = (__m128)__lsx_vilvl_h(_val01_bf16, _zero_bf16);
@@ -1029,6 +1055,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 __m256 _sum256 = (__m256)__lasx_xvreplgr2vr_w(0);
                 for (; i + 7 < num_input; i += 8)
                 {
+                    __builtin_prefetch(m + 32);
+                    __builtin_prefetch(kptr + 32);
                     __m256 _m = bfloat2float_lasx(__lsx_vld(m, 0));
                     __m256 _w = bfloat2float_lasx(__lsx_vld(kptr, 0));
                     _sum256 = __lasx_xvfmadd_s(_m, _w, _sum256);
@@ -1040,6 +1068,8 @@ static void innerproduct_gemm_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, c
                 __m128 _suml = (__m128)__lsx_vreplgr2vr_w(0);
                 for (; i + 3 < num_input; i += 4)
                 {
+                    __builtin_prefetch(m + 16);
+                    __builtin_prefetch(kptr + 16);
                     __m128 _val = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
                     __m128 _w = bfloat2float_lsx(__lsx_vldrepl_d(kptr, 0));
                     _suml = __lsx_vfmadd_s(_val, _w, _suml);
@@ -1107,6 +1137,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             int i = 0;
             for (; i + 7 < num_input; i += 8)
             {
+                __builtin_prefetch(sptr + 32);
+                __builtin_prefetch(kptr + 128);
                 __m256 _sp01 = bfloat2float_lasx((__m128i)__lsx_vld(sptr, 0));
                 __m128 _sp01lo = __lasx_extract_128_lo_s(_sp01);
                 __m128 _sp01hi = __lasx_extract_128_hi_s(_sp01);
@@ -1147,6 +1179,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             }
             for (; i + 3 < num_input; i += 4)
             {
+                __builtin_prefetch(sptr + 16);
+                __builtin_prefetch(kptr + 64);
                 __m128 _sp = bfloat2float_lsx(__lsx_vldrepl_d(sptr, 0));
                 __m256 _sp0 = __lasx_concat_128_s(_sp, _sp);
                 __m256 _val0 = (__m256)__lasx_xvshuf4i_w((__m256i)_sp0, _LSX_SHUFFLE(0, 0, 0, 0));
@@ -1220,6 +1254,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             int i = 0;
             for (; i + 3 < num_input; i += 4)
             {
+                __builtin_prefetch(sptr + 16);
+                __builtin_prefetch(kptr + 64);
                 __m128 _sp = bfloat2float_lsx(__lsx_vldrepl_d(sptr, 0));
                 __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_sp, 0);
                 __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_sp, 1);
@@ -1303,6 +1339,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             int i = 0;
             for (; i + 3 < num_input; i += 4)
             {
+                __builtin_prefetch(sptr + 16);
+                __builtin_prefetch(kptr + 64);
                 __m128 _sp = bfloat2float_lsx(__lsx_vldrepl_d(sptr, 0));
                 __m128 _val0 = (__m128)__lsx_vreplvei_w((__m128i)_sp, 0);
                 __m128 _val1 = (__m128)__lsx_vreplvei_w((__m128i)_sp, 1);
@@ -1389,6 +1427,15 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __m256 _sum7 = _sum0;
             for (; i + 7 < num_input; i += 8)
             {
+                __builtin_prefetch(m + 32);
+                __builtin_prefetch(w0 + 32);
+                __builtin_prefetch(w1 + 32);
+                __builtin_prefetch(w2 + 32);
+                __builtin_prefetch(w3 + 32);
+                __builtin_prefetch(w4 + 32);
+                __builtin_prefetch(w5 + 32);
+                __builtin_prefetch(w6 + 32);
+                __builtin_prefetch(w7 + 32);
                 __m256 _m = bfloat2float_lasx(__lsx_vld(m, 0));
 
                 _sum0 = __lasx_xvfmadd_s(_m, bfloat2float_lasx(__lsx_vld(w0, 0)), _sum0);
@@ -1475,6 +1522,11 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __m256 _sum3a = _sum0a;
             for (; i + 7 < num_input; i += 8)
             {
+                __builtin_prefetch(m + 32);
+                __builtin_prefetch(w0 + 32);
+                __builtin_prefetch(w1 + 32);
+                __builtin_prefetch(w2 + 32);
+                __builtin_prefetch(w3 + 32);
                 __m256 _m = bfloat2float_lasx(__lsx_vld(m, 0));
 
                 _sum0a = __lasx_xvfmadd_s(_m, bfloat2float_lasx(__lsx_vld(w0, 0)), _sum0a);
@@ -1496,6 +1548,11 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __m128 _sum3l = _sum0l;
             for (; i + 3 < num_input; i += 4)
             {
+                __builtin_prefetch(m + 16);
+                __builtin_prefetch(w0 + 16);
+                __builtin_prefetch(w1 + 16);
+                __builtin_prefetch(w2 + 16);
+                __builtin_prefetch(w3 + 16);
                 __m128 _m = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
 
                 _sum0l = __lsx_vfmadd_s(_m, bfloat2float_lsx(__lsx_vldrepl_d(w0, 0)), _sum0l);
@@ -1560,6 +1617,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __m256 _sum256 = (__m256)__lasx_xvreplgr2vr_w(0);
             for (; i + 7 < num_input; i += 8)
             {
+                __builtin_prefetch(m + 32);
+                __builtin_prefetch(w + 32);
                 __m256 _m = bfloat2float_lasx(__lsx_vld(m, 0));
                 __m256 _w = bfloat2float_lasx(__lsx_vld(w, 0));
                 _sum256 = __lasx_xvfmadd_s(_m, _w, _sum256);
@@ -1571,6 +1630,8 @@ static void innerproduct_bf16s_lsx(const Mat& bottom_blob, Mat& top_blob, const 
             __m128 _suml = (__m128)__lsx_vreplgr2vr_w(0);
             for (; i + 3 < num_input; i += 4)
             {
+                __builtin_prefetch(m + 16);
+                __builtin_prefetch(w + 16);
                 __m128 _m = bfloat2float_lsx(__lsx_vldrepl_d(m, 0));
                 __m128 _w = bfloat2float_lsx(__lsx_vldrepl_d(w, 0));
                 _suml = __lsx_vfmadd_s(_m, _w, _suml);
