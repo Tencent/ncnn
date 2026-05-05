@@ -16,6 +16,7 @@ namespace ncnn {
 Packing_mips::Packing_mips()
 {
     support_packing = true;
+    support_any_packing = true;
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif

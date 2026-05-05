@@ -16,6 +16,7 @@ Flatten_loongarch::Flatten_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+    support_any_packing = true;
 #endif // __loongarch_sx
 #if NCNN_BF16
     support_bf16_storage = true;

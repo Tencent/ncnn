@@ -13,6 +13,7 @@ namespace ncnn {
 Cast_mips::Cast_mips()
 {
     support_packing = true;
+    support_any_packing = true;
 }
 
 int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

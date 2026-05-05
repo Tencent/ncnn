@@ -24,6 +24,7 @@ Padding_mips::Padding_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif // __mips_msa
 #if NCNN_BF16
     support_bf16_storage = true;

@@ -14,6 +14,7 @@ AbsVal_mips::AbsVal_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif
 #if NCNN_BF16
     support_bf16_storage = true;

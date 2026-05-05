@@ -16,6 +16,7 @@ Requantize_loongarch::Requantize_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+    support_any_packing = true;
 #endif
 }
 

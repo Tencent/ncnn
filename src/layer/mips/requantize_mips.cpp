@@ -16,6 +16,7 @@ Requantize_mips::Requantize_mips()
 {
 #if __mips_msa
     support_packing = true;
+    support_any_packing = true;
 #endif
 }
 

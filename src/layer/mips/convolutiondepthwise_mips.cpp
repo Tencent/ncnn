@@ -708,25 +708,259 @@ int ConvolutionDepthWise_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_bl
                 const unsigned short* kptr = (const unsigned short*)weight_data_tm + maxk * g * 8;
                 const Mat m = bottom_blob_bordered.channel(g);
 
-                for (int i = 0; i < outh; i++)
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+
+                v4f32 _bias0 = (v4f32)__msa_fill_w(0);
+                v4f32 _bias1 = (v4f32)__msa_fill_w(0);
+                if (bias_term)
                 {
-                    for (int j = 0; j < outw; j++)
+                    _bias0 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8, 0);
+                    _bias1 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8 + 4, 0);
+                }
+
+                const int stride_w_elempack = stride_w * 8;
+
+                int i = 0;
+                for (; i + 1 < outh; i += 2)
+                {
+                    unsigned short* outptr0 = outptr;
+                    unsigned short* outptr1 = outptr + outw * 8;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+                    const unsigned short* r1 = m.row<const unsigned short>((i + 1) * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
                     {
-                        v4f32 _sum0 = (v4f32)__msa_fill_w(0);
-                        v4f32 _sum1 = (v4f32)__msa_fill_w(0);
+                        v4f32 _sum00_0 = _bias0;
+                        v4f32 _sum00_1 = _bias1;
+                        v4f32 _sum01_0 = _bias0;
+                        v4f32 _sum01_1 = _bias1;
+                        v4f32 _sum02_0 = _bias0;
+                        v4f32 _sum02_1 = _bias1;
+                        v4f32 _sum03_0 = _bias0;
+                        v4f32 _sum03_1 = _bias1;
+                        v4f32 _sum10_0 = _bias0;
+                        v4f32 _sum10_1 = _bias1;
+                        v4f32 _sum11_0 = _bias0;
+                        v4f32 _sum11_1 = _bias1;
+                        v4f32 _sum12_0 = _bias0;
+                        v4f32 _sum12_1 = _bias1;
+                        v4f32 _sum13_0 = _bias0;
+                        v4f32 _sum13_1 = _bias1;
 
-                        if (bias_term)
-                        {
-                            _sum0 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8, 0);
-                            _sum1 = (v4f32)__msa_ld_w((const float*)bias_data + g * 8 + 4, 0);
-                        }
-
-                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 8;
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            v8i16 _zero_bf16 = __msa_fill_h(0);
-                            v8i16 _val01_bf16 = __msa_ld_h(sptr + space_ofs[k] * 8, 0);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __ncnn_msa_fmadd_w(_sum00_0, _val0, _w0);
+                            _sum00_1 = __ncnn_msa_fmadd_w(_sum00_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __ncnn_msa_fmadd_w(_sum01_0, _val0, _w0);
+                            _sum01_1 = __ncnn_msa_fmadd_w(_sum01_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __ncnn_msa_fmadd_w(_sum02_0, _val0, _w0);
+                            _sum02_1 = __ncnn_msa_fmadd_w(_sum02_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __ncnn_msa_fmadd_w(_sum03_0, _val0, _w0);
+                            _sum03_1 = __ncnn_msa_fmadd_w(_sum03_1, _val1, _w1);
+
+                            sptr = sptr1 + space_ofs[k] * 8;
+
+                            _val01_bf16 = __msa_ld_h(sptr, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum10_0 = __ncnn_msa_fmadd_w(_sum10_0, _val0, _w0);
+                            _sum10_1 = __ncnn_msa_fmadd_w(_sum10_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum11_0 = __ncnn_msa_fmadd_w(_sum11_0, _val0, _w0);
+                            _sum11_1 = __ncnn_msa_fmadd_w(_sum11_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum12_0 = __ncnn_msa_fmadd_w(_sum12_0, _val0, _w0);
+                            _sum12_1 = __ncnn_msa_fmadd_w(_sum12_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum13_0 = __ncnn_msa_fmadd_w(_sum13_0, _val0, _w0);
+                            _sum13_1 = __ncnn_msa_fmadd_w(_sum13_1, _val1, _w1);
+                        }
+
+                        _sum00_0 = activation_msa(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_msa(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_msa(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_msa(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_msa(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_msa(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_msa(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_msa(_sum03_1, activation_type, activation_params);
+                        _sum10_0 = activation_msa(_sum10_0, activation_type, activation_params);
+                        _sum10_1 = activation_msa(_sum10_1, activation_type, activation_params);
+                        _sum11_0 = activation_msa(_sum11_0, activation_type, activation_params);
+                        _sum11_1 = activation_msa(_sum11_1, activation_type, activation_params);
+                        _sum12_0 = activation_msa(_sum12_0, activation_type, activation_params);
+                        _sum12_1 = activation_msa(_sum12_1, activation_type, activation_params);
+                        _sum13_0 = activation_msa(_sum13_0, activation_type, activation_params);
+                        _sum13_1 = activation_msa(_sum13_1, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum00_0, _sum00_1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+                        __msa_st_w(float2bfloat_msa(_sum10_0, _sum10_1), outptr1, 0);
+                        __msa_st_w(float2bfloat_msa(_sum11_0, _sum11_1), outptr1 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum12_0, _sum12_1), outptr1 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum13_0, _sum13_1), outptr1 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                        outptr1 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        v4f32 _sum0 = _bias0;
+                        v4f32 _sum1 = _bias1;
+                        v4f32 _sum2 = _bias0;
+                        v4f32 _sum3 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+                        const unsigned short* sptr1 = r1 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr0 + space_ofs[k] * 8, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+                            _sum0 = __ncnn_msa_fmadd_w(_sum0, _val0, _w0);
+                            _sum1 = __ncnn_msa_fmadd_w(_sum1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr1 + space_ofs[k] * 8, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum2 = __ncnn_msa_fmadd_w(_sum2, _val0, _w0);
+                            _sum3 = __ncnn_msa_fmadd_w(_sum3, _val1, _w1);
+                        }
+
+                        _sum0 = activation_msa(_sum0, activation_type, activation_params);
+                        _sum1 = activation_msa(_sum1, activation_type, activation_params);
+                        _sum2 = activation_msa(_sum2, activation_type, activation_params);
+                        _sum3 = activation_msa(_sum3, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum2, _sum3), outptr1, 0);
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                    }
+
+                    outptr += outw * 8 * 2;
+                }
+                for (; i < outh; i++)
+                {
+                    unsigned short* outptr0 = outptr;
+
+                    const unsigned short* r0 = m.row<const unsigned short>(i * stride_h);
+
+                    int j = 0;
+                    for (; j + 3 < outw; j += 4)
+                    {
+                        v4f32 _sum00_0 = _bias0;
+                        v4f32 _sum00_1 = _bias1;
+                        v4f32 _sum01_0 = _bias0;
+                        v4f32 _sum01_1 = _bias1;
+                        v4f32 _sum02_0 = _bias0;
+                        v4f32 _sum02_1 = _bias1;
+                        v4f32 _sum03_0 = _bias0;
+                        v4f32 _sum03_1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
+                            v4f32 _w0 = (v4f32)__msa_ilvr_h(_w01_bf16, _zero_bf16);
+                            v4f32 _w1 = (v4f32)__msa_ilvl_h(_w01_bf16, _zero_bf16);
+
+                            const unsigned short* sptr = sptr0 + space_ofs[k] * 8;
+
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr, 0);
+                            v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum00_0 = __ncnn_msa_fmadd_w(_sum00_0, _val0, _w0);
+                            _sum00_1 = __ncnn_msa_fmadd_w(_sum00_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum01_0 = __ncnn_msa_fmadd_w(_sum01_0, _val0, _w0);
+                            _sum01_1 = __ncnn_msa_fmadd_w(_sum01_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 2, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum02_0 = __ncnn_msa_fmadd_w(_sum02_0, _val0, _w0);
+                            _sum02_1 = __ncnn_msa_fmadd_w(_sum02_1, _val1, _w1);
+
+                            _val01_bf16 = __msa_ld_h(sptr + stride_w_elempack * 3, 0);
+                            _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
+                            _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
+                            _sum03_0 = __ncnn_msa_fmadd_w(_sum03_0, _val0, _w0);
+                            _sum03_1 = __ncnn_msa_fmadd_w(_sum03_1, _val1, _w1);
+                        }
+
+                        _sum00_0 = activation_msa(_sum00_0, activation_type, activation_params);
+                        _sum00_1 = activation_msa(_sum00_1, activation_type, activation_params);
+                        _sum01_0 = activation_msa(_sum01_0, activation_type, activation_params);
+                        _sum01_1 = activation_msa(_sum01_1, activation_type, activation_params);
+                        _sum02_0 = activation_msa(_sum02_0, activation_type, activation_params);
+                        _sum02_1 = activation_msa(_sum02_1, activation_type, activation_params);
+                        _sum03_0 = activation_msa(_sum03_0, activation_type, activation_params);
+                        _sum03_1 = activation_msa(_sum03_1, activation_type, activation_params);
+
+                        __msa_st_w(float2bfloat_msa(_sum00_0, _sum00_1), outptr0, 0);
+                        __msa_st_w(float2bfloat_msa(_sum01_0, _sum01_1), outptr0 + 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum02_0, _sum02_1), outptr0 + 8 * 2, 0);
+                        __msa_st_w(float2bfloat_msa(_sum03_0, _sum03_1), outptr0 + 8 * 3, 0);
+
+                        outptr0 += 8 * 4;
+                    }
+                    for (; j < outw; j++)
+                    {
+                        v4f32 _sum0 = _bias0;
+                        v4f32 _sum1 = _bias1;
+
+                        const unsigned short* sptr0 = r0 + j * stride_w_elempack;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            v8i16 _val01_bf16 = __msa_ld_h(sptr0 + space_ofs[k] * 8, 0);
                             v4f32 _val0 = (v4f32)__msa_ilvr_h(_val01_bf16, _zero_bf16);
                             v4f32 _val1 = (v4f32)__msa_ilvl_h(_val01_bf16, _zero_bf16);
                             v8i16 _w01_bf16 = __msa_ld_h(kptr + k * 8, 0);
@@ -739,7 +973,9 @@ int ConvolutionDepthWise_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_bl
                         _sum0 = activation_msa(_sum0, activation_type, activation_params);
                         _sum1 = activation_msa(_sum1, activation_type, activation_params);
 
-                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr + j * 8, 0);
+                        __msa_st_w(float2bfloat_msa(_sum0, _sum1), outptr0, 0);
+
+                        outptr0 += 8;
                     }
 
                     outptr += outw * 8;

@@ -17,6 +17,7 @@ namespace ncnn {
 Cast_loongarch::Cast_loongarch()
 {
     support_packing = true;
+    support_any_packing = true;
 }
 
 int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const

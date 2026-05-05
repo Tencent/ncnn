@@ -20,6 +20,7 @@ TanH_loongarch::TanH_loongarch()
 {
 #if __loongarch_sx
     support_packing = true;
+    support_any_packing = true;
 #endif
 #if NCNN_BF16
     support_bf16_storage = true;
