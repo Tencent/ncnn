@@ -341,8 +341,8 @@ int ShuffleChannel_mips::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_bl
 
                     v8i16 _p01 = (v8i16)__msa_ilvr_h(_p12, _p0);
 
-                    *(uint64_t*)outptr0 = __msa_copy_s_d((v2i64)_p01, 0);
-                    *(uint64_t*)outptr1 = __msa_copy_s_d((v2i64)_p01, 1);
+                    __msa_storel_d((v4i32)_p01, outptr0);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_p01, (v16i8)_p01, 8), outptr1);
 
                     ptr0 += 4;
                     ptr1 += 4;
@@ -363,11 +363,11 @@ int ShuffleChannel_mips::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_bl
                 for (int i = 0; i < size; i++)
                 {
                     v8i16 _p0 = (v8i16)__msa_loadl_d(ptr0);
-                    v8i16 _p1 = (v8i16)__msa_fill_w(*(const int*)ptr1);
+                    v8i16 _p1 = (v8i16)__msa_fill_w_ptr(ptr1);
 
                     v8i16 _p01 = (v8i16)__msa_ilvr_h(_p1, _p0);
 
-                    *(uint64_t*)outptr = __msa_copy_s_d((v2i64)_p01, 0);
+                    __msa_storel_d((v4i32)_p01, outptr);
 
                     ptr0 += 4;
                     ptr1 += 4;
@@ -400,8 +400,8 @@ int ShuffleChannel_mips::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_bl
 
                         v8i16 _p01 = (v8i16)__msa_ilvr_h(_p1, _p0);
 
-                        *(uint64_t*)outptr0 = __msa_copy_s_d((v2i64)_p01, 0);
-                        *(uint64_t*)outptr1 = __msa_copy_s_d((v2i64)_p01, 1);
+                        __msa_storel_d((v4i32)_p01, outptr0);
+                        __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_p01, (v16i8)_p01, 8), outptr1);
 
                         ptr0 += 4;
                         ptr1 += 4;
@@ -451,9 +451,9 @@ int ShuffleChannel_mips::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_bl
                         v8i16 _5926 = __msa_vshf_h(_mask_5926, _p2, _p01);
                         v8i16 _a37b = __msa_vshf_h(_mask_a37b, _p2, _p01);
 
-                        *(uint64_t*)outptr0 = __msa_copy_s_d((v2i64)_0481, 0);
-                        *(uint64_t*)outptr1 = __msa_copy_s_d((v2i64)_5926, 0);
-                        *(uint64_t*)outptr2 = __msa_copy_s_d((v2i64)_a37b, 0);
+                        __msa_storel_d((v4i32)_0481, outptr0);
+                        __msa_storel_d((v4i32)_5926, outptr1);
+                        __msa_storel_d((v4i32)_a37b, outptr2);
 
                         ptr0 += 4;
                         ptr1 += 4;
@@ -493,10 +493,10 @@ int ShuffleChannel_mips::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_bl
                         v8i16 _p02 = (v8i16)__msa_ilvr_w((v4i32)_p23, (v4i32)_p01);
                         v8i16 _p13 = (v8i16)__msa_ilvl_w((v4i32)_p23, (v4i32)_p01);
 
-                        *(uint64_t*)outptr0 = __msa_copy_s_d((v2i64)_p02, 0);
-                        *(uint64_t*)outptr1 = __msa_copy_s_d((v2i64)_p02, 1);
-                        *(uint64_t*)outptr2 = __msa_copy_s_d((v2i64)_p13, 0);
-                        *(uint64_t*)outptr3 = __msa_copy_s_d((v2i64)_p13, 1);
+                        __msa_storel_d((v4i32)_p02, outptr0);
+                        __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_p02, (v16i8)_p02, 8), outptr1);
+                        __msa_storel_d((v4i32)_p13, outptr2);
+                        __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_p13, (v16i8)_p13, 8), outptr3);
 
                         ptr0 += 4;
                         ptr1 += 4;

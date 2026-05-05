@@ -26,6 +26,13 @@ typedef union
 
 } // namespace ncnn
 
+static NCNN_FORCEINLINE int32_t __msa_load_w(const void* ptr)
+{
+    int32_t val;
+    memcpy(&val, ptr, sizeof(int32_t));
+    return val;
+}
+
 #if __mips_msa
 /* declare some mips constants with union */
 #define _MIPS_FLOAT_CONST(Name, Val) \
@@ -155,6 +162,11 @@ static NCNN_FORCEINLINE v4i32 __msa_set_w(int v0, int v1, int v2, int v3)
     return _v;
 }
 
+static NCNN_FORCEINLINE v4i32 __msa_fill_w_ptr(const void* ptr)
+{
+    return __msa_fill_w(__msa_load_w(ptr));
+}
+
 static NCNN_FORCEINLINE v4i32 __msa_loadl_d(const void* ptr)
 {
     // Load low 64 bits only; callers must not depend on the upper 64 bits.
@@ -180,14 +192,8 @@ static NCNN_FORCEINLINE void __msa_storel_d(const v4i32& v, void* ptr)
 
 static NCNN_FORCEINLINE v4i32 __msa_fill_d_ptr(const void* ptr)
 {
-#if __mips64
-    return (v4i32)__msa_fill_d(*(const int64_t*)ptr);
-#else
-    const int* ptr32 = (const int*)ptr;
-    v4i32 _v = __msa_fill_w(ptr32[0]);
-    _v = __msa_insert_w(_v, 1, ptr32[1]);
+    v4i32 _v = __msa_loadl_d(ptr);
     return (v4i32)__msa_ilvr_d((v2i64)_v, (v2i64)_v);
-#endif
 }
 
 static NCNN_FORCEINLINE float __msa_reduce_fmax_w(v4f32 _v)

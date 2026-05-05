@@ -12,6 +12,7 @@
 #endif // __loongarch_sx
 
 #include <stdint.h>
+#include <string.h>
 
 #if __loongarch_sx
 #define _LSX_SHUFFLE(z, y, x, w) (((z) << 6) | ((y) << 4) | ((x) << 2) | (w))
@@ -217,14 +218,29 @@ static NCNN_FORCEINLINE __m128 __lsx_vreplfr2vr_s(float val)
     return (__m128)__lsx_vreplgr2vr_w(fi_tmpval.i);
 }
 
+static NCNN_FORCEINLINE __m128i __lsx_vreplgr2vr_w_ptr(const void* ptr)
+{
+    int32_t val;
+    memcpy(&val, ptr, sizeof(int32_t));
+    return __lsx_vreplgr2vr_w(val);
+}
+
+static NCNN_FORCEINLINE __m128i __lsx_loadl_d(const void* ptr)
+{
+    int64_t val;
+    memcpy(&val, ptr, sizeof(int64_t));
+    return __lsx_vinsgr2vr_d(__lsx_vldi(0), val, 0);
+}
+
 static NCNN_FORCEINLINE float __lsx_reduce_fadd_s(__m128 _v)
 {
     __m128 hi64 = (__m128)__lsx_vbsrl_v((__m128i)_v, 8);
     __m128 sum64 = __lsx_vfadd_s(hi64, _v);
     __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)sum64, 4);
     __m128 sum32 = __lsx_vfadd_s(sum64, hi32);
+    int tmp = __lsx_vpickve2gr_w((__m128i)sum32, 0);
     float result;
-    *(int*)&result = __lsx_vpickve2gr_w((__m128i)sum32, 0);
+    memcpy(&result, &tmp, sizeof(float));
     return result;
 }
 
@@ -243,8 +259,9 @@ static NCNN_FORCEINLINE float __lsx_reduce_fmax_s(__m128 _v)
     __m128 max64 = __lsx_vfmax_s(hi64, _v);
     __m128 hi32 = (__m128)__lsx_vbsrl_v((__m128i)max64, 4);
     __m128 max32 = __lsx_vfmax_s(max64, hi32);
+    int tmp = __lsx_vpickve2gr_w((__m128i)max32, 0);
     float result;
-    *(int*)&result = __lsx_vpickve2gr_w((__m128i)max32, 0);
+    memcpy(&result, &tmp, sizeof(float));
     return result;
 }
 

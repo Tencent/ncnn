@@ -113,8 +113,8 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
-            v16i8 _r1 = (v16i8)__msa_set_w(*(const int*)p4, *(const int*)p5, *(const int*)p6, *(const int*)p7);
+            v16i8 _r0 = (v16i8)__msa_set_w(__msa_load_w(p0), __msa_load_w(p1), __msa_load_w(p2), __msa_load_w(p3));
+            v16i8 _r1 = (v16i8)__msa_set_w(__msa_load_w(p4), __msa_load_w(p5), __msa_load_w(p6), __msa_load_w(p7));
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
             pp += 32;
@@ -198,7 +198,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
+            v16i8 _r0 = (v16i8)__msa_set_w(__msa_load_w(p0), __msa_load_w(p1), __msa_load_w(p2), __msa_load_w(p3));
             __msa_st_b(_r0, pp, 0);
             pp += 16;
             p0 += 4;
@@ -337,10 +337,10 @@ static void transpose_pack_A_tile_int8(const Mat& A, Mat& AT, int i, int max_ii,
             const signed char* p2 = p1 + A_hstep;
             const signed char* p3 = p2 + A_hstep;
 
-            v16i8 _r0 = (v16i8)__msa_fill_w(*(const int*)p0);
-            v16i8 _r1 = (v16i8)__msa_fill_w(*(const int*)p1);
-            v16i8 _r2 = (v16i8)__msa_fill_w(*(const int*)p2);
-            v16i8 _r3 = (v16i8)__msa_fill_w(*(const int*)p3);
+            v16i8 _r0 = (v16i8)__msa_fill_w_ptr(p0);
+            v16i8 _r1 = (v16i8)__msa_fill_w_ptr(p1);
+            v16i8 _r2 = (v16i8)__msa_fill_w_ptr(p2);
+            v16i8 _r3 = (v16i8)__msa_fill_w_ptr(p3);
             transpose16x4_epi8(_r0, _r1, _r2, _r3);
             __msa_st_b(_r0, pp, 0);
             pp += 16;
@@ -514,8 +514,8 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
-            v16i8 _r1 = (v16i8)__msa_set_w(*(const int*)p4, *(const int*)p5, *(const int*)p6, *(const int*)p7);
+            v16i8 _r0 = (v16i8)__msa_set_w(__msa_load_w(p0), __msa_load_w(p1), __msa_load_w(p2), __msa_load_w(p3));
+            v16i8 _r1 = (v16i8)__msa_set_w(__msa_load_w(p4), __msa_load_w(p5), __msa_load_w(p6), __msa_load_w(p7));
             __msa_st_b(_r0, pp, 0);
             __msa_st_b(_r1, pp + 16, 0);
             pp += 32;
@@ -599,7 +599,7 @@ static void pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj, int k, in
         }
         for (; kk + 3 < max_kk; kk += 4)
         {
-            v16i8 _r0 = (v16i8)__msa_set_w(*(const int*)p0, *(const int*)p1, *(const int*)p2, *(const int*)p3);
+            v16i8 _r0 = (v16i8)__msa_set_w(__msa_load_w(p0), __msa_load_w(p1), __msa_load_w(p2), __msa_load_w(p3));
             __msa_st_b(_r0, pp, 0);
             pp += 16;
             p0 += 4;
@@ -738,10 +738,10 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int j, int max_jj,
             const signed char* p2 = p1 + B_hstep;
             const signed char* p3 = p2 + B_hstep;
 
-            v16i8 _r0 = (v16i8)__msa_fill_w(*(const int*)p0);
-            v16i8 _r1 = (v16i8)__msa_fill_w(*(const int*)p1);
-            v16i8 _r2 = (v16i8)__msa_fill_w(*(const int*)p2);
-            v16i8 _r3 = (v16i8)__msa_fill_w(*(const int*)p3);
+            v16i8 _r0 = (v16i8)__msa_fill_w_ptr(p0);
+            v16i8 _r1 = (v16i8)__msa_fill_w_ptr(p1);
+            v16i8 _r2 = (v16i8)__msa_fill_w_ptr(p2);
+            v16i8 _r3 = (v16i8)__msa_fill_w_ptr(p3);
             transpose16x4_epi8(_r0, _r1, _r2, _r3);
             __msa_st_b(_r0, pp, 0);
             pp += 16;
@@ -2428,15 +2428,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w_ptr(pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w_ptr(pA + 4);
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 v8i16 _pA0r = __msa_shf_h(_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
                 v8i16 _pA1r = __msa_shf_h(_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w_ptr(pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
-                v8i16 _pB1 = (v8i16)__msa_fill_w(*(const int*)(pB + 4));
+                v8i16 _pB1 = (v8i16)__msa_fill_w_ptr(pB + 4);
                 _pB1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB1, 0), (v16i8)_pB1);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                 v8i16 _pB1r = __msa_shf_h(_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
@@ -2560,13 +2560,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w_ptr(pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w_ptr(pA + 4);
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 v8i16 _pA0r = __msa_shf_h(_pA0, _MSA_SHUFFLE(1, 0, 3, 2));
                 v8i16 _pA1r = __msa_shf_h(_pA1, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w_ptr(pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
@@ -2646,9 +2646,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w_ptr(pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w_ptr(pA + 4);
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
                 int b01 = (unsigned char)pB[0] | ((unsigned char)pB[1] << 8);
                 v8i16 _pB0 = (v8i16)__msa_fill_w(b01);
@@ -2702,7 +2702,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 v16i8 _pA0 = __msa_ld_b(pA, 0);
                 v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
 
-                v16i8 _pB0 = (v16i8)__msa_fill_w(*(const int*)pB);
+                v16i8 _pB0 = (v16i8)__msa_fill_w_ptr(pB);
                 _sum00 = __msa_dpadd_s_w(_sum00, __msa_dotp_s_h(_pA0, _pB0), _one);
                 _sum01 = __msa_dpadd_s_w(_sum01, __msa_dotp_s_h(_pA1, _pB0), _one);
 
@@ -2711,9 +2711,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA0 = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA0 = (v8i16)__msa_fill_w_ptr(pA);
                 _pA0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA0, 0), (v16i8)_pA0);
-                v8i16 _pA1 = (v8i16)__msa_fill_w(*(const int*)(pA + 4));
+                v8i16 _pA1 = (v8i16)__msa_fill_w_ptr(pA + 4);
                 _pA1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA1, 0), (v16i8)_pA1);
 
                 v8i16 _pB0 = __msa_fill_h(pB[0]);
@@ -2802,12 +2802,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w_ptr(pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
                 v8i16 _pAr = __msa_shf_h(_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w_ptr(pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
-                v8i16 _pB1 = (v8i16)__msa_fill_w(*(const int*)(pB + 4));
+                v8i16 _pB1 = (v8i16)__msa_fill_w_ptr(pB + 4);
                 _pB1 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB1, 0), (v16i8)_pB1);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                 v8i16 _pB1r = __msa_shf_h(_pB1, _MSA_SHUFFLE(0, 3, 2, 1));
@@ -2889,10 +2889,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w_ptr(pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
                 v8i16 _pAr = __msa_shf_h(_pA, _MSA_SHUFFLE(1, 0, 3, 2));
-                v8i16 _pB0 = (v8i16)__msa_fill_w(*(const int*)pB);
+                v8i16 _pB0 = (v8i16)__msa_fill_w_ptr(pB);
                 _pB0 = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pB0, 0), (v16i8)_pB0);
                 v8i16 _pB0r = __msa_shf_h(_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
 
@@ -2952,7 +2952,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w_ptr(pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
 
                 int b01 = (unsigned char)pB[0] | ((unsigned char)pB[1] << 8);
@@ -2998,7 +2998,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pB + 16);
                 v16i8 _pA = __msa_ld_b(pA, 0);
 
-                v16i8 _pB0 = (v16i8)__msa_fill_w(*(const int*)pB);
+                v16i8 _pB0 = (v16i8)__msa_fill_w_ptr(pB);
                 _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
 
                 pA += 16;
@@ -3006,7 +3006,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             }
             for (; kk < max_kk; kk += 1)
             {
-                v8i16 _pA = (v8i16)__msa_fill_w(*(const int*)pA);
+                v8i16 _pA = (v8i16)__msa_fill_w_ptr(pA);
                 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b((v16i8)_pA, 0), (v16i8)_pA);
 
                 v8i16 _pB0 = __msa_fill_h(pB[0]);
@@ -3433,7 +3433,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
 
                     "ldc1       %4, 0(%0)       \n" // int8x8_t _pA = __mmi_pldb_s(pA);
-                    "lwc1       %6, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                    "lwc1       %6, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
 
 #if __mips64
                     "dmtc1      $0, %5          \n" // int8x8_t _zero = __mmi_pzerob_s();
@@ -3494,7 +3494,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pB + 16);
 
                 int8x8_t _pA = __mmi_pldb_s(pA);
-                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
 
                 int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                 int16x4_t _pA1 = (int16x4_t)__mmi_punpckhbh_s(_pA, _zero);
@@ -3573,7 +3573,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 64);
-                v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
+                v16i8 _pA = (v16i8)__msa_fill_w_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
                 v16i8 _pB1 = __msa_ld_b(pB + 16, 0);
 
@@ -3639,7 +3639,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
-                v16i8 _pA = (v16i8)__msa_fill_w(*(const int*)pA);
+                v16i8 _pA = (v16i8)__msa_fill_w_ptr(pA);
                 v16i8 _pB0 = __msa_ld_b(pB, 0);
 
                 _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
@@ -3711,7 +3711,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
                     "ld         $0, 32(%1)      \n" // __builtin_prefetch(pB + 32);
 
-                    "lwc1       %4, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                    "lwc1       %4, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
                     "ldc1       %6, 0(%1)       \n" // int8x8_t _pB = __mmi_pldb_s(pB);
 
 #if __mips64
@@ -3772,7 +3772,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 32);
 
-                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
+                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
                 int8x8_t _pB = __mmi_pldb_s(pB);
 
                 int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
@@ -3853,8 +3853,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld         $0, 16(%0)      \n" // __builtin_prefetch(pA + 16);
                     "ld         $0, 16(%1)      \n" // __builtin_prefetch(pB + 16);
 
-                    "lwc1       %3, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
-                    "lwc1       %5, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                    "lwc1       %3, 0(%0)       \n" // int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
+                    "lwc1       %5, 0(%1)       \n" // int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
 
 #if __mips64
                     "dmtc1      $0, %4          \n" // int8x8_t _zero = __mmi_pzerob_s();
@@ -3906,8 +3906,8 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 __builtin_prefetch(pA + 16);
                 __builtin_prefetch(pB + 16);
 
-                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
-                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
+                int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
 
                 int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                 int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
@@ -4683,14 +4683,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_f5, (v4i32)_f4);
                     v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_f5, (v4i32)_f4);
 
-                    *(int64_t*)p0 = __msa_copy_s_d((v2i64)_tmp0, 0);
-                    *(int64_t*)(p0 + out_hstep) = __msa_copy_s_d((v2i64)_tmp0, 1);
-                    *(int64_t*)(p0 + out_hstep * 2) = __msa_copy_s_d((v2i64)_tmp1, 0);
-                    *(int64_t*)(p0 + out_hstep * 3) = __msa_copy_s_d((v2i64)_tmp1, 1);
-                    *(int64_t*)(p0 + out_hstep * 4) = __msa_copy_s_d((v2i64)_tmp2, 0);
-                    *(int64_t*)(p0 + out_hstep * 5) = __msa_copy_s_d((v2i64)_tmp2, 1);
-                    *(int64_t*)(p0 + out_hstep * 6) = __msa_copy_s_d((v2i64)_tmp3, 0);
-                    *(int64_t*)(p0 + out_hstep * 7) = __msa_copy_s_d((v2i64)_tmp3, 1);
+                    __msa_storel_d((v4i32)_tmp0, p0);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp0, (v16i8)_tmp0, 8), p0 + out_hstep);
+                    __msa_storel_d((v4i32)_tmp1, p0 + out_hstep * 2);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp1, (v16i8)_tmp1, 8), p0 + out_hstep * 3);
+                    __msa_storel_d((v4i32)_tmp2, p0 + out_hstep * 4);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp2, (v16i8)_tmp2, 8), p0 + out_hstep * 5);
+                    __msa_storel_d((v4i32)_tmp3, p0 + out_hstep * 6);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp3, (v16i8)_tmp3, 8), p0 + out_hstep * 7);
                     p0 += 2;
                 }
             }
@@ -5252,10 +5252,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_f1, (v4i32)_f0);
                     v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_f1, (v4i32)_f0);
 
-                    *(int64_t*)p0 = __msa_copy_s_d((v2i64)_tmp0, 0);
-                    *(int64_t*)(p0 + out_hstep) = __msa_copy_s_d((v2i64)_tmp0, 1);
-                    *(int64_t*)(p0 + out_hstep * 2) = __msa_copy_s_d((v2i64)_tmp1, 0);
-                    *(int64_t*)(p0 + out_hstep * 3) = __msa_copy_s_d((v2i64)_tmp1, 1);
+                    __msa_storel_d((v4i32)_tmp0, p0);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp0, (v16i8)_tmp0, 8), p0 + out_hstep);
+                    __msa_storel_d((v4i32)_tmp1, p0 + out_hstep * 2);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp1, (v16i8)_tmp1, 8), p0 + out_hstep * 3);
                     p0 += 2;
                 }
             }
@@ -5465,14 +5465,14 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     v4f32 _tmp2 = (v4f32)__msa_ilvr_w((v4i32)_f3, (v4i32)_f1);
                     v4f32 _tmp3 = (v4f32)__msa_ilvl_w((v4i32)_f3, (v4i32)_f1);
 
-                    *(int64_t*)p0 = __msa_copy_s_d((v2i64)_tmp0, 0);
-                    *(int64_t*)(p0 + out_hstep) = __msa_copy_s_d((v2i64)_tmp0, 1);
-                    *(int64_t*)(p0 + out_hstep * 2) = __msa_copy_s_d((v2i64)_tmp1, 0);
-                    *(int64_t*)(p0 + out_hstep * 3) = __msa_copy_s_d((v2i64)_tmp1, 1);
-                    *(int64_t*)(p0 + out_hstep * 4) = __msa_copy_s_d((v2i64)_tmp2, 0);
-                    *(int64_t*)(p0 + out_hstep * 5) = __msa_copy_s_d((v2i64)_tmp2, 1);
-                    *(int64_t*)(p0 + out_hstep * 6) = __msa_copy_s_d((v2i64)_tmp3, 0);
-                    *(int64_t*)(p0 + out_hstep * 7) = __msa_copy_s_d((v2i64)_tmp3, 1);
+                    __msa_storel_d((v4i32)_tmp0, p0);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp0, (v16i8)_tmp0, 8), p0 + out_hstep);
+                    __msa_storel_d((v4i32)_tmp1, p0 + out_hstep * 2);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp1, (v16i8)_tmp1, 8), p0 + out_hstep * 3);
+                    __msa_storel_d((v4i32)_tmp2, p0 + out_hstep * 4);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp2, (v16i8)_tmp2, 8), p0 + out_hstep * 5);
+                    __msa_storel_d((v4i32)_tmp3, p0 + out_hstep * 6);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp3, (v16i8)_tmp3, 8), p0 + out_hstep * 7);
                 }
                 p0 += out_hstep * 8;
             }
@@ -5549,10 +5549,10 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     v4f32 _tmp0 = (v4f32)__msa_ilvr_w((v4i32)_f1, (v4i32)_f0);
                     v4f32 _tmp1 = (v4f32)__msa_ilvl_w((v4i32)_f1, (v4i32)_f0);
 
-                    *(int64_t*)p0 = __msa_copy_s_d((v2i64)_tmp0, 0);
-                    *(int64_t*)(p0 + out_hstep) = __msa_copy_s_d((v2i64)_tmp0, 1);
-                    *(int64_t*)(p0 + out_hstep * 2) = __msa_copy_s_d((v2i64)_tmp1, 0);
-                    *(int64_t*)(p0 + out_hstep * 3) = __msa_copy_s_d((v2i64)_tmp1, 1);
+                    __msa_storel_d((v4i32)_tmp0, p0);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp0, (v16i8)_tmp0, 8), p0 + out_hstep);
+                    __msa_storel_d((v4i32)_tmp1, p0 + out_hstep * 2);
+                    __msa_storel_d((v4i32)__msa_sldi_b((v16i8)_tmp1, (v16i8)_tmp1, 8), p0 + out_hstep * 3);
                 }
                 p0 += out_hstep * 4;
             }
