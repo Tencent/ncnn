@@ -2771,7 +2771,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
         int input_shapes_i = 0;
-
         std::vector<std::string> input_names;
         for (const Operator* op : ops)
         {
@@ -2779,6 +2778,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 continue;
 
             const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
 
             std::vector<int> input_shape;
             if (input_shapes.empty())
@@ -2794,7 +2794,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
             }
 
-            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
