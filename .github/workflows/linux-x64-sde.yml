@@ -41,8 +41,11 @@ jobs:
       run: sudo apt-get update
     - name: gcc14
       run: sudo apt-get install gcc-14 g++-14
-    - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v3.0
+    - name: setup-sde
+      run: |
+        wget -q https://github.com/nihui/ncnn-assets/releases/download/toolchain/sde-external-10.8.0-2026-03-15-lin.tar.xz
+        tar -xf sde-external-10.8.0-2026-03-15-lin.tar.xz
+        echo "SDE_PATH=$GITHUB_WORKSPACE/sde-external-10.8.0-2026-03-15-lin" >> $GITHUB_ENV
     - name: build
       env:
         CC: gcc-14

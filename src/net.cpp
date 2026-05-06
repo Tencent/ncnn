@@ -455,6 +455,18 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)

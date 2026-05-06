@@ -271,6 +271,13 @@ MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, __riscv_vfdiv_vv_f16m8(y, x, vl), __r
 MAKE_FUNCTION(binary_op_rpow_fp16s, (__fp16)powf((float)y, (float)x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
 MAKE_FUNCTION(binary_op_atan2_fp16s, (__fp16)atan2f((float)x, (float)y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2f((float)y, (float)x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_fmod_fp16s, (__fp16)fmodf((float)x, (float)y), fmod_ps(x, y, vl), fmod_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), fmod_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rfmod_fp16s, (__fp16)fmodf((float)y, (float)x), fmod_ps(y, x, vl), fmod_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), fmod_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_logaddexp_fp16s, (__fp16)(std::max((float)x, (float)y) + log1pf(expf(std::min((float)x, (float)y) - std::max((float)x, (float)y)))), logaddexp_ps(x, y, vl), logaddexp_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), logaddexp_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_floor_divide_fp16s, (__fp16)floorf((float)x / (float)y), floor_divide_ps(x, y, vl), floor_divide_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), floor_divide_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rfloor_divide_fp16s, (__fp16)floorf((float)y / (float)x), floor_divide_ps(y, x, vl), floor_divide_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), floor_divide_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_remainder_fp16s, (__fp16)remainderf((float)x, (float)y), remainder_ps(x, y, vl), remainder_ps(x, __riscv_vfmv_v_f_f16m8(y, vl), vl), remainder_ps(__riscv_vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rremainder_fp16s, (__fp16)remainderf((float)y, (float)x), remainder_ps(y, x, vl), remainder_ps(__riscv_vfmv_v_f_f16m8(y, vl), x, vl), remainder_ps(y, __riscv_vfmv_v_f_f16m8(x, vl), vl))
 // *INDENT-ON*
 // clang-format on
 
@@ -294,6 +301,13 @@ static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector_fp16s<binary_op_rpow_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector_fp16s<binary_op_atan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector_fp16s<binary_op_ratan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector_fp16s<binary_op_fmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector_fp16s<binary_op_rfmod_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_vector_fp16s<binary_op_logaddexp_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_vector_fp16s<binary_op_floor_divide_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_vector_fp16s<binary_op_rfloor_divide_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector_fp16s<binary_op_remainder_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RREMAINDER) return binary_op_vector_fp16s<binary_op_rremainder_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
@@ -438,10 +452,18 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
+    if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
+
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
+    if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
+
     return op_type;
 }
 
