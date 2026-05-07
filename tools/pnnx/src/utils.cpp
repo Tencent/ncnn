@@ -16,6 +16,29 @@
 
 namespace pnnx {
 
+static std::string normalize_exponent(std::string s)
+{
+    size_t pos = s.find("e+");
+    if (pos == std::string::npos)
+        pos = s.find("E+");
+
+    if (pos != std::string::npos)
+        s.erase(pos + 1, 1);
+
+    pos = s.find("e-");
+    if (pos == std::string::npos)
+        pos = s.find("E-");
+
+    if (pos != std::string::npos)
+    {
+        size_t exponent_pos = pos + 2;
+        while (exponent_pos + 1 < s.size() && s[exponent_pos] == '0')
+            s.erase(exponent_pos, 1);
+    }
+
+    return s;
+}
+
 unsigned short float32_to_float16(float value)
 {
     // 1 : 8 : 23
@@ -132,10 +155,17 @@ std::string float_to_string(float f)
     if (abs_f < 0.0001f || abs_f >= 1000000.0f)
     {
         snprintf(buffer, sizeof(buffer), "%e", f);
-        return std::string(buffer);
+        if (strtof(buffer, 0) != f)
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<float>::max_digits10 - 1, f);
+        return normalize_exponent(buffer);
     }
 
     const int len = snprintf(buffer, sizeof(buffer), "%g", f);
+    if (strtof(buffer, 0) != f)
+    {
+        snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
+        return std::string(buffer);
+    }
 
     bool is_integer = true;
     for (int i = 0; i < len; i++)
@@ -169,10 +199,17 @@ std::string double_to_string(double d)
     if (abs_d < 0.0001 || abs_d >= 1000000.0)
     {
         snprintf(buffer, sizeof(buffer), "%e", d);
-        return std::string(buffer);
+        if (strtod(buffer, 0) != d)
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<double>::max_digits10 - 1, d);
+        return normalize_exponent(buffer);
     }
 
     const int len = snprintf(buffer, sizeof(buffer), "%g", d);
+    if (strtod(buffer, 0) != d)
+    {
+        snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
+        return std::string(buffer);
+    }
 
     bool is_integer = true;
     for (int i = 0; i < len; i++)
