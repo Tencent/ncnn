@@ -31,6 +31,7 @@
 #include "load_tnn.h"
 #endif
 
+#include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
 
@@ -517,20 +518,17 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
+    const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
+    const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
+    const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
+    fprintf(stderr, "inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(stderr, "FLOPS = %s\n", flops.c_str());
+    fprintf(stderr, "memory OPS = %s\n", memops.c_str());
+
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
-
-    // count float
-    pnnx_graph.flops_mem_count();
-    fprintf(stderr, "float ops: %.2f M\n", pnnx_graph.m.flops / 1e6);
-    fprintf(stderr, "memory ops: %.2f M\n", pnnx_graph.m.memory_access / 1e6);
-
-    pnnx_graph.flops_memops_sum();
-    fprintf(stderr, "float ops = %.3fM\n", double(pnnx_graph.flops) / 1e6);
-    fprintf(stderr, "mem ops = %.3fM\n", double(pnnx_graph.memops) / 1e6);
-    fprintf(stderr, "extra float ops = %.3fM\n", double(pnnx_graph.extra_flops) / 1e6);
-    fprintf(stderr, "extra mem ops = %.3fM\n", double(pnnx_graph.extra_memops) / 1e6);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);

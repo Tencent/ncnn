@@ -43,16 +43,7 @@ class OnnxAttributeProxy;
 
 namespace pnnx {
 
-struct ModelInfo
-{
-    ModelInfo()
-        : flops(0), memory_access(0)
-    {
-    }
-
-    long long flops;
-    long long memory_access;
-};
+struct ModelStat;
 
 class Parameter
 {
@@ -335,11 +326,9 @@ public:
     int load(const std::string& parampath, const std::string& binpath);
     int save(const std::string& parampath, const std::string& binpath);
 
-    int python(const std::string& pypath, const std::string& binpath, const std::vector<std::vector<int64_t> >& input_shapes);
+    int python(const std::string& pypath, const std::string& binpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat);
 
     int parse(const std::string& param);
-
-    ModelInfo flops_mem_count();
 
     Operator* new_operator(const std::string& type, const std::string& name);
 
@@ -360,15 +349,8 @@ public:
     Operand* get_operand(const std::string& name);
     const Operand* get_operand(const std::string& name) const;
 
-    ModelInfo m;
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
-
-    unsigned long long flops = 0;
-    unsigned long long memops = 0;
-    unsigned long long extra_flops = 0;
-    unsigned long long extra_memops = 0;
-    void flops_memops_sum();
 
 private:
     Graph(const Graph& rhs);
