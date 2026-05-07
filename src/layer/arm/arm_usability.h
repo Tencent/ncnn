@@ -113,6 +113,118 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #if defined(_MSC_VER) && !defined(__clang__)
+// MSVC arm64 has no native scalar __fp16 type.  Its fp16 NEON intrinsics
+// accept the SDK __n16 storage type, and building fp16 scalar constants
+// through vcvt_f16_f32(vdupq_n_f32(...)) can even trigger compiler ICEs.
+//
+// Keep this conversion local to the ARM usability shim instead of using
+// ncnn::float32_to_float16 from mat.cpp:
+//  - arm_usability.h is a low-level header included outside the ncnn namespace
+//    and should not depend on an exported runtime symbol from mat.cpp.
+//  - the mat.cpp helper is a storage conversion that truncates and flushes
+//    fp16 subnormals to zero, while fp16 NEON constants should match hardware
+//    fcvt behavior with round-to-nearest-even and subnormal generation.
+// With NCNN_FORCEINLINE, MSVC folds literal inputs to immediate half
+// bit-patterns, so vdup*_n_f16(1.f) becomes movi/dup instead of a conversion.
+static NCNN_FORCEINLINE unsigned short ncnn_float32_to_float16_msvc(float value)
+{
+    union
+    {
+        unsigned int u;
+        float f;
+    } tmp;
+
+    tmp.f = value;
+
+    unsigned int sign = (tmp.u >> 16) & 0x8000;
+    unsigned int exponent = (tmp.u >> 23) & 0xff;
+    unsigned int significand = tmp.u & 0x7fffff;
+
+    if (exponent == 0xff)
+    {
+        if (significand)
+        {
+            significand >>= 13;
+            return (unsigned short)(sign | 0x7c00 | significand | (significand == 0));
+        }
+
+        return (unsigned short)(sign | 0x7c00);
+    }
+
+    int newexp = (int)exponent + (-127 + 15);
+    if (newexp >= 31)
+    {
+        return (unsigned short)(sign | 0x7c00);
+    }
+    if (newexp <= 0)
+    {
+        if (newexp < -10)
+            return (unsigned short)sign;
+
+        significand |= 0x800000;
+        int shift = 14 - newexp;
+        unsigned int fp16 = significand >> shift;
+        unsigned int round_bit = 1u << (shift - 1);
+        unsigned int remainder = significand & (round_bit - 1);
+        if ((significand & round_bit) && (remainder || (fp16 & 1)))
+            fp16++;
+
+        return (unsigned short)(sign | fp16);
+    }
+
+    unsigned int fp16 = sign | ((unsigned int)newexp << 10) | (significand >> 13);
+    unsigned int round_bit = 0x1000;
+    unsigned int remainder = significand & (round_bit - 1);
+    if ((significand & round_bit) && (remainder || (fp16 & 1)))
+        fp16++;
+
+    return (unsigned short)fp16;
+}
+
+static NCNN_FORCEINLINE float ncnn_float16_to_float32_msvc(unsigned short value)
+{
+    unsigned int sign = (value & 0x8000) >> 15;
+    unsigned int exponent = (value & 0x7c00) >> 10;
+    unsigned int significand = value & 0x03ff;
+
+    union
+    {
+        unsigned int u;
+        float f;
+    } tmp;
+
+    if (exponent == 0)
+    {
+        if (significand == 0)
+        {
+            tmp.u = sign << 31;
+        }
+        else
+        {
+            exponent = 0;
+            while ((significand & 0x200) == 0)
+            {
+                significand <<= 1;
+                exponent++;
+            }
+            significand <<= 1;
+            significand &= 0x3ff;
+            int newexp = -(int)exponent + (-15 + 127);
+            tmp.u = (sign << 31) | ((unsigned int)newexp << 23) | (significand << 13);
+        }
+    }
+    else if (exponent == 0x1f)
+    {
+        tmp.u = (sign << 31) | (0xff << 23) | (significand << 13);
+    }
+    else
+    {
+        tmp.u = (sign << 31) | ((exponent + (-15 + 127)) << 23) | (significand << 13);
+    }
+
+    return tmp.f;
+}
+
 struct __fp16
 {
     __fp16()
@@ -122,7 +234,7 @@ struct __fp16
 
     __fp16(float f32)
     {
-        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        _u16 = ncnn_float32_to_float16_msvc(f32);
     }
 
     __fp16(__n16 n16)
@@ -132,14 +244,14 @@ struct __fp16
 
     operator const float() const
     {
-        return vgetq_lane_f32(vcvt_f32_f16(vreinterpretq_f16_u16(vdup_n_u16(_u16))), 0);
+        return ncnn_float16_to_float32_msvc(_u16);
     }
 
     __fp16& operator+=(const __fp16& b)
     {
         float a = (float)*this;
         float f32 = (a + (float)b);
-        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        _u16 = ncnn_float32_to_float16_msvc(f32);
         return *this;
     }
 
@@ -147,7 +259,7 @@ struct __fp16
     {
         float a = (float)*this;
         float f32 = (a - (float)b);
-        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        _u16 = ncnn_float32_to_float16_msvc(f32);
         return *this;
     }
 
@@ -155,7 +267,7 @@ struct __fp16
     {
         float a = (float)*this;
         float f32 = (a * (float)b);
-        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        _u16 = ncnn_float32_to_float16_msvc(f32);
         return *this;
     }
 
@@ -163,12 +275,22 @@ struct __fp16
     {
         float a = (float)*this;
         float f32 = (a / (float)b);
-        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        _u16 = ncnn_float32_to_float16_msvc(f32);
         return *this;
     }
 
     unsigned short _u16;
 };
+
+static NCNN_FORCEINLINE float16x4_t vdup_n_f16(float f32)
+{
+    return vreinterpret_f16_u16(vdup_n_u16(ncnn_float32_to_float16_msvc(f32)));
+}
+
+static NCNN_FORCEINLINE float16x8_t vdupq_n_f16(float f32)
+{
+    return vreinterpretq_f16_u16(vdupq_n_u16(ncnn_float32_to_float16_msvc(f32)));
+}
 
 static inline __fp16 operator-(const __fp16& a)
 {

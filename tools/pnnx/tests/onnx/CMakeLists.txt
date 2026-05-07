@@ -15,6 +15,7 @@ pnnx_onnx_add_test(onnx_dense_ops)
 pnnx_onnx_add_test(onnx_rnn_ops)
 pnnx_onnx_add_test(onnx_conv_ops)
 pnnx_onnx_add_test(onnx_opset21_ops)
+pnnx_onnx_add_test(pnnx_input_npy)
 
 pnnx_onnx_add_test(F_adaptive_avg_pool1d)
 pnnx_onnx_add_test(F_adaptive_avg_pool2d)

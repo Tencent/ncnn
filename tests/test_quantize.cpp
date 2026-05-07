@@ -42,7 +42,11 @@ static int test_quantize_0()
            || test_quantize(RandomMat(7, 9, 12), 100.f, 100.f)
            || test_quantize(RandomMat(7, 9, 12), 120.f, 140.f)
            || test_quantize(RandomMat(3, 5, 13), 100.f, 100.f)
-           || test_quantize(RandomMat(3, 5, 13), 120.f, 140.f);
+           || test_quantize(RandomMat(3, 5, 13), 120.f, 140.f)
+           || test_quantize(RandomMat(3, 3, 256), 100.f, 100.f)
+           || test_quantize(RandomMat(3, 3, 256), 120.f, 140.f)
+           || test_quantize(RandomMat(3, 3, 255), 100.f, 100.f)
+           || test_quantize(RandomMat(3, 3, 255), 120.f, 140.f);
 }
 
 static int test_quantize_1()
@@ -53,7 +57,11 @@ static int test_quantize_1()
            || test_quantize(RandomMat(17, 12), 100.f, 100.f)
            || test_quantize(RandomMat(17, 12), 120.f, 140.f)
            || test_quantize(RandomMat(19, 15), 100.f, 100.f)
-           || test_quantize(RandomMat(19, 15), 120.f, 140.f);
+           || test_quantize(RandomMat(19, 15), 120.f, 140.f)
+           || test_quantize(RandomMat(15, 256), 100.f, 100.f)
+           || test_quantize(RandomMat(15, 256), 120.f, 140.f)
+           || test_quantize(RandomMat(15, 255), 100.f, 100.f)
+           || test_quantize(RandomMat(15, 255), 120.f, 140.f);
 }
 
 static int test_quantize_2()
@@ -64,7 +72,11 @@ static int test_quantize_2()
            || test_quantize(RandomMat(124), 100.f, 100.f)
            || test_quantize(RandomMat(124), 120.f, 140.f)
            || test_quantize(RandomMat(127), 100.f, 100.f)
-           || test_quantize(RandomMat(127), 120.f, 140.f);
+           || test_quantize(RandomMat(127), 120.f, 140.f)
+           || test_quantize(RandomMat(256), 100.f, 100.f)
+           || test_quantize(RandomMat(256), 120.f, 140.f)
+           || test_quantize(RandomMat(255), 100.f, 100.f)
+           || test_quantize(RandomMat(255), 120.f, 140.f);
 }
 
 int main()
