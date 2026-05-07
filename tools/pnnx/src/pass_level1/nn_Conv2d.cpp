@@ -23,6 +23,7 @@ static void normalize_conv2d_padding(Parameter& padding_param)
     if (padding[0] == padding[2] && padding[1] == padding[3] && padding[0] != padding[1])
     {
         padding.resize(0);
+        padding_param.type = 4;
         padding_param.s = "same";
     }
 }
