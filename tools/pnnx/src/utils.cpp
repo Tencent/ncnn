@@ -39,6 +39,25 @@ static std::string normalize_exponent(std::string s)
     return s;
 }
 
+static bool fractional_digits_exceed(const char* s, int max_digits)
+{
+    const char* dot = strchr(s, '.');
+    if (!dot)
+        return false;
+
+    int digits = 0;
+    const char* p = dot + 1;
+    while (*p != '\0' && *p != 'e' && *p != 'E')
+    {
+        digits++;
+        if (digits > max_digits)
+            return true;
+        p++;
+    }
+
+    return false;
+}
+
 unsigned short float32_to_float16(float value)
 {
     // 1 : 8 : 23
@@ -164,6 +183,11 @@ std::string float_to_string(float f)
     if (strtof(buffer, 0) != f)
     {
         len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
+        if (fractional_digits_exceed(buffer, 9))
+        {
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<float>::max_digits10 - 1, f);
+            return normalize_exponent(buffer);
+        }
     }
 
     bool is_integer = true;
@@ -207,6 +231,11 @@ std::string double_to_string(double d)
     if (strtod(buffer, 0) != d)
     {
         len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
+        if (fractional_digits_exceed(buffer, 17))
+        {
+            snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<double>::max_digits10 - 1, d);
+            return normalize_exponent(buffer);
+        }
     }
 
     bool is_integer = true;
