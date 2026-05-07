@@ -190,22 +190,13 @@ static inline float16x4_t exp_ps_f16(float16x4_t x)
     x = vmax_f16(x, vdup_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if defined(_MSC_VER) && !defined(__clang__)
-    fx = vfma_f16(vdup_n_f16(0.5f), x, vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF)));
-#else
     fx = vfma_f16(vdup_n_f16(0.5f), x, vdup_n_f16(c_cephes_LOG2EF));
-#endif
 
     /* perform a floorf */
     fx = vrndm_f16(fx);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    tmp = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1)));
-    float16x4_t z = vmul_f16(fx, vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2)));
-#else
     tmp = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C1));
     float16x4_t z = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C2));
-#endif
     x = vsub_f16(x, tmp);
     x = vsub_f16(x, z);
 
@@ -241,25 +232,13 @@ static inline float16x8_t exp_ps_f16(float16x8_t x)
     x = vmaxq_f16(x, vdupq_n_f16(c_exp_lo_f16));
 
     /* express exp(x) as exp(g + n*log(2)) */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_LOG2EF = vcvt_f16_f32(vdupq_n_f32(c_cephes_LOG2EF));
-    fx = vfmaq_f16(vdupq_n_f16(0.5f), x, vcombine_f16(_c_cephes_LOG2EF, _c_cephes_LOG2EF));
-#else
     fx = vfmaq_f16(vdupq_n_f16(0.5f), x, vdupq_n_f16(c_cephes_LOG2EF));
-#endif
 
     /* perform a floorf */
     fx = vrndmq_f16(fx);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_exp_C1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C1));
-    tmp = vmulq_f16(fx, vcombine_f16(_c_cephes_exp_C1, _c_cephes_exp_C1));
-    float16x4_t _c_cephes_exp_C2 = vcvt_f16_f32(vdupq_n_f32(c_cephes_exp_C2));
-    float16x8_t z = vmulq_f16(fx, vcombine_f16(_c_cephes_exp_C2, _c_cephes_exp_C2));
-#else
     tmp = vmulq_f16(fx, vdupq_n_f16(c_cephes_exp_C1));
     float16x8_t z = vmulq_f16(fx, vdupq_n_f16(c_cephes_exp_C2));
-#endif
     x = vsubq_f16(x, tmp);
     x = vsubq_f16(x, z);
 
@@ -324,12 +303,7 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
     x = vabs_f16(x);
 
     /* scale by 4/Pi */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
-    y = vmul_f16(x, _c_cephes_FOPI);
-#else
     y = vmul_f16(x, vdup_n_f16(c_cephes_FOPI));
-#endif
 
     /* store the integer part of y in mm0 */
     emm2 = vcvt_u16_f16(y);
@@ -348,18 +322,9 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
-    float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
-    float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));
-    x = vfma_f16(x, y, _c_minus_cephes_DP1);
-    x = vfma_f16(x, y, _c_minus_cephes_DP2);
-    x = vfma_f16(x, y, _c_minus_cephes_DP3);
-#else
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP1));
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP2));
     x = vfma_f16(x, y, vdup_n_f16(c_minus_cephes_DP3));
-#endif
 
     sign_mask_sin = veor_u16(sign_mask_sin, vtst_u16(emm2, vdup_n_u16(4)));
     sign_mask_cos = vtst_u16(vsub_u16(emm2, vdup_n_u16(2)), vdup_n_u16(4));
@@ -399,12 +364,7 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
     x = vabsq_f16(x);
 
     /* scale by 4/Pi */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_FOPI = vcvt_f16_f32(vdupq_n_f32(c_cephes_FOPI));
-    y = vmulq_f16(x, vcombine_f16(_c_cephes_FOPI, _c_cephes_FOPI));
-#else
     y = vmulq_f16(x, vdupq_n_f16(c_cephes_FOPI));
-#endif
 
     /* store the integer part of y in mm0 */
     emm2 = vcvtq_u16_f16(y);
@@ -423,18 +383,9 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
 
     /* The magic pass: "Extended precision modular arithmetic"
      *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_minus_cephes_DP1 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP1));
-    float16x4_t _c_minus_cephes_DP2 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP2));
-    float16x4_t _c_minus_cephes_DP3 = vcvt_f16_f32(vdupq_n_f32(c_minus_cephes_DP3));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP1, _c_minus_cephes_DP1));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP2, _c_minus_cephes_DP2));
-    x = vfmaq_f16(x, y, vcombine_f16(_c_minus_cephes_DP3, _c_minus_cephes_DP3));
-#else
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP1));
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP2));
     x = vfmaq_f16(x, y, vdupq_n_f16(c_minus_cephes_DP3));
-#endif
 
     sign_mask_sin = veorq_u16(sign_mask_sin, vtstq_u16(emm2, vdupq_n_u16(4)));
     sign_mask_cos = vtstq_u16(vsubq_u16(emm2, vdupq_n_u16(2)), vdupq_n_u16(4));
