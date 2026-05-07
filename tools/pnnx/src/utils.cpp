@@ -160,11 +160,10 @@ std::string float_to_string(float f)
         return normalize_exponent(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%g", f);
+    int len = snprintf(buffer, sizeof(buffer), "%g", f);
     if (strtof(buffer, 0) != f)
     {
-        snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
-        return std::string(buffer);
+        len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
     }
 
     bool is_integer = true;
@@ -204,11 +203,10 @@ std::string double_to_string(double d)
         return normalize_exponent(buffer);
     }
 
-    const int len = snprintf(buffer, sizeof(buffer), "%g", d);
+    int len = snprintf(buffer, sizeof(buffer), "%g", d);
     if (strtod(buffer, 0) != d)
     {
-        snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
-        return std::string(buffer);
+        len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
     }
 
     bool is_integer = true;
