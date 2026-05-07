@@ -3,23 +3,12 @@
 
 #include "unaryop_x86.h"
 
-#if __SSE2__
-#include <emmintrin.h>
-#include "sse_mathfun.h"
-#if __SSE4_1__
-#include <smmintrin.h>
-#if __AVX__
-#include <immintrin.h>
-#include "avx_mathfun.h"
-#if __AVX512F__
-#include "avx512_mathfun.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE4_1__
-#endif // __SSE2__
-
-#include "x86_usability.h"
+#include "cpu.h"
+#include "layer.h"
+#include "layer_type.h"
+#include "mat.h"
 #include "x86_activation.h"
+#include "x86_usability.h"
 
 namespace ncnn {
 
