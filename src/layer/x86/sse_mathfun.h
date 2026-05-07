@@ -331,6 +331,54 @@ static inline v4sf tanh_ps(const v4sf& x)
     return dst;
 }
 
+_PS_CONST(erf_threshold, 0.927734375f);
+
+_PS_CONST(erf_c0, -1.72853470e-5f);
+_PS_CONST(erf_c1, 3.83197126e-4f);
+_PS_CONST(erf_c2, -3.88396438e-3f);
+_PS_CONST(erf_c3, 2.42546219e-2f);
+_PS_CONST(erf_c4, -1.06777877e-1f);
+_PS_CONST(erf_c5, -6.34846687e-1f);
+_PS_CONST(erf_c6, -1.28717512e-1f);
+
+_PS_CONST(erf_p0, -5.96761703e-4f);
+_PS_CONST(erf_p1, 4.99119423e-3f);
+_PS_CONST(erf_p2, -2.67681349e-2f);
+_PS_CONST(erf_p3, 1.12819925e-1f);
+_PS_CONST(erf_p4, -3.76125336e-1f);
+_PS_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE v4sf erf_ps(const v4sf& a)
+{
+    v4sf t = _mm_and_ps(a, *(v4sf*)_ps_inv_sign_mask);
+    v4sf s = _mm_mul_ps(a, a);
+
+    v4sf mask = _mm_cmpgt_ps(t, *(v4sf*)_ps_erf_threshold);
+
+    v4sf r_large = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c0, t, *(v4sf*)_ps_erf_c1);
+    v4sf u = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c2, t, *(v4sf*)_ps_erf_c3);
+    r_large = _mm_comp_fmadd_ps(r_large, s, u);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c4);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c5);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c6);
+    r_large = _mm_comp_fmadd_ps(r_large, t, _mm_sub_ps(_mm_setzero_ps(), t));
+    r_large = _mm_sub_ps(*(v4sf*)_ps_1, exp_ps(r_large));
+
+    v4sf sign_mask = _mm_and_ps(a, *(v4sf*)_ps_sign_mask);
+    r_large = _mm_xor_ps(r_large, sign_mask);
+
+    v4sf r_small = *(v4sf*)_ps_erf_p0;
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p1);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p2);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p3);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p4);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p5);
+    r_small = _mm_comp_fmadd_ps(r_small, a, a);
+
+    v4sf r = _mm_or_ps(_mm_and_ps(mask, r_large), _mm_andnot_ps(mask, r_small));
+    return r;
+}
+
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
 _PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);

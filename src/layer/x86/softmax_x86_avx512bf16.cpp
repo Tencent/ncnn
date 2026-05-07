@@ -1,26 +1,14 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "softmax_x86.h"
-
 #include <float.h>
 
-#if __SSE2__
-#include <emmintrin.h>
-#include "sse_mathfun.h"
-#if __AVX__
-#include <immintrin.h>
-#include "avx_mathfun.h"
-#if __AVX512F__
-#include "avx512_mathfun.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-#include "x86_usability.h"
-
 #include "cpu.h"
+#include "layer.h"
+#include "layer_type.h"
 #include "mat.h"
+#include "x86_activation.h"
+#include "x86_usability.h"
 
 namespace ncnn {
 

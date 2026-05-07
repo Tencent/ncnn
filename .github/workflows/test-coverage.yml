@@ -56,7 +56,7 @@ jobs:
         lcov --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -138,7 +138,7 @@ jobs:
         lcov --ignore-errors inconsistent -r lcov.info '*/build-openmp/*' -o lcov.info
         lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -170,7 +170,7 @@ jobs:
         lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
         lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -222,7 +222,7 @@ jobs:
         lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
         lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -282,7 +282,7 @@ jobs:
         lcov --ignore-errors inconsistent -r lcov.info '*/build/*' -o lcov.info
         lcov --ignore-errors inconsistent --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -327,7 +327,7 @@ jobs:
         lcov --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -358,7 +358,7 @@ jobs:
         lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -416,7 +416,7 @@ jobs:
         lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true
@@ -575,7 +575,7 @@ jobs:
         lcov --ignore-errors inconsistent --list lcov.info
 
     - name: codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         disable_search: true

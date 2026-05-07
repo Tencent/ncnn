@@ -103,7 +103,7 @@ void main()
 #endif
     if (op_type == 12) res = v1 - trunc(v1 / v2) * v2;
     if (op_type == 13) res = v2 - trunc(v2 / v1) * v1;
-    if (op_type == 14) res = max(v1, v2) + log(1.0 + exp(min(v1, v2) - max(v1, v2)));
+    if (op_type == 14) res = max(v1, v2) + log(afp(1.0) + exp(min(v1, v2) - max(v1, v2)));
     if (op_type == 15) res = floor(v1 / v2);
     if (op_type == 16) res = floor(v2 / v1);
     if (op_type == 17) res = v1 - roundEven(v1 / v2) * v2;
