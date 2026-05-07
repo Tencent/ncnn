@@ -337,4 +337,49 @@ protected:
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_1, 101)
 
+class F_hardsigmoid_onnx_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 scalar_tensor_default_8 value=3.0
+aten::add               op_1        2 1 input scalar_tensor_default_8 pnnx_8
+torch.clamp             op_2        1 1 pnnx_8 pnnx_9 max=6.0 min=0.0
+prim::Constant          op_3        0 1 max_val_cast value=6.0
+aten::div               op_4        2 1 pnnx_9 max_val_cast out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardsigmoid";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_2, 100)
+
+class F_hardsigmoid_onnx_3 : public F_hardsigmoid_2_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 scalar_tensor_default_8_pnnxshadow3 value=3.0
+aten::add               op_1        2 1 input scalar_tensor_default_8_pnnxshadow3 pnnx_16
+torch.clamp             op_2        1 1 pnnx_16 pnnx_17 max=6.0 min=0.0
+prim::Constant          op_3        0 1 val_12 value=%v1p6
+aten::mul               op_4        2 1 pnnx_17 val_12 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_onnx_3, 100)
+
 } // namespace pnnx

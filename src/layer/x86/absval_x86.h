@@ -1,0 +1,24 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#ifndef LAYER_ABSVAL_X86_H
+#define LAYER_ABSVAL_X86_H
+
+#include "absval.h"
+
+namespace ncnn {
+
+class AbsVal_x86 : public AbsVal
+{
+public:
+    AbsVal_x86();
+
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+    int forward_inplace_bf16s_fp16s(Mat& bottom_top_blob, const Option& opt) const;
+};
+
+} // namespace ncnn
+
+#endif // LAYER_ABSVAL_X86_H

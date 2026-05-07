@@ -70,29 +70,29 @@ static void conv3x3s1_winograd63_transform_input_packn_fp16sa_rvv(const Mat& bot
                     vfloat16m1_t _r06 = __riscv_vle16_v_f16m1(r0 + packn * 6, vl);
                     vfloat16m1_t _r07 = __riscv_vle16_v_f16m1(r0 + packn * 7, vl);
 
-                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_r00, _r06, vl), 5.25f, __riscv_vfsub_vv_f16m1(_r04, _r02, vl), vl);
-                    vfloat16m1_t _tmp7m = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_r07, _r01, vl), 5.25f, __riscv_vfsub_vv_f16m1(_r03, _r05, vl), vl);
+                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_r00, _r06, vl), (__fp16)5.25f, __riscv_vfsub_vv_f16m1(_r04, _r02, vl), vl);
+                    vfloat16m1_t _tmp7m = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_r07, _r01, vl), (__fp16)5.25f, __riscv_vfsub_vv_f16m1(_r03, _r05, vl), vl);
                     __riscv_vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     __riscv_vse16_v_f16m1(tmp[7][m], _tmp7m, vl);
 
-                    vfloat16m1_t _tmp12a = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r02, _r06, vl), -4.25f, _r04, vl);
-                    vfloat16m1_t _tmp12b = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), -4.25f, _r03, vl);
+                    vfloat16m1_t _tmp12a = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r02, _r06, vl), (__fp16)-4.25f, _r04, vl);
+                    vfloat16m1_t _tmp12b = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), (__fp16)-4.25f, _r03, vl);
 
                     vfloat16m1_t _tmp1m = __riscv_vfadd_vv_f16m1(_tmp12a, _tmp12b, vl);
                     vfloat16m1_t _tmp2m = __riscv_vfsub_vv_f16m1(_tmp12a, _tmp12b, vl);
                     __riscv_vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
                     __riscv_vse16_v_f16m1(tmp[2][m], _tmp2m, vl);
 
-                    vfloat16m1_t _tmp34a = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r06, 0.25f, _r02, vl), -1.25f, _r04, vl);
-                    vfloat16m1_t _tmp34b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, 0.5f, vl), -2.5f, _r03, vl), 2.f, _r05, vl);
+                    vfloat16m1_t _tmp34a = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r06, (__fp16)0.25f, _r02, vl), (__fp16)-1.25f, _r04, vl);
+                    vfloat16m1_t _tmp34b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)0.5f, vl), (__fp16)-2.5f, _r03, vl), (__fp16)2.f, _r05, vl);
 
                     vfloat16m1_t _tmp3m = __riscv_vfadd_vv_f16m1(_tmp34a, _tmp34b, vl);
                     vfloat16m1_t _tmp4m = __riscv_vfsub_vv_f16m1(_tmp34a, _tmp34b, vl);
                     __riscv_vse16_v_f16m1(tmp[3][m], _tmp3m, vl);
                     __riscv_vse16_v_f16m1(tmp[4][m], _tmp4m, vl);
 
-                    vfloat16m1_t _tmp56a = __riscv_vfmacc_vf_f16m1(_r06, 4.f, __riscv_vfmacc_vf_f16m1(_r02, -1.25f, _r04, vl), vl);
-                    vfloat16m1_t _tmp56b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, 2.f, vl), -2.5f, _r03, vl), 0.5f, _r05, vl);
+                    vfloat16m1_t _tmp56a = __riscv_vfmacc_vf_f16m1(_r06, (__fp16)4.f, __riscv_vfmacc_vf_f16m1(_r02, (__fp16)-1.25f, _r04, vl), vl);
+                    vfloat16m1_t _tmp56b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)2.f, vl), (__fp16)-2.5f, _r03, vl), (__fp16)0.5f, _r05, vl);
 
                     vfloat16m1_t _tmp5m = __riscv_vfadd_vv_f16m1(_tmp56a, _tmp56b, vl);
                     vfloat16m1_t _tmp6m = __riscv_vfsub_vv_f16m1(_tmp56a, _tmp56b, vl);
@@ -122,23 +122,23 @@ static void conv3x3s1_winograd63_transform_input_packn_fp16sa_rvv(const Mat& bot
                     vfloat16m1_t _tmp06 = __riscv_vle16_v_f16m1(tmp[m][6], vl);
                     vfloat16m1_t _tmp07 = __riscv_vle16_v_f16m1(tmp[m][7], vl);
 
-                    vfloat16m1_t _r0tm0 = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_tmp00, _tmp06, vl), 5.25f, __riscv_vfsub_vv_f16m1(_tmp04, _tmp02, vl), vl);
-                    vfloat16m1_t _r0tm7 = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_tmp07, _tmp01, vl), 5.25f, __riscv_vfsub_vv_f16m1(_tmp03, _tmp05, vl), vl);
+                    vfloat16m1_t _r0tm0 = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_tmp00, _tmp06, vl), (__fp16)5.25f, __riscv_vfsub_vv_f16m1(_tmp04, _tmp02, vl), vl);
+                    vfloat16m1_t _r0tm7 = __riscv_vfmacc_vf_f16m1(__riscv_vfsub_vv_f16m1(_tmp07, _tmp01, vl), (__fp16)5.25f, __riscv_vfsub_vv_f16m1(_tmp03, _tmp05, vl), vl);
 
-                    vfloat16m1_t _tmp12a = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_tmp02, _tmp06, vl), -4.25f, _tmp04, vl);
-                    vfloat16m1_t _tmp12b = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_tmp01, _tmp05, vl), -4.25f, _tmp03, vl);
+                    vfloat16m1_t _tmp12a = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_tmp02, _tmp06, vl), (__fp16)-4.25f, _tmp04, vl);
+                    vfloat16m1_t _tmp12b = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_tmp01, _tmp05, vl), (__fp16)-4.25f, _tmp03, vl);
 
                     vfloat16m1_t _r0tm1 = __riscv_vfadd_vv_f16m1(_tmp12a, _tmp12b, vl);
                     vfloat16m1_t _r0tm2 = __riscv_vfsub_vv_f16m1(_tmp12a, _tmp12b, vl);
 
-                    vfloat16m1_t _tmp34a = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp06, 0.25f, _tmp02, vl), -1.25f, _tmp04, vl);
-                    vfloat16m1_t _tmp34b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp01, 0.5f, vl), -2.5f, _tmp03, vl), 2.f, _tmp05, vl);
+                    vfloat16m1_t _tmp34a = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp06, (__fp16)0.25f, _tmp02, vl), (__fp16)-1.25f, _tmp04, vl);
+                    vfloat16m1_t _tmp34b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp01, (__fp16)0.5f, vl), (__fp16)-2.5f, _tmp03, vl), (__fp16)2.f, _tmp05, vl);
 
                     vfloat16m1_t _r0tm3 = __riscv_vfadd_vv_f16m1(_tmp34a, _tmp34b, vl);
                     vfloat16m1_t _r0tm4 = __riscv_vfsub_vv_f16m1(_tmp34a, _tmp34b, vl);
 
-                    vfloat16m1_t _tmp56a = __riscv_vfmacc_vf_f16m1(_tmp06, 4.f, __riscv_vfmacc_vf_f16m1(_tmp02, -1.25f, _tmp04, vl), vl);
-                    vfloat16m1_t _tmp56b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp01, 2.f, vl), -2.5f, _tmp03, vl), 0.5f, _tmp05, vl);
+                    vfloat16m1_t _tmp56a = __riscv_vfmacc_vf_f16m1(_tmp06, (__fp16)4.f, __riscv_vfmacc_vf_f16m1(_tmp02, (__fp16)-1.25f, _tmp04, vl), vl);
+                    vfloat16m1_t _tmp56b = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp01, (__fp16)2.f, vl), (__fp16)-2.5f, _tmp03, vl), (__fp16)0.5f, _tmp05, vl);
 
                     vfloat16m1_t _r0tm5 = __riscv_vfadd_vv_f16m1(_tmp56a, _tmp56b, vl);
                     vfloat16m1_t _r0tm6 = __riscv_vfsub_vv_f16m1(_tmp56a, _tmp56b, vl);
@@ -203,7 +203,7 @@ static void conv3x3s1_winograd63_transform_output_packn_fp16sa_rvv(const Mat& to
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1(0.f, vl);
+        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
         // NOTE c99 variable length array
         __fp16 tmp[6][8][packn];
@@ -244,16 +244,16 @@ static void conv3x3s1_winograd63_transform_output_packn_fp16sa_rvv(const Mat& to
                     vfloat16m1_t _tmp024c = __riscv_vfadd_vv_f16m1(_out0tm5, _out0tm6, vl);
                     vfloat16m1_t _tmp135c = __riscv_vfsub_vv_f16m1(_out0tm5, _out0tm6, vl);
 
-                    vfloat16m1_t _tmp0m = __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_out0tm0, _tmp024a, vl), __riscv_vfmacc_vf_f16m1(_tmp024b, 32.f, _tmp024c, vl), vl);
-                    vfloat16m1_t _tmp2m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, 4.f, _tmp024b, vl), 8.f, _tmp024c, vl);
-                    vfloat16m1_t _tmp4m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, 16.f, _tmp024b, vl), 2.f, _tmp024c, vl);
+                    vfloat16m1_t _tmp0m = __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_out0tm0, _tmp024a, vl), __riscv_vfmacc_vf_f16m1(_tmp024b, (__fp16)32.f, _tmp024c, vl), vl);
+                    vfloat16m1_t _tmp2m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, (__fp16)4.f, _tmp024b, vl), (__fp16)8.f, _tmp024c, vl);
+                    vfloat16m1_t _tmp4m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, (__fp16)16.f, _tmp024b, vl), (__fp16)2.f, _tmp024c, vl);
                     __riscv_vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     __riscv_vse16_v_f16m1(tmp[2][m], _tmp2m, vl);
                     __riscv_vse16_v_f16m1(tmp[4][m], _tmp4m, vl);
 
-                    vfloat16m1_t _tmp1m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, 2.f, _tmp135b, vl), 16.f, _tmp135c, vl);
-                    vfloat16m1_t _tmp3m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, 8.f, _tmp135b, vl), 4.f, _tmp135c, vl);
-                    vfloat16m1_t _tmp5m = __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_out0tm7, _tmp135a, vl), __riscv_vfmacc_vf_f16m1(_tmp135c, 32.f, _tmp135b, vl), vl);
+                    vfloat16m1_t _tmp1m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, (__fp16)2.f, _tmp135b, vl), (__fp16)16.f, _tmp135c, vl);
+                    vfloat16m1_t _tmp3m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, (__fp16)8.f, _tmp135b, vl), (__fp16)4.f, _tmp135c, vl);
+                    vfloat16m1_t _tmp5m = __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_out0tm7, _tmp135a, vl), __riscv_vfmacc_vf_f16m1(_tmp135c, (__fp16)32.f, _tmp135b, vl), vl);
                     __riscv_vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
                     __riscv_vse16_v_f16m1(tmp[3][m], _tmp3m, vl);
                     __riscv_vse16_v_f16m1(tmp[5][m], _tmp5m, vl);
@@ -288,16 +288,16 @@ static void conv3x3s1_winograd63_transform_output_packn_fp16sa_rvv(const Mat& to
                     vfloat16m1_t _tmp024c = __riscv_vfadd_vv_f16m1(_tmp05, _tmp06, vl);
                     vfloat16m1_t _tmp135c = __riscv_vfsub_vv_f16m1(_tmp05, _tmp06, vl);
 
-                    vfloat16m1_t _out00 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_tmp00, _tmp024a, vl), __riscv_vfmacc_vf_f16m1(_tmp024b, 32.f, _tmp024c, vl), vl), vl);
-                    vfloat16m1_t _out02 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, 4.f, _tmp024b, vl), 8.f, _tmp024c, vl), vl);
-                    vfloat16m1_t _out04 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, 16.f, _tmp024b, vl), 2.f, _tmp024c, vl), vl);
+                    vfloat16m1_t _out00 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_tmp00, _tmp024a, vl), __riscv_vfmacc_vf_f16m1(_tmp024b, (__fp16)32.f, _tmp024c, vl), vl), vl);
+                    vfloat16m1_t _out02 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, (__fp16)4.f, _tmp024b, vl), (__fp16)8.f, _tmp024c, vl), vl);
+                    vfloat16m1_t _out04 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp024a, (__fp16)16.f, _tmp024b, vl), (__fp16)2.f, _tmp024c, vl), vl);
                     __riscv_vse16_v_f16m1(output0, _out00, vl);
                     __riscv_vse16_v_f16m1(output0 + packn * 2, _out02, vl);
                     __riscv_vse16_v_f16m1(output0 + packn * 4, _out04, vl);
 
-                    vfloat16m1_t _out01 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, 2.f, _tmp135b, vl), 16.f, _tmp135c, vl), vl);
-                    vfloat16m1_t _out03 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, 8.f, _tmp135b, vl), 4.f, _tmp135c, vl), vl);
-                    vfloat16m1_t _out05 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_tmp07, _tmp135a, vl), __riscv_vfmacc_vf_f16m1(_tmp135c, 32.f, _tmp135b, vl), vl), vl);
+                    vfloat16m1_t _out01 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, (__fp16)2.f, _tmp135b, vl), (__fp16)16.f, _tmp135c, vl), vl);
+                    vfloat16m1_t _out03 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_tmp135a, (__fp16)8.f, _tmp135b, vl), (__fp16)4.f, _tmp135c, vl), vl);
+                    vfloat16m1_t _out05 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_tmp07, _tmp135a, vl), __riscv_vfmacc_vf_f16m1(_tmp135c, (__fp16)32.f, _tmp135b, vl), vl), vl);
                     __riscv_vse16_v_f16m1(output0 + packn, _out01, vl);
                     __riscv_vse16_v_f16m1(output0 + packn * 3, _out03, vl);
                     __riscv_vse16_v_f16m1(output0 + packn * 5, _out05, vl);
@@ -366,17 +366,17 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
                     vfloat16m1_t _r04 = __riscv_vle16_v_f16m1(r0 + packn * 4, vl);
                     vfloat16m1_t _r05 = __riscv_vle16_v_f16m1(r0 + packn * 5, vl);
 
-                    vfloat16m1_t _tmp01a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, sq2, vl), -sq2_d2, _r03, vl);
-                    vfloat16m1_t _tmp01b = __riscv_vfmacc_vf_f16m1(_r04, -2.f, _r02, vl);
-                    vfloat16m1_t _tmp23a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, sq2_d2, vl), -sq2, _r03, vl);
-                    vfloat16m1_t _tmp23b = __riscv_vfmacc_vf_f16m1(_r04, -0.5f, _r02, vl);
+                    vfloat16m1_t _tmp01a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)sq2, vl), (__fp16)-sq2_d2, _r03, vl);
+                    vfloat16m1_t _tmp01b = __riscv_vfmacc_vf_f16m1(_r04, (__fp16)-2.f, _r02, vl);
+                    vfloat16m1_t _tmp23a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)sq2_d2, vl), (__fp16)-sq2, _r03, vl);
+                    vfloat16m1_t _tmp23b = __riscv_vfmacc_vf_f16m1(_r04, (__fp16)-0.5f, _r02, vl);
 
-                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r00, _r04, vl), -2.5f, _r02, vl);
+                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r00, _r04, vl), (__fp16)-2.5f, _r02, vl);
                     vfloat16m1_t _tmp1m = __riscv_vfsub_vv_f16m1(_tmp01b, _tmp01a, vl);
                     vfloat16m1_t _tmp2m = __riscv_vfadd_vv_f16m1(_tmp01b, _tmp01a, vl);
                     vfloat16m1_t _tmp3m = __riscv_vfsub_vv_f16m1(_tmp23b, _tmp23a, vl);
                     vfloat16m1_t _tmp4m = __riscv_vfadd_vv_f16m1(_tmp23b, _tmp23a, vl);
-                    vfloat16m1_t _tmp5m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), -2.5f, _r03, vl);
+                    vfloat16m1_t _tmp5m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), (__fp16)-2.5f, _r03, vl);
 
                     __riscv_vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     __riscv_vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
@@ -404,17 +404,17 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
                     vfloat16m1_t _r04 = __riscv_vle16_v_f16m1(tmp[m][4], vl);
                     vfloat16m1_t _r05 = __riscv_vle16_v_f16m1(tmp[m][5], vl);
 
-                    vfloat16m1_t _tmp01a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, sq2, vl), -sq2_d2, _r03, vl);
-                    vfloat16m1_t _tmp01b = __riscv_vfmacc_vf_f16m1(_r04, -2.f, _r02, vl);
-                    vfloat16m1_t _tmp23a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, sq2_d2, vl), -sq2, _r03, vl);
-                    vfloat16m1_t _tmp23b = __riscv_vfmacc_vf_f16m1(_r04, -0.5f, _r02, vl);
+                    vfloat16m1_t _tmp01a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)sq2, vl), (__fp16)-sq2_d2, _r03, vl);
+                    vfloat16m1_t _tmp01b = __riscv_vfmacc_vf_f16m1(_r04, (__fp16)-2.f, _r02, vl);
+                    vfloat16m1_t _tmp23a = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_r01, (__fp16)sq2_d2, vl), (__fp16)-sq2, _r03, vl);
+                    vfloat16m1_t _tmp23b = __riscv_vfmacc_vf_f16m1(_r04, (__fp16)-0.5f, _r02, vl);
 
-                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r00, _r04, vl), -2.5f, _r02, vl);
+                    vfloat16m1_t _tmp0m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r00, _r04, vl), (__fp16)-2.5f, _r02, vl);
                     vfloat16m1_t _tmp1m = __riscv_vfsub_vv_f16m1(_tmp01b, _tmp01a, vl);
                     vfloat16m1_t _tmp2m = __riscv_vfadd_vv_f16m1(_tmp01b, _tmp01a, vl);
                     vfloat16m1_t _tmp3m = __riscv_vfsub_vv_f16m1(_tmp23b, _tmp23a, vl);
                     vfloat16m1_t _tmp4m = __riscv_vfadd_vv_f16m1(_tmp23b, _tmp23a, vl);
-                    vfloat16m1_t _tmp5m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), -2.5f, _r03, vl);
+                    vfloat16m1_t _tmp5m = __riscv_vfmacc_vf_f16m1(__riscv_vfadd_vv_f16m1(_r01, _r05, vl), (__fp16)-2.5f, _r03, vl);
 
                     __riscv_vse16_v_f16m1(r0_tm_0, _tmp0m, vl);
                     __riscv_vse16_v_f16m1(r0_tm_1, _tmp1m, vl);
@@ -473,7 +473,7 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1(0.f, vl);
+        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
         // NOTE variable length array
         __fp16 tmp[4][6][packn];
@@ -507,9 +507,9 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
                     vfloat16m1_t _tmp13b = __riscv_vfsub_vv_f16m1(_r03, _r04, vl);
 
                     vfloat16m1_t _tmp0m = __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_r00, _tmp02a, vl), _tmp02b, vl);
-                    vfloat16m1_t _tmp1m = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp13a, sq2_d2, vl), sq2, _tmp13b, vl);
-                    vfloat16m1_t _tmp2m = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl);
-                    vfloat16m1_t _tmp3m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl);
+                    vfloat16m1_t _tmp1m = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp13a, (__fp16)sq2_d2, vl), (__fp16)sq2, _tmp13b, vl);
+                    vfloat16m1_t _tmp2m = __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp02a, (__fp16)0.5f, vl), (__fp16)2.f, _tmp02b, vl);
+                    vfloat16m1_t _tmp3m = __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r05, (__fp16)sq2_d4, _tmp13a, vl), (__fp16)sq2_m2, _tmp13b, vl);
 
                     __riscv_vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     __riscv_vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
@@ -539,9 +539,9 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
                     vfloat16m1_t _tmp13b = __riscv_vfsub_vv_f16m1(_r03, _r04, vl);
 
                     vfloat16m1_t _out00 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfadd_vv_f16m1(__riscv_vfadd_vv_f16m1(_r00, _tmp02a, vl), _tmp02b, vl), vl);
-                    vfloat16m1_t _out01 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp13a, sq2_d2, vl), sq2, _tmp13b, vl), vl);
-                    vfloat16m1_t _out02 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl), vl);
-                    vfloat16m1_t _out03 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl), vl);
+                    vfloat16m1_t _out01 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp13a, (__fp16)sq2_d2, vl), (__fp16)sq2, _tmp13b, vl), vl);
+                    vfloat16m1_t _out02 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmul_vf_f16m1(_tmp02a, (__fp16)0.5f, vl), (__fp16)2.f, _tmp02b, vl), vl);
+                    vfloat16m1_t _out03 = __riscv_vfadd_vv_f16m1(_bias0, __riscv_vfmacc_vf_f16m1(__riscv_vfmacc_vf_f16m1(_r05, (__fp16)sq2_d4, _tmp13a, vl), (__fp16)sq2_m2, _tmp13b, vl), vl);
 
                     __riscv_vse16_v_f16m1(output0, _out00, vl);
                     __riscv_vse16_v_f16m1(output0 + packn, _out01, vl);
@@ -677,7 +677,7 @@ static void conv3x3s1_winograd23_transform_output_packn_fp16sa_rvv(const Mat& to
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1(0.f, vl);
+        vfloat16m1_t _bias0 = biasptr ? __riscv_vle16_v_f16m1(biasptr + p * packn, vl) : __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
         // NOTE variable length array
         __fp16 tmp[2][4][packn];

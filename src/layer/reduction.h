@@ -32,6 +32,9 @@ public:
         ReductionOp_LogSumExp = 10
     };
 
+protected:
+    void resolve_reduce_flags_and_output_shape(const Mat& bottom_blob, bool& reduce_w, bool& reduce_h, bool& reduce_d, bool& reduce_c, int& outdims, int& outw, int& outh, int& outd, int& outc) const;
+
 public:
     // param
     int operation;

@@ -9,6 +9,7 @@ namespace ncnn {
 LayerNorm_vulkan::LayerNorm_vulkan()
 {
     support_vulkan = true;
+    support_vulkan_packing = true;
 
     // pack1
     pipeline_layernorm_reduce_sum4_fp16_to_fp32 = 0;

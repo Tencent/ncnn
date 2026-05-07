@@ -200,7 +200,7 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        else if (op->type == "Tensor.reshape")
         {
             std::vector<int> shape;
             if (op->params.find("shape") == op->params.end())
@@ -549,7 +549,7 @@ static void solve_batch_index_backward(Operand* operand)
             solve_batch_index_forward(r);
         }
     }
-    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    else if (op->type == "Tensor.reshape")
     {
         std::vector<int> shape;
         if (op->params.find("shape") == op->params.end())
@@ -837,6 +837,13 @@ void solve_batch_index(Graph& graph)
             if (op->type == std::string("F.grid_sample"))
             {
                 op->inputs[1]->params["__batch_index"] = 0;
+            }
+            if (op->type == std::string("F.scaled_dot_product_attention"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+                op->inputs[2]->params["__batch_index"] = 0;
+                if (op->inputs.size() == 4)
+                    op->inputs[3]->params["__batch_index"] = 0;
             }
 
             op->inputs[0]->params["__batch_index"] = 0;

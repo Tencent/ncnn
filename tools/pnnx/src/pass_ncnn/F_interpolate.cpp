@@ -45,6 +45,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -109,6 +114,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -173,6 +183,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
@@ -237,6 +252,11 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
+        if (mode == "nearest-exact")
+        {
+            fprintf(stderr, "unsupported interpolate mode nearest-exact\n");
+            op->params["0"] = 1;
+        }
         if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")

@@ -32,7 +32,7 @@ jobs:
   rv64gc:
     runs-on: [self-hosted, linux, centos]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     #- name: riscv-gnu-toolchain
       #run: |
@@ -41,7 +41,7 @@ jobs:
         #mv riscv riscv64-elf
 
     #- name: checkout-riscv-pk
-      #uses: actions/checkout@v5
+      #uses: actions/checkout@v6
       #with:
         #repository: riscv/riscv-pk
         #path: riscv-pk
@@ -58,7 +58,7 @@ jobs:
         #make install
 
     #- name: checkout-riscv-isa-sim
-      #uses: actions/checkout@v5
+      #uses: actions/checkout@v6
       #with:
         #repository: riscv-software-src/riscv-isa-sim
         #path: riscv-isa-sim

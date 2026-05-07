@@ -70,6 +70,9 @@ public:
     // return 0 if success
     int load_param(FILE* fp);
     int load_param(const char* protopath);
+#if _WIN32
+    int load_param(const wchar_t* protopath);
+#endif
 
     // load network structure from in-memory plain param string, must be NULL-terminated
     // return 0 if success
@@ -79,24 +82,30 @@ public:
     // return 0 if success
     int load_param_bin(FILE* fp);
     int load_param_bin(const char* protopath);
+#if _WIN32
+    int load_param_bin(const wchar_t* protopath);
+#endif
 
     // load network weight data from model file
     // return 0 if success
     int load_model(FILE* fp);
     int load_model(const char* modelpath);
+#if _WIN32
+    int load_model(const wchar_t* modelpath);
+#endif
 #endif // NCNN_STDIO
 
     // load network structure from external memory
     // memory pointer must be 32-bit aligned
     // return bytes consumed
-    int load_param(const unsigned char* mem);
+    size_t load_param(const unsigned char* mem);
 
     // reference network weight data from external memory
     // weight data is not copied but referenced
     // so external memory should be retained when used
     // memory pointer must be 32-bit aligned
     // return bytes consumed
-    int load_model(const unsigned char* mem);
+    size_t load_model(const unsigned char* mem);
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9

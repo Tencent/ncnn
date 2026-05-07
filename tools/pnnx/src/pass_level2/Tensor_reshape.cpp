@@ -25,19 +25,16 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape, 60)
-
-class Tensor_reshape_onnx : public GraphRewriterPass
+class Tensor_reshape_view : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 shape
-aten::cat               op_0        1 1 shape cat dim=0
-Reshape                 op_1        2 1 input cat out %*=%*
+aten::view              op_0        2 1 input shape out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -46,15 +43,12 @@ pnnx.Output             output      1 0 out
     {
         return "Tensor.reshape";
     }
-
-    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
-    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape, 60)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_view, 60)
 
-class Tensor_reshape_onnx_1 : public Tensor_reshape_onnx
+class Tensor_reshape_onnx : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -67,11 +61,21 @@ Reshape                 op_0        2 1 input shape out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+
+    const char* type_str() const
+    {
+        return "Tensor.reshape";
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        // drop op_0.allowzero
+    }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 61)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx, 61)
 
-class Tensor_reshape_onnx_2 : public GraphRewriterPass
+class Tensor_reshape_onnx_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -110,7 +114,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_2, 61)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_onnx_1, 61)
 
 class Tensor_reshape_tnn : public GraphRewriterPass
 {

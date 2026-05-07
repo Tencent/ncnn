@@ -58,7 +58,7 @@ sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler lib
 ```
 On Redhat or Centos, you can install all required dependencies using:
 ```shell
-sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libopencv-dev
+sudo dnf install gcc-c++ git cmake protobuf-devel protobuf-compiler opencv-devel
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -278,7 +278,7 @@ Download mingw toolchain targeting 32 bit from [sourceforge](https://jaist.dl.so
 ```shell
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_VULKAN=OFF .. -G "MinGW Makefiles"
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-mingw.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
@@ -292,7 +292,7 @@ Install Clang 6.0 or later.
 ```shell
 mkdir build
 cd build
-cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_SIMPLEOCV=ON -DNCNN_SIMPLEOMP=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
+cmake -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-clang.toolchain.cmake" -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_AVX=OFF .. -G "MinGW Makefiles"
 cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
@@ -309,8 +309,8 @@ Install v141_xp toolset for Windows XP:
 ```shell
 mkdir build
 cd build
-cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
-cmake --build . --config Release -j 2
+cmake -A WIN32 -G "Visual Studio 17 2022" -T v141_xp -DNCNN_WINXP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_WITH_STATIC_CRT=ON -DCMAKE_TOOLCHAIN_FILE="../toolchains/windows-xp-msvc.toolchain.cmake" ..
+cmake --build . --config Release -j 4
 cmake --build . --config Release --target install
 ```
 
@@ -382,6 +382,7 @@ mkdir -p build-arm-linux-gnueabi
 cd build-arm-linux-gnueabi
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch32 target with hard float (arm-linux-gnueabihf)
@@ -391,6 +392,7 @@ mkdir -p build-arm-linux-gnueabihf
 cd build-arm-linux-gnueabihf
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 AArch64 GNU/Linux target (aarch64-linux-gnu)
@@ -400,6 +402,7 @@ mkdir -p build-aarch64-linux-gnu
 cd build-aarch64-linux-gnu
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake ..
 make -j$(nproc)
+make install
 ```
 
 ***

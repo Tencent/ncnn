@@ -14,6 +14,7 @@
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
 #cmakedefine01 NCNN_PLATFORM_API
+#cmakedefine01 NCNN_WINXP
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
 #cmakedefine01 NCNN_PIXEL_AFFINE
@@ -59,18 +60,25 @@
 #cmakedefine01 NCNN_FORCE_INLINE
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
+#cmakedefine NCNN_VERSION_NUMBER @NCNN_VERSION_NUMBER@
 
 #include "ncnn_export.h"
 
 #ifdef __cplusplus
 
-#if NCNN_THREADS
 #if defined _WIN32
 #define WIN32_LEAN_AND_MEAN
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501
-#endif
 #include <windows.h>
+#elif defined __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+#if NCNN_THREADS
+#if defined _WIN32
 #include <process.h>
 #else
 #include <pthread.h>
@@ -83,11 +91,59 @@
 #endif
 #endif // __ANDROID_API__ >= 26
 
+#include <stddef.h>
+
 namespace ncnn {
 
 #if NCNN_THREADS
 #if defined _WIN32
-#if _WIN32_WINNT > _WIN32_WINNT_WINXP // Windows Vista and later
+#if NCNN_WINXP
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { InitializeCriticalSection(&cs); }
+    ~Mutex() { DeleteCriticalSection(&cs); }
+    void lock() { EnterCriticalSection(&cs); }
+    void unlock() { LeaveCriticalSection(&cs); }
+private:
+    friend class ConditionVariable;
+    CRITICAL_SECTION cs;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable()
+    {
+        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
+        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
+    }
+    ~ConditionVariable()
+    {
+        CloseHandle(signal_event);
+        CloseHandle(broadcast_event);
+    }
+    void wait(Mutex& mutex)
+    {
+        mutex.unlock();
+        HANDLE events[2] = { signal_event, broadcast_event };
+        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
+        mutex.lock();
+    }
+    void broadcast()
+    {
+        SetEvent(broadcast_event); // Wake all threads
+        ResetEvent(broadcast_event); // Reset after waking all threads
+    }
+    void signal()
+    {
+        SetEvent(signal_event); // Wake one thread
+    }
+private:
+    HANDLE signal_event;
+    HANDLE broadcast_event;
+};
+#else // NCNN_WINXP
 class NCNN_EXPORT Mutex
 {
 public:
@@ -111,56 +167,7 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
-
-#else // Windows XP compatibility
-
-class NCNN_EXPORT Mutex
-{
-public:
-    Mutex() { InitializeCriticalSection(&cs); }
-    ~Mutex() { DeleteCriticalSection(&cs); }
-    void lock() { EnterCriticalSection(&cs); }
-    void unlock() { LeaveCriticalSection(&cs); }
-private:
-    friend class ConditionVariable;
-    CRITICAL_SECTION cs;
-};
-
-class NCNN_EXPORT ConditionVariable
-{
-public:
-    ConditionVariable() 
-    { 
-        signal_event = CreateEvent(0, FALSE, FALSE, 0); // Auto-reset event for signal()
-        broadcast_event = CreateEvent(0, TRUE, FALSE, 0); // Manual-reset event for broadcast()
-    }
-    ~ConditionVariable() 
-    { 
-        CloseHandle(signal_event); 
-        CloseHandle(broadcast_event); 
-    }
-    void wait(Mutex& mutex)
-    {
-        mutex.unlock();
-        HANDLE events[2] = { signal_event, broadcast_event };
-        WaitForMultipleObjects(2, events, FALSE, INFINITE); // Wait for either signal or broadcast
-        mutex.lock();
-    }
-    void broadcast() 
-    { 
-        SetEvent(broadcast_event); // Wake all threads
-        ResetEvent(broadcast_event); // Reset after waking all threads
-    }
-    void signal() 
-    { 
-        SetEvent(signal_event); // Wake one thread
-    }
-private:
-    HANDLE signal_event;
-    HANDLE broadcast_event;
-};
-
-#endif // _WIN32_WINNT > _WIN32_WINNT_WINXP
+#endif // NCNN_WINXP
 
 static unsigned __stdcall start_wrapper(void* args);
 class NCNN_EXPORT Thread
@@ -285,6 +292,117 @@ public:
 private:
     Mutex& mutex;
 };
+
+#if defined _WIN32
+class NCNN_EXPORT MappedFile
+{
+public:
+    MappedFile() { ptr = 0; _size = 0; file = INVALID_HANDLE_VALUE; mapping = 0; }
+    ~MappedFile() { close(); }
+    int open(const char* path)
+    {
+        close();
+
+        file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (file == INVALID_HANDLE_VALUE) return -1;
+
+        LARGE_INTEGER liSize;
+        if (!GetFileSizeEx(file, &liSize)) { close(); return -1; }
+
+        _size = (size_t)liSize.QuadPart;
+        if (_size == 0) { close(); return -1; }
+
+        mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
+        if (!mapping) { close(); return -1; }
+
+        ptr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
+        if (!ptr) { close(); return -1; }
+        return 0;
+    }
+    int open(const wchar_t* path)
+    {
+        close();
+
+        file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (file == INVALID_HANDLE_VALUE) return -1;
+
+        LARGE_INTEGER liSize;
+        if (!GetFileSizeEx(file, &liSize)) { close(); return -1; }
+
+        _size = (size_t)liSize.QuadPart;
+        if (_size == 0) { close(); return -1; }
+
+        mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
+        if (!mapping) { close(); return -1; }
+
+        ptr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
+        if (!ptr) { close(); return -1; }
+        return 0;
+    }
+    void close()
+    {
+        if (ptr) { UnmapViewOfFile(ptr); ptr = 0; }
+        if (mapping) { CloseHandle(mapping); mapping = 0; }
+        if (file != INVALID_HANDLE_VALUE) { CloseHandle(file); file = INVALID_HANDLE_VALUE; }
+        _size = 0;
+    }
+    const void* mapped_ptr() const { return ptr; }
+    size_t size() const { return _size; }
+private:
+    void* ptr;
+    size_t _size;
+    HANDLE file;
+    HANDLE mapping;
+};
+#elif defined __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+class NCNN_EXPORT MappedFile
+{
+public:
+    MappedFile() { ptr = 0; _size = 0; fd = -1; }
+    ~MappedFile() { close(); }
+    int open(const char* path)
+    {
+        close();
+
+        fd = ::open(path, O_RDONLY);
+        if (fd < 0) return -1;
+
+        struct stat st;
+        if (fstat(fd, &st) < 0) { close(); return -1; }
+
+        _size = (size_t)st.st_size;
+        if (_size == 0) { close(); return -1; }
+
+        ptr = mmap(NULL, _size, PROT_READ, MAP_PRIVATE, fd, 0);
+        if (ptr == MAP_FAILED) { close(); return -1; }
+        return 0;
+    }
+    void close()
+    {
+        if (ptr && ptr != MAP_FAILED) { munmap(ptr, _size); }
+        ptr = 0;
+        if (fd >= 0) { ::close(fd); fd = -1; }
+        _size = 0;
+    }
+    const void* mapped_ptr() const { return ptr; }
+    size_t size() const { return _size; }
+private:
+    void* ptr;
+    size_t _size;
+    int fd;
+};
+#else // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+class NCNN_EXPORT MappedFile
+{
+public:
+    MappedFile() {}
+    ~MappedFile() {}
+    int open(const char* /*path*/) { return -1; }
+    void close() {}
+    const void* mapped_ptr() const { return 0; }
+    size_t size() const { return 0; }
+};
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
 
 static inline void swap_endianness_16(void* x)
 {

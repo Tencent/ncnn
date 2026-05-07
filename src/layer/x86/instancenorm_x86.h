@@ -11,7 +11,14 @@ namespace ncnn {
 class InstanceNorm_x86 : public InstanceNorm
 {
 public:
+    InstanceNorm_x86();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_BF16
+    int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

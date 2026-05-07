@@ -11,6 +11,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/vulkan/**'
     - 'tests/**'
+    - 'glslang'
 concurrency:
   group: windows-arm-${{ github.ref }}
   cancel-in-progress: true
@@ -48,7 +50,7 @@ jobs:
       NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2.4
@@ -70,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: msvc-wine
       env:
         WINEPREFIX: /tmp/wine-x64-prefix/
@@ -103,7 +105,7 @@ jobs:
       UseMultiToolTask: true
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
     - name: build

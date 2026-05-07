@@ -10,23 +10,40 @@
 #endif // __AVX__
 #endif // __SSE2__
 
+#include "x86_usability.h"
+
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_BF16
+#include "clip_bf16s.h"
+#endif
 
 Clip_x86::Clip_x86()
 {
 #if __SSE2__
     support_packing = true;
+    support_any_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -93,4 +110,13 @@ int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-} //namespace ncnn
+#if NCNN_BF16
+int Clip_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    clip_bf16s(bottom_top_blob, min, max, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
+
+} // namespace ncnn

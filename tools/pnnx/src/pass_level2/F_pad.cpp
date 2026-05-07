@@ -463,7 +463,15 @@ pnnx.Output             output      1 0 out
     {
         F_pad_onnx::write(op, captured_params);
 
-        op->params["value"] = captured_params.at("value");
+        const std::string& mode = captured_params.at("mode").s;
+        if (mode == "constant")
+        {
+            op->params["value"] = captured_params.at("value");
+        }
+        else
+        {
+            op->params["value"] = Parameter();
+        }
     }
 };
 

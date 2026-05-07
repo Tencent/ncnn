@@ -68,6 +68,10 @@ pnnx.Output             output      1 0 out
 
         return transA == 0 && transB == 0 && alpha == 1.f;
     }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mm_onnx, 90)

@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 12
+#define OP_TYPE_MAX 19
 
 static int op_type = 0;
 
@@ -55,7 +55,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
@@ -97,7 +97,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
@@ -370,7 +370,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 9; op_type < OP_TYPE_MAX; op_type++)
+    for (op_type = 9; op_type < 12; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()

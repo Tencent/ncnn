@@ -16,7 +16,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config = GPT2Config(hidden_size=192, num_attention_heads=8, scale_attn_weights=True)
+        config = GPT2Config(hidden_size=192, num_attention_heads=8, scale_attn_weights=True, attn_implementation='eager')
         self.attn0 = GPT2Attention(config)
 
     def forward(self, x, mask0):

@@ -3,13 +3,13 @@
 
 #version 450
 
-layout (constant_id = 0) const int affine_size = 0;
+layout(constant_id = 0) const int affine_size = 0;
 
-layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
-layout (binding = 2) writeonly buffer square_blob { sfp square_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout(binding = 2) writeonly buffer square_blob { sfp square_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;

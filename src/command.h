@@ -68,6 +68,8 @@ public:
 
     int reset();
 
+    uint64_t pending_dispatch_total() const;
+
 #if NCNN_BENCHMARK
     int create_query_pool(uint32_t query_count);
 
@@ -96,6 +98,10 @@ public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
     int submit_and_wait();
+
+    int reset();
+
+    uint64_t pending_upload_total() const;
 
 protected:
     const VulkanDevice* vkdev;

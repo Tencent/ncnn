@@ -29,6 +29,7 @@ class Model(nn.Module):
 
     def forward(self, x):
         x = self.up_0(x)
+        x = F.relu(x)
         x = self.up_1(x)
         return x
 

@@ -111,8 +111,9 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 {
     size_t fmtlen = strlen(format);
 
-    char* format_with_n = new char[fmtlen + 4];
-    sprintf(format_with_n, "%s%%n", format);
+    const size_t nlen = fmtlen + 4;
+    char* format_with_n = new char[nlen];
+    snprintf(format_with_n, nlen, "%s%%n", format);
 
     int nconsumed = 0;
     int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
@@ -192,6 +193,12 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
             // skip the leading newline
             // however, it is fine to create "\nXYZ 123 abc" as sscanf will skip the leading newline silently
             newline_pos = (const char*)memchr((const char*)d->mem + 1, '\n', remain_length - 1);
+        }
+        else if (remain_length > 2 && ((const char*)d->mem)[0] == '\r' && ((const char*)d->mem)[1] == '\n')
+        {
+            // skip the leading newline
+            // however, it is fine to create "\r\nXYZ 123 abc" as sscanf will skip the leading newline silently
+            newline_pos = (const char*)memchr((const char*)d->mem + 2, '\n', remain_length - 2);
         }
         else
         {

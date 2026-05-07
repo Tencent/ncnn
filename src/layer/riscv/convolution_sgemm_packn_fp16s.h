@@ -262,14 +262,14 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -324,10 +324,10 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -366,8 +366,8 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -398,7 +398,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {

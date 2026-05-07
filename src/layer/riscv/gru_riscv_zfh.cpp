@@ -491,8 +491,8 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             // sigmoid(R)
             // sigmoid(U)
-            R = 1.f / (1.f + (__fp16)expf((float)(-R)));
-            U = 1.f / (1.f + (__fp16)expf((float)(-U)));
+            R = (__fp16)(1.f / (1.f + expf((float)(-R))));
+            U = (__fp16)(1.f / (1.f + expf((float)(-U))));
 
             // gate new
             const __fp16* bias_c_WN = bias_c.row<const __fp16>(2);
@@ -583,7 +583,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float H = (1 - U) * N + U * hidden_state[q];
 
             hidden_state[q] = H;
-            output_data[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 

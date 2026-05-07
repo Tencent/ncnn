@@ -238,6 +238,54 @@ static inline v4f32 tanh_ps(v4f32 x)
     return y;
 }
 
+_MIPS_FLOAT_CONST(c_erf_threshold, 0.927734375f);
+_MIPS_FLOAT_CONST(c_erf_c0, -1.72853470e-5f);
+_MIPS_FLOAT_CONST(c_erf_c1, 3.83197126e-4f);
+_MIPS_FLOAT_CONST(c_erf_c2, -3.88396438e-3f);
+_MIPS_FLOAT_CONST(c_erf_c3, 2.42546219e-2f);
+_MIPS_FLOAT_CONST(c_erf_c4, -1.06777877e-1f);
+_MIPS_FLOAT_CONST(c_erf_c5, -6.34846687e-1f);
+_MIPS_FLOAT_CONST(c_erf_c6, -1.28717512e-1f);
+_MIPS_FLOAT_CONST(c_erf_p0, -5.96761703e-4f);
+_MIPS_FLOAT_CONST(c_erf_p1, 4.99119423e-3f);
+_MIPS_FLOAT_CONST(c_erf_p2, -2.67681349e-2f);
+_MIPS_FLOAT_CONST(c_erf_p3, 1.12819925e-1f);
+_MIPS_FLOAT_CONST(c_erf_p4, -3.76125336e-1f);
+_MIPS_FLOAT_CONST(c_erf_p5, 1.28379166e-1f);
+
+static inline v4f32 erf_ps(v4f32 a)
+{
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+
+    v4f32 t = (v4f32)__msa_bclri_w((v4u32)a, 31);
+    v4f32 s = __msa_fmul_w(a, a);
+
+    v4i32 mask = __msa_fclt_w((v4f32)__msa_fill_w(c_erf_threshold.i), t);
+
+    v4f32 r1 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_c1.i), (v4f32)__msa_fill_w(c_erf_c0.i), t);
+    v4f32 u = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_c3.i), (v4f32)__msa_fill_w(c_erf_c2.i), t);
+    r1 = __msa_fmadd_w(u, r1, s);
+    r1 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_c4.i), r1, t);
+    r1 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_c5.i), r1, t);
+    r1 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_c6.i), r1, t);
+    v4f32 neg_t = (v4f32)__msa_bnegi_w((v4u32)t, 31);
+    r1 = __msa_fmadd_w(neg_t, r1, t);
+    r1 = __msa_fsub_w(one, exp_ps(r1));
+    r1 = (v4f32)__msa_binsli_w((v4u32)r1, (v4u32)a, 0);
+
+    v4f32 r2 = (v4f32)__msa_fill_w(c_erf_p0.i);
+    r2 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_p1.i), r2, s);
+    r2 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_p2.i), r2, s);
+    r2 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_p3.i), r2, s);
+    r2 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_p4.i), r2, s);
+    r2 = __msa_fmadd_w((v4f32)__msa_fill_w(c_erf_p5.i), r2, s);
+    r2 = __msa_fmadd_w(a, r2, a);
+
+    v4f32 r = (v4f32)__msa_bsel_v((v16u8)mask, (v16u8)r2, (v16u8)r1);
+
+    return r;
+}
+
 static inline v4f32 pow_ps(v4f32 a, v4f32 b)
 {
     // pow(x, m) = exp(m * log(x))
@@ -265,6 +313,67 @@ static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
     tmpx[2] = atan2f(tmpx[2], tmpy[2]);
     tmpx[3] = atan2f(tmpx[3], tmpy[3]);
     return (v4f32)__msa_ld_w(tmpx, 0);
+}
+
+static inline v4f32 fmod_ps(v4f32 a, v4f32 b)
+{
+    // fmod(a,b) = a - trunc(a/b)*b   (trunc toward 0)
+    v4f32 q = __msa_fdiv_w(a, b);
+    v4i32 qi = __msa_ftrunc_s_w(q); // trunc toward zero (independent of RM)
+    v4f32 qf = __msa_ffint_s_w(qi);
+    return __msa_fsub_w(a, __msa_fmul_w(qf, b));
+}
+
+static inline v4f32 round_ps(v4f32 x)
+{
+    v4f32 half = (v4f32)__msa_fill_w(c_0p5.i);
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    v4i32 sign_mask = __msa_fclt_w(x, (v4f32)__msa_fill_w(0));
+    v4f32 abs_x = (v4f32)__msa_bclri_w((v4u32)x, 31);
+    v4i32 xi = __msa_ftrunc_s_w(abs_x);
+    v4f32 xf = __msa_ffint_s_w(xi);
+    v4f32 diff = __msa_fsub_w(abs_x, xf);
+    v4i32 diff_gt_half = __msa_fclt_w(half, diff);
+    v4i32 diff_eq_half = __msa_fceq_w(diff, half);
+    v4i32 xi_and_1 = (v4i32)__msa_and_v((v16u8)xi, (v16u8)__msa_fill_w(1));
+    v4i32 is_odd = __msa_ceqi_w(xi_and_1, 1);
+    v4i32 round_up = (v4i32)__msa_or_v((v16u8)diff_gt_half, __msa_and_v((v16u8)diff_eq_half, (v16u8)is_odd));
+    v4f32 rounded = __msa_fadd_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)round_up));
+    return (v4f32)__msa_bsel_v((v16u8)sign_mask, (v16u8)rounded, (v16u8)__msa_bnegi_w((v4u32)rounded, 31));
+}
+
+static inline v4f32 logaddexp_ps(v4f32 a, v4f32 b)
+{
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    v4f32 max_xy = __msa_fmax_w(a, b);
+    v4f32 min_xy = __msa_fmin_w(a, b);
+    v4f32 diff = __msa_fsub_w(min_xy, max_xy);
+    v4f32 exp_diff = exp_ps(diff);
+    v4f32 one_plus_exp = __msa_fadd_w(one, exp_diff);
+    v4f32 log_result = log_ps(one_plus_exp);
+    return __msa_fadd_w(max_xy, log_result);
+}
+
+static inline v4f32 floor_ps(v4f32 x)
+{
+    v4i32 xi = __msa_ftrunc_s_w(x);
+    v4f32 xf = __msa_ffint_s_w(xi);
+    v4i32 need_adjust = __msa_fclt_w(x, xf);
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+    return __msa_fsub_w(xf, (v4f32)__msa_and_v((v16u8)one, (v16u8)need_adjust));
+}
+
+static inline v4f32 floor_divide_ps(v4f32 a, v4f32 b)
+{
+    v4f32 q = __msa_fdiv_w(a, b);
+    return floor_ps(q);
+}
+
+static inline v4f32 remainder_ps(v4f32 a, v4f32 b)
+{
+    v4f32 q = __msa_fdiv_w(a, b);
+    v4f32 rq = round_ps(q);
+    return __msa_fsub_w(a, __msa_fmul_w(rq, b));
 }
 
 #endif // MSA_MATHFUN_H
