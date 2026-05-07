@@ -29,26 +29,6 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
     {
         std::vector<vk_specialization_type> specializations(2);
         specializations[0].i = across_spatial;
@@ -57,7 +37,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         Mat local_size_xyz; // TODO select by across_channel / across_spatial
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
@@ -72,7 +52,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -96,14 +76,14 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
 
         Mat local_size_xyz; // TODO resolve sqsum_workspace shape
 
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_coeffs = new Pipeline(vkdev);
             pipeline_normalize_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs->create(LayerShaderType::normalize_coeffs, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -118,28 +98,28 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = channel_shared;
         specializations[3].i = (scale_data_size == 1 && scale_data[0] == 1.f) ? 0 : 1;
         specializations[4].f = channel_shared ? scale_data[0] : 1.f;
-        specializations[5 + 0].i = shape_packed.dims;
-        specializations[5 + 1].i = shape_packed.w;
-        specializations[5 + 2].i = shape_packed.h;
-        specializations[5 + 3].i = shape_packed.c;
-        specializations[5 + 4].i = shape_packed.cstep;
+        specializations[5 + 0].i = shape.dims;
+        specializations[5 + 1].i = shape.w;
+        specializations[5 + 2].i = shape.h;
+        specializations[5 + 3].i = shape.c;
+        specializations[5 + 4].i = shape.cstep;
 
         Mat local_size_xyz;
-        if (shape_packed.dims != 0)
+        if (shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h);
+            local_size_xyz.c = std::min(4, shape.c);
         }
 
-        if (shape.dims == 0 || elempack == 1)
+        if (shape.dims == 0 || shape.elempack == 1)
         {
             pipeline_normalize_norm = new Pipeline(vkdev);
             pipeline_normalize_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm->create(LayerShaderType::normalize_norm, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
+        if (shape.dims == 0 || shape.elempack == 4)
         {
             pipeline_normalize_norm_pack4 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);

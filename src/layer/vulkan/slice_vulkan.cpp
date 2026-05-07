@@ -26,33 +26,21 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
     int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
     int out_elempack = 1;
     if (positive_axis == 0)
     {
-        if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-        if (out_shape.dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-        if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
+        out_elempack = out_shape.elempack;
 
         for (size_t b = 1; b < top_shapes.size(); b++)
         {
             const Mat& shape1 = top_shapes[b];
 
-            int out_elempack1 = 1;
-            if (shape1.dims == 1) out_elempack1 = shape1.w % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 2) out_elempack1 = shape1.h % 4 == 0 ? 4 : 1;
-            if (shape1.dims == 3 || shape1.dims == 4) out_elempack1 = shape1.c % 4 == 0 ? 4 : 1;
-
-            out_elempack = std::min(out_elempack, out_elempack1);
+            out_elempack = std::min(out_elempack, shape1.elempack);
         }
     }
     else
     {
-        out_elempack = elempack;
+        out_elempack = shape.elempack;
     }
 
     size_t out_elemsize;

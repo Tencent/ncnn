@@ -8,7 +8,7 @@
 
 namespace ncnn {
 
-class GroupNorm_arm : virtual public GroupNorm
+class GroupNorm_arm : public GroupNorm
 {
 public:
     GroupNorm_arm();

@@ -13,6 +13,10 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
     support_packing = true;
 #endif // __SSE2__
 
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+
     q_gemm = 0;
     k_gemm = 0;
     v_gemm = 0;
@@ -31,6 +35,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         support_packing = false;
+        support_bf16_storage = false;
 
         opt.use_packing_layout = false; // TODO enable packing
     }
@@ -180,7 +185,10 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         weights[2] = out_weight_data_int8_scales;
 #endif
         o_gemm->load_model(ModelBinFromMatArray(weights));
-        o_gemm->create_pipeline(opt);
+        Option opt_fp32 = opt;
+        opt_fp32.use_bf16_packed = false;
+        opt_fp32.use_bf16_storage = false;
+        o_gemm->create_pipeline(opt_fp32);
 
         if (opt.lightmode)
         {
@@ -203,12 +211,15 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
         pd.set(11, 0);                  // output_N1M
         pd.set(12, 1);                  // output_elempack
+        pd.set(13, 1);                  // output_elemtype = fp32
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
 #endif
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qk_gemm->create_pipeline(opt1);
     }
@@ -227,6 +238,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         pd.set(10, -1); // constant_broadcast_type_C
         pd.set(11, 0);  // output_N1M
         pd.set(12, 1);  // output_elempack
+        pd.set(13, 1);  // output_elemtype = fp32
         pd.set(14, 1);  // output_transpose
 #if NCNN_INT8
         pd.set(18, int8_scale_term);
@@ -234,6 +246,8 @@ int MultiHeadAttention_x86::create_pipeline(const Option& _opt)
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
+        opt1.use_bf16_packed = false;
+        opt1.use_bf16_storage = false;
         opt1.num_threads = 1;
         qkv_gemm->create_pipeline(opt1);
     }
@@ -488,6 +502,17 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
             return retv;
     }
 
+    Mat v_affine_fp32 = v_affine;
+#if NCNN_BF16
+    if (opt.use_bf16_storage && v_affine.elembits() == 16)
+    {
+        // qkv_gemm need fp32 inputs
+        cast_bfloat16_to_float32(v_affine, v_affine_fp32, opt);
+        if (v_affine_fp32.empty())
+            return -100;
+    }
+#endif
+
     Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     if (qkv_cross.empty())
         return -100;
@@ -499,7 +524,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
-        qkv_bottom_blobs[1] = v_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        qkv_bottom_blobs[1] = v_affine_fp32.row_range(i * embed_dim_per_head, embed_dim_per_head);
         std::vector<Mat> qkv_top_blobs(1);
         qkv_top_blobs[0] = qkv_cross.row_range(i * embed_dim_per_head, embed_dim_per_head);
         Option opt1 = opt;
@@ -511,6 +536,8 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         if (retqkvs[i] != 0)
             return retqkvs[i];
     }
+
+    v_affine_fp32.release();
 
     if (!kv_cache)
     {

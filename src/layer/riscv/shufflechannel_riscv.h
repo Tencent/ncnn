@@ -8,7 +8,7 @@
 
 namespace ncnn {
 
-class ShuffleChannel_riscv : virtual public ShuffleChannel
+class ShuffleChannel_riscv : public ShuffleChannel
 {
 public:
     ShuffleChannel_riscv();

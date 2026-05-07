@@ -1541,12 +1541,12 @@ int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem)
 #endif /* NCNN_STRING */
 #endif /* NCNN_STDIO */
 
-int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem)
+size_t ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem)
 {
     return ((Net*)net->pthis)->load_param(mem);
 }
 
-int ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem)
+size_t ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem)
 {
     return ((Net*)net->pthis)->load_model(mem);
 }

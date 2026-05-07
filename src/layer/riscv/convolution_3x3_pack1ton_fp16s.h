@@ -18,7 +18,7 @@ static void conv3x3s1_pack1ton_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob,
     {
         Mat out0 = top_blob.channel(p);
 
-        vfloat16m1_t _bias0 = bias ? __riscv_vle16_v_f16m1(bias + p * packn, vl) : __riscv_vfmv_v_f_f16m1(0.f, vl);
+        vfloat16m1_t _bias0 = bias ? __riscv_vle16_v_f16m1(bias + p * packn, vl) : __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
         out0.fill(_bias0);
 
         const __fp16* k0 = kernel.channel(p);
@@ -296,7 +296,7 @@ static void conv3x3s2_pack1ton_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob,
     {
         Mat out0 = top_blob.channel(p);
 
-        vfloat16m1_t _bias0 = bias ? __riscv_vle16_v_f16m1(bias + p * packn, vl) : __riscv_vfmv_v_f_f16m1(0.f, vl);
+        vfloat16m1_t _bias0 = bias ? __riscv_vle16_v_f16m1(bias + p * packn, vl) : __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
         out0.fill(_bias0);
 
         const __fp16* k0 = kernel.channel(p);

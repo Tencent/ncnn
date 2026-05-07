@@ -176,14 +176,14 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
 
                 int nn = inch * packn; // inch always > 0
 
-                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 for (int j = 0; j < nn; j++)
                 {
@@ -226,10 +226,10 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
 
                 int nn = inch * packn; // inch always > 0
 
-                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 for (int j = 0; j < nn; j++)
                 {
@@ -260,8 +260,8 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
 
                 int nn = inch * packn; // inch always > 0
 
-                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+                vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 for (int j = 0; j < nn; j++)
                 {
@@ -286,7 +286,7 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
 
                 int nn = inch * packn; // inch always > 0
 
-                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+                vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                 for (int j = 0; j < nn; j++)
                 {

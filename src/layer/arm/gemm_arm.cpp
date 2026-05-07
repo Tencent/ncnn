@@ -5210,9 +5210,15 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
             // cast to fp32
             {
-                Mat CT_data;
-                cast_bfloat16_to_float32(C, CT_data);
-                C = CT_data;
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+
+                C = C_fp32;
             }
 
             // pre-multiply C with beta

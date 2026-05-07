@@ -34,7 +34,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int _channels = channels;
-    if (shape.dims == 3) _channels = shape.c;
+    if (shape.dims == 3) _channels = shape.c * shape.elempack;
 
     int elempack = 1;
     if (_channels != 0) elempack = _channels % 4 == 0 ? 4 : 1;
@@ -49,22 +49,19 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         elemsize = elempack * 4u;
     }
 
-    Mat shape_packed;
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-
     // TODO resolve workspace_shape.w
-    Mat workspace_shape_packed;
-    if (_channels != 0) workspace_shape_packed = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
+    Mat workspace_shape;
+    if (_channels != 0) workspace_shape = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
     {
         Mat local_size_xyz;
         {
             local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-            if (workspace_shape_packed.dims != 0)
+            if (workspace_shape.dims != 0)
             {
                 local_size_xyz.w = 16;
                 local_size_xyz.h = 1;
-                local_size_xyz.c = std::min(4, workspace_shape_packed.c);
+                local_size_xyz.c = std::min(4, workspace_shape.c);
             }
         }
 
@@ -101,15 +98,15 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 
     {
         std::vector<vk_specialization_type> specializations(0 + 4);
-        specializations[0].i = 0; // TODO resolve workspace_shape_packed.w;
-        specializations[1].i = 0; // TODO resolve workspace_shape_packed.h;
-        specializations[2].i = workspace_shape_packed.c;
-        specializations[3].i = 0; // TODO resolve workspace_shape_packed.cstep;
+        specializations[0].i = 0; // TODO resolve workspace_shape.w;
+        specializations[1].i = 0; // TODO resolve workspace_shape.h;
+        specializations[2].i = workspace_shape.c;
+        specializations[3].i = 0; // TODO resolve workspace_shape.cstep;
 
         Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
-        if (workspace_shape_packed.dims != 0)
+        if (workspace_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.w = std::min(64, workspace_shape.c);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
@@ -129,28 +126,28 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
     }
 
-    Mat square_workspace_packed;
-    if (shape.dims == 3) square_workspace_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elempack * 4u, elempack);
+    Mat square_workspace;
+    if (shape.dims == 3) square_workspace = Mat(shape.w, shape.h, shape.c * shape.elempack / elempack, (void*)0, elempack * 4u, elempack);
 
     {
         std::vector<vk_specialization_type> specializations(0 + 10);
-        specializations[0 + 0].i = shape_packed.dims;
-        specializations[0 + 1].i = shape_packed.w;
-        specializations[0 + 2].i = shape_packed.h;
-        specializations[0 + 3].i = shape_packed.c;
-        specializations[0 + 4].i = shape_packed.cstep;
-        specializations[0 + 5].i = square_workspace_packed.dims;
-        specializations[0 + 6].i = square_workspace_packed.w;
-        specializations[0 + 7].i = square_workspace_packed.h;
-        specializations[0 + 8].i = square_workspace_packed.c;
-        specializations[0 + 9].i = square_workspace_packed.cstep;
+        specializations[0 + 0].i = shape.dims;
+        specializations[0 + 1].i = shape.w;
+        specializations[0 + 2].i = shape.h;
+        specializations[0 + 3].i = shape.c;
+        specializations[0 + 4].i = shape.cstep;
+        specializations[0 + 5].i = square_workspace.dims;
+        specializations[0 + 6].i = square_workspace.w;
+        specializations[0 + 7].i = square_workspace.h;
+        specializations[0 + 8].i = square_workspace.c;
+        specializations[0 + 9].i = square_workspace.cstep;
 
         Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-        if (square_workspace_packed.dims != 0)
+        if (square_workspace.dims != 0)
         {
-            local_size_xyz.w = std::min(4, square_workspace_packed.w);
-            local_size_xyz.h = std::min(4, square_workspace_packed.h);
-            local_size_xyz.c = std::min(4, square_workspace_packed.c);
+            local_size_xyz.w = std::min(4, square_workspace.w);
+            local_size_xyz.h = std::min(4, square_workspace.h);
+            local_size_xyz.c = std::min(4, square_workspace.c);
         }
 
         if (elempack == 1 || _channels == 0)
@@ -175,9 +172,9 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = _channels / elempack;
 
         Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
-        if (workspace_shape_packed.dims != 0)
+        if (workspace_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(64, workspace_shape_packed.c);
+            local_size_xyz.w = std::min(64, workspace_shape.c);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
@@ -199,18 +196,18 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 
     {
         std::vector<vk_specialization_type> specializations(0 + 5);
-        specializations[0 + 0].i = shape_packed.dims;
-        specializations[0 + 1].i = shape_packed.w;
-        specializations[0 + 2].i = shape_packed.h;
-        specializations[0 + 3].i = shape_packed.c;
-        specializations[0 + 4].i = shape_packed.cstep;
+        specializations[0 + 0].i = shape.dims;
+        specializations[0 + 1].i = shape.w;
+        specializations[0 + 2].i = shape.h;
+        specializations[0 + 3].i = shape.c;
+        specializations[0 + 4].i = shape.cstep;
 
         Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
-        if (shape_packed.dims != 0)
+        if (shape.dims != 0)
         {
-            local_size_xyz.w = std::min(4, shape_packed.w);
-            local_size_xyz.h = std::min(4, shape_packed.h);
-            local_size_xyz.c = std::min(4, shape_packed.c);
+            local_size_xyz.w = std::min(4, shape.w);
+            local_size_xyz.h = std::min(4, shape.h);
+            local_size_xyz.c = std::min(4, shape.c);
         }
 
         if (elempack == 1 || _channels == 0)

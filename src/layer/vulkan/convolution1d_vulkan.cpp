@@ -60,24 +60,32 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     {
         Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        // unified pack4 weight layout: output channels always packed by 4
+        const int num_output_packed = (num_output + 3) / 4 * 4;
 
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        weight_data_packed.create(maxk, num_input / elempack, num_output_packed / 4, (size_t)4 * 4 * elempack, 4 * elempack);
+
+        for (int q = 0; q < num_output_packed; q += 4)
         {
-            float* g00 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_packed.channel(q / 4);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
                 for (int k = 0; k < maxk; k++)
                 {
-                    for (int i = 0; i < out_elempack; i++)
+                    for (int i = 0; i < 4; i++)
                     {
-                        const Mat k0 = weight_data_r2.channel(q + i);
-
                         for (int j = 0; j < elempack; j++)
                         {
-                            const float* k00 = k0.row(p + j);
-                            g00[0] = k00[k];
+                            if (q + i < num_output)
+                            {
+                                const float* k00 = weight_data_r2.channel(q + i).row(p + j);
+                                g00[0] = k00[k];
+                            }
+                            else
+                            {
+                                g00[0] = 0.f;
+                            }
                             g00++;
                         }
                     }
@@ -87,7 +95,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(7 + 4);
+        std::vector<vk_specialization_type> specializations(9 + 5);
         specializations[0].i = kernel_w;
         specializations[1].i = dilation_w;
         specializations[2].i = stride_w;
@@ -95,20 +103,17 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         specializations[4].i = activation_type;
         specializations[5].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
         specializations[6].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-        specializations[7 + 0].i = 0;
-        specializations[7 + 1].i = 0;
-        specializations[7 + 2].i = 0;
-        specializations[7 + 3].i = 0;
-
-        int shader_type_index = -1;
-        if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution1d;
-        if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_pack4;
-        if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution1d_pack1to4;
-        if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution1d_pack4to1;
+        specializations[7].i = elempack;
+        specializations[8].i = out_elempack;
+        specializations[9 + 0].i = 0;
+        specializations[9 + 1].i = 0;
+        specializations[9 + 2].i = 0;
+        specializations[9 + 3].i = 0;
+        specializations[9 + 4].i = num_output;
 
         pipeline_convolution1d = new Pipeline(vkdev);
         pipeline_convolution1d->set_optimal_local_size_xyz(1, 1, 1);
-        pipeline_convolution1d->create(shader_type_index, opt, specializations);
+        pipeline_convolution1d->create(LayerShaderType::convolution1d_packed, opt, specializations);
     }
 
     if (opt.lightmode)
@@ -231,25 +236,33 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+    const int num_output_packed = (num_output + 3) / 4 * 4;
+
     top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    // for the unified shader, outh is in pack4 units
+    const int outh_pack4 = num_output_packed / 4;
+
+    std::vector<VkMat> bindings(6);
     bindings[0] = bottom_blob_bordered;
     bindings[1] = top_blob;
-    bindings[2] = weight_data_gpu;
-    bindings[3] = bias_data_gpu;
+    bindings[2] = bottom_blob_bordered;
+    bindings[3] = top_blob;
+    bindings[4] = weight_data_gpu;
+    bindings[5] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(4);
+    std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_blob_bordered.w;
     constants[1].i = bottom_blob_bordered.h;
     constants[2].i = top_blob.w;
-    constants[3].i = top_blob.h;
+    constants[3].i = outh_pack4;
+    constants[4].i = num_output;
 
     VkMat dispatcher;
     dispatcher.w = (top_blob.w + 1) / 2;
-    dispatcher.h = (top_blob.h + 1) / 2;
+    dispatcher.h = (outh_pack4 + 1) / 2;
     dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher);

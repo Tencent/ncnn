@@ -23,30 +23,20 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
 
     const int dims = shape.dims;
 
-    int elempack = 1;
-    if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    int out_elempack = 1;
-    if (dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-    if (dims == 2) out_elempack = out_shape.h % 4 == 0 ? 4 : 1;
-    if (dims == 3 || dims == 4) out_elempack = out_shape.c % 4 == 0 ? 4 : 1;
-
-    const size_t elemsize = elempack * 4u;
-    const size_t out_elemsize = out_elempack * 1u;
+    const size_t elemsize = shape.elempack * 4u;
+    const size_t out_elemsize = out_shape.elempack * 1u;
 
     Mat shape_packed;
-    if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (dims == 1) shape_packed = Mat(shape.w, (void*)0, elemsize, shape.elempack);
+    if (dims == 2) shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, shape.elempack);
+    if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c, (void*)0, elemsize, shape.elempack);
+    if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c, (void*)0, elemsize, shape.elempack);
 
     Mat out_shape_packed;
-    if (dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-    if (dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (dims == 1) out_shape_packed = Mat(out_shape.w, (void*)0, out_elemsize, out_shape.elempack);
+    if (dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h, (void*)0, out_elemsize, out_shape.elempack);
+    if (dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c, (void*)0, out_elemsize, out_shape.elempack);
+    if (dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c, (void*)0, out_elemsize, out_shape.elempack);
 
     size_t c = 0;
     size_t in_stride = 0;
@@ -87,7 +77,7 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
     const int local_size_x = vkdev->info.subgroup_size();
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
+    if (shape.dims == 0 || shape.elempack == 1)
     {
         pipeline_requantize = new Pipeline(vkdev);
         pipeline_requantize->set_optimal_local_size_xyz(local_size_x, 1, 1);
@@ -95,7 +85,7 @@ int Requantize_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4)
+    if (shape.dims == 0 || shape.elempack == 4)
     {
         pipeline_requantize_pack4 = new Pipeline(vkdev);
         pipeline_requantize_pack4->set_optimal_local_size_xyz(local_size_x, 1, 1);

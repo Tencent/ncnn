@@ -220,6 +220,13 @@ afp lfp2afp(lfp v);
 afpvec4 lfp2afpvec4(lfpvec4 v);
 ```
 
+- 局部变量转换到本地内存
+
+```c
+lfp afp2lfp(afp v);
+lfpvec4 afp2lfpvec4(afpvec4 v);
+```
+
 注意：本地内存的常见用法是先从全局内存中读取，存储在本地内存中，然后再从本地内存中读取局部变量以供后续使用。因此，此处仅提供存储类型到本地类型和本地类型到算术类型的转换函数。
 
 # 杂项函数

@@ -36,9 +36,8 @@ int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
     return ret;
 }
 
-int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
+int ConvolutionDepthWise_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -48,7 +47,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     {
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
-            shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
+            shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0, shape.elemsize, shape.elempack);
         }
         else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
                  || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
@@ -60,7 +59,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
             int hpad = kernel_extent_h + (shape.h - 1) / stride_h * stride_h - shape.h;
             if (wpad > 0 || hpad > 0)
             {
-                shape_bordered = Mat(shape.w + wpad, shape.h + hpad, shape.c, (void*)0);
+                shape_bordered = Mat(shape.w + wpad, shape.h + hpad, shape.c, (void*)0, shape.elemsize, shape.elempack);
             }
         }
         else
@@ -74,25 +73,6 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 
     int elempack = channels % 4 == 0 ? 4 : 1;
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_bordered_packed;
-    if (shape_bordered.dims == 3) shape_bordered_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // group convolution
     const int channels_g = channels / group;
@@ -114,11 +94,11 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         out_elemsize_g = out_elempack_g * 4u;
     }
 
-    Mat shape_bordered_g_packed;
-    if (shape_bordered.dims == 3) shape_bordered_g_packed = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c / elempack_g, (void*)0, elemsize_g, elempack_g);
+    Mat shape_bordered_g;
+    if (shape_bordered.dims == 3) shape_bordered_g = Mat(shape_bordered.w, shape_bordered.h, shape_bordered.c * elempack / elempack_g, (void*)0, elemsize_g, elempack_g);
 
-    Mat out_shape_g_packed;
-    if (out_shape.dims == 3) out_shape_g_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
+    Mat out_shape_g;
+    if (out_shape.dims == 3) out_shape_g = Mat(out_shape.w, out_shape.h, out_shape.c * out_elempack / out_elempack_g, (void*)0, out_elemsize_g, out_elempack_g);
 
     {
         padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
@@ -161,23 +141,23 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
         convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
 
-        specializations[11 + 0].i = shape_bordered_packed.dims;
-        specializations[11 + 1].i = shape_bordered_packed.w;
-        specializations[11 + 2].i = shape_bordered_packed.h;
-        specializations[11 + 3].i = shape_bordered_packed.c;
-        specializations[11 + 4].i = shape_bordered_packed.cstep;
-        specializations[11 + 5].i = out_shape_packed.dims;
-        specializations[11 + 6].i = out_shape_packed.w;
-        specializations[11 + 7].i = out_shape_packed.h;
-        specializations[11 + 8].i = out_shape_packed.c;
-        specializations[11 + 9].i = out_shape_packed.cstep;
+        specializations[11 + 0].i = shape_bordered.dims;
+        specializations[11 + 1].i = shape_bordered.w;
+        specializations[11 + 2].i = shape_bordered.h;
+        specializations[11 + 3].i = shape_bordered.c;
+        specializations[11 + 4].i = shape_bordered.cstep;
+        specializations[11 + 5].i = out_shape.dims;
+        specializations[11 + 6].i = out_shape.w;
+        specializations[11 + 7].i = out_shape.h;
+        specializations[11 + 8].i = out_shape.c;
+        specializations[11 + 9].i = out_shape.cstep;
 
         Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
-        if (out_shape_packed.dims != 0)
+        if (out_shape.dims != 0)
         {
-            local_size_xyz.w = std::min(8, out_shape_packed.w);
-            local_size_xyz.h = std::min(8, out_shape_packed.h);
-            local_size_xyz.c = std::min(4, out_shape_packed.c);
+            local_size_xyz.w = std::min(8, out_shape.w);
+            local_size_xyz.h = std::min(8, out_shape.h);
+            local_size_xyz.c = std::min(4, out_shape.c);
         }
 
         // pack1
@@ -244,23 +224,23 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    specializations[11 + 0].i = shape_bordered_g_packed.dims;
-    specializations[11 + 1].i = shape_bordered_g_packed.w;
-    specializations[11 + 2].i = shape_bordered_g_packed.h;
-    specializations[11 + 3].i = shape_bordered_g_packed.c;
-    specializations[11 + 4].i = shape_bordered_g_packed.cstep;
-    specializations[11 + 5].i = out_shape_g_packed.dims;
-    specializations[11 + 6].i = out_shape_g_packed.w;
-    specializations[11 + 7].i = out_shape_g_packed.h;
-    specializations[11 + 8].i = out_shape_g_packed.c;
-    specializations[11 + 9].i = out_shape_g_packed.cstep;
+    specializations[11 + 0].i = shape_bordered_g.dims;
+    specializations[11 + 1].i = shape_bordered_g.w;
+    specializations[11 + 2].i = shape_bordered_g.h;
+    specializations[11 + 3].i = shape_bordered_g.c;
+    specializations[11 + 4].i = shape_bordered_g.cstep;
+    specializations[11 + 5].i = out_shape_g.dims;
+    specializations[11 + 6].i = out_shape_g.w;
+    specializations[11 + 7].i = out_shape_g.h;
+    specializations[11 + 8].i = out_shape_g.c;
+    specializations[11 + 9].i = out_shape_g.cstep;
 
     Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack_g), (void*)0);
-    if (out_shape_g_packed.dims != 0)
+    if (out_shape_g.dims != 0)
     {
-        local_size_xyz.w = std::min(8, out_shape_g_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_g_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_g_packed.c);
+        local_size_xyz.w = std::min(8, out_shape_g.w);
+        local_size_xyz.h = std::min(8, out_shape_g.h);
+        local_size_xyz.c = std::min(4, out_shape_g.c);
     }
 
     // pack1

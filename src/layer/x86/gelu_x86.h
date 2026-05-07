@@ -15,6 +15,11 @@ public:
 
     virtual int create_pipeline(const Option& opt);
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_BF16
+    int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

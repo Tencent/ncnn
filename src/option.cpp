@@ -11,7 +11,7 @@ Option::Option()
 {
     lightmode = true;
     use_reserved_m0 = false;
-    use_subgroup_ops = false;
+    use_subgroup_ops = true;
     use_reserved_0 = false;
 
     num_threads = get_physical_big_cpu_count();
@@ -49,9 +49,12 @@ Option::Option()
     use_tensor_storage = false;
     use_reserved_1p = false;
 
-    use_reserved_2 = false;
+    use_weights_in_host_memory = false;
 
     flush_denormals = 3;
+    use_reserved_2f = false;
+    use_reserved_3f = false;
+    use_mapped_model_loading = false;
 
     use_local_pool_allocator = true;
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
+#include "model_stat.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -458,7 +459,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     if (param.type == 10)
     {
         char buf[128];
-        sprintf(buf, "%e+%ej", param.c.real(), param.c.imag());
+        snprintf(buf, 128, "%e+%ej", param.c.real(), param.c.imag());
         return std::string(buf);
     }
     if (param.type == 11)
@@ -467,7 +468,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
         for (size_t i = 0; i < param.ac.size(); i++)
         {
             char buf[128];
-            sprintf(buf, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
+            snprintf(buf, 128, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
             s += std::string(buf);
             if (i + 1 != param.ac.size())
                 s += std::string(",");
@@ -1456,7 +1457,7 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes)
+int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -1464,6 +1465,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(stderr, "fopen %s failed\n", pypath.c_str());
         return -1;
     }
+
+    const std::string input_shapes_stat = format_model_stat_input_shapes(*this);
+    const std::string flops = format_model_stat_ops(model_stat.flops);
+    const std::string memops = format_model_stat_ops(model_stat.memops);
+
+    fprintf(pyfp, "# pnnx model stat\n");
+    fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
+    fprintf(pyfp, "# memory OPS = %s\n", memops.c_str());
+    fprintf(pyfp, "\n");
 
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");

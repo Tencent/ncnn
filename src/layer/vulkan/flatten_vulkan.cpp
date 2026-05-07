@@ -17,64 +17,33 @@ Flatten_vulkan::Flatten_vulkan()
     pipeline_flatten_pack1to4 = 0;
 }
 
-int Flatten_vulkan::create_pipeline(const Option& _opt)
+int Flatten_vulkan::create_pipeline(const Option& opt)
 {
-    Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3 || shape.dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
-
-    int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = out_shape.w % 4 == 0 ? 4 : 1;
-
-    size_t elemsize;
-    size_t out_elemsize;
-    if (opt.use_fp16_storage || opt.use_fp16_packed || opt.use_bf16_storage || opt.use_bf16_packed)
-    {
-        elemsize = elempack * 2u;
-        out_elemsize = out_elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-        out_elemsize = out_elempack * 4u;
-    }
-
-    Mat shape_packed;
-    if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
-
-    Mat out_shape_packed;
-    if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
-
     std::vector<vk_specialization_type> specializations(0 + 10);
-    specializations[0 + 0].i = std::min(3, shape_packed.dims);
-    specializations[0 + 1].i = shape_packed.w;
-    specializations[0 + 2].i = shape_packed.h * shape_packed.d;
-    specializations[0 + 3].i = shape_packed.c;
-    specializations[0 + 4].i = shape_packed.cstep;
-    specializations[0 + 5].i = std::min(3, out_shape_packed.dims);
-    specializations[0 + 6].i = out_shape_packed.w;
-    specializations[0 + 7].i = out_shape_packed.h * out_shape_packed.d;
-    specializations[0 + 8].i = out_shape_packed.c;
-    specializations[0 + 9].i = out_shape_packed.cstep;
+    specializations[0 + 0].i = std::min(3, shape.dims);
+    specializations[0 + 1].i = shape.w;
+    specializations[0 + 2].i = shape.h * shape.d;
+    specializations[0 + 3].i = shape.c;
+    specializations[0 + 4].i = shape.cstep;
+    specializations[0 + 5].i = std::min(3, out_shape.dims);
+    specializations[0 + 6].i = out_shape.w;
+    specializations[0 + 7].i = out_shape.h * out_shape.d;
+    specializations[0 + 8].i = out_shape.c;
+    specializations[0 + 9].i = out_shape.cstep;
 
     Mat local_size_xyz(64, 1, 1, (void*)0);
-    if (out_shape_packed.dims != 0)
+    if (out_shape.dims != 0)
     {
-        local_size_xyz.w = std::min(64, out_shape_packed.w);
+        local_size_xyz.w = std::min(64, out_shape.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
 
     // pack1
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
+    if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 1))
     {
         pipeline_flatten = new Pipeline(vkdev);
         pipeline_flatten->set_optimal_local_size_xyz(local_size_xyz);
@@ -82,7 +51,7 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
+    if (shape.dims == 0 || (shape.elempack == 4 && out_shape.elempack == 4))
     {
         pipeline_flatten_pack4 = new Pipeline(vkdev);
         pipeline_flatten_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -90,7 +59,7 @@ int Flatten_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to4
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 4))
+    if (shape.dims == 0 || (shape.elempack == 1 && out_shape.elempack == 4))
     {
         pipeline_flatten_pack1to4 = new Pipeline(vkdev);
         pipeline_flatten_pack1to4->set_optimal_local_size_xyz(local_size_xyz);

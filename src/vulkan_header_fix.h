@@ -1671,4 +1671,31 @@ typedef struct VkPhysicalDeviceVulkanMemoryModelFeatures
 typedef VkPhysicalDeviceVulkanMemoryModelFeatures VkPhysicalDeviceVulkanMemoryModelFeaturesKHR;
 #endif // VK_KHR_vulkan_memory_model
 
+#ifndef VK_EXT_external_memory_host
+#define VK_EXT_external_memory_host                                           1
+#define VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT                 (VkStructureType)1000178000
+#define VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT                  (VkStructureType)1000178001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT (VkStructureType)1000178002
+typedef struct VkImportMemoryHostPointerInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkExternalMemoryHandleTypeFlagBits handleType;
+    void* pHostPointer;
+} VkImportMemoryHostPointerInfoEXT;
+typedef struct VkMemoryHostPointerPropertiesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t memoryTypeBits;
+} VkMemoryHostPointerPropertiesEXT;
+typedef struct VkPhysicalDeviceExternalMemoryHostPropertiesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize minImportedHostPointerAlignment;
+} VkPhysicalDeviceExternalMemoryHostPropertiesEXT;
+typedef VkResult(VKAPI_PTR* PFN_vkGetMemoryHostPointerPropertiesEXT)(VkDevice device, VkExternalMemoryHandleTypeFlagBits handleType, const void* pHostPointer, VkMemoryHostPointerPropertiesEXT* pMemoryHostPointerProperties);
+#endif // VK_EXT_external_memory_host
+
 #endif // NCNN_VULKAN_HEADER_FIX_H

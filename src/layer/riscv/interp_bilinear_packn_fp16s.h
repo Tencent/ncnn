@@ -43,7 +43,7 @@ static void resize_bilinear_image_packn_fp16s(const Mat& src, Mat& dst, float* a
 
                 vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p, vl);
                 vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p + packn, vl);
-                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S11, vl);
 
                 __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
 
@@ -70,8 +70,8 @@ static void resize_bilinear_image_packn_fp16s(const Mat& src, Mat& dst, float* a
                 vfloat16m1_t _S01 = __riscv_vle16_v_f16m1(S0p + packn, vl);
                 vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p, vl);
                 vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p + packn, vl);
-                vfloat32m2_t _rows0 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S00, alphap[0], vl), alphap[1], _S01, vl);
-                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl);
+                vfloat32m2_t _rows0 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S00, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S01, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S11, vl);
 
                 __riscv_vse32_v_f32m2(rows0p + dx * packn, _rows0, vl);
                 __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
