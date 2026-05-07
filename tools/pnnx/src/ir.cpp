@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "ir.h"
+#include "model_stat.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -1456,7 +1457,7 @@ static std::string make_index_expression(const Operator* op)
     return index_expr;
 }
 
-int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes)
+int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -1464,6 +1465,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(stderr, "fopen %s failed\n", pypath.c_str());
         return -1;
     }
+
+    const std::string input_shapes_stat = format_model_stat_input_shapes(*this);
+    const std::string flops = format_model_stat_ops(model_stat.flops);
+    const std::string memops = format_model_stat_ops(model_stat.memops);
+
+    fprintf(pyfp, "# pnnx model stat\n");
+    fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
+    fprintf(pyfp, "# memory OPS = %s\n", memops.c_str());
+    fprintf(pyfp, "\n");
 
     fprintf(pyfp, "import os\n");
     fprintf(pyfp, "import numpy as np\n");
@@ -2771,6 +2782,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
         int input_shapes_i = 0;
+
         std::vector<std::string> input_names;
         for (const Operator* op : ops)
         {
@@ -2778,7 +2790,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 continue;
 
             const Operand* r = op->outputs[0];
-            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
 
             std::vector<int> input_shape;
             if (input_shapes.empty())
@@ -2794,6 +2805,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
             }
 
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
                 fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());

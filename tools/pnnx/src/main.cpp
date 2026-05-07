@@ -31,6 +31,7 @@
 #include "load_tnn.h"
 #endif
 
+#include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
 
@@ -517,9 +518,13 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
+    const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
+    const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
+    const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -536,10 +541,13 @@ int main(int argc, char** argv)
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
+    fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(stderr, "FLOPS = %s\n", flops.c_str());
+    fprintf(stderr, "memory OPS = %s\n", memops.c_str());
+
     //     pnnx::Graph pnnx_graph2;
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-
     return 0;
 }
