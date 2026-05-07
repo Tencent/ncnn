@@ -18,6 +18,7 @@ namespace pnnx {
 
 static std::string normalize_exponent(std::string s)
 {
+    // keep scientific notation compact and parser-friendly, e.g. 1.0e+06 -> 1.0e6.
     size_t pos = s.find("e+");
     if (pos == std::string::npos)
         pos = s.find("E+");
@@ -41,6 +42,8 @@ static std::string normalize_exponent(std::string s)
 
 static bool fractional_digits_exceed(const char* s, int max_digits)
 {
+    // ncnn ParamDict parses decimals with an unsigned int pow10 accumulator.
+    // prefer scientific notation before long fractional parts can overflow it.
     const char* dot = strchr(s, '.');
     if (!dot)
         return false;
@@ -174,6 +177,8 @@ std::string float_to_string(float f)
     if (abs_f < 0.0001f || abs_f >= 1000000.0f)
     {
         snprintf(buffer, sizeof(buffer), "%e", f);
+        // keep short output when it round-trips; otherwise emit enough digits
+        // for exact float32 recovery from text.
         if (strtof(buffer, 0) != f)
             snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<float>::max_digits10 - 1, f);
         return normalize_exponent(buffer);
@@ -182,6 +187,8 @@ std::string float_to_string(float f)
     int len = snprintf(buffer, sizeof(buffer), "%g", f);
     if (strtof(buffer, 0) != f)
     {
+        // scalarized attributes, such as PReLU weight -> LeakyReLU slope,
+        // must survive text serialization without changing the float32 value.
         len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<float>::max_digits10, f);
         if (fractional_digits_exceed(buffer, 9))
         {
@@ -222,6 +229,7 @@ std::string double_to_string(double d)
     if (abs_d < 0.0001 || abs_d >= 1000000.0)
     {
         snprintf(buffer, sizeof(buffer), "%e", d);
+        // mirror float_to_string for f64 constants used in pnnx expressions.
         if (strtod(buffer, 0) != d)
             snprintf(buffer, sizeof(buffer), "%.*e", std::numeric_limits<double>::max_digits10 - 1, d);
         return normalize_exponent(buffer);
@@ -230,6 +238,7 @@ std::string double_to_string(double d)
     int len = snprintf(buffer, sizeof(buffer), "%g", d);
     if (strtod(buffer, 0) != d)
     {
+        // preserve f64 constants while avoiding extremely long plain decimals.
         len = snprintf(buffer, sizeof(buffer), "%.*g", std::numeric_limits<double>::max_digits10, d);
         if (fractional_digits_exceed(buffer, 17))
         {
