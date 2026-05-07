@@ -188,7 +188,7 @@ pnnx_add_test(Tensor_type_as)
 pnnx_add_test(Tensor_unflatten)
 pnnx_add_test(Tensor_view)
 
-pnnx_add_test(model_stat)
+pnnx_add_test(pnnx_model_stat)
 
 pnnx_add_test(torch_addmm)
 pnnx_add_test(torch_amax)

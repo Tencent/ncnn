@@ -1471,7 +1471,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     const std::string memops = format_model_stat_ops(model_stat.memops);
 
     fprintf(pyfp, "# pnnx model stat\n");
-    fprintf(pyfp, "# inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(pyfp, "# model inputshape = %s\n", input_shapes_stat.c_str());
     fprintf(pyfp, "# FLOPS = %s\n", flops.c_str());
     fprintf(pyfp, "# memory OPS = %s\n", memops.c_str());
     fprintf(pyfp, "\n");

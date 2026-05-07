@@ -6,9 +6,11 @@
 #include "ir.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <climits>
 #include <map>
 #include <stdio.h>
 #include <stdint.h>
@@ -50,6 +52,7 @@ std::string format_model_stat_ops(uint64_t ops)
 
     const uint64_t scale = unit_scales[unit_index];
     uint64_t integer = ops / scale;
+    // Round half up to 3 decimals and carry values such as 1.9995K to 2K.
     uint64_t fraction = ((ops % scale) * 1000 + scale / 2) / scale;
 
     if (fraction == 1000)
@@ -233,6 +236,80 @@ static int get_int_param(const Operator* op, const char* key, int def)
     return def;
 }
 
+static float get_float_param(const Operator* op, const char* key, float def)
+{
+    if (!op->has_param(key))
+        return def;
+
+    const Parameter& p = op->params.at(key);
+    if (p.type == 1)
+        return p.b ? 1.f : 0.f;
+    if (p.type == 2)
+        return (float)p.i;
+    if (p.type == 3)
+        return p.f;
+
+    return def;
+}
+
+enum NormPKind
+{
+    NORM_P1,
+    NORM_P2,
+    NORM_PINF,
+    NORM_POTHER
+};
+
+static NormPKind norm_p_kind_from_float(float p)
+{
+    if (p == 1.f)
+        return NORM_P1;
+    if (p == 2.f)
+        return NORM_P2;
+    if (std::isinf(p))
+        return NORM_PINF;
+
+    return NORM_POTHER;
+}
+
+static NormPKind get_norm_p_kind(const Operator* op, const char* key, NormPKind def)
+{
+    if (!op->has_param(key))
+        return def;
+
+    const Parameter& p = op->params.at(key);
+    if (p.type == 1)
+        return p.b ? NORM_P1 : NORM_POTHER;
+    if (p.type == 2)
+        return norm_p_kind_from_float((float)p.i);
+    if (p.type == 3)
+        return norm_p_kind_from_float(p.f);
+    if (p.type == 4)
+    {
+        if (p.s == "fro")
+            return NORM_P2;
+        if (p.s.find("inf") != std::string::npos || p.s.find("Inf") != std::string::npos)
+            return NORM_PINF;
+
+        char* endptr = 0;
+        const float v = std::strtof(p.s.c_str(), &endptr);
+        if (endptr && endptr != p.s.c_str() && *endptr == '\0')
+            return norm_p_kind_from_float(v);
+    }
+
+    return def;
+}
+
+static uint64_t norm_flops(uint64_t in_elems, uint64_t out_elems, NormPKind p)
+{
+    if (p == NORM_P1 || p == NORM_PINF)
+        return in_elems * 2;
+    if (p == NORM_P2)
+        return in_elems * 2 + out_elems * 4;
+
+    return in_elems * 6 + out_elems * 4;
+}
+
 static std::string get_string_param(const Operator* op, const char* key, const std::string& def)
 {
     if (!op->has_param(key))
@@ -270,6 +347,59 @@ static uint64_t product(const std::vector<int>& a)
     }
 
     return p;
+}
+
+static std::vector<int> get_reduction_dims(const Operator* op, const std::vector<int>& shape, int default_dim)
+{
+    std::vector<int> dims = get_int_array_param(op, "dim");
+    if (dims.empty() && op->has_param("dims"))
+        dims = get_int_array_param(op, "dims");
+
+    if (dims.empty() && default_dim != INT_MAX)
+        dims.push_back(default_dim);
+
+    const int rank = (int)shape.size();
+    for (size_t i = 0; i < dims.size(); i++)
+    {
+        if (dims[i] < 0)
+            dims[i] += rank;
+    }
+
+    std::sort(dims.begin(), dims.end());
+    dims.erase(std::unique(dims.begin(), dims.end()), dims.end());
+
+    return dims;
+}
+
+static uint64_t reduced_elems(const std::vector<int>& shape, const std::vector<int>& dims)
+{
+    uint64_t elems = 1;
+    for (size_t i = 0; i < dims.size(); i++)
+    {
+        if (dims[i] < 0 || dims[i] >= (int)shape.size() || shape[dims[i]] <= 0)
+            return 0;
+
+        elems *= shape[dims[i]];
+    }
+
+    return elems;
+}
+
+static uint64_t reduction_output_elems(const Operator* op, int default_dim)
+{
+    if (op->inputs.empty())
+        return 0;
+
+    const uint64_t in_elems = input_size(op, 0);
+    if (in_elems == 0)
+        return 0;
+
+    const std::vector<int> dims = get_reduction_dims(op, op->inputs[0]->shape, default_dim);
+    const uint64_t r_elems = reduced_elems(op->inputs[0]->shape, dims);
+    if (r_elems == 0)
+        return output_size_all(op);
+
+    return in_elems / r_elems;
 }
 
 static std::vector<int> kernel_from_weight(const Operand* weight, int dims)
@@ -315,6 +445,38 @@ static uint64_t tensor_or_attr_size(const Operator* op, size_t input_index, cons
     return input_size(op, input_index);
 }
 
+static bool param_is_none(const Operator* op, const char* key)
+{
+    return op->has_param(key) && op->params.at(key).type == 0;
+}
+
+static uint64_t optional_input_size(const Operator* op, const char* key, int input_index)
+{
+    if (param_is_none(op, key))
+        return 0;
+
+    const Operand* r = op->named_input(key);
+    if (r)
+        return operand_size(r);
+
+    if (input_index >= 0)
+        return input_size(op, (size_t)input_index);
+
+    return 0;
+}
+
+static uint64_t optional_tensor_size(const Operator* op, const char* key, int input_index)
+{
+    if (param_is_none(op, key))
+        return 0;
+
+    const uint64_t size = attr_size(op, key);
+    if (size != 0)
+        return size;
+
+    return optional_input_size(op, key, input_index);
+}
+
 static bool has_bias(const Operator* op)
 {
     if (op->has_param("bias"))
@@ -347,6 +509,23 @@ static int op_1d2d3d(const std::string& type)
     return 0;
 }
 
+static bool convolution_shape(const std::vector<int>& shape, int dims, int& channels)
+{
+    if ((int)shape.size() == dims + 1)
+    {
+        channels = shape[0];
+        return true;
+    }
+
+    if ((int)shape.size() == dims + 2)
+    {
+        channels = shape[1];
+        return true;
+    }
+
+    return false;
+}
+
 static bool count_convolution(const Operator* op, ModelStat& stat)
 {
     const bool conv = type_in(op->type, {"nn.Conv1d", "nn.Conv2d", "nn.Conv3d", "F.conv1d", "F.conv2d", "F.conv3d", "nn.quantized.Conv2d"});
@@ -359,11 +538,14 @@ static bool count_convolution(const Operator* op, ModelStat& stat)
 
     const std::vector<int>& in_shape = op->inputs[0]->shape;
     const std::vector<int>& out_shape = op->outputs[0]->shape;
-    if (in_shape.size() < 3 || out_shape.size() < 3)
-        return true;
 
     const int dims = op_1d2d3d(op->type);
-    if (dims == 0 || (int)in_shape.size() < dims + 2 || (int)out_shape.size() < dims + 2)
+    if (dims == 0)
+        return true;
+
+    int in_channels_default = 0;
+    int out_channels_default = 0;
+    if (!convolution_shape(in_shape, dims, in_channels_default) || !convolution_shape(out_shape, dims, out_channels_default))
         return true;
 
     const uint64_t in_elems = operand_size(op->inputs[0]);
@@ -371,24 +553,18 @@ static bool count_convolution(const Operator* op, ModelStat& stat)
     if (in_elems == 0 || out_elems == 0)
         return true;
 
-    const int in_channels = get_int_param(op, "in_channels", in_shape[1]);
-    const int out_channels = get_int_param(op, "out_channels", out_shape[1]);
+    const int in_channels = get_int_param(op, "in_channels", in_channels_default);
+    const int out_channels = get_int_param(op, "out_channels", out_channels_default);
     const int groups = std::max(1, get_int_param(op, "groups", 1));
+    if (in_channels <= 0 || out_channels <= 0)
+        return true;
 
     const std::vector<int> k = kernel_size(op, dims);
     const uint64_t kernel_elems = product(k);
     if (kernel_elems == 0)
         return true;
 
-    uint64_t macs = 0;
-    if (deconv && out_channels % groups == 0)
-        macs = in_elems * (out_channels / groups) * kernel_elems;
-    else if (deconv)
-        macs = in_elems * out_channels / groups * kernel_elems;
-    else if (in_channels % groups == 0)
-        macs = out_elems * (in_channels / groups) * kernel_elems;
-    else
-        macs = out_elems * in_channels / groups * kernel_elems;
+    const uint64_t macs = (deconv ? in_elems * out_channels : out_elems * in_channels) / groups * kernel_elems;
 
     const bool bias = has_bias(op);
     stat.flops += macs * 2;
@@ -402,8 +578,8 @@ static bool count_convolution(const Operator* op, ModelStat& stat)
     stat.memops += in_elems;
     stat.memops += out_elems;
     stat.memops += weight_elems;
-    if (bias)
-        stat.memops += std::max(1, out_channels);
+    if (bias && out_channels > 0)
+        stat.memops += out_channels;
 
     return true;
 }
@@ -452,18 +628,26 @@ static bool count_linear(const Operator* op, ModelStat& stat)
     stat.memops += in_elems;
     stat.memops += out_elems;
     stat.memops += weight_elems;
-    if (bias)
-        stat.memops += std::max(1, out_features);
+    if (bias && out_features > 0)
+        stat.memops += out_features;
 
     return true;
 }
 
-static uint64_t adaptive_kernel_elems(const std::vector<int>& in_shape, const std::vector<int>& out_shape, int dims)
+static uint64_t adaptive_pool_work_elems(const std::vector<int>& in_shape, const std::vector<int>& out_shape, int dims)
 {
     if ((int)in_shape.size() < dims || (int)out_shape.size() < dims)
         return 0;
 
-    uint64_t kernel_elems = 1;
+    uint64_t work_elems = 1;
+    for (int i = 0; i < (int)out_shape.size() - dims; i++)
+    {
+        if (out_shape[i] <= 0)
+            return 0;
+
+        work_elems *= out_shape[i];
+    }
+
     for (int i = 0; i < dims; i++)
     {
         const int in_dim = in_shape[in_shape.size() - dims + i];
@@ -471,10 +655,18 @@ static uint64_t adaptive_kernel_elems(const std::vector<int>& in_shape, const st
         if (in_dim <= 0 || out_dim <= 0)
             return 0;
 
-        kernel_elems *= (in_dim + out_dim - 1) / out_dim;
+        uint64_t dim_work = 0;
+        for (int j = 0; j < out_dim; j++)
+        {
+            const int start = j * in_dim / out_dim;
+            const int end = ((j + 1) * in_dim + out_dim - 1) / out_dim;
+            dim_work += end - start;
+        }
+
+        work_elems *= dim_work;
     }
 
-    return kernel_elems;
+    return work_elems;
 }
 
 static bool count_pooling(const Operator* op, ModelStat& stat)
@@ -497,18 +689,32 @@ static bool count_pooling(const Operator* op, ModelStat& stat)
         return true;
 
     uint64_t kernel_elems = 0;
+    uint64_t work_elems = 0;
     if (adaptive_avgpool || adaptive_maxpool)
-        kernel_elems = adaptive_kernel_elems(op->inputs[0]->shape, op->outputs[0]->shape, dims);
+        work_elems = adaptive_pool_work_elems(op->inputs[0]->shape, op->outputs[0]->shape, dims);
     else
         kernel_elems = product(kernel_size(op, dims));
 
-    if (kernel_elems == 0)
-        kernel_elems = 1;
+    if (adaptive_avgpool || adaptive_maxpool)
+    {
+        if (work_elems == 0)
+            work_elems = out_elems;
 
-    if (avgpool || adaptive_avgpool)
-        stat.flops += out_elems * kernel_elems;
+        if (adaptive_avgpool)
+            stat.flops += work_elems;
+        else if (work_elems > out_elems)
+            stat.flops += work_elems - out_elems;
+    }
     else
-        stat.flops += out_elems * (kernel_elems - 1);
+    {
+        if (kernel_elems == 0)
+            kernel_elems = 1;
+
+        if (avgpool)
+            stat.flops += out_elems * kernel_elems;
+        else
+            stat.flops += out_elems * (kernel_elems - 1);
+    }
 
     stat.memops += in_elems;
     stat.memops += out_elems;
@@ -520,9 +726,10 @@ static bool count_pooling(const Operator* op, ModelStat& stat)
 
 static bool count_normalization(const Operator* op, ModelStat& stat)
 {
-    if (!type_in(op->type, {"nn.BatchNorm1d", "nn.BatchNorm2d", "nn.BatchNorm3d", "F.batch_norm",
+    if (!type_in(op->type, {"nn.BatchNorm1d", "nn.BatchNorm2d", "nn.BatchNorm3d", "F.batch_norm", "F.batchnorm",
                             "nn.InstanceNorm1d", "nn.InstanceNorm2d", "nn.InstanceNorm3d", "F.instance_norm",
-                            "nn.LayerNorm", "F.layer_norm", "nn.GroupNorm", "F.group_norm", "nn.RMSNorm", "F.rms_norm"}))
+                            "nn.LayerNorm", "F.layer_norm", "nn.GroupNorm", "F.group_norm", "nn.RMSNorm", "F.rms_norm"
+                           }))
     {
         return false;
     }
@@ -534,25 +741,103 @@ static bool count_normalization(const Operator* op, ModelStat& stat)
     if (elems == 0)
         return true;
 
+    const bool batch_norm = type_in(op->type, {"nn.BatchNorm1d", "nn.BatchNorm2d", "nn.BatchNorm3d", "F.batch_norm", "F.batchnorm"});
+    const bool instance_norm = type_in(op->type, {"nn.InstanceNorm1d", "nn.InstanceNorm2d", "nn.InstanceNorm3d", "F.instance_norm"});
+    const bool rms_norm = type_in(op->type, {"nn.RMSNorm", "F.rms_norm"});
+    const bool functional = string_starts_with(op->type, "F.");
+    const bool instance_norm_running_stats_none = instance_norm && functional && (param_is_none(op, "running_mean") || param_is_none(op, "running_var"));
+    const bool instance_norm_compute_stats = instance_norm && (functional ? (instance_norm_running_stats_none || get_bool_param(op, "use_input_stats", true)) : !get_bool_param(op, "track_running_stats", false));
+
     uint64_t flops_per_elem = 2;
-    if (type_in(op->type, {"nn.LayerNorm", "F.layer_norm", "nn.GroupNorm", "F.group_norm"}))
+    if (type_in(op->type, {"nn.LayerNorm", "F.layer_norm", "nn.GroupNorm", "F.group_norm"}) || instance_norm_compute_stats)
         flops_per_elem = 7;
-    if (type_in(op->type, {"nn.RMSNorm", "F.rms_norm"}))
+    if (rms_norm)
         flops_per_elem = 5;
 
-    const bool affine = get_bool_param(op, "affine", get_bool_param(op, "elementwise_affine", true));
-    stat.flops += elems * (flops_per_elem + (affine ? 2 : 0));
-    stat.memops += elems;
-    stat.memops += output_size_all(op);
+    uint64_t running_mean_size = 0;
+    uint64_t running_var_size = 0;
+    uint64_t weight_size = 0;
+    uint64_t bias_size = 0;
 
-    if (affine)
+    if (batch_norm)
     {
-        stat.memops += attr_size(op, "weight");
-        stat.memops += attr_size(op, "bias");
-        stat.memops += input_size(op, 1);
-        stat.memops += input_size(op, 2);
+        running_mean_size = optional_tensor_size(op, "running_mean", functional ? 1 : -1);
+        running_var_size = optional_tensor_size(op, "running_var", functional ? 2 : -1);
+        weight_size = optional_tensor_size(op, "weight", functional ? 3 : -1);
+        bias_size = optional_tensor_size(op, "bias", functional ? 4 : -1);
+    }
+    else if (instance_norm)
+    {
+        const bool running_stats_none = instance_norm_running_stats_none;
+        running_mean_size = optional_tensor_size(op, "running_mean", functional && !running_stats_none ? 1 : -1);
+        running_var_size = optional_tensor_size(op, "running_var", functional && !running_stats_none ? 2 : -1);
+        weight_size = optional_tensor_size(op, "weight", functional && running_stats_none ? 1 : (functional ? 3 : -1));
+        bias_size = optional_tensor_size(op, "bias", functional && running_stats_none ? 2 : (functional ? 4 : -1));
+    }
+    else if (rms_norm)
+    {
+        weight_size = optional_tensor_size(op, "weight", functional ? 1 : -1);
+    }
+    else
+    {
+        weight_size = optional_tensor_size(op, "weight", functional ? 1 : -1);
+        bias_size = optional_tensor_size(op, "bias", functional ? 2 : -1);
     }
 
+    uint64_t affine_flops_per_elem = 0;
+    if (functional)
+    {
+        if (weight_size != 0)
+            affine_flops_per_elem += 1;
+        if (bias_size != 0)
+            affine_flops_per_elem += 1;
+    }
+    else
+    {
+        const bool affine = get_bool_param(op, "affine", get_bool_param(op, "elementwise_affine", true));
+        if (affine)
+            affine_flops_per_elem = rms_norm ? 1 : 2;
+        else
+        {
+            weight_size = 0;
+            bias_size = 0;
+        }
+    }
+
+    stat.flops += elems * (flops_per_elem + affine_flops_per_elem);
+    stat.memops += elems;
+    stat.memops += output_size_all(op);
+    stat.memops += running_mean_size;
+    stat.memops += running_var_size;
+    stat.memops += weight_size;
+    stat.memops += bias_size;
+
+    return true;
+}
+
+static bool count_normalize(const Operator* op, ModelStat& stat)
+{
+    if (op->type != "F.normalize")
+        return false;
+
+    if (op->inputs.empty() || op->outputs.empty())
+        return true;
+
+    const uint64_t in_elems = input_size(op, 0);
+    const uint64_t out_elems = output_size_all(op);
+    if (in_elems == 0 || out_elems == 0)
+        return true;
+
+    const uint64_t norm_elems = reduction_output_elems(op, 1);
+    const NormPKind p = get_norm_p_kind(op, "p", NORM_P2);
+
+    stat.flops += norm_flops(in_elems, norm_elems, p);
+    stat.flops += norm_elems;
+    stat.flops += out_elems;
+
+    stat.memops += in_elems * 2;
+    stat.memops += norm_elems * 2;
+    stat.memops += out_elems * 2;
     return true;
 }
 
@@ -597,10 +882,7 @@ static bool count_activation(const Operator* op, ModelStat& stat)
     stat.memops += output_size_all(op);
 
     if (op->type == "nn.PReLU" || op->type == "F.prelu")
-    {
-        stat.memops += attr_size(op, "weight");
-        stat.memops += input_size(op, 1);
-    }
+        stat.memops += optional_tensor_size(op, "weight", 1);
 
     return true;
 }
@@ -608,7 +890,8 @@ static bool count_activation(const Operator* op, ModelStat& stat)
 static bool count_upsample(const Operator* op, ModelStat& stat)
 {
     if (!type_in(op->type, {"nn.Upsample", "nn.UpsamplingNearest2d", "nn.UpsamplingBilinear2d",
-                            "F.interpolate", "F.upsample", "F.upsample_nearest", "F.upsample_bilinear"}))
+                            "F.interpolate", "F.upsample", "F.upsample_nearest", "F.upsample_bilinear"
+                           }))
     {
         return false;
     }
@@ -630,6 +913,7 @@ static bool count_upsample(const Operator* op, ModelStat& stat)
         per_elem = 35;
     else if (mode == "trilinear")
         per_elem = 31;
+    // Nearest-neighbor upsample is modeled as a gather, so it contributes memory ops but no FLOPS.
 
     stat.flops += out_elems * per_elem;
     stat.memops += in_elems;
@@ -678,8 +962,20 @@ static bool count_addmm(const Operator* op, ModelStat& stat)
     if (k <= 0 || out_elems == 0)
         return true;
 
-    stat.flops += out_elems * (k * 2 + 1);
-    stat.memops += input_size(op, 0);
+    const float alpha = get_float_param(op, "alpha", 1.f);
+    const float beta = get_float_param(op, "beta", 1.f);
+
+    stat.flops += out_elems * k * 2;
+    if (alpha != 1.f)
+        stat.flops += out_elems;
+    if (beta != 0.f)
+    {
+        stat.flops += out_elems;
+        if (beta != 1.f)
+            stat.flops += out_elems;
+
+        stat.memops += input_size(op, 0);
+    }
     stat.memops += input_size(op, 1);
     stat.memops += input_size(op, 2);
     stat.memops += out_elems;
@@ -689,11 +985,12 @@ static bool count_addmm(const Operator* op, ModelStat& stat)
 static uint64_t expression_function_cost(const std::string& name)
 {
     if (type_in(name, {"add", "sub", "rsub", "mul", "div", "floor_divide", "remainder", "fmod",
-                       "maximum", "minimum", "max", "min", "abs", "neg", "square",
+                       "maximum", "minimum", "max", "min", "clamp", "clip", "where", "abs", "neg", "square",
                        "reciprocal", "round", "floor", "ceil", "trunc", "sign",
                        "eq", "ne", "gt", "ge", "lt", "le",
                        "logical_and", "logical_or", "logical_xor", "logical_not",
-                       "bitwise_and", "bitwise_or", "bitwise_xor", "bitwise_not"}))
+                       "bitwise_and", "bitwise_or", "bitwise_xor", "bitwise_not"
+                      }))
     {
         return 1;
     }
@@ -701,7 +998,8 @@ static uint64_t expression_function_cost(const std::string& name)
     if (type_in(name, {"pow", "exp", "log", "sqrt", "rsqrt",
                        "log10", "logaddexp", "erf",
                        "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
-                       "sinh", "cosh", "tanh", "asinh", "acosh", "atanh"}))
+                       "sinh", "cosh", "tanh", "asinh", "acosh", "atanh"
+                      }))
     {
         return 4;
     }
@@ -752,20 +1050,21 @@ static uint64_t expression_data_input_size(const Operator* op, const std::string
 
     for (size_t i = 0; i < expr.size(); i++)
     {
-        if (is_identifier_char(expr[i]) && (i == 0 || !is_identifier_char(expr[i - 1])))
+        if (expr[i] == '(')
         {
-            size_t name_end = i + 1;
-            while (name_end < expr.size() && is_identifier_char(expr[name_end]))
+            size_t name_end = i;
+            while (name_end > 0 && expr[name_end - 1] == ' ')
             {
-                name_end++;
+                name_end--;
+            }
+            size_t name_begin = name_end;
+            while (name_begin > 0 && is_identifier_char(expr[name_begin - 1]))
+            {
+                name_begin--;
             }
 
-            if (name_end < expr.size() && expr[name_end] == '(')
-            {
-                scope.push_back(expr.substr(i, name_end - i));
-                i = name_end;
-                continue;
-            }
+            scope.push_back(name_begin == name_end ? std::string() : expr.substr(name_begin, name_end - name_begin));
+            continue;
         }
 
         if (expr[i] == ')' && !scope.empty())
@@ -787,7 +1086,16 @@ static uint64_t expression_data_input_size(const Operator* op, const std::string
         if (index_begin == index_end)
             continue;
 
-        if (!scope.empty() && scope.back() == "size")
+        bool in_size = false;
+        for (size_t j = 0; j < scope.size(); j++)
+        {
+            if (scope[j] == "size")
+            {
+                in_size = true;
+                break;
+            }
+        }
+        if (in_size)
             continue;
 
         const int input_index = std::atoi(expr.substr(index_begin, index_end - index_begin).c_str());
@@ -835,10 +1143,11 @@ static bool count_elementwise(const Operator* op, ModelStat& stat)
     if (type_in(op->type, {"torch.pow", "torch.exp", "torch.log", "torch.sqrt", "torch.rsqrt", "torch.sin", "torch.cos", "torch.tan", "torch.asin", "torch.acos", "torch.atan"}))
         per_elem = 4;
     else if (!type_in(op->type, {"torch.add", "torch.sub", "torch.mul", "torch.div", "torch.floor_divide", "torch.remainder",
-                                 "torch.maximum", "torch.minimum", "torch.clamp", "torch.abs", "torch.neg", "torch.square",
+                                 "torch.maximum", "torch.minimum", "torch.clamp", "torch.clamp_min", "torch.clamp_max", "torch.abs", "torch.neg", "torch.square",
                                  "torch.eq", "torch.ne", "torch.gt", "torch.ge", "torch.lt", "torch.le",
                                  "torch.logical_and", "torch.logical_or", "torch.logical_xor", "torch.logical_not",
-                                 "torch.bitwise_and", "torch.bitwise_or", "torch.bitwise_xor", "torch.bitwise_not"}))
+                                 "torch.bitwise_and", "torch.bitwise_or", "torch.bitwise_xor", "torch.bitwise_not"
+                                }))
     {
         return false;
     }
@@ -853,15 +1162,116 @@ static bool count_elementwise(const Operator* op, ModelStat& stat)
 static bool count_reduction(const Operator* op, ModelStat& stat)
 {
     if (!type_in(op->type, {"torch.sum", "torch.mean", "torch.prod", "torch.max", "torch.min", "torch.amax", "torch.amin",
-                            "torch.norm", "torch.var", "torch.std", "torch.logsumexp", "F.normalize"}))
+                            "torch.norm", "torch.var", "torch.std", "torch.logsumexp", "torch.cumsum", "torch.cumprod"
+                           }))
     {
         return false;
     }
 
     const uint64_t in_elems = input_size(op, 0);
-    stat.flops += in_elems;
+    const uint64_t out_elems = output_size_all(op);
+    if (in_elems == 0 || out_elems == 0)
+        return true;
+
+    if (op->type == "torch.mean")
+        stat.flops += in_elems + out_elems;
+    else if (op->type == "torch.norm")
+    {
+        const NormPKind p = get_norm_p_kind(op, "p", NORM_P2);
+        stat.flops += norm_flops(in_elems, out_elems, p);
+    }
+    else if (op->type == "torch.var")
+        stat.flops += in_elems * 4 + out_elems * 2;
+    else if (op->type == "torch.std")
+        stat.flops += in_elems * 4 + out_elems * 6;
+    else if (op->type == "torch.logsumexp")
+        stat.flops += in_elems * 5 + out_elems * 4;
+    else
+        stat.flops += in_elems;
+
     stat.memops += in_elems;
-    stat.memops += output_size_all(op);
+    stat.memops += out_elems;
+    return true;
+}
+
+static bool count_pairwise_distance(const Operator* op, ModelStat& stat)
+{
+    if (op->type != "F.pairwise_distance")
+        return false;
+
+    if (op->inputs.size() < 2 || op->outputs.empty())
+        return true;
+
+    const uint64_t in_elems = input_size(op, 0);
+    const uint64_t out_elems = output_size_all(op);
+    if (in_elems == 0 || out_elems == 0)
+        return true;
+
+    const NormPKind p = get_norm_p_kind(op, "p", NORM_P2);
+    if (p == NORM_P1 || p == NORM_PINF)
+        stat.flops += in_elems * 3;
+    else if (p == NORM_P2)
+        stat.flops += in_elems * 4 + out_elems * 4;
+    else
+        stat.flops += in_elems * 7 + out_elems * 4;
+
+    stat.memops += input_size_all(op);
+    stat.memops += out_elems;
+    return true;
+}
+
+static bool count_lp_pool(const Operator* op, ModelStat& stat)
+{
+    if (!type_in(op->type, {"F.lp_pool1d", "F.lp_pool2d"}))
+        return false;
+
+    if (op->inputs.empty() || op->outputs.empty())
+        return true;
+
+    const int dims = op_1d2d3d(op->type);
+    const uint64_t in_elems = input_size(op, 0);
+    const uint64_t out_elems = output_size(op, 0);
+    uint64_t kernel_elems = product(kernel_size(op, dims));
+    if (kernel_elems == 0)
+        kernel_elems = 1;
+
+    stat.flops += in_elems * 4;
+    stat.flops += out_elems * (kernel_elems + 9);
+    stat.memops += in_elems;
+    stat.memops += out_elems * 4;
+    return true;
+}
+
+static bool count_local_response_norm(const Operator* op, ModelStat& stat)
+{
+    if (op->type != "F.local_response_norm")
+        return false;
+
+    if (op->inputs.empty() || op->outputs.empty())
+        return true;
+
+    const uint64_t in_elems = input_size(op, 0);
+    const uint64_t out_elems = output_size_all(op);
+    const int size = std::max(1, get_int_param(op, "size", 1));
+
+    stat.flops += in_elems * (size + 7);
+    stat.memops += in_elems * 4;
+    stat.memops += out_elems;
+    return true;
+}
+
+static bool count_fold(const Operator* op, ModelStat& stat)
+{
+    if (!type_in(op->type, {"nn.Fold", "F.fold"}))
+        return false;
+
+    const uint64_t in_elems = input_size_all(op);
+    const uint64_t out_elems = output_size_all(op);
+    if (in_elems > out_elems)
+        stat.flops += in_elems - out_elems;
+
+    stat.memops += in_elems;
+    stat.memops += out_elems;
     return true;
 }
 
@@ -893,9 +1303,17 @@ static bool count_scaled_dot_product_attention(const Operator* op, ModelStat& st
     stat.flops += attn_elems * qdim * 2;
     stat.flops += attn_elems * 5;
     stat.flops += attn_elems * vdim * 2;
+
+    const uint64_t mask_elems = operand_size(op->named_input("attn_mask"));
+    if (mask_elems != 0)
+        stat.flops += attn_elems;
+    if (get_bool_param(op, "is_causal", false))
+        stat.flops += attn_elems;
+
     stat.memops += input_size(op, 0);
     stat.memops += input_size(op, 1);
     stat.memops += input_size(op, 2);
+    stat.memops += mask_elems;
     stat.memops += output_size(op, 0);
     stat.memops += attn_elems;
     return true;
@@ -913,6 +1331,39 @@ static size_t attention_input_count(const Operator* op)
     return input_count;
 }
 
+static uint64_t attention_mask_input_size(const Operator* op)
+{
+    uint64_t size = 0;
+    for (size_t i = 0; i < op->inputnames.size() && i < op->inputs.size(); i++)
+    {
+        if (op->inputnames[i] == "attn_mask")
+            size += input_size(op, i);
+    }
+
+    return size;
+}
+
+static bool sequence_batch_shape(const std::vector<int>& shape, bool batch_first, int& batch, int& seq, int& dim)
+{
+    if (shape.size() == 2)
+    {
+        batch = 1;
+        seq = shape[0];
+        dim = shape[1];
+        return true;
+    }
+
+    if (shape.size() == 3)
+    {
+        batch = shape[batch_first ? 0 : 1];
+        seq = shape[batch_first ? 1 : 0];
+        dim = shape[2];
+        return true;
+    }
+
+    return false;
+}
+
 static bool count_multihead_attention(const Operator* op, ModelStat& stat)
 {
     if (op->type != "nn.MultiheadAttention")
@@ -923,35 +1374,61 @@ static bool count_multihead_attention(const Operator* op, ModelStat& stat)
 
     const bool batch_first = get_bool_param(op, "batch_first", false);
     const std::vector<int>& q_shape = op->inputs[0]->shape;
-    if (q_shape.size() != 3)
-        return true;
 
     const size_t input_count = attention_input_count(op);
     const Operand* k_operand = input_count >= 2 ? op->inputs[1] : op->inputs[0];
     const Operand* v_operand = input_count >= 3 ? op->inputs[2] : k_operand;
-    if (!k_operand || !v_operand || k_operand->shape.size() != 3 || v_operand->shape.size() != 3)
+    if (!k_operand || !v_operand)
         return true;
 
-    const int batch = q_shape[batch_first ? 0 : 1];
-    const int qlen = q_shape[batch_first ? 1 : 0];
-    const int klen = k_operand->shape[batch_first ? 1 : 0];
-    const int vlen = v_operand->shape[batch_first ? 1 : 0];
-    const int embed_dim = get_int_param(op, "embed_dim", q_shape[2]);
-    const int kdim = get_int_param(op, "kdim", k_operand->shape[2]);
-    const int vdim = get_int_param(op, "vdim", v_operand->shape[2]);
+    int batch = 0;
+    int qlen = 0;
+    int embed_dim_default = 0;
+    int k_batch = 0;
+    int klen = 0;
+    int kdim_default = 0;
+    int v_batch = 0;
+    int vlen = 0;
+    int vdim_default = 0;
+    if (!sequence_batch_shape(q_shape, batch_first, batch, qlen, embed_dim_default))
+        return true;
+    if (!sequence_batch_shape(k_operand->shape, batch_first, k_batch, klen, kdim_default))
+        return true;
+    if (!sequence_batch_shape(v_operand->shape, batch_first, v_batch, vlen, vdim_default))
+        return true;
+
+    const int embed_dim = get_int_param(op, "embed_dim", embed_dim_default);
+    const int kdim = get_int_param(op, "kdim", kdim_default);
+    const int vdim = get_int_param(op, "vdim", vdim_default);
     const int num_heads = std::max(1, get_int_param(op, "num_heads", 1));
-    if (batch <= 0 || qlen <= 0 || klen <= 0 || vlen <= 0 || embed_dim <= 0 || kdim <= 0 || vdim <= 0)
+    if (batch <= 0 || k_batch != batch || v_batch != batch || qlen <= 0 || klen <= 0 || vlen <= 0 || embed_dim <= 0 || kdim <= 0 || vdim <= 0)
         return true;
 
     const uint64_t head_dim = embed_dim / num_heads;
     const bool bias = get_bool_param(op, "bias", true);
+    int attn_klen = klen;
+    int attn_vlen = vlen;
+    if (get_bool_param(op, "add_bias_kv", false))
+    {
+        attn_klen++;
+        attn_vlen++;
+    }
+    if (get_bool_param(op, "add_zero_attn", false))
+    {
+        attn_klen++;
+        attn_vlen++;
+    }
+    const uint64_t attn_elems = (uint64_t)batch * num_heads * qlen * attn_klen;
+    const uint64_t mask_elems = attention_mask_input_size(op);
 
     stat.flops += (uint64_t)batch * qlen * embed_dim * embed_dim * 2;
     stat.flops += (uint64_t)batch * klen * kdim * embed_dim * 2;
     stat.flops += (uint64_t)batch * vlen * vdim * embed_dim * 2;
-    stat.flops += (uint64_t)batch * num_heads * qlen * klen * head_dim * 2;
-    stat.flops += (uint64_t)batch * num_heads * qlen * klen * 5;
-    stat.flops += (uint64_t)batch * num_heads * qlen * klen * head_dim * 2;
+    stat.flops += attn_elems * head_dim * 2;
+    if (mask_elems != 0)
+        stat.flops += attn_elems;
+    stat.flops += attn_elems * 5;
+    stat.flops += (uint64_t)batch * num_heads * qlen * attn_vlen * head_dim * 2;
     stat.flops += (uint64_t)batch * qlen * embed_dim * embed_dim * 2;
 
     if (bias)
@@ -973,7 +1450,8 @@ static bool count_multihead_attention(const Operator* op, ModelStat& stat)
     stat.memops += attr_size(op, "out_proj.bias");
     stat.memops += attr_size(op, "bias_k");
     stat.memops += attr_size(op, "bias_v");
-    stat.memops += (uint64_t)batch * num_heads * qlen * klen;
+    stat.memops += mask_elems;
+    stat.memops += attn_elems;
     return true;
 }
 
@@ -982,17 +1460,23 @@ static bool count_rnn(const Operator* op, ModelStat& stat)
     if (!type_in(op->type, {"nn.RNN", "nn.LSTM", "nn.GRU"}))
         return false;
 
-    if (op->inputs.empty() || op->outputs.empty() || op->inputs[0]->shape.size() != 3)
+    if (op->inputs.empty() || op->outputs.empty())
         return true;
 
     const bool batch_first = get_bool_param(op, "batch_first", false);
-    const int batch = op->inputs[0]->shape[batch_first ? 0 : 1];
-    const int seq = op->inputs[0]->shape[batch_first ? 1 : 0];
-    const int input_dim = get_int_param(op, "input_size", op->inputs[0]->shape[2]);
+    int batch = 0;
+    int seq = 0;
+    int input_dim_default = 0;
+    if (!sequence_batch_shape(op->inputs[0]->shape, batch_first, batch, seq, input_dim_default))
+        return true;
+
+    const int input_dim = get_int_param(op, "input_size", input_dim_default);
     const int hidden_size = get_int_param(op, "hidden_size", 0);
     const int num_layers = std::max(1, get_int_param(op, "num_layers", 1));
     const int directions = get_bool_param(op, "bidirectional", false) ? 2 : 1;
     const bool bias = get_bool_param(op, "bias", true);
+    const int proj_size = op->type == "nn.LSTM" ? get_int_param(op, "proj_size", 0) : 0;
+    const int recurrent_size = proj_size > 0 ? proj_size : hidden_size;
     if (batch <= 0 || seq <= 0 || input_dim <= 0 || hidden_size <= 0)
         return true;
 
@@ -1012,10 +1496,12 @@ static bool count_rnn(const Operator* op, ModelStat& stat)
     uint64_t flops_per_step_batch = 0;
     for (int layer = 0; layer < num_layers; layer++)
     {
-        const int layer_input_dim = layer == 0 ? input_dim : hidden_size * directions;
+        const int layer_input_dim = layer == 0 ? input_dim : recurrent_size * directions;
         uint64_t layer_flops = (uint64_t)directions * 2 * gate_count * layer_input_dim * hidden_size;
-        layer_flops += (uint64_t)directions * 2 * gate_count * hidden_size * hidden_size;
+        layer_flops += (uint64_t)directions * 2 * gate_count * recurrent_size * hidden_size;
         layer_flops += (uint64_t)directions * elementwise_per_hidden * hidden_size;
+        if (proj_size > 0)
+            layer_flops += (uint64_t)directions * 2 * hidden_size * proj_size;
         if (bias)
             layer_flops += (uint64_t)directions * gate_count * hidden_size * 2;
         flops_per_step_batch += layer_flops;
@@ -1023,22 +1509,36 @@ static bool count_rnn(const Operator* op, ModelStat& stat)
 
     stat.flops += flops_per_step_batch * batch * seq;
     stat.memops += input_size(op, 0);
-    stat.memops += output_size_all(op);
 
     uint64_t weight_elems = 0;
-    for (std::map<std::string, Attribute>::const_iterator it = op->attrs.begin(); it != op->attrs.end(); it++)
+    for (const auto& it : op->attrs)
     {
-        if (string_starts_with(it->first, "weight") || string_starts_with(it->first, "bias"))
-            weight_elems += shape_size(it->second.shape);
+        if (string_starts_with(it.first, "weight") || string_starts_with(it.first, "bias"))
+            weight_elems += shape_size(it.second.shape);
     }
+
+    if (op->inputs.size() > 1)
+    {
+        for (size_t i = 1; i < op->inputs.size(); i++)
+        {
+            stat.memops += input_size(op, i);
+        }
+    }
+    stat.memops += output_size_all(op);
+
     if (weight_elems == 0)
     {
-        for (int layer = 0; layer < num_layers; layer++)
+        if (op->inputs.size() == 1)
         {
-            const int layer_input_dim = layer == 0 ? input_dim : hidden_size * directions;
-            weight_elems += (uint64_t)directions * gate_count * hidden_size * (layer_input_dim + hidden_size);
-            if (bias)
-                weight_elems += (uint64_t)directions * gate_count * hidden_size * 2;
+            for (int layer = 0; layer < num_layers; layer++)
+            {
+                const int layer_input_dim = layer == 0 ? input_dim : recurrent_size * directions;
+                weight_elems += (uint64_t)directions * gate_count * hidden_size * (layer_input_dim + recurrent_size);
+                if (proj_size > 0)
+                    weight_elems += (uint64_t)directions * hidden_size * proj_size;
+                if (bias)
+                    weight_elems += (uint64_t)directions * gate_count * hidden_size * 2;
+            }
         }
     }
     stat.memops += weight_elems;
@@ -1047,19 +1547,40 @@ static bool count_rnn(const Operator* op, ModelStat& stat)
 
 static bool count_memory_only(const Operator* op, ModelStat& stat)
 {
+    if (type_in(op->type, {"nn.Embedding", "F.embedding"}))
+    {
+        const uint64_t out_elems = output_size_all(op);
+        stat.memops += input_size(op, 0);
+        stat.memops += out_elems;
+        stat.memops += out_elems;
+        return true;
+    }
+
     if (type_in(op->type, {"nn.Identity", "F.dropout", "nn.Dropout", "nn.Dropout2d", "nn.Dropout3d",
-                           "nn.Embedding", "F.embedding", "nn.Fold", "F.fold", "nn.Unfold", "F.unfold",
+                           "Tensor.size", "Tensor.dim", "Tensor.reshape", "Tensor.reshape_as", "Tensor.view", "Tensor.view_as",
+                           "Tensor.permute", "Tensor.transpose", "Tensor.t", "Tensor.squeeze", "Tensor.unsqueeze",
+                           "Tensor.flatten", "Tensor.slice", "Tensor.select", "Tensor.unflatten",
+                           "torch.flatten", "torch.reshape", "torch.view", "torch.permute", "torch.transpose", "torch.t",
+                           "torch.squeeze", "torch.unsqueeze", "torch.split", "torch.chunk", "torch.unbind", "torch.tensor_split",
+                           "torch.view_as_real", "torch.view_as_complex"
+                          }))
+    {
+        return true;
+    }
+
+    if (type_in(op->type, {"nn.Unfold", "F.unfold",
                            "nn.PixelShuffle", "F.pixel_shuffle", "nn.PixelUnshuffle", "F.pixel_unshuffle",
                            "nn.ChannelShuffle", "F.pad", "nn.ConstantPad1d", "nn.ConstantPad2d", "nn.ConstantPad3d",
                            "nn.ReflectionPad1d", "nn.ReflectionPad2d", "nn.ReplicationPad1d", "nn.ReplicationPad2d", "nn.ReplicationPad3d",
-                           "nn.ZeroPad2d"}))
+                           "nn.ZeroPad2d", "torch.cat", "torch.stack", "torch.clone", "torch.flip", "torch.roll"
+                          }))
     {
         stat.memops += input_size_all(op);
         stat.memops += output_size_all(op);
         return true;
     }
 
-    if (string_starts_with(op->type, "Tensor.") || type_in(op->type, {"torch.flatten", "torch.reshape", "torch.view", "torch.permute", "torch.transpose", "torch.t", "torch.squeeze", "torch.unsqueeze", "torch.cat", "torch.stack", "torch.split", "torch.chunk", "torch.unbind", "torch.clone", "torch.flip", "torch.roll"}))
+    if (string_starts_with(op->type, "Tensor."))
     {
         stat.memops += input_size_all(op);
         stat.memops += output_size_all(op);
@@ -1088,9 +1609,19 @@ ModelStat get_model_stat(const Graph& graph)
             continue;
         if (count_normalization(op, stat))
             continue;
+        if (count_normalize(op, stat))
+            continue;
         if (count_activation(op, stat))
             continue;
         if (count_upsample(op, stat))
+            continue;
+        if (count_local_response_norm(op, stat))
+            continue;
+        if (count_lp_pool(op, stat))
+            continue;
+        if (count_pairwise_distance(op, stat))
+            continue;
+        if (count_fold(op, stat))
             continue;
         if (count_scaled_dot_product_attention(op, stat))
             continue;
