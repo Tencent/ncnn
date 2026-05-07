@@ -19,23 +19,22 @@ namespace pnnx {
 static std::string normalize_exponent(std::string s)
 {
     // keep scientific notation compact and parser-friendly, e.g. 1.0e+06 -> 1.0e6.
-    size_t pos = s.find("e+");
-    if (pos == std::string::npos)
-        pos = s.find("E+");
+    size_t pos = s.find_first_of("eE");
+    if (pos == std::string::npos || pos + 1 == s.size())
+        return s;
 
-    if (pos != std::string::npos)
-        s.erase(pos + 1, 1);
-
-    pos = s.find("e-");
-    if (pos == std::string::npos)
-        pos = s.find("E-");
-
-    if (pos != std::string::npos)
+    size_t exponent_pos = pos + 1;
+    if (s[exponent_pos] == '+')
     {
-        size_t exponent_pos = pos + 2;
-        while (exponent_pos + 1 < s.size() && s[exponent_pos] == '0')
-            s.erase(exponent_pos, 1);
+        s.erase(exponent_pos, 1);
     }
+    else if (s[exponent_pos] == '-')
+    {
+        exponent_pos++;
+    }
+
+    while (exponent_pos + 1 < s.size() && s[exponent_pos] == '0')
+        s.erase(exponent_pos, 1);
 
     return s;
 }
