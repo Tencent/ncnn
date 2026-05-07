@@ -34,7 +34,7 @@ jobs:
   arm:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: arm-gnu-toolchain
       run: |
@@ -64,7 +64,7 @@ jobs:
   armhf:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: arm-gnu-toolchain
       run: |
@@ -94,7 +94,7 @@ jobs:
   armhf-vfpv3-d16:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: arm-gnu-toolchain
       run: |

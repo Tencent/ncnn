@@ -36,17 +36,17 @@ pnnx.Output             output      1 0 out
 
         const int batch_index = op->outputs[0]->params["__batch_index"].i;
 
-        if (batch_index != 0 && batch_index != 233)
-        {
-            fprintf(stderr, "repeat tensor with batch index %d is not supported yet!\n", batch_index);
-        }
-
         // drop sizes batch index
         std::vector<int> new_sizes;
         for (int i = 0; i < (int)sizes.size(); i++)
         {
-            if (i == batch_index && sizes[i] == 1)
-                continue;
+            if (i == batch_index)
+            {
+                if (sizes[i] == 1)
+                    continue;
+
+                fprintf(stderr, "repeat tensor along batch index %d is not supported yet!\n", batch_index);
+            }
 
             new_sizes.push_back(sizes[i]);
         }

@@ -3,19 +3,19 @@
 
 #version 450
 
-layout (constant_id = 0) const int attn_mask = 0;
-layout (constant_id = 1) const int M = 0;
-layout (constant_id = 2) const int N = 0;
-layout (constant_id = 3) const int K = 0;
-layout (constant_id = 4) const int B = 0;
-layout (constant_id = 5) const int attn_mask_dims = 0;
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const int M = 0;
+layout(constant_id = 2) const int N = 0;
+layout(constant_id = 3) const int K = 0;
+layout(constant_id = 4) const int B = 0;
+layout(constant_id = 5) const int attn_mask_dims = 0;
 
-layout (binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
-layout (binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
-layout (binding = 2) writeonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
-layout (binding = 3) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
+layout(binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout(binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout(binding = 2) writeonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
+layout(binding = 3) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int M;
     int N;

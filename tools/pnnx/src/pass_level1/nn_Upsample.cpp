@@ -21,13 +21,16 @@ public:
     void write(Operator* op, const TorchGraphProxy& graph) const
     {
         const TorchNodeProxy* upsample_nearest1d = graph.find_node_by_kind("aten::upsample_nearest1d");
+        const TorchNodeProxy* upsample_nearest_exact1d = graph.find_node_by_kind("aten::_upsample_nearest_exact1d");
         const TorchNodeProxy* upsample_linear1d = graph.find_node_by_kind("aten::upsample_linear1d");
 
         const TorchNodeProxy* upsample_nearest2d = graph.find_node_by_kind("aten::upsample_nearest2d");
+        const TorchNodeProxy* upsample_nearest_exact2d = graph.find_node_by_kind("aten::_upsample_nearest_exact2d");
         const TorchNodeProxy* upsample_bilinear2d = graph.find_node_by_kind("aten::upsample_bilinear2d");
         const TorchNodeProxy* upsample_bicubic2d = graph.find_node_by_kind("aten::upsample_bicubic2d");
 
         const TorchNodeProxy* upsample_nearest3d = graph.find_node_by_kind("aten::upsample_nearest3d");
+        const TorchNodeProxy* upsample_nearest_exact3d = graph.find_node_by_kind("aten::_upsample_nearest_exact3d");
         const TorchNodeProxy* upsample_trilinear3d = graph.find_node_by_kind("aten::upsample_trilinear3d");
 
         const TorchNodeProxy* upsample = 0;
@@ -35,6 +38,11 @@ public:
         {
             upsample = upsample_nearest1d;
             op->params["mode"] = "nearest";
+        }
+        else if (upsample_nearest_exact1d)
+        {
+            upsample = upsample_nearest_exact1d;
+            op->params["mode"] = "nearest-exact";
         }
         else if (upsample_linear1d)
         {
@@ -45,6 +53,11 @@ public:
         {
             upsample = upsample_nearest2d;
             op->params["mode"] = "nearest";
+        }
+        else if (upsample_nearest_exact2d)
+        {
+            upsample = upsample_nearest_exact2d;
+            op->params["mode"] = "nearest-exact";
         }
         else if (upsample_bilinear2d)
         {
@@ -60,6 +73,11 @@ public:
         {
             upsample = upsample_nearest3d;
             op->params["mode"] = "nearest";
+        }
+        else if (upsample_nearest_exact3d)
+        {
+            upsample = upsample_nearest_exact3d;
+            op->params["mode"] = "nearest-exact";
         }
         else if (upsample_trilinear3d)
         {

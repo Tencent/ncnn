@@ -44,7 +44,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 weight
 pnnx.Input              input_2     0 1 bias
-InstanceNormalization   op_0        3 1 input weight bias out epsilon=%epsilon
+InstanceNormalization   op_0        3 1 input weight bias out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -56,7 +56,13 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["eps"] = captured_params.at("epsilon");
+        float epsilon = 1e-05;
+        if (captured_params.find("op_0.epsilon") != captured_params.end())
+        {
+            epsilon = captured_params.at("op_0.epsilon").f;
+        }
+
+        op->params["eps"] = epsilon;
         op->params["running_mean"] = Parameter();
         op->params["running_var"] = Parameter();
     }

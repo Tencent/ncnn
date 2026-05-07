@@ -38,7 +38,7 @@ jobs:
   linux-gcc:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: update
       run: sudo apt-get update
     - name: protobuf
@@ -84,10 +84,24 @@ jobs:
     - name: test-noint8
       run: cd build-noint8 && ctest --output-on-failure -j $(nproc)
 
+  asan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=relwithdebinfo -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SHARED_LIB=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        cd build
+        ctest --output-on-failure -j $(nproc)
+
   linux-gcc-cpp03-nostdio-nostring-simplestl:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: build-nostdio
       run: |
         mkdir build-nostdio && cd build-nostdio
@@ -118,7 +132,7 @@ jobs:
   linux-gcc-avx512:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: build
       env:
         CC: gcc

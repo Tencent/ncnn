@@ -9,17 +9,17 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
-from transformers.models.chinese_clip.configuration_chinese_clip import ChineseCLIPTextConfig, ChineseCLIPVisionConfig
+from transformers import ChineseCLIPTextConfig, ChineseCLIPVisionConfig
 from transformers.models.chinese_clip.modeling_chinese_clip import ChineseCLIPTextAttention, ChineseCLIPVisionAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        config0 = ChineseCLIPTextConfig(hidden_size=192, num_attention_heads=8, attention_probs_dropout_prob=0.0, max_position_embeddings=64, is_decoder=False)
+        config0 = ChineseCLIPTextConfig(hidden_size=192, num_attention_heads=8, attention_probs_dropout_prob=0.0, max_position_embeddings=64, is_decoder=False, attn_implementation='eager')
         self.attn0 = ChineseCLIPTextAttention(config0)
 
-        config1 = ChineseCLIPVisionConfig(hidden_size=12, num_attention_heads=2)
+        config1 = ChineseCLIPVisionConfig(hidden_size=12, num_attention_heads=2, attn_implementation='eager')
         self.attn1 = ChineseCLIPVisionAttention(config1)
 
     def forward(self, x, y):

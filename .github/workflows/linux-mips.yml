@@ -34,7 +34,7 @@ jobs:
   mipsel:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: mipsel-gnu-toolchain
       run: |
@@ -55,7 +55,7 @@ jobs:
   mipsisa32r6el:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: mipsisa32r6el-gnu-toolchain
       run: |

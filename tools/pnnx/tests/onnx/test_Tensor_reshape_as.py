@@ -32,7 +32,7 @@ def test():
 
     # onnx to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_reshape_as.onnx inputshape=[1,3,16],[6,2,2,2],[48] inputshape2=[1,3,8],[6,1,2,2],[24]")
+    os.system("../../src/pnnx test_Tensor_reshape_as.onnx inputshape=[1,3,16],[6,2,2,2],[48] inputshape2=[1,24,8],[12,1,4,4],[192]")
 
     # pnnx inference
     import test_Tensor_reshape_as_pnnx

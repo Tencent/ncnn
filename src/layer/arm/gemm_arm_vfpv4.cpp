@@ -498,6 +498,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         {
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __ARM_NEON
 
@@ -506,6 +508,8 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -622,6 +626,8 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 Mat CT_data;
                 cast_float16_to_float32(C, CT_data);
                 C = CT_data;
+                if (C.empty())
+                    return -100;
             }
 
             // pre-multiply C with beta
@@ -629,6 +635,8 @@ int Gemm_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)

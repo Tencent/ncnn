@@ -9,6 +9,7 @@
 #include <immintrin.h>
 #endif
 #endif // __SSE2__
+#include "cpu.h"
 #include "x86_activation.h"
 #include "x86_usability.h"
 
@@ -16,17 +17,32 @@ namespace ncnn {
 
 #include "convolution1d_packed.h"
 
+#if NCNN_BF16
+#include "convolution1d_packed_bf16s.h"
+#endif
+
 Convolution1D_x86::Convolution1D_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Convolution1D_x86::create_pipeline(const Option& opt)
 {
     if (dynamic_weight)
         return 0;
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+    {
+        return create_pipeline_bf16s(opt);
+    }
+#endif
 
     int num_input = weight_data_size / kernel_w / num_output;
 
@@ -45,6 +61,13 @@ int Convolution1D_x86::destroy_pipeline(const Option& /*opt*/)
 
 int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+    {
+        return forward_bf16s(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int w = bottom_blob.w;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -99,6 +122,15 @@ int Convolution1D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector
     if (weight_data_flattened.empty())
         return -100;
 
+#if NCNN_BF16
+    if (weight_data_flattened.elembits() == 16)
+    {
+        Mat tmp;
+        cast_bfloat16_to_float32(weight_data_flattened, tmp, opt);
+        weight_data_flattened = tmp;
+    }
+#endif
+
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
     weight_data_flattened.elemsize /= weight_data_flattened.elempack;
@@ -111,6 +143,15 @@ int Convolution1D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector
         flatten(_bias_data, bias_data_flattened, opt);
         if (bias_data_flattened.empty())
             return -100;
+
+#if NCNN_BF16
+        if (bias_data_flattened.elembits() == 16)
+        {
+            Mat tmp;
+            cast_bfloat16_to_float32(bias_data_flattened, tmp, opt);
+            bias_data_flattened = tmp;
+        }
+#endif
 
         // bias_data_flattened as pack1
         bias_data_flattened.w *= bias_data_flattened.elempack;
@@ -151,5 +192,59 @@ int Convolution1D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_BF16
+int Convolution1D_x86::create_pipeline_bf16s(const Option& opt)
+{
+    int num_input = weight_data_size / kernel_w / num_output;
+
+    convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int Convolution1D_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+#if __AVX512F__
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+#endif // __SSE2__
+    size_t out_elemsize = 2u * out_elempack;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = num_output / out_elempack;
+
+    top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    convolution1d_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, dilation_w, stride_w, activation_type, activation_params, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

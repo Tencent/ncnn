@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -206,14 +207,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 2)
         {
             char tmp[32];
-            sprintf(tmp, "%d", param.i);
+            snprintf(tmp, 32, "%d", param.i);
             expr += tmp;
         }
         else if (param.type == 3)
         {
-            char tmp[32];
-            sprintf(tmp, "%e", param.f);
-            expr += tmp;
+            expr += float_to_string(param.f);
         }
         else if (param.type == 4)
         {
@@ -226,7 +225,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             for (int i = 0; i < (int)param.ai.size(); i++)
             {
                 char tmp[32];
-                sprintf(tmp, "%d", param.ai[i]);
+                snprintf(tmp, 32, "%d", param.ai[i]);
                 expr += tmp;
                 if (i != (int)param.ai.size() - 1)
                     expr += ",";
@@ -239,9 +238,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             expr += "[";
             for (int i = 0; i < (int)param.af.size(); i++)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", param.af[i]);
-                expr += tmp;
+                expr += float_to_string(param.af[i]);
                 if (i != (int)param.af.size() - 1)
                     expr += ",";
             }
@@ -250,7 +247,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 10)
         {
             char tmp[32];
-            sprintf(tmp, "%e%+ej", param.c.real(), param.c.imag());
+            snprintf(tmp, 32, "%e%+ej", param.c.real(), param.c.imag());
             expr += tmp;
         }
         else
@@ -271,20 +268,16 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else if (data.type == 1)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const float*)data.data.data())[0]);
-                expr += tmp;
+                expr += float_to_string(((const float*)data.data.data())[0]);
             }
             else if (data.type == 2)
             {
-                char tmp[32];
-                sprintf(tmp, "%e", ((const double*)data.data.data())[0]);
-                expr += tmp;
+                expr += double_to_string(((const double*)data.data.data())[0]);
             }
             else if (data.type == 4)
             {
                 char tmp[32];
-                sprintf(tmp, "%d", ((const int*)data.data.data())[0]);
+                snprintf(tmp, 32, "%d", ((const int*)data.data.data())[0]);
                 expr += tmp;
             }
             else if (data.type == 5)
@@ -294,25 +287,25 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
 
                 char tmp[32];
-                sprintf(tmp, "%d", (int)v);
+                snprintf(tmp, 32, "%d", (int)v);
                 expr += tmp;
             }
             else if (data.type == 6)
             {
                 char tmp[32];
-                sprintf(tmp, "%d", ((const short*)data.data.data())[0]);
+                snprintf(tmp, 32, "%d", ((const short*)data.data.data())[0]);
                 expr += tmp;
             }
             else if (data.type == 7)
             {
                 char tmp[32];
-                sprintf(tmp, "%d", ((const signed char*)data.data.data())[0]);
+                snprintf(tmp, 32, "%d", ((const signed char*)data.data.data())[0]);
                 expr += tmp;
             }
             else if (data.type == 8)
             {
                 char tmp[32];
-                sprintf(tmp, "%u", ((const unsigned char*)data.data.data())[0]);
+                snprintf(tmp, 32, "%u", ((const unsigned char*)data.data.data())[0]);
                 expr += tmp;
             }
             else if (data.type == 9)
@@ -359,20 +352,16 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 }
                 else if (data.type == 1)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const float*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += float_to_string(((const float*)data.data.data())[si]);
                 }
                 else if (data.type == 2)
                 {
-                    char tmp[32];
-                    sprintf(tmp, "%e", ((const double*)data.data.data())[si]);
-                    expr += tmp;
+                    expr += double_to_string(((const double*)data.data.data())[si]);
                 }
                 else if (data.type == 4)
                 {
                     char tmp[32];
-                    sprintf(tmp, "%d", ((const int*)data.data.data())[si]);
+                    snprintf(tmp, 32, "%d", ((const int*)data.data.data())[si]);
                     expr += tmp;
                 }
                 else if (data.type == 5)
@@ -382,25 +371,25 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                     if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
 
                     char tmp[32];
-                    sprintf(tmp, "%d", (int)v);
+                    snprintf(tmp, 32, "%d", (int)v);
                     expr += tmp;
                 }
                 else if (data.type == 6)
                 {
                     char tmp[32];
-                    sprintf(tmp, "%d", ((const short*)data.data.data())[si]);
+                    snprintf(tmp, 32, "%d", ((const short*)data.data.data())[si]);
                     expr += tmp;
                 }
                 else if (data.type == 7)
                 {
                     char tmp[32];
-                    sprintf(tmp, "%d", ((const signed char*)data.data.data())[si]);
+                    snprintf(tmp, 32, "%d", ((const signed char*)data.data.data())[si]);
                     expr += tmp;
                 }
                 else if (data.type == 8)
                 {
                     char tmp[32];
-                    sprintf(tmp, "%u", ((const unsigned char*)data.data.data())[si]);
+                    snprintf(tmp, 32, "%u", ((const unsigned char*)data.data.data())[si]);
                     expr += tmp;
                 }
                 else if (data.type == 9)
@@ -435,18 +424,14 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 float v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += float_to_string(v);
             }
             else if (operand->type == 2)
             {
                 double v;
                 zip.read_file(operand->name, (char*)&v);
 
-                char tmp[32];
-                sprintf(tmp, "%e", v);
-                expr += tmp;
+                expr += double_to_string(v);
             }
             else if (operand->type == 4)
             {
@@ -454,7 +439,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 zip.read_file(operand->name, (char*)&v);
 
                 char tmp[32];
-                sprintf(tmp, "%d", v);
+                snprintf(tmp, 32, "%d", v);
                 expr += tmp;
             }
             else if (operand->type == 5)
@@ -466,7 +451,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
 
                 char tmp[32];
-                sprintf(tmp, "%ld", v);
+                snprintf(tmp, 32, "%ld", v);
                 expr += tmp;
             }
             else if (operand->type == 6)
@@ -475,7 +460,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 zip.read_file(operand->name, (char*)&v);
 
                 char tmp[32];
-                sprintf(tmp, "%d", v);
+                snprintf(tmp, 32, "%d", v);
                 expr += tmp;
             }
             else if (operand->type == 7)
@@ -484,7 +469,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 zip.read_file(operand->name, (char*)&v);
 
                 char tmp[32];
-                sprintf(tmp, "%d", v);
+                snprintf(tmp, 32, "%d", v);
                 expr += tmp;
             }
             else if (operand->type == 8)
@@ -493,7 +478,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 zip.read_file(operand->name, (char*)&v);
 
                 char tmp[32];
-                sprintf(tmp, "%u", v);
+                snprintf(tmp, 32, "%u", v);
                 expr += tmp;
             }
             else if (operand->type == 9)
@@ -511,7 +496,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 {
                     // tensor
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)inputs.size());
+                    snprintf(tmp, 32, "@%d", (int)inputs.size());
                     expr += tmp;
 
                     inputs.push_back(operand);
@@ -520,7 +505,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 {
                     // tensor
                     char tmp[32];
-                    sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+                    snprintf(tmp, 32, "@%d", (int)(it - inputs.begin()));
                     expr += tmp;
                 }
             }
@@ -801,7 +786,7 @@ DEFAULT:
     {
         // tensor
         char tmp[32];
-        sprintf(tmp, "@%d", (int)inputs.size());
+        snprintf(tmp, 32, "@%d", (int)inputs.size());
         expr += tmp;
 
         inputs.push_back(operand);
@@ -810,7 +795,7 @@ DEFAULT:
     {
         // tensor
         char tmp[32];
-        sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+        snprintf(tmp, 32, "@%d", (int)(it - inputs.begin()));
         expr += tmp;
     }
 }
@@ -818,7 +803,10 @@ DEFAULT:
 void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     StoreZipReader zip;
-    zip.open(foldable_constants_zippath);
+    if (!foldable_constants.empty())
+    {
+        zip.open(foldable_constants_zippath);
+    }
 
     int pnnx_expr_index = 0;
 
@@ -925,7 +913,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
 
                 // lets rewrite graph
                 char name[32];
-                sprintf(name, "pnnx_expr_%d", pnnx_expr_index++);
+                snprintf(name, 32, "pnnx_expr_%d", pnnx_expr_index++);
 
                 op->type = "pnnx.Expression";
                 op->name = name;

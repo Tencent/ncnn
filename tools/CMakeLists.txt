@@ -15,7 +15,6 @@ endif()
 
 add_subdirectory(caffe)
 add_subdirectory(mxnet)
-add_subdirectory(onnx)
 add_subdirectory(darknet)
 if(NCNN_INT8)
     add_subdirectory(quantize)

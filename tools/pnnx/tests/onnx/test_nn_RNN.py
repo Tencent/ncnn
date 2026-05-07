@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -42,7 +43,10 @@ def test():
     a = net(x, y)
 
     # export onnx
-    torch.onnx.export(net, (x, y), "test_nn_RNN.onnx")
+    if version.parse(torch.__version__) >= version.parse('2.9') and version.parse(torch.__version__) < version.parse('2.10'):
+        torch.onnx.export(net, (x, y), "test_nn_RNN.onnx", dynamo=False)
+    else:
+        torch.onnx.export(net, (x, y), "test_nn_RNN.onnx")
 
     # onnx to pnnx
     import os

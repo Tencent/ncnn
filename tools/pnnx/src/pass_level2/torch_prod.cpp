@@ -47,33 +47,39 @@ pnnx.Output             output      1 0 out
         return "torch.prod";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (captured_params.find("op_0.axes") == captured_params.end())
-            return false;
-
-        if (captured_params.at("op_0.axes").type != 2 && captured_params.at("op_0.axes").type != 5)
-            return false;
-
-        if (captured_params.at("op_0.axes").type == 5 && captured_params.at("op_0.axes").ai.size() > 1)
-            return false;
-
-        return true;
-    }
-
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int dim;
-        if (captured_params.at("op_0.axes").type == 2)
+        if (captured_params.find("op_0.axes") != captured_params.end())
         {
-            dim = captured_params.at("op_0.axes").i;
+            if (captured_params.at("op_0.axes").type == 2)
+            {
+                op->params["dim"] = captured_params.at("op_0.axes");
+            }
+            else
+            {
+                const std::vector<int>& dim = captured_params.at("op_0.axes").ai;
+                if (dim.size() == 1)
+                {
+                    // prefer single dim for compatible with torch
+                    op->params["dim"] = dim[0];
+                }
+                else
+                {
+                    op->params["dim"] = dim;
+                }
+            }
         }
-        else // if (captured_params.at("op_0.axes").type == 5)
+        else
         {
-            dim = captured_params.at("op_0.axes").ai[0];
+            // reduce all
+            const int input_rank = (int)op->inputs[0]->shape.size();
+            std::vector<int> dim(input_rank);
+            for (int i = 0; i < input_rank; i++)
+            {
+                dim[i] = i;
+            }
+            op->params["dim"] = dim;
         }
-
-        op->params["dim"] = dim;
 
         if (captured_params.find("op_0.keepdims") != captured_params.end())
         {

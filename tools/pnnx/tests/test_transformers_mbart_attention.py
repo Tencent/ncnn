@@ -9,14 +9,17 @@ from packaging import version
 if version.parse(torch.__version__) < version.parse('2.1'):
     exit(0)
 
+from transformers import MBartConfig
 from transformers.models.mbart.modeling_mbart import MBartAttention
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.attn0 = MBartAttention(embed_dim=192, num_heads=12)
-        self.attn1 = MBartAttention(embed_dim=66, num_heads=6)
+        config = MBartConfig(attn_implementation='eager')
+
+        self.attn0 = MBartAttention(embed_dim=192, num_heads=12, config=config)
+        self.attn1 = MBartAttention(embed_dim=66, num_heads=6, config=config)
 
     def forward(self, x, y):
         out0 = self.attn0(x, attention_mask=None, key_value_states=None, past_key_value=None)

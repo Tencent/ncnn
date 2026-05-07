@@ -3,8 +3,6 @@
 
 #include "pass_level2.h"
 
-#include <torch/csrc/api/include/torch/version.h>
-
 namespace pnnx {
 
 class Tensor_permute : public GraphRewriterPass
