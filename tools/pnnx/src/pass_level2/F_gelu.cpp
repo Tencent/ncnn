@@ -326,7 +326,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-Gelu                    op_0        1 1 input out approximate=%approximate
+Gelu                    op_0        1 1 input out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -334,6 +334,16 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.gelu";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.find("op_0.approximate") != captured_params.end())
+        {
+            const std::string& approximate = captured_params.at("op_0.approximate").s;
+            if (approximate != "none")
+                op->params["approximate"] = approximate;
+        }
     }
 };
 

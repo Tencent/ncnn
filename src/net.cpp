@@ -31,12 +31,6 @@ public:
 
     Option& opt;
 
-#if NCNN_VULKAN
-
-    int upload_model();
-
-#endif // NCNN_VULKAN
-
     friend class Extractor;
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
@@ -45,6 +39,9 @@ public:
 #endif // NCNN_VULKAN
 
     int convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const;
+#if NCNN_VULKAN
+    int convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const;
+#endif // NCNN_VULKAN
 
     int do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const;
 #if NCNN_VULKAN
@@ -71,6 +68,10 @@ public:
 
     PoolAllocator* local_blob_allocator;
     PoolAllocator* local_workspace_allocator;
+
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    MappedFile mapped_model_file;
+#endif
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
@@ -101,8 +102,9 @@ static Option get_masked_option(const Option& opt, int featmask)
     // mask option usage as layer specific featmask
     Option opt1 = opt;
     opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
-    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
     opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_bf16_packed = opt1.use_bf16_packed && !(featmask & (1 << 2));
     opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
     opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
     opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
@@ -118,48 +120,12 @@ static Option get_masked_option(const Option& opt, int featmask)
     return opt1;
 }
 
-#if NCNN_VULKAN
-int NetPrivate::upload_model()
-{
-    ncnn::VkTransfer cmd(vkdev);
-
-    // create gpu device allocator if null
-    if (!weight_vkallocator)
-    {
-        weight_vkallocator = new VkWeightAllocator(vkdev);
-    }
-    if (!weight_staging_vkallocator)
-    {
-        weight_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
-    }
-
-    Option opt_upload = opt;
-    opt_upload.blob_allocator = 0;
-    opt_upload.workspace_allocator = 0;
-    opt_upload.blob_vkallocator = weight_vkallocator;
-    opt_upload.workspace_vkallocator = weight_vkallocator;
-    opt_upload.staging_vkallocator = weight_staging_vkallocator;
-
-    for (size_t i = 0; i < layers.size(); i++)
-    {
-        if (layers[i]->support_vulkan)
-        {
-            int uret = layers[i]->upload_model(cmd, get_masked_option(opt_upload, layers[i]->featmask));
-            if (uret != 0)
-            {
-                NCNN_LOGE("layer upload_model %d failed", (int)i);
-                return -1;
-            }
-        }
-    }
-
-    return cmd.submit_and_wait();
-}
-#endif // NCNN_VULKAN
-
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
+
+    if (layer->typeindex == LayerType::Input)
+        return 0;
 
     //     NCNN_LOGE("forward_layer %d %s", layer_index, layer->name.c_str());
 
@@ -227,6 +193,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 {
     const Layer* layer = layers[layer_index];
 
+    if (layer->typeindex == LayerType::Input)
+        return 0;
+
     //     NCNN_LOGE("forward_layer %d %d %s", layer->support_vulkan, layer_index, layer->name.c_str());
 
     bool cmd_submit_and_wait = false;
@@ -276,6 +245,31 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                 cmd_submit_and_wait = true;
             }
         }
+    }
+
+    // for avoiding driver timeout
+    // commit as soon as we collect enough pending
+    const uint32_t rough_score = vkdev->info.rough_score();
+    uint32_t pending_dispatch_threshold = 32 * 1024; // 32K
+    if (rough_score > 75)
+    {
+        pending_dispatch_threshold = 8 * 1024 * 1024; // 8M
+    }
+    else if (rough_score > 50)
+    {
+        pending_dispatch_threshold = 4 * 1024 * 1024; // 4M
+    }
+    else if (rough_score > 15)
+    {
+        pending_dispatch_threshold = 1 * 1024 * 1024; // 1M
+    }
+    else if (rough_score > 10)
+    {
+        pending_dispatch_threshold = 256 * 1024; // 256K
+    }
+    if (cmd.pending_dispatch_total() > pending_dispatch_threshold)
+    {
+        cmd_submit_and_wait = true;
     }
 
     int ret;
@@ -363,6 +357,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
 {
+    if (bottom_blob.empty())
+        return 0;
+
     if (bottom_blob.elembits() == 32)
     {
         // clang-format off
@@ -458,6 +455,18 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
+#elif NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #elif NCNN_RVV || NCNN_XTHEADVECTOR
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
@@ -477,6 +486,12 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                 if (elemcount % 8 == 0)
                     dst_elempack = 8;
 #endif
+            }
+
+            if (layer->support_any_packing)
+            {
+                // layer handles pack/unpack
+                dst_elempack = bottom_blob.elempack;
             }
         }
     }
@@ -544,6 +559,46 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 
     return 0;
 }
+
+#if NCNN_VULKAN
+int NetPrivate::convert_layout(VkMat& bottom_blob, const Layer* layer, VkCompute& cmd, const Option& opt) const
+{
+    if (bottom_blob.empty())
+        return 0;
+
+    int dst_elempack = 1;
+    if (layer->support_vulkan_packing)
+    {
+        // resolve dst_elempack
+        int dims = bottom_blob.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
+        if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
+        if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
+
+        if (elemcount % 4 == 0)
+            dst_elempack = 4;
+
+        if (layer->support_vulkan_any_packing)
+        {
+            // layer handles pack/unpack
+            dst_elempack = bottom_blob.elempack;
+        }
+    }
+
+    if (bottom_blob.elempack != dst_elempack)
+    {
+        VkMat bottom_blob_packed;
+        vkdev->convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, cmd, opt);
+        bottom_blob = bottom_blob_packed;
+
+        if (bottom_blob.empty())
+            return -100;
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
 
 int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const
 {
@@ -705,6 +760,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             bottom_blob = bottom_blob_ref;
         }
 
+        int ret = convert_layout(bottom_blob, layer, cmd, opt);
+        if (ret != 0)
+            return ret;
+
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
@@ -757,6 +816,10 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             {
                 bottom_blobs[i] = bottom_blob_ref;
             }
+
+            int ret = convert_layout(bottom_blobs[i], layer, cmd, opt);
+            if (ret != 0)
+                return ret;
         }
 
         // forward
@@ -816,8 +879,11 @@ void NetPrivate::update_input_output_indexes()
     {
         if (layers[i]->typeindex == LayerType::Input)
         {
-            int blob_index = layers[i]->tops[0];
-            input_blob_indexes.push_back(blob_index);
+            for (size_t j = 0; j < layers[i]->tops.size(); j++)
+            {
+                int blob_index = layers[i]->tops[j];
+                input_blob_indexes.push_back(blob_index);
+            }
         }
     }
 
@@ -996,10 +1062,6 @@ int Net::load_param(const DataReader& dr)
     d->blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1023,6 +1085,8 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1141,13 +1205,16 @@ int Net::load_param(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top shape hints
         Mat shape_hints = pd.get(30, Mat());
         if (!shape_hints.empty())
         {
+            const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
             for (int j = 0; j < top_count; j++)
             {
@@ -1164,24 +1231,18 @@ int Net::load_param(const DataReader& dr)
                 }
                 if (dims == 3)
                 {
-                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                    if (psh_step == 5)
+                        blob.shape = Mat(psh[1], psh[2], psh[4], (void*)0, 4u, 1);
+                    else
+                        blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
+                if (dims == 4)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], psh[4], (void*)0, 4u, 1);
                 }
 
-                psh += 4;
+                psh += psh_step;
             }
-        }
-
-        // set bottom and top shape hints
-        layer->bottom_shapes.resize(bottom_count);
-        for (int j = 0; j < bottom_count; j++)
-        {
-            layer->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-        }
-
-        layer->top_shapes.resize(top_count);
-        for (int j = 0; j < top_count; j++)
-        {
-            layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
         // pull out layer specific feature disabled set
@@ -1191,7 +1252,9 @@ int Net::load_param(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1217,6 +1280,7 @@ int Net::load_param(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %s not exists or registered", layer_type);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1233,11 +1297,93 @@ int Net::load_param(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
             layer = layer_cpu;
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j = 0; j < bottom_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->bottoms[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->bottom_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->bottom_shapes[j] = shape;
+            }
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j = 0; j < top_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->tops[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->top_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->top_shapes[j] = shape;
+            }
         }
 
         d->layers[i] = layer;
@@ -1295,10 +1441,6 @@ int Net::load_param_bin(const DataReader& dr)
     d->blobs.resize(blob_count);
 
 #if NCNN_VULKAN
-    // TODO enable gpu when bf16 conversion implemented
-    if (opt.use_bf16_storage)
-        opt.use_vulkan_compute = false;
-
     if (opt.use_vulkan_compute)
     {
         if (!d->vkdev)
@@ -1322,6 +1464,8 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+        if (!d->vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
         if (!d->vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
@@ -1423,13 +1567,16 @@ int Net::load_param_bin(const DataReader& dr)
         if (pdlr != 0)
         {
             NCNN_LOGE("ParamDict load_param_bin %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         // pull out top blob shape hints
         Mat shape_hints = pd.get(30, Mat());
         if (!shape_hints.empty())
         {
+            const int psh_step = shape_hints.w / top_count;
             const int* psh = shape_hints;
             for (int j = 0; j < top_count; j++)
             {
@@ -1446,24 +1593,18 @@ int Net::load_param_bin(const DataReader& dr)
                 }
                 if (dims == 3)
                 {
-                    blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                    if (psh_step == 5)
+                        blob.shape = Mat(psh[1], psh[2], psh[4], (void*)0, 4u, 1);
+                    else
+                        blob.shape = Mat(psh[1], psh[2], psh[3], (void*)0, 4u, 1);
+                }
+                if (dims == 4)
+                {
+                    blob.shape = Mat(psh[1], psh[2], psh[3], psh[4], (void*)0, 4u, 1);
                 }
 
-                psh += 4;
+                psh += psh_step;
             }
-        }
-
-        // set bottom and top shape hints
-        layer->bottom_shapes.resize(bottom_count);
-        for (int j = 0; j < bottom_count; j++)
-        {
-            layer->bottom_shapes[j] = d->blobs[layer->bottoms[j]].shape;
-        }
-
-        layer->top_shapes.resize(top_count);
-        for (int j = 0; j < top_count; j++)
-        {
-            layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
         // pull out layer specific feature disabled set
@@ -1473,7 +1614,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (lr != 0)
         {
             NCNN_LOGE("layer load_param %d failed", i);
-            continue;
+            delete layer;
+            clear();
+            return -1;
         }
 
         if (layer->support_int8_storage)
@@ -1500,6 +1643,7 @@ int Net::load_param_bin(const DataReader& dr)
             if (!layer_cpu)
             {
                 NCNN_LOGE("layer %d not exists or registered", typeindex);
+                delete layer;
                 clear();
                 return -1;
             }
@@ -1514,11 +1658,93 @@ int Net::load_param_bin(const DataReader& dr)
             if (lr != 0)
             {
                 NCNN_LOGE("layer load_param %d failed", i);
-                continue;
+                delete layer;
+                delete layer_cpu;
+                clear();
+                return -1;
             }
 
             delete layer;
             layer = layer_cpu;
+        }
+
+        // set bottom and top shape hints
+        layer->bottom_shapes.resize(bottom_count);
+        for (int j = 0; j < bottom_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->bottoms[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->bottom_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->bottom_shapes[j] = shape;
+            }
+        }
+
+        layer->top_shapes.resize(top_count);
+        for (int j = 0; j < top_count; j++)
+        {
+            const Mat& shape = d->blobs[layer->tops[j]].shape;
+
+            if (layer->support_vulkan && layer->support_vulkan_packing && opt1.use_vulkan_compute)
+            {
+                // use packed shape hint for vulkan layer
+                const int dims = shape.dims;
+
+                int elempack = 0;
+                if (dims == 1) elempack = shape.w % 4 == 0 ? 4 : 1;
+                if (dims == 2) elempack = shape.h % 4 == 0 ? 4 : 1;
+                if (dims == 3 || dims == 4) elempack = shape.c % 4 == 0 ? 4 : 1;
+
+                size_t elemsize;
+                if (opt1.use_fp16_storage || opt1.use_fp16_packed || opt1.use_bf16_storage || opt1.use_bf16_packed)
+                {
+                    elemsize = elempack * 2u;
+                }
+                else
+                {
+                    elemsize = elempack * 4u;
+                }
+
+                Mat shape_packed;
+                if (dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
+                if (dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+                if (dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+                if (dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
+
+                layer->top_shapes[j] = shape_packed;
+            }
+            else
+            {
+                layer->top_shapes[j] = shape;
+            }
         }
 
         d->layers[i] = layer;
@@ -1544,6 +1770,9 @@ int Net::load_model(const DataReader& dr)
     int ret = 0;
 
 #if NCNN_VULKAN
+    ncnn::VkTransfer* cmd_upload = 0;
+    Option opt_upload = opt;
+
     if (opt.use_vulkan_compute)
     {
         if (!opt.pipeline_cache)
@@ -1552,6 +1781,24 @@ int Net::load_model(const DataReader& dr)
                 d->pipeline_cache = new PipelineCache(d->vkdev);
             opt.pipeline_cache = d->pipeline_cache;
         }
+
+        cmd_upload = new ncnn::VkTransfer(d->vkdev);
+
+        // create gpu device allocator if null
+        if (!d->weight_vkallocator)
+        {
+            d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
+        }
+        if (!d->weight_staging_vkallocator)
+        {
+            d->weight_staging_vkallocator = new VkWeightStagingAllocator(d->vkdev);
+        }
+
+        opt_upload.blob_allocator = 0;
+        opt_upload.workspace_allocator = 0;
+        opt_upload.blob_vkallocator = d->weight_vkallocator;
+        opt_upload.workspace_vkallocator = d->weight_vkallocator;
+        opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
     }
 #endif // NCNN_VULKAN
 
@@ -1593,6 +1840,36 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+
+#if NCNN_VULKAN
+        if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
+        {
+            int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
+            if (uret != 0)
+            {
+#if NCNN_STRING
+                NCNN_LOGE("layer upload_model %d %s failed", i, layer->name.c_str());
+#else
+                NCNN_LOGE("layer upload_model %d failed", i);
+#endif
+                ret = -1;
+                break;
+            }
+
+            // commit as soon as we collect 256M pending
+            if (cmd_upload->pending_upload_total() > 256 * 1024 * 1024)
+            {
+                uret = cmd_upload->submit_and_wait();
+                if (uret != 0)
+                {
+                    ret = -1;
+                    break;
+                }
+
+                cmd_upload->reset();
+            }
+        }
+#endif // NCNN_VULKAN
     }
 
     if (opt.use_local_pool_allocator)
@@ -1616,9 +1893,14 @@ int Net::load_model(const DataReader& dr)
     }
 
 #if NCNN_VULKAN
-    if (ret == 0 && opt.use_vulkan_compute)
+    if (ret == 0 && opt.use_vulkan_compute && cmd_upload)
     {
-        ret = d->upload_model();
+        ret = cmd_upload->submit_and_wait();
+    }
+
+    if (cmd_upload)
+    {
+        delete cmd_upload;
     }
 #endif // NCNN_VULKAN
 
@@ -1653,6 +1935,22 @@ int Net::load_param(const char* protopath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_param(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STRING
 
 int Net::load_param_bin(FILE* fp)
@@ -1675,6 +1973,22 @@ int Net::load_param_bin(const char* protopath)
     return ret;
 }
 
+#if _WIN32
+int Net::load_param_bin(const wchar_t* protopath)
+{
+    FILE* fp = _wfopen(protopath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", protopath);
+        return -1;
+    }
+
+    int ret = load_param_bin(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
+
 int Net::load_model(FILE* fp)
 {
     DataReaderFromStdio dr(fp);
@@ -1683,6 +1997,29 @@ int Net::load_model(FILE* fp)
 
 int Net::load_model(const char* modelpath)
 {
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
     FILE* fp = fopen(modelpath, "rb");
     if (!fp)
     {
@@ -1694,22 +2031,61 @@ int Net::load_model(const char* modelpath)
     fclose(fp);
     return ret;
 }
+
+#if _WIN32
+int Net::load_model(const wchar_t* modelpath)
+{
+#if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+    if (opt.use_mapped_model_loading)
+    {
+        int ret = d->mapped_model_file.open(modelpath);
+        if (ret == 0)
+        {
+            const void* ptr = d->mapped_model_file.mapped_ptr();
+            const size_t size = d->mapped_model_file.size();
+            size_t consumed = load_model((const unsigned char*)ptr);
+            if (consumed != size)
+            {
+                NCNN_LOGE("mapped_file consumed %zu != %zu", consumed, size);
+                d->mapped_model_file.close();
+                return -1;
+            }
+
+            return 0;
+        }
+
+        // fallback to regular file loading
+    }
+#endif // defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
+
+    FILE* fp = _wfopen(modelpath, L"rb");
+    if (!fp)
+    {
+        NCNN_LOGE("_wfopen %ls failed", modelpath);
+        return -1;
+    }
+
+    int ret = load_model(fp);
+    fclose(fp);
+    return ret;
+}
+#endif
 #endif // NCNN_STDIO
 
-int Net::load_param(const unsigned char* _mem)
+size_t Net::load_param(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_param_bin(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
-int Net::load_model(const unsigned char* _mem)
+size_t Net::load_model(const unsigned char* _mem)
 {
     const unsigned char* mem = _mem;
     DataReaderFromMemory dr(mem);
     load_model(dr);
-    return static_cast<int>(mem - _mem);
+    return (size_t)(mem - _mem);
 }
 
 #if NCNN_PLATFORM_API
@@ -1784,6 +2160,9 @@ void Net::clear()
     for (size_t i = 0; i < d->layers.size(); i++)
     {
         Layer* layer = d->layers[i];
+
+        if (!layer)
+            continue;
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 

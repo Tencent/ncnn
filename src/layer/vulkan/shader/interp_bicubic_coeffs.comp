@@ -3,16 +3,16 @@
 
 #version 450
 
-layout (constant_id = 0) const int align_corner = 0;
+layout(constant_id = 0) const int align_corner = 0;
 
 #define shape_constant_id_offset 1
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int outw = 0;
 
-layout (binding = 0) writeonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
-layout (binding = 1) writeonly buffer xofs_blob { int xofs_blob_data[]; };
+layout(binding = 0) writeonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
+layout(binding = 1) writeonly buffer xofs_blob { int xofs_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int outw;
@@ -51,9 +51,9 @@ void main()
         afp fx2 = afp(1.f) - fx;
         // afp fx3 = afp(2.f) - fx;
 
-        coeffs.r = A * fx0*fx0*fx0 - afp(5.f)*A * fx0*fx0 + afp(8.f)*A * fx0 - afp(4.f)*A;
-        coeffs.g = (A+afp(2.f)) * fx1*fx1*fx1 - (A+afp(3.f)) * fx1*fx1 + afp(1.f);
-        coeffs.b = (A+afp(2.f)) * fx2*fx2*fx2 - (A+afp(3.f)) * fx2*fx2 + afp(1.f);
+        coeffs.r = A * fx0 * fx0 * fx0 - afp(5.f) * A * fx0 * fx0 + afp(8.f) * A * fx0 - afp(4.f) * A;
+        coeffs.g = (A + afp(2.f)) * fx1 * fx1 * fx1 - (A + afp(3.f)) * fx1 * fx1 + afp(1.f);
+        coeffs.b = (A + afp(2.f)) * fx2 * fx2 * fx2 - (A + afp(3.f)) * fx2 * fx2 + afp(1.f);
         coeffs.a = afp(1.f) - coeffs.r - coeffs.g - coeffs.b;
     }
 

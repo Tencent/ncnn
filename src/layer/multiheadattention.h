@@ -20,6 +20,8 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+    void resolve_bottom_blob_index(int bottom_blob_count, int& q_blob_i, int& k_blob_i, int& v_blob_i, int& attn_mask_i, int& cached_xk_i, int& cached_xv_i) const;
+
 #if NCNN_INT8
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
@@ -32,6 +34,7 @@ public:
     int vdim;
     int attn_mask;
     float scale;
+    int kv_cache;
 
     int int8_scale_term;
 

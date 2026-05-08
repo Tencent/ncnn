@@ -145,14 +145,6 @@ ln -sf /opt/cmake-3.18.2/bin/* /usr/bin/
 
    [通过MLIR将tensorflow2模型转换到ncnn](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
-- ## Shape not supported yet! Gather not supported yet! Cast not supported yet!
-
-   onnx-simplifier 静态shape
-
-- ## convertmodel
-
-   [https://convertmodel.com/](https://convertmodel.com/) **[@大老师](https://github.com/daquexian)**
-
 - ## netron
 
    [https://github.com/lutzroeder/netron](https://github.com/lutzroeder/netron)

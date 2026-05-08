@@ -126,7 +126,7 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer("ConvolutionDepthWise", pd, weights, a, requant ? 1.0f : 0.001f, 0, flag);
+    int ret = test_layer("ConvolutionDepthWise", pd, weights, a, requant ? 1.0f : 0.001f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, requant, activation_type, activation_params[0], activation_params[1]);

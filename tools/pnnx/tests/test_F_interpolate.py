@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -14,6 +15,9 @@ class Model(nn.Module):
         x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = F.interpolate(x, size=(20), mode='nearest')
         x = F.interpolate(x, scale_factor=(4), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            x = F.interpolate(x, size=12, mode='nearest-exact')
+            x = F.interpolate(x, scale_factor=(3), mode='nearest-exact')
         x = F.interpolate(x, size=16, mode='linear')
         x = F.interpolate(x, scale_factor=2, mode='linear')
         x = F.interpolate(x, size=(24), mode='linear', align_corners=True)
@@ -29,6 +33,9 @@ class Model(nn.Module):
         y = F.interpolate(y, scale_factor=(4,4), mode='nearest')
         y = F.interpolate(y, size=(16,24), mode='nearest')
         y = F.interpolate(y, scale_factor=(2,3), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            y = F.interpolate(y, size=(11,12), mode='nearest-exact')
+            y = F.interpolate(y, scale_factor=(3,2), mode='nearest-exact')
         y = F.interpolate(y, size=16, mode='bilinear')
         y = F.interpolate(y, scale_factor=2, mode='bilinear')
         y = F.interpolate(y, size=(20,20), mode='bilinear', align_corners=False)
@@ -54,6 +61,9 @@ class Model(nn.Module):
         z = F.interpolate(z, scale_factor=(4,4,4), mode='nearest')
         z = F.interpolate(z, size=(16,24,20), mode='nearest')
         z = F.interpolate(z, scale_factor=(2,3,4), mode='nearest')
+        if version.parse(torch.__version__) >= version.parse('1.11'):
+            z = F.interpolate(z, size=(11,12,13), mode='nearest-exact')
+            z = F.interpolate(z, scale_factor=(3,1,2), mode='nearest-exact')
         z = F.interpolate(z, size=16, mode='trilinear')
         z = F.interpolate(z, scale_factor=2, mode='trilinear')
         z = F.interpolate(z, size=(20,20,20), mode='trilinear', align_corners=False)

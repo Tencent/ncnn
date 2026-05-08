@@ -18,6 +18,13 @@ Gemm_riscv::Gemm_riscv()
 #if __riscv_vector
     support_packing = true;
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
     one_blob_only = false;
     support_inplace = false;
 
@@ -1129,7 +1136,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum01 += pA[1] * pB[0];
                 sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
-
                 pA += 2;
                 pB += 2;
             }
@@ -1434,12 +1440,12 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
     TILE_M = std::max(packn, tile_size / packn * packn);
     TILE_N = std::max(packn, tile_size / packn * packn);
-    TILE_K = std::max(8, tile_size / 8 * 8);
+    TILE_K = std::max(packn, tile_size / packn * packn);
 
     if (K > 0)
     {
         int nn_K = (K + TILE_K - 1) / TILE_K;
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + (packn - 1)) / packn * packn);
 
         if (nn_K == 1)
         {
@@ -1481,7 +1487,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
     if (constant_TILE_K > 0)
     {
-        TILE_K = (constant_TILE_K + 7) / 8 * 8;
+        TILE_K = (constant_TILE_K + (packn - 1)) / packn * packn;
     }
 }
 
@@ -1503,7 +1509,11 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -1537,7 +1547,11 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1617,6 +1631,8 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+    if (BT.empty())
+        return -100;
 
     const int nn_NK = nn_N * nn_K;
 
@@ -1647,7 +1663,11 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1708,10 +1728,16 @@ static int gemm_BT_riscv(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blo
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    if (ATX.empty())
+        return -100;
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1790,7 +1816,11 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+    {
         topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+        if (topT.empty())
+            return -100;
+    }
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -1839,22 +1869,21 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
     return 0;
 }
 
-int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    std::vector<Mat> bottom_blobs(1, bottom_blob);
-    std::vector<Mat> top_blobs(1, top_blob);
-    int ret = forward(bottom_blobs, top_blobs, opt);
-    top_blob = top_blobs[0];
-    return ret;
-}
-
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
 #if NCNN_INT8
     if (int8_scale_term)
     {
         support_packing = false;
+        support_fp16_storage = false;
         return 0;
+    }
+#endif
+
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage)
+    {
+        return create_pipeline_fp16s(opt);
     }
 #endif
 
@@ -1951,6 +1980,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         {
             int C_elempack = constantM % packn == 0 ? packn : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __riscv_vector
 
@@ -1959,6 +1990,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -1987,6 +2020,15 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     if (int8_scale_term)
     {
         return Gemm::forward_int8(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
+#if NCNN_ZFH
+    const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
+    int elembits = bottom_blob.elembits();
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+    {
+        return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
 #endif
 
@@ -2082,6 +2124,8 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)

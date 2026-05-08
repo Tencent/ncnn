@@ -14,6 +14,11 @@ public:
     Scale_x86();
 
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
+
+protected:
+#if NCNN_BF16
+    int forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

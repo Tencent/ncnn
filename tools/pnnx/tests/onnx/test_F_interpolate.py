@@ -39,12 +39,16 @@ class Model(nn.Module):
             z3 = F.interpolate(z3, scale_factor=2, mode='trilinear')
 
             w = F.interpolate(w, scale_factor=(2.976744,2.976744), mode='nearest', recompute_scale_factor=False)
+
             return x0, x1, x2, y0, y1, y2, y3, z0, z1, z2, z3, w
         else:
             x = F.interpolate(x, size=16)
             x = F.interpolate(x, scale_factor=2, mode='nearest')
             x = F.interpolate(x, size=(20), mode='nearest')
             x = F.interpolate(x, scale_factor=(4), mode='nearest')
+            if version.parse(torch.__version__) >= version.parse('2.9'):
+                x = F.interpolate(x, size=12, mode='nearest-exact') + 2
+                x = F.interpolate(x, scale_factor=(3), mode='nearest-exact')
             x = F.interpolate(x, size=16, mode='linear')
             x = F.interpolate(x, scale_factor=2, mode='linear')
             x = F.interpolate(x, size=(24), mode='linear', align_corners=True)
@@ -60,6 +64,9 @@ class Model(nn.Module):
             y = F.interpolate(y, scale_factor=(4,4), mode='nearest')
             y = F.interpolate(y, size=(16,24), mode='nearest')
             y = F.interpolate(y, scale_factor=(2,3), mode='nearest')
+            if version.parse(torch.__version__) >= version.parse('2.9'):
+                y = F.interpolate(y, size=(11,12), mode='nearest-exact') + 3
+                y = F.interpolate(y, scale_factor=(3,2), mode='nearest-exact')
             y = F.interpolate(y, size=16, mode='bilinear')
             y = F.interpolate(y, scale_factor=2, mode='bilinear')
             y = F.interpolate(y, size=(20,20), mode='bilinear', align_corners=False)
@@ -86,6 +93,9 @@ class Model(nn.Module):
             z = F.interpolate(z, scale_factor=(4,4,4), mode='nearest')
             z = F.interpolate(z, size=(16,24,20), mode='nearest')
             z = F.interpolate(z, scale_factor=(2,3,4), mode='nearest')
+            if version.parse(torch.__version__) >= version.parse('2.9'):
+                z = F.interpolate(z, size=(11,12,13), mode='nearest-exact') + 4
+                z = F.interpolate(z, scale_factor=(3,1,2), mode='nearest-exact')
             z = F.interpolate(z, size=16, mode='trilinear')
             z = F.interpolate(z, scale_factor=2, mode='trilinear')
             z = F.interpolate(z, size=(20,20,20), mode='trilinear', align_corners=False)

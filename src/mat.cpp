@@ -1331,6 +1331,95 @@ float float16_to_float32(unsigned short value)
     return tmp.f;
 }
 
+unsigned char float16_to_float8(unsigned short value)
+{
+    // 1 : 5 : 10 -> 1 : 4 : 3 (E4M3)
+    unsigned short sign = (value & 0x8000) >> 15;
+    unsigned short exponent = (value & 0x7c00) >> 10;
+    unsigned short significand = value & 0x03FF;
+
+    // 1 : 4 : 3
+    unsigned char fp8;
+    if (exponent == 0)
+    {
+        // zero or denormal, always underflow to zero
+        fp8 = (sign << 7) | (0x0 << 3) | 0x0;
+    }
+    else if (exponent == 0x1F)
+    {
+        // infinity or NaN
+        if (significand == 0)
+        {
+            // infinity -> NaN (E4M3 has no infinity)
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+        else
+        {
+            // NaN -> NaN
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+    }
+    else
+    {
+        // normalized
+        short newexp = exponent + (-15 + 7);
+        if (newexp >= 15)
+        {
+            // overflow, return NaN (E4M3 has no infinity)
+            fp8 = (sign << 7) | (0xF << 3) | 0x7;
+        }
+        else if (newexp <= 0)
+        {
+            // underflow to zero
+            fp8 = (sign << 7) | (0x0 << 3) | 0x0;
+        }
+        else
+        {
+            // normal fp8
+            fp8 = (sign << 7) | (newexp << 3) | (significand >> 7);
+        }
+    }
+
+    return fp8;
+}
+
+unsigned short float8_to_float16(unsigned char value)
+{
+    // 1 : 4 : 3 -> 1 : 5 : 10 (E4M3)
+    unsigned char sign = (value & 0x80) >> 7;
+    unsigned char exponent = (value & 0x78) >> 3;
+    unsigned char significand = value & 0x07;
+
+    // 1 : 5 : 10
+    unsigned short fp16;
+    if (exponent == 0)
+    {
+        if (significand == 0)
+        {
+            // zero
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+        }
+        else
+        {
+            // denormal (should not happen in E4M3, but handle it)
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+        }
+    }
+    else if (exponent == 0xF)
+    {
+        // NaN (E4M3 has no infinity)
+        fp16 = (sign << 15) | (0x1F << 10) | 0x200;
+    }
+    else
+    {
+        // normalized
+        unsigned short newexp = exponent + (-7 + 15);
+        fp16 = (sign << 15) | (newexp << 10) | (significand << 7);
+    }
+
+    return fp16;
+}
+
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt)
 {
     Layer* padding = create_layer(LayerType::Padding);

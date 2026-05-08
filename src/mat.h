@@ -110,12 +110,12 @@ public:
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    void fill(__m512 _v);
+    void fill(const __m512& _v);
 #endif // __AVX512F__
-    void fill(__m256 _v, int i = 0);
+    void fill(const __m256& _v, int i = 0);
 #endif // __AVX__
-    void fill(__m128 _v);
-    void fill(__m128i _v);
+    void fill(const __m128& _v);
+    void fill(const __m128i& _v);
 #endif // __SSE2__
 #if __mips_msa
     void fill(v4f32 _v);
@@ -751,6 +751,24 @@ NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
     tmp.u = value << 16;
     return tmp.f;
 }
+// convert float16 to float8 e4m3
+NCNN_EXPORT unsigned char float16_to_float8(unsigned short value);
+// convert float8 e4m3 to float16
+NCNN_EXPORT unsigned short float8_to_float16(unsigned char value);
+// convert float16 to bfloat8 e5m2
+NCNN_EXPORT NCNN_FORCEINLINE unsigned char float16_to_bfloat8(unsigned short value)
+{
+    // 1 : 5 : 10 -> 1 : 5 : 2
+    // direct truncation for bfloat8 e5m2, similar to bfloat16
+    return value >> 8;
+}
+// convert bfloat8 e5m2 to float16
+NCNN_EXPORT NCNN_FORCEINLINE unsigned short bfloat8_to_float16(unsigned char value)
+{
+    // 1 : 5 : 2 -> 1 : 5 : 10
+    // direct extension for bfloat8 e5m2, similar to bfloat16
+    return value << 8;
+}
 
 // mat process
 enum BorderType
@@ -1007,7 +1025,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m512 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m512& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1018,7 +1036,7 @@ NCNN_FORCEINLINE void Mat::fill(__m512 _v)
     }
 }
 #endif // __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
+NCNN_FORCEINLINE void Mat::fill(const __m256& _v, int _i)
 {
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
@@ -1032,7 +1050,7 @@ NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
     }
 }
 #endif // __AVX__
-NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128& _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1042,7 +1060,7 @@ NCNN_FORCEINLINE void Mat::fill(__m128 _v)
         ptr += 4;
     }
 }
-NCNN_FORCEINLINE void Mat::fill(__m128i _v)
+NCNN_FORCEINLINE void Mat::fill(const __m128i& _v)
 {
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;

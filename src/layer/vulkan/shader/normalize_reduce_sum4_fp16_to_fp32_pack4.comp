@@ -3,13 +3,13 @@
 
 #version 450
 
-layout (constant_id = 0) const int across_spatial = 0;
-layout (constant_id = 1) const int across_channel = 0;
+layout(constant_id = 0) const int across_spatial = 0;
+layout(constant_id = 1) const int across_channel = 0;
 
-layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;

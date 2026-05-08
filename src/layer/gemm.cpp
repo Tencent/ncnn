@@ -305,6 +305,8 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         // transpose A to row-major
         A.create((A0.dims == 3 ? A0.c : A0.h), A0.w, elemsize, opt.workspace_allocator);
+        if (A.empty())
+            return -100;
 
         const size_t A0_hstep = A0.dims == 3 ? A0.cstep : (size_t)A0.w;
 
@@ -323,6 +325,8 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     {
         // transpose B to col-major
         BT.create((B0.dims == 3 ? B0.c : B0.h), B0.w, elemsize, opt.workspace_allocator);
+        if (BT.empty())
+            return -100;
 
         const size_t B0_hstep = B0.dims == 3 ? B0.cstep : (size_t)B0.w;
 
@@ -441,6 +445,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         if (A0.elemsize == 1)
         {
             A.create(A0.h, A0.w, (size_t)1u, 1, opt.workspace_allocator);
+            if (A.empty())
+                return -100;
 
             for (int i = 0; i < A.h; i++)
             {
@@ -454,6 +460,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         else
         {
             A.create(A0.dims == 3 ? A0.c : A0.h, A0.w, (size_t)4u, 1, opt.workspace_allocator);
+            if (A.empty())
+                return -100;
 
             for (int i = 0; i < A.h; i++)
             {
@@ -472,7 +480,11 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (A_int8.elemsize != 1)
     {
         A_int8.create(A.w, A.dims == 3 ? A.c : A.h, (size_t)1u, 1, opt.workspace_allocator);
+        if (A_int8.empty())
+            return -100;
         A_int8_scales.create(A_int8.h, (size_t)4u, 1, opt.workspace_allocator);
+        if (A_int8_scales.empty())
+            return -100;
 
         for (int i = 0; i < A_int8.h; i++)
         {
@@ -503,6 +515,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     if (B0_int8.elemsize != 1)
     {
         B0_int8.create(B0.w, B0.dims == 3 ? B0.c : B0.h, (size_t)1u, 1, opt.workspace_allocator);
+        if (B0_int8.empty())
+            return -100;
 
         float absmax = 0.f;
         for (int i = 0; i < B0_int8.h; i++)
@@ -537,6 +551,8 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     {
         // transpose B to col-major
         BT_int8.create(B0_int8.h, B0_int8.w, (size_t)1u, 1, opt.workspace_allocator);
+        if (BT_int8.empty())
+            return -100;
 
         for (int i = 0; i < BT_int8.h; i++)
         {

@@ -94,12 +94,12 @@ Tensor.size             op_5        1 1 input4.1 168 dim=0
 Tensor.size             op_6        1 1 input4.1 174 dim=1
 prim::Constant          op_7        0 1 658 value=1
 prim::ListConstruct     op_8        3 1 658 168 174 181
-Tensor.view             op_9        2 1 input4.1 181 input5.1
+Tensor.reshape          op_9        2 1 input4.1 181 input5.1
 F.pad                   op_10       1 1 input5.1 input6.1 mode=constant pad=(%pad,%pad) value=0.000000e+00
 Tensor.size             op_11       1 1 input6.1 188 dim=1
 Tensor.size             op_12       1 1 input6.1 194 dim=2
 prim::ListConstruct     op_13       2 1 188 194 201
-Tensor.view             op_14       2 1 input6.1 201 input7.1
+Tensor.reshape          op_14       2 1 input6.1 201 input7.1
 torch.stft              op_15       2 1 input7.1 window spec_f3.1 n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
 Tensor.size             op_16       1 1 spec_f3.1 211 dim=1
 Tensor.size             op_17       1 1 spec_f3.1 217 dim=2
@@ -147,12 +147,12 @@ Tensor.size             op_4        1 1 input17.1 454 dim=0
 Tensor.size             op_5        1 1 input17.1 460 dim=1
 prim::Constant          op_6        0 1 748 value=1
 prim::ListConstruct     op_7        3 1 748 454 460 467
-Tensor.view             op_8        2 1 input17.1 467 input18.1
+Tensor.reshape          op_8        2 1 input17.1 467 input18.1
 F.pad                   op_9        1 1 input18.1 input19.1 mode=constant pad=(%pad,%pad) value=0.000000e+00
 Tensor.size             op_10       1 1 input19.1 473 dim=1
 Tensor.size             op_11       1 1 input19.1 479 dim=2
 prim::ListConstruct     op_12       2 1 473 479 486
-Tensor.view             op_13       2 1 input19.1 486 input20.1
+Tensor.reshape          op_13       2 1 input19.1 486 input20.1
 torch.stft              op_14       2 1 input20.1 window spec_f12.1 n_fft=%n_fft hop_length=%hop_length win_length=%win_length normalized=%normalized center=%center pad_mode=%pad_mode onesided=%onesided return_complex=True
 Tensor.size             op_15       1 1 spec_f12.1 495 dim=1
 Tensor.size             op_16       1 1 spec_f12.1 501 dim=2

@@ -34,17 +34,14 @@ void fuse_multiheadattention_sameqkv(Graph& graph)
         {
             op->inputs.resize(1);
 
-            op->inputnames.resize(1);
-            op->inputnames[0] = "input";
+            op->inputnames = {"input"};
         }
         else // if (input_count == 4)
         {
             op->inputs[1] = op->inputs[3];
             op->inputs.resize(2);
 
-            op->inputnames.resize(2);
-            op->inputnames[0] = "input";
-            op->inputnames[1] = "attn_mask";
+            op->inputnames = {"input", "attn_mask"};
         }
 
         // reset consumer references to 1

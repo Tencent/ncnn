@@ -125,6 +125,7 @@ public:
     int quantize_embed();
     int quantize_gemm();
     int quantize_multiheadattention();
+    int quantize_sdpa();
 
     int fuse_requantize();
 };
@@ -149,7 +150,7 @@ int NetQuantize::quantize_convolution()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -207,7 +208,7 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -269,7 +270,7 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        snprintf(key, 256, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -842,6 +843,25 @@ int NetQuantize::quantize_multiheadattention()
     return 0;
 }
 
+int NetQuantize::quantize_sdpa()
+{
+    for (size_t i = 0; i < layers.size(); i++)
+    {
+        if (layers[i]->type != "SDPA")
+            continue;
+
+        ncnn::SDPA* sdpa = (ncnn::SDPA*)layers[i];
+
+        fprintf(stderr, "quantize_sdpa %s\n", sdpa->name.c_str());
+
+        // TODO move to ncnn2table
+
+        sdpa->int8_scale_term = 2;
+    }
+
+    return 0;
+}
+
 int NetQuantize::fuse_requantize()
 {
     const size_t layer_count = layers.size();
@@ -1093,6 +1113,7 @@ int main(int argc, char** argv)
     quantizer.quantize_embed();
     quantizer.quantize_gemm();
     quantizer.quantize_multiheadattention();
+    quantizer.quantize_sdpa();
 
     quantizer.fuse_requantize();
 

@@ -7,13 +7,13 @@ namespace pnnx {
 
 namespace onnx2pnnx {
 
-void fold_constants(onnx::ModelProto& model,
+void fold_constants(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                     const std::vector<std::vector<int64_t> >& input_shapes,
                     const std::vector<std::string>& input_types,
                     const std::vector<std::vector<int64_t> >& input_shapes2,
                     const std::vector<std::string>& input_types2);
 
-void fold_constants_dynamic_shape(onnx::ModelProto& model,
+void fold_constants_dynamic_shape(onnx::ModelProto& model, const std::string& external_data_path, const std::vector<unsigned char>& external_data,
                                   const std::vector<std::vector<int64_t> >& input_shapes,
                                   const std::vector<std::string>& input_types);
 

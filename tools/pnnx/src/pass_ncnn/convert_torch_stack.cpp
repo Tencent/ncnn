@@ -40,12 +40,14 @@ void convert_torch_stack(Graph& graph)
                 axis = input_rank + 1 + axis;
             }
 
+            bool stack_inner_most = axis == input_rank;
+
             if (axis > batch_index)
                 axis -= 1;
 
             op->params["0"] = axis;
 
-            if (axis == input_rank)
+            if (stack_inner_most)
             {
                 // stack -> reshape(x,y,..,1) + concat
                 // reshape for input, expand the stack dim
@@ -89,7 +91,12 @@ void convert_torch_stack(Graph& graph)
                 std::vector<int> shape = op->inputs[0]->shape;
                 if (shape.size() != 0)
                 {
-                    shape[op->params.at("dim").i] *= op->inputs.size();
+                    int axis0 = op->params.at("dim").i;
+                    if (axis0 < 0)
+                    {
+                        axis0 = shape.size() + axis0;
+                    }
+                    shape[axis0] *= op->inputs.size();
                     reshape_in->shape = shape;
                 }
                 reshape_in->params["__batch_index"] = batch_index;

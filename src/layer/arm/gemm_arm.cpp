@@ -4357,6 +4357,8 @@ int Gemm_arm::create_pipeline(const Option& opt)
         {
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __ARM_NEON
 
@@ -4365,6 +4367,8 @@ int Gemm_arm::create_pipeline(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -4513,6 +4517,8 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
@@ -5079,6 +5085,8 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
         {
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
+            if (CT_data.empty())
+                return -100;
         }
 #endif // __ARM_NEON
 
@@ -5087,6 +5095,8 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
         {
             Mat C2;
             C2.create_like(CT_data);
+            if (C2.empty())
+                return -100;
 
             const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
@@ -5200,9 +5210,15 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
             // cast to fp32
             {
-                Mat CT_data;
-                cast_bfloat16_to_float32(C, CT_data);
-                C = CT_data;
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
+                Mat C_fp32;
+                cast_bfloat16_to_float32(C, C_fp32, opt_cast);
+                if (C_fp32.empty())
+                    return -100;
+
+                C = C_fp32;
             }
 
             // pre-multiply C with beta
@@ -5210,6 +5226,8 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 Mat CT_data;
                 CT_data.create_like(C, opt.workspace_allocator);
+                if (CT_data.empty())
+                    return -100;
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
@@ -6191,7 +6209,7 @@ int Gemm_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         int outh = output_transpose ? N : M;
         out_elempack = outh % 4 == 0 ? 4 : 1;
 #if NCNN_ARM82
-        if (cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+        if (cpu_support_arm_asimdhp() && opt.use_fp16_storage && opt.use_fp16_arithmetic)
         {
             // TODO use output_elemtype
             out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;

@@ -136,34 +136,9 @@ protected:
     std::unordered_map<std::string, int> initializers;
 };
 
-class FuseFunctionPass
-{
-public:
-    virtual ~FuseFunctionPass();
-
-    virtual const char* match_type_str() const = 0;
-
-    virtual const char* type_str() const = 0;
-
-    virtual void write(Operator* op, const OnnxFunctionProxy& function) const;
-};
-
-class FuseFunctionPassRegister
-{
-public:
-    FuseFunctionPassRegister(const FuseFunctionPass* pass);
-    ~FuseFunctionPassRegister();
-    const FuseFunctionPass* pass;
-};
-
-const std::vector<const FuseFunctionPass*>& get_global_pnnx_fuse_function_passes();
-
-#define REGISTER_GLOBAL_PNNX_FUSE_FUNCTION_PASS(CLASS) \
-    static FuseFunctionPassRegister g_global_pnnx_fusefunctionpass_##CLASS##_register(new CLASS);
-
 } // namespace onnx2pnnx
 
-void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph);
+void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& external_data, Graph& pnnx_graph);
 
 } // namespace pnnx
 

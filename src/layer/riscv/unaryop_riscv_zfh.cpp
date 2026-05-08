@@ -236,7 +236,7 @@ struct unary_op_tan_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        // TODO rvv optimize
+#if __riscv_xtheadvector
         std::vector<__fp16> tmp(vl);
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
@@ -244,6 +244,11 @@ struct unary_op_tan_fp16s
             tmp[i] = (__fp16)tanf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
+#else
+        vfloat16m8_t sin_x, cos_x;
+        sincos_ps(x, &sin_x, &cos_x, vl);
+        return __riscv_vfdiv_vv_f16m8(sin_x, cos_x, vl);
+#endif
     }
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const

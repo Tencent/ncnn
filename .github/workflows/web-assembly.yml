@@ -34,7 +34,7 @@ jobs:
   webassembly:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: emsdk
       run: |
         git clone https://github.com/emscripten-core/emsdk.git

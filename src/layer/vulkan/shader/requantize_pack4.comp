@@ -3,31 +3,31 @@
 
 #version 450
 
-#extension GL_GOOGLE_include_directive: enable
+#extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
-layout (constant_id = 0) const int scale_in_data_size = 0;
-layout (constant_id = 1) const float scale_in_value = 1.f;
-layout (constant_id = 2) const int scale_out_data_size = 0;
-layout (constant_id = 3) const float scale_out_value = 1.f;
-layout (constant_id = 4) const int bias_data_size = 0;
-layout (constant_id = 5) const float bias_value = 0.f;
-layout (constant_id = 6) const int activation_type = 0;
-layout (constant_id = 7) const float activation_param_0 = 0;
-layout (constant_id = 8) const float activation_param_1 = 0;
+layout(constant_id = 0) const int scale_in_data_size = 0;
+layout(constant_id = 1) const float scale_in_value = 1.f;
+layout(constant_id = 2) const int scale_out_data_size = 0;
+layout(constant_id = 3) const float scale_out_value = 1.f;
+layout(constant_id = 4) const int bias_data_size = 0;
+layout(constant_id = 5) const float bias_value = 0.f;
+layout(constant_id = 6) const int activation_type = 0;
+layout(constant_id = 7) const float activation_param_0 = 0;
+layout(constant_id = 8) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 9
-layout (constant_id = shape_constant_id_offset + 0) const uint c = 0;
-layout (constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
-layout (constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
+layout(constant_id = shape_constant_id_offset + 0) const uint c = 0;
+layout(constant_id = shape_constant_id_offset + 1) const uint in_stride = 0;
+layout(constant_id = shape_constant_id_offset + 2) const uint out_stride = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { ivec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sint8vec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer scale_in_blob { sfpvec4 scale_in_blob_data[]; };
-layout (binding = 3) readonly buffer scale_out_blob { sfpvec4 scale_out_blob_data[]; };
-layout (binding = 4) readonly buffer bias_blob { sfpvec4 bias_blob_data[]; };
+layout(binding = 0) readonly buffer bottom_blob { ivec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sint8vec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer scale_in_blob { sfpvec4 scale_in_blob_data[]; };
+layout(binding = 3) readonly buffer scale_out_blob { sfpvec4 scale_out_blob_data[]; };
+layout(binding = 4) readonly buffer bias_blob { sfpvec4 bias_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     uint c;
     uint in_stride;
