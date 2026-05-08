@@ -10,11 +10,10 @@
 #include <stdio.h>
 #include <vector>
 
-static const char* test_param =
-    "7767517\n"
-    "2 2\n"
-    "Input    input0    0   1   input0\n"
-    "Sigmoid  sigmoid0  1   1   input0    output0\n";
+static const char* test_param = "7767517\n"
+                                "2 2\n"
+                                "Input    input0    0   1   input0\n"
+                                "Sigmoid  sigmoid0  1   1   input0    output0\n";
 
 static int test_pipeline_cache_memory()
 {
