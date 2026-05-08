@@ -102,26 +102,26 @@ static const layer_shader_registry_entry layer_shader_registry[] = {
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
-static uint32_t fnv1a_32_update(uint32_t h, const unsigned char* data, int size)
+static uint64_t fnv1a_64_update(uint64_t h, const unsigned char* data, int size)
 {
     for (int i = 0; i < size; i++)
     {
-        h ^= (uint32_t)data[i];
-        h *= 0x01000193;
+        h ^= (uint64_t)data[i];
+        h *= 0x00000100000001b3ull;
     }
 
     return h;
 }
 
-uint32_t get_shader_source_hash(int shader_type_index)
+uint64_t get_shader_source_hash(int shader_type_index)
 {
     if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
         return 0;
 
     const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
-    uint32_t h = 0x811c9dc5;
-    h = fnv1a_32_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
-    h = fnv1a_32_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+    uint64_t h = 0xcbf29ce484222325ull;
+    h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
     return h;
 }
 

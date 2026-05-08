@@ -185,6 +185,30 @@ pipeline_cache2.load_cache(cache_data);
 
 The `FILE*` and path helpers are available when `NCNN_STDIO` is enabled.
 
+The C api exposes the same ownership model through `ncnn_pipelinecache_t`.
+
+```c
+int device_index = 0;
+
+ncnn_pipelinecache_t pipeline_cache = ncnn_pipelinecache_create(device_index);
+ncnn_pipelinecache_load(pipeline_cache, "model.ncnn.vkcache");
+
+ncnn_net_t net = ncnn_net_create();
+ncnn_net_set_vulkan_device(net, device_index);
+
+ncnn_option_t opt = ncnn_net_get_option(net);
+ncnn_option_set_use_vulkan_compute(opt, 1);
+ncnn_option_set_pipeline_cache(opt, pipeline_cache);
+
+ncnn_net_load_param(net, "model.param");
+ncnn_net_load_model(net, "model.bin");
+
+ncnn_pipelinecache_save(pipeline_cache, "model.ncnn.vkcache");
+
+ncnn_net_destroy(net);
+ncnn_pipelinecache_destroy(pipeline_cache);
+```
+
 ## best practice
 
 ### use the same vulkan device
@@ -251,7 +275,7 @@ Use `load_cache()` and `save_cache()` only. If the file is rejected, rebuild it.
 
 ### avoid concurrent writers
 
-Saving by path writes a temporary file and replaces the destination. This avoids partially written cache files, but it does not coordinate multiple processes.
+Saving by path writes a unique temporary file and replaces the destination. This avoids partially written cache files, but it does not serialize the final replace among multiple processes.
 
 If several processes may run the same model at the same time, let only one process write the cache file, or write to separate files.
 

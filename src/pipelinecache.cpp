@@ -6,16 +6,28 @@
 #include "gpu.h"
 
 #include <limits.h>
+#include <string>
 #include <string.h>
 
 #if NCNN_STDIO
 #include <stdio.h>
+#if defined(_WIN32)
+#include <process.h>
+#include <wchar.h>
+#else
+#include <unistd.h>
+#endif
 #endif
 
 namespace ncnn {
 
 #if NCNN_VULKAN
-uint32_t get_shader_source_hash(int shader_type_index);
+#define NCNN_PIPELINE_CACHE_FILE_MAGIC 0x5a545546
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 1
+#define NCNN_PIPELINE_CACHE_FILE_ENDIAN 0x12345678
+#define NCNN_PIPELINE_CACHE_NCNN_VERSION NCNN_VERSION_NUMBER
+
+uint64_t get_shader_source_hash(int shader_type_index);
 
 // https://en.wikipedia.org/wiki/MurmurHash
 static uint32_t murmur3_32(const uint32_t* data, int size)
@@ -158,19 +170,20 @@ public:
     {
         int32_t shader_type_index;
         uint32_t opt_bits;
-        uint32_t shader_source_hash;
+        uint64_t shader_source_hash;
         uint32_t spv_size;
         uint32_t spv_hash_fnv1a;
         uint32_t spv_hash_murmur3;
-        uint32_t reserved[2];
+        uint32_t reserved[1];
     };
 
     struct spirv_cache_entry
     {
         int shader_type_index;
         uint32_t opt_bits;
-        uint32_t shader_source_hash;
+        uint64_t shader_source_hash;
         std::vector<uint32_t> spirv;
+        ShaderInfo shader_info;
     };
 
     mutable std::vector<pipeline_cache_digest> cache_digests;
@@ -179,30 +192,6 @@ public:
     mutable VkPipelineCache vk_pipeline_cache;
     mutable Mutex cache_lock;
 };
-
-static uint32_t cache_file_magic()
-{
-    return 'N' | ('C' << 8) | ('P' << 16) | ('C' << 24);
-}
-
-static uint32_t cache_file_version()
-{
-    return 1;
-}
-
-static uint32_t cache_file_endian()
-{
-    return 0x12345678;
-}
-
-static uint32_t current_ncnn_version()
-{
-#ifdef NCNN_VERSION_NUMBER
-    return NCNN_VERSION_NUMBER;
-#else
-    return 0;
-#endif
-}
 
 static uint32_t hash_string(const char* s)
 {
@@ -214,6 +203,7 @@ static uint32_t hash_string(const char* s)
 
 static uint32_t encode_spirv_cache_opt_bits(const Option& opt)
 {
+    // Bump NCNN_PIPELINE_CACHE_FILE_VERSION if this bit layout changes.
     return 0
            | (uint32_t)opt.use_bf16_packed << 0
            | (uint32_t)opt.use_bf16_storage << 1
@@ -288,11 +278,11 @@ static void fill_cache_file_header(PipelineCachePrivate::cache_file_header& head
 {
     memset(&header, 0, sizeof(header));
 
-    header.magic = cache_file_magic();
-    header.version = cache_file_version();
+    header.magic = NCNN_PIPELINE_CACHE_FILE_MAGIC;
+    header.version = NCNN_PIPELINE_CACHE_FILE_VERSION;
     header.header_size = sizeof(PipelineCachePrivate::cache_file_header);
-    header.ncnn_version = current_ncnn_version();
-    header.endian = cache_file_endian();
+    header.ncnn_version = NCNN_PIPELINE_CACHE_NCNN_VERSION;
+    header.endian = NCNN_PIPELINE_CACHE_FILE_ENDIAN;
     header.pointer_size = sizeof(void*);
 
     header.vendor_id = vkdev->info.vendor_id();
@@ -309,15 +299,15 @@ static void fill_cache_file_header(PipelineCachePrivate::cache_file_header& head
 
 static bool validate_cache_file_header(const PipelineCachePrivate::cache_file_header& header, const VulkanDevice* vkdev)
 {
-    if (header.magic != cache_file_magic())
+    if (header.magic != NCNN_PIPELINE_CACHE_FILE_MAGIC)
         return false;
-    if (header.version != cache_file_version())
+    if (header.version != NCNN_PIPELINE_CACHE_FILE_VERSION)
         return false;
     if (header.header_size != sizeof(PipelineCachePrivate::cache_file_header))
         return false;
-    if (header.ncnn_version != current_ncnn_version())
+    if (header.ncnn_version != NCNN_PIPELINE_CACHE_NCNN_VERSION)
         return false;
-    if (header.endian != cache_file_endian())
+    if (header.endian != NCNN_PIPELINE_CACHE_FILE_ENDIAN)
         return false;
     if (header.pointer_size != sizeof(void*))
         return false;
@@ -375,6 +365,9 @@ static int ensure_vk_pipeline_cache(const VulkanDevice* vkdev, PipelineCachePriv
 }
 
 #if NCNN_STDIO
+static Mutex g_tmp_path_lock;
+static unsigned int g_tmp_path_index = 0;
+
 static int replace_file(const char* tmp_path, const char* path)
 {
 #if defined(_WIN32)
@@ -383,6 +376,13 @@ static int replace_file(const char* tmp_path, const char* path)
     return rename(tmp_path, path);
 #endif
 }
+
+#if defined(_WIN32)
+static int replace_file(const wchar_t* tmp_path, const wchar_t* path)
+{
+    return MoveFileExW(tmp_path, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+}
+#endif
 #endif // NCNN_STDIO
 
 PipelineCachePrivate::pipeline_cache_digest::pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
@@ -543,31 +543,29 @@ int PipelineCache::save_cache(std::vector<unsigned char>& data) const
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkGetPipelineCacheData failed %d", ret);
-            return -1;
         }
-
-        if (pipeline_cache_size > UINT_MAX || pipeline_cache_size > INT_MAX)
+        else if (pipeline_cache_size > UINT_MAX || pipeline_cache_size > INT_MAX)
         {
             NCNN_LOGE("vulkan pipeline cache data too large");
-            return -1;
         }
-
-        pipeline_cache_data.resize(pipeline_cache_size);
-        if (pipeline_cache_size > 0)
+        else if (pipeline_cache_size > 0)
         {
+            pipeline_cache_data.resize(pipeline_cache_size);
             ret = vkGetPipelineCacheData(vkdev->vkdevice(), d->vk_pipeline_cache, &pipeline_cache_size, pipeline_cache_data.data());
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkGetPipelineCacheData failed %d", ret);
-                return -1;
+                pipeline_cache_data.clear();
             }
-
-            pipeline_cache_data.resize(pipeline_cache_size);
-
-            if (!validate_vk_pipeline_cache_data(pipeline_cache_data.data(), pipeline_cache_data.size(), vkdev))
+            else
             {
-                NCNN_LOGE("vulkan pipeline cache data validation failed");
-                return -1;
+                pipeline_cache_data.resize(pipeline_cache_size);
+
+                if (!validate_vk_pipeline_cache_data(pipeline_cache_data.data(), pipeline_cache_data.size(), vkdev))
+                {
+                    NCNN_LOGE("vulkan pipeline cache data validation failed");
+                    pipeline_cache_data.clear();
+                }
             }
         }
     }
@@ -686,6 +684,7 @@ int PipelineCache::load_cache(const unsigned char* data, size_t size) const
         entry.opt_bits = entry_header.opt_bits;
         entry.shader_source_hash = entry_header.shader_source_hash;
         entry.spirv = spirv;
+        entry.shader_info = si;
         cache_spirv_entries.push_back(entry);
     }
 
@@ -743,7 +742,25 @@ int PipelineCache::load_cache(const unsigned char* data, size_t size) const
         }
     }
 
-    d->cache_spirv_entries = cache_spirv_entries;
+    for (size_t i = 0; i < cache_spirv_entries.size(); i++)
+    {
+        const PipelineCachePrivate::spirv_cache_entry& entry = cache_spirv_entries[i];
+
+        bool updated = false;
+        for (size_t j = 0; j < d->cache_spirv_entries.size(); j++)
+        {
+            PipelineCachePrivate::spirv_cache_entry& old_entry = d->cache_spirv_entries[j];
+            if (old_entry.shader_type_index != entry.shader_type_index || old_entry.opt_bits != entry.opt_bits)
+                continue;
+
+            old_entry = entry;
+            updated = true;
+            break;
+        }
+
+        if (!updated)
+            d->cache_spirv_entries.push_back(entry);
+    }
 
     return 0;
 }
@@ -768,6 +785,9 @@ int PipelineCache::save_cache(FILE* fp) const
         return ret;
 
     if (fwrite(data.data(), 1, data.size(), fp) != data.size())
+        return -1;
+
+    if (fflush(fp) != 0)
         return -1;
 
     return 0;
@@ -807,7 +827,19 @@ int PipelineCache::save_cache(const char* path) const
     if (ret != 0)
         return ret;
 
-    std::string tmp_path = std::string(path) + ".tmp";
+    std::string tmp_path;
+    {
+        MutexLockGuard lock(g_tmp_path_lock);
+
+        char tmp_path_suffix[64];
+#if defined(_WIN32)
+        snprintf(tmp_path_suffix, sizeof(tmp_path_suffix), ".tmp.%u.%u", (unsigned int)_getpid(), ++g_tmp_path_index);
+#else
+        snprintf(tmp_path_suffix, sizeof(tmp_path_suffix), ".tmp.%u.%u", (unsigned int)getpid(), ++g_tmp_path_index);
+#endif
+        tmp_path = std::string(path) + tmp_path_suffix;
+    }
+
     FILE* fp = fopen(tmp_path.c_str(), "wb");
     if (!fp)
         return -1;
@@ -848,6 +880,68 @@ int PipelineCache::load_cache(const char* path) const
 
     return ret;
 }
+
+#if defined(_WIN32)
+int PipelineCache::save_cache(const wchar_t* path) const
+{
+    if (!path)
+        return -1;
+
+    std::vector<unsigned char> data;
+    int ret = save_cache(data);
+    if (ret != 0)
+        return ret;
+
+    std::wstring tmp_path;
+    {
+        MutexLockGuard lock(g_tmp_path_lock);
+
+        wchar_t tmp_path_suffix[64];
+        swprintf(tmp_path_suffix, sizeof(tmp_path_suffix) / sizeof(wchar_t), L".tmp.%u.%u", (unsigned int)_getpid(), ++g_tmp_path_index);
+        tmp_path = std::wstring(path) + tmp_path_suffix;
+    }
+
+    FILE* fp = _wfopen(tmp_path.c_str(), L"wb");
+    if (!fp)
+        return -1;
+
+    if (fwrite(data.data(), 1, data.size(), fp) != data.size())
+    {
+        fclose(fp);
+        _wremove(tmp_path.c_str());
+        return -1;
+    }
+
+    if (fclose(fp) != 0)
+    {
+        _wremove(tmp_path.c_str());
+        return -1;
+    }
+
+    if (replace_file(tmp_path.c_str(), path) != 0)
+    {
+        _wremove(tmp_path.c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+int PipelineCache::load_cache(const wchar_t* path) const
+{
+    if (!path)
+        return -1;
+
+    FILE* fp = _wfopen(path, L"rb");
+    if (!fp)
+        return -1;
+
+    int ret = load_cache(fp);
+    fclose(fp);
+
+    return ret;
+}
+#endif // defined(_WIN32)
 #endif // NCNN_STDIO
 
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
@@ -1016,8 +1110,9 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
                                         VkShaderModule* _shader_module, ShaderInfo& si) const
 {
     std::vector<uint32_t> spirv;
+    const std::vector<uint32_t>* spirv_ptr = 0;
     const uint32_t opt_bits = encode_spirv_cache_opt_bits(opt);
-    const uint32_t shader_source_hash = get_shader_source_hash(shader_type_index);
+    const uint64_t shader_source_hash = get_shader_source_hash(shader_type_index);
     const bool use_spirv_cache = shader_source_hash != 0 && can_cache_spirv(vkdev, opt);
 
     if (use_spirv_cache)
@@ -1028,17 +1123,28 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
             if (entry.shader_type_index != shader_type_index || entry.opt_bits != opt_bits || entry.shader_source_hash != shader_source_hash)
                 continue;
 
-            spirv = entry.spirv;
+            spirv_ptr = &entry.spirv;
+            si = entry.shader_info;
             break;
         }
     }
 
-    if (spirv.empty())
+    if (!spirv_ptr)
     {
         int retc = compile_spirv_module(shader_type_index, opt, spirv);
         if (retc != 0)
         {
             NCNN_LOGE("compile_spirv_module failed %d", retc);
+            return -1;
+        }
+
+        const uint32_t* spv_data = spirv.data();
+        size_t spv_data_size = spirv.size() * 4;
+
+        int ret = resolve_shader_info(spv_data, spv_data_size, si);
+        if (ret != 0)
+        {
+            NCNN_LOGE("resolve_shader_info failed %d", ret);
             return -1;
         }
 
@@ -1049,6 +1155,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
             entry.opt_bits = opt_bits;
             entry.shader_source_hash = shader_source_hash;
             entry.spirv = spirv;
+            entry.shader_info = si;
 
             bool updated = false;
             for (size_t i = 0; i < d->cache_spirv_entries.size(); i++)
@@ -1065,17 +1172,12 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
             if (!updated)
                 d->cache_spirv_entries.push_back(entry);
         }
+
+        spirv_ptr = &spirv;
     }
 
-    const uint32_t* spv_data = spirv.data();
-    size_t spv_data_size = spirv.size() * 4;
-
-    int ret = resolve_shader_info(spv_data, spv_data_size, si);
-    if (ret != 0)
-    {
-        NCNN_LOGE("resolve_shader_info failed %d", ret);
-        return -1;
-    }
+    const uint32_t* spv_data = spirv_ptr->data();
+    size_t spv_data_size = spirv_ptr->size() * 4;
 
     VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 

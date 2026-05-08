@@ -10,6 +10,14 @@
 #include <stdio.h>
 #include <vector>
 
+#if NCNN_STDIO
+#if defined(_WIN32)
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+#endif
+
 static const char* test_param = "7767517\n"
                                 "2 2\n"
                                 "Input    input0    0   1   input0\n"
@@ -135,7 +143,12 @@ static int test_pipeline_cache_memory()
 #if NCNN_STDIO
 static int test_pipeline_cache_file()
 {
-    const char* cache_path = "test_pipeline_cache.bin";
+    char cache_path[256];
+#if defined(_WIN32)
+    snprintf(cache_path, sizeof(cache_path), "test_pipeline_cache.%u.bin", (unsigned int)_getpid());
+#else
+    snprintf(cache_path, sizeof(cache_path), "test_pipeline_cache.%u.bin", (unsigned int)getpid());
+#endif
 
     ncnn::Mat input = RandomMat(8, 8);
     ncnn::Mat output0;

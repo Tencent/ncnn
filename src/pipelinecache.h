@@ -38,6 +38,10 @@ public:
     int load_cache(FILE* fp) const;
     int save_cache(const char* path) const;
     int load_cache(const char* path) const;
+#if _WIN32
+    int save_cache(const wchar_t* path) const;
+    int load_cache(const wchar_t* path) const;
+#endif // _WIN32
 #endif // NCNN_STDIO
 
     int get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
