@@ -141,6 +141,9 @@ static inline float32x4_t exp_ps(float32x4_t x)
     fx = VFMAQ_F32(vdupq_n_f32(0.5f), x, vdupq_n_f32(c_cephes_LOG2EF));
 
     /* perform a floorf */
+#if defined(__aarch64__)
+    fx = vrndmq_f32(fx);
+#else
     tmp = vcvtq_f32_s32(vcvtq_s32_f32(fx));
 
     /* if greater, substract 1 */
@@ -148,6 +151,7 @@ static inline float32x4_t exp_ps(float32x4_t x)
     mask = vandq_u32(mask, vreinterpretq_u32_f32(one));
 
     fx = vsubq_f32(tmp, vreinterpretq_f32_u32(mask));
+#endif
 
     tmp = vmulq_f32(fx, vdupq_n_f32(c_cephes_exp_C1));
     float32x4_t z = vmulq_f32(fx, vdupq_n_f32(c_cephes_exp_C2));
