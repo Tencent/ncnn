@@ -460,6 +460,11 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = pp * 8;
 
+            #ifdef _MSC_VER
+            __declspec(align(32))
+            #else
+            __attribute__((aligned(32)))
+            #endif
             float sums[8] = {0.0f};
             if (bias_data_ptr)
             {
@@ -586,7 +591,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
             }
 
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-            __m256 _sums_f = _mm256_loadu_ps(sums);
+            __m256 _sums_f = _mm256_load_ps(sums);
             _sums = _mm256_add_ps(_sums_f, _sums);
             _sums = activation_avx(_sums, activation_type, activation_params);
 
@@ -606,6 +611,11 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
         {
             int p = remain_outw_start + (pp * 4);
 
+            #ifdef _MSC_VER
+            __declspec(align(16))
+            #else
+            __attribute__((aligned(16)))
+            #endif
             float sums[4] = {0.0f};
             if (bias_data_ptr)
             {
@@ -715,7 +725,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 w3++;
             }
 
-            __m128 _sums = _mm_loadu_ps(sums);
+            __m128 _sums = _mm_load_ps(sums);
 #if __AVX__
             _sums = _mm_add_ps(HorizontalSums(_sum0, _sum1, _sum2, _sum3), _sums);
 #endif
