@@ -27,7 +27,7 @@ public:
     void set_local_size_xyz(int w, int h, int c);
     void set_subgroup_size(uint32_t subgroup_size);
 
-    int create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations);
+    int create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations, uint32_t fast_math_flag = 0);
 
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
