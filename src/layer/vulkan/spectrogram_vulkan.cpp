@@ -4,8 +4,6 @@
 #include "spectrogram_vulkan.h"
 
 #include "layer_shader_type.h"
-#include "layer_type.h"
-
 #include <math.h>
 
 namespace ncnn {
@@ -19,34 +17,12 @@ Spectrogram_vulkan::Spectrogram_vulkan()
 
     n_freq = 0;
 
-    padding = 0;
-
     pipeline_spectrogram_packed = 0;
 }
 
 int Spectrogram_vulkan::create_pipeline(const Option& opt)
 {
     n_freq = onesided ? (n_fft / 2 + 1) : n_fft;
-
-    padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
-    padding->vkdev = vkdev;
-    {
-        ncnn::ParamDict pd;
-
-        const int pad = center ? n_fft / 2 : 0;
-        pd.set(0, 0);
-        pd.set(1, 0);
-        pd.set(2, pad);
-        pd.set(3, pad);
-        pd.set(4, pad_type);
-        pd.set(5, 0.f);
-        pd.set(7, 0);
-        pd.set(8, 0);
-
-        padding->load_param(pd);
-        padding->load_model(ModelBinFromMatArray(0));
-        padding->create_pipeline(opt);
-    }
 
     int out_elempack = 1;
     if (opt.use_packing_layout && n_freq % 4 == 0)
@@ -106,15 +82,8 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Spectrogram_vulkan::destroy_pipeline(const Option& opt)
+int Spectrogram_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    if (padding)
-    {
-        padding->destroy_pipeline(opt);
-        delete padding;
-        padding = 0;
-    }
-
     delete pipeline_spectrogram_packed;
     pipeline_spectrogram_packed = 0;
 
@@ -123,8 +92,6 @@ int Spectrogram_vulkan::destroy_pipeline(const Option& opt)
 
 int Spectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (padding) padding->upload_model(cmd, opt);
-
     cmd.record_upload(basis_data_packed, basis_data_gpu, opt);
     cmd.record_upload(basis_imag_data_packed, basis_imag_data_gpu, opt);
 
@@ -136,19 +103,9 @@ int Spectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    VkMat x = bottom_blob;
-
-    if (center)
-    {
-        VkMat xpad;
-        int retp = padding->forward(x, xpad, cmd, opt);
-        if (retp != 0)
-            return retp;
-        x = xpad;
-    }
-
-    const int size = x.w * x.elempack;
-    const int frames = (size - n_fft) / hoplen + 1;
+    const int size = bottom_blob.w * bottom_blob.elempack;
+    const int pad = center ? n_fft / 2 : 0;
+    const int frames = (size + 2 * pad - n_fft) / hoplen + 1;
     if (frames <= 0)
         return -100;
 
@@ -176,18 +133,20 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
 
     std::vector<VkMat> bindings(6);
-    bindings[0] = x;
+    bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = x;
+    bindings[2] = bottom_blob;
     bindings[3] = top_blob;
     bindings[4] = basis_data_gpu;
     bindings[5] = basis_imag_data_gpu;
 
-    std::vector<vk_constant_type> constants(4);
+    std::vector<vk_constant_type> constants(6);
     constants[0].i = frames;
     constants[1].i = n_freq;
-    constants[2].i = x.w * x.elempack;
+    constants[2].i = size;
     constants[3].i = top_row_stride;
+    constants[4].i = center;
+    constants[5].i = pad_type;
 
     VkMat dispatcher;
     dispatcher.w = frames;

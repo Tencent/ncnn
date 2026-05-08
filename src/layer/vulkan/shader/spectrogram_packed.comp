@@ -18,6 +18,8 @@ layout(push_constant) uniform parameter
     int n_freq;
     int in_w;
     int top_row_stride;
+    int center;
+    int pad_type;
 } p;
 
 void main()
@@ -31,10 +33,55 @@ void main()
     afpvec4 re4 = afpvec4(0.0f);
     afpvec4 im4 = afpvec4(0.0f);
 
+    int pad = n_fft / 2;
+
     for (int k = 0; k < n_fft; k++)
     {
         int idx = t * hoplen + k;
-        afp v = buffer_ld1(bottom_blob_data_1, idx);
+        afp v;
+
+        if (p.center == 0)
+        {
+            v = buffer_ld1(bottom_blob_data_1, idx);
+        }
+        else
+        {
+            int orig_idx = idx - pad;
+            if (orig_idx < 0)
+            {
+                if (p.pad_type == 0) // CONSTANT
+                {
+                    v = afp(0.0f);
+                }
+                else if (p.pad_type == 1) // REPLICATE
+                {
+                    v = buffer_ld1(bottom_blob_data_1, 0);
+                }
+                else // REFLECT
+                {
+                    v = buffer_ld1(bottom_blob_data_1, -orig_idx);
+                }
+            }
+            else if (orig_idx >= p.in_w)
+            {
+                if (p.pad_type == 0) // CONSTANT
+                {
+                    v = afp(0.0f);
+                }
+                else if (p.pad_type == 1) // REPLICATE
+                {
+                    v = buffer_ld1(bottom_blob_data_1, p.in_w - 1);
+                }
+                else // REFLECT
+                {
+                    v = buffer_ld1(bottom_blob_data_1, 2 * (p.in_w - 1) - orig_idx);
+                }
+            }
+            else
+            {
+                v = buffer_ld1(bottom_blob_data_1, orig_idx);
+            }
+        }
 
         afpvec4 br4 = buffer_ld4(basis_real_data, q * n_fft + k);
         afpvec4 bi4 = buffer_ld4(basis_imag_data, q * n_fft + k);

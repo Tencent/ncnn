@@ -24,8 +24,6 @@ public:
 public:
     int n_freq;
 
-    ncnn::Layer* padding;
-
     Mat basis_data_packed;
     Mat basis_imag_data_packed;
 
