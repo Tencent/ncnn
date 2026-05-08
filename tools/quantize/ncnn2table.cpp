@@ -600,7 +600,7 @@ int QuantNet::quantize_KL()
     for (int i = 0; i < mha_layer_count; i++)
     {
         const ncnn::Layer* layer = layers[mha_layers[i]];
-        const ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layer;
+        const ncnn::MultiHeadAttention* mha = (const ncnn::MultiHeadAttention*)layer;
 
         const int qdim = mha->weight_data_size / mha->embed_dim;
         mha_stats[i].q_weight_scales.create(mha->embed_dim);
