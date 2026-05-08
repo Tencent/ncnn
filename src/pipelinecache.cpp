@@ -783,6 +783,10 @@ int PipelineCache::load_cache(FILE* fp) const
     long file_size = ftell(fp);
     if (file_size <= 0)
         return -1;
+
+    const size_t cache_file_size_limit = (size_t)256 * 1024 * 1024;
+    if ((size_t)file_size > cache_file_size_limit)
+        return -1;
     if (fseek(fp, 0, SEEK_SET) != 0)
         return -1;
 
