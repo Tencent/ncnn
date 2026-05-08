@@ -6,7 +6,6 @@
 #include "gpu.h"
 
 #include <limits.h>
-#include <string>
 #include <string.h>
 
 #if NCNN_STDIO
