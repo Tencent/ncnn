@@ -50,6 +50,8 @@ layout(binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { uvec2 top_blob_data[]; };
 layout(binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
 layout(binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
+layout(binding = 4) readonly buffer bottom_blob_scalar { sfp bottom_blob_data_1[]; };
+layout(binding = 5) writeonly buffer top_blob_scalar { sfp top_blob_data_1[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -215,8 +217,6 @@ void main()
                     //   |    |   |
                     //   v    +---+
 
-                    const uint cstepd4 = psc(cstep) / 4;
-
                     const uint Md4_K_USGM_USGK = Md4 * K * UNROLL_SG_M * UNROLL_SG_K;
                     const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
                     [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
@@ -245,17 +245,15 @@ void main()
 
                             const uvec4 si4 = sxs + kx * dilation_w;
 
-                            const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                            const uvec4 v_offset_d4 = v_offset / 4;
-                            const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                            const uvec4 v_offset_m2 = v_offset % 2;
-
-                            vec4 v;
-                            v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                            v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                            v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                            v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                            vec4 v = vec4(0.f);
+                            if (sz < inch)
+                            {
+                                const uint v_offset = sz * psc(cstep);
+                                v.r = si4.r < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.r)) : 0.f;
+                                v.g = si4.g < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.g)) : 0.f;
+                                v.b = si4.b < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.b)) : 0.f;
+                                v.a = si4.a < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.a)) : 0.f;
+                            }
 
                             prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                         }
@@ -467,17 +465,15 @@ void main()
 
                                 const uvec4 si4 = sxs + kx * dilation_w;
 
-                                const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                                const uvec4 v_offset_d4 = v_offset / 4;
-                                const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                                const uvec4 v_offset_m2 = v_offset % 2;
-
-                                vec4 v;
-                                v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                                v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                                v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                                v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                                vec4 v = vec4(0.f);
+                                if (sz < inch)
+                                {
+                                    const uint v_offset = sz * psc(cstep);
+                                    v.r = si4.r < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.r)) : 0.f;
+                                    v.g = si4.g < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.g)) : 0.f;
+                                    v.b = si4.b < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.b)) : 0.f;
+                                    v.a = si4.a < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.a)) : 0.f;
+                                }
 
                                 prefetch_tmp_v[q] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                             }
@@ -794,17 +790,15 @@ void main()
 
                         const uvec4 si4 = sxs + kx * dilation_w;
 
-                        const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                        const uvec4 v_offset_d4 = v_offset / 4;
-                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                        const uvec4 v_offset_m2 = v_offset % 2;
-
-                        vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        vec4 v = vec4(0.f);
+                        if (sz < inch)
+                        {
+                            const uint v_offset = sz * psc(cstep);
+                            v.r = si4.r < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.r)) : 0.f;
+                            v.g = si4.g < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.g)) : 0.f;
+                            v.b = si4.b < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.b)) : 0.f;
+                            v.a = si4.a < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.a)) : 0.f;
+                        }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                     }
@@ -1007,17 +1001,15 @@ void main()
 
                         const uvec4 si4 = sxs + kx * dilation_w;
 
-                        const uvec4 v_offset = sz * psc(cstep) + si4;
-
-                        const uvec4 v_offset_d4 = v_offset / 4;
-                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
-                        const uvec4 v_offset_m2 = v_offset % 2;
-
-                        vec4 v;
-                        v.r = sz < inch && gm4.r < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
-                        v.g = sz < inch && gm4.g < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
-                        v.b = sz < inch && gm4.b < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
-                        v.a = sz < inch && gm4.a < psc(outcstep) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        vec4 v = vec4(0.f);
+                        if (sz < inch)
+                        {
+                            const uint v_offset = sz * psc(cstep);
+                            v.r = si4.r < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.r)) : 0.f;
+                            v.g = si4.g < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.g)) : 0.f;
+                            v.b = si4.b < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.b)) : 0.f;
+                            v.a = si4.a < psc(w) ? float(buffer_ld1(bottom_blob_data_1, v_offset + si4.a)) : 0.f;
+                        }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
                     }
@@ -1233,8 +1225,6 @@ void main()
             //   |      |   |
             //   v      +---+
 
-            const uint outcstepd4 = psc(outcstep) / 4;
-
             const uint Md4_N_USGM_USGN = Md4 * N * UNROLL_SG_M * UNROLL_SG_N;
             const uint Md4_N_USGM_USGN_d_subgroupsize = (Md4_N_USGM_USGN + subgroup_size - 1) / subgroup_size;
             [[unroll]] for (uint q = 0; q < Md4_N_USGM_USGN_d_subgroupsize; q++)
@@ -1252,23 +1242,23 @@ void main()
 
                     const uint gn = (ni + zn) * N + i;
                     const uint gm = (mi + zm) * Md4 + j;
+                    const uint gm4 = gm * 4;
 
-                    if (gn < outch && gm < outcstepd4)
+                    if (gn < outch && gm4 < psc(outw))
                     {
                         uvec2 sum = tmp_o[sgi][siq];
+                        afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
 
-                        if (activation_type == 0)
+                        if (activation_type != 0)
                         {
-                            top_blob_data[gn * outcstepd4 + gm] = sum;
-                        }
-                        else
-                        {
-                            afpvec4 v = afpvec4(unpackHalf2x16(sum.r), unpackHalf2x16(sum.g));
-
                             v = activation_afpvec4(v, activation_type, activation_param_0, activation_param_1);
-
-                            top_blob_data[gn * outcstepd4 + gm] = uvec2(packHalf2x16(vec4(v).rg), packHalf2x16(vec4(v).ba));
                         }
+
+                        const uint out_offset = gn * psc(outcstep) + gm4;
+                        buffer_st1(top_blob_data_1, out_offset, v.r);
+                        if (gm4 + 1 < psc(outw)) buffer_st1(top_blob_data_1, out_offset + 1, v.g);
+                        if (gm4 + 2 < psc(outw)) buffer_st1(top_blob_data_1, out_offset + 2, v.b);
+                        if (gm4 + 3 < psc(outw)) buffer_st1(top_blob_data_1, out_offset + 3, v.a);
                     }
                 }
             }

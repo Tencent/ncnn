@@ -121,73 +121,71 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
                 weight_data_r2 = weight_data;
             }
 
-            // from maxk-inch-outch to inch-maxk-outch
-            Mat weight_data_r2_r = weight_data_r2.reshape(maxk, num_input, num_output);
+            const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int kk = (num_input * maxk + coopmat_K - 1) / coopmat_K;
 
-            //        +-N-+
-            //        K   |
-            //        +SG_UN
-            //        |   |
-            //     ^  +---+
-            //     |  |   |
-            //   SG_UK+- -+
-            //     |  |   |
-            //   ^ v  +---+
-            //   |    |   |
-            //   |    +- -+
-            //   |    |   |
-            // WG_UN  +---+
-            //   |    |   |
-            //   |    +- -+
-            //   |    |   |
-            //   v    +---+
-
-            //      +-N-+
-            //      K   |
-            //      +SG_UN
-            //      |   |
-            //   ^  +---+
-            //   |  |   |
-            // WG_UN+- -+
-            //   |  |   |
-            //   v  +---+
-
-            const int num_input_packed = (num_input + 3) / 4 * 4;
-            const int num_output_packed = (num_output + 3) / 4 * 4;
-
-            Mat weight_data_packed_fp16 = Mat(maxk * num_input_packed / 4 * 4, num_output_packed / 4 * 4, (size_t)2u, 1);
-
-            for (int q = 0; q < num_output_packed; q += coopmat_N * UNROLL_SG_N * UNROLL_WG_N)
+            weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
+            for (int bn = 0; bn < blocks_n; bn++)
             {
-                for (int p = 0; p < num_input_packed * maxk; p += coopmat_K * UNROLL_SG_K)
+                float* p = weight_data_packed.row(bn);
+
+                int k = 0;
+                for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                 {
-                    for (int n = 0; n < coopmat_N * UNROLL_SG_N * UNROLL_WG_N; n++)
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
                     {
-                        for (int k = 0; k < coopmat_K * UNROLL_SG_K; k++)
+                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
                         {
-                            const int wgn = q + (n / (coopmat_N * UNROLL_SG_N)) * (coopmat_N * UNROLL_SG_N);
-                            const int sg = (n % (coopmat_N * UNROLL_SG_N)) / coopmat_N;
-                            const int nn = n % coopmat_N;
-
-                            const int kk = p + k;
-
-                            const int w_offset = wgn * maxk * num_input_packed + kk * (coopmat_N * UNROLL_SG_N) + sg * coopmat_N + nn;
-
-                            float v = 0.f;
-                            if (q + n < num_output && p + k < num_input * maxk)
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
                             {
-                                const int w = kk / maxk;
-                                const int kx = kk % maxk;
-                                v = weight_data_r2_r.channel(q + n).row(w)[kx];
-                            }
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = (k + zk) * coopmat_K + i;
 
-                            weight_data_packed_fp16[w_offset] = float32_to_float16(v);
+                                        if (gni < num_output && gki < num_input * maxk)
+                                        {
+                                            *p++ = weight_data_r2[gni * num_input * maxk + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (; k < kk; k++)
+                {
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    {
+                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                        {
+                            for (int i = 0; i < coopmat_K; i++)
+                            {
+                                for (int j = 0; j < coopmat_N; j++)
+                                {
+                                    const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                    const int gki = k * coopmat_K + i;
+
+                                    if (gni < num_output && gki < num_input * maxk)
+                                    {
+                                        *p++ = weight_data_r2[gni * num_input * maxk + gki];
+                                    }
+                                    else
+                                    {
+                                        *p++ = 0.f;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            weight_data_packed = weight_data_packed_fp16;
 
             std::vector<vk_specialization_type> specializations(20 + 4);
             specializations[0].u32 = kernel_w;
@@ -305,68 +303,71 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             UNROLL_WG_M = std::min((size + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
             UNROLL_WG_N = std::min((num_output + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
 
-            //        +-N-+
-            //        K   |
-            //        +SG_UN
-            //        |   |
-            //     ^  +---+
-            //     |  |   |
-            //   SG_UK+- -+
-            //     |  |   |
-            //   ^ v  +---+
-            //   |    |   |
-            //   |    +- -+
-            //   |    |   |
-            // WG_UN  +---+
-            //   |    |   |
-            //   |    +- -+
-            //   |    |   |
-            //   v    +---+
+            const int blocks_n = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int kk = (num_input + coopmat_K - 1) / coopmat_K;
 
-            //      +-N-+
-            //      K   |
-            //      +SG_UN
-            //      |   |
-            //   ^  +---+
-            //   |  |   |
-            // WG_UN+- -+
-            //   |  |   |
-            //   v  +---+
-
-            const int num_input_packed = (num_input + 3) / 4 * 4;
-            const int num_output_packed = (num_output + 3) / 4 * 4;
-
-            Mat weight_data_packed_fp16 = Mat(num_input_packed / 4 * 4, num_output_packed / 4 * 4, (size_t)2u, 1);
-
-            for (int q = 0; q < num_output_packed; q += coopmat_N * UNROLL_SG_N * UNROLL_WG_N)
+            weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
+            for (int bn = 0; bn < blocks_n; bn++)
             {
-                for (int p = 0; p < num_input_packed; p += coopmat_K * UNROLL_SG_K)
+                float* p = weight_data_packed.row(bn);
+
+                int k = 0;
+                for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                 {
-                    for (int n = 0; n < coopmat_N * UNROLL_SG_N * UNROLL_WG_N; n++)
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
                     {
-                        for (int k = 0; k < coopmat_K * UNROLL_SG_K; k++)
+                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
                         {
-                            const int wgn = q + (n / (coopmat_N * UNROLL_SG_N)) * (coopmat_N * UNROLL_SG_N);
-                            const int sg = (n % (coopmat_N * UNROLL_SG_N)) / coopmat_N;
-                            const int nn = n % coopmat_N;
-
-                            const int kk = p + k;
-
-                            const int w_offset = wgn * num_input_packed + kk * (coopmat_N * UNROLL_SG_N) + sg * coopmat_N + nn;
-
-                            float v = 0.f;
-                            if (q + n < num_output && p + k < num_input)
+                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
                             {
-                                v = weight_data[(q + n) * num_input + (p + k)];
-                            }
+                                for (int i = 0; i < coopmat_K; i++)
+                                {
+                                    for (int j = 0; j < coopmat_N; j++)
+                                    {
+                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                        const int gki = (k + zk) * coopmat_K + i;
 
-                            weight_data_packed_fp16[w_offset] = float32_to_float16(v);
+                                        if (gni < num_output && gki < num_input)
+                                        {
+                                            *p++ = weight_data[gni * num_input + gki];
+                                        }
+                                        else
+                                        {
+                                            *p++ = 0.f;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                for (; k < kk; k++)
+                {
+                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    {
+                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                        {
+                            for (int i = 0; i < coopmat_K; i++)
+                            {
+                                for (int j = 0; j < coopmat_N; j++)
+                                {
+                                    const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                    const int gki = k * coopmat_K + i;
+
+                                    if (gni < num_output && gki < num_input)
+                                    {
+                                        *p++ = weight_data[gni * num_input + gki];
+                                    }
+                                    else
+                                    {
+                                        *p++ = 0.f;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            weight_data_packed = weight_data_packed_fp16;
 
             std::vector<vk_specialization_type> specializations(17 + 3);
             specializations[0].i = bias_term;
@@ -661,17 +662,19 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             if (top_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(4);
+            std::vector<VkMat> bindings(6);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = top_blob;
             bindings[2] = weight_data_gpu;
             bindings[3] = bias_data_gpu;
+            bindings[4] = bottom_blob_bordered;
+            bindings[5] = top_blob;
 
             std::vector<vk_constant_type> constants(4);
             constants[0].u32 = bottom_blob_bordered.w;
-            constants[1].u32 = bottom_blob_bordered.cstep;
+            constants[1].u32 = bottom_blob_bordered.w;
             constants[2].u32 = top_blob.w;
-            constants[3].u32 = top_blob.cstep;
+            constants[3].u32 = top_blob.w;
 
             const int blocks_x = (top_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
             const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
@@ -729,16 +732,18 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             if (top_blob.empty())
                 return -100;
 
-            std::vector<VkMat> bindings(4);
+            std::vector<VkMat> bindings(6);
             bindings[0] = bottom_blob_bordered;
             bindings[1] = top_blob;
             bindings[2] = weight_data_gpu;
             bindings[3] = bias_data_gpu;
+            bindings[4] = bottom_blob_bordered;
+            bindings[5] = top_blob;
 
             std::vector<vk_constant_type> constants(3);
             constants[0].u32 = bottom_blob_bordered.w;
-            constants[1].u32 = bottom_blob_bordered.cstep;
-            constants[2].u32 = top_blob.cstep;
+            constants[1].u32 = bottom_blob_bordered.w;
+            constants[2].u32 = top_blob.w;
 
             const int blocks_x = (top_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
             const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
