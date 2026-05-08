@@ -369,12 +369,13 @@ static void innerproduct_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
         {
             int p = pp * 8;
 
-            #ifdef _MSC_VER
+#ifdef _MSC_VER
             __declspec(align(32))
-            #else
+#else
             __attribute__((aligned(32)))
-            #endif
-            float sums[8] = {0.0f};
+#endif
+            float sums[8]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];
@@ -485,12 +486,13 @@ static void innerproduct_bf16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
         {
             int p = remain_outw_start + (pp * 4);
 
-            #ifdef _MSC_VER
+#ifdef _MSC_VER
             __declspec(align(16))
-            #else
+#else
             __attribute__((aligned(16)))
-            #endif
-            float sums[4] = {0.0f};
+#endif
+            float sums[4]
+                = {0.0f};
             if (bias_data_ptr)
             {
                 sums[0] = bias_data_ptr[p];

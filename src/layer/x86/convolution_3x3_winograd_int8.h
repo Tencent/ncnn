@@ -4012,11 +4012,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                     _mm256_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
                     if (tj * 2 + 1 < outw) _mm256_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     int tmpbuf[16];
                     int* tmp0 = tmpbuf;
                     int* tmp1 = tmpbuf + 8;
@@ -4141,11 +4141,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                     _mm_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
                     if (tj * 2 + 1 < outw) _mm_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int tmpbuf[8];
                     int* tmp0 = tmpbuf;
                     int* tmp1 = tmpbuf + 4;
@@ -5581,11 +5581,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                     if (tj * 4 + 2 < outw) _mm256_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
                     if (tj * 4 + 3 < outw) _mm256_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     int tmpbuf[32];
                     int* tmp0 = tmpbuf;
                     int* tmp1 = tmpbuf + 8;
@@ -5814,11 +5814,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                     if (tj * 4 + 2 < outw) _mm_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
                     if (tj * 4 + 3 < outw) _mm_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int tmpbuf[16];
                     int* tmp0 = tmpbuf;
                     int* tmp1 = tmpbuf + 4;

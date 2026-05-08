@@ -2703,11 +2703,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(64))
-                    #else
+#else
                     __attribute__((aligned(64)))
-                    #endif
+#endif
                     float tmpbuf[32];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 16;
@@ -2863,11 +2863,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float tmpbuf[16];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 8;
@@ -2984,11 +2984,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float tmpbuf[8];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 4;
@@ -4343,11 +4343,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(64))
-                    #else
+#else
                     __attribute__((aligned(64)))
-                    #endif
+#endif
                     float tmpbuf[64];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 16;
@@ -4588,11 +4588,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float tmpbuf[32];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 8;
@@ -4771,11 +4771,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float tmpbuf[16];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 4;
@@ -6473,11 +6473,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(64))
-                    #else
+#else
                     __attribute__((aligned(64)))
-                    #endif
+#endif
                     float tmpbuf[96];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 16;
@@ -6791,11 +6791,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float tmpbuf[48];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 8;
@@ -7021,11 +7021,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float tmpbuf[24];
                     float* tmp0 = tmpbuf;
                     float* tmp1 = tmpbuf + 4;

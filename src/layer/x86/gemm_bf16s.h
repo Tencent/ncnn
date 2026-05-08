@@ -5852,11 +5852,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(64))
-                        #else
+#else
                         __attribute__((aligned(64)))
-                        #endif
+#endif
                         float tmp[16];
                         _mm512_store_ps(tmp, _f0);
 
@@ -5912,11 +5912,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(32))
-                        #else
+#else
                         __attribute__((aligned(32)))
-                        #endif
+#endif
                         unsigned short tmp[16];
                         _mm256_store_si256((__m256i*)tmp, _bf0);
 
@@ -7571,11 +7571,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         _mm256_i32scatter_ps(p0f, _vindex, _f0, sizeof(float));
                         _mm256_i32scatter_ps(p0f + 1, _vindex, _f1, sizeof(float));
 #else
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(32))
-                        #else
+#else
                         __attribute__((aligned(32)))
-                        #endif
+#endif
                         float sumbuf[16];
                         float* sum0 = sumbuf;
                         float* sum1 = sumbuf + 8;
@@ -7647,11 +7647,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sumbuf[16];
                         unsigned short* sum0 = sumbuf;
                         unsigned short* sum1 = sumbuf + 8;
@@ -7771,11 +7771,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
                         _mm256_i32scatter_ps(p0f, _vindex, _f, sizeof(float));
 #else
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(32))
-                        #else
+#else
                         __attribute__((aligned(32)))
-                        #endif
+#endif
                         float sum0[8];
                         _mm256_store_ps(sum0, _f);
                         p0f[0] = sum0[0];
@@ -7827,11 +7827,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[8];
                         _mm_store_si128((__m128i*)sum0, _bf);
 
@@ -8496,11 +8496,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #if __AVX__
                     if (out_elempack == 8)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float tmpbuf[32];
                         float* tmp0 = tmpbuf;
                         float* tmp1 = tmpbuf + 4;
@@ -8533,11 +8533,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
 #endif // __AVX__
                     if (out_elempack == 4)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float tmpbuf[32];
                         float* tmp0 = tmpbuf;
                         float* tmp1 = tmpbuf + 4;
@@ -8599,11 +8599,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float tmpbuf[32];
                         float* tmp0 = tmpbuf;
                         float* tmp1 = tmpbuf + 4;
@@ -9073,11 +9073,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (out_elempack == 4)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[8];
                         _mm_store_ps(sum0, _f0);
                         _mm_store_ps(sum0 + 4, _f1);
@@ -9108,11 +9108,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[8];
                         _mm_store_ps(sum0, _f0);
                         _mm_store_ps(sum0 + 4, _f1);
@@ -9137,11 +9137,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (out_elempack == 4)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[8];
                         _mm_store_si128((__m128i*)sum0, _bf01);
 
@@ -9171,11 +9171,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[8];
                         _mm_store_si128((__m128i*)sum0, _bf01);
 
@@ -9240,11 +9240,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (out_elempack == 4)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[4];
                         _mm_store_ps(sum0, _f);
 
@@ -9268,11 +9268,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[4];
                         _mm_store_ps(sum0, _f);
 
@@ -9292,11 +9292,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                 {
                     if (out_elempack == 4)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[4];
                         _mm_storel_epi64((__m128i*)sum0, _bf);
 
@@ -9320,11 +9320,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[4];
                         _mm_storel_epi64((__m128i*)sum0, _bf);
 
@@ -9541,11 +9541,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(32))
-                        #else
+#else
                         __attribute__((aligned(32)))
-                        #endif
+#endif
                         unsigned short sumbuf[32];
                         unsigned short* sum0 = sumbuf;
                         unsigned short* sum1 = sumbuf + 16;
@@ -9707,11 +9707,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sumbuf[16];
                         float* sum0 = sumbuf;
                         float* sum1 = sumbuf + 8;
@@ -9769,11 +9769,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sumbuf[16];
                         unsigned short* sum0 = sumbuf;
                         unsigned short* sum1 = sumbuf + 8;
@@ -9900,11 +9900,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[8];
                         _mm_store_ps(sum0, _f0);
                         _mm_store_ps(sum0 + 4, _f1);
@@ -9959,11 +9959,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         unsigned short sum0[8];
                         _mm_store_si128((__m128i*)sum0, _bf0);
 
@@ -10263,11 +10263,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(64))
-                            #else
+#else
                             __attribute__((aligned(64)))
-                            #endif
+#endif
                             float sum0[16];
                             _mm512_store_ps(sum0, _f0);
 
@@ -10327,11 +10327,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(32))
-                            #else
+#else
                             __attribute__((aligned(32)))
-                            #endif
+#endif
                             unsigned short sum0[16];
                             _mm256_store_si256((__m256i*)sum0, _bf0);
 
@@ -10419,11 +10419,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(16))
-                            #else
+#else
                             __attribute__((aligned(16)))
-                            #endif
+#endif
                             float sum0[8];
                             _mm_store_ps(sum0, _f0);
                             _mm_store_ps(sum0 + 4, _f1);
@@ -10472,11 +10472,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(16))
-                            #else
+#else
                             __attribute__((aligned(16)))
-                            #endif
+#endif
                             unsigned short sum0[8];
                             _mm_store_si128((__m128i*)sum0, _bf0);
 
@@ -10552,11 +10552,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(16))
-                            #else
+#else
                             __attribute__((aligned(16)))
-                            #endif
+#endif
                             float sum0[4];
                             _mm_store_ps(sum0, _f0);
 
@@ -10606,11 +10606,11 @@ static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& 
                         }
                         if (out_elempack == 1)
                         {
-                            #ifdef _MSC_VER
+#ifdef _MSC_VER
                             __declspec(align(16))
-                            #else
+#else
                             __attribute__((aligned(16)))
-                            #endif
+#endif
                             unsigned short sum0[4];
                             _mm_storel_epi64((__m128i*)sum0, _bf0);
 

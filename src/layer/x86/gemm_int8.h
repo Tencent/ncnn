@@ -10460,11 +10460,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     _mm256_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
                     _mm256_i32scatter_ps(p0 + 1, _vindex, _f1, sizeof(float));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float sumbuf[16];
                     float* sum0 = sumbuf;
                     float* sum1 = sumbuf + 8;
@@ -10577,11 +10577,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
                     _mm256_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float sum0[8];
                     _mm256_store_ps(sum0, _f0);
                     p0[0] = sum0[0];
@@ -11456,11 +11456,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     _mm_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
                     _mm_i32scatter_ps(p0 + 1, _vindex, _f1, sizeof(float));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float sumbuf[8];
                     float* sum0 = sumbuf;
                     float* sum1 = sumbuf + 4;
@@ -11540,11 +11540,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(out_hstep));
                     _mm_i32scatter_ps(p0, _vindex, _f0, sizeof(float));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float sum0[4];
                     _mm_store_ps(sum0, _f0);
                     p0[0] = sum0[0];
@@ -11859,11 +11859,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float sumbuf[16];
                     float* sum0 = sumbuf;
                     float* sum1 = sumbuf + 4;
@@ -11999,11 +11999,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float sumbuf[8];
                     float* sum0 = sumbuf;
                     float* sum1 = sumbuf + 4;
@@ -12332,11 +12332,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sumbuf[8];
                         float* sum0 = sumbuf;
                         float* sum1 = sumbuf + 4;
@@ -12414,11 +12414,11 @@ static void unpack_output_tile_int32_to_fp32(const Mat& topT, const Mat& C, Mat&
                     }
                     if (out_elempack == 1)
                     {
-                        #ifdef _MSC_VER
+#ifdef _MSC_VER
                         __declspec(align(16))
-                        #else
+#else
                         __attribute__((aligned(16)))
-                        #endif
+#endif
                         float sum0[4];
                         _mm_store_ps(sum0, _f0);
 

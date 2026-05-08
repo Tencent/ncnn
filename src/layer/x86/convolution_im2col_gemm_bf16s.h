@@ -1038,11 +1038,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(64))
-                    #else
+#else
                     __attribute__((aligned(64)))
-                    #endif
+#endif
                     float sum0[16];
                     _mm512_store_ps(sum0, _sum0);
 
@@ -1528,11 +1528,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     float sum0[8];
                     _mm256_store_ps(sum0, _sum0);
 
@@ -1991,11 +1991,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 }
                 if (out_elempack == 1)
                 {
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     float sum0[4];
                     _mm_store_ps(sum0, _sum0);
 

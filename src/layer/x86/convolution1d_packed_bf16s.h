@@ -1500,11 +1500,11 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
             }
             if (out_elempack == 1)
             {
-                #ifdef _MSC_VER
+#ifdef _MSC_VER
                 __declspec(align(64))
-                #else
+#else
                 __attribute__((aligned(64)))
-                #endif
+#endif
                 float sum[16];
                 _mm512_store_ps(sum, _sum0);
 
@@ -1933,11 +1933,11 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
             }
             if (out_elempack == 1)
             {
-                #ifdef _MSC_VER
+#ifdef _MSC_VER
                 __declspec(align(32))
-                #else
+#else
                 __attribute__((aligned(32)))
-                #endif
+#endif
                 float sum[8];
                 _mm256_store_ps(sum, _sum0);
 
@@ -2356,11 +2356,11 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
             }
             if (out_elempack == 1)
             {
-                #ifdef _MSC_VER
+#ifdef _MSC_VER
                 __declspec(align(16))
-                #else
+#else
                 __attribute__((aligned(16)))
-                #endif
+#endif
                 float sum[4];
                 _mm_store_ps(sum, _sum0);
 

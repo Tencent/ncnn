@@ -1570,11 +1570,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex2 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset1));
                     __m128i _vindex3 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset1));
 
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsetsbuf[16];
                     int* offsets0 = offsetsbuf;
                     int* offsets1 = offsetsbuf + 4;
@@ -1627,11 +1627,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset0));
                     __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset0));
 
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsetsbuf[8];
                     int* offsets0 = offsetsbuf;
                     int* offsets1 = offsetsbuf + 4;
@@ -1729,7 +1729,7 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r0);
                     _mm256_storeu_si256((__m256i*)(pp + 32), _r1);
-#else  // __AVX2__
+#else // __AVX2__
 
                     __m128i _vindex0 = _mm_add_epi32(_dxy_offset0, _mm_set1_epi32(puv_offset));
                     __m128i _vindex1 = _mm_add_epi32(_dxy_offset1, _mm_set1_epi32(puv_offset));
@@ -1737,11 +1737,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _vindex0 = _mm_comp_mullo_epi32(_vindex0, _mm_set1_epi32(8));
                     _vindex1 = _mm_comp_mullo_epi32(_vindex1, _mm_set1_epi32(8));
 
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsetsbuf[8];
                     int* offsets0 = offsetsbuf;
                     int* offsets1 = offsetsbuf + 4;
@@ -2025,11 +2025,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm_storel_epi64((__m128i*)pp, _p01);
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsetsbuf[8];
                     int* offsets0 = offsetsbuf;
                     int* offsets1 = offsetsbuf + 4;
@@ -2064,11 +2064,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm_store_ss((float*)pp, _mm_castsi128_ps(_p0));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsets[4];
                     _mm_store_si128((__m128i*)offsets, _vindex0);
 
@@ -2129,13 +2129,13 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
 
                     _mm256_storeu_si256((__m256i*)pp, _r01);
 
-#else  // __AVX2__
+#else // __AVX2__
 
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int offsets[4];
                     _mm_store_si128((__m128i*)offsets, _vindex);
 
@@ -2327,11 +2327,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                         _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
                     }
 
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int puv_offset[4];
                     _mm_store_si128((__m128i*)puv_offset, _puv_offset);
 
@@ -2492,11 +2492,11 @@ static void convolution_im2col_input_tile_int8_impl(const Mat& bottom_blob, Mat&
                     _puv_offset = _mm_add_epi32(_p, _mm_add_epi32(_u, _v));
                 }
 
-                #ifdef _MSC_VER
+#ifdef _MSC_VER
                 __declspec(align(16))
-                #else
+#else
                 __attribute__((aligned(16)))
-                #endif
+#endif
                 int puv_offset[4];
                 _mm_store_si128((__m128i*)puv_offset, _puv_offset);
 
@@ -3938,11 +3938,11 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     _mm256_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
                     _mm256_i32scatter_epi32(p0 + 1, _vindex, _f1, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     int sumbuf[16];
                     int* sum0 = sumbuf;
                     int* sum1 = sumbuf + 8;
@@ -4001,11 +4001,11 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     __m256i _vindex = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7), _mm256_set1_epi32(out_hstep));
                     _mm256_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(32))
-                    #else
+#else
                     __attribute__((aligned(32)))
-                    #endif
+#endif
                     int sum0[8];
                     _mm256_store_si256((__m256i*)sum0, _f0);
                     p0[0] = sum0[0];
@@ -4282,11 +4282,11 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     _mm_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
                     _mm_i32scatter_epi32(p0 + 1, _vindex, _f1, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int sumbuf[8];
                     int* sum0 = sumbuf;
                     int* sum1 = sumbuf + 4;
@@ -4324,11 +4324,11 @@ static void unpack_output_tile_int32(const Mat& topT, Mat& top_blob, int i, int 
                     __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(out_hstep));
                     _mm_i32scatter_epi32(p0, _vindex, _f0, sizeof(int));
 #else
-                    #ifdef _MSC_VER
+#ifdef _MSC_VER
                     __declspec(align(16))
-                    #else
+#else
                     __attribute__((aligned(16)))
-                    #endif
+#endif
                     int sum0[4];
                     _mm_store_si128((__m128i*)sum0, _f0);
                     p0[0] = sum0[0];
