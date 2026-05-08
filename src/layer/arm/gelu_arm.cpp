@@ -58,58 +58,54 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h * d * elempack;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    if (fast_gelu)
     {
-        float* ptr = bottom_top_blob.channel(q);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
 
-        int i = 0;
+            int i = 0;
 
 #if __ARM_NEON
-        if (fast_gelu)
-        {
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _pLoad = vld1q_f32(ptr);
-
-                float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
-                _blob = vmulq_f32(_pLoad, _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
-                _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
-                _blob = tanh_ps(_blob);
-                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                float32x4_t _blob = fast_gelu_ps(_pLoad);
                 vst1q_f32(ptr, _blob);
                 ptr += 4;
             }
-        }
-        else
-        {
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _pLoad = vld1q_f32(ptr);
-
-                float32x4_t _blob = vmulq_f32(vdupq_n_f32(0.70710678f), _pLoad);
-                _blob = erf_ps(_blob);
-                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
-                vst1q_f32(ptr, _blob);
-                ptr += 4;
-            }
-        }
 #endif
-        for (; i < size; i++)
-        {
-            if (fast_gelu)
+            for (; i < size; i++)
             {
                 *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+                ptr++;
             }
-            else
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+
+            int i = 0;
+
+#if __ARM_NEON
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _pLoad = vld1q_f32(ptr);
+                float32x4_t _blob = gelu_ps(_pLoad);
+                vst1q_f32(ptr, _blob);
+                ptr += 4;
+            }
+#endif
+            for (; i < size; i++)
             {
                 *ptr = 0.5f * *ptr * (1.0f + erff(0.70710678f * *ptr));
+                ptr++;
             }
-
-            ptr++;
         }
     }
 
@@ -126,60 +122,60 @@ int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     int channels = bottom_top_blob.c;
     int size = w * h * d * elempack;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    if (fast_gelu)
     {
-        unsigned short* ptr = bottom_top_blob.channel(q);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
 
-        int i = 0;
+            int i = 0;
 
 #if __ARM_NEON
-        if (fast_gelu)
-        {
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
-
-                float32x4_t _blob = vmulq_f32(_pLoad, _pLoad);
-                _blob = vmulq_f32(_pLoad, _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
-                _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), _pLoad);
-                _blob = tanh_ps(_blob);
-                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
+                float32x4_t _blob = fast_gelu_ps(_pLoad);
                 vst1_u16(ptr, float2bfloat(_blob));
                 ptr += 4;
             }
-        }
-        else
-        {
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
-
-                float32x4_t _blob = vmulq_f32(vdupq_n_f32(0.70710678f), _pLoad);
-                _blob = erf_ps(_blob);
-                _blob = vaddq_f32(vdupq_n_f32(1.f), _blob);
-                _blob = vmulq_f32(vdupq_n_f32(0.5f), vmulq_f32(_blob, _pLoad));
-                vst1_u16(ptr, float2bfloat(_blob));
-                ptr += 4;
-            }
-        }
 #endif // __ARM_NEON
 
-        for (; i < size; i++)
-        {
-            float v = bfloat16_to_float32(*ptr);
-            if (fast_gelu)
+            for (; i < size; i++)
             {
+                float v = bfloat16_to_float32(*ptr);
                 v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                *ptr = float32_to_bfloat16(v);
+                ptr++;
             }
-            else
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            int i = 0;
+
+#if __ARM_NEON
+            for (; i + 3 < size; i += 4)
             {
-                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+                float32x4_t _pLoad = bfloat2float(vld1_u16(ptr));
+                float32x4_t _blob = gelu_ps(_pLoad);
+                vst1_u16(ptr, float2bfloat(_blob));
+                ptr += 4;
             }
-            *ptr = float32_to_bfloat16(v);
-            ptr++;
+#endif // __ARM_NEON
+
+            for (; i < size; i++)
+            {
+                float v = bfloat16_to_float32(*ptr);
+                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+                *ptr = float32_to_bfloat16(v);
+                ptr++;
+            }
         }
     }
 

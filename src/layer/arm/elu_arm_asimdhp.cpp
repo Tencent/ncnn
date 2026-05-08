@@ -31,9 +31,7 @@ int ELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
 
         int i = 0;
 
-        float16x8_t _alpha = vdupq_n_f16((__fp16)alpha);
-        float16x8_t _one = vdupq_n_f16((__fp16)1.f);
-        float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+        float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
 
         for (; i + 31 < size; i += 32)
         {
@@ -42,65 +40,19 @@ int ELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
             float16x8_t _p2 = vld1q_f16(ptr + 16);
             float16x8_t _p3 = vld1q_f16(ptr + 24);
 
-            uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
-            uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
-            uint16x8_t _lemask2 = vcleq_f16(_p2, _zero);
-            uint16x8_t _lemask3 = vcleq_f16(_p3, _zero);
+            float32x4_t _p0_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alpha_f32);
+            float32x4_t _p0_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alpha_f32);
+            float32x4_t _p1_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alpha_f32);
+            float32x4_t _p1_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alpha_f32);
+            float32x4_t _p2_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p2)), _alpha_f32);
+            float32x4_t _p2_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p2)), _alpha_f32);
+            float32x4_t _p3_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p3)), _alpha_f32);
+            float32x4_t _p3_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p3)), _alpha_f32);
 
-            // Convert to float32 for exp calculation
-            float32x4_t _p0_low = vcvt_f32_f16(vget_low_f16(_p0));
-            float32x4_t _p0_high = vcvt_f32_f16(vget_high_f16(_p0));
-            float32x4_t _p1_low = vcvt_f32_f16(vget_low_f16(_p1));
-            float32x4_t _p1_high = vcvt_f32_f16(vget_high_f16(_p1));
-            float32x4_t _p2_low = vcvt_f32_f16(vget_low_f16(_p2));
-            float32x4_t _p2_high = vcvt_f32_f16(vget_high_f16(_p2));
-            float32x4_t _p3_low = vcvt_f32_f16(vget_low_f16(_p3));
-            float32x4_t _p3_high = vcvt_f32_f16(vget_high_f16(_p3));
-
-            _p0_low = exp_ps(_p0_low);
-            _p0_high = exp_ps(_p0_high);
-            _p1_low = exp_ps(_p1_low);
-            _p1_high = exp_ps(_p1_high);
-            _p2_low = exp_ps(_p2_low);
-            _p2_high = exp_ps(_p2_high);
-            _p3_low = exp_ps(_p3_low);
-            _p3_high = exp_ps(_p3_high);
-
-            float32x4_t _one_f32 = vdupq_n_f32(1.f);
-            float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
-
-            _p0_low = vsubq_f32(_p0_low, _one_f32);
-            _p0_high = vsubq_f32(_p0_high, _one_f32);
-            _p1_low = vsubq_f32(_p1_low, _one_f32);
-            _p1_high = vsubq_f32(_p1_high, _one_f32);
-            _p2_low = vsubq_f32(_p2_low, _one_f32);
-            _p2_high = vsubq_f32(_p2_high, _one_f32);
-            _p3_low = vsubq_f32(_p3_low, _one_f32);
-            _p3_high = vsubq_f32(_p3_high, _one_f32);
-
-            _p0_low = vmulq_f32(_p0_low, _alpha_f32);
-            _p0_high = vmulq_f32(_p0_high, _alpha_f32);
-            _p1_low = vmulq_f32(_p1_low, _alpha_f32);
-            _p1_high = vmulq_f32(_p1_high, _alpha_f32);
-            _p2_low = vmulq_f32(_p2_low, _alpha_f32);
-            _p2_high = vmulq_f32(_p2_high, _alpha_f32);
-            _p3_low = vmulq_f32(_p3_low, _alpha_f32);
-            _p3_high = vmulq_f32(_p3_high, _alpha_f32);
-
-            float16x8_t _nps0 = vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high));
-            float16x8_t _nps1 = vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high));
-            float16x8_t _nps2 = vcombine_f16(vcvt_f16_f32(_p2_low), vcvt_f16_f32(_p2_high));
-            float16x8_t _nps3 = vcombine_f16(vcvt_f16_f32(_p3_low), vcvt_f16_f32(_p3_high));
-
-            _p0 = vbslq_f16(_lemask0, _nps0, _p0);
-            _p1 = vbslq_f16(_lemask1, _nps1, _p1);
-            _p2 = vbslq_f16(_lemask2, _nps2, _p2);
-            _p3 = vbslq_f16(_lemask3, _nps3, _p3);
-
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
-            vst1q_f16(ptr + 16, _p2);
-            vst1q_f16(ptr + 24, _p3);
+            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
+            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
+            vst1q_f16(ptr + 16, vcombine_f16(vcvt_f16_f32(_p2_low), vcvt_f16_f32(_p2_high)));
+            vst1q_f16(ptr + 24, vcombine_f16(vcvt_f16_f32(_p3_low), vcvt_f16_f32(_p3_high)));
             ptr += 32;
         }
         for (; i + 15 < size; i += 16)
@@ -108,85 +60,32 @@ int ELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) cons
             float16x8_t _p0 = vld1q_f16(ptr);
             float16x8_t _p1 = vld1q_f16(ptr + 8);
 
-            uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
-            uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
+            float32x4_t _p0_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p0)), _alpha_f32);
+            float32x4_t _p0_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p0)), _alpha_f32);
+            float32x4_t _p1_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p1)), _alpha_f32);
+            float32x4_t _p1_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p1)), _alpha_f32);
 
-            float32x4_t _p0_low = vcvt_f32_f16(vget_low_f16(_p0));
-            float32x4_t _p0_high = vcvt_f32_f16(vget_high_f16(_p0));
-            float32x4_t _p1_low = vcvt_f32_f16(vget_low_f16(_p1));
-            float32x4_t _p1_high = vcvt_f32_f16(vget_high_f16(_p1));
-
-            _p0_low = exp_ps(_p0_low);
-            _p0_high = exp_ps(_p0_high);
-            _p1_low = exp_ps(_p1_low);
-            _p1_high = exp_ps(_p1_high);
-
-            float32x4_t _one_f32 = vdupq_n_f32(1.f);
-            float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
-
-            _p0_low = vsubq_f32(_p0_low, _one_f32);
-            _p0_high = vsubq_f32(_p0_high, _one_f32);
-            _p1_low = vsubq_f32(_p1_low, _one_f32);
-            _p1_high = vsubq_f32(_p1_high, _one_f32);
-
-            _p0_low = vmulq_f32(_p0_low, _alpha_f32);
-            _p0_high = vmulq_f32(_p0_high, _alpha_f32);
-            _p1_low = vmulq_f32(_p1_low, _alpha_f32);
-            _p1_high = vmulq_f32(_p1_high, _alpha_f32);
-
-            float16x8_t _nps0 = vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high));
-            float16x8_t _nps1 = vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high));
-
-            _p0 = vbslq_f16(_lemask0, _nps0, _p0);
-            _p1 = vbslq_f16(_lemask1, _nps1, _p1);
-
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
+            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p0_low), vcvt_f16_f32(_p0_high)));
+            vst1q_f16(ptr + 8, vcombine_f16(vcvt_f16_f32(_p1_low), vcvt_f16_f32(_p1_high)));
             ptr += 16;
         }
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            uint16x8_t _lemask = vcleq_f16(_p, _zero);
 
-            float32x4_t _p_low = vcvt_f32_f16(vget_low_f16(_p));
-            float32x4_t _p_high = vcvt_f32_f16(vget_high_f16(_p));
+            float32x4_t _p_low = elu_ps(vcvt_f32_f16(vget_low_f16(_p)), _alpha_f32);
+            float32x4_t _p_high = elu_ps(vcvt_f32_f16(vget_high_f16(_p)), _alpha_f32);
 
-            _p_low = exp_ps(_p_low);
-            _p_high = exp_ps(_p_high);
-
-            float32x4_t _one_f32 = vdupq_n_f32(1.f);
-            float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
-
-            _p_low = vsubq_f32(_p_low, _one_f32);
-            _p_high = vsubq_f32(_p_high, _one_f32);
-            _p_low = vmulq_f32(_p_low, _alpha_f32);
-            _p_high = vmulq_f32(_p_high, _alpha_f32);
-
-            float16x8_t _nps = vcombine_f16(vcvt_f16_f32(_p_low), vcvt_f16_f32(_p_high));
-            _p = vbslq_f16(_lemask, _nps, _p);
-
-            vst1q_f16(ptr, _p);
+            vst1q_f16(ptr, vcombine_f16(vcvt_f16_f32(_p_low), vcvt_f16_f32(_p_high)));
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
 
-            float32x4_t _p_f32 = vcvt_f32_f16(_p);
-            _p_f32 = exp_ps(_p_f32);
+            float32x4_t _p_f32 = elu_ps(vcvt_f32_f16(_p), _alpha_f32);
 
-            float32x4_t _one_f32 = vdupq_n_f32(1.f);
-            float32x4_t _alpha_f32 = vdupq_n_f32(alpha);
-
-            _p_f32 = vsubq_f32(_p_f32, _one_f32);
-            _p_f32 = vmulq_f32(_p_f32, _alpha_f32);
-
-            float16x4_t _nps = vcvt_f16_f32(_p_f32);
-            _p = vbsl_f16(_lemask, _nps, _p);
-
-            vst1_f16(ptr, _p);
+            vst1_f16(ptr, vcvt_f16_f32(_p_f32));
             ptr += 4;
         }
         for (; i < size; i++)
@@ -219,8 +118,6 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
         int i = 0;
 
         float16x8_t _alpha = vdupq_n_f16((__fp16)alpha);
-        float16x8_t _one = vdupq_n_f16((__fp16)1.f);
-        float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
 
         for (; i + 31 < size; i += 32)
         {
@@ -229,30 +126,10 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
             float16x8_t _p2 = vld1q_f16(ptr + 16);
             float16x8_t _p3 = vld1q_f16(ptr + 24);
 
-            uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
-            uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
-            uint16x8_t _lemask2 = vcleq_f16(_p2, _zero);
-            uint16x8_t _lemask3 = vcleq_f16(_p3, _zero);
-
-            float16x8_t _nps0 = exp_ps_f16(_p0);
-            float16x8_t _nps1 = exp_ps_f16(_p1);
-            float16x8_t _nps2 = exp_ps_f16(_p2);
-            float16x8_t _nps3 = exp_ps_f16(_p3);
-
-            _nps0 = vsubq_f16(_nps0, _one);
-            _nps1 = vsubq_f16(_nps1, _one);
-            _nps2 = vsubq_f16(_nps2, _one);
-            _nps3 = vsubq_f16(_nps3, _one);
-
-            _nps0 = vmulq_f16(_nps0, _alpha);
-            _nps1 = vmulq_f16(_nps1, _alpha);
-            _nps2 = vmulq_f16(_nps2, _alpha);
-            _nps3 = vmulq_f16(_nps3, _alpha);
-
-            _p0 = vbslq_f16(_lemask0, _nps0, _p0);
-            _p1 = vbslq_f16(_lemask1, _nps1, _p1);
-            _p2 = vbslq_f16(_lemask2, _nps2, _p2);
-            _p3 = vbslq_f16(_lemask3, _nps3, _p3);
+            _p0 = elu_ps_f16(_p0, _alpha);
+            _p1 = elu_ps_f16(_p1, _alpha);
+            _p2 = elu_ps_f16(_p2, _alpha);
+            _p3 = elu_ps_f16(_p3, _alpha);
 
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
@@ -265,20 +142,8 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
             float16x8_t _p0 = vld1q_f16(ptr);
             float16x8_t _p1 = vld1q_f16(ptr + 8);
 
-            uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
-            uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
-
-            float16x8_t _nps0 = exp_ps_f16(_p0);
-            float16x8_t _nps1 = exp_ps_f16(_p1);
-
-            _nps0 = vsubq_f16(_nps0, _one);
-            _nps1 = vsubq_f16(_nps1, _one);
-
-            _nps0 = vmulq_f16(_nps0, _alpha);
-            _nps1 = vmulq_f16(_nps1, _alpha);
-
-            _p0 = vbslq_f16(_lemask0, _nps0, _p0);
-            _p1 = vbslq_f16(_lemask1, _nps1, _p1);
+            _p0 = elu_ps_f16(_p0, _alpha);
+            _p1 = elu_ps_f16(_p1, _alpha);
 
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
@@ -287,12 +152,8 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            uint16x8_t _lemask = vcleq_f16(_p, _zero);
 
-            float16x8_t _nps = exp_ps_f16(_p);
-            _nps = vsubq_f16(_nps, _one);
-            _nps = vmulq_f16(_nps, _alpha);
-            _p = vbslq_f16(_lemask, _nps, _p);
+            _p = elu_ps_f16(_p, _alpha);
 
             vst1q_f16(ptr, _p);
             ptr += 8;
@@ -300,12 +161,8 @@ int ELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) con
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
 
-            float16x4_t _nps = exp_ps_f16(_p);
-            _nps = vsub_f16(_nps, vget_low_f16(_one));
-            _nps = vmul_f16(_nps, vget_low_f16(_alpha));
-            _p = vbsl_f16(_lemask, _nps, _p);
+            _p = elu_ps_f16(_p, vget_low_f16(_alpha));
 
             vst1_f16(ptr, _p);
             ptr += 4;

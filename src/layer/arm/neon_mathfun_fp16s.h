@@ -77,12 +77,7 @@ static inline float16x4_t log_ps_f16(float16x4_t x)
      *       x = x + x - 1.0;
      *     } else { x = x - 1.0; }
      */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_SQRTHF = vcvt_f16_f32(vdupq_n_f32(c_cephes_SQRTHF));
-    uint16x4_t mask = vclt_f16(x, _c_cephes_SQRTHF);
-#else
     uint16x4_t mask = vclt_f16(x, vdup_n_f16(c_cephes_SQRTHF));
-#endif
     float16x4_t tmp = (float16x4_t)(vand_u16((uint16x4_t)(x), mask));
     x = vsub_f16(x, one);
     e = vsub_f16(e, (float16x4_t)(vand_u16((uint16x4_t)(one), mask)));
@@ -90,26 +85,6 @@ static inline float16x4_t log_ps_f16(float16x4_t x)
 
     float16x4_t z = vmul_f16(x, x);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_p0 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p0));
-    float16x4_t _c_cephes_log_p1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p1));
-    float16x4_t _c_cephes_log_p2 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p2));
-    float16x4_t _c_cephes_log_p3 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p3));
-    float16x4_t _c_cephes_log_p4 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p4));
-    float16x4_t _c_cephes_log_p5 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p5));
-    float16x4_t _c_cephes_log_p6 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p6));
-    float16x4_t _c_cephes_log_p7 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p7));
-    float16x4_t _c_cephes_log_p8 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p8));
-    float16x4_t y = _c_cephes_log_p0;
-    y = vfma_f16(_c_cephes_log_p1, y, x);
-    y = vfma_f16(_c_cephes_log_p2, y, x);
-    y = vfma_f16(_c_cephes_log_p3, y, x);
-    y = vfma_f16(_c_cephes_log_p4, y, x);
-    y = vfma_f16(_c_cephes_log_p5, y, x);
-    y = vfma_f16(_c_cephes_log_p6, y, x);
-    y = vfma_f16(_c_cephes_log_p7, y, x);
-    y = vfma_f16(_c_cephes_log_p8, y, x);
-#else
     float16x4_t y = vdup_n_f16(c_cephes_log_p0);
     y = vfma_f16(vdup_n_f16(c_cephes_log_p1), y, x);
     y = vfma_f16(vdup_n_f16(c_cephes_log_p2), y, x);
@@ -119,27 +94,16 @@ static inline float16x4_t log_ps_f16(float16x4_t x)
     y = vfma_f16(vdup_n_f16(c_cephes_log_p6), y, x);
     y = vfma_f16(vdup_n_f16(c_cephes_log_p7), y, x);
     y = vfma_f16(vdup_n_f16(c_cephes_log_p8), y, x);
-#endif
     y = vmul_f16(y, x);
 
     y = vmul_f16(y, z);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_q1 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_q1));
-    y = vfma_f16(y, e, _c_cephes_log_q1);
-#else
     y = vfma_f16(y, e, vdup_n_f16(c_cephes_log_q1));
-#endif
 
     y = vfms_f16(y, z, vdup_n_f16(0.5f));
 
     x = vadd_f16(x, y);
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_q2 = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_q2));
-    x = vfma_f16(x, e, _c_cephes_log_q2);
-#else
     x = vfma_f16(x, e, vdup_n_f16(c_cephes_log_q2));
-#endif
     x = (float16x4_t)(vorr_u16((uint16x4_t)(x), invalid_mask)); // negative arg will be NAN
     return x;
 }
@@ -171,12 +135,7 @@ static inline float16x8_t log_ps_f16(float16x8_t x)
      *       x = x + x - 1.0;
      *     } else { x = x - 1.0; }
      */
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_SQRTHF_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_SQRTHF));
-    uint16x8_t mask = vcltq_f16(x, vcombine_f16(_c_cephes_SQRTHF_q, _c_cephes_SQRTHF_q));
-#else
     uint16x8_t mask = vcltq_f16(x, vdupq_n_f16(c_cephes_SQRTHF));
-#endif
     float16x8_t tmp = vreinterpretq_f16_u16(vandq_u16(vreinterpretq_u16_f16(x), mask));
     x = vsubq_f16(x, one);
     e = vsubq_f16(e, vreinterpretq_f16_u16(vandq_u16(vreinterpretq_u16_f16(one), mask)));
@@ -184,26 +143,6 @@ static inline float16x8_t log_ps_f16(float16x8_t x)
 
     float16x8_t z = vmulq_f16(x, x);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_p0_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p0));
-    float16x4_t _c_cephes_log_p1_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p1));
-    float16x4_t _c_cephes_log_p2_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p2));
-    float16x4_t _c_cephes_log_p3_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p3));
-    float16x4_t _c_cephes_log_p4_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p4));
-    float16x4_t _c_cephes_log_p5_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p5));
-    float16x4_t _c_cephes_log_p6_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p6));
-    float16x4_t _c_cephes_log_p7_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p7));
-    float16x4_t _c_cephes_log_p8_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_p8));
-    float16x8_t y = vcombine_f16(_c_cephes_log_p0_q, _c_cephes_log_p0_q);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p1_q, _c_cephes_log_p1_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p2_q, _c_cephes_log_p2_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p3_q, _c_cephes_log_p3_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p4_q, _c_cephes_log_p4_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p5_q, _c_cephes_log_p5_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p6_q, _c_cephes_log_p6_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p7_q, _c_cephes_log_p7_q), y, x);
-    y = vfmaq_f16(vcombine_f16(_c_cephes_log_p8_q, _c_cephes_log_p8_q), y, x);
-#else
     float16x8_t y = vdupq_n_f16(c_cephes_log_p0);
     y = vfmaq_f16(vdupq_n_f16(c_cephes_log_p1), y, x);
     y = vfmaq_f16(vdupq_n_f16(c_cephes_log_p2), y, x);
@@ -213,27 +152,16 @@ static inline float16x8_t log_ps_f16(float16x8_t x)
     y = vfmaq_f16(vdupq_n_f16(c_cephes_log_p6), y, x);
     y = vfmaq_f16(vdupq_n_f16(c_cephes_log_p7), y, x);
     y = vfmaq_f16(vdupq_n_f16(c_cephes_log_p8), y, x);
-#endif
     y = vmulq_f16(y, x);
 
     y = vmulq_f16(y, z);
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_q1_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_q1));
-    y = vfmaq_f16(y, e, vcombine_f16(_c_cephes_log_q1_q, _c_cephes_log_q1_q));
-#else
     y = vfmaq_f16(y, e, vdupq_n_f16(c_cephes_log_q1));
-#endif
 
     y = vfmsq_f16(y, z, vdupq_n_f16(0.5f));
 
     x = vaddq_f16(x, y);
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_cephes_log_q2_q = vcvt_f16_f32(vdupq_n_f32(c_cephes_log_q2));
-    x = vfmaq_f16(x, e, vcombine_f16(_c_cephes_log_q2_q, _c_cephes_log_q2_q));
-#else
     x = vfmaq_f16(x, e, vdupq_n_f16(c_cephes_log_q2));
-#endif
     x = vreinterpretq_f16_u16(vorrq_u16(vreinterpretq_u16_f16(x), invalid_mask)); // negative arg will be NAN
     return x;
 }
@@ -406,23 +334,10 @@ static inline void sincos_ps_f16(float16x4_t x, float16x4_t* ysin, float16x4_t* 
     float16x4_t z = vmul_f16(x, x);
     float16x4_t y1, y2;
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_coscof_p0 = vcvt_f16_f32(vdupq_n_f32(c_coscof_p0));
-    float16x4_t _c_coscof_p1 = vcvt_f16_f32(vdupq_n_f32(c_coscof_p1));
-    float16x4_t _c_coscof_p2 = vcvt_f16_f32(vdupq_n_f32(c_coscof_p2));
-    float16x4_t _c_sincof_p0 = vcvt_f16_f32(vdupq_n_f32(c_sincof_p0));
-    float16x4_t _c_sincof_p1 = vcvt_f16_f32(vdupq_n_f32(c_sincof_p1));
-    float16x4_t _c_sincof_p2 = vcvt_f16_f32(vdupq_n_f32(c_sincof_p2));
-    y1 = vfma_f16(_c_coscof_p1, z, _c_coscof_p0);
-    y2 = vfma_f16(_c_sincof_p1, z, _c_sincof_p0);
-    y1 = vfma_f16(_c_coscof_p2, y1, z);
-    y2 = vfma_f16(_c_sincof_p2, y2, z);
-#else
     y1 = vfma_f16(vdup_n_f16(c_coscof_p1), z, vdup_n_f16(c_coscof_p0));
     y2 = vfma_f16(vdup_n_f16(c_sincof_p1), z, vdup_n_f16(c_sincof_p0));
     y1 = vfma_f16(vdup_n_f16(c_coscof_p2), y1, z);
     y2 = vfma_f16(vdup_n_f16(c_sincof_p2), y2, z);
-#endif
     y1 = vmul_f16(y1, z);
     y2 = vmul_f16(y2, z);
     y1 = vmul_f16(y1, z);
@@ -480,23 +395,10 @@ static inline void sincos_ps_f16(float16x8_t x, float16x8_t* ysin, float16x8_t* 
     float16x8_t z = vmulq_f16(x, x);
     float16x8_t y1, y2;
 
-#if defined(_MSC_VER) && !defined(__clang__)
-    float16x4_t _c_coscof_p0_q = vcvt_f16_f32(vdupq_n_f32(c_coscof_p0));
-    float16x4_t _c_coscof_p1_q = vcvt_f16_f32(vdupq_n_f32(c_coscof_p1));
-    float16x4_t _c_coscof_p2_q = vcvt_f16_f32(vdupq_n_f32(c_coscof_p2));
-    float16x4_t _c_sincof_p0_q = vcvt_f16_f32(vdupq_n_f32(c_sincof_p0));
-    float16x4_t _c_sincof_p1_q = vcvt_f16_f32(vdupq_n_f32(c_sincof_p1));
-    float16x4_t _c_sincof_p2_q = vcvt_f16_f32(vdupq_n_f32(c_sincof_p2));
-    y1 = vfmaq_f16(vcombine_f16(_c_coscof_p1_q, _c_coscof_p1_q), z, vcombine_f16(_c_coscof_p0_q, _c_coscof_p0_q));
-    y2 = vfmaq_f16(vcombine_f16(_c_sincof_p1_q, _c_sincof_p1_q), z, vcombine_f16(_c_sincof_p0_q, _c_sincof_p0_q));
-    y1 = vfmaq_f16(vcombine_f16(_c_coscof_p2_q, _c_coscof_p2_q), y1, z);
-    y2 = vfmaq_f16(vcombine_f16(_c_sincof_p2_q, _c_sincof_p2_q), y2, z);
-#else
     y1 = vfmaq_f16(vdupq_n_f16(c_coscof_p1), z, vdupq_n_f16(c_coscof_p0));
     y2 = vfmaq_f16(vdupq_n_f16(c_sincof_p1), z, vdupq_n_f16(c_sincof_p0));
     y1 = vfmaq_f16(vdupq_n_f16(c_coscof_p2), y1, z);
     y2 = vfmaq_f16(vdupq_n_f16(c_sincof_p2), y2, z);
-#endif
     y1 = vmulq_f16(y1, z);
     y2 = vmulq_f16(y2, z);
     y1 = vmulq_f16(y1, z);
@@ -741,6 +643,94 @@ static inline float16x8_t sigmoid_ps_f16(float16x8_t _v)
     _v = exp_ps_f16(_v);
     _v = vaddq_f16(_v, _one);
     return vdivq_f16(_one, _v);
+}
+
+static inline float16x4_t elu_ps_f16(float16x4_t x, float16x4_t alpha)
+{
+    float16x4_t _zero = vdup_n_f16(0.f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _pos = vmax_f16(x, _zero);
+    float16x4_t _neg = vmin_f16(x, _zero);
+    _neg = vsub_f16(exp_ps_f16(_neg), _one);
+    return vadd_f16(_pos, vmul_f16(alpha, _neg));
+}
+
+static inline float16x8_t elu_ps_f16(float16x8_t x, float16x8_t alpha)
+{
+    float16x8_t _zero = vdupq_n_f16(0.f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _pos = vmaxq_f16(x, _zero);
+    float16x8_t _neg = vminq_f16(x, _zero);
+    _neg = vsubq_f16(exp_ps_f16(_neg), _one);
+    return vaddq_f16(_pos, vmulq_f16(alpha, _neg));
+}
+
+static inline float16x4_t gelu_ps_f16(float16x4_t x)
+{
+    float16x4_t _half = vdup_n_f16(0.5f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _blob = vmul_f16(vdup_n_f16(0.70710678f), x);
+    _blob = erf_ps_f16(_blob);
+    _blob = vadd_f16(_one, _blob);
+    return vmul_f16(_half, vmul_f16(_blob, x));
+}
+
+static inline float16x8_t gelu_ps_f16(float16x8_t x)
+{
+    float16x8_t _half = vdupq_n_f16(0.5f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _blob = vmulq_f16(vdupq_n_f16(0.70710678f), x);
+    _blob = erf_ps_f16(_blob);
+    _blob = vaddq_f16(_one, _blob);
+    return vmulq_f16(_half, vmulq_f16(_blob, x));
+}
+
+static inline float16x4_t fast_gelu_ps_f16(float16x4_t x)
+{
+    float16x4_t _half = vdup_n_f16(0.5f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _blob = vmul_f16(x, x);
+    _blob = vmul_f16(x, _blob);
+    _blob = vmul_f16(vdup_n_f16(0.044715f * 0.79788452f), _blob);
+    _blob = vfma_f16(_blob, vdup_n_f16(0.79788452f), x);
+    _blob = tanh_ps_f16(_blob);
+    _blob = vadd_f16(_one, _blob);
+    return vmul_f16(_half, vmul_f16(_blob, x));
+}
+
+static inline float16x8_t fast_gelu_ps_f16(float16x8_t x)
+{
+    float16x8_t _half = vdupq_n_f16(0.5f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _blob = vmulq_f16(x, x);
+    _blob = vmulq_f16(x, _blob);
+    _blob = vmulq_f16(vdupq_n_f16(0.044715f * 0.79788452f), _blob);
+    _blob = vfmaq_f16(_blob, vdupq_n_f16(0.79788452f), x);
+    _blob = tanh_ps_f16(_blob);
+    _blob = vaddq_f16(_one, _blob);
+    return vmulq_f16(_half, vmulq_f16(_blob, x));
+}
+
+static inline float16x4_t selu_ps_f16(float16x4_t x, float16x4_t alphaxlambda, float16x4_t lambda)
+{
+    float16x4_t _zero = vdup_n_f16(0.f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    uint16x4_t _lemask = vcle_f16(x, _zero);
+    float16x4_t _nps = vsub_f16(exp_ps_f16(x), _one);
+    _nps = vmul_f16(_nps, alphaxlambda);
+    float16x4_t _pps = vmul_f16(x, lambda);
+    return vbsl_f16(_lemask, _nps, _pps);
+}
+
+static inline float16x8_t selu_ps_f16(float16x8_t x, float16x8_t alphaxlambda, float16x8_t lambda)
+{
+    float16x8_t _zero = vdupq_n_f16(0.f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    uint16x8_t _lemask = vcleq_f16(x, _zero);
+    float16x8_t _nps = vsubq_f16(exp_ps_f16(x), _one);
+    _nps = vmulq_f16(_nps, alphaxlambda);
+    float16x8_t _pps = vmulq_f16(x, lambda);
+    return vbslq_f16(_lemask, _nps, _pps);
 }
 
 #endif // NEON_MATHFUN_FP16S_H

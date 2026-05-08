@@ -538,6 +538,50 @@ static inline float32x4_t erf_ps(float32x4_t a)
     return r;
 }
 
+static inline float32x4_t elu_ps(float32x4_t x, float32x4_t alpha)
+{
+    float32x4_t _zero = vdupq_n_f32(0.f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _pos = vmaxq_f32(x, _zero);
+    float32x4_t _neg = vminq_f32(x, _zero);
+    _neg = vsubq_f32(exp_ps(_neg), _one);
+    return vaddq_f32(_pos, vmulq_f32(alpha, _neg));
+}
+
+static inline float32x4_t gelu_ps(float32x4_t x)
+{
+    float32x4_t _half = vdupq_n_f32(0.5f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _blob = vmulq_f32(vdupq_n_f32(0.70710678f), x);
+    _blob = erf_ps(_blob);
+    _blob = vaddq_f32(_one, _blob);
+    return vmulq_f32(_half, vmulq_f32(_blob, x));
+}
+
+static inline float32x4_t fast_gelu_ps(float32x4_t x)
+{
+    float32x4_t _half = vdupq_n_f32(0.5f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _blob = vmulq_f32(x, x);
+    _blob = vmulq_f32(x, _blob);
+    _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
+    _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), x);
+    _blob = tanh_ps(_blob);
+    _blob = vaddq_f32(_one, _blob);
+    return vmulq_f32(_half, vmulq_f32(_blob, x));
+}
+
+static inline float32x4_t selu_ps(float32x4_t x, float32x4_t alphaxlambda, float32x4_t lambda)
+{
+    float32x4_t _zero = vdupq_n_f32(0.f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    uint32x4_t _lemask = vcleq_f32(x, _zero);
+    float32x4_t _nps = vsubq_f32(exp_ps(x), _one);
+    _nps = vmulq_f32(_nps, alphaxlambda);
+    float32x4_t _pps = vmulq_f32(x, lambda);
+    return vbslq_f32(_lemask, _nps, _pps);
+}
+
 // Clean up macros
 #undef VFMAQ_F32
 #undef VFMSQ_F32

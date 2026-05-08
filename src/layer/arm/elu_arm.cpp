@@ -63,18 +63,10 @@ int ELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __ARM_NEON
         float32x4_t _alpha = vdupq_n_f32(alpha);
-        float32x4_t _one = vdupq_n_f32(1.f);
-        float32x4_t _zero = vdupq_n_f32(0.f);
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
-            uint32x4_t _lemask = vcleq_f32(_p, _zero);
-
-            float32x4_t _nps = exp_ps(_p);
-            _nps = vsubq_f32(_nps, _one);
-            _nps = vmulq_f32(_nps, _alpha);
-
-            _p = vbslq_f32(_lemask, _nps, _p);
+            _p = elu_ps(_p, _alpha);
             vst1q_f32(ptr, _p);
 
             ptr += 4;
@@ -110,41 +102,15 @@ int ELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
 
 #if __ARM_NEON
         float32x4_t _alpha = vdupq_n_f32(alpha);
-        float32x4_t _one = vdupq_n_f32(1.f);
-        float32x4_t _zero = vdupq_n_f32(0.f);
 
         for (; i + 15 < size; i += 16)
         {
             uint16x8_t _p = vld1q_u16(ptr);
             uint16x8_t _q = vld1q_u16(ptr + 8);
-            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-            float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
-            float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
-            uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
-            uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
-            uint32x4_t _lemask2 = vcleq_f32(_p2, _zero);
-            uint32x4_t _lemask3 = vcleq_f32(_p3, _zero);
-            _p0 = exp_ps(_p0);
-            _p1 = exp_ps(_p1);
-            _p2 = exp_ps(_p2);
-            _p3 = exp_ps(_p3);
-            _p0 = vsubq_f32(_p0, _one);
-            _p1 = vsubq_f32(_p1, _one);
-            _p2 = vsubq_f32(_p2, _one);
-            _p3 = vsubq_f32(_p3, _one);
-            _p0 = vmulq_f32(_p0, _alpha);
-            _p1 = vmulq_f32(_p1, _alpha);
-            _p2 = vmulq_f32(_p2, _alpha);
-            _p3 = vmulq_f32(_p3, _alpha);
-            float32x4_t _orig0 = bfloat2float(vget_low_u16(vld1q_u16(ptr)));
-            float32x4_t _orig1 = bfloat2float(vget_high_u16(vld1q_u16(ptr)));
-            float32x4_t _orig2 = bfloat2float(vget_low_u16(vld1q_u16(ptr + 8)));
-            float32x4_t _orig3 = bfloat2float(vget_high_u16(vld1q_u16(ptr + 8)));
-            _p0 = vbslq_f32(_lemask0, _p0, _orig0);
-            _p1 = vbslq_f32(_lemask1, _p1, _orig1);
-            _p2 = vbslq_f32(_lemask2, _p2, _orig2);
-            _p3 = vbslq_f32(_lemask3, _p3, _orig3);
+            float32x4_t _p0 = elu_ps(bfloat2float(vget_low_u16(_p)), _alpha);
+            float32x4_t _p1 = elu_ps(bfloat2float(vget_high_u16(_p)), _alpha);
+            float32x4_t _p2 = elu_ps(bfloat2float(vget_low_u16(_q)), _alpha);
+            float32x4_t _p3 = elu_ps(bfloat2float(vget_high_u16(_q)), _alpha);
             _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
             vst1q_u16(ptr, _p);
@@ -154,33 +120,15 @@ int ELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) cons
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
-            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
-            uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
-            uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
-            _p0 = exp_ps(_p0);
-            _p1 = exp_ps(_p1);
-            _p0 = vsubq_f32(_p0, _one);
-            _p1 = vsubq_f32(_p1, _one);
-            _p0 = vmulq_f32(_p0, _alpha);
-            _p1 = vmulq_f32(_p1, _alpha);
-            float32x4_t _orig0 = bfloat2float(vget_low_u16(vld1q_u16(ptr)));
-            float32x4_t _orig1 = bfloat2float(vget_high_u16(vld1q_u16(ptr)));
-            _p0 = vbslq_f32(_lemask0, _p0, _orig0);
-            _p1 = vbslq_f32(_lemask1, _p1, _orig1);
+            float32x4_t _p0 = elu_ps(bfloat2float(vget_low_u16(_p)), _alpha);
+            float32x4_t _p1 = elu_ps(bfloat2float(vget_high_u16(_p)), _alpha);
             _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = bfloat2float(vld1_u16(ptr));
-            uint32x4_t _lemask = vcleq_f32(_p, _zero);
-            _p = exp_ps(_p);
-            _p = vsubq_f32(_p, _one);
-            _p = vmulq_f32(_p, _alpha);
-            float32x4_t _orig = bfloat2float(vld1_u16(ptr));
-            _p = vbslq_f32(_lemask, _p, _orig);
+            float32x4_t _p = elu_ps(bfloat2float(vld1_u16(ptr)), _alpha);
             vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
