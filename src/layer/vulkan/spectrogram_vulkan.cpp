@@ -20,11 +20,8 @@ Spectrogram_vulkan::Spectrogram_vulkan()
     n_freq = 0;
 
     padding = 0;
-    unfold = 0;
-    gemm = 0;
 
-    pipeline_spectrogram_post = 0;
-    pipeline_spectrogram_post_pack4 = 0;
+    pipeline_spectrogram_packed = 0;
 }
 
 int Spectrogram_vulkan::create_pipeline(const Option& opt)
@@ -51,90 +48,59 @@ int Spectrogram_vulkan::create_pipeline(const Option& opt)
         padding->create_pipeline(opt);
     }
 
-    unfold = ncnn::create_layer_vulkan(ncnn::LayerType::Unfold);
-    unfold->vkdev = vkdev;
+    int out_elempack = 1;
+    if (opt.use_packing_layout && n_freq % 4 == 0)
+        out_elempack = 4;
+
+    int n_freq_packed = (n_freq + 3) / 4 * 4;
+
+    basis_data_packed.create(n_fft, 1, n_freq_packed / 4, (size_t)4 * 4, 4);
+    basis_imag_data_packed.create(n_fft, 1, n_freq_packed / 4, (size_t)4 * 4, 4);
+
+    for (int q = 0; q < n_freq_packed; q += 4)
     {
-        ncnn::ParamDict pd;
+        float* g00r = basis_data_packed.channel(q / 4);
+        float* g00i = basis_imag_data_packed.channel(q / 4);
 
-        pd.set(1, n_fft);
-        pd.set(11, 1);
-        pd.set(2, 1);
-        pd.set(12, 1);
-        pd.set(3, hoplen);
-        pd.set(13, 1);
-        pd.set(4, 0);
-        pd.set(15, 0);
-        pd.set(14, 0);
-        pd.set(16, 0);
-        pd.set(18, 0.f);
-
-        unfold->load_param(pd);
-        unfold->load_model(ModelBinFromMatArray(0));
-        unfold->create_pipeline(opt);
-    }
-
-    gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
-    gemm->vkdev = vkdev;
-    {
-        ncnn::ParamDict pd;
-
-        pd.set(0, 1.f);
-        pd.set(1, 1.f);
-        pd.set(2, 0);
-        pd.set(3, 0);
-        pd.set(4, 1);
-        pd.set(5, 0);
-        pd.set(6, 0);
-        pd.set(7, 2 * n_freq);
-        pd.set(8, 0);
-        pd.set(9, n_fft);
-        pd.set(14, 0);
-
-        gemm->load_param(pd);
-
-        Mat basis_data;
-        basis_data.create(n_fft, 2 * n_freq, (size_t)4u, 1);
-        if (basis_data.empty())
-            return -100;
-
-        for (int i = 0; i < n_freq; i++)
+        for (int k = 0; k < n_fft; k++)
         {
-            float* real_row = basis_data.row<float>(i);
-            float* imag_row = basis_data.row<float>(i + n_freq);
-
-            for (int j = 0; j < n_fft; j++)
+            for (int i = 0; i < 4; i++)
             {
-                const double angle = 2 * 3.14159265358979323846 * i * j / n_fft;
-                const float w = window_data[j];
+                int f = q + i;
+                if (f < n_freq)
+                {
+                    const double angle = 2 * 3.14159265358979323846 * f * k / n_fft;
+                    const float w = window_data[k];
 
-                real_row[j] = (float)cos(angle) * w;
-                imag_row[j] = (float)(-sin(angle)) * w;
+                    g00r[0] = (float)cos(angle) * w;
+                    g00i[0] = (float)(-sin(angle)) * w;
+                }
+                else
+                {
+                    g00r[0] = 0.f;
+                    g00i[0] = 0.f;
+                }
+                g00r++;
+                g00i++;
             }
         }
-
-        Mat weights[1];
-        weights[0] = basis_data;
-
-        gemm->load_model(ModelBinFromMatArray(weights));
-        gemm->create_pipeline(opt);
-
-        if (opt.lightmode)
-        {
-            window_data.release();
-        }
     }
 
     {
-        std::vector<vk_specialization_type> specializations(1);
+        std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = power;
+        specializations[1].i = n_fft;
+        specializations[2].i = hoplen;
+        specializations[3].i = out_elempack;
 
-        pipeline_spectrogram_post = new Pipeline(vkdev);
-        pipeline_spectrogram_post->set_local_size_xyz(8, 8, 1);
-        pipeline_spectrogram_post->create(LayerShaderType::spectrogram_post, opt, specializations);
+        pipeline_spectrogram_packed = new Pipeline(vkdev);
+        pipeline_spectrogram_packed->set_local_size_xyz(8, 8, 1);
+        pipeline_spectrogram_packed->create(LayerShaderType::spectrogram_packed, opt, specializations);
+    }
 
-        pipeline_spectrogram_post_pack4 = new Pipeline(vkdev);
-        pipeline_spectrogram_post_pack4->set_local_size_xyz(8, 8, 1);
-        pipeline_spectrogram_post_pack4->create(LayerShaderType::spectrogram_post_pack4, opt, specializations);
+    if (opt.lightmode)
+    {
+        window_data.release();
     }
 
     return 0;
@@ -149,25 +115,8 @@ int Spectrogram_vulkan::destroy_pipeline(const Option& opt)
         padding = 0;
     }
 
-    if (unfold)
-    {
-        unfold->destroy_pipeline(opt);
-        delete unfold;
-        unfold = 0;
-    }
-
-    if (gemm)
-    {
-        gemm->destroy_pipeline(opt);
-        delete gemm;
-        gemm = 0;
-    }
-
-    delete pipeline_spectrogram_post;
-    pipeline_spectrogram_post = 0;
-
-    delete pipeline_spectrogram_post_pack4;
-    pipeline_spectrogram_post_pack4 = 0;
+    delete pipeline_spectrogram_packed;
+    pipeline_spectrogram_packed = 0;
 
     return 0;
 }
@@ -175,8 +124,13 @@ int Spectrogram_vulkan::destroy_pipeline(const Option& opt)
 int Spectrogram_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
     if (padding) padding->upload_model(cmd, opt);
-    if (unfold) unfold->upload_model(cmd, opt);
-    if (gemm) gemm->upload_model(cmd, opt);
+
+    cmd.record_upload(basis_data_packed, basis_data_gpu, opt);
+    cmd.record_upload(basis_imag_data_packed, basis_imag_data_gpu, opt);
+
+    basis_data_packed.release();
+    basis_imag_data_packed.release();
+
     return 0;
 }
 
@@ -198,84 +152,49 @@ int Spectrogram_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     if (frames <= 0)
         return -100;
 
-    VkMat cols;
-    {
-        int retu = unfold->forward(x, cols, cmd, opt);
-        if (retu != 0)
-            return retu;
-    }
+    int out_elempack = 1;
+    if (opt.use_packing_layout && n_freq % 4 == 0)
+        out_elempack = 4;
 
-    VkMat y;
-    {
-        std::vector<VkMat> inputs(1);
-        inputs[0] = cols;
-
-        std::vector<VkMat> outputs(1);
-        outputs[0] = VkMat();
-
-        int retg = gemm->forward(inputs, outputs, cmd, opt);
-        if (retg != 0)
-            return retg;
-
-        vkdev->convert_packing(outputs[0], y, 1, cmd, opt);
-    }
-
-    const int out_elempack = (opt.use_packing_layout && (n_freq % 4 == 0)) ? 4 : 1;
     const size_t scalar_elemsize = bottom_blob.elemsize / bottom_blob.elempack;
     const size_t out_elemsize = scalar_elemsize * out_elempack;
 
+    int top_row_stride;
     if (power == 0)
     {
         top_blob.create(2, frames, n_freq / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
+        top_row_stride = (int)top_blob.cstep;
     }
     else
     {
         top_blob.create(frames, n_freq / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
+        top_row_stride = top_blob.w;
     }
 
-    std::vector<VkMat> bindings(2);
-    bindings[0] = y;
+    std::vector<VkMat> bindings(6);
+    bindings[0] = x;
     bindings[1] = top_blob;
+    bindings[2] = x;
+    bindings[3] = top_blob;
+    bindings[4] = basis_data_gpu;
+    bindings[5] = basis_imag_data_gpu;
 
-    if (out_elempack == 1)
-    {
-        const int top_row_stride = (power != 0) ? top_blob.w : (int)top_blob.cstep;
+    std::vector<vk_constant_type> constants(4);
+    constants[0].i = frames;
+    constants[1].i = n_freq;
+    constants[2].i = x.w * x.elempack;
+    constants[3].i = top_row_stride;
 
-        std::vector<vk_constant_type> constants(4);
-        constants[0].i = frames;
-        constants[1].i = n_freq;
-        constants[2].i = y.w;
-        constants[3].i = top_row_stride;
+    VkMat dispatcher;
+    dispatcher.w = frames;
+    dispatcher.h = (n_freq + 3) / 4;
+    dispatcher.c = 1;
 
-        VkMat dispatcher;
-        dispatcher.w = frames;
-        dispatcher.h = n_freq;
-        dispatcher.c = 1;
-
-        cmd.record_pipeline(pipeline_spectrogram_post, bindings, constants, dispatcher);
-    }
-    else
-    {
-        const int top_row_stride = (power != 0) ? top_blob.w : (int)top_blob.cstep;
-
-        std::vector<vk_constant_type> constants(5);
-        constants[0].i = frames;
-        constants[1].i = n_freq;
-        constants[2].i = n_freq / 4;
-        constants[3].i = y.w;
-        constants[4].i = top_row_stride;
-
-        VkMat dispatcher;
-        dispatcher.w = frames;
-        dispatcher.h = n_freq / 4;
-        dispatcher.c = 1;
-
-        cmd.record_pipeline(pipeline_spectrogram_post_pack4, bindings, constants, dispatcher);
-    }
+    cmd.record_pipeline(pipeline_spectrogram_packed, bindings, constants, dispatcher);
 
     return 0;
 }

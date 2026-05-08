@@ -24,12 +24,15 @@ public:
 public:
     int n_freq;
 
-    Layer* padding;
-    Layer* unfold;
-    Layer* gemm;
+    ncnn::Layer* padding;
 
-    Pipeline* pipeline_spectrogram_post;
-    Pipeline* pipeline_spectrogram_post_pack4;
+    Mat basis_data_packed;
+    Mat basis_imag_data_packed;
+
+    VkMat basis_data_gpu;
+    VkMat basis_imag_data_gpu;
+
+    Pipeline* pipeline_spectrogram_packed;
 };
 
 } // namespace ncnn

@@ -24,13 +24,16 @@ public:
 public:
     Mat window2_data;
 
-    Layer* gemm_real;
-    Layer* gemm_imag;
+    Mat basis_cos_data_packed;
+    Mat basis_sin_data_packed;
+
+    VkMat basis_cos_data_gpu;
+    VkMat basis_sin_data_gpu;
 
     VkMat window2_data_gpu;
 
-    Pipeline* pipeline_inversespectrogram_build_b;
-    Pipeline* pipeline_inversespectrogram_build_b_pack4;
+    Pipeline* pipeline_inversespectrogram_idft;
+    Pipeline* pipeline_inversespectrogram_idft_pack4;
     Pipeline* pipeline_inversespectrogram_ola;
     Pipeline* pipeline_inversespectrogram_ola_pack4;
 };
