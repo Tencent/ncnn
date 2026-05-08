@@ -89,7 +89,7 @@ filelist_in2.txt
 ```
 **Here shape is WHC, because the order of the arguments to `ncnn::Mat`.**
 
-For RNN,GRU,LSTM,MultiHeadAttention and Embed layers,ncnn2table also supports tableless quantization.
+ncnn2table can generate static weight scales without a calibration dataset for RNN,GRU,LSTM,MultiHeadAttention and Embed layers
 
 ```shell
 ./ncnn2table rnn.param rnn.bin rnn.table method=kl
