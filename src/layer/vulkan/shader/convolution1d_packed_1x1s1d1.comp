@@ -23,11 +23,9 @@ layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
 layout(constant_id = shape_constant_id_offset + 4) const int num_output = 0;
 layout(constant_id = shape_constant_id_offset + 5) const int num_input_packed = 0;
 
-// scalar view (for pack1 input/output access)
 layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
 
-// vec4 view (for pack4 input/output access, weight/bias always vec4)
 layout(binding = 2) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
 layout(binding = 3) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
 layout(binding = 4) readonly buffer weight_blob { sfpvec4 weight_data[]; };
@@ -70,81 +68,54 @@ void main()
     }
     else
     {
-        sum0 = afpvec4(0.0f);
-        sum1 = afpvec4(0.0f);
-        sum2 = afpvec4(0.0f);
-        sum3 = afpvec4(0.0f);
+        sum0 = afpvec4(0.f);
+        sum1 = afpvec4(0.f);
+        sum2 = afpvec4(0.f);
+        sum3 = afpvec4(0.f);
     }
 
-    // For 1x1s1d1 conv1d: each output channel is dot product of input channels at same spatial position
-    // Weight layout in C++ (weight_data_packed is Mat with h=num_output_packed/4, w=num_input_packed/4, elemsize=64):
-    //   For each output_pack4 (q/4):
-    //     For each input_pack4 (p/4):
-    //       For i in 0..3 (output in pack):
-    //         For j in 0..3 (input in pack):
-    //           weight[(q+i)*num_input + (p+j)] stored at row(q/4)[(p/4)*16 + i*4 + j]
-    //
-    // When viewed as vec4 array, weight_data has (num_output_packed/4) * (num_input_packed/4) * 4 elements
-    // Index = out_pack_idx * (num_input_packed/4) * 4 + in_pack_idx * 4 + row
-    // where row 0-3 corresponds to 4 output channels in the pack
-
-    const int num_input_packed_vk = psc(num_input_packed);
-    const int num_input_pack4 = num_input_packed_vk / 4;
-    const int num_input_vk = psc(h); // Actual number of input channels
+    const int num_input_pack4 = psc(num_input_packed) / 4;
+    const int inch = psc(h);
 
     for (int y = 0; y < num_input_pack4; y++)
     {
-        // Input is always processed as packed4 (4 channels at a time)
-        // Load 4 input channels
         afpvec4 v0, v1;
 
         if (elempack == 4)
         {
-            // Input already packed4
             v0 = buffer_ld4(bottom_blob_data_4, gx2.x + y * psc(w));
             v1 = buffer_ld4(bottom_blob_data_4, gx2.y + y * psc(w));
         }
         else
         {
-            // Input is pack1, load up to 4 channels and combine
-            // Use 0 for channels beyond num_input_vk (weights for these are also 0)
-            int ch0 = y * 4 + 0;
-            int ch1 = y * 4 + 1;
-            int ch2 = y * 4 + 2;
-            int ch3 = y * 4 + 3;
+            const int ch = y * 4;
 
-            afp v00 = (ch0 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.x + ch0 * psc(w)) : afp(0.0);
-            afp v01 = (ch1 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.x + ch1 * psc(w)) : afp(0.0);
-            afp v02 = (ch2 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.x + ch2 * psc(w)) : afp(0.0);
-            afp v03 = (ch3 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.x + ch3 * psc(w)) : afp(0.0);
+            afp v00 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 0) * psc(w)) : afp(0.f);
+            afp v01 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 1) * psc(w)) : afp(0.f);
+            afp v02 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 2) * psc(w)) : afp(0.f);
+            afp v03 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 3) * psc(w)) : afp(0.f);
             v0 = afpvec4(v00, v01, v02, v03);
 
-            afp v10 = (ch0 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.y + ch0 * psc(w)) : afp(0.0);
-            afp v11 = (ch1 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.y + ch1 * psc(w)) : afp(0.0);
-            afp v12 = (ch2 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.y + ch2 * psc(w)) : afp(0.0);
-            afp v13 = (ch3 < num_input_vk) ? buffer_ld1(bottom_blob_data_1, gx2.y + ch3 * psc(w)) : afp(0.0);
+            afp v10 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 0) * psc(w)) : afp(0.f);
+            afp v11 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 1) * psc(w)) : afp(0.f);
+            afp v12 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 2) * psc(w)) : afp(0.f);
+            afp v13 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 3) * psc(w)) : afp(0.f);
             v1 = afpvec4(v10, v11, v12, v13);
         }
 
-        // Weight index: for output pack gy2.x, input pack y
-        // Each output pack has num_input_pack4 * 4 vec4 elements
-        int wbase0 = gy2.x * num_input_pack4 * 4 + y * 4;
-        int wbase1 = gy2.y * num_input_pack4 * 4 + y * 4;
+        const int wbase0 = gy2.x * num_input_pack4 * 4 + y * 4;
+        const int wbase1 = gy2.y * num_input_pack4 * 4 + y * 4;
 
-        // Load 4 rows of the 4x4 weight matrix
-        // Row i contains weights for output channel (gy2.x*4+i) across 4 input channels
-        afpvec4 k00 = buffer_ld4(weight_data, wbase0 + 0); // weights for out_ch+0 from in_ch..in_ch+3
-        afpvec4 k01 = buffer_ld4(weight_data, wbase0 + 1); // weights for out_ch+1 from in_ch..in_ch+3
-        afpvec4 k02 = buffer_ld4(weight_data, wbase0 + 2); // weights for out_ch+2 from in_ch..in_ch+3
-        afpvec4 k03 = buffer_ld4(weight_data, wbase0 + 3); // weights for out_ch+3 from in_ch..in_ch+3
+        afpvec4 k00 = buffer_ld4(weight_data, wbase0 + 0);
+        afpvec4 k01 = buffer_ld4(weight_data, wbase0 + 1);
+        afpvec4 k02 = buffer_ld4(weight_data, wbase0 + 2);
+        afpvec4 k03 = buffer_ld4(weight_data, wbase0 + 3);
 
         afpvec4 k10 = buffer_ld4(weight_data, wbase1 + 0);
         afpvec4 k11 = buffer_ld4(weight_data, wbase1 + 1);
         afpvec4 k12 = buffer_ld4(weight_data, wbase1 + 2);
         afpvec4 k13 = buffer_ld4(weight_data, wbase1 + 3);
 
-        // Matrix multiplication: v (1x4) * k (4x4) = sum (1x4)
-        // sum[i] = dot(v, k[i]) where k[i] is row i of weight matrix
         sum0 += afpvec4(dot(v0, k00), dot(v0, k01), dot(v0, k02), dot(v0, k03));
         sum1 += afpvec4(dot(v1, k00), dot(v1, k01), dot(v1, k02), dot(v1, k03));
         sum2 += afpvec4(dot(v0, k10), dot(v0, k11), dot(v0, k12), dot(v0, k13));
