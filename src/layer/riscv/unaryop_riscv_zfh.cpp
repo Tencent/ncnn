@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "unaryop_riscv.h"
 
@@ -247,7 +236,7 @@ struct unary_op_tan_fp16s
 #if __riscv_zvfh
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
-        // TODO rvv optimize
+#if __riscv_xtheadvector
         std::vector<__fp16> tmp(vl);
         __riscv_vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
@@ -255,6 +244,11 @@ struct unary_op_tan_fp16s
             tmp[i] = (__fp16)tanf((float)tmp[i]);
         }
         return __riscv_vle16_v_f16m8(tmp.data(), vl);
+#else
+        vfloat16m8_t sin_x, cos_x;
+        sincos_ps(x, &sin_x, &cos_x, vl);
+        return __riscv_vfdiv_vv_f16m8(sin_x, cos_x, vl);
+#endif
     }
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
@@ -281,7 +275,7 @@ struct unary_op_asin_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)asin((float)x);
+        return (__fp16)asinf((float)x);
     }
 #endif // __riscv_zvfh
 };
@@ -303,7 +297,7 @@ struct unary_op_acos_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)acos((float)x);
+        return (__fp16)acosf((float)x);
     }
 #endif // __riscv_zvfh
 };
@@ -325,7 +319,7 @@ struct unary_op_atan_fp16s
 #else  // __riscv_zvfh
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)atan((float)x);
+        return (__fp16)atanf((float)x);
     }
 #endif // __riscv_zvfh
 };

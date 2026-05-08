@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void resize_bilinear_image_packn_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -54,7 +43,7 @@ static void resize_bilinear_image_packn_fp16s(const Mat& src, Mat& dst, float* a
 
                 vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p, vl);
                 vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p + packn, vl);
-                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S11, vl);
 
                 __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);
 
@@ -81,8 +70,8 @@ static void resize_bilinear_image_packn_fp16s(const Mat& src, Mat& dst, float* a
                 vfloat16m1_t _S01 = __riscv_vle16_v_f16m1(S0p + packn, vl);
                 vfloat16m1_t _S10 = __riscv_vle16_v_f16m1(S1p, vl);
                 vfloat16m1_t _S11 = __riscv_vle16_v_f16m1(S1p + packn, vl);
-                vfloat32m2_t _rows0 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S00, alphap[0], vl), alphap[1], _S01, vl);
-                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, alphap[0], vl), alphap[1], _S11, vl);
+                vfloat32m2_t _rows0 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S00, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S01, vl);
+                vfloat32m2_t _rows1 = __riscv_vfwmacc_vf_f32m2(__riscv_vfwmul_vf_f32m2(_S10, (__fp16)alphap[0], vl), (__fp16)alphap[1], _S11, vl);
 
                 __riscv_vse32_v_f32m2(rows0p + dx * packn, _rows0, vl);
                 __riscv_vse32_v_f32m2(rows1p + dx * packn, _rows1, vl);

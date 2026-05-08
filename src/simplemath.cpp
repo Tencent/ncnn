@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "platform.h"
 
@@ -140,6 +129,33 @@ float fmodf(float x, float y)
 {
     float m = frac(fabsf(x / y)) * fabsf(y);
     return (x < 0) ? -m : m;
+}
+
+float remainderf(float x, float y)
+{
+    if (y == 0.0f)
+    {
+        return x;
+    }
+    float q = x / y;
+    float rq;
+    float absq = fabsf(q);
+    float intpart = floorf(absq);
+    float fracpart = absq - intpart;
+    if (fracpart > 0.5f)
+    {
+        intpart += 1.0f;
+    }
+    else if (fracpart == 0.5f)
+    {
+        int n = (int)intpart;
+        if (n % 2 != 0)
+        {
+            intpart += 1.0f;
+        }
+    }
+    rq = (q >= 0) ? intpart : -intpart;
+    return x - rq * y;
 }
 
 /*
@@ -506,6 +522,28 @@ float log10f(float x)
 {
     static const float ln10 = 2.3025850929940456840179914546844;
     return logf(x) / ln10;
+}
+
+float log1pf(float x)
+{
+    if (x == 0.0f)
+    {
+        return x;
+    }
+    if (x < -1.0f)
+    {
+        return (x - x) / (x - x); // NaN
+    }
+    if (x == -1.0f)
+    {
+        return -INFINITY;
+    }
+    float u = 1.0f + x;
+    if (u == 1.0f)
+    {
+        return x;
+    }
+    return logf(u) * (x / (u - 1.0f));
 }
 
 /*

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "scale_x86.h"
 
@@ -21,19 +10,33 @@
 #endif // __AVX__
 #endif // __SSE2__
 #include "x86_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_BF16
+#include "scale_bf16s.h"
+#endif
 
 Scale_x86::Scale_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blobs, opt);
+#endif
 
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
@@ -161,9 +164,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
             __m128 _s128 = (elempack == 4) ? _mm_loadu_ps(scale + i * 4) : _mm_set1_ps(s);
 #if __AVX__
-            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_s128), _s128, 1);
+            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + i * 8) : combine4x2_ps(_s128, _s128);
 #if __AVX512F__
-            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_s256), _s256, 1);
+            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + i * 16) : combine8x2_ps(_s256, _s256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -174,9 +177,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
                 __m128 _b128 = (elempack == 4) ? _mm_loadu_ps(bias + i * 4) : _mm_set1_ps(b);
 #if __AVX__
-                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + i * 8) : combine4x2_ps(_b128, _b128);
 #if __AVX512F__
-                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + i * 16) : combine8x2_ps(_b256, _b256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -261,9 +264,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
             __m128 _s128 = (elempack == 4) ? _mm_loadu_ps(scale + q * 4) : _mm_set1_ps(s);
 #if __AVX__
-            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_s128), _s128, 1);
+            __m256 _s256 = (elempack == 8) ? _mm256_loadu_ps(scale + q * 8) : combine4x2_ps(_s128, _s128);
 #if __AVX512F__
-            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_s256), _s256, 1);
+            __m512 _s512 = (elempack == 16) ? _mm512_loadu_ps(scale + q * 16) : combine8x2_ps(_s256, _s256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -274,9 +277,9 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __SSE2__
                 __m128 _b128 = (elempack == 4) ? _mm_loadu_ps(bias + q * 4) : _mm_set1_ps(b);
 #if __AVX__
-                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+                __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps(bias + q * 8) : combine4x2_ps(_b128, _b128);
 #if __AVX512F__
-                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+                __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps(bias + q * 16) : combine8x2_ps(_b256, _b256);
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -350,5 +353,104 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
     return 0;
 }
+
+#if NCNN_BF16
+int Scale_x86::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+{
+    Mat& bottom_top_blob = bottom_top_blobs[0];
+    const Mat& scale_blob = bottom_top_blobs[1];
+
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+
+    // scale_blob may be bf16 (from second input) or fp32 (from scale_data weight)
+    const float* scale = 0;
+    Mat scale_fp32;
+    if (scale_blob.elembits() == 16)
+    {
+        const int scale_data_size = scale_blob.w * scale_blob.elempack;
+        scale_fp32.create(scale_data_size, 4u, 1, opt.workspace_allocator);
+        if (scale_fp32.empty())
+            return -100;
+        const unsigned short* src = scale_blob;
+        float* dst = scale_fp32;
+        for (int i = 0; i < scale_data_size; i++)
+        {
+            dst[i] = bfloat16_to_float32(src[i]);
+        }
+        scale = scale_fp32;
+    }
+    else
+    {
+        scale = scale_blob;
+    }
+    const float* bias = bias_data;
+
+    if (dims == 1)
+    {
+        unsigned short* ptr = (unsigned short*)bottom_top_blob;
+        const int size = w * elempack;
+
+        if (bias_term)
+        {
+            scale_bf16s_per_element_sse(ptr, scale, bias, size, opt.num_threads);
+        }
+        else
+        {
+            scale_bf16s_no_bias_per_element_sse(ptr, scale, size, opt.num_threads);
+        }
+    }
+
+    if (dims == 2)
+    {
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            const float* sptr = scale + i * elempack;
+
+            if (bias_term)
+            {
+                const float* bptr = bias + i * elempack;
+                scale_bf16s_sse(ptr, sptr, bptr, size, elempack);
+            }
+            else
+            {
+                scale_bf16s_no_bias_sse(ptr, sptr, size, elempack);
+            }
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        const int size = w * h * d * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            const float* sptr = scale + q * elempack;
+
+            if (bias_term)
+            {
+                const float* bptr = bias + q * elempack;
+                scale_bf16s_sse(ptr, sptr, bptr, size, elempack);
+            }
+            else
+            {
+                scale_bf16s_no_bias_sse(ptr, sptr, size, elempack);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

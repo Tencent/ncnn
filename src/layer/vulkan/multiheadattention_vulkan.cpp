@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2023 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "multiheadattention_vulkan.h"
 
@@ -22,7 +11,7 @@ namespace ncnn {
 MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
 {
     support_vulkan = true;
-    support_image_storage = true;
+    support_vulkan_packing = true;
 
     q_gemm = 0;
     k_gemm = 0;
@@ -31,6 +20,8 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
     qk_softmax = 0;
 
     o_gemm = 0;
+
+    kvcache_concat = 0;
 
     pipeline_multiheadattention_qk_cross = 0;
     pipeline_multiheadattention_qk_cross_pack4 = 0;
@@ -50,7 +41,6 @@ int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
     if (int8_scale_term)
     {
         support_vulkan = false;
-        support_image_storage = false;
     }
 
     return ret;
@@ -58,7 +48,7 @@ int MultiHeadAttention_vulkan::load_param(const ParamDict& pd)
 
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
-    const int embed_dim_per_head = embed_dim / num_heads;
+    // const int embed_dim_per_head = embed_dim / num_heads;
     const int qdim = weight_data_size / embed_dim;
     {
         q_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
@@ -250,6 +240,16 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    {
+        kvcache_concat = ncnn::create_layer_vulkan(ncnn::LayerType::Concat);
+        kvcache_concat->vkdev = vkdev;
+        ncnn::ParamDict pd;
+        pd.set(0, 1); // axis
+        kvcache_concat->load_param(pd);
+        kvcache_concat->load_model(ModelBinFromMatArray(0));
+        kvcache_concat->create_pipeline(opt);
+    }
+
     return 0;
 }
 
@@ -314,6 +314,13 @@ int MultiHeadAttention_vulkan::destroy_pipeline(const Option& opt)
         o_gemm = 0;
     }
 
+    if (kvcache_concat)
+    {
+        kvcache_concat->destroy_pipeline(opt);
+        delete kvcache_concat;
+        kvcache_concat = 0;
+    }
+
     return 0;
 }
 
@@ -344,20 +351,59 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& q_blob = bottom_blobs[0];
-    const VkMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const VkMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    VkMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkMat();
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
 
-    const int embed_dim_per_head = embed_dim / num_heads;
-    const int src_seqlen = q_blob.h * q_blob.elempack;
-    const int dst_seqlen = k_blob.h * k_blob.elempack;
+    const VkMat& q_blob = bottom_blobs[q_blob_i];
+    const VkMat& k_blob = bottom_blobs[k_blob_i];
+    const VkMat& v_blob = bottom_blobs[v_blob_i];
+    const VkMat& attn_mask_blob = attn_mask ? bottom_blobs[attn_mask_i] : VkMat();
+    const VkMat& cached_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : VkMat();
+    const VkMat& cached_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : VkMat();
+
+    // const int embed_dim_per_head = embed_dim / num_heads;
+    // const int src_seqlen = q_blob.h * q_blob.elempack;
+    // const int cur_seqlen = k_blob.h * k_blob.elempack;
+    const int past_seqlen = kv_cache && !cached_xk_blob.empty() ? cached_xk_blob.w : 0;
+    // const int dst_seqlen = past_seqlen + cur_seqlen;
 
     VkMat q_affine;
     q_gemm->forward(q_blob, q_affine, cmd, opt);
 
     VkMat k_affine;
-    k_gemm->forward(k_blob, k_affine, cmd, opt);
+    if (past_seqlen > 0)
+    {
+        if (q_blob_i == k_blob_i)
+        {
+            VkMat k_affine_q;
+            int retk = k_gemm->forward(q_blob, k_affine_q, cmd, opt);
+            if (retk != 0)
+                return retk;
+
+            // assert dst_seqlen == cached_xk_blob.w + k_affine_q.w
+
+            // merge cached_xk_blob and k_affine_q
+            std::vector<VkMat> inputs(2);
+            inputs[0] = cached_xk_blob;
+            inputs[1] = k_affine_q;
+            std::vector<VkMat> outputs(1);
+            kvcache_concat->forward(inputs, outputs, cmd, opt);
+            k_affine = outputs[0];
+        }
+        else
+        {
+            k_affine = cached_xk_blob;
+        }
+    }
+    else
+    {
+        k_gemm->forward(k_blob, k_affine, cmd, opt);
+    }
 
     VkMat qk_cross;
     {
@@ -366,20 +412,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int K = q_affine.h * q_affine.elempack / num_heads;
         int B = num_heads;
 
-        // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
-        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        // int MB_elempack = opt.use_shader_pack8 && (M * B) % 8 == 0 ? 8 : (M * B) % 4 == 0 ? 4 : 1;
         int K_elempack = K % 4 == 0 ? 4 : 1;
         int M_elempack = M % 4 == 0 ? 4 : 1;
         int MB_elempack = (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (M_elempack == 8) M_elemsize = 8 * 2u;
-            if (M_elempack == 4) M_elemsize = 4 * 2u;
-            if (M_elempack == 1) M_elemsize = 4u;
-        }
 
         if (K_elempack < q_affine.elempack)
         {
@@ -393,11 +429,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             vkdev->convert_packing(k_affine, tmp, K_elempack, cmd, opt);
             k_affine = tmp;
         }
+        VkMat attn_mask_blob_unpacked = attn_mask_blob;
         if (M_elempack < attn_mask_blob.elempack)
         {
-            VkMat tmp;
-            vkdev->convert_packing(attn_mask_blob, tmp, M_elempack, cmd, opt);
-            attn_mask_blob = tmp;
+            vkdev->convert_packing(attn_mask_blob, attn_mask_blob_unpacked, M_elempack, cmd, opt);
         }
 
         qk_cross.create(N, M / M_elempack * B, M_elemsize, M_elempack, opt.blob_vkallocator);
@@ -408,14 +443,14 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         bindings[0] = q_affine;
         bindings[1] = k_affine;
         bindings[2] = qk_cross;
-        bindings[3] = attn_mask_blob;
+        bindings[3] = attn_mask_blob_unpacked;
 
         std::vector<vk_constant_type> constants(5);
         constants[0].i = M / M_elempack;
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
-        constants[4].i = attn_mask_blob.dims;
+        constants[4].i = attn_mask_blob_unpacked.dims;
 
         VkMat dispatcher;
         dispatcher.w = N;
@@ -451,7 +486,11 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     }
 
     q_affine.release();
-    k_affine.release();
+
+    if (!kv_cache)
+    {
+        k_affine.release();
+    }
 
     qk_softmax->forward_inplace(qk_cross, cmd, opt);
 
@@ -461,16 +500,43 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         // memory barrier seems to be not enough here
         // device copy-to and copy-back is better than queue submit anyway  --- nihui
 
-        // cmd.submit_and_wait();
-        // cmd.reset();
+        cmd.submit_and_wait();
+        cmd.reset();
 
-        VkImageMat qk_cross2;
-        cmd.record_buffer_to_image(qk_cross, qk_cross2, opt);
-        cmd.record_image_to_buffer(qk_cross2, qk_cross, opt);
+        // VkImageMat qk_cross2;
+        // cmd.record_buffer_to_image(qk_cross, qk_cross2, opt);
+        // cmd.record_image_to_buffer(qk_cross2, qk_cross, opt);
     }
 
     VkMat v_affine;
-    v_gemm->forward(v_blob, v_affine, cmd, opt);
+    if (past_seqlen > 0)
+    {
+        if (q_blob_i == v_blob_i)
+        {
+            VkMat v_affine_q;
+            int retk = v_gemm->forward(v_blob, v_affine_q, cmd, opt);
+            if (retk != 0)
+                return retk;
+
+            // assert dst_seqlen == cached_xv_blob.w + v_affine_q.w
+
+            // merge cached_xv_blob and v_affine_q
+            std::vector<VkMat> inputs(2);
+            inputs[0] = cached_xv_blob;
+            inputs[1] = v_affine_q;
+            std::vector<VkMat> outputs(1);
+            kvcache_concat->forward(inputs, outputs, cmd, opt);
+            v_affine = outputs[0];
+        }
+        else
+        {
+            v_affine = cached_xv_blob;
+        }
+    }
+    else
+    {
+        v_gemm->forward(v_blob, v_affine, cmd, opt);
+    }
 
     VkMat qkv_cross;
     {
@@ -479,20 +545,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int K = v_affine.w;
         int B = num_heads;
 
-        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
-        // int NB_elempack = opt.use_shader_pack8 && (N * B) % 8 == 0 ? 8 : (N * B) % 4 == 0 ? 4 : 1;
         int M_elempack = M % 4 == 0 ? 4 : 1;
         int N_elempack = N % 4 == 0 ? 4 : 1;
         int NB_elempack = (N * B) % 4 == 0 ? 4 : 1;
         size_t N_elemsize = v_affine.elemsize / v_affine.elempack * N_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (N_elempack == 8) N_elemsize = 8 * 2u;
-            if (N_elempack == 4) N_elemsize = 4 * 2u;
-            if (N_elempack == 1) N_elemsize = 4u;
-        }
 
         if (M_elempack < qk_cross.elempack)
         {
@@ -557,217 +613,20 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     }
 
     qk_cross.release();
-    v_affine.release();
+
+    if (!kv_cache)
+    {
+        v_affine.release();
+    }
 
     o_gemm->forward(qkv_cross, top_blobs[0], cmd, opt);
 
-    return 0;
-}
-
-int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
-{
-    const VkImageMat& q_blob = bottom_blobs[0];
-    const VkImageMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
-    const VkImageMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
-    VkImageMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkImageMat();
-
-    const int embed_dim_per_head = embed_dim / num_heads;
-    const int src_seqlen = q_blob.h * q_blob.elempack;
-    const int dst_seqlen = k_blob.h * k_blob.elempack;
-
-    VkImageMat q_affine;
-    q_gemm->forward(q_blob, q_affine, cmd, opt);
-
-    VkImageMat k_affine;
-    k_gemm->forward(k_blob, k_affine, cmd, opt);
-
-    VkImageMat qk_cross;
+    if (kv_cache)
     {
-        int M = q_affine.w;
-        int N = k_affine.w;
-        int K = q_affine.h * q_affine.elempack / num_heads;
-        int B = num_heads;
-
-        // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
-        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        // int MB_elempack = opt.use_shader_pack8 && (M * B) % 8 == 0 ? 8 : (M * B) % 4 == 0 ? 4 : 1;
-        int K_elempack = K % 4 == 0 ? 4 : 1;
-        int M_elempack = M % 4 == 0 ? 4 : 1;
-        int MB_elempack = (M * B) % 4 == 0 ? 4 : 1;
-        size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (M_elempack == 8) M_elemsize = 8 * 2u;
-            if (M_elempack == 4) M_elemsize = 4 * 2u;
-            if (M_elempack == 1) M_elemsize = 4u;
-        }
-
-        if (K_elempack < q_affine.elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(q_affine, tmp, K_elempack, cmd, opt);
-            q_affine = tmp;
-        }
-        if (K_elempack < k_affine.elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(k_affine, tmp, K_elempack, cmd, opt);
-            k_affine = tmp;
-        }
-        if (M_elempack < attn_mask_blob.elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(attn_mask_blob, tmp, M_elempack, cmd, opt);
-            attn_mask_blob = tmp;
-        }
-
-        qk_cross.create(N, M / M_elempack * B, M_elemsize, M_elempack, opt.blob_vkallocator);
-        if (qk_cross.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(4);
-        bindings[0] = q_affine;
-        bindings[1] = k_affine;
-        bindings[2] = qk_cross;
-        bindings[3] = attn_mask_blob;
-
-        std::vector<vk_constant_type> constants(5);
-        constants[0].i = M / M_elempack;
-        constants[1].i = N;
-        constants[2].i = K / K_elempack;
-        constants[3].i = B;
-        constants[4].i = attn_mask_blob.dims;
-
-        VkImageMat dispatcher;
-        dispatcher.w = N;
-        dispatcher.h = M / M_elempack;
-        dispatcher.c = B;
-
-        const Pipeline* pipeline = 0;
-        if (K_elempack == 1 && M_elempack == 1)
-        {
-            pipeline = pipeline_multiheadattention_qk_cross;
-        }
-        if (K_elempack == 1 && M_elempack == 4)
-        {
-            pipeline = pipeline_multiheadattention_qk_cross_pack1to4;
-        }
-        if (K_elempack == 4 && M_elempack == 1)
-        {
-            pipeline = pipeline_multiheadattention_qk_cross_pack4to1;
-        }
-        if (K_elempack == 4 && M_elempack == 4)
-        {
-            pipeline = pipeline_multiheadattention_qk_cross_pack4;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
-
-        if (MB_elempack > M_elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(qk_cross, tmp, MB_elempack, cmd, opt);
-            qk_cross = tmp;
-        }
+        // assert top_blobs.size() == 3
+        top_blobs[1] = k_affine;
+        top_blobs[2] = v_affine;
     }
-
-    q_affine.release();
-    k_affine.release();
-
-    qk_softmax->forward_inplace(qk_cross, cmd, opt);
-
-    VkImageMat v_affine;
-    v_gemm->forward(v_blob, v_affine, cmd, opt);
-
-    VkImageMat qkv_cross;
-    {
-        int M = qk_cross.h * qk_cross.elempack / num_heads;
-        int N = v_affine.h * v_affine.elempack / num_heads;
-        int K = v_affine.w;
-        int B = num_heads;
-
-        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
-        // int NB_elempack = opt.use_shader_pack8 && (N * B) % 8 == 0 ? 8 : (N * B) % 4 == 0 ? 4 : 1;
-        int M_elempack = M % 4 == 0 ? 4 : 1;
-        int N_elempack = N % 4 == 0 ? 4 : 1;
-        int NB_elempack = (N * B) % 4 == 0 ? 4 : 1;
-        size_t N_elemsize = v_affine.elemsize / v_affine.elempack * N_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (N_elempack == 8) N_elemsize = 8 * 2u;
-            if (N_elempack == 4) N_elemsize = 4 * 2u;
-            if (N_elempack == 1) N_elemsize = 4u;
-        }
-
-        if (M_elempack < qk_cross.elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(qk_cross, tmp, M_elempack, cmd, opt);
-            qk_cross = tmp;
-        }
-
-        if (N_elempack < v_affine.elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(v_affine, tmp, N_elempack, cmd, opt);
-            v_affine = tmp;
-        }
-
-        qkv_cross.create(M, N / N_elempack * B, N_elemsize, N_elempack, opt.blob_vkallocator);
-        if (qkv_cross.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = qk_cross;
-        bindings[1] = v_affine;
-        bindings[2] = qkv_cross;
-
-        std::vector<vk_constant_type> constants(4);
-        constants[0].i = M / M_elempack;
-        constants[1].i = N / N_elempack;
-        constants[2].i = K;
-        constants[3].i = B;
-
-        VkImageMat dispatcher;
-        dispatcher.w = N / N_elempack;
-        dispatcher.h = M / M_elempack;
-        dispatcher.c = B;
-
-        const Pipeline* pipeline = 0;
-        if (M_elempack == 1 && N_elempack == 1)
-        {
-            pipeline = pipeline_multiheadattention_qkv_cross;
-        }
-        if (M_elempack == 1 && N_elempack == 4)
-        {
-            pipeline = pipeline_multiheadattention_qkv_cross_pack1to4;
-        }
-        if (M_elempack == 4 && N_elempack == 1)
-        {
-            pipeline = pipeline_multiheadattention_qkv_cross_pack4to1;
-        }
-        if (M_elempack == 4 && N_elempack == 4)
-        {
-            pipeline = pipeline_multiheadattention_qkv_cross_pack4;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
-
-        if (NB_elempack > N_elempack)
-        {
-            VkImageMat tmp;
-            vkdev->convert_packing(qkv_cross, tmp, NB_elempack, cmd, opt);
-            qkv_cross = tmp;
-        }
-    }
-
-    qk_cross.release();
-    v_affine.release();
-
-    o_gemm->forward(qkv_cross, top_blobs[0], cmd, opt);
 
     return 0;
 }

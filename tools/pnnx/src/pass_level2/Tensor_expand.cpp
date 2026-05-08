@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -24,9 +13,9 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 shape
+pnnx.Input              input_1     0 1 sizes
 prim::Constant          op_0        0 1 implicit value=*
-aten::expand            op_1        3 1 input shape implicit out
+aten::expand            op_1        3 1 input sizes implicit out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -47,8 +36,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 shape
-aten::expand            op_1        2 1 input shape out
+pnnx.Input              input_1     0 1 sizes
+aten::expand            op_1        2 1 input sizes out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -91,18 +80,18 @@ pnnx.Output             output      1 0 out
     {
         if (captured_params.at("op_0.shape").type == 5)
         {
-            op->params["shape"] = captured_params.at("op_0.shape");
+            op->params["sizes"] = captured_params.at("op_0.shape");
         }
         else // if (captured_params.at("op_0.shape").type == 2)
         {
-            op->params["shape"] = std::vector<int>{captured_params.at("op_0.shape").i};
+            op->params["sizes"] = std::vector<int>{captured_params.at("op_0.shape").i};
         }
 
         // onnx set expand shape 1 for not changing the size of that dimension while torch uses -1
-        for (size_t i = 0; i < op->params["shape"].ai.size(); i++)
+        for (size_t i = 0; i < op->params["sizes"].ai.size(); i++)
         {
-            if (op->params["shape"].ai[i] == 1)
-                op->params["shape"].ai[i] = -1;
+            if (op->params["sizes"].ai[i] == 1)
+                op->params["sizes"].ai[i] = -1;
         }
     }
 };
@@ -117,8 +106,8 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 shape
-tnn.Expand              op_0        2 1 input shape out %*=%*
+pnnx.Input              input_1     0 1 sizes
+tnn.Expand              op_0        2 1 input sizes out %*=%*
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

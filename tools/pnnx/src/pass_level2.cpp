@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
 
@@ -20,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "pass_level2/eliminate_contiguous.h"
 #include "pass_level2/eliminate_size_numtotensor_int.h"
 #include "pass_level2/functionize.h"
 #include "pass_level2/fuse_constantlist.h"
@@ -371,6 +361,13 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
         size_t i = 0;
         while (!lcss.eof())
         {
+            if (a.type == 5 && a.ai.size() <= i)
+                return false;
+            if (a.type == 6 && a.af.size() <= i)
+                return false;
+            if (a.type == 7 && a.as.size() <= i)
+                return false;
+
             std::string elem;
             std::getline(lcss, elem, ',');
 
@@ -1048,6 +1045,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             Graph replace_graph;
             replace_graph.parse(pass->replace_pattern_graph());
 
+            static int rgi = 0;
+
             // move operators and operands from replace_graph to graph except input and output
             std::map<std::string, Operator*> ops;
             for (size_t i = 0; i < replace_graph.ops.size(); i++)
@@ -1066,6 +1065,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 Operand* r = replace_graph.operands[i];
                 if (r->producer->type == "pnnx.Input" || (r->consumers.size() == 1 && r->consumers[0]->type == "pnnx.Output"))
                     continue;
+
+                r->name = std::string("rg") + std::to_string(rgi) + "_" + r->name;
 
                 graph.operands.push_back(r);
                 replace_graph.operands[i] = 0;
@@ -1121,6 +1122,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             {
                 new_ops.push_back(x.second);
             }
+
+            rgi++;
         }
     }
 
@@ -1135,6 +1138,8 @@ void pass_level2(Graph& g)
 {
     functionize(g);
 
+    eliminate_contiguous(g);
+
     eliminate_size_numtotensor_int(g);
 
     fuse_constantlist(g);
@@ -1142,12 +1147,6 @@ void pass_level2(Graph& g)
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
     {
-        // if (x.first == 141)
-        // {
-        //     g.save("debug.param", "debug.bin");
-        //     exit(0);
-        // }
-
         for (auto rewriter : x.second)
         {
             pnnx_graph_rewrite(g, rewriter, opindex);

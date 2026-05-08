@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef MIPS_ACTIVATION_H
 #define MIPS_ACTIVATION_H
@@ -20,6 +9,16 @@
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"
+
+static inline v4f32 elu_ps(v4f32 inputs, v4f32 alphas)
+{
+    v4f32 _zero = (v4f32)__msa_fill_w(0);
+    v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+    v4f32 _pos = __msa_fmax_w(inputs, _zero);
+    v4f32 _neg = __msa_fmin_w(inputs, _zero);
+    _neg = __msa_fsub_w(exp_ps(_neg), _one);
+    return __msa_fadd_w(_pos, __msa_fmul_w(alphas, _neg));
+}
 
 static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
 {

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef RISCV_USABILITY_H
 #define RISCV_USABILITY_H
@@ -19,7 +8,58 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+static inline signed char float2int8(float v)
+{
+    int int32 = (int)roundf(v);
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
 #if __riscv_vector
+static inline vint8m2_t float2int8(vfloat32m8_t v, size_t vl)
+{
+    vint32m8_t v32 = __riscv_vfcvt_x_f_v_i32m8_rm(v, __RISCV_FRM_RMM, vl);
+    v32 = __riscv_vmax_vx_i32m8(v32, -127, vl);
+    v32 = __riscv_vmin_vx_i32m8(v32, 127, vl);
+    vint16m4_t v16 = __riscv_vnclip_wx_i16m4(v32, 0, __RISCV_VXRM_RNU, vl);
+    return __riscv_vnclip_wx_i8m2(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
+static inline vint8m1_t float2int8(vfloat32m4_t v, size_t vl)
+{
+    vint32m4_t v32 = __riscv_vfcvt_x_f_v_i32m4_rm(v, __RISCV_FRM_RMM, vl);
+    v32 = __riscv_vmax_vx_i32m4(v32, -127, vl);
+    v32 = __riscv_vmin_vx_i32m4(v32, 127, vl);
+    vint16m2_t v16 = __riscv_vnclip_wx_i16m2(v32, 0, __RISCV_VXRM_RNU, vl);
+    return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
+#if __riscv_zvfh
+static inline vint8m4_t float2int8(vfloat16m8_t v, size_t vl)
+{
+    vint16m8_t v16 = __riscv_vfcvt_x_f_v_i16m8_rm(v, __RISCV_FRM_RMM, vl);
+    v16 = __riscv_vmax_vx_i16m8(v16, -127, vl);
+    v16 = __riscv_vmin_vx_i16m8(v16, 127, vl);
+    return __riscv_vnclip_wx_i8m4(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+static inline vint8m2_t float2int8(vfloat16m4_t v, size_t vl)
+{
+    vint16m4_t v16 = __riscv_vfcvt_x_f_v_i16m4_rm(v, __RISCV_FRM_RMM, vl);
+    v16 = __riscv_vmax_vx_i16m4(v16, -127, vl);
+    v16 = __riscv_vmin_vx_i16m4(v16, 127, vl);
+    return __riscv_vnclip_wx_i8m2(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+
+static inline vint8m1_t float2int8(vfloat16m2_t v, size_t vl)
+{
+    vint16m2_t v16 = __riscv_vfcvt_x_f_v_i16m2_rm(v, __RISCV_FRM_RMM, vl);
+    v16 = __riscv_vmax_vx_i16m2(v16, -127, vl);
+    v16 = __riscv_vmin_vx_i16m2(v16, 127, vl);
+    return __riscv_vnclip_wx_i8m1(v16, 0, __RISCV_VXRM_RNU, vl);
+}
+#endif // __riscv_zvfh
+
 static inline int csrr_vl()
 {
     int a = 0;
@@ -343,6 +383,6 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3l = __riscv_vle32_v_f32m1(ptr + 6 * 4, vl);
     _r3h = __riscv_vle32_v_f32m1(ptr + 7 * 4, vl);
 }
-#endif
+#endif // __riscv_vector
 
 #endif // RISCV_USABILITY_H

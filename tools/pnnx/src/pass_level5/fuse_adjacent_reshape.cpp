@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_adjacent_reshape.h"
 
@@ -29,8 +18,8 @@ void fuse_adjacent_reshape(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            // look for Tensor.view / Tensor.reshape / torch.squeeze / torch.unsqueeze chain
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape" && op->type != "torch.squeeze" && op->type != "torch.unsqueeze")
+            // look for Tensor.reshape / torch.squeeze / torch.unsqueeze chain
+            if (op->type != "Tensor.reshape" && op->type != "torch.squeeze" && op->type != "torch.unsqueeze")
                 continue;
 
             if ((op->type == "torch.squeeze" || op->type == "torch.unsqueeze") && op->outputs[0]->shape.empty())
@@ -38,7 +27,7 @@ void fuse_adjacent_reshape(Graph& graph)
 
             std::vector<Operator*> reshapes_to_delete;
             const Operand* in0 = op->inputs[0];
-            while (in0->consumers.size() == 1 && (in0->producer->type == "Tensor.view" || in0->producer->type == "Tensor.reshape" || in0->producer->type == "torch.squeeze" || in0->producer->type == "torch.unsqueeze"))
+            while (in0->consumers.size() == 1 && (in0->producer->type == "Tensor.reshape" || in0->producer->type == "torch.squeeze" || in0->producer->type == "torch.unsqueeze"))
             {
                 reshapes_to_delete.push_back(in0->producer);
                 in0 = in0->producer->inputs[0];

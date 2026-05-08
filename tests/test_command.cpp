@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "command.h"
 #include "gpu.h"
@@ -32,22 +21,16 @@ static int test_command_upload_download(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
-    ncnn::Mat d;
-    ncnn::Mat e;
+    ncnn::Mat c;
     {
         ncnn::VkCompute cmd(vkdev);
 
-        ncnn::VkMat b1;
-        ncnn::VkImageMat b2;
-        ncnn::VkImageMat c1;
-        ncnn::VkMat c2;
-        cmd.record_upload(a, b1, opt);
-        cmd.record_upload(a, c1, opt);
-        cmd.record_buffer_to_image(b1, b2, opt);
-        cmd.record_image_to_buffer(c1, c2, opt);
-        cmd.record_download(b2, d, opt);
-        cmd.record_download(c2, e, opt);
+        ncnn::VkMat b;
+        cmd.record_upload(a, b, opt);
+        cmd.record_download(b, c, opt);
 
         cmd.submit_and_wait();
     }
@@ -55,13 +38,7 @@ static int test_command_upload_download(const ncnn::Mat& a)
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
 
-    if (CompareMat(a, d, 0.001) != 0)
-    {
-        fprintf(stderr, "test_command_upload_download buffer failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
-        return -1;
-    }
-
-    if (CompareMat(a, e, 0.001) != 0)
+    if (CompareMat(a, c, 0.001) != 0)
     {
         fprintf(stderr, "test_command_upload_download image failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
         return -1;
@@ -85,6 +62,8 @@ static int test_command_clone(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
     ncnn::Mat d;
     ncnn::Mat e;
@@ -142,23 +121,21 @@ static int test_command_transfer(const ncnn::Mat& a)
 
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
+    if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
-    ncnn::Mat d;
-    ncnn::Mat e;
+    ncnn::Mat c;
     {
         ncnn::VkTransfer cmd1(vkdev);
 
-        ncnn::VkMat b1;
-        ncnn::VkImageMat c1;
-        cmd1.record_upload(a, b1, opt, false);
-        cmd1.record_upload(a, c1, opt);
+        ncnn::VkMat b;
+        cmd1.record_upload(a, b, opt, false);
 
         cmd1.submit_and_wait();
 
         ncnn::VkCompute cmd2(vkdev);
 
-        cmd2.record_download(b1, d, opt);
-        cmd2.record_download(c1, e, opt);
+        cmd2.record_download(b, c, opt);
 
         cmd2.submit_and_wait();
     }
@@ -166,15 +143,9 @@ static int test_command_transfer(const ncnn::Mat& a)
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
 
-    if (CompareMat(a, d, 0.001) != 0)
+    if (CompareMat(a, c, 0.001) != 0)
     {
         fprintf(stderr, "test_command_transfer buffer failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
-        return -1;
-    }
-
-    if (CompareMat(a, e, 0.001) != 0)
-    {
-        fprintf(stderr, "test_command_transfer image failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
         return -1;
     }
 

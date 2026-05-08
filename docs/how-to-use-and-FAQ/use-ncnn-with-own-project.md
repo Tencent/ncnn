@@ -28,11 +28,9 @@ For example, on Visual Studio debug mode with vulkan required, the lib paths are
 ```
 E:\github\ncnn\build\vs2019-x64\install\lib\ncnnd.lib
 E:\github\ncnn\build\vs2019-x64\install\lib\glslangd.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\glslang-default-resource-limitsd.lib
 ```
 And for its release mode, lib paths are:
 ```
 E:\github\ncnn\build\vs2019-x64\install\lib\ncnn.lib
 E:\github\ncnn\build\vs2019-x64\install\lib\glslang.lib
-E:\github\ncnn\build\vs2019-x64\install\lib\glslang-default-resource-limits.lib
 ```

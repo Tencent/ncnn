@@ -122,8 +122,10 @@ typedef union xmm_mm_union
 /* natural logarithm computed for 4 simultaneous float
    return NaN for x <= 0
 */
-static NCNN_FORCEINLINE v4sf log_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf log_ps(const v4sf& _x)
 {
+    v4sf x = _x;
+
 #ifdef USE_SSE2
     v4si emm0;
 #else
@@ -212,8 +214,10 @@ _PS_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf exp_ps(const v4sf& _x)
 {
+    v4sf x = _x;
+
     v4sf tmp = _mm_setzero_ps(), fx;
 #ifdef USE_SSE2
     v4si emm0;
@@ -301,7 +305,7 @@ _PS_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
 _PS_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
 
 // an approximation of tanh
-static inline v4sf tanh_ps(const v4sf x)
+static inline v4sf tanh_ps(const v4sf& x)
 {
     v4sf value = x;
     value = _mm_max_ps(*(v4sf*)_ps_tanh_lo, value);
@@ -325,6 +329,54 @@ static inline v4sf tanh_ps(const v4sf x)
 
     v4sf dst = _mm_div_ps(p, q);
     return dst;
+}
+
+_PS_CONST(erf_threshold, 0.927734375f);
+
+_PS_CONST(erf_c0, -1.72853470e-5f);
+_PS_CONST(erf_c1, 3.83197126e-4f);
+_PS_CONST(erf_c2, -3.88396438e-3f);
+_PS_CONST(erf_c3, 2.42546219e-2f);
+_PS_CONST(erf_c4, -1.06777877e-1f);
+_PS_CONST(erf_c5, -6.34846687e-1f);
+_PS_CONST(erf_c6, -1.28717512e-1f);
+
+_PS_CONST(erf_p0, -5.96761703e-4f);
+_PS_CONST(erf_p1, 4.99119423e-3f);
+_PS_CONST(erf_p2, -2.67681349e-2f);
+_PS_CONST(erf_p3, 1.12819925e-1f);
+_PS_CONST(erf_p4, -3.76125336e-1f);
+_PS_CONST(erf_p5, 1.28379166e-1f);
+
+static NCNN_FORCEINLINE v4sf erf_ps(const v4sf& a)
+{
+    v4sf t = _mm_and_ps(a, *(v4sf*)_ps_inv_sign_mask);
+    v4sf s = _mm_mul_ps(a, a);
+
+    v4sf mask = _mm_cmpgt_ps(t, *(v4sf*)_ps_erf_threshold);
+
+    v4sf r_large = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c0, t, *(v4sf*)_ps_erf_c1);
+    v4sf u = _mm_comp_fmadd_ps(*(v4sf*)_ps_erf_c2, t, *(v4sf*)_ps_erf_c3);
+    r_large = _mm_comp_fmadd_ps(r_large, s, u);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c4);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c5);
+    r_large = _mm_comp_fmadd_ps(r_large, t, *(v4sf*)_ps_erf_c6);
+    r_large = _mm_comp_fmadd_ps(r_large, t, _mm_sub_ps(_mm_setzero_ps(), t));
+    r_large = _mm_sub_ps(*(v4sf*)_ps_1, exp_ps(r_large));
+
+    v4sf sign_mask = _mm_and_ps(a, *(v4sf*)_ps_sign_mask);
+    r_large = _mm_xor_ps(r_large, sign_mask);
+
+    v4sf r_small = *(v4sf*)_ps_erf_p0;
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p1);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p2);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p3);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p4);
+    r_small = _mm_comp_fmadd_ps(r_small, s, *(v4sf*)_ps_erf_p5);
+    r_small = _mm_comp_fmadd_ps(r_small, a, a);
+
+    v4sf r = _mm_or_ps(_mm_and_ps(mask, r_large), _mm_andnot_ps(mask, r_small));
+    return r;
 }
 
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
@@ -366,8 +418,11 @@ _PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    Since it is based on SSE intrinsics, it has to be compiled at -O2 to
    deliver full speed.
 */
-static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
-{   // any x
+static NCNN_FORCEINLINE v4sf sin_ps(const v4sf& _x)
+{
+    v4sf x = _x;
+
+    // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
 #ifdef USE_SSE2
@@ -475,8 +530,11 @@ static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
 }
 
 /* almost the same as sin_ps */
-static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
-{   // any x
+static NCNN_FORCEINLINE v4sf cos_ps(const v4sf& _x)
+{
+    v4sf x = _x;
+
+    // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
 #ifdef USE_SSE2
     v4si emm0, emm2;
@@ -585,8 +643,10 @@ static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
 
 /* since sin_ps and cos_ps are almost identical, sincos_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
+static NCNN_FORCEINLINE void sincos_ps(const v4sf& _x, v4sf& s, v4sf& c)
 {
+    v4sf x = _x;
+
     v4sf xmm1, xmm2, xmm3 = _mm_setzero_ps(), sign_bit_sin, y;
 #ifdef USE_SSE2
     v4si emm0, emm2, emm4;
@@ -716,15 +776,15 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     xmm2 = _mm_add_ps(y, y2);
 
     /* update the sign */
-    *s = _mm_xor_ps(xmm1, sign_bit_sin);
-    *c = _mm_xor_ps(xmm2, sign_bit_cos);
+    s = _mm_xor_ps(xmm1, sign_bit_sin);
+    c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 tan_ps(const __m128& x)
 {
     __m128 ysin, ycos;
     __m128 eps = _mm_set1_ps(1E-8f);
-    sincos_ps(x, &ysin, &ycos);
+    sincos_ps(x, ysin, ycos);
     __m128 mask = _mm_cmpeq_ps(ycos, _mm_setzero_ps());
     __m128 _tmp = _mm_and_ps(eps, mask);
     ycos = _mm_add_ps(ycos, _tmp);
@@ -732,13 +792,13 @@ static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
     return ytan;
 }
 
-static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 pow_ps(const __m128& a, const __m128& b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp_ps(_mm_mul_ps(b, log_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 ceil_ps(const __m128& x)
 {
 #if __SSE4_1__
     return _mm_ceil_ps(x);
@@ -781,7 +841,7 @@ static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
                _mm_andnot_ps(no_fraction, fixed_result));
 }
 
-static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 floor_ps(const __m128& x)
 {
 #if __SSE4_1__
     return _mm_floor_ps(x);
@@ -822,7 +882,7 @@ static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
                _mm_andnot_ps(no_fraction, fixed_result));
 }
 
-static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 asin_ps(const __m128& x)
 {
     const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
     const __m128 magic_half_one = _mm_set_ps1(0.5f);
@@ -905,7 +965,7 @@ static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
     return _mm_or_ps(final_approx, negative_mask);
 }
 
-static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 acos_ps(const __m128& x)
 {
     const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
     const __m128 magic_zero = _mm_set_ps1(0.0f);
@@ -994,7 +1054,7 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
                _mm_andnot_ps(is_small_input, big_final_approx));
 }
 
-static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 atan_ps(const __m128& x)
 {
     const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
     const __m128 magic_one = _mm_set_ps1(1.0f);
@@ -1086,7 +1146,7 @@ static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
                negative_mask);
 }
 
-static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
+static NCNN_FORCEINLINE __m128 atan2_ps(const __m128& y, const __m128& x)
 {
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
@@ -1148,10 +1208,74 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
                _mm_andnot_ps(normal_mode, special_result));
 }
 
-static NCNN_FORCEINLINE __m128 abs_ps(__m128 x)
+static NCNN_FORCEINLINE __m128 abs_ps(const __m128& x)
 {
     const __m128 abs_mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
     return _mm_and_ps(abs_mask, x);
+}
+
+static NCNN_FORCEINLINE __m128 trunc_ps(const __m128& x)
+{
+    // truncate toward zero
+    __m128i xi = _mm_cvttps_epi32(x);
+    return _mm_cvtepi32_ps(xi);
+}
+
+static NCNN_FORCEINLINE __m128 fmod_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 tq = trunc_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(tq, y));
+}
+
+static NCNN_FORCEINLINE __m128 round_ps(const __m128& x)
+{
+#if __SSE4_1__
+    return _mm_round_ps(x, _MM_FROUND_NINT);
+#endif // __SSE4_1__
+
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_half = _mm_set_ps1(0.5f);
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
+    __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
+    __m128i xi = _mm_cvttps_epi32(absolute);
+    __m128 truncated = _mm_cvtepi32_ps(xi);
+    __m128 diff = _mm_sub_ps(absolute, truncated);
+    __m128 diff_gt_half = _mm_cmpgt_ps(diff, magic_half);
+    __m128 diff_eq_half = _mm_cmpeq_ps(diff, magic_half);
+    __m128i xi_and_1 = _mm_and_si128(xi, _mm_set1_epi32(1));
+    __m128i is_odd = _mm_cmpeq_epi32(xi_and_1, _mm_set1_epi32(1));
+    __m128 round_up = _mm_or_ps(diff_gt_half, _mm_and_ps(diff_eq_half, _mm_castsi128_ps(is_odd)));
+    __m128 rounded = _mm_add_ps(truncated, _mm_and_ps(round_up, magic_one));
+    return _mm_or_ps(rounded, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 logaddexp_ps(const __m128& x, const __m128& y)
+{
+    const __m128 magic_one = _mm_set_ps1(1.0f);
+
+    __m128 max_xy = _mm_max_ps(x, y);
+    __m128 min_xy = _mm_min_ps(x, y);
+    __m128 diff = _mm_sub_ps(min_xy, max_xy);
+    __m128 exp_diff = exp_ps(diff);
+    __m128 one_plus_exp = _mm_add_ps(magic_one, exp_diff);
+    __m128 log_result = log_ps(one_plus_exp);
+    return _mm_add_ps(max_xy, log_result);
+}
+
+static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    return floor_ps(q);
+}
+
+static NCNN_FORCEINLINE __m128 remainder_ps(const __m128& x, const __m128& y)
+{
+    __m128 q = _mm_div_ps(x, y);
+    __m128 rq = round_ps(q);
+    return _mm_sub_ps(x, _mm_mul_ps(rq, y));
 }
 
 #endif // SSE_MATHFUN_H

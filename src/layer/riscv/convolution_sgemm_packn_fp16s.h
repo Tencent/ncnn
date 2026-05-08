@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -273,14 +262,14 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum4 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum5 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum6 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum7 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -335,10 +324,10 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum2 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum3 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -377,8 +366,8 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum0 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sum1 = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {
@@ -409,7 +398,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             int nn = inch * maxk * packn; // inch always > 0
 
-            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             if (bias)
             {

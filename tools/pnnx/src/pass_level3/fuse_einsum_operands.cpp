@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "fuse_einsum_operands.h"
 #include <algorithm>
@@ -34,21 +23,24 @@ void fuse_einsum_operands(Graph& graph)
             if (op->inputs.size() < 1)
                 continue;
 
-            if (op->inputs[1]->consumers.size() != 1)
+            Operand* operands = op->inputs.size() == 1 ? op->inputs[0] : op->inputs[1];
+
+            if (operands->consumers.size() != 1)
                 continue;
 
-            Operator* op2 = op->inputs[1]->producer;
+            Operator* op2 = operands->producer;
             if (op2->type != "prim::ListConstruct")
                 continue;
 
             matched = true;
 
-            op->inputs[1]->producer = 0;
-            op->inputs[1]->remove_consumer(op);
+            operands->producer = 0;
+            operands->remove_consumer(op);
 
             std::vector<Operand*> new_inputs;
             std::vector<std::string> new_inputnames;
 
+            if (op->inputs.size() > 1)
             {
                 new_inputs.push_back(op->inputs[0]);
                 new_inputnames.push_back(op->inputnames[0]);

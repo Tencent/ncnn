@@ -1,33 +1,17 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
 #define sfp2float(v) float(v)
 
-layout (constant_id = 0) const int across_spatial = 0;
-layout (constant_id = 1) const int across_channel = 0;
+layout(constant_id = 0) const int across_spatial = 0;
+layout(constant_id = 1) const int across_channel = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D square_blob;
-layout (binding = 1, r32f) writeonly uniform highp image3D sqsum_blob;
-#else
-layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer sqsum_blob { float sqsum_blob_data[]; };
-#endif
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer sqsum_blob { float sqsum_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -53,97 +37,6 @@ void main()
 
     if (across_spatial == 1 && across_channel == 1)
     {
-#if NCNN_image_shader
-        int sz = gz * 2;
-        int sy = gy * 2;
-        int sx = gx * 2;
-
-        if (sz == p.c - 1)
-        {
-            if (sy == p.h - 1)
-            {
-                if (sx == p.w - 1)
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-
-                    sqsum = v0 * v0;
-                }
-                else
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
-
-                    sqsum = v0 * v0 + v1 * v1;
-                }
-            }
-            else
-            {
-                if (sx == p.w - 1)
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
-
-                    sqsum = v0 * v0 + v2 * v2;
-                }
-                else
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
-                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
-                    float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz), 0).r;
-
-                    sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
-                }
-            }
-        }
-        else
-        {
-            if (sy == p.h - 1)
-            {
-                if (sx == p.w - 1)
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
-
-                    sqsum = v0 * v0 + v4 * v4;
-                }
-                else
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
-                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
-                    float v5 = texelFetch(square_blob, ivec3(sx + 1, sy, sz + 1), 0).r;
-
-                    sqsum = v0 * v0 + v1 * v1 + v4 * v4 + v5 * v5;
-                }
-            }
-            else
-            {
-                if (sx == p.w - 1)
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
-                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
-                    float v6 = texelFetch(square_blob, ivec3(sx, sy + 1, sz + 1), 0).r;
-
-                    sqsum = v0 * v0 + v2 * v2 + v4 * v4 + v6 * v6;
-                }
-                else
-                {
-                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
-                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
-                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
-                    float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz), 0).r;
-                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
-                    float v5 = texelFetch(square_blob, ivec3(sx + 1, sy, sz + 1), 0).r;
-                    float v6 = texelFetch(square_blob, ivec3(sx, sy + 1, sz + 1), 0).r;
-                    float v7 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz + 1), 0).r;
-
-                    sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3 + v4 * v4 + v5 * v5 + v6 * v6 + v7 * v7;
-                }
-            }
-        }
-#else
         int sz = gz * 2;
         int sx = gx * 2;
 
@@ -154,14 +47,14 @@ void main()
         {
             if (sx == p.w - 1)
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
 
                 sqsum = v0 * v0;
             }
             else
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v1 = sfp2float(bottom_top_blob_data[v_offset0.g]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.g));
 
                 sqsum = v0 * v0 + v1 * v1;
             }
@@ -170,66 +63,25 @@ void main()
         {
             if (sx == p.w - 1)
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v2 = sfp2float(bottom_top_blob_data[v_offset1.r]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.r));
 
                 sqsum = v0 * v0 + v2 * v2;
             }
             else
             {
-                float v0 = sfp2float(bottom_top_blob_data[v_offset0.r]);
-                float v1 = sfp2float(bottom_top_blob_data[v_offset0.g]);
-                float v2 = sfp2float(bottom_top_blob_data[v_offset1.r]);
-                float v3 = sfp2float(bottom_top_blob_data[v_offset1.g]);
+                float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.r));
+                float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset0.g));
+                float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.r));
+                float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset1.g));
 
                 sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
             }
         }
-#endif
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
-#if NCNN_image_shader
-        int sy = gy * 2;
-        int sx = gx * 2;
-
-        if (sy == p.h - 1)
-        {
-            if (sx == p.w - 1)
-            {
-                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-
-                sqsum = v0 * v0;
-            }
-            else
-            {
-                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-                float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
-
-                sqsum = v0 * v0 + v1 * v1;
-            }
-        }
-        else
-        {
-            if (sx == p.w - 1)
-            {
-                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-                float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
-
-                sqsum = v0 * v0 + v2 * v2;
-            }
-            else
-            {
-                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
-                float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
-                float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
-                float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, gz), 0).r;
-
-                sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
-            }
-        }
-#else
         int sz = gz;
         int sx = gx * 4;
 
@@ -237,73 +89,38 @@ void main()
 
         if (sx == p.w - 1)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
 
             sqsum = v0 * v0;
         }
         else if (sx == p.w - 2)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
 
             sqsum = v0 * v0 + v1 * v1;
         }
         else if (sx == p.w - 3)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2;
         }
         else
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
-            float v3 = sfp2float(bottom_top_blob_data[v_offset.a]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
+            float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.a));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
         }
-#endif
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
-#if NCNN_image_shader
-        int sz = gz * 4;
-
-        if (sz == p.c - 1)
-        {
-            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
-
-            sqsum = v0 * v0;
-        }
-        else if (sz == p.c - 2)
-        {
-            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
-            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
-
-            sqsum = v0 * v0 + v1 * v1;
-        }
-        else if (sz == p.c - 3)
-        {
-            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
-            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
-            float v2 = texelFetch(square_blob, ivec3(gx, gy, sz + 2), 0).r;
-
-            sqsum = v0 * v0 + v1 * v1 + v2 * v2;
-        }
-        else
-        {
-            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
-            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
-            float v2 = texelFetch(square_blob, ivec3(gx, gy, sz + 2), 0).r;
-            float v3 = texelFetch(square_blob, ivec3(gx, gy, sz + 3), 0).r;
-
-            sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
-        }
-#else
         int sz = gz * 4;
         int sx = gx;
 
@@ -311,42 +128,37 @@ void main()
 
         if (sz == p.c - 1)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
 
             sqsum = v0 * v0;
         }
         else if (sz == p.c - 2)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
 
             sqsum = v0 * v0 + v1 * v1;
         }
         else if (sz == p.c - 3)
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2;
         }
         else
         {
-            float v0 = sfp2float(bottom_top_blob_data[v_offset.r]);
-            float v1 = sfp2float(bottom_top_blob_data[v_offset.g]);
-            float v2 = sfp2float(bottom_top_blob_data[v_offset.b]);
-            float v3 = sfp2float(bottom_top_blob_data[v_offset.a]);
+            float v0 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.r));
+            float v1 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.g));
+            float v2 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.b));
+            float v3 = sfp2float(buffer_ld1(bottom_top_blob_data, v_offset.a));
 
             sqsum = v0 * v0 + v1 * v1 + v2 * v2 + v3 * v3;
         }
-#endif
     }
 
-#if NCNN_image_shader
-    imageStore(sqsum_blob, ivec3(gx, gy, gz), vec4(sqsum));
-#else
     int gi = gz * p.outcstep + gx;
 
     sqsum_blob_data[gi] = sqsum;
-#endif
 }

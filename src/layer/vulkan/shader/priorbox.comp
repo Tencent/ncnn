@@ -1,45 +1,34 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-layout (constant_id = 0) const int flip = 0;
-layout (constant_id = 1) const int clip = 0;
-layout (constant_id = 2) const float offset = 0;
-layout (constant_id = 3) const float variances_0 = 0;
-layout (constant_id = 4) const float variances_1 = 0;
-layout (constant_id = 5) const float variances_2 = 0;
-layout (constant_id = 6) const float variances_3 = 0;
-layout (constant_id = 7) const int num_min_size = 0;
-layout (constant_id = 8) const int num_max_size = 0;
-layout (constant_id = 9) const int num_aspect_ratio = 0;
-layout (constant_id = 10) const int num_prior = 0;
+layout(constant_id = 0) const int flip = 0;
+layout(constant_id = 1) const int clip = 0;
+layout(constant_id = 2) const float offset = 0;
+layout(constant_id = 3) const float variances_0 = 0;
+layout(constant_id = 4) const float variances_1 = 0;
+layout(constant_id = 5) const float variances_2 = 0;
+layout(constant_id = 6) const float variances_3 = 0;
+layout(constant_id = 7) const int num_min_size = 0;
+layout(constant_id = 8) const int num_max_size = 0;
+layout(constant_id = 9) const int num_aspect_ratio = 0;
+layout(constant_id = 10) const int num_prior = 0;
 
 #define shape_constant_id_offset 11
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-#if NCNN_fp16_packed
-layout (binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
+#if NCNN_fp16_packed || NCNN_bf16_packed
+layout(binding = 0) writeonly buffer top_blob { vec4 top_blob_data[]; };
 #else
-layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #endif
-layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
-layout (binding = 2) readonly buffer max_sizes { sfp max_sizes_data[]; };
-layout (binding = 3) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
+layout(binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
+layout(binding = 2) readonly buffer max_sizes { sfp max_sizes_data[]; };
+layout(binding = 3) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -84,7 +73,7 @@ void main()
     box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
     box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
     top_blob_data[v_offset] = vec4(box);
     top_blob_data[var_offset] = vec4(variances);
 #else
@@ -105,7 +94,7 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         top_blob_data[v_offset] = vec4(box);
         top_blob_data[var_offset] = vec4(variances);
 #else
@@ -128,7 +117,7 @@ void main()
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
         top_blob_data[v_offset] = vec4(box);
         top_blob_data[var_offset] = vec4(variances);
 #else
@@ -144,7 +133,7 @@ void main()
             box = (center + afpvec4(-box_h, -box_w, box_h, box_w) * afp(0.5f)) * image_norm;
             box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
 
-#if NCNN_fp16_packed
+#if NCNN_fp16_packed || NCNN_bf16_packed
             top_blob_data[v_offset] = vec4(box);
             top_blob_data[var_offset] = vec4(variances);
 #else

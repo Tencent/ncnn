@@ -1,19 +1,5 @@
-// Xavier Hsinyuan is pleased to support the open source community by making
-// ncnn available.
-//
-// Copyright (C) 2021 Xavier Hsinyuan <me@lstlx.com> All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this
-// file except in compliance with the License. You may obtain a copy of the
-// License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
+// Copyright 2021 Xavier Hsinyuan <me@lstlx.com>
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "binaryop_riscv.h"
 
@@ -291,12 +277,19 @@ MAKE_FUNCTION(binary_op_mul, x * y, __riscv_vfmul_vv_f32m8(x, y, vl), __riscv_vf
 MAKE_FUNCTION(binary_op_div, x / y, __riscv_vfdiv_vv_f32m8(x, y, vl), __riscv_vfdiv_vf_f32m8(x, y, vl), __riscv_vfrdiv_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_max, std::max(x, y), __riscv_vfmax_vv_f32m8(x, y, vl), __riscv_vfmax_vf_f32m8(x, y, vl), __riscv_vfmax_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_min, std::min(x, y), __riscv_vfmin_vv_f32m8(x, y, vl), __riscv_vfmin_vf_f32m8(x, y, vl), __riscv_vfmin_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y, vl), pow_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), pow_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_rsub, y - x, __riscv_vfsub_vv_f32m8(y, x, vl), __riscv_vfrsub_vf_f32m8(x, y, vl), __riscv_vfsub_vf_f32m8(y, x, vl))
 MAKE_FUNCTION(binary_op_rdiv, y / x, __riscv_vfdiv_vv_f32m8(y, x, vl), __riscv_vfrdiv_vf_f32m8(x, y, vl), __riscv_vfdiv_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
-MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x, vl), pow_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), pow_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y, vl), atan2_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), atan2_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x, vl), atan2_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), atan2_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_fmod, (float)fmodf(x, y), fmod_ps(x, y, vl), fmod_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), fmod_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x, vl), fmod_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), fmod_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y, vl), logaddexp_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), logaddexp_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y, vl), floor_divide_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), floor_divide_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x, vl), floor_divide_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), floor_divide_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y, vl), remainder_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), remainder_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rremainder, (float)remainderf(y, x), remainder_ps(y, x, vl), remainder_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), remainder_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
 // *INDENT-ON*
 // clang-format on
 
@@ -320,6 +313,13 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector<binary_op_rpow>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector<binary_op_atan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector<binary_op_ratan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FMOD) return binary_op_vector<binary_op_fmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFMOD) return binary_op_vector<binary_op_rfmod>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_vector<binary_op_logaddexp>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_vector<binary_op_floor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_vector<binary_op_rfloor_divide>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector<binary_op_remainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RREMAINDER) return binary_op_vector<binary_op_rremainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
@@ -464,10 +464,18 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
     if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
+    if (op_type == BinaryOp::Operation_FMOD) return BinaryOp::Operation_RFMOD;
+    if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return BinaryOp::Operation_RFLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_REMAINDER) return BinaryOp::Operation_RREMAINDER;
+
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
     if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
+    if (op_type == BinaryOp::Operation_RFMOD) return BinaryOp::Operation_FMOD;
+    if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return BinaryOp::Operation_FLOOR_DIVIDE;
+    if (op_type == BinaryOp::Operation_RREMAINDER) return BinaryOp::Operation_REMAINDER;
+
     return op_type;
 }
 
@@ -501,7 +509,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 1)
@@ -514,7 +522,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 3 && A.dims == 2)
@@ -529,7 +537,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 A2.w = A.w * A.elempack;
                 A2.elempack = 1;
                 A2.elemsize = A.elemsize / A.elempack;
-                A2.cstep = A2.w;
+                A2.cstep = A.cstep * A.elempack;
             }
         }
         if (outdims == 4 && A.dims == 2)
@@ -550,7 +558,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 1)
@@ -563,7 +571,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 3 && B.dims == 2)
@@ -578,7 +586,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 B2.w = B.w * B.elempack;
                 B2.elempack = 1;
                 B2.elemsize = B.elemsize / B.elempack;
-                B2.cstep = B2.w;
+                B2.cstep = B.cstep * B.elempack;
             }
         }
         if (outdims == 4 && B.dims == 2)

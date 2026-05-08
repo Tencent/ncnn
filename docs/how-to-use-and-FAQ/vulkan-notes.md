@@ -6,16 +6,15 @@
 
 |    |windows|linux|android|mac|ios|
 |---|---|---|---|---|---|
-|intel|Y|Y|?|?|/|
-|amd|Y|Y|/|?|/|
+|intel|Y|Y|Y|Y|/|
+|amd|Y|Y|/|Y|/|
 |nvidia|Y|Y|?|/|/|
 |qcom|/|/|Y|/|/|
-|apple|/|/|/|?|Y|
-|arm|/|?|?|/|/|
+|apple|/|/|/|Y|Y|
+|arm|/|Y|Y|/|/|
 
 ## enable vulkan compute support
 ```
-$ sudo dnf install vulkan-devel
 $ cmake -DNCNN_VULKAN=ON ..
 ```
 
@@ -49,6 +48,10 @@ int gpu_count = ncnn::get_gpu_count();
 // set specified vulkan device before loading param and model
 net.set_vulkan_device(0); // use device-0
 net.set_vulkan_device(1); // use device-1
+
+// or set opt.vulkan_device_index field before loading param and model
+net.opt.vulkan_device_index = 0; // use device-0
+net.opt.vulkan_device_index = 1; // use device-1
 ```
 
 ## zero-copy on unified memory device
@@ -61,10 +64,17 @@ ncnn::Mat mapped = blob_gpu.mapped();
 
 ## hybrid cpu/gpu inference
 ```cpp
-ncnn::Extractor ex_cpu = net.create_extractor();
-ncnn::Extractor ex_gpu = net.create_extractor();
-ex_cpu.set_vulkan_compute(false);
-ex_gpu.set_vulkan_compute(true);
+ncnn::Net net_cpu;
+ncnn::Net net_gpu;
+net_cpu.opt.use_vulkan_compute = false;
+net_gpu.opt.use_vulkan_compute = true;
+net_cpu.load_param();
+net_cpu.load_model();
+net_gpu.load_param();
+net_gpu.load_model();
+
+ncnn::Extractor ex_cpu = net_cpu.create_extractor();
+ncnn::Extractor ex_gpu = net_gpu.create_extractor();
 
 #pragma omp parallel sections
 {
@@ -98,10 +108,7 @@ ex1.extract("conv2", conv2, cmd);
 ex2.input("conv2", conv2);
 ex2.extract("conv3", conv3, cmd);
 
-cmd.submit();
-
-cmd.wait();
-
+cmd.submit_and_wait();
 ```
 
 ## batch inference

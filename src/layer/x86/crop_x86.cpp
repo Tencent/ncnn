@@ -1,19 +1,11 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "crop_x86.h"
 
+#include "cpu.h"
+
+#include <stdint.h>
 #if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
@@ -28,6 +20,10 @@ Crop_x86::Crop_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+    support_fp16_storage = cpu_support_x86_f16c();
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 #if __SSE2__
@@ -48,6 +44,29 @@ static void crop_pack16_avx512(const Mat& src, Mat& dst, int top, int left)
         {
             __m512 _p = _mm512_loadu_ps(ptr);
             _mm512_storeu_ps(outptr, _p);
+            ptr += 16;
+            outptr += 16;
+        }
+
+        ptr += (left + right) * 16;
+    }
+}
+
+static void crop_pack16_bf16s_fp16s_avx512(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 16;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __m256i _p = _mm256_loadu_si256((const __m256i*)ptr);
+            _mm256_storeu_si256((__m256i*)outptr, _p);
             ptr += 16;
             outptr += 16;
         }
@@ -79,6 +98,29 @@ static void crop_pack8_avx(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 8;
     }
 }
+
+static void crop_pack8_bf16s_fp16s_avx(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 8;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __m128i _p = _mm_loadu_si128((const __m128i*)ptr);
+            _mm_storeu_si128((__m128i*)outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+
+        ptr += (left + right) * 8;
+    }
+}
 #endif // __AVX__
 
 static void crop_pack4_sse(const Mat& src, Mat& dst, int top, int left)
@@ -103,6 +145,28 @@ static void crop_pack4_sse(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+
+static void crop_pack4_bf16s_fp16s_sse(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const unsigned short* ptr = (const unsigned short*)src.row(top) + left * 4;
+    unsigned short* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            *(int64_t*)outptr = *(const int64_t*)ptr;
+            ptr += 4;
+            outptr += 4;
+        }
+
+        ptr += (left + right) * 4;
+    }
+}
 #endif // __SSE2__
 
 int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -116,14 +180,23 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int elempack = bottom_blob.elempack;
 
 #if __SSE2__
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(1);
+        bottom_blob_shapes[0] = bottom_blob.shape();
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
 #if __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -141,7 +214,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -164,7 +240,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -187,7 +266,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -201,7 +280,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 32u)
+                        crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -225,7 +307,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -241,7 +323,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 32u)
+                            crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -253,10 +338,6 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -274,7 +355,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -297,7 +381,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -320,7 +407,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -334,7 +421,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 16u)
+                        crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -358,7 +448,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -374,7 +464,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 16u)
+                            crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_avx(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -386,10 +479,6 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -407,7 +496,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -430,7 +522,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -453,7 +548,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -468,7 +563,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -492,7 +590,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -509,7 +607,10 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_sse(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -546,26 +647,33 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int ref_elempack = reference_blob.elempack;
-
     Mat& top_blob = top_blobs[0];
 
 #if __SSE2__
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    if (!starts_expr.empty() && !ends_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_crop_expr(bottom_blob_shapes, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else if (woffset == -233)
+    {
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+    else
+    {
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    }
+
 #if __AVX__
 #if __AVX512F__
     if (elempack == 16)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -583,7 +691,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -606,7 +717,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 32u)
+                    crop_pack16_bf16s_fp16s_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -629,7 +743,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -643,7 +757,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 32u)
+                        crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -667,7 +784,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -683,7 +800,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 32u)
+                            crop_pack16_bf16s_fp16s_avx512(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack16_avx512(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -695,17 +815,6 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
@@ -723,7 +832,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -746,7 +858,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 16u)
+                    crop_pack8_bf16s_fp16s_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_avx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -769,7 +884,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -783,7 +898,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
-                    crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 16u)
+                        crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -807,7 +925,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -823,7 +941,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     {
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
-                        crop_pack8_avx(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 16u)
+                            crop_pack8_bf16s_fp16s_avx(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_avx(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -835,17 +956,6 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _doffset, _coffset;
-        int _outw, _outh, _outd, _outc;
-        if (woffset == -233)
-        {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-        else
-        {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
-        }
-
         if (dims == 1)
         {
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
@@ -863,7 +973,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
             }
@@ -886,7 +999,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                if (elemsize == 8u)
+                    crop_pack4_bf16s_fp16s_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack4_sse(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
             }
@@ -909,7 +1025,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -924,7 +1040,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
 
-                    crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                    if (elemsize == 8u)
+                        crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
                 }
 
                 return 0;
@@ -948,7 +1067,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 if (_outw == w && _outh == h && _outd == d)
                 {
-                    top_blob = bottom_blob_sliced.clone();
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
                     if (top_blob.empty())
                         return -100;
                 }
@@ -965,7 +1084,10 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
                         Mat borderm = top_blob.channel(q).depth(z);
 
-                        crop_pack4_sse(m, borderm, _hoffset, _woffset);
+                        if (elemsize == 8u)
+                            crop_pack4_bf16s_fp16s_sse(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_sse(m, borderm, _hoffset, _woffset);
                     }
                 }
 
@@ -975,31 +1097,22 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     }
 #endif // __SSE2__
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
+    std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
+        Mat bottom_blob_unpacked = bottom_blobs[i];
+        if (elempack != 1)
+        {
+            Option opt_pack1 = opt;
+            opt_pack1.blob_allocator = opt.workspace_allocator;
 
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        if (bottom_blob_unpacked.empty())
-            return -100;
+            convert_packing(bottom_blobs[i], bottom_blob_unpacked, 1, opt_pack1);
+            if (bottom_blob_unpacked.empty())
+                return -100;
+        }
+
+        bottom_blobs_unpacked[i] = bottom_blob_unpacked;
     }
-
-    Mat reference_blob_unpacked = reference_blob;
-    if (ref_elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(reference_blob, reference_blob_unpacked, 1, opt_pack1);
-        if (reference_blob_unpacked.empty())
-            return -100;
-    }
-
-    std::vector<Mat> bottom_blobs_unpacked(2);
-    bottom_blobs_unpacked[0] = bottom_blob_unpacked;
-    bottom_blobs_unpacked[1] = reference_blob_unpacked;
 
     return Crop::forward(bottom_blobs_unpacked, top_blobs, opt);
 }

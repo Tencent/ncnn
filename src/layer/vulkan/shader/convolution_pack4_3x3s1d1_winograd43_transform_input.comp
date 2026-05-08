@@ -1,43 +1,27 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-#define shape_constant_id_offset 0
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout(constant_id = 0) const int c = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int block_x = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image3D bottom_tm_blob;
-#else
-layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
-#endif
+layout(constant_id = shape_constant_id_offset + 4) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int block_y = 0;
 
-layout (push_constant) uniform parameter
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
-    int c;
     int cstep;
 
     int outcstep;
@@ -52,56 +36,13 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
         return;
 
     // load 6x6
     int sx = gx * 4;
     int sy = gy * 4;
 
-#if NCNN_image_shader
-    afpvec4 v00 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 0, gz));
-    afpvec4 v01 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 0, gz));
-    afpvec4 v02 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 0, gz));
-    afpvec4 v03 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 0, gz));
-    afpvec4 v04 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 0, gz));
-    afpvec4 v05 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 0, gz));
-
-    afpvec4 v10 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 1, gz));
-    afpvec4 v11 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 1, gz));
-    afpvec4 v12 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 1, gz));
-    afpvec4 v13 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 1, gz));
-    afpvec4 v14 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 1, gz));
-    afpvec4 v15 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 1, gz));
-
-    afpvec4 v20 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 2, gz));
-    afpvec4 v21 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 2, gz));
-    afpvec4 v22 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 2, gz));
-    afpvec4 v23 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 2, gz));
-    afpvec4 v24 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 2, gz));
-    afpvec4 v25 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 2, gz));
-
-    afpvec4 v30 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 3, gz));
-    afpvec4 v31 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 3, gz));
-    afpvec4 v32 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 3, gz));
-    afpvec4 v33 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 3, gz));
-    afpvec4 v34 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 3, gz));
-    afpvec4 v35 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 3, gz));
-
-    afpvec4 v40 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 4, gz));
-    afpvec4 v41 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 4, gz));
-    afpvec4 v42 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 4, gz));
-    afpvec4 v43 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 4, gz));
-    afpvec4 v44 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 4, gz));
-    afpvec4 v45 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 4, gz));
-
-    afpvec4 v50 = image3d_ld4(bottom_blob, ivec3(sx + 0, sy + 5, gz));
-    afpvec4 v51 = image3d_ld4(bottom_blob, ivec3(sx + 1, sy + 5, gz));
-    afpvec4 v52 = image3d_ld4(bottom_blob, ivec3(sx + 2, sy + 5, gz));
-    afpvec4 v53 = image3d_ld4(bottom_blob, ivec3(sx + 3, sy + 5, gz));
-    afpvec4 v54 = image3d_ld4(bottom_blob, ivec3(sx + 4, sy + 5, gz));
-    afpvec4 v55 = image3d_ld4(bottom_blob, ivec3(sx + 5, sy + 5, gz));
-#else
     int v_offset_0 = gz * psc(cstep) + sy * psc(w) + sx;
     ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
     ivec2 v_offset45 = v_offset_0 + ivec2(4, 5) * psc(w);
@@ -147,10 +88,9 @@ void main()
     afpvec4 v53 = sy + 5 < psc(h) && sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset45.y + 3) : afpvec4(0.f);
     afpvec4 v54 = sy + 5 < psc(h) && sx + 4 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset45.y + 4) : afpvec4(0.f);
     afpvec4 v55 = sy + 5 < psc(h) && sx + 5 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset45.y + 5) : afpvec4(0.f);
-#endif
 
-#define sq2 1.41421356237
-#define sq2_d2 1.41421356237/2
+#define sq2    1.41421356237
+#define sq2_d2 1.41421356237 / 2
 
     // const float itm[6][6] = {
     //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
@@ -247,83 +187,42 @@ void main()
     v55 = m51 - m53 * afp(2.5) + m55;
 
     // store 36
-#if NCNN_image_shader
-    int x = gy * psc(block_x) + gx;
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
 
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 0), v00);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 1), v01);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 2), v02);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 3), v03);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 4), v04);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 5), v05);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 6), v10);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 7), v11);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 8), v12);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 9), v13);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 10), v14);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 11), v15);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 12), v20);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 13), v21);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 14), v22);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 15), v23);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 16), v24);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 17), v25);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 18), v30);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 19), v31);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 20), v32);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 21), v33);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 22), v34);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 23), v35);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 24), v40);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 25), v41);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 26), v42);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 27), v43);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 28), v44);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 29), v45);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 30), v50);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 31), v51);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 32), v52);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 33), v53);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 34), v54);
-    image3d_st4(bottom_tm_blob, ivec3(x, gz, 35), v55);
-#else
-    int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
-
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep), v00);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep), v01);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep), v02);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep), v03);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep), v04);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep), v05);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep), v10);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep), v11);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep), v12);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep), v13);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep), v14);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep), v15);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep), v20);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep), v21);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep), v22);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep), v23);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 16 * psc(outcstep), v24);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 17 * psc(outcstep), v25);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 18 * psc(outcstep), v30);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 19 * psc(outcstep), v31);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 20 * psc(outcstep), v32);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 21 * psc(outcstep), v33);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 22 * psc(outcstep), v34);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 23 * psc(outcstep), v35);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 24 * psc(outcstep), v40);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 25 * psc(outcstep), v41);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 26 * psc(outcstep), v42);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 27 * psc(outcstep), v43);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 28 * psc(outcstep), v44);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 29 * psc(outcstep), v45);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 30 * psc(outcstep), v50);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 31 * psc(outcstep), v51);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 32 * psc(outcstep), v52);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 33 * psc(outcstep), v53);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 34 * psc(outcstep), v54);
-    buffer_st4(bottom_tm_blob_data, v_tm_offset + 35 * psc(outcstep), v55);
-#endif
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep) * c, v00);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep) * c, v01);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep) * c, v02);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep) * c, v03);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep) * c, v04);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep) * c, v05);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep) * c, v10);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep) * c, v11);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep) * c, v12);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep) * c, v13);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep) * c, v14);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep) * c, v15);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep) * c, v20);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep) * c, v21);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep) * c, v22);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep) * c, v23);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 16 * psc(outcstep) * c, v24);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 17 * psc(outcstep) * c, v25);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 18 * psc(outcstep) * c, v30);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 19 * psc(outcstep) * c, v31);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 20 * psc(outcstep) * c, v32);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 21 * psc(outcstep) * c, v33);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 22 * psc(outcstep) * c, v34);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 23 * psc(outcstep) * c, v35);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 24 * psc(outcstep) * c, v40);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 25 * psc(outcstep) * c, v41);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 26 * psc(outcstep) * c, v42);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 27 * psc(outcstep) * c, v43);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 28 * psc(outcstep) * c, v44);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 29 * psc(outcstep) * c, v45);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 30 * psc(outcstep) * c, v50);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 31 * psc(outcstep) * c, v51);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 32 * psc(outcstep) * c, v52);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 33 * psc(outcstep) * c, v53);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 34 * psc(outcstep) * c, v54);
+    buffer_st4(bottom_tm_blob_data, v_tm_offset + 35 * psc(outcstep) * c, v55);
 }

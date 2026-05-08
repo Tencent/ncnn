@@ -82,28 +82,29 @@ static int ruapu_detect_isa(ruapu_some_inst some_inst)
 #include <signal.h>
 #include <setjmp.h>
 
-static int g_ruapu_sigill_caught = 0;
+static int g_ruapu_sig_caught = 0;
 static sigjmp_buf g_ruapu_jmpbuf;
 
-static void ruapu_catch_sigill(int signo, siginfo_t* si, void* data)
+static void ruapu_catch_sig(int signo, siginfo_t* si, void* data)
 {
     (void)signo;
     (void)si;
     (void)data;
 
-    g_ruapu_sigill_caught = 1;
+    g_ruapu_sig_caught = 1;
     siglongjmp(g_ruapu_jmpbuf, -1);
 }
 
 static int ruapu_detect_isa(ruapu_some_inst some_inst)
 {
-    g_ruapu_sigill_caught = 0;
+    g_ruapu_sig_caught = 0;
 
     struct sigaction sa = { 0 };
     struct sigaction old_sa;
     sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
-    sa.sa_sigaction = ruapu_catch_sigill;
+    sa.sa_sigaction = ruapu_catch_sig;
     sigaction(SIGILL, &sa, &old_sa);
+    sigaction(SIGSEGV, &sa, &old_sa);
 
     if (sigsetjmp(g_ruapu_jmpbuf, 1) == 0)
     {
@@ -111,8 +112,9 @@ static int ruapu_detect_isa(ruapu_some_inst some_inst)
     }
 
     sigaction(SIGILL, &old_sa, NULL);
+    sigaction(SIGSEGV, &old_sa, NULL);
 
-    return g_ruapu_sigill_caught ? 0 : 1;
+    return g_ruapu_sig_caught ? 0 : 1;
 }
 
 #elif defined __SYTERKIT__
@@ -219,10 +221,24 @@ RUAPU_INSTCODE(avxvnni, 0xc4, 0xe2, 0x7d, 0x52, 0xc0) // vpdpwssd ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avxvnniint8, 0xc4, 0xe2, 0x7f, 0x50, 0xc0) // vpdpbssd ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avxvnniint16, 0xc4, 0xe2, 0x7e, 0xd2, 0xc0) // vpdpwsud ymm0,ymm0,ymm0
 RUAPU_INSTCODE(avxifma, 0xc4, 0xe2, 0xfd, 0xb4, 0xc0) // vpmadd52luq ymm0,ymm0,ymm0
+RUAPU_INSTCODE(avxneconvert, 0xc4, 0xe2, 0x7e, 0x72, 0xc0) // vcvtneps2bf16 xmm0,ymm0
 RUAPU_INSTCODE(amxfp16, 0xc4, 0xe2, 0x7b, 0x5c, 0xd1) // tdpfp16ps %tmm0, %tmm1, %tmm2
 RUAPU_INSTCODE(amxbf16, 0xc4, 0xe2, 0x7a, 0x5c, 0xd1) // tdpbf16ps %tmm0, %tmm1, %tmm2
 RUAPU_INSTCODE(amxint8, 0xc4, 0xe2, 0x7b, 0x5e, 0xd1) // tdpbssd %tmm0, %tmm1, %tmm2
 RUAPU_INSTCODE(amxtile, 0xc4, 0xe2, 0x7a, 0x49, 0xc0) // tilezero %tmm0
+RUAPU_INSTCODE(bmi1, 0xc4, 0xe2, 0x78, 0xf2, 0xc0) // andn eax,eax,eax
+RUAPU_INSTCODE(bmi2, 0xc4, 0xe2, 0x7b, 0xf6, 0xc0) // mulx eax,eax,eax
+RUAPU_INSTCODE(gfni, 0x66, 0x0f, 0x38, 0xcf, 0xc0) // gf2p8mulb xmm0,xmm0
+RUAPU_INSTCODE(aesni, 0x66, 0x0f, 0x38, 0xdc, 0xc0) // aesenc xmm0,xmm0
+RUAPU_INSTCODE(vaes, 0xc4, 0xe2, 0x7d, 0xdc, 0xc0) // vaesenc ymm0,ymm0,ymm0
+RUAPU_INSTCODE(sha1, 0x0f, 0x38, 0xc9, 0xc0) // sha1msg1 xmm0,xmm0
+RUAPU_INSTCODE(sha256, 0x0f, 0x38, 0xcc, 0xc0) // sha256msg1 xmm0, xmm0
+RUAPU_INSTCODE(sha512, 0xc4, 0xe2, 0x7f, 0xcd, 0xc0) // vsha512msg2 ymm0, ymm0
+RUAPU_INSTCODE(sm3, 0xc4, 0xe2, 0x78, 0xda, 0xc0) // vsm3msg1 xmm0,xmm0,xmm0
+RUAPU_INSTCODE(sm4, 0xc4, 0xe2, 0x7e, 0xda, 0xc0) // vsm4key4 ymm0,ymm0,ymm0
+RUAPU_INSTCODE(rdrand, 0x0f, 0xc7, 0xf0) // rdrand eax
+RUAPU_INSTCODE(rdseed, 0x0f, 0xc7, 0xf8) // rdseed eax
+RUAPU_INSTCODE(tsx, 0x0f, 0x01, 0xd6) // xtest
 
 #elif __aarch64__ || defined(_M_ARM64)
 RUAPU_INSTCODE(neon, 0x4e20d400) // fadd v0.4s,v0.4s,v0.4s
@@ -314,6 +330,7 @@ RUAPU_INSTCODE(zbs, 0x48a51533) // bclr a0,a0,a0
 RUAPU_INSTCODE(zbkb, 0x08a54533) // pack a0,a0,a0
 RUAPU_INSTCODE(zbkc, 0x0aa53533) // clmulh a0,a0,a0
 RUAPU_INSTCODE(zbkx, 0x28a52533) // xperm.n a0,a0,a0
+RUAPU_INSTCODE(zcb, 0x9d759d75) // c.not a0 c.not a0
 RUAPU_INSTCODE(zfa, 0xf0108053) // fli.s ft0, min
 RUAPU_INSTCODE(zfbfmin, 0x44807053) // fcvt.bf16.s ft0,ft0
 RUAPU_INSTCODE(zfh, 0x04007053); // fadd.hs ft0, ft0, ft0
@@ -333,7 +350,12 @@ RUAPU_INSTCODE(xtheadmac, 0x20a5150b) // th.mula a0,a0,a0
 RUAPU_INSTCODE(xtheadmemidx, 0x1801450b) // th.lbia a0,(sp),#0,#0
 RUAPU_INSTCODE(xtheadmempair, 0xe0a1450b) // th.lwd a0,a0,(sp),#0,3
 RUAPU_INSTCODE(xtheadsync, 0x0180000b) // th.sync
-RUAPU_INSTCODE(xtheadvdot, 0x8000600b) // th.vmaqa.vv v0,v0,v0
+RUAPU_INSTCODE(xtheadvector, 0x32052557) // th.vext.x.v a0,v0,a0
+RUAPU_INSTCODE(xtheadvdot, 0x8200600b) // th.vmaqa.vv v0,v0,v0
+
+RUAPU_INSTCODE(spacemitvmadot, 0xe200312b) // vmadot v2,v0,v0
+RUAPU_INSTCODE(spacemitvmadotn, 0xe600b12b) // vmadot3 v2,v0,v1 //vmadot2 vmadot1
+RUAPU_INSTCODE(spacemitvfmadot, 0xea00012b) // vfmadot v2,v0,v0
 
 // RVV 1.0 support
 // unimp (csrrw x0, cycle, x0)
@@ -425,10 +447,24 @@ RUAPU_ISAENTRY(avxvnni)
 RUAPU_ISAENTRY(avxvnniint8)
 RUAPU_ISAENTRY(avxvnniint16)
 RUAPU_ISAENTRY(avxifma)
+RUAPU_ISAENTRY(avxneconvert)
 RUAPU_ISAENTRY(amxfp16)
 RUAPU_ISAENTRY(amxbf16)
 RUAPU_ISAENTRY(amxint8)
 RUAPU_ISAENTRY(amxtile)
+RUAPU_ISAENTRY(bmi1)
+RUAPU_ISAENTRY(bmi2)
+RUAPU_ISAENTRY(gfni)
+RUAPU_ISAENTRY(aesni)
+RUAPU_ISAENTRY(vaes)
+RUAPU_ISAENTRY(sha1)
+RUAPU_ISAENTRY(sha256)
+RUAPU_ISAENTRY(sha512)
+RUAPU_ISAENTRY(sm3)
+RUAPU_ISAENTRY(sm4)
+RUAPU_ISAENTRY(rdrand)
+RUAPU_ISAENTRY(rdseed)
+RUAPU_ISAENTRY(tsx)
 
 #elif __aarch64__ || defined(_M_ARM64)
 RUAPU_ISAENTRY(neon)
@@ -512,6 +548,7 @@ RUAPU_ISAENTRY(zbs)
 RUAPU_ISAENTRY(zbkb)
 RUAPU_ISAENTRY(zbkc)
 RUAPU_ISAENTRY(zbkx)
+RUAPU_ISAENTRY(zcb)
 RUAPU_ISAENTRY(zfa)
 RUAPU_ISAENTRY(zfbfmin)
 RUAPU_ISAENTRY(zfh)
@@ -544,7 +581,12 @@ RUAPU_ISAENTRY(xtheadmac)
 RUAPU_ISAENTRY(xtheadmemidx)
 RUAPU_ISAENTRY(xtheadmempair)
 RUAPU_ISAENTRY(xtheadsync)
+RUAPU_ISAENTRY(xtheadvector)
 RUAPU_ISAENTRY(xtheadvdot)
+
+RUAPU_ISAENTRY(spacemitvmadot)
+RUAPU_ISAENTRY(spacemitvmadotn)
+RUAPU_ISAENTRY(spacemitvfmadot)
 
 #elif __openrisc__
 RUAPU_ISAENTRY(orbis32)

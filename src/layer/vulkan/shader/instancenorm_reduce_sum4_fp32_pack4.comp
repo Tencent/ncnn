@@ -1,28 +1,12 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2019 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
 
-#if NCNN_image_shader
-layout (binding = 0) uniform highp sampler3D square_blob;
-layout (binding = 1, rgba32f) writeonly uniform highp image3D sqsum_blob;
-#else
-layout (binding = 0) readonly buffer square_blob { vec4 square_blob_data[]; };
-layout (binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
-#endif
+layout(binding = 0) readonly buffer square_blob { vec4 square_blob_data[]; };
+layout(binding = 1) writeonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
 
-layout (push_constant) uniform parameter
+layout(push_constant) uniform parameter
 {
     int w;
     int h;
@@ -46,46 +30,6 @@ void main()
 
     vec4 sum;
 
-#if NCNN_image_shader
-    int sx = gx * 2;
-    int sy = gy * 2;
-
-    if (sy == p.h - 1)
-    {
-        if (sx == p.w - 1)
-        {
-            vec4 v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0);
-
-            sum = v0;
-        }
-        else
-        {
-            vec4 v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0);
-            vec4 v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0);
-
-            sum = v0 + v1;
-        }
-    }
-    else
-    {
-        if (sx == p.w - 1)
-        {
-            vec4 v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0);
-            vec4 v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0);
-
-            sum = v0 + v2;
-        }
-        else
-        {
-            vec4 v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0);
-            vec4 v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0);
-            vec4 v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0);
-            vec4 v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, gz), 0);
-
-            sum = v0 + v1 + v2 + v3;
-        }
-    }
-#else
     int sx = gx * 4;
 
     int v_offset = gz * p.cstep + sx;
@@ -118,13 +62,8 @@ void main()
 
         sum = v0 + v1 + v2 + v3;
     }
-#endif
 
-#if NCNN_image_shader
-    imageStore(sqsum_blob, ivec3(gx, gy, gz), sum);
-#else
     int gi = gz * p.outcstep + gx;
 
     sqsum_blob_data[gi] = sum;
-#endif
 }

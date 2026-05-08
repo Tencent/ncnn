@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
 void lstm_transform_weight_int8_avx512vnni(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
@@ -778,8 +767,6 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 7] = weight_hc_G_3[i];
                 kptr += 16;
             }
-
-            _mm_storeu_ps(bias_c_IFOG, _mm_loadu_ps(bias_c_I + q));
 
             __m128 _descale_xc_I = _mm_loadu_ps(weight_xc_int8_scales_ptr + hidden_size * 0 + q);
             __m128 _descale_xc_F = _mm_loadu_ps(weight_xc_int8_scales_ptr + hidden_size * 1 + q);
@@ -1910,7 +1897,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
 
 #ifdef _MSC_VER
-                _xi = _mm512_add_epi32(_xi, _mm512_set1_epi8(127));
+                _xi = _mm512_add_epi8(_xi, _mm512_set1_epi8(127));
 #endif
                 _lstm_IFOGx0 = _mm512_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
@@ -2093,7 +2080,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
 
 #ifdef _MSC_VER
-                _h_cont = _mm512_add_epi32(_h_cont, _mm512_set1_epi8(127));
+                _h_cont = _mm512_add_epi8(_h_cont, _mm512_set1_epi8(127));
 #endif
                 _lstm_IFOGh0 = _mm512_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 
@@ -2263,7 +2250,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
                 __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
 
-                __m256i _xii = _mm256_inserti128_si256(_mm256_castsi128_si256(_xi), _xi, 1);
+                __m256i _xii = combine4x2_epi32(_xi, _xi);
 
                 _sum0 = _mm256_comp_dpbusd_epi32(_sum0, _xii, _w0);
                 _sum1 = _mm256_comp_dpbusd_epi32(_sum1, _xii, _w1);
@@ -2304,7 +2291,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
 
 #ifdef _MSC_VER
-                _xi = _mm256_add_epi32(_xi, _mm256_set1_epi8(127));
+                _xi = _mm256_add_epi8(_xi, _mm256_set1_epi8(127));
 #endif
                 _lstm_IFOGx0 = _mm256_comp_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
@@ -2461,7 +2448,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
 
 #ifdef _MSC_VER
-                _h_cont = _mm256_add_epi32(_h_cont, _mm256_set1_epi8(127));
+                _h_cont = _mm256_add_epi8(_h_cont, _mm256_set1_epi8(127));
 #endif
                 _lstm_IFOGh0 = _mm256_comp_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 
@@ -2659,7 +2646,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
 
 #ifdef _MSC_VER
-                _xi = _mm_add_epi32(_xi, _mm_set1_epi8(127));
+                _xi = _mm_add_epi8(_xi, _mm_set1_epi8(127));
 #endif
                 _lstm_IFOGx0 = _mm_comp_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
 
@@ -2846,7 +2833,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
                 __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
 
 #ifdef _MSC_VER
-                _h_cont = _mm_add_epi32(_h_cont, _mm_set1_epi8(127));
+                _h_cont = _mm_add_epi8(_h_cont, _mm_set1_epi8(127));
 #endif
                 _lstm_IFOGh0 = _mm_comp_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
 

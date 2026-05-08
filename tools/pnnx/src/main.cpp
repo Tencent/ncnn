@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <stdio.h>
 #include <stdint.h>
@@ -20,11 +9,17 @@
 #include <string>
 #include <vector>
 
+#if defined _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "ir.h"
 #include "pass_level2.h"
 #include "pass_level3.h"
 #include "pass_level4.h"
 #include "pass_level5.h"
+#include "utils.h"
 
 #if BUILD_TORCH2PNNX
 #include "load_torchscript.h"
@@ -36,6 +31,7 @@
 #include "load_tnn.h"
 #endif
 
+#include "model_stat.h"
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
 
@@ -158,6 +154,63 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
     }
 }
 
+static bool parse_numpy_file_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types, std::vector<std::vector<char> >& contents, std::vector<std::string>& paths, bool load_data)
+{
+    std::vector<std::string> list;
+    parse_string_list(s, list);
+
+    shapes.clear();
+    types.clear();
+    contents.clear();
+    paths.clear();
+
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        pnnx::NumpyArray array;
+        if (!pnnx::load_numpy_file(list[i].c_str(), array, load_data))
+            return false;
+
+        shapes.push_back(array.shape);
+        types.push_back(array.type);
+        if (load_data)
+            contents.push_back(array.data);
+        paths.push_back(list[i]);
+    }
+
+    return true;
+}
+
+static bool load_numpy_file_contents(const std::vector<std::string>& paths, const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types, std::vector<std::vector<char> >& contents)
+{
+    contents.clear();
+
+    if (paths.empty())
+        return true;
+
+    if (paths.size() != shapes.size() || paths.size() != types.size())
+    {
+        fprintf(stderr, "npy input metadata count mismatch\n");
+        return false;
+    }
+
+    for (size_t i = 0; i < paths.size(); i++)
+    {
+        pnnx::NumpyArray array;
+        if (!pnnx::load_numpy_file(paths[i].c_str(), array, true))
+            return false;
+
+        if (array.shape != shapes[i] || array.type != types[i])
+        {
+            fprintf(stderr, "npy load failed %s: metadata changed while loading data\n", paths[i].c_str());
+            return false;
+        }
+
+        contents.push_back(array.data);
+    }
+
+    return true;
+}
+
 static bool model_file_maybe_torchscript(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -219,6 +272,8 @@ static void show_usage()
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
+    fprintf(stderr, "  input=in0.npy,...\n");
+    fprintf(stderr, "  input2=in0.npy,...\n");
 #if _WIN32
     fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
 #else
@@ -231,6 +286,10 @@ static void show_usage()
 
 int main(int argc, char** argv)
 {
+#if defined _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+
     if (argc < 2)
     {
         show_usage();
@@ -262,8 +321,12 @@ int main(int argc, char** argv)
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
     std::vector<std::string> input_types;
+    std::vector<std::vector<char> > input_contents;
+    std::vector<std::string> input_paths;
     std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> input_types2;
+    std::vector<std::vector<char> > input_contents2;
+    std::vector<std::string> input_paths2;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -305,9 +368,43 @@ int main(int argc, char** argv)
         if (strcmp(key, "device") == 0)
             device = value;
         if (strcmp(key, "inputshape") == 0)
+        {
+            if (!input_paths.empty())
+            {
+                fprintf(stderr, "parameter conflict: input and inputshape cannot be used at the same time\n");
+                return -1;
+            }
             parse_shape_list(value, input_shapes, input_types);
+        }
         if (strcmp(key, "inputshape2") == 0)
+        {
+            if (!input_paths2.empty())
+            {
+                fprintf(stderr, "parameter conflict: input2 and inputshape2 cannot be used at the same time\n");
+                return -1;
+            }
             parse_shape_list(value, input_shapes2, input_types2);
+        }
+        if (strcmp(key, "input") == 0)
+        {
+            if (!input_shapes.empty())
+            {
+                fprintf(stderr, "parameter conflict: input and inputshape cannot be used at the same time\n");
+                return -1;
+            }
+            if (!parse_numpy_file_list(value, input_shapes, input_types, input_contents, input_paths, false))
+                return -1;
+        }
+        if (strcmp(key, "input2") == 0)
+        {
+            if (!input_shapes2.empty())
+            {
+                fprintf(stderr, "parameter conflict: input2 and inputshape2 cannot be used at the same time\n");
+                return -1;
+            }
+            if (!parse_numpy_file_list(value, input_shapes2, input_types2, input_contents2, input_paths2, false))
+                return -1;
+        }
         if (strcmp(key, "customop") == 0)
             parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
@@ -332,6 +429,12 @@ int main(int argc, char** argv)
         fprintf(stderr, "inputshape2 = ");
         print_shape_list(input_shapes2, input_types2);
         fprintf(stderr, "\n");
+        fprintf(stderr, "input = ");
+        print_string_list(input_paths);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "input2 = ");
+        print_string_list(input_paths2);
+        fprintf(stderr, "\n");
         fprintf(stderr, "customop = ");
         print_string_list(customop_modules);
         fprintf(stderr, "\n");
@@ -351,25 +454,36 @@ int main(int argc, char** argv)
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
-        load_tnn(ptpath, pnnx_graph);
+        int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
+        if (ret != 0)
+            return ret;
     }
     else
 #endif
 #if BUILD_ONNX2PNNX
     if (!model_file_maybe_torchscript(ptpath))
     {
-        load_onnx(ptpath.c_str(), pnnx_graph,
-                  input_shapes, input_types,
-                  input_shapes2, input_types2);
+        int ret = load_onnx(ptpath.c_str(), pnnx_graph,
+                            input_shapes, input_types,
+                            input_shapes2, input_types2);
+        if (ret != 0)
+            return ret;
     }
     else
 #endif
     {
-        load_torchscript(ptpath, pnnx_graph,
-                         device, input_shapes, input_types,
-                         input_shapes2, input_types2,
-                         customop_modules, module_operators,
-                         foldable_constants_zippath, foldable_constants);
+        if (!load_numpy_file_contents(input_paths, input_shapes, input_types, input_contents))
+            return -1;
+        if (!load_numpy_file_contents(input_paths2, input_shapes2, input_types2, input_contents2))
+            return -1;
+
+        int ret = load_torchscript(ptpath, pnnx_graph,
+                                   device, input_shapes, input_types, input_contents,
+                                   input_shapes2, input_types2, input_contents2,
+                                   customop_modules, module_operators,
+                                   foldable_constants_zippath, foldable_constants);
+        if (ret != 0)
+            return ret;
     }
 
     // *INDENT-ON*
@@ -404,9 +518,13 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+    pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
+    const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
+    const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
+    const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath);
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
 
 #if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
@@ -420,13 +538,16 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
+
+    fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
+    fprintf(stderr, "FLOPS = %s\n", flops.c_str());
+    fprintf(stderr, "memory OPS = %s\n", memops.c_str());
 
     //     pnnx::Graph pnnx_graph2;
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-
     return 0;
 }

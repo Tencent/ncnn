@@ -11,6 +11,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
+    - 'glslang'
   pull_request:
     branches: [master]
     paths:
@@ -22,6 +23,7 @@ on:
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
+    - 'glslang'
 concurrency:
   group: harmonyos-${{ github.ref }}
   cancel-in-progress: true
@@ -43,7 +45,7 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
 

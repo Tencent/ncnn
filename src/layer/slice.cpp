@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2017 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "slice.h"
 
@@ -119,7 +108,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             if (top_blob.empty())
                 return -100;
 
-            int size = w * slice;
+            size_t size = (size_t)w * slice;
 
             const unsigned char* ptr = bottom_blob.row<const unsigned char>(q);
             unsigned char* outptr = top_blob;
@@ -221,7 +210,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 
             top_blob.dims = dims;
 
-            int size = static_cast<int>(bottom_blob.cstep * slice);
+            size_t size = bottom_blob.cstep * slice;
 
             const unsigned char* ptr = bottom_blob.channel(q);
             unsigned char* outptr = top_blob;
@@ -278,7 +267,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             {
                 for (int j = 0; j < d; j++)
                 {
-                    int size = w * slice;
+                    size_t size = (size_t)w * slice;
 
                     unsigned char* outptr = top_blob.channel(p).depth(j);
                     const unsigned char* ptr = bottom_blob.channel(p).depth(j).row<const unsigned char>(q);
@@ -397,7 +386,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < channels; p++)
             {
-                int size = w * h * slice;
+                size_t size = (size_t)w * h * slice;
 
                 unsigned char* outptr = top_blob.channel(p);
                 const unsigned char* ptr = bottom_blob.channel(p).depth(q);

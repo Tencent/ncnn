@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2021 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
 
@@ -60,36 +49,49 @@ pnnx.Output             output      1 0 out
 
         // split in_proj_weight and in_proj_bias into q k v
         std::vector<float> q_weight(embed_dim * embed_dim);
-        std::vector<float> q_bias(embed_dim);
+        std::vector<float> q_bias(embed_dim, 0.f);
         std::vector<float> k_weight(embed_dim * embed_dim);
-        std::vector<float> k_bias(embed_dim);
+        std::vector<float> k_bias(embed_dim, 0.f);
         std::vector<float> v_weight(embed_dim * embed_dim);
-        std::vector<float> v_bias(embed_dim);
+        std::vector<float> v_bias(embed_dim, 0.f);
         {
             // qkv - embed_dim - embed_dim
             auto w = captured_attrs.at("op_0.in_proj_weight").get_float32_data();
-            // qkv - embed_dim
-            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
 
             const float* wptr = (const float*)w.data();
-            const float* bptr = (const float*)b.data();
 
             {
                 memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
-                memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
                 wptr += embed_dim * embed_dim;
-                bptr += embed_dim;
             }
 
             {
                 memcpy(k_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
-                memcpy(k_bias.data(), bptr, embed_dim * sizeof(float));
                 wptr += embed_dim * embed_dim;
-                bptr += embed_dim;
             }
 
             {
                 memcpy(v_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
+            }
+        }
+        if (captured_params.at("bias").b)
+        {
+            // qkv - embed_dim
+            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
+
+            const float* bptr = (const float*)b.data();
+
+            {
+                memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
+                bptr += embed_dim;
+            }
+
+            {
+                memcpy(k_bias.data(), bptr, embed_dim * sizeof(float));
+                bptr += embed_dim;
+            }
+
+            {
                 memcpy(v_bias.data(), bptr, embed_dim * sizeof(float));
             }
         }
@@ -113,7 +115,15 @@ pnnx.Output             output      1 0 out
         op->attrs["9"] = Attribute();
         op->attrs["9"].data = {0, 0, 0, 0};
         op->attrs["a"] = captured_attrs.at("op_0.out_proj.weight");
-        op->attrs["b"] = captured_attrs.at("op_0.out_proj.bias");
+        if (captured_params.at("bias").b)
+        {
+            op->attrs["b"] = captured_attrs.at("op_0.out_proj.bias");
+        }
+        else
+        {
+            std::vector<float> out_bias(embed_dim, 0.f);
+            op->attrs["b"] = Attribute({embed_dim}, out_bias);
+        }
     }
 };
 

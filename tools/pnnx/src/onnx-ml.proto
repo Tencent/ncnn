@@ -88,7 +88,7 @@ enum Version {
   IR_VERSION_2019_9_19 = 0x0000000000000006;
 
   // IR VERSION 7 published on May 8, 2020
-  // - Add support to allow function body graph to rely on multiple external opreator sets.
+  // - Add support to allow function body graph to rely on multiple external operator sets.
   // - Add a list to promote inference graph's initializers to global and
   //   mutable variables. Global variables are visible in all graphs of the
   //   stored models.
@@ -110,9 +110,17 @@ enum Version {
   // Added FLOAT8E4M3FN, FLOAT8E4M3FNUZ, FLOAT8E5M2, FLOAT8E5M2FNUZ.
   IR_VERSION_2023_5_5 = 0x0000000000000009;
 
-  // IR VERSION 10 published on TBD
-  // Added UINT4, INT4.
-  IR_VERSION = 0x000000000000000A;
+  // IR VERSION 10 published on March 25, 2024
+  // Added UINT4, INT4, overload field for functions and metadata_props on multiple proto definitions.
+  IR_VERSION_2024_3_25 = 0x000000000000000A;
+
+  // IR VERSION 11 published on May 12, 2025
+  // Added FLOAT4E2M1, multi-device protobuf classes.
+  IR_VERSION_2025_05_12 = 0x000000000000000B;
+
+  // IR VERSION 12 published on TBD
+  // Added FLOAT8E8M0.
+  IR_VERSION = 0x000000000000000C;
 }
 
 // Attributes
@@ -212,7 +220,7 @@ message NodeProto {
   repeated string output = 2;   // namespace Value
 
   // An optional identifier for this node in a graph.
-  // This field MAY be absent in ths version of the IR.
+  // This field MAY be absent in this version of the IR.
   optional string name = 3;     // namespace Node
 
   // The symbolic identifier of the Operator to execute.
@@ -230,6 +238,83 @@ message NodeProto {
 
   // Named metadata values; keys should be distinct.
   repeated StringStringEntryProto metadata_props = 9;
+
+  // Configuration of multi-device annotations.
+  repeated NodeDeviceConfigurationProto device_configurations = 10;
+}
+
+// IntIntListEntryProto follows the pattern for cross-proto-version maps.
+// See https://developers.google.com/protocol-buffers/docs/proto3#maps
+message IntIntListEntryProto {
+  optional int64 key = 1;
+  repeated int64 value = 2;
+};
+
+// Multi-device configuration proto for NodeProto.
+message NodeDeviceConfigurationProto {
+    // This field MUST be present for this version of the IR.
+    // ID of the configuration. MUST match the name of a DeviceConfigurationProto.
+    optional string configuration_id = 1;
+    // Sharding spec for the node.
+    repeated ShardingSpecProto sharding_spec = 2;
+    // Pipeline stage of this node.
+    optional int32 pipeline_stage = 3;
+}
+
+// ShardingSpecProto: This describes the sharding spec for a specific
+// input or output tensor of a node.
+message ShardingSpecProto {
+  // This field MUST be present for this version of the IR.
+  // Identifies the input or output of the node that is being sharded.
+  // Required to match a name specified in the node's input or output list of ValueInfoProtos.
+  // It is called `logical tensor` in subsequent descriptions.
+  optional string tensor_name = 1;
+
+  // The following is the list of devices across which the logical
+  // tensor is sharded or replicated.
+  repeated int64 device = 2;
+
+  // Each element v in above field devices may represent either a
+  // device or a set of devices (when we want the same shard/tensor
+  // to be replicated across a subset of devices), as indicated by
+  // the following optional map. If the map contains an entry for v,
+  // then v represents a device group, and the map indicates the set
+  // of devices in that group.
+  repeated IntIntListEntryProto index_to_device_group_map = 3;
+
+  // The following is the sharded-shape of the tensor, consisting of
+  // the sharding-spec for each axis of the tensor.
+  repeated ShardedDimProto sharded_dim = 4;
+}
+
+// ShardedDimProto: This describes the sharding spec for a single
+// axis of a sharded tensor.
+message ShardedDimProto {
+  // This field MUST be present for this version of the IR.
+  // The axis this sharding corresponds to. Must be in the range of
+  // [-r, r - 1], where r is the rank of the tensor. Negative axis values means
+  // counting from the back.
+  optional int64 axis = 1;
+
+  // Describes how the tensor on the provided axis is sharded.
+  // The common-case is described by a single instance of SimpleShardedDimProto.
+  // Multiple instances can be used to handle cases where a sharded
+  // tensor is reshaped, fusing multiple axes into one.
+  repeated SimpleShardedDimProto simple_sharding = 2;
+}
+
+// SimpleShardedDimProto: Indicates that N blocks are divided into M shards.
+// N is allowed to be symbolic where M is required to be a constant.
+message SimpleShardedDimProto {
+    // Dimension value to be sharded.
+    oneof dim {
+        int64 dim_value = 1;
+        string dim_param = 2;
+    }
+
+    // This field MUST be present for this version of the IR.
+    // Number of shards to split dim into.
+    optional int64 num_shards = 3;
 }
 
 // Training information
@@ -416,7 +501,7 @@ message ModelProto {
   //
   // The (domain, name, overload) tuple must be unique across the function protos in this list.
   // In case of any conflicts the behavior (whether the model local functions are given higher priority,
-  // or standard operator sets are given higher priotity or this is treated as error) is defined by
+  // or standard operator sets are given higher priority or this is treated as error) is defined by
   // the runtimes.
   //
   // The operator sets imported by FunctionProto should be compatible with the ones
@@ -429,7 +514,23 @@ message ModelProto {
   // One FunctionProto can reference other FunctionProto in the model, however, recursive reference
   // is not allowed.
   repeated FunctionProto functions = 25;
+
+  // Describes different target configurations for a multi-device use case.
+  // A model MAY describe multiple multi-device configurations for execution.
+  repeated DeviceConfigurationProto configuration = 26;
 };
+
+// DeviceConfigurationProto describes a multi-device configuration for a model.
+message DeviceConfigurationProto {
+    // This field MUST be present for this version of the IR.
+    // Name of the configuration.
+    optional string name = 1;
+    // This field MUST be present for this version of the IR.
+    // Number of devices inside this configuration.
+    optional int32 num_devices = 2;
+    // Optional names of the devices. MUST be length of num_devices if provided.
+    repeated string device = 3;
+}
 
 // StringStringEntryProto follows the pattern for cross-proto-version maps.
 // See https://developers.google.com/protocol-buffers/docs/proto3#maps
@@ -538,9 +639,16 @@ message TensorProto {
     FLOAT8E5M2 = 19;      // follows IEEE 754, supports nan, inf, mostly used for gradients
     FLOAT8E5M2FNUZ = 20;  // follows IEEE 754, supports nan, not inf, mostly used for gradients, no negative zero
 
-    // 4-bit data-types
+    // 4-bit integer data types
     UINT4 = 21;  // Unsigned integer in range [0, 15]
     INT4 = 22;   // Signed integer in range [-8, 7], using two's-complement representation
+
+    // 4-bit floating point data types
+    FLOAT4E2M1 = 23;
+
+    // E8M0 type used as the scale for microscaling (MX) formats:
+    // https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+    FLOAT8E8M0 = 24;
 
     // Future extensions go here.
   }
@@ -575,13 +683,19 @@ message TensorProto {
   // When this field is present, the data_type field MUST be FLOAT or COMPLEX64.
   repeated float float_data = 4 [packed = true];
 
-  // For int32, uint8, int8, uint16, int16, uint4, int4, bool, float8 and float16 values
-  // float16 and float8 values must be bit-wise converted to an uint16_t prior
-  // to writing to the buffer.
-  // uint4 and int4 values must be packed to 4bitx2 prior to writing to the buffer, the first element is stored in
-  // the 4 LSB and the second element is stored in the 4 MSB.
+  // For int32, uint8, int8, uint16, int16, uint4, int4, bool, (b)float16, float8, and float4:
+  // - (b)float16 and float8 values MUST be converted bit-wise into an unsigned integer
+  //   representation before being written to the buffer.
+  // - Each pair of uint4, int4, and float4 values MUST be packed as two 4-bit elements into a single byte.
+  //   The first element is stored in the 4 least significant bits (LSB),
+  //   and the second element is stored in the 4 most significant bits (MSB).
+  //
+  // Consequently:
+  // - For data types with a bit-width of 8 or greater, each `int32_data` stores one element.
+  // - For 4-bit data types, each `int32_data` stores two elements.
+  //
   // When this field is present, the data_type field MUST be
-  // INT32, INT16, INT8, INT4, UINT16, UINT8, UINT4, BOOL, FLOAT16, BFLOAT16, FLOAT8E4M3FN, FLOAT8E4M3FNUZ, FLOAT8E5M2, FLOAT8E5M2FNUZ
+  // INT32, INT16, INT8, INT4, UINT16, UINT8, UINT4, BOOL, FLOAT16, BFLOAT16, FLOAT8E4M3FN, FLOAT8E4M3FNUZ, FLOAT8E5M2, FLOAT8E5M2FNUZ, FLOAT8E8M0, FLOAT4E2M1
   repeated int32 int32_data = 5 [packed = true];
 
   // For strings.

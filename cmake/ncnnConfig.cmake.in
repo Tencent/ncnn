@@ -1,3 +1,4 @@
+set(NCNN_VERSION @NCNN_VERSION@)
 set(NCNN_OPENMP @NCNN_OPENMP@)
 set(NCNN_THREADS @NCNN_THREADS@)
 set(NCNN_VULKAN @NCNN_VULKAN@)
@@ -44,3 +45,10 @@ if(NCNN_VULKAN)
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/ncnn.cmake)
+
+if(TARGET ncnn)
+    set(ncnn_FOUND TRUE)
+    if(NOT ncnn_FIND_QUIETLY)
+        message(STATUS "Found ncnn: ${NCNN_VERSION}")
+    endif()
+endif()

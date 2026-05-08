@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "instancenorm_riscv.h"
 
@@ -213,11 +202,11 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
             __fp16* ptr = bottom_top_blob.channel(q);
 
             // mean and var
-            __fp16 sum = 0.f;
-            __fp16 sqsum = 0.f;
+            __fp16 sum = (__fp16)0.f;
+            __fp16 sqsum = (__fp16)0.f;
 #if __riscv_zvfh && !defined(C906)
-            vfloat16m1_t _sum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
-            vfloat16m1_t _sqsum = __riscv_vfmv_s_f_f16m1(0.f, __riscv_vsetvlmax_e32m1());
+            vfloat16m1_t _sum = __riscv_vfmv_s_f_f16m1((__fp16)0.f, __riscv_vsetvlmax_e32m1());
+            vfloat16m1_t _sqsum = __riscv_vfmv_s_f_f16m1((__fp16)0.f, __riscv_vsetvlmax_e32m1());
             {
                 int n = size;
                 __fp16* ptr_sum = ptr;
@@ -316,8 +305,8 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
         for (int q = 0; q < c; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
-            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1(0.f, vl);
-            vfloat16m1_t _sqsum = __riscv_vfmv_v_f_f16m1(0.f, vl);
+            vfloat16m1_t _sum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
+            vfloat16m1_t _sqsum = __riscv_vfmv_v_f_f16m1((__fp16)0.f, vl);
 
             for (int i = 0; i < size; i++)
             {
@@ -342,12 +331,12 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
             {
                 vfloat16m1_t _gamma = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2((const float*)gamma_data + q * vl, vl), vl);
                 vfloat16m1_t _beta = __riscv_vfncvt_f_f_w_f16m1(__riscv_vle32_v_f32m2((const float*)beta_data + q * vl, vl), vl);
-                _a = __riscv_vfdiv_vv_f16m1(_gamma, __riscv_vfsqrt_v_f16m1(__riscv_vfadd_vf_f16m1(_var, eps, vl), vl), vl);
+                _a = __riscv_vfdiv_vv_f16m1(_gamma, __riscv_vfsqrt_v_f16m1(__riscv_vfadd_vf_f16m1(_var, (__fp16)eps, vl), vl), vl);
                 _b = __riscv_vfnmsub_vv_f16m1(_a, _mean, _beta, vl);
             }
             else
             {
-                _a = __riscv_vfrdiv_vf_f16m1(__riscv_vfsqrt_v_f16m1(__riscv_vfadd_vf_f16m1(_var, eps, vl), vl), 1.f, vl);
+                _a = __riscv_vfrdiv_vf_f16m1(__riscv_vfsqrt_v_f16m1(__riscv_vfadd_vf_f16m1(_var, (__fp16)eps, vl), vl), (__fp16)1.f, vl);
                 _b = __riscv_vfmul_vv_f16m1(_a, _mean, vl);
                 _b = __riscv_vfsgnjn_vv_f16m1(_b, _b, vl);
             }

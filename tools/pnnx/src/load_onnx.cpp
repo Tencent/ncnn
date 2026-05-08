@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2024 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2024 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "load_onnx.h"
 
@@ -21,6 +10,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/text_format.h>
 
+#include <chrono>
 #include <fstream>
 
 #include <onnxruntime_c_api.h>
@@ -86,7 +76,9 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
         type = 2;
         int64_t i64 = attr.i();
         if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+        if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
         if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+        if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
         i = (int)i64;
         break;
     }
@@ -109,7 +101,9 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
         {
             int64_t i64 = attr.ints().at(i);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+            if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
             if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+            if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
             ai.push_back(i64);
         }
         break;
@@ -175,7 +169,9 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
                     i64 = tensor.int64_data().at(0);
                 }
                 if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                if (i64 == std::numeric_limits<int64_t>::max() - 1) i64 = INT_MAX - 1;
                 if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                if (i64 == std::numeric_limits<int64_t>::min() + 1) i64 = INT_MIN + 1;
                 i = (int)i64;
             }
             else if (tensor.data_type() == onnx::TensorProto::FLOAT)
@@ -217,8 +213,42 @@ Parameter::Parameter(const onnx2pnnx::OnnxAttributeProxy& attr)
 {
 }
 
-Attribute::Attribute(const onnx::TensorProto& t)
+Attribute::Attribute(const onnx::TensorProto& t, const std::vector<unsigned char>& external_data)
 {
+    const unsigned char* external_data_ptr = 0;
+    if (t.has_data_location() && t.data_location() == onnx::TensorProto_DataLocation_EXTERNAL)
+    {
+        if (external_data.empty())
+        {
+            fprintf(stderr, "FATAL ERROR no external data\n");
+        }
+        else
+        {
+            std::string location;
+            uint64_t offset;
+            uint64_t length;
+            for (int i = 0; i < t.external_data_size(); i++)
+            {
+                const onnx::StringStringEntryProto& ep = t.external_data(i);
+                const std::string& key = ep.key();
+                const std::string& value = ep.value();
+
+                if (key == "location") location = value;
+                if (key == "offset") offset = std::stoull(value);
+                if (key == "length") length = std::stoull(value);
+            }
+
+            if (offset + length > external_data.size())
+            {
+                fprintf(stderr, "FATAL ERROR external data out of range %s %lu + %lu > %zu\n", location.c_str(), offset, length, external_data.size());
+            }
+            else
+            {
+                external_data_ptr = (const unsigned char*)external_data.data() + offset;
+            }
+        }
+    }
+
     type = get_onnx_tensor_type(t.data_type());
 
     const int ndim = (int)t.dims_size();
@@ -229,7 +259,11 @@ Attribute::Attribute(const onnx::TensorProto& t)
 
         data.resize(type_to_elemsize(type));
 
-        if (t.has_raw_data())
+        if (external_data_ptr)
+        {
+            memcpy((void*)data.data(), (const void*)external_data_ptr, data.size());
+        }
+        else if (t.has_raw_data())
         {
             // assert t.raw_data().size() == type_to_elemsize(type)
             memcpy((void*)data.data(), (const void*)t.raw_data().data(), t.raw_data().size());
@@ -270,7 +304,11 @@ Attribute::Attribute(const onnx::TensorProto& t)
     {
         data.resize(elemcount() * type_to_elemsize(type));
 
-        if (t.has_raw_data())
+        if (external_data_ptr)
+        {
+            memcpy((void*)data.data(), (const void*)external_data_ptr, data.size());
+        }
+        else if (t.has_raw_data())
         {
             memcpy((void*)data.data(), (const void*)t.raw_data().data(), data.size());
         }
@@ -419,7 +457,89 @@ static const char* get_onnx_tensor_elem_data_type_str(ONNXTensorElementDataType 
     return "";
 }
 
-static bool check_input_shape(onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types)
+{
+    for (size_t i = 0; i < shapes.size(); i++)
+    {
+        const std::vector<int64_t>& s = shapes[i];
+        const std::string& t = types[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < s.size(); j++)
+        {
+            fprintf(stderr, "%ld", s[j]);
+            if (j != s.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        fprintf(stderr, "%s", t.c_str());
+        if (i != shapes.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static void get_traced_input_shape(const onnx::ModelProto& model, std::vector<std::vector<int64_t> >& input_shapes, std::vector<std::string>& input_types, std::vector<std::vector<int64_t> >& input_shapes2, std::vector<std::string>& input_types2)
+{
+    const onnx::GraphProto& graph = model.graph();
+
+    input_shapes.resize(graph.input_size());
+    input_types.resize(graph.input_size());
+    input_shapes2.resize(graph.input_size());
+    input_types2.resize(graph.input_size());
+
+    bool has_dynamic_dimsize = false;
+
+    for (int i = 0; i < graph.input_size(); i++)
+    {
+        const onnx::ValueInfoProto& value = graph.input(i);
+        const onnx::TensorShapeProto& tsp = value.type().tensor_type().shape();
+
+        ONNXTensorElementDataType datatype = (ONNXTensorElementDataType)value.type().tensor_type().elem_type();
+
+        input_shapes[i].resize(tsp.dim_size());
+        input_shapes2[i].resize(tsp.dim_size());
+
+        for (int j = 0; j < tsp.dim_size(); j++)
+        {
+            if (tsp.dim(j).has_dim_value())
+            {
+                int64_t ds = tsp.dim(j).dim_value();
+                if (ds != -1)
+                {
+                    // static dimension size
+                    input_shapes[i][j] = ds;
+                    input_shapes2[i][j] = ds;
+                    continue;
+                }
+            }
+
+            // dynamic dimension size
+            if (j == 0)
+            {
+                // assume the first dimension is batch size
+                input_shapes[i][j] = 1;
+                input_shapes2[i][j] = 1;
+            }
+            else
+            {
+                // just guess some working ones
+                has_dynamic_dimsize = true;
+                input_shapes[i][j] = 128;
+                input_shapes2[i][j] = 512;
+            }
+        }
+
+        input_types[i] = get_onnx_tensor_elem_data_type_str(datatype);
+        input_types2[i] = get_onnx_tensor_elem_data_type_str(datatype);
+    }
+
+    if (!has_dynamic_dimsize)
+    {
+        input_shapes2.clear();
+        input_types2.clear();
+    }
+}
+
+static bool check_input_shape(const onnx::ModelProto& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
 {
     const onnx::GraphProto& graph = model.graph();
 
@@ -532,16 +652,76 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
         return -1;
     }
 
+    std::string onnx_extdata_path = onnxpath + ".data";
+    std::vector<unsigned char> external_data;
+    {
+        // try loading onnx external data
+        FILE* fp = fopen(onnx_extdata_path.c_str(), "rb");
+        if (fp)
+        {
+            fseek(fp, 0, SEEK_END);
+            size_t len = ftell(fp);
+            rewind(fp);
+            external_data.resize(len);
+            fread(external_data.data(), 1, len, fp);
+            fclose(fp);
+        }
+    }
+
     onnx2pnnx::eliminate_initializer_input(model);
 
-    // input shape sanity check
-    if (!check_input_shape(model, input_shapes, input_types))
+    // get input shape from traced onnx
+    std::vector<std::vector<int64_t> > traced_input_shapes;
+    std::vector<std::string> traced_input_types;
+    std::vector<std::vector<int64_t> > traced_input_shapes2;
+    std::vector<std::string> traced_input_types2;
+    get_traced_input_shape(model, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
+
+    if (!traced_input_shapes.empty())
     {
-        return -1;
+        fprintf(stderr, "get inputshape from traced inputs\n");
+        fprintf(stderr, "inputshape = ");
+        print_shape_list(traced_input_shapes, traced_input_types);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "inputshape2 = ");
+        print_shape_list(traced_input_shapes2, traced_input_types2);
+        fprintf(stderr, "\n");
+
+        if (!input_shapes.empty())
+        {
+            // input shape sanity check
+            if (!check_input_shape(model, input_shapes, input_types))
+            {
+                return -1;
+            }
+            traced_input_shapes = input_shapes;
+            traced_input_types = input_types;
+            if (!input_shapes2.empty())
+            {
+                if (!check_input_shape(model, input_shapes2, input_types2))
+                {
+                    return -1;
+                }
+                traced_input_shapes2 = input_shapes2;
+                traced_input_types2 = input_types2;
+            }
+            else if (!traced_input_shapes2.empty())
+            {
+                // user provide static input shape
+                traced_input_shapes2.clear();
+                traced_input_types2.clear();
+
+                fprintf(stderr, "model has dynamic dimension size, but no inputshape2 specified\n");
+                fprintf(stderr, "pnnx will optimize model with static input shape\n");
+            }
+        }
     }
-    if (!input_shapes2.empty() && !check_input_shape(model, input_shapes2, input_types2))
+    else
     {
-        return -1;
+        traced_input_shapes = input_shapes;
+        traced_input_types = input_types;
+        traced_input_shapes2 = input_shapes2;
+        traced_input_types2 = input_types2;
     }
 
     fprintf(stderr, "############# pass_level0 onnx \n");
@@ -579,7 +759,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants(model, input_shapes, input_types, input_shapes2, input_types2);
+        onnx2pnnx::fold_constants(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -599,7 +779,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::shape_inference(model, input_shapes, input_types, input_shapes2, input_types2);
+        onnx2pnnx::shape_inference(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types, traced_input_shapes2, traced_input_types2);
 
         t1 = get_current_time();
 
@@ -609,7 +789,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
         t0 = get_current_time();
 
-        onnx2pnnx::fold_constants_dynamic_shape(model, input_shapes, input_types);
+        onnx2pnnx::fold_constants_dynamic_shape(model, onnx_extdata_path, external_data, traced_input_shapes, traced_input_types);
 
         t1 = get_current_time();
 
@@ -672,7 +852,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph,
 
     fprintf(stderr, "############# pass_level1 onnx\n");
 
-    pass_onnx(model, pnnx_graph);
+    pass_onnx(model, external_data, pnnx_graph);
 
     return 0;
 }

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2022 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "softmax_x86.h"
 
@@ -33,11 +22,18 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "softmax_bf16s.h"
+#endif
+
 Softmax_x86::Softmax_x86()
 {
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void softmax(float* _ptr, int elemcount, int elempack)
@@ -209,7 +205,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __AVX512F__
     if (elempack == 16)
     {
-        _sum_avx512 = _mm512_div_ps(_mm512_set1_ps(1.f), _sum_avx512);
+        _sum_avx512 = _mm512_rcp_nr_ps(_sum_avx512);
     }
 #endif // __AVX512F__
     if (elempack == 8)
@@ -223,7 +219,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         }
 #endif // __AVX512F__
 
-        _sum_avx = _mm256_div_ps(_mm256_set1_ps(1.f), _sum_avx);
+        _sum_avx = _mm256_rcp_nr_ps(_sum_avx);
 
 #if __AVX512F__
         _sum_avx512 = combine8x2_ps(_sum_avx, _sum_avx);
@@ -249,7 +245,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
         }
 #endif // __AVX__
 
-        _sum = _mm_div_ps(_mm_set1_ps(1.f), _sum);
+        _sum = _mm_rcp_nr_ps(_sum);
 
 #if __AVX__
         _sum_avx = combine4x2_ps(_sum, _sum);
@@ -326,7 +322,7 @@ static void softmax(float* _ptr, int elemcount, int elempack)
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-static void softmax_pack16(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack16(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -557,27 +553,24 @@ static void softmax_pack16(float* _ptr, int elemcount, int stride, int size1, fl
     {
         float* sumptr = _sumptr;
         int j = 0;
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -625,7 +618,7 @@ static void softmax_pack16(float* _ptr, int elemcount, int stride, int size1, fl
 }
 #endif // __AVX512F__
 
-static void softmax_pack8(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack8(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -904,28 +897,25 @@ static void softmax_pack8(float* _ptr, int elemcount, int stride, int size1, flo
         float* sumptr = _sumptr;
         int j = 0;
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1012,7 +1002,7 @@ static void softmax_pack8(float* _ptr, int elemcount, int stride, int size1, flo
 }
 #endif // __AVX__
 
-static void softmax_pack4(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack4(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -1241,29 +1231,26 @@ static void softmax_pack4(float* _ptr, int elemcount, int stride, int size1, flo
         int j = 0;
 #if __AVX__
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
 #endif // __AVX__
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1360,7 +1347,7 @@ static void softmax_pack4(float* _ptr, int elemcount, int stride, int size1, flo
 }
 #endif // __SSE2__
 
-static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax_pack1(float* _ptr, int elemcount, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -1483,29 +1470,26 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        __m512 _one_avx512 = _mm512_set1_ps(1.f);
         for (; j + 15 < size1; j += 16)
         {
             __m512 _sum = _mm512_loadu_ps(sumptr);
-            _sum = _mm512_div_ps(_one_avx512, _sum);
+            _sum = _mm512_rcp_nr_ps(_sum);
             _mm512_storeu_ps(sumptr, _sum);
             sumptr += 16;
         }
 #endif // __AVX512F__
-        __m256 _one_avx = _mm256_set1_ps(1.f);
         for (; j + 7 < size1; j += 8)
         {
             __m256 _sum = _mm256_loadu_ps(sumptr);
-            _sum = _mm256_div_ps(_one_avx, _sum);
+            _sum = _mm256_rcp_nr_ps(_sum);
             _mm256_storeu_ps(sumptr, _sum);
             sumptr += 8;
         }
 #endif // __AVX__
-        __m128 _one = _mm_set1_ps(1.f);
         for (; j + 3 < size1; j += 4)
         {
             __m128 _sum = _mm_loadu_ps(sumptr);
-            _sum = _mm_div_ps(_one, _sum);
+            _sum = _mm_rcp_nr_ps(_sum);
             _mm_storeu_ps(sumptr, _sum);
             sumptr += 4;
         }
@@ -1566,7 +1550,7 @@ static void softmax_pack1(float* _ptr, int elemcount, int stride, int size1, flo
     }
 }
 
-static void softmax(float* _ptr, int elemcount, int elempack, int stride, int size1, float* _maxptr, float* _sumptr)
+static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -1664,6 +1648,11 @@ static void softmax(float* _ptr, int elemcount, int elempack, int stride, int si
 
 int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
@@ -1685,13 +1674,13 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = w * elempack;
+        const size_t stride = (size_t)w * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -1723,13 +1712,13 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w * h * d;
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
-        const int stride = bottom_top_blob.cstep * elempack;
+        const size_t stride = bottom_top_blob.cstep * elempack;
 
         Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
-        const int nn_size = size / sizen;
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
@@ -1826,5 +1815,172 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Softmax_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int dims = bottom_top_blob.dims;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int positive_axis = axis < 0 ? dims + axis : axis;
+
+    if (dims == 1) // positive_axis == 0
+    {
+        unsigned short* ptr = bottom_top_blob;
+
+        const int size = w * elempack;
+
+        softmax_bf16s_sse(ptr, size, 1);
+    }
+
+    if (dims == 2 && positive_axis == 0)
+    {
+        const int size = w;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
+        const size_t stride = (size_t)w * elempack;
+
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        const int nn_size = (size + sizen - 1) / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen;
+
+            unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
+
+            softmax_bf16s_sse_dispatch(ptr, h, elempack, stride, size1, maxptr, sumptr);
+        }
+    }
+
+    if (dims == 2 && positive_axis == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+
+            softmax_bf16s_sse(ptr, w, elempack);
+        }
+    }
+
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
+    {
+        const int size = w * h * d;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
+        const size_t stride = bottom_top_blob.cstep * elempack;
+
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        const int nn_size = (size + sizen - 1) / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen;
+
+            unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
+
+            softmax_bf16s_sse_dispatch(ptr, channels, elempack, stride, size1, maxptr, sumptr);
+        }
+    }
+
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
+    {
+        const int size = w * elempack;
+
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < d; i++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q).depth(i);
+
+                float* maxsumptr = maxsum.channel(get_omp_thread_num());
+                float* maxptr = maxsumptr;
+                float* sumptr = maxptr + size;
+
+                softmax_bf16s_sse_dispatch(ptr, h, 1, size, size, maxptr, sumptr);
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                softmax_bf16s_sse(ptr, w, elempack);
+                ptr += w * elempack;
+            }
+        }
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        const int size = w * h * elempack;
+
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + size;
+
+            softmax_bf16s_sse_dispatch(ptr, d, 1, size, size, maxptr, sumptr);
+        }
+    }
+
+    if (dims == 4 && positive_axis == 3)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < d; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    softmax_bf16s_sse(ptr, w, elempack);
+                    ptr += w * elempack;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -1,16 +1,5 @@
-// Tencent is pleased to support the open source community by making ncnn available.
-//
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
-//
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-// in compliance with the License. You may obtain a copy of the License at
-//
-// https://opensource.org/licenses/BSD-3-Clause
-//
-// Unless required by applicable law or agreed to in writing, software distributed
-// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// Copyright 2018 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef NCNN_ALLOCATOR_H
 #define NCNN_ALLOCATOR_H
@@ -67,7 +56,7 @@ static NCNN_FORCEINLINE size_t alignSize(size_t sz, int n)
 static NCNN_FORCEINLINE void* fastMalloc(size_t size)
 {
 #if _MSC_VER
-    return _aligned_malloc(size, NCNN_MALLOC_ALIGN);
+    return _aligned_malloc(size + NCNN_MALLOC_OVERREAD, NCNN_MALLOC_ALIGN);
 #elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD))
@@ -232,6 +221,8 @@ public:
     VkDeviceMemory memory;
     void* mapped_ptr;
 
+    uint32_t memory_type_index;
+
     // buffer state, modified by command functions internally
     mutable VkAccessFlags access_flags;
     mutable VkPipelineStageFlags stage_flags;
@@ -254,6 +245,8 @@ public:
 
     VkDeviceMemory memory;
     void* mapped_ptr;
+
+    uint32_t memory_type_index;
 
     // the base offset assigned by allocator
     size_t bind_offset;
@@ -299,6 +292,7 @@ protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
+    VkDeviceMemory allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr);
 
     VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImage image, VkFormat format);
@@ -332,7 +326,11 @@ class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
-    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, bool prefer_host_memory = false, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size)
+        : VkWeightAllocator(vkdev, false, preferred_block_size)
+    {
+    }
     virtual ~VkWeightAllocator();
 
 public:
