@@ -23,13 +23,11 @@ static struct prng_rand_t g_prng_rand_state;
 
 #if NCNN_VULKAN
 static ncnn::PipelineCache* g_gpu_layer_pipeline_cache = 0;
-static unsigned int g_gpu_layer_pipeline_cache_use_count = 0;
 
 static void destroy_gpu_layer_pipeline_cache()
 {
     delete g_gpu_layer_pipeline_cache;
     g_gpu_layer_pipeline_cache = 0;
-    g_gpu_layer_pipeline_cache_use_count = 0;
 }
 
 static ncnn::PipelineCache* get_gpu_layer_pipeline_cache()
@@ -49,13 +47,11 @@ static void clear_gpu_layer_pipeline_cache_if_needed()
     if (!g_gpu_layer_pipeline_cache)
         return;
 
-    const unsigned int pipeline_cache_use_limit = 8;
-    g_gpu_layer_pipeline_cache_use_count++;
-    if (g_gpu_layer_pipeline_cache_use_count < pipeline_cache_use_limit)
+    const size_t pipeline_cache_limit = 64;
+    if (g_gpu_layer_pipeline_cache->size() < pipeline_cache_limit)
         return;
 
     g_gpu_layer_pipeline_cache->clear();
-    g_gpu_layer_pipeline_cache_use_count = 0;
 }
 #endif // NCNN_VULKAN
 

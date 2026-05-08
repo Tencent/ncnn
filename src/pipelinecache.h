@@ -27,6 +27,7 @@ public:
     virtual ~PipelineCache();
 
     void clear();
+    size_t size() const;
 
     int save_cache(std::vector<unsigned char>& data) const;
     int load_cache(const unsigned char* data, size_t size) const;

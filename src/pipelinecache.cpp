@@ -493,6 +493,13 @@ void PipelineCache::clear()
     }
 }
 
+size_t PipelineCache::size() const
+{
+    MutexLockGuard lock(d->cache_lock);
+
+    return d->cache_artifacts.size();
+}
+
 int PipelineCache::save_cache(std::vector<unsigned char>& data) const
 {
     MutexLockGuard lock(d->cache_lock);
