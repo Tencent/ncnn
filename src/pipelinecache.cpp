@@ -10,7 +10,6 @@
 
 #if NCNN_STDIO
 #include <stdio.h>
-#include <string>
 #endif
 
 namespace ncnn {
