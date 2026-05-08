@@ -128,6 +128,7 @@ extern PFN_vkWaitForFences vkWaitForFences;
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
+extern int support_VK_KHR_device_group_creation;
 extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
@@ -320,6 +321,7 @@ public:
     int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
+    int support_VK_KHR_device_group() const;
     int support_VK_KHR_driver_properties() const;
     int support_VK_KHR_external_memory() const;
     int support_VK_KHR_get_memory_requirements2() const;
