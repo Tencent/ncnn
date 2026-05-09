@@ -1255,14 +1255,14 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             {
                 if (out_elempack == 8)
                 {
-                    _mm512_store_ps(outptr0, _sum0);
-                    _mm512_store_ps(outptr0 + 16 * 1, _sum1);
-                    _mm512_store_ps(outptr0 + 16 * 2, _sum2);
-                    _mm512_store_ps(outptr0 + 16 * 3, _sum3);
-                    _mm512_store_ps(outptr0 + 16 * 4, _sum4);
-                    _mm512_store_ps(outptr0 + 16 * 5, _sum5);
-                    _mm512_store_ps(outptr0 + 16 * 6, _sum6);
-                    _mm512_store_ps(outptr0 + 16 * 7, _sum7);
+                    _mm512_storeu_ps(outptr0, _sum0);
+                    _mm512_storeu_ps(outptr0 + 16 * 1, _sum1);
+                    _mm512_storeu_ps(outptr0 + 16 * 2, _sum2);
+                    _mm512_storeu_ps(outptr0 + 16 * 3, _sum3);
+                    _mm512_storeu_ps(outptr0 + 16 * 4, _sum4);
+                    _mm512_storeu_ps(outptr0 + 16 * 5, _sum5);
+                    _mm512_storeu_ps(outptr0 + 16 * 6, _sum6);
+                    _mm512_storeu_ps(outptr0 + 16 * 7, _sum7);
                     outptr0 += 128;
                 }
                 if (out_elempack == 4)
