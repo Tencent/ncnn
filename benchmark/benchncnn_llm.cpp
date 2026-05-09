@@ -210,7 +210,7 @@ static void benchmark_case(const char* name, ncnn::Net& net, const CacheIndexes&
     time_avg /= g_loop_count;
 
     const double tokens_per_second = rate_scale * 1000.0 / time_avg;
-    fprintf(stderr, "%40s  min = %7.2f  max = %7.2f  avg = %7.2f  tps = %7.2f\n", name, time_min, time_max, time_avg, tokens_per_second);
+    fprintf(stderr, "%30s  min = %7.2f  max = %7.2f  avg = %7.2f  tps = %7.2f\n", name, time_min, time_max, time_avg, tokens_per_second);
 }
 
 static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
