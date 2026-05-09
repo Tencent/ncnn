@@ -70,8 +70,13 @@ add_dependencies(benchncnn ncnn-generate-param)
 set_property(TARGET benchncnn PROPERTY FOLDER "benchmark")
 
 set(benchncnn_llm_PARAMS
+    hunyuan_0.5b_instruct_decoder.ncnn.param
     minicpm4_0.5b_decoder.ncnn.param
-    qwen3.5_0.8b_decoder.ncnn.param
+    qwen2.5_0.5b_decoder.ncnn.param
+    qwen3_0.6b_decoder.ncnn.param
+    llama3.2_1b_decoder.ncnn.param
+    tinyllama_1.1b_decoder.ncnn.param
+    youtu_llm_2b_decoder.ncnn.param
 )
 
 set(NCNN_PARAM_HEX_FILES)
@@ -92,29 +97,3 @@ target_include_directories(benchncnn_llm PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(benchncnn_llm ncnn-generate-llm-param)
 
 set_property(TARGET benchncnn_llm PROPERTY FOLDER "benchmark")
-
-set(benchncnn_diffusion_PARAMS
-    z_image_turbo_transformer_all_final_layer.ncnn.param
-    z_image_turbo_transformer_all_x_embedder.ncnn.param
-    z_image_turbo_transformer_noise_refiner.ncnn.param
-    z_image_turbo_transformer_unified.ncnn.param
-)
-
-set(NCNN_PARAM_HEX_FILES)
-set(param_header_data)
-foreach(PARAM_FILE ${benchncnn_diffusion_PARAMS})
-    ncnn_add_param("${CMAKE_CURRENT_SOURCE_DIR}/models/diffusion/${PARAM_FILE}")
-endforeach()
-
-add_custom_target(ncnn-generate-diffusion-param DEPENDS ${NCNN_PARAM_HEX_FILES})
-
-configure_file(benchncnn_param_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/benchncnn_diffusion_param_data.h)
-
-add_executable(benchncnn_diffusion benchncnn_diffusion.cpp)
-target_link_libraries(benchncnn_diffusion PRIVATE ncnn)
-
-target_include_directories(benchncnn_diffusion PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-
-add_dependencies(benchncnn_diffusion ncnn-generate-diffusion-param)
-
-set_property(TARGET benchncnn_diffusion PROPERTY FOLDER "benchmark")
