@@ -3891,7 +3891,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
-            const unsigned short* p1 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj + 8) * 8;
 
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
@@ -3904,14 +3903,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 __m256 _r5 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 5)));
                 __m256 _r6 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 6)));
                 __m256 _r7 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 7)));
-                __m256 _r8 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1)));
-                __m256 _r9 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8)));
-                __m256 _ra = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 2)));
-                __m256 _rb = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 3)));
-                __m256 _rc = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 4)));
-                __m256 _rd = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 5)));
-                __m256 _re = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 6)));
-                __m256 _rf = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p1 + 8 * 7)));
+                __m256 _r8 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 8)));
+                __m256 _r9 = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 9)));
+                __m256 _ra = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 10)));
+                __m256 _rb = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 11)));
+                __m256 _rc = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 12)));
+                __m256 _rd = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 13)));
+                __m256 _re = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 14)));
+                __m256 _rf = bfloat2float_avx(_mm_loadu_si128((const __m128i*)(p0 + 8 * 15)));
                 transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
                 transpose8x8_ps(_r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 #if __AVX512BF16__
@@ -3968,7 +3967,6 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 #endif // __AVX512BF16__
                 pp += 128;
                 p0 += bottom_blob.cstep * 8;
-                p1 += bottom_blob.cstep * 8;
             }
         }
 #endif // __AVX__
