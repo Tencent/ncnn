@@ -46,7 +46,7 @@ set(benchncnn_PARAMS
 )
 
 foreach(PARAM_FILE ${benchncnn_PARAMS})
-    ncnn_add_param("${CMAKE_CURRENT_SOURCE_DIR}/${PARAM_FILE}")
+    ncnn_add_param("${CMAKE_CURRENT_SOURCE_DIR}/models/${PARAM_FILE}")
 endforeach()
 
 add_custom_target(ncnn-generate-param DEPENDS ${NCNN_PARAM_HEX_FILES})

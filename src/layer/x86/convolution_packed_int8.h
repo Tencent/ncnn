@@ -2036,14 +2036,20 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm256_i32scatter_epi32(outptr + 2, _vindex, _sum2, sizeof(int));
                 _mm256_i32scatter_epi32(outptr + 3, _vindex, _sum3, sizeof(int));
 #else
-                int sum0[8];
-                int sum1[8];
-                int sum2[8];
-                int sum3[8];
-                _mm256_storeu_si256((__m256i*)sum0, _sum0);
-                _mm256_storeu_si256((__m256i*)sum1, _sum1);
-                _mm256_storeu_si256((__m256i*)sum2, _sum2);
-                _mm256_storeu_si256((__m256i*)sum3, _sum3);
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
+                int sumbuf[32];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 8;
+                int* sum2 = sumbuf + 16;
+                int* sum3 = sumbuf + 24;
+                _mm256_store_si256((__m256i*)sum0, _sum0);
+                _mm256_store_si256((__m256i*)sum1, _sum1);
+                _mm256_store_si256((__m256i*)sum2, _sum2);
+                _mm256_store_si256((__m256i*)sum3, _sum3);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -2325,10 +2331,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm256_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
                 _mm256_i32scatter_epi32(outptr + 1, _vindex, _sum1, sizeof(int));
 #else
-                int sum0[8];
-                int sum1[8];
-                _mm256_storeu_si256((__m256i*)sum0, _sum0);
-                _mm256_storeu_si256((__m256i*)sum1, _sum1);
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
+                int sumbuf[16];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 8;
+                _mm256_store_si256((__m256i*)sum0, _sum0);
+                _mm256_store_si256((__m256i*)sum1, _sum1);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -2546,8 +2558,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(M));
                 _mm256_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                __declspec(align(32))
+#else
+                __attribute__((aligned(32)))
+#endif
                 int sum[8];
-                _mm256_storeu_si256((__m256i*)sum, _sum0);
+                _mm256_store_si256((__m256i*)sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
@@ -2972,14 +2989,20 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm_i32scatter_epi32(outptr + 2, _vindex, _sum2, sizeof(int));
                 _mm_i32scatter_epi32(outptr + 3, _vindex, _sum3, sizeof(int));
 #else
-                int sum0[4];
-                int sum1[4];
-                int sum2[4];
-                int sum3[4];
-                _mm_storeu_si128((__m128i*)sum0, _sum0);
-                _mm_storeu_si128((__m128i*)sum1, _sum1);
-                _mm_storeu_si128((__m128i*)sum2, _sum2);
-                _mm_storeu_si128((__m128i*)sum3, _sum3);
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
+                int sumbuf[16];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 4;
+                int* sum2 = sumbuf + 8;
+                int* sum3 = sumbuf + 12;
+                _mm_store_si128((__m128i*)sum0, _sum0);
+                _mm_store_si128((__m128i*)sum1, _sum1);
+                _mm_store_si128((__m128i*)sum2, _sum2);
+                _mm_store_si128((__m128i*)sum3, _sum3);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -3297,10 +3320,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _mm_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
                 _mm_i32scatter_epi32(outptr + 1, _vindex, _sum1, sizeof(int));
 #else
-                int sum0[4];
-                int sum1[4];
-                _mm_storeu_si128((__m128i*)sum0, _sum0);
-                _mm_storeu_si128((__m128i*)sum1, _sum1);
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
+                int sumbuf[8];
+                int* sum0 = sumbuf;
+                int* sum1 = sumbuf + 4;
+                _mm_store_si128((__m128i*)sum0, _sum0);
+                _mm_store_si128((__m128i*)sum1, _sum1);
 
                 outptr[0] = sum0[0];
                 outptr[1] = sum1[0];
@@ -3546,8 +3575,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                 _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(M));
                 _mm_i32scatter_epi32(outptr, _vindex, _sum0, sizeof(int));
 #else
+#ifdef _MSC_VER
+                __declspec(align(16))
+#else
+                __attribute__((aligned(16)))
+#endif
                 int sum[4];
-                _mm_storeu_si128((__m128i*)sum, _sum0);
+                _mm_store_si128((__m128i*)sum, _sum0);
 
                 outptr[0] = sum[0];
                 outptr[M] = sum[1];
