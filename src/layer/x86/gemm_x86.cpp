@@ -3667,10 +3667,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
-                    float sum0[16];
-                    float sum1[16];
-                    _mm512_storeu_ps(sum0, _sum0);
-                    _mm512_storeu_ps(sum1, _sum1);
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
+                    float sumbuf[32];
+                    float* sum0 = sumbuf;
+                    float* sum1 = sumbuf + 16;
+                    _mm512_store_ps(sum0, _sum0);
+                    _mm512_store_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep] = sum0[1];
@@ -3786,8 +3792,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(64))
+#else
+                    __attribute__((aligned(64)))
+#endif
                     float sum0[16];
-                    _mm512_storeu_ps(sum0, _sum0);
+                    _mm512_store_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep * 1] = sum0[1];
@@ -4670,10 +4681,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
-                    float sum0[8];
-                    float sum1[8];
-                    _mm256_storeu_ps(sum0, _sum0);
-                    _mm256_storeu_ps(sum1, _sum1);
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
+                    float sumbuf[16];
+                    float* sum0 = sumbuf;
+                    float* sum1 = sumbuf + 8;
+                    _mm256_store_ps(sum0, _sum0);
+                    _mm256_store_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep] = sum0[1];
@@ -4765,8 +4782,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(32))
+#else
+                    __attribute__((aligned(32)))
+#endif
                     float sum0[8];
-                    _mm256_storeu_ps(sum0, _sum0);
+                    _mm256_store_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep * 1] = sum0[1];
@@ -5448,10 +5470,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
-                    float sum0[4];
-                    float sum1[4];
-                    _mm_storeu_ps(sum0, _sum0);
-                    _mm_storeu_ps(sum1, _sum1);
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
+                    float sumbuf[8];
+                    float* sum0 = sumbuf;
+                    float* sum1 = sumbuf + 4;
+                    _mm_store_ps(sum0, _sum0);
+                    _mm_store_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep] = sum0[1];
@@ -5528,8 +5556,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 }
                 if (out_elempack == 1)
                 {
+#ifdef _MSC_VER
+                    __declspec(align(16))
+#else
+                    __attribute__((aligned(16)))
+#endif
                     float sum0[4];
-                    _mm_storeu_ps(sum0, _sum0);
+                    _mm_store_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
                     outptr0[out_hstep] = sum0[1];

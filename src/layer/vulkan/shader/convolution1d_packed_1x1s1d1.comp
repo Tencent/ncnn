@@ -1,4 +1,4 @@
-// Copyright 2026 Tencent
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -6,17 +6,14 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
-layout(constant_id = 0) const int kernel_w = 1;
-layout(constant_id = 1) const int dilation_w = 1;
-layout(constant_id = 2) const int stride_w = 1;
-layout(constant_id = 3) const int bias_term = 0;
-layout(constant_id = 4) const int activation_type = 0;
-layout(constant_id = 5) const float activation_param_0 = 0;
-layout(constant_id = 6) const float activation_param_1 = 0;
-layout(constant_id = 7) const int elempack = 1;
-layout(constant_id = 8) const int out_elempack = 1;
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int elempack = 1;
+layout(constant_id = 5) const int out_elempack = 1;
 
-#define shape_constant_id_offset 9
+#define shape_constant_id_offset 6
 layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
 
@@ -24,6 +21,7 @@ layout(constant_id = shape_constant_id_offset + 2) const int outw = 0;
 layout(constant_id = shape_constant_id_offset + 3) const int outh = 0;
 
 layout(constant_id = shape_constant_id_offset + 4) const int num_output = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int num_input_packed = 0;
 
 layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
 layout(binding = 1) writeonly buffer top_blob_1 { sfp top_blob_data_1[]; };
@@ -42,6 +40,7 @@ layout(push_constant) uniform parameter
     int outh;
 
     int num_output;
+    int num_input_packed;
 } p;
 
 void main()
@@ -75,50 +74,52 @@ void main()
         sum3 = afpvec4(0.f);
     }
 
-    ivec2 v_offset = gx2 * stride_w;
-    ivec2 w_offset = gy2 * psc(h) * kernel_w;
+    const int num_input_pack4 = psc(num_input_packed) / 4;
+    const int inch = psc(h);
 
-    for (int y = 0; y < psc(h); y++)
+    for (int y = 0; y < num_input_pack4; y++)
     {
-        for (int x = 0; x < kernel_w; x++)
+        afpvec4 v0, v1;
+
+        if (elempack == 4)
         {
-            if (elempack == 4)
-            {
-                afpvec4 v0 = buffer_ld4(bottom_blob_data_4, v_offset.x + x * dilation_w);
-                afpvec4 v1 = buffer_ld4(bottom_blob_data_4, v_offset.y + x * dilation_w);
-
-                afpmat4 k0 = afpmat4(
-                    buffer_ld4(weight_data, (w_offset.x + x) * 4 + 0),
-                    buffer_ld4(weight_data, (w_offset.x + x) * 4 + 1),
-                    buffer_ld4(weight_data, (w_offset.x + x) * 4 + 2),
-                    buffer_ld4(weight_data, (w_offset.x + x) * 4 + 3));
-                afpmat4 k1 = afpmat4(
-                    buffer_ld4(weight_data, (w_offset.y + x) * 4 + 0),
-                    buffer_ld4(weight_data, (w_offset.y + x) * 4 + 1),
-                    buffer_ld4(weight_data, (w_offset.y + x) * 4 + 2),
-                    buffer_ld4(weight_data, (w_offset.y + x) * 4 + 3));
-
-                sum0 += v0 * k0;
-                sum1 += v1 * k0;
-                sum2 += v0 * k1;
-                sum3 += v1 * k1;
-            }
-            else
-            {
-                afp v0 = buffer_ld1(bottom_blob_data_1, v_offset.x + x * dilation_w);
-                afp v1 = buffer_ld1(bottom_blob_data_1, v_offset.y + x * dilation_w);
-
-                afpvec4 k0 = buffer_ld4(weight_data, w_offset.x + x);
-                afpvec4 k1 = buffer_ld4(weight_data, w_offset.y + x);
-
-                sum0 += v0 * k0;
-                sum1 += v1 * k0;
-                sum2 += v0 * k1;
-                sum3 += v1 * k1;
-            }
+            v0 = buffer_ld4(bottom_blob_data_4, gx2.x + y * psc(w));
+            v1 = buffer_ld4(bottom_blob_data_4, gx2.y + y * psc(w));
         }
-        v_offset += psc(w);
-        w_offset += kernel_w;
+        else
+        {
+            const int ch = y * 4;
+
+            afp v00 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 0) * psc(w)) : afp(0.f);
+            afp v01 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 1) * psc(w)) : afp(0.f);
+            afp v02 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 2) * psc(w)) : afp(0.f);
+            afp v03 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.x + (ch + 3) * psc(w)) : afp(0.f);
+            v0 = afpvec4(v00, v01, v02, v03);
+
+            afp v10 = (ch + 0 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 0) * psc(w)) : afp(0.f);
+            afp v11 = (ch + 1 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 1) * psc(w)) : afp(0.f);
+            afp v12 = (ch + 2 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 2) * psc(w)) : afp(0.f);
+            afp v13 = (ch + 3 < inch) ? buffer_ld1(bottom_blob_data_1, gx2.y + (ch + 3) * psc(w)) : afp(0.f);
+            v1 = afpvec4(v10, v11, v12, v13);
+        }
+
+        const int wbase0 = gy2.x * num_input_pack4 * 4 + y * 4;
+        const int wbase1 = gy2.y * num_input_pack4 * 4 + y * 4;
+
+        afpvec4 k00 = buffer_ld4(weight_data, wbase0 + 0);
+        afpvec4 k01 = buffer_ld4(weight_data, wbase0 + 1);
+        afpvec4 k02 = buffer_ld4(weight_data, wbase0 + 2);
+        afpvec4 k03 = buffer_ld4(weight_data, wbase0 + 3);
+
+        afpvec4 k10 = buffer_ld4(weight_data, wbase1 + 0);
+        afpvec4 k11 = buffer_ld4(weight_data, wbase1 + 1);
+        afpvec4 k12 = buffer_ld4(weight_data, wbase1 + 2);
+        afpvec4 k13 = buffer_ld4(weight_data, wbase1 + 3);
+
+        sum0 += afpvec4(dot(v0, k00), dot(v0, k01), dot(v0, k02), dot(v0, k03));
+        sum1 += afpvec4(dot(v1, k00), dot(v1, k01), dot(v1, k02), dot(v1, k03));
+        sum2 += afpvec4(dot(v0, k10), dot(v0, k11), dot(v0, k12), dot(v0, k13));
+        sum3 += afpvec4(dot(v1, k10), dot(v1, k11), dot(v1, k12), dot(v1, k13));
     }
 
     sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
