@@ -306,7 +306,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 pp += 16;
             }
         }
-#else  // __AVX512F__
+#else // __AVX512F__
         for (; jj + 11 < max_jj; jj += 12)
         {
             const float* p0 = B;
