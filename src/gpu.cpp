@@ -847,7 +847,7 @@ int GpuInfoPrivate::query_extensions()
     // filter out extensions with unmet dependencies
     // later extensions may depend on earlier ones
 
-    if (!support_VK_KHR_device_group_creation)
+    if (!support_VK_VERSION_1_1 && !support_VK_KHR_device_group_creation)
         support_VK_KHR_device_group = 0;
 
     if (!support_VK_VERSION_1_1)
