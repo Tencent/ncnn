@@ -102,6 +102,29 @@ static const layer_shader_registry_entry layer_shader_registry[] = {
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
+static uint64_t fnv1a_64_update(uint64_t h, const unsigned char* data, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        h ^= (uint64_t)data[i];
+        h *= 0x00000100000001b3ull;
+    }
+
+    return h;
+}
+
+uint64_t get_shader_source_hash(int shader_type_index)
+{
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
+        return 0;
+
+    const layer_shader_registry_entry& entry = layer_shader_registry[shader_type_index];
+    uint64_t h = 0xcbf29ce484222325ull;
+    h = fnv1a_64_update(h, (const unsigned char*)&entry.comp_data_size, sizeof(entry.comp_data_size));
+    h = fnv1a_64_update(h, (const unsigned char*)entry.comp_data, entry.comp_data_size);
+    return h;
+}
+
 // vulkan core
 PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers = 0;
 PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets = 0;
@@ -4078,6 +4101,11 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
 
 int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const
 {
+    return create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, 0, pipeline);
+}
+
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const
+{
     const int specialization_count = specializations.size();
 
     std::vector<VkSpecializationMapEntry> specializationMapEntries(specialization_count);
@@ -4134,7 +4162,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, pipeline_cache, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);

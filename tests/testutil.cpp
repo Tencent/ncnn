@@ -21,6 +21,40 @@
 
 static struct prng_rand_t g_prng_rand_state;
 
+#if NCNN_VULKAN
+static ncnn::PipelineCache* g_gpu_layer_pipeline_cache = 0;
+
+static void destroy_gpu_layer_pipeline_cache()
+{
+    delete g_gpu_layer_pipeline_cache;
+    g_gpu_layer_pipeline_cache = 0;
+}
+
+static ncnn::PipelineCache* get_gpu_layer_pipeline_cache()
+{
+    if (!g_gpu_layer_pipeline_cache)
+    {
+        ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+        g_gpu_layer_pipeline_cache = new ncnn::PipelineCache(vkdev);
+        atexit(destroy_gpu_layer_pipeline_cache);
+    }
+
+    return g_gpu_layer_pipeline_cache;
+}
+
+static void clear_gpu_layer_pipeline_cache_if_needed()
+{
+    if (!g_gpu_layer_pipeline_cache)
+        return;
+
+    const size_t pipeline_cache_limit = 64;
+    if (g_gpu_layer_pipeline_cache->size() < pipeline_cache_limit)
+        return;
+
+    g_gpu_layer_pipeline_cache->clear();
+}
+#endif // NCNN_VULKAN
+
 void SRAND(int seed)
 {
     prng_srand(seed, &g_prng_rand_state);
@@ -1156,8 +1190,14 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+        ncnn::PipelineCache* pipeline_cache = get_gpu_layer_pipeline_cache();
+
+        ncnn::Option opt = _opt;
+        opt.pipeline_cache = pipeline_cache;
+
         std::vector<ncnn::Mat> d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), flag);
+        int ret = test_layer_gpu(typeindex, pd, weights, opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), flag);
+        clear_gpu_layer_pipeline_cache_if_needed();
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
@@ -1695,8 +1735,14 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu
     if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
+        ncnn::PipelineCache* pipeline_cache = get_gpu_layer_pipeline_cache();
+
+        ncnn::Option opt = _opt;
+        opt.pipeline_cache = pipeline_cache;
+
         ncnn::Mat d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, ncnn::Mat(), flag);
+        int ret = test_layer_gpu(typeindex, pd, weights, opt, a, d, ncnn::Mat(), flag);
+        clear_gpu_layer_pipeline_cache_if_needed();
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
