@@ -3444,9 +3444,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
         }
 
 #if __AVX512F__
-        TILE_N = std::max(4, tile_size / 4 * 4);
+        TILE_N = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
-        TILE_N = std::max(4, tile_size / 4 * 4);
+        TILE_N = std::max(12, tile_size / 12 * 12);
 #elif __SSE2__
         TILE_N = std::max(4, tile_size / 4 * 4);
 #else
@@ -3455,9 +3455,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __AVX512F__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 15) / 16 * 16);
 #elif __AVX__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
 #elif __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
@@ -3465,9 +3465,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 #endif
 
 #if __AVX512F__
-        TILE_N = std::max(4, TILE_N);
+        TILE_N = std::max(16, TILE_N);
 #elif __AVX__
-        TILE_N = std::max(4, TILE_N);
+        TILE_N = std::max(12, TILE_N);
 #elif __SSE2__
         TILE_N = std::max(4, TILE_N);
 #else
@@ -3640,7 +3640,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             }
         }
     }
-#else // __AVX512F__
+#else  // __AVX512F__
     for (; jj + 11 < max_jj; jj += 12)
     {
 #if __AVX__
@@ -4483,7 +4483,7 @@ static inline void convolution_im2col_input_tile_impl(const Mat& bottom_blob, Ma
             }
         }
     }
-#else // __AVX512F__
+#else  // __AVX512F__
     for (; jj + 11 < max_jj; jj += 12)
     {
         int dy0 = (j + jj) / outw;
