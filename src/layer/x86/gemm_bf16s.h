@@ -1282,10 +1282,10 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 __m128i _p6 = _mm_loadl_epi64((const __m128i*)(p0 + 24));
                 __m128i _p7 = _mm_loadl_epi64((const __m128i*)(p0 + 28));
 
-                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
-                __m128i _t1 = _mm_unpacklo_epi16(_p2, _p3);
-                __m128i _t2 = _mm_unpacklo_epi16(_p4, _p5);
-                __m128i _t3 = _mm_unpacklo_epi16(_p6, _p7);
+                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p4);
+                __m128i _t1 = _mm_unpacklo_epi16(_p1, _p5);
+                __m128i _t2 = _mm_unpacklo_epi16(_p2, _p6);
+                __m128i _t3 = _mm_unpacklo_epi16(_p3, _p7);
 
                 _mm_storeu_si128((__m128i*)pp, _t0);
                 _mm_storeu_si128((__m128i*)pp1, _t1);
@@ -1337,8 +1337,8 @@ static void pack_B_tile_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, in
                 __m128i _p2 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
                 __m128i _p3 = _mm_loadl_epi64((const __m128i*)(p0 + 12));
 
-                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p1);
-                __m128i _t1 = _mm_unpacklo_epi16(_p2, _p3);
+                __m128i _t0 = _mm_unpacklo_epi16(_p0, _p2);
+                __m128i _t1 = _mm_unpacklo_epi16(_p1, _p3);
 
                 _mm_storeu_si128((__m128i*)pp, _t0);
                 _mm_storeu_si128((__m128i*)pp1, _t1);
