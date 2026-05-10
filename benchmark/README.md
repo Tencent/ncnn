@@ -498,6 +498,85 @@ cooling_down = 0
           FastestDet  min =    1.37  max =    5.37  avg =    2.77
 ```
 
+### NVIDIA RTX4090 (AD102 SM x 128 + Tensor Core 512)
+```
+./benchmark/benchncnn 32 1 0 0 0
+[0 NVIDIA GeForce RTX 4090]  queueC=2[8]  queueT=1[2]  rebar=0  r-score=78
+[0 NVIDIA GeForce RTX 4090]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1  bf16-p/s=1/0
+[0 NVIDIA GeForce RTX 4090]  subgroup=32(32~32)  ops=1/1/1/1/1/1/1/1/0/0
+[0 NVIDIA GeForce RTX 4090]  fp16-cm=16x16x16/16x8x16/16x8x8  int8-cm=16x16x32/16x8x32/8x8x32  bf16-cm=0  fp8-cm=0
+loop_count = 32
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    0.79  max =    4.09  avg =    1.22
+           mobilenet  min =    0.65  max =    0.98  avg =    0.76
+        mobilenet_v2  min =    0.90  max =   10.48  avg =    1.39
+        mobilenet_v3  min =    2.23  max =    5.04  avg =    2.74
+          shufflenet  min =    3.34  max =    5.85  avg =    3.72
+       shufflenet_v2  min =    4.10  max =    4.82  avg =    4.40
+             mnasnet  min =    4.13  max =    7.03  avg =    4.66
+     proxylessnasnet  min =    4.09  max =    5.30  avg =    4.34
+     efficientnet_b0  min =    6.64  max =   10.05  avg =    7.65
+   efficientnetv2_b0  min =    6.98  max =   10.83  avg =    8.19
+        regnety_400m  min =    3.17  max =    4.83  avg =    3.67
+           blazeface  min =    1.38  max =    3.93  avg =    1.62
+           googlenet  min =    5.82  max =    9.04  avg =    7.31
+            resnet18  min =    3.61  max =    6.07  avg =    4.03
+             alexnet  min =    0.96  max =   12.11  avg =    4.72
+               vgg16  min =    1.54  max =   21.69  avg =    5.68
+            resnet50  min =    1.81  max =   13.35  avg =    8.26
+      squeezenet_ssd  min =    3.99  max =    4.30  avg =    4.10
+       mobilenet_ssd  min =    2.84  max =    9.23  avg =    3.81
+      mobilenet_yolo  min =    4.01  max =    5.19  avg =    4.13
+  mobilenetv2_yolov3  min =    7.55  max =   10.76  avg =    8.18
+         yolov4-tiny  min =   11.13  max =   14.39  avg =   12.00
+           nanodet_m  min =    5.23  max =   19.29  avg =    8.82
+    yolo-fastest-1.1  min =    3.98  max =    7.32  avg =    5.23
+      yolo-fastestv2  min =    4.56  max =    6.15  avg =    5.31
+  vision_transformer  min =    9.76  max =   36.17  avg =   21.38
+          FastestDet  min =    1.58  max =    4.61  avg =    2.07
+
+./benchncnn 100 10 2 0 0
+[0 NVIDIA GeForce RTX 4090]  queueC=2[8]  queueT=1[2]  rebar=0  r-score=78
+[0 NVIDIA GeForce RTX 4090]  fp16-p/s/u/a=1/1/1/1  int8-p/s/u/a=1/1/1/1  bf16-p/s=1/0
+[0 NVIDIA GeForce RTX 4090]  subgroup=32(32~32)  ops=1/1/1/1/1/1/1/1/0/0
+[0 NVIDIA GeForce RTX 4090]  fp16-cm=16x16x16/16x8x16/16x8x8  int8-cm=16x16x32/16x8x32/8x8x32  bf16-cm=0  fp8-cm=0
+loop_count = 100
+num_threads = 10
+powersave = 2
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    0.76  max =    3.98  avg =    0.94
+           mobilenet  min =    1.02  max =   27.94  avg =    1.54
+        mobilenet_v2  min =    2.34  max =    8.55  avg =    3.38
+        mobilenet_v3  min =    3.86  max =   35.08  avg =    7.53
+          shufflenet  min =    2.71  max =   20.97  avg =    4.89
+       shufflenet_v2  min =    2.77  max =   31.67  avg =    5.41
+             mnasnet  min =    2.24  max =    6.39  avg =    2.77
+     proxylessnasnet  min =    3.19  max =   33.13  avg =    7.35
+     efficientnet_b0  min =    6.25  max =   38.14  avg =   15.79
+   efficientnetv2_b0  min =    8.36  max =   40.78  avg =   22.11
+        regnety_400m  min =    4.28  max =   34.07  avg =    9.92
+           blazeface  min =    1.83  max =   37.59  avg =    2.99
+           googlenet  min =    6.31  max =   41.70  avg =   15.06
+            resnet18  min =    0.90  max =   12.80  avg =    2.68
+             alexnet  min =    8.73  max =   54.50  avg =   20.72
+               vgg16  min =    1.40  max =   45.30  avg =    9.98
+            resnet50  min =    4.72  max =   41.21  avg =   11.58
+      squeezenet_ssd  min =    7.10  max =   89.16  avg =   22.42
+       mobilenet_ssd  min =    2.85  max =   40.16  avg =    4.79
+      mobilenet_yolo  min =    2.46  max =   29.17  avg =    3.48
+  mobilenetv2_yolov3  min =    5.26  max =    9.80  avg =    6.30
+         yolov4-tiny  min =   10.41  max =   85.07  avg =   20.68
+           nanodet_m  min =    5.01  max =   46.37  avg =    7.56
+    yolo-fastest-1.1  min =    2.58  max =    7.65  avg =    3.26
+      yolo-fastestv2  min =    3.01  max =    8.52  avg =    4.11
+  vision_transformer  min =    9.76  max =   49.11  avg =   25.65
+          FastestDet  min =    1.93  max =    5.83  avg =    2.81
+```
+
 ### AMD Ryzen Embedded V1605B (Zen 2.0 GHz ~ 3.6 GHz x 4 + Radeon Vega 8 1.1GHz 8CU)
 ```
 C:\Users\i\Desktop\benchmark>benchncnn.exe 32 1 0 -1 0
