@@ -139,6 +139,12 @@ static int test_convolution_sgemm()
 {
     // 1x1 convolution always goes to sgemm path
     int ret = 0
+              // exact 16 spatial locations for jj+15 bf16 deshuffle paths
+              || test_convolution(4, 4, 16, 24, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(4, 4, 16, 20, 1, 1, 1, 0, 0, true, false)
+              || test_convolution(4, 4, 16, 8, 1, 1, 1, 0, 1, true, false)
+              || test_convolution(4, 4, 16, 12, 1, 1, 1, 0, 0, true, false)
+
               || test_convolution(11, 10, 16, 16, 1, 1, 1, 0, 1, true, false)
               || test_convolution(11, 10, 16, 24, 1, 1, 1, 0, 0, true, false)
               || test_convolution(11, 10, 24, 16, 1, 1, 1, 0, 1, true, false)
