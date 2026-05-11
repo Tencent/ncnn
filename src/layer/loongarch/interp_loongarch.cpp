@@ -2321,7 +2321,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
-#else  // __loongarch_asx
+#else // __loongarch_asx
             if (elempack == 8)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -2468,7 +2468,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
-#else  // __loongarch_asx
+#else // __loongarch_asx
             if (elempack == 8)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -2657,7 +2657,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
-#else  // __loongarch_asx
+#else // __loongarch_asx
             if (elempack == 8)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -2775,7 +2775,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
-#else  // __loongarch_asx
+#else // __loongarch_asx
             if (elempack == 8)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
