@@ -97,6 +97,8 @@ static void crop_pack8_lasx(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
+#endif // __loongarch_asx
+
 #if NCNN_BF16
 static void crop_pack8_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
 {
@@ -120,7 +122,6 @@ static void crop_pack8_bf16s_lsx(const Mat& src, Mat& dst, int top, int left)
     }
 }
 #endif // NCNN_BF16
-#endif // __loongarch_asx
 #endif // __loongarch_sx
 
 int Crop_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -146,6 +147,156 @@ int Crop_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     {
         resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
+
+#if NCNN_BF16 && __loongarch_sx
+    if (elempack == 8 && elemsize == 16u)
+    {
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_lsx(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_lsx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    crop_pack8_bf16s_lsx(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack8_bf16s_lsx(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        bool crop_pack4 = false;
+        if (dims == 1) crop_pack4 = _outw % 4 == 0 && _woffset % 4 == 0;
+        if (dims == 2) crop_pack4 = _outh % 4 == 0 && _hoffset % 4 == 0;
+        if (dims == 3 || dims == 4) crop_pack4 = _outc % 4 == 0 && _coffset % 4 == 0;
+
+        if (crop_pack4)
+        {
+            Option opt_pack4 = opt;
+            opt_pack4.blob_allocator = opt.workspace_allocator;
+
+            Mat bottom_blob_pack4;
+            convert_packing(bottom_blob, bottom_blob_pack4, 4, opt_pack4);
+            if (bottom_blob_pack4.empty())
+                return -100;
+
+            return forward(bottom_blob_pack4, top_blob, opt);
+        }
+    }
+#endif // NCNN_BF16 && __loongarch_sx
 
 #if __loongarch_asx
     if (elempack == 8)
@@ -485,6 +636,156 @@ int Crop_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
+
+#if NCNN_BF16 && __loongarch_sx
+    if (elempack == 8 && elemsize == 16u)
+    {
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_lsx(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack8_bf16s_lsx(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    crop_pack8_bf16s_lsx(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone(opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack8_bf16s_lsx(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        bool crop_pack4 = false;
+        if (dims == 1) crop_pack4 = _outw % 4 == 0 && _woffset % 4 == 0;
+        if (dims == 2) crop_pack4 = _outh % 4 == 0 && _hoffset % 4 == 0;
+        if (dims == 3 || dims == 4) crop_pack4 = _outc % 4 == 0 && _coffset % 4 == 0;
+
+        if (crop_pack4)
+        {
+            Option opt_pack4 = opt;
+            opt_pack4.blob_allocator = opt.workspace_allocator;
+
+            std::vector<Mat> bottom_blobs_pack4(bottom_blobs);
+            convert_packing(bottom_blob, bottom_blobs_pack4[0], 4, opt_pack4);
+            if (bottom_blobs_pack4[0].empty())
+                return -100;
+
+            return forward(bottom_blobs_pack4, top_blobs, opt);
+        }
+    }
+#endif // NCNN_BF16 && __loongarch_sx
 
 #if __loongarch_asx
     if (elempack == 8)

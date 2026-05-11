@@ -582,7 +582,40 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
                 const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 7);
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
-                for (int j = 0; j < outw; j++)
+                int j = 0;
+                for (; j + 7 < outw; j += 8)
+                {
+                    __m128i _r0 = __lsx_vld(ptr0, 0);
+                    __m128i _r1 = __lsx_vld(ptr1, 0);
+                    __m128i _r2 = __lsx_vld(ptr2, 0);
+                    __m128i _r3 = __lsx_vld(ptr3, 0);
+                    __m128i _r4 = __lsx_vld(ptr4, 0);
+                    __m128i _r5 = __lsx_vld(ptr5, 0);
+                    __m128i _r6 = __lsx_vld(ptr6, 0);
+                    __m128i _r7 = __lsx_vld(ptr7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
+                    __lsx_vst(_r4, outptr + 32, 0);
+                    __lsx_vst(_r5, outptr + 40, 0);
+                    __lsx_vst(_r6, outptr + 48, 0);
+                    __lsx_vst(_r7, outptr + 56, 0);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    ptr2 += 8;
+                    ptr3 += 8;
+                    ptr4 += 8;
+                    ptr5 += 8;
+                    ptr6 += 8;
+                    ptr7 += 8;
+                    outptr += 64;
+                }
+                for (; j < outw; j++)
                 {
                     outptr[0] = *ptr0++;
                     outptr[1] = *ptr1++;
@@ -724,7 +757,40 @@ int Reshape_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::
                 const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 7);
                 unsigned short* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < size; i++)
+                int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __m128i _r0 = __lsx_vld(ptr0, 0);
+                    __m128i _r1 = __lsx_vld(ptr1, 0);
+                    __m128i _r2 = __lsx_vld(ptr2, 0);
+                    __m128i _r3 = __lsx_vld(ptr3, 0);
+                    __m128i _r4 = __lsx_vld(ptr4, 0);
+                    __m128i _r5 = __lsx_vld(ptr5, 0);
+                    __m128i _r6 = __lsx_vld(ptr6, 0);
+                    __m128i _r7 = __lsx_vld(ptr7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __lsx_vst(_r0, outptr, 0);
+                    __lsx_vst(_r1, outptr + 8, 0);
+                    __lsx_vst(_r2, outptr + 16, 0);
+                    __lsx_vst(_r3, outptr + 24, 0);
+                    __lsx_vst(_r4, outptr + 32, 0);
+                    __lsx_vst(_r5, outptr + 40, 0);
+                    __lsx_vst(_r6, outptr + 48, 0);
+                    __lsx_vst(_r7, outptr + 56, 0);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    ptr2 += 8;
+                    ptr3 += 8;
+                    ptr4 += 8;
+                    ptr5 += 8;
+                    ptr6 += 8;
+                    ptr7 += 8;
+                    outptr += 64;
+                }
+                for (; i < size; i++)
                 {
                     outptr[0] = *ptr0++;
                     outptr[1] = *ptr1++;

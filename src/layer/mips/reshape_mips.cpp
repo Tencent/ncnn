@@ -5,6 +5,7 @@
 
 #if __mips_msa
 #include <msa.h>
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -426,7 +427,40 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
                 const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + outw * (i * 8 + 7);
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
-                for (int j = 0; j < outw; j++)
+                int j = 0;
+                for (; j + 7 < outw; j += 8)
+                {
+                    v8i16 _r0 = (v8i16)__msa_ld_h(ptr0, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(ptr1, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(ptr2, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(ptr3, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(ptr4, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(ptr5, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(ptr6, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(ptr7, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr, 0);
+                    __msa_st_h(_r1, outptr + 8, 0);
+                    __msa_st_h(_r2, outptr + 16, 0);
+                    __msa_st_h(_r3, outptr + 24, 0);
+                    __msa_st_h(_r4, outptr + 32, 0);
+                    __msa_st_h(_r5, outptr + 40, 0);
+                    __msa_st_h(_r6, outptr + 48, 0);
+                    __msa_st_h(_r7, outptr + 56, 0);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    ptr2 += 8;
+                    ptr3 += 8;
+                    ptr4 += 8;
+                    ptr5 += 8;
+                    ptr6 += 8;
+                    ptr7 += 8;
+                    outptr += 64;
+                }
+                for (; j < outw; j++)
                 {
                     outptr[0] = *ptr0++;
                     outptr[1] = *ptr1++;
@@ -565,7 +599,40 @@ int Reshape_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
             const unsigned short* ptr7 = (const unsigned short*)bottom_blob_flattened + size * (q * 8 + 7);
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < size; i++)
+            int i = 0;
+            for (; i + 7 < size; i += 8)
+            {
+                v8i16 _r0 = (v8i16)__msa_ld_h(ptr0, 0);
+                v8i16 _r1 = (v8i16)__msa_ld_h(ptr1, 0);
+                v8i16 _r2 = (v8i16)__msa_ld_h(ptr2, 0);
+                v8i16 _r3 = (v8i16)__msa_ld_h(ptr3, 0);
+                v8i16 _r4 = (v8i16)__msa_ld_h(ptr4, 0);
+                v8i16 _r5 = (v8i16)__msa_ld_h(ptr5, 0);
+                v8i16 _r6 = (v8i16)__msa_ld_h(ptr6, 0);
+                v8i16 _r7 = (v8i16)__msa_ld_h(ptr7, 0);
+
+                transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                __msa_st_h(_r0, outptr, 0);
+                __msa_st_h(_r1, outptr + 8, 0);
+                __msa_st_h(_r2, outptr + 16, 0);
+                __msa_st_h(_r3, outptr + 24, 0);
+                __msa_st_h(_r4, outptr + 32, 0);
+                __msa_st_h(_r5, outptr + 40, 0);
+                __msa_st_h(_r6, outptr + 48, 0);
+                __msa_st_h(_r7, outptr + 56, 0);
+
+                ptr0 += 8;
+                ptr1 += 8;
+                ptr2 += 8;
+                ptr3 += 8;
+                ptr4 += 8;
+                ptr5 += 8;
+                ptr6 += 8;
+                ptr7 += 8;
+                outptr += 64;
+            }
+            for (; i < size; i++)
             {
                 outptr[0] = *ptr0++;
                 outptr[1] = *ptr1++;

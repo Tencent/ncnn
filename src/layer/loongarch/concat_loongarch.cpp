@@ -773,7 +773,21 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     unsigned short* outptr0 = outptr;
                     unsigned short* outptr1 = outptr + w * 4;
 
-                    for (int j = 0; j < w; j++)
+                    int j = 0;
+                    for (; j + 1 < w; j += 2)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                        __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr0, 0);
+                        __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr1, 0);
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        r0 += 16;
+                    }
+                    for (; j < w; j++)
                     {
                         __builtin_prefetch(r0 + 16);
 
@@ -1033,7 +1047,21 @@ int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, 
                     unsigned short* outptr0 = top_blob_unpacked.channel(p);
                     unsigned short* outptr1 = top_blob_unpacked.channel(p + 1);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+                    for (; i + 1 < size; i += 2)
+                    {
+                        __builtin_prefetch(r0 + 32);
+
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r0 + 8, 0);
+                        __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr0, 0);
+                        __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr1, 0);
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        r0 += 16;
+                    }
+                    for (; i < size; i++)
                     {
                         __builtin_prefetch(r0 + 16);
 

@@ -691,6 +691,15 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 #if NCNN_BF16
 static void interp_copy_bf16s(const unsigned short* ptr, unsigned short* outptr, int elempack)
 {
+#if __loongarch_sx
+    if (elempack == 8)
+    {
+        __m128i _p = __lsx_vld(ptr, 0);
+        __lsx_vst(_p, outptr, 0);
+        return;
+    }
+#endif // __loongarch_sx
+
     for (int i = 0; i < elempack; i++)
     {
         outptr[i] = ptr[i];
@@ -1381,6 +1390,466 @@ static void resize_bicubic_image_pack4_bf16s_lsx(const Mat& src, Mat& dst, float
     }
 }
 
+static void resize_bilinear_image_pack8_bf16s_lsx(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    Mat rowsbuf0(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf1(w, (size_t)8 * 4u, 8);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+
+    int prev_sy1 = -2;
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
+        {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows0_old;
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S1p = S1 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S10 = __lsx_vld(S1p, 0);
+                __m128i _S11 = __lsx_vld(S1p + 8, 0);
+                __m128 _rows10 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S10, _zero_bf16), _a0);
+                __m128 _rows11 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S10, _zero_bf16), _a0);
+                _rows10 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S11, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S11, _zero_bf16), _rows11);
+                __lsx_vst(_rows10, rows1p + dx * 8, 0);
+                __lsx_vst(_rows11, rows1p + dx * 8 + 4, 0);
+
+                alphap += 2;
+            }
+        }
+        else
+        {
+            // hresize two rows
+            const unsigned short* S0 = src.row<const unsigned short>(sy);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S0p = S0 + sx;
+                const unsigned short* S1p = S1 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S00 = __lsx_vld(S0p, 0);
+                __m128i _S01 = __lsx_vld(S0p + 8, 0);
+                __m128i _S10 = __lsx_vld(S1p, 0);
+                __m128i _S11 = __lsx_vld(S1p + 8, 0);
+                __m128 _rows00 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S00, _zero_bf16), _a0);
+                __m128 _rows01 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S00, _zero_bf16), _a0);
+                __m128 _rows10 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S10, _zero_bf16), _a0);
+                __m128 _rows11 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S10, _zero_bf16), _a0);
+                _rows00 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S01, _zero_bf16), _rows00);
+                _rows01 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S01, _zero_bf16), _rows01);
+                _rows10 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S11, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S11, _zero_bf16), _rows11);
+                __lsx_vst(_rows00, rows0p + dx * 8, 0);
+                __lsx_vst(_rows01, rows0p + dx * 8 + 4, 0);
+                __lsx_vst(_rows10, rows1p + dx * 8, 0);
+                __lsx_vst(_rows11, rows1p + dx * 8 + 4, 0);
+
+                alphap += 2;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        __m128 _b0 = (__m128)__lsx_vreplfr2vr_s(beta[0]);
+        __m128 _b1 = (__m128)__lsx_vreplfr2vr_s(beta[1]);
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        unsigned short* Dp = dst.row<unsigned short>(dy);
+
+        for (int dx = 0; dx < w; dx++)
+        {
+            __m128 _rows00 = (__m128)__lsx_vld(rows0p, 0);
+            __m128 _rows01 = (__m128)__lsx_vld(rows0p + 4, 0);
+            __m128 _rows10 = (__m128)__lsx_vld(rows1p, 0);
+            __m128 _rows11 = (__m128)__lsx_vld(rows1p + 4, 0);
+            __m128 _Dp0 = __lsx_vfmul_s(_rows00, _b0);
+            __m128 _Dp1 = __lsx_vfmul_s(_rows01, _b0);
+            _Dp0 = __lsx_vfmadd_s(_b1, _rows10, _Dp0);
+            _Dp1 = __lsx_vfmadd_s(_b1, _rows11, _Dp1);
+            __lsx_vst(float2bfloat_lsx(_Dp0, _Dp1), Dp, 0);
+
+            Dp += 8;
+            rows0p += 8;
+            rows1p += 8;
+        }
+
+        beta += 2;
+    }
+}
+
+static void resize_bicubic_image_pack8_bf16s_lsx(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    Mat rowsbuf0(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf1(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf2(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf3(w, (size_t)8 * 4u, 8);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+    float* rows2 = rowsbuf2;
+    float* rows3 = rowsbuf3;
+
+    int prev_sy1 = -3;
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
+        {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows2;
+            rows2 = rows3;
+            rows3 = rows0_old;
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S3p = S3 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = (__m128)__lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = (__m128)__lsx_vreplfr2vr_s(alphap[3]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S30 = __lsx_vld(S3p - 8, 0);
+                __m128i _S31 = __lsx_vld(S3p, 0);
+                __m128i _S32 = __lsx_vld(S3p + 8, 0);
+                __m128i _S33 = __lsx_vld(S3p + 16, 0);
+                __m128 _rows30 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S30, _zero_bf16), _a0);
+                __m128 _rows31 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S30, _zero_bf16), _a0);
+                _rows30 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S31, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S31, _zero_bf16), _rows31);
+                _rows30 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S32, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S32, _zero_bf16), _rows31);
+                _rows30 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S33, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S33, _zero_bf16), _rows31);
+                __lsx_vst(_rows30, rows3p + dx * 8, 0);
+                __lsx_vst(_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else if (sy == prev_sy1 + 2)
+        {
+            // hresize two rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            rows0 = rows2;
+            rows1 = rows3;
+            rows2 = rows0_old;
+            rows3 = rows1_old;
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = (__m128)__lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = (__m128)__lsx_vreplfr2vr_s(alphap[3]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S20 = __lsx_vld(S2p - 8, 0);
+                __m128i _S21 = __lsx_vld(S2p, 0);
+                __m128i _S22 = __lsx_vld(S2p + 8, 0);
+                __m128i _S23 = __lsx_vld(S2p + 16, 0);
+                __m128i _S30 = __lsx_vld(S3p - 8, 0);
+                __m128i _S31 = __lsx_vld(S3p, 0);
+                __m128i _S32 = __lsx_vld(S3p + 8, 0);
+                __m128i _S33 = __lsx_vld(S3p + 16, 0);
+                __m128 _rows20 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S20, _zero_bf16), _a0);
+                __m128 _rows21 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S20, _zero_bf16), _a0);
+                __m128 _rows30 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S30, _zero_bf16), _a0);
+                __m128 _rows31 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S30, _zero_bf16), _a0);
+                _rows20 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S21, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S21, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S31, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S31, _zero_bf16), _rows31);
+                _rows20 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S22, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S22, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S32, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S32, _zero_bf16), _rows31);
+                _rows20 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S23, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S23, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S33, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S33, _zero_bf16), _rows31);
+                __lsx_vst(_rows20, rows2p + dx * 8, 0);
+                __lsx_vst(_rows21, rows2p + dx * 8 + 4, 0);
+                __lsx_vst(_rows30, rows3p + dx * 8, 0);
+                __lsx_vst(_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else if (sy == prev_sy1 + 3)
+        {
+            // hresize three rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            float* rows2_old = rows2;
+            rows0 = rows3;
+            rows1 = rows0_old;
+            rows2 = rows1_old;
+            rows3 = rows2_old;
+            const unsigned short* S1 = src.row<const unsigned short>(sy);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S1p = S1 + sx;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = (__m128)__lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = (__m128)__lsx_vreplfr2vr_s(alphap[3]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S10 = __lsx_vld(S1p - 8, 0);
+                __m128i _S11 = __lsx_vld(S1p, 0);
+                __m128i _S12 = __lsx_vld(S1p + 8, 0);
+                __m128i _S13 = __lsx_vld(S1p + 16, 0);
+                __m128i _S20 = __lsx_vld(S2p - 8, 0);
+                __m128i _S21 = __lsx_vld(S2p, 0);
+                __m128i _S22 = __lsx_vld(S2p + 8, 0);
+                __m128i _S23 = __lsx_vld(S2p + 16, 0);
+                __m128i _S30 = __lsx_vld(S3p - 8, 0);
+                __m128i _S31 = __lsx_vld(S3p, 0);
+                __m128i _S32 = __lsx_vld(S3p + 8, 0);
+                __m128i _S33 = __lsx_vld(S3p + 16, 0);
+                __m128 _rows10 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S10, _zero_bf16), _a0);
+                __m128 _rows11 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S10, _zero_bf16), _a0);
+                __m128 _rows20 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S20, _zero_bf16), _a0);
+                __m128 _rows21 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S20, _zero_bf16), _a0);
+                __m128 _rows30 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S30, _zero_bf16), _a0);
+                __m128 _rows31 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S30, _zero_bf16), _a0);
+                _rows10 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S11, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S11, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S21, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S21, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S31, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S31, _zero_bf16), _rows31);
+                _rows10 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S12, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S12, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S22, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S22, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S32, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S32, _zero_bf16), _rows31);
+                _rows10 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S13, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S13, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S23, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S23, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S33, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S33, _zero_bf16), _rows31);
+                __lsx_vst(_rows10, rows1p + dx * 8, 0);
+                __lsx_vst(_rows11, rows1p + dx * 8 + 4, 0);
+                __lsx_vst(_rows20, rows2p + dx * 8, 0);
+                __lsx_vst(_rows21, rows2p + dx * 8 + 4, 0);
+                __lsx_vst(_rows30, rows3p + dx * 8, 0);
+                __lsx_vst(_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else
+        {
+            // hresize four rows
+            const unsigned short* S0 = src.row<const unsigned short>(sy - 1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S0p = S0 + sx;
+                const unsigned short* S1p = S1 + sx;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = (__m128)__lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = (__m128)__lsx_vreplfr2vr_s(alphap[3]);
+
+                __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                __m128i _S00 = __lsx_vld(S0p - 8, 0);
+                __m128i _S01 = __lsx_vld(S0p, 0);
+                __m128i _S02 = __lsx_vld(S0p + 8, 0);
+                __m128i _S03 = __lsx_vld(S0p + 16, 0);
+                __m128i _S10 = __lsx_vld(S1p - 8, 0);
+                __m128i _S11 = __lsx_vld(S1p, 0);
+                __m128i _S12 = __lsx_vld(S1p + 8, 0);
+                __m128i _S13 = __lsx_vld(S1p + 16, 0);
+                __m128i _S20 = __lsx_vld(S2p - 8, 0);
+                __m128i _S21 = __lsx_vld(S2p, 0);
+                __m128i _S22 = __lsx_vld(S2p + 8, 0);
+                __m128i _S23 = __lsx_vld(S2p + 16, 0);
+                __m128i _S30 = __lsx_vld(S3p - 8, 0);
+                __m128i _S31 = __lsx_vld(S3p, 0);
+                __m128i _S32 = __lsx_vld(S3p + 8, 0);
+                __m128i _S33 = __lsx_vld(S3p + 16, 0);
+                __m128 _rows00 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S00, _zero_bf16), _a0);
+                __m128 _rows01 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S00, _zero_bf16), _a0);
+                __m128 _rows10 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S10, _zero_bf16), _a0);
+                __m128 _rows11 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S10, _zero_bf16), _a0);
+                __m128 _rows20 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S20, _zero_bf16), _a0);
+                __m128 _rows21 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S20, _zero_bf16), _a0);
+                __m128 _rows30 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S30, _zero_bf16), _a0);
+                __m128 _rows31 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S30, _zero_bf16), _a0);
+                _rows00 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S01, _zero_bf16), _rows00);
+                _rows01 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S01, _zero_bf16), _rows01);
+                _rows10 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S11, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S11, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S21, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S21, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S31, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S31, _zero_bf16), _rows31);
+                _rows00 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S02, _zero_bf16), _rows00);
+                _rows01 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S02, _zero_bf16), _rows01);
+                _rows10 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S12, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S12, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S22, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S22, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S32, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S32, _zero_bf16), _rows31);
+                _rows00 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S03, _zero_bf16), _rows00);
+                _rows01 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S03, _zero_bf16), _rows01);
+                _rows10 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S13, _zero_bf16), _rows10);
+                _rows11 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S13, _zero_bf16), _rows11);
+                _rows20 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S23, _zero_bf16), _rows20);
+                _rows21 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S23, _zero_bf16), _rows21);
+                _rows30 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S33, _zero_bf16), _rows30);
+                _rows31 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S33, _zero_bf16), _rows31);
+                __lsx_vst(_rows00, rows0p + dx * 8, 0);
+                __lsx_vst(_rows01, rows0p + dx * 8 + 4, 0);
+                __lsx_vst(_rows10, rows1p + dx * 8, 0);
+                __lsx_vst(_rows11, rows1p + dx * 8 + 4, 0);
+                __lsx_vst(_rows20, rows2p + dx * 8, 0);
+                __lsx_vst(_rows21, rows2p + dx * 8 + 4, 0);
+                __lsx_vst(_rows30, rows3p + dx * 8, 0);
+                __lsx_vst(_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        __m128 _b0 = (__m128)__lsx_vreplfr2vr_s(beta[0]);
+        __m128 _b1 = (__m128)__lsx_vreplfr2vr_s(beta[1]);
+        __m128 _b2 = (__m128)__lsx_vreplfr2vr_s(beta[2]);
+        __m128 _b3 = (__m128)__lsx_vreplfr2vr_s(beta[3]);
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        float* rows2p = rows2;
+        float* rows3p = rows3;
+        unsigned short* Dp = dst.row<unsigned short>(dy);
+
+        for (int dx = 0; dx < w; dx++)
+        {
+            __m128 _rows00 = (__m128)__lsx_vld(rows0p, 0);
+            __m128 _rows01 = (__m128)__lsx_vld(rows0p + 4, 0);
+            __m128 _rows10 = (__m128)__lsx_vld(rows1p, 0);
+            __m128 _rows11 = (__m128)__lsx_vld(rows1p + 4, 0);
+            __m128 _rows20 = (__m128)__lsx_vld(rows2p, 0);
+            __m128 _rows21 = (__m128)__lsx_vld(rows2p + 4, 0);
+            __m128 _rows30 = (__m128)__lsx_vld(rows3p, 0);
+            __m128 _rows31 = (__m128)__lsx_vld(rows3p + 4, 0);
+            __m128 _Dp0 = __lsx_vfmul_s(_rows00, _b0);
+            __m128 _Dp1 = __lsx_vfmul_s(_rows01, _b0);
+            _Dp0 = __lsx_vfmadd_s(_b1, _rows10, _Dp0);
+            _Dp1 = __lsx_vfmadd_s(_b1, _rows11, _Dp1);
+            _Dp0 = __lsx_vfmadd_s(_b2, _rows20, _Dp0);
+            _Dp1 = __lsx_vfmadd_s(_b2, _rows21, _Dp1);
+            _Dp0 = __lsx_vfmadd_s(_b3, _rows30, _Dp0);
+            _Dp1 = __lsx_vfmadd_s(_b3, _rows31, _Dp1);
+            __lsx_vst(float2bfloat_lsx(_Dp0, _Dp1), Dp, 0);
+
+            Dp += 8;
+            rows0p += 8;
+            rows1p += 8;
+            rows2p += 8;
+            rows3p += 8;
+        }
+
+        beta += 4;
+    }
+}
+
 #if __loongarch_asx
 static void resize_bilinear_image_pack8_bf16s_lasx(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
@@ -1852,6 +2321,41 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
+#else  // __loongarch_asx
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 8;
+                        const unsigned short* Sp = ptr + sx;
+
+                        __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                        __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+
+                        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                        __m128i _S0 = __lsx_vld(Sp, 0);
+                        __m128i _S1 = __lsx_vld(Sp + 8, 0);
+                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S0, _zero_bf16), _a0);
+                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S0, _zero_bf16), _a0);
+                        _p0 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S1, _zero_bf16), _p0);
+                        _p1 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S1, _zero_bf16), _p1);
+                        __lsx_vst(float2bfloat_lsx(_p0, _p1), outptr, 0);
+
+                        alphap += 2;
+                        outptr += 8;
+                    }
+                }
+
+                delete[] buf;
+                return 0;
+            }
 #endif // __loongarch_asx
             if (elempack == 4)
             {
@@ -1955,6 +2459,49 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                         _p = __lasx_xvfmadd_s(_a2, _S2, _p);
                         _p = __lasx_xvfmadd_s(_a3, _S3, _p);
                         __lsx_vst(float2bfloat_lasx(_p), outptr, 0);
+
+                        alphap += 4;
+                        outptr += 8;
+                    }
+                }
+
+                delete[] buf;
+                return 0;
+            }
+#else  // __loongarch_asx
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 8;
+                        const unsigned short* Sp = ptr + sx;
+
+                        __m128 _a0 = (__m128)__lsx_vreplfr2vr_s(alphap[0]);
+                        __m128 _a1 = (__m128)__lsx_vreplfr2vr_s(alphap[1]);
+                        __m128 _a2 = (__m128)__lsx_vreplfr2vr_s(alphap[2]);
+                        __m128 _a3 = (__m128)__lsx_vreplfr2vr_s(alphap[3]);
+
+                        __m128i _zero_bf16 = __lsx_vreplgr2vr_w(0);
+                        __m128i _S0 = __lsx_vld(Sp - 8, 0);
+                        __m128i _S1 = __lsx_vld(Sp, 0);
+                        __m128i _S2 = __lsx_vld(Sp + 8, 0);
+                        __m128i _S3 = __lsx_vld(Sp + 16, 0);
+                        __m128 _p0 = __lsx_vfmul_s((__m128)__lsx_vilvl_h(_S0, _zero_bf16), _a0);
+                        __m128 _p1 = __lsx_vfmul_s((__m128)__lsx_vilvh_h(_S0, _zero_bf16), _a0);
+                        _p0 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvl_h(_S1, _zero_bf16), _p0);
+                        _p1 = __lsx_vfmadd_s(_a1, (__m128)__lsx_vilvh_h(_S1, _zero_bf16), _p1);
+                        _p0 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvl_h(_S2, _zero_bf16), _p0);
+                        _p1 = __lsx_vfmadd_s(_a2, (__m128)__lsx_vilvh_h(_S2, _zero_bf16), _p1);
+                        _p0 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvl_h(_S3, _zero_bf16), _p0);
+                        _p1 = __lsx_vfmadd_s(_a3, (__m128)__lsx_vilvh_h(_S3, _zero_bf16), _p1);
+                        __lsx_vst(float2bfloat_lsx(_p0, _p1), outptr, 0);
 
                         alphap += 4;
                         outptr += 8;
@@ -2110,6 +2657,21 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                 delete[] buf;
                 return 0;
             }
+#else  // __loongarch_asx
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat src = bottom_blob.channel(q);
+                    Mat dst = top_blob.channel(q);
+
+                    resize_bilinear_image_pack8_bf16s_lsx(src, dst, alpha, xofs, beta, yofs);
+                }
+
+                delete[] buf;
+                return 0;
+            }
 #endif // __loongarch_asx
             if (elempack == 4)
             {
@@ -2208,6 +2770,21 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
                     Mat dst = top_blob.channel(q);
 
                     resize_bicubic_image_pack8_bf16s_lasx(src, dst, alpha, xofs, beta, yofs);
+                }
+
+                delete[] buf;
+                return 0;
+            }
+#else  // __loongarch_asx
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat src = bottom_blob.channel(q);
+                    Mat dst = top_blob.channel(q);
+
+                    resize_bicubic_image_pack8_bf16s_lsx(src, dst, alpha, xofs, beta, yofs);
                 }
 
                 delete[] buf;

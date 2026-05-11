@@ -3,6 +3,11 @@
 
 #include "slice_loongarch.h"
 
+#if __loongarch_sx
+#include <lsxintrin.h>
+#include "loongarch_usability.h"
+#endif // __loongarch_sx
+
 namespace ncnn {
 
 Slice_loongarch::Slice_loongarch()
@@ -741,11 +746,7 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 #if __loongarch_sx
             if (opt.use_packing_layout)
             {
-#if __loongarch_asx
                 out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
-#else
-                out_elempack = slice % 4 == 0 ? 4 : 1;
-#endif
             }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -799,11 +800,7 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 #if __loongarch_sx
             if (opt.use_packing_layout)
             {
-#if __loongarch_asx
                 out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
-#else
-                out_elempack = slice % 4 == 0 ? 4 : 1;
-#endif
             }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -838,7 +835,6 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
             Mat& top_blob = top_blobs[i];
 
 #if __loongarch_sx
-#if __loongarch_asx
             if (out_elempack == 4 && top_blob.elempack == 8)
             {
                 for (int j = 0; j < top_blob.h; j++)
@@ -848,7 +844,19 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 
                     unsigned short* outptr0 = top_blob.row<unsigned short>(j);
 
-                    for (int j = 0; j < w; j++)
+                    int x = 0;
+                    for (; x + 1 < w; x += 2)
+                    {
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r1, 0);
+                        __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr0, 0);
+                        __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr0 + 8, 0);
+
+                        r0 += 8;
+                        r1 += 8;
+                        outptr0 += 16;
+                    }
+                    for (; x < w; x++)
                     {
                         outptr0[0] = r0[0];
                         outptr0[1] = r0[1];
@@ -882,7 +890,40 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 
                     unsigned short* outptr0 = top_blob.row<unsigned short>(j);
 
-                    for (int j = 0; j < w; j++)
+                    int x = 0;
+                    for (; x + 7 < w; x += 8)
+                    {
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r1, 0);
+                        __m128i _r2 = __lsx_vld(r2, 0);
+                        __m128i _r3 = __lsx_vld(r3, 0);
+                        __m128i _r4 = __lsx_vld(r4, 0);
+                        __m128i _r5 = __lsx_vld(r5, 0);
+                        __m128i _r6 = __lsx_vld(r6, 0);
+                        __m128i _r7 = __lsx_vld(r7, 0);
+
+                        transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                        __lsx_vst(_r0, outptr0, 0);
+                        __lsx_vst(_r1, outptr0 + 8, 0);
+                        __lsx_vst(_r2, outptr0 + 16, 0);
+                        __lsx_vst(_r3, outptr0 + 24, 0);
+                        __lsx_vst(_r4, outptr0 + 32, 0);
+                        __lsx_vst(_r5, outptr0 + 40, 0);
+                        __lsx_vst(_r6, outptr0 + 48, 0);
+                        __lsx_vst(_r7, outptr0 + 56, 0);
+
+                        r0 += 8;
+                        r1 += 8;
+                        r2 += 8;
+                        r3 += 8;
+                        r4 += 8;
+                        r5 += 8;
+                        r6 += 8;
+                        r7 += 8;
+                        outptr0 += 64;
+                    }
+                    for (; x < w; x++)
                     {
                         outptr0[0] = *r0++;
                         outptr0[1] = *r1++;
@@ -899,7 +940,6 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     ptr += w * 8;
                 }
             }
-#endif // __loongarch_asx
             if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 for (int j = 0; j < top_blob.h; j++)
@@ -1032,11 +1072,7 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 #if __loongarch_sx
             if (opt.use_packing_layout)
             {
-#if __loongarch_asx
                 out_elempack = slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
-#else
-                out_elempack = slice % 4 == 0 ? 4 : 1;
-#endif
             }
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -1073,7 +1109,6 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
             Mat& top_blob = top_blobs[i];
 
 #if __loongarch_sx
-#if __loongarch_asx
             if (out_elempack == 4 && top_blob.elempack == 8)
             {
                 int size = top_blob.w * top_blob.h * top_blob.d;
@@ -1085,7 +1120,19 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 
                     unsigned short* outptr0 = top_blob.channel(q);
 
-                    for (int j = 0; j < size; j++)
+                    int j = 0;
+                    for (; j + 1 < size; j += 2)
+                    {
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r1, 0);
+                        __lsx_vst(__lsx_vilvl_d(_r1, _r0), outptr0, 0);
+                        __lsx_vst(__lsx_vilvh_d(_r1, _r0), outptr0 + 8, 0);
+
+                        r0 += 8;
+                        r1 += 8;
+                        outptr0 += 16;
+                    }
+                    for (; j < size; j++)
                     {
                         outptr0[0] = r0[0];
                         outptr0[1] = r0[1];
@@ -1121,7 +1168,40 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
 
                     unsigned short* outptr0 = top_blob.channel(q);
 
-                    for (int j = 0; j < size; j++)
+                    int j = 0;
+                    for (; j + 7 < size; j += 8)
+                    {
+                        __m128i _r0 = __lsx_vld(r0, 0);
+                        __m128i _r1 = __lsx_vld(r1, 0);
+                        __m128i _r2 = __lsx_vld(r2, 0);
+                        __m128i _r3 = __lsx_vld(r3, 0);
+                        __m128i _r4 = __lsx_vld(r4, 0);
+                        __m128i _r5 = __lsx_vld(r5, 0);
+                        __m128i _r6 = __lsx_vld(r6, 0);
+                        __m128i _r7 = __lsx_vld(r7, 0);
+
+                        transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                        __lsx_vst(_r0, outptr0, 0);
+                        __lsx_vst(_r1, outptr0 + 8, 0);
+                        __lsx_vst(_r2, outptr0 + 16, 0);
+                        __lsx_vst(_r3, outptr0 + 24, 0);
+                        __lsx_vst(_r4, outptr0 + 32, 0);
+                        __lsx_vst(_r5, outptr0 + 40, 0);
+                        __lsx_vst(_r6, outptr0 + 48, 0);
+                        __lsx_vst(_r7, outptr0 + 56, 0);
+
+                        r0 += 8;
+                        r1 += 8;
+                        r2 += 8;
+                        r3 += 8;
+                        r4 += 8;
+                        r5 += 8;
+                        r6 += 8;
+                        r7 += 8;
+                        outptr0 += 64;
+                    }
+                    for (; j < size; j++)
                     {
                         outptr0[0] = *r0++;
                         outptr0[1] = *r1++;
@@ -1138,7 +1218,6 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     p += 8;
                 }
             }
-#endif // __loongarch_asx
             if (out_elempack == 1 && top_blob.elempack == 4)
             {
                 int size = top_blob.w * top_blob.h * top_blob.d;

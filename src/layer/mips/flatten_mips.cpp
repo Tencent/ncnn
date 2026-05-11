@@ -8,6 +8,7 @@
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"
+#include "mips_usability.h"
 #endif // __mips_msa
 
 namespace ncnn {
@@ -280,6 +281,7 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     if (dims == 2)
     {
+#if __mips_msa
         if (elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -295,7 +297,42 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 unsigned short* outptr6 = (unsigned short*)top_blob + w * (i * 8 + 6);
                 unsigned short* outptr7 = (unsigned short*)top_blob + w * (i * 8 + 7);
 
-                for (int j = 0; j < w; j++)
+                int j = 0;
+                for (; j + 7 < w; j += 8)
+                {
+                    __builtin_prefetch(ptr + 128);
+
+                    v8i16 _r0 = (v8i16)__msa_ld_h(ptr, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(ptr + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(ptr + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(ptr + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(ptr + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(ptr + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(ptr + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(ptr + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; j < w; j++)
                 {
                     __builtin_prefetch(ptr + 64);
 
@@ -311,6 +348,7 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
             }
         }
+#endif // __mips_msa
 
         if (elempack == 4)
         {
@@ -339,6 +377,7 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     if (dims == 3 || dims == 4)
     {
+#if __mips_msa
         if (elempack == 8)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -354,7 +393,42 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 unsigned short* outptr6 = (unsigned short*)top_blob + size * (q * 8 + 6);
                 unsigned short* outptr7 = (unsigned short*)top_blob + size * (q * 8 + 7);
 
-                for (int i = 0; i < size; i++)
+                int i = 0;
+                for (; i + 7 < size; i += 8)
+                {
+                    __builtin_prefetch(ptr + 128);
+
+                    v8i16 _r0 = (v8i16)__msa_ld_h(ptr, 0);
+                    v8i16 _r1 = (v8i16)__msa_ld_h(ptr + 8, 0);
+                    v8i16 _r2 = (v8i16)__msa_ld_h(ptr + 16, 0);
+                    v8i16 _r3 = (v8i16)__msa_ld_h(ptr + 24, 0);
+                    v8i16 _r4 = (v8i16)__msa_ld_h(ptr + 32, 0);
+                    v8i16 _r5 = (v8i16)__msa_ld_h(ptr + 40, 0);
+                    v8i16 _r6 = (v8i16)__msa_ld_h(ptr + 48, 0);
+                    v8i16 _r7 = (v8i16)__msa_ld_h(ptr + 56, 0);
+
+                    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+
+                    __msa_st_h(_r0, outptr0, 0);
+                    __msa_st_h(_r1, outptr1, 0);
+                    __msa_st_h(_r2, outptr2, 0);
+                    __msa_st_h(_r3, outptr3, 0);
+                    __msa_st_h(_r4, outptr4, 0);
+                    __msa_st_h(_r5, outptr5, 0);
+                    __msa_st_h(_r6, outptr6, 0);
+                    __msa_st_h(_r7, outptr7, 0);
+
+                    ptr += 64;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                    outptr2 += 8;
+                    outptr3 += 8;
+                    outptr4 += 8;
+                    outptr5 += 8;
+                    outptr6 += 8;
+                    outptr7 += 8;
+                }
+                for (; i < size; i++)
                 {
                     __builtin_prefetch(ptr + 64);
 
@@ -370,6 +444,7 @@ int Flatten_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
             }
         }
+#endif // __mips_msa
 
         if (elempack == 4)
         {

@@ -475,6 +475,21 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if NCNN_BF16
 static void interp_copy_bf16s(const unsigned short* ptr, unsigned short* outptr, int elempack)
 {
+#if __mips_msa
+    if (elempack == 8)
+    {
+        v8i16 _p = (v8i16)__msa_ld_h(ptr, 0);
+        __msa_st_h(_p, outptr, 0);
+        return;
+    }
+
+    if (elempack == 4)
+    {
+        __msa_storel_d(__msa_loadl_d(ptr), outptr);
+        return;
+    }
+#endif // __mips_msa
+
     for (int i = 0; i < elempack; i++)
     {
         outptr[i] = ptr[i];
@@ -763,6 +778,466 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
 }
 
 #if __mips_msa
+static void resize_bilinear_image_pack8_bf16s_msa(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    Mat rowsbuf0(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf1(w, (size_t)8 * 4u, 8);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+
+    int prev_sy1 = -2;
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
+        {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows0_old;
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S1p = S1 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S10 = (v8i16)__msa_ld_h(S1p, 0);
+                v8i16 _S11 = (v8i16)__msa_ld_h(S1p + 8, 0);
+                v4f32 _rows10 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows11 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S10, _zero_bf16), _a0);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S11, _zero_bf16), _a1);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S11, _zero_bf16), _a1);
+                __msa_st_w((v4i32)_rows10, rows1p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows11, rows1p + dx * 8 + 4, 0);
+
+                alphap += 2;
+            }
+        }
+        else
+        {
+            // hresize two rows
+            const unsigned short* S0 = src.row<const unsigned short>(sy);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S0p = S0 + sx;
+                const unsigned short* S1p = S1 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S00 = (v8i16)__msa_ld_h(S0p, 0);
+                v8i16 _S01 = (v8i16)__msa_ld_h(S0p + 8, 0);
+                v8i16 _S10 = (v8i16)__msa_ld_h(S1p, 0);
+                v8i16 _S11 = (v8i16)__msa_ld_h(S1p + 8, 0);
+                v4f32 _rows00 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S00, _zero_bf16), _a0);
+                v4f32 _rows01 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S00, _zero_bf16), _a0);
+                v4f32 _rows10 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows11 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S10, _zero_bf16), _a0);
+                _rows00 = __ncnn_msa_fmadd_w(_rows00, (v4f32)__msa_ilvr_h(_S01, _zero_bf16), _a1);
+                _rows01 = __ncnn_msa_fmadd_w(_rows01, (v4f32)__msa_ilvl_h(_S01, _zero_bf16), _a1);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S11, _zero_bf16), _a1);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S11, _zero_bf16), _a1);
+                __msa_st_w((v4i32)_rows00, rows0p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows01, rows0p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows10, rows1p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows11, rows1p + dx * 8 + 4, 0);
+
+                alphap += 2;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        v4f32 _b0 = __msa_fill_w_f32(beta[0]);
+        v4f32 _b1 = __msa_fill_w_f32(beta[1]);
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        unsigned short* Dp = dst.row<unsigned short>(dy);
+
+        for (int dx = 0; dx < w; dx++)
+        {
+            v4f32 _rows00 = (v4f32)__msa_ld_w(rows0p, 0);
+            v4f32 _rows01 = (v4f32)__msa_ld_w(rows0p + 4, 0);
+            v4f32 _rows10 = (v4f32)__msa_ld_w(rows1p, 0);
+            v4f32 _rows11 = (v4f32)__msa_ld_w(rows1p + 4, 0);
+            v4f32 _Dp0 = __msa_fmul_w(_rows00, _b0);
+            v4f32 _Dp1 = __msa_fmul_w(_rows01, _b0);
+            _Dp0 = __ncnn_msa_fmadd_w(_Dp0, _rows10, _b1);
+            _Dp1 = __ncnn_msa_fmadd_w(_Dp1, _rows11, _b1);
+            __msa_st_w(float2bfloat_msa(_Dp0, _Dp1), Dp, 0);
+
+            Dp += 8;
+            rows0p += 8;
+            rows1p += 8;
+        }
+
+        beta += 2;
+    }
+}
+
+static void resize_bicubic_image_pack8_bf16s_msa(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
+{
+    int w = dst.w;
+    int h = dst.h;
+
+    Mat rowsbuf0(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf1(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf2(w, (size_t)8 * 4u, 8);
+    Mat rowsbuf3(w, (size_t)8 * 4u, 8);
+    float* rows0 = rowsbuf0;
+    float* rows1 = rowsbuf1;
+    float* rows2 = rowsbuf2;
+    float* rows3 = rowsbuf3;
+
+    int prev_sy1 = -3;
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        int sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
+        {
+            // hresize one row
+            float* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows2;
+            rows2 = rows3;
+            rows3 = rows0_old;
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S3p = S3 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S30 = (v8i16)__msa_ld_h(S3p - 8, 0);
+                v8i16 _S31 = (v8i16)__msa_ld_h(S3p, 0);
+                v8i16 _S32 = (v8i16)__msa_ld_h(S3p + 8, 0);
+                v8i16 _S33 = (v8i16)__msa_ld_h(S3p + 16, 0);
+                v4f32 _rows30 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S30, _zero_bf16), _a0);
+                v4f32 _rows31 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S30, _zero_bf16), _a0);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S31, _zero_bf16), _a1);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S31, _zero_bf16), _a1);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S32, _zero_bf16), _a2);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S32, _zero_bf16), _a2);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S33, _zero_bf16), _a3);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S33, _zero_bf16), _a3);
+                __msa_st_w((v4i32)_rows30, rows3p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else if (sy == prev_sy1 + 2)
+        {
+            // hresize two rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            rows0 = rows2;
+            rows1 = rows3;
+            rows2 = rows0_old;
+            rows3 = rows1_old;
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S20 = (v8i16)__msa_ld_h(S2p - 8, 0);
+                v8i16 _S21 = (v8i16)__msa_ld_h(S2p, 0);
+                v8i16 _S22 = (v8i16)__msa_ld_h(S2p + 8, 0);
+                v8i16 _S23 = (v8i16)__msa_ld_h(S2p + 16, 0);
+                v8i16 _S30 = (v8i16)__msa_ld_h(S3p - 8, 0);
+                v8i16 _S31 = (v8i16)__msa_ld_h(S3p, 0);
+                v8i16 _S32 = (v8i16)__msa_ld_h(S3p + 8, 0);
+                v8i16 _S33 = (v8i16)__msa_ld_h(S3p + 16, 0);
+                v4f32 _rows20 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows21 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows30 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S30, _zero_bf16), _a0);
+                v4f32 _rows31 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S30, _zero_bf16), _a0);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S21, _zero_bf16), _a1);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S21, _zero_bf16), _a1);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S31, _zero_bf16), _a1);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S31, _zero_bf16), _a1);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S22, _zero_bf16), _a2);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S22, _zero_bf16), _a2);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S32, _zero_bf16), _a2);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S32, _zero_bf16), _a2);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S23, _zero_bf16), _a3);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S23, _zero_bf16), _a3);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S33, _zero_bf16), _a3);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S33, _zero_bf16), _a3);
+                __msa_st_w((v4i32)_rows20, rows2p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows21, rows2p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows30, rows3p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else if (sy == prev_sy1 + 3)
+        {
+            // hresize three rows
+            float* rows0_old = rows0;
+            float* rows1_old = rows1;
+            float* rows2_old = rows2;
+            rows0 = rows3;
+            rows1 = rows0_old;
+            rows2 = rows1_old;
+            rows3 = rows2_old;
+            const unsigned short* S1 = src.row<const unsigned short>(sy);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S1p = S1 + sx;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S10 = (v8i16)__msa_ld_h(S1p - 8, 0);
+                v8i16 _S11 = (v8i16)__msa_ld_h(S1p, 0);
+                v8i16 _S12 = (v8i16)__msa_ld_h(S1p + 8, 0);
+                v8i16 _S13 = (v8i16)__msa_ld_h(S1p + 16, 0);
+                v8i16 _S20 = (v8i16)__msa_ld_h(S2p - 8, 0);
+                v8i16 _S21 = (v8i16)__msa_ld_h(S2p, 0);
+                v8i16 _S22 = (v8i16)__msa_ld_h(S2p + 8, 0);
+                v8i16 _S23 = (v8i16)__msa_ld_h(S2p + 16, 0);
+                v8i16 _S30 = (v8i16)__msa_ld_h(S3p - 8, 0);
+                v8i16 _S31 = (v8i16)__msa_ld_h(S3p, 0);
+                v8i16 _S32 = (v8i16)__msa_ld_h(S3p + 8, 0);
+                v8i16 _S33 = (v8i16)__msa_ld_h(S3p + 16, 0);
+                v4f32 _rows10 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows11 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows20 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows21 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows30 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S30, _zero_bf16), _a0);
+                v4f32 _rows31 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S30, _zero_bf16), _a0);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S11, _zero_bf16), _a1);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S11, _zero_bf16), _a1);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S21, _zero_bf16), _a1);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S21, _zero_bf16), _a1);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S31, _zero_bf16), _a1);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S31, _zero_bf16), _a1);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S12, _zero_bf16), _a2);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S12, _zero_bf16), _a2);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S22, _zero_bf16), _a2);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S22, _zero_bf16), _a2);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S32, _zero_bf16), _a2);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S32, _zero_bf16), _a2);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S13, _zero_bf16), _a3);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S13, _zero_bf16), _a3);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S23, _zero_bf16), _a3);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S23, _zero_bf16), _a3);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S33, _zero_bf16), _a3);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S33, _zero_bf16), _a3);
+                __msa_st_w((v4i32)_rows10, rows1p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows11, rows1p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows20, rows2p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows21, rows2p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows30, rows3p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+        else
+        {
+            // hresize four rows
+            const unsigned short* S0 = src.row<const unsigned short>(sy - 1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
+
+            const float* alphap = alpha;
+            float* rows0p = rows0;
+            float* rows1p = rows1;
+            float* rows2p = rows2;
+            float* rows3p = rows3;
+
+            for (int dx = 0; dx < w; dx++)
+            {
+                int sx = xofs[dx] * 8;
+                const unsigned short* S0p = S0 + sx;
+                const unsigned short* S1p = S1 + sx;
+                const unsigned short* S2p = S2 + sx;
+                const unsigned short* S3p = S3 + sx;
+
+                v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                v8i16 _zero_bf16 = __msa_fill_h(0);
+                v8i16 _S00 = (v8i16)__msa_ld_h(S0p - 8, 0);
+                v8i16 _S01 = (v8i16)__msa_ld_h(S0p, 0);
+                v8i16 _S02 = (v8i16)__msa_ld_h(S0p + 8, 0);
+                v8i16 _S03 = (v8i16)__msa_ld_h(S0p + 16, 0);
+                v8i16 _S10 = (v8i16)__msa_ld_h(S1p - 8, 0);
+                v8i16 _S11 = (v8i16)__msa_ld_h(S1p, 0);
+                v8i16 _S12 = (v8i16)__msa_ld_h(S1p + 8, 0);
+                v8i16 _S13 = (v8i16)__msa_ld_h(S1p + 16, 0);
+                v8i16 _S20 = (v8i16)__msa_ld_h(S2p - 8, 0);
+                v8i16 _S21 = (v8i16)__msa_ld_h(S2p, 0);
+                v8i16 _S22 = (v8i16)__msa_ld_h(S2p + 8, 0);
+                v8i16 _S23 = (v8i16)__msa_ld_h(S2p + 16, 0);
+                v8i16 _S30 = (v8i16)__msa_ld_h(S3p - 8, 0);
+                v8i16 _S31 = (v8i16)__msa_ld_h(S3p, 0);
+                v8i16 _S32 = (v8i16)__msa_ld_h(S3p + 8, 0);
+                v8i16 _S33 = (v8i16)__msa_ld_h(S3p + 16, 0);
+                v4f32 _rows00 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S00, _zero_bf16), _a0);
+                v4f32 _rows01 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S00, _zero_bf16), _a0);
+                v4f32 _rows10 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows11 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S10, _zero_bf16), _a0);
+                v4f32 _rows20 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows21 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S20, _zero_bf16), _a0);
+                v4f32 _rows30 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S30, _zero_bf16), _a0);
+                v4f32 _rows31 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S30, _zero_bf16), _a0);
+                _rows00 = __ncnn_msa_fmadd_w(_rows00, (v4f32)__msa_ilvr_h(_S01, _zero_bf16), _a1);
+                _rows01 = __ncnn_msa_fmadd_w(_rows01, (v4f32)__msa_ilvl_h(_S01, _zero_bf16), _a1);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S11, _zero_bf16), _a1);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S11, _zero_bf16), _a1);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S21, _zero_bf16), _a1);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S21, _zero_bf16), _a1);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S31, _zero_bf16), _a1);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S31, _zero_bf16), _a1);
+                _rows00 = __ncnn_msa_fmadd_w(_rows00, (v4f32)__msa_ilvr_h(_S02, _zero_bf16), _a2);
+                _rows01 = __ncnn_msa_fmadd_w(_rows01, (v4f32)__msa_ilvl_h(_S02, _zero_bf16), _a2);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S12, _zero_bf16), _a2);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S12, _zero_bf16), _a2);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S22, _zero_bf16), _a2);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S22, _zero_bf16), _a2);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S32, _zero_bf16), _a2);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S32, _zero_bf16), _a2);
+                _rows00 = __ncnn_msa_fmadd_w(_rows00, (v4f32)__msa_ilvr_h(_S03, _zero_bf16), _a3);
+                _rows01 = __ncnn_msa_fmadd_w(_rows01, (v4f32)__msa_ilvl_h(_S03, _zero_bf16), _a3);
+                _rows10 = __ncnn_msa_fmadd_w(_rows10, (v4f32)__msa_ilvr_h(_S13, _zero_bf16), _a3);
+                _rows11 = __ncnn_msa_fmadd_w(_rows11, (v4f32)__msa_ilvl_h(_S13, _zero_bf16), _a3);
+                _rows20 = __ncnn_msa_fmadd_w(_rows20, (v4f32)__msa_ilvr_h(_S23, _zero_bf16), _a3);
+                _rows21 = __ncnn_msa_fmadd_w(_rows21, (v4f32)__msa_ilvl_h(_S23, _zero_bf16), _a3);
+                _rows30 = __ncnn_msa_fmadd_w(_rows30, (v4f32)__msa_ilvr_h(_S33, _zero_bf16), _a3);
+                _rows31 = __ncnn_msa_fmadd_w(_rows31, (v4f32)__msa_ilvl_h(_S33, _zero_bf16), _a3);
+                __msa_st_w((v4i32)_rows00, rows0p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows01, rows0p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows10, rows1p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows11, rows1p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows20, rows2p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows21, rows2p + dx * 8 + 4, 0);
+                __msa_st_w((v4i32)_rows30, rows3p + dx * 8, 0);
+                __msa_st_w((v4i32)_rows31, rows3p + dx * 8 + 4, 0);
+
+                alphap += 4;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        v4f32 _b0 = __msa_fill_w_f32(beta[0]);
+        v4f32 _b1 = __msa_fill_w_f32(beta[1]);
+        v4f32 _b2 = __msa_fill_w_f32(beta[2]);
+        v4f32 _b3 = __msa_fill_w_f32(beta[3]);
+
+        float* rows0p = rows0;
+        float* rows1p = rows1;
+        float* rows2p = rows2;
+        float* rows3p = rows3;
+        unsigned short* Dp = dst.row<unsigned short>(dy);
+
+        for (int dx = 0; dx < w; dx++)
+        {
+            v4f32 _rows00 = (v4f32)__msa_ld_w(rows0p, 0);
+            v4f32 _rows01 = (v4f32)__msa_ld_w(rows0p + 4, 0);
+            v4f32 _rows10 = (v4f32)__msa_ld_w(rows1p, 0);
+            v4f32 _rows11 = (v4f32)__msa_ld_w(rows1p + 4, 0);
+            v4f32 _rows20 = (v4f32)__msa_ld_w(rows2p, 0);
+            v4f32 _rows21 = (v4f32)__msa_ld_w(rows2p + 4, 0);
+            v4f32 _rows30 = (v4f32)__msa_ld_w(rows3p, 0);
+            v4f32 _rows31 = (v4f32)__msa_ld_w(rows3p + 4, 0);
+            v4f32 _Dp0 = __msa_fmul_w(_rows00, _b0);
+            v4f32 _Dp1 = __msa_fmul_w(_rows01, _b0);
+            _Dp0 = __ncnn_msa_fmadd_w(_Dp0, _rows10, _b1);
+            _Dp1 = __ncnn_msa_fmadd_w(_Dp1, _rows11, _b1);
+            _Dp0 = __ncnn_msa_fmadd_w(_Dp0, _rows20, _b2);
+            _Dp1 = __ncnn_msa_fmadd_w(_Dp1, _rows21, _b2);
+            _Dp0 = __ncnn_msa_fmadd_w(_Dp0, _rows30, _b3);
+            _Dp1 = __ncnn_msa_fmadd_w(_Dp1, _rows31, _b3);
+            __msa_st_w(float2bfloat_msa(_Dp0, _Dp1), Dp, 0);
+
+            Dp += 8;
+            rows0p += 8;
+            rows1p += 8;
+            rows2p += 8;
+            rows3p += 8;
+        }
+
+        beta += 4;
+    }
+}
+
 static void resize_bilinear_image_pack4_bf16s_msa(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     int w = dst.w;
@@ -1229,6 +1704,41 @@ int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             linear_coeffs(w, outw, xofs, alpha, align_corner);
 
 #if __mips_msa
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 8;
+                        const unsigned short* Sp = ptr + sx;
+
+                        v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                        v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+
+                        v8i16 _zero_bf16 = __msa_fill_h(0);
+                        v8i16 _S0 = (v8i16)__msa_ld_h(Sp, 0);
+                        v8i16 _S1 = (v8i16)__msa_ld_h(Sp + 8, 0);
+                        v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S0, _zero_bf16), _a0);
+                        v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S0, _zero_bf16), _a0);
+                        _p0 = __ncnn_msa_fmadd_w(_p0, (v4f32)__msa_ilvr_h(_S1, _zero_bf16), _a1);
+                        _p1 = __ncnn_msa_fmadd_w(_p1, (v4f32)__msa_ilvl_h(_S1, _zero_bf16), _a1);
+                        __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                        alphap += 2;
+                        outptr += 8;
+                    }
+                }
+
+                delete[] buf;
+                return 0;
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -1302,6 +1812,49 @@ int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             cubic_coeffs(w, outw, xofs, alpha, align_corner);
 
 #if __mips_msa
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 8;
+                        const unsigned short* Sp = ptr + sx;
+
+                        v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                        v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                        v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                        v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                        v8i16 _zero_bf16 = __msa_fill_h(0);
+                        v8i16 _S0 = (v8i16)__msa_ld_h(Sp - 8, 0);
+                        v8i16 _S1 = (v8i16)__msa_ld_h(Sp, 0);
+                        v8i16 _S2 = (v8i16)__msa_ld_h(Sp + 8, 0);
+                        v8i16 _S3 = (v8i16)__msa_ld_h(Sp + 16, 0);
+                        v4f32 _p0 = __msa_fmul_w((v4f32)__msa_ilvr_h(_S0, _zero_bf16), _a0);
+                        v4f32 _p1 = __msa_fmul_w((v4f32)__msa_ilvl_h(_S0, _zero_bf16), _a0);
+                        _p0 = __ncnn_msa_fmadd_w(_p0, (v4f32)__msa_ilvr_h(_S1, _zero_bf16), _a1);
+                        _p1 = __ncnn_msa_fmadd_w(_p1, (v4f32)__msa_ilvl_h(_S1, _zero_bf16), _a1);
+                        _p0 = __ncnn_msa_fmadd_w(_p0, (v4f32)__msa_ilvr_h(_S2, _zero_bf16), _a2);
+                        _p1 = __ncnn_msa_fmadd_w(_p1, (v4f32)__msa_ilvl_h(_S2, _zero_bf16), _a2);
+                        _p0 = __ncnn_msa_fmadd_w(_p0, (v4f32)__msa_ilvr_h(_S3, _zero_bf16), _a3);
+                        _p1 = __ncnn_msa_fmadd_w(_p1, (v4f32)__msa_ilvl_h(_S3, _zero_bf16), _a3);
+                        __msa_st_w(float2bfloat_msa(_p0, _p1), outptr, 0);
+
+                        alphap += 4;
+                        outptr += 8;
+                    }
+                }
+
+                delete[] buf;
+                return 0;
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -1432,6 +1985,20 @@ int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             linear_coeffs(h, outh, yofs, beta, align_corner);
 
 #if __mips_msa
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat src = bottom_blob.channel(q);
+                    Mat dst = top_blob.channel(q);
+                    resize_bilinear_image_pack8_bf16s_msa(src, dst, alpha, xofs, beta, yofs);
+                }
+
+                delete[] buf;
+                return 0;
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -1517,6 +2084,20 @@ int Interp_mips::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             cubic_coeffs(h, outh, yofs, beta, align_corner);
 
 #if __mips_msa
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat src = bottom_blob.channel(q);
+                    Mat dst = top_blob.channel(q);
+                    resize_bicubic_image_pack8_bf16s_msa(src, dst, alpha, xofs, beta, yofs);
+                }
+
+                delete[] buf;
+                return 0;
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)

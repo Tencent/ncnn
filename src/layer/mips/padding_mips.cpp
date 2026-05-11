@@ -377,6 +377,36 @@ int Padding_mips::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 return 0;
             }
         }
+
+        bool padding_pack4 = false;
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+            padding_pack4 = outw % 4 == 0 && left % 4 == 0 && type == 0;
+        }
+        if (dims == 2)
+        {
+            int outh = h * elempack + top + bottom;
+            padding_pack4 = outh % 4 == 0 && top % 4 == 0 && type == 0;
+        }
+        if (dims == 3)
+        {
+            int outc = channels * elempack + front + behind;
+            padding_pack4 = outc % 4 == 0 && front % 4 == 0 && !(outc != channels * elempack && type != 0);
+        }
+
+        if (padding_pack4)
+        {
+            Option opt_pack4 = opt;
+            opt_pack4.blob_allocator = opt.workspace_allocator;
+
+            Mat bottom_blob_pack4;
+            convert_packing(bottom_blob, bottom_blob_pack4, 4, opt_pack4);
+            if (bottom_blob_pack4.empty())
+                return -100;
+
+            return forward_bf16s(bottom_blob_pack4, top_blob, opt);
+        }
     }
 
     if (elempack == 4)
